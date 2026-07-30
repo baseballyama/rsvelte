@@ -8,6 +8,8 @@ pub(crate) struct SourceFeatures {
     pub may_have_template_rune_global: bool,
     pub has_await_word: bool,
     pub may_need_template_info: bool,
+    pub has_debug_marker: bool,
+    pub has_meta_marker: bool,
 }
 
 impl SourceFeatures {
@@ -32,8 +34,8 @@ fn scan_source_features_with(
 ) -> SourceFeatures {
     let bytes = source.as_bytes();
     let mut features = SourceFeatures {
-        may_need_template_info: memchr::memmem::find(bytes, b"<slot").is_some()
-            || memchr::memmem::find(bytes, b"on:").is_some(),
+        may_need_template_info: memchr::memmem::find(bytes, b"<slot").is_some(),
+        has_debug_marker: memchr::memmem::find(bytes, b"{@debug").is_some(),
         ..SourceFeatures::default()
     };
     let mut cursor = 0;
@@ -41,11 +43,16 @@ fn scan_source_features_with(
     loop {
         let needs_dollar = !features.dollar_scan_is_complete();
         let needs_await = !features.has_await_word;
-        let offset = match (needs_dollar, needs_await) {
-            (true, true) => memchr::memchr2(b'$', b'a', &bytes[cursor..]),
-            (true, false) => memchr::memchr(b'$', &bytes[cursor..]),
-            (false, true) => memchr::memchr(b'a', &bytes[cursor..]),
-            (false, false) => break,
+        let needs_colon = !features.may_need_template_info || !features.has_meta_marker;
+        let offset = match (needs_dollar, needs_await, needs_colon) {
+            (true, true, true) => memchr::memchr3(b'$', b'a', b':', &bytes[cursor..]),
+            (true, true, false) => memchr::memchr2(b'$', b'a', &bytes[cursor..]),
+            (true, false, true) => memchr::memchr2(b'$', b':', &bytes[cursor..]),
+            (true, false, false) => memchr::memchr(b'$', &bytes[cursor..]),
+            (false, true, true) => memchr::memchr2(b'a', b':', &bytes[cursor..]),
+            (false, true, false) => memchr::memchr(b'a', &bytes[cursor..]),
+            (false, false, true) => memchr::memchr(b':', &bytes[cursor..]),
+            (false, false, false) => break,
         };
         let Some(offset) = offset else {
             break;
@@ -87,6 +94,17 @@ fn scan_source_features_with(
                 let after_ok = after == bytes.len() || !is_ident_char(bytes[after]);
                 features.has_await_word |= before_ok && after_ok;
             }
+            b':' => {
+                if !features.may_need_template_info {
+                    features.may_need_template_info =
+                        position >= 2 && bytes.get(position - 2..=position) == Some(b"on:");
+                }
+                if !features.has_meta_marker {
+                    features.has_meta_marker = (position >= 7
+                        && bytes.get(position - 7..=position) == Some(b"<svelte:"))
+                        || (position >= 3 && bytes.get(position - 3..=position) == Some(b"use:"));
+                }
+            }
             _ => {}
         }
 
@@ -121,6 +139,11 @@ mod tests {
             features.may_need_template_info,
             source.contains("<slot") || source.contains("on:")
         );
+        assert_eq!(features.has_debug_marker, source.contains("{@debug"));
+        assert_eq!(
+            features.has_meta_marker,
+            source.contains("<svelte:") || source.contains("use:")
+        );
     }
 
     #[test]
@@ -152,6 +175,10 @@ mod tests {
             "éawait文",
             "<!-- $$props $state await -->",
             r#"<script>const text = "$$restProps $$slots $effect await";</script>"#,
+            "{@debug user}",
+            "<svelte:window />",
+            "<div use:action />",
+            "on:click",
         ] {
             assert_matches_previous_scans(source);
         }
@@ -162,7 +189,7 @@ mod tests {
         let source = "x$yaz".repeat(1 << 16);
         let expected_candidates = source
             .bytes()
-            .filter(|byte| matches!(byte, b'$' | b'a'))
+            .filter(|byte| matches!(byte, b'$' | b'a' | b':'))
             .count();
         let mut visits = 0;
         let mut previous = None;

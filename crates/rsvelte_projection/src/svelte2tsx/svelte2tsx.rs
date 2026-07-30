@@ -476,16 +476,16 @@ pub fn svelte2tsx(
     };
     let mut ast = phase1_parse::parse_script_ts(&parse_source, parse_options)?;
     let parsed_scripts = super::script::ParsedScripts::new(&mut ast);
+    let source_features = scan_source_features(source);
 
     // svelte rejects `{@debug expr}` whose arguments are not plain identifiers
     // (`{@debug user.firstname}` / `{@debug a[0]}`) at PARSE time. rsvelte does
     // this in the analyze DebugTag visitor, which svelte2tsx never runs — so
     // replicate it here to preserve error-parity with official svelte2tsx.
-    let (has_debug_marker, has_meta_marker) = validation_markers(source);
-    if has_debug_marker {
+    if source_features.has_debug_marker {
         validate_debug_tag_arguments(&ast, source)?;
     }
-    if has_meta_marker {
+    if source_features.has_meta_marker {
         validate_meta_element_placement(&ast, source)?;
     }
 
@@ -563,7 +563,6 @@ pub fn svelte2tsx(
         );
     }
 
-    let source_features = scan_source_features(source);
     // Step 7.48: Find and remove embedded `<script>` tags (those NOT matching
     // the top-level instance / module script). Mirrors official svelte2tsx's
     // `blankOtherScriptTags` / `str.move` approach.
@@ -870,36 +869,6 @@ pub fn svelte2tsx(
     })
 }
 
-fn validation_markers(source: &str) -> (bool, bool) {
-    let bytes = source.as_bytes();
-    let mut has_debug = false;
-    let mut has_meta = false;
-
-    for index in memchr::memchr2_iter(b'@', b':', bytes) {
-        match bytes[index] {
-            b'@' => {
-                if !has_debug {
-                    has_debug =
-                        index > 0 && bytes.get(index - 1..index + 6) == Some(b"{@debug".as_slice());
-                }
-            }
-            b':' => {
-                if !has_meta {
-                    has_meta = (index >= 7
-                        && bytes.get(index - 7..=index) == Some(b"<svelte:".as_slice()))
-                        || (index >= 3 && bytes.get(index - 3..=index) == Some(b"use:".as_slice()));
-                }
-            }
-            _ => unreachable!(),
-        }
-        if has_debug && has_meta {
-            break;
-        }
-    }
-
-    (has_debug, has_meta)
-}
-
 #[cfg(test)]
 mod source_map_remap_tests {
     use super::*;
@@ -1036,15 +1005,6 @@ mod source_map_remap_tests {
         assert_eq!(
             position_text_edits("abcdef", &[edit(4, 2)]).unwrap_err(),
             expected
-        );
-    }
-
-    #[test]
-    fn validation_markers_remain_set_after_unrelated_candidates() {
-        assert_eq!(validation_markers("{@debug user.name} @"), (true, false));
-        assert_eq!(
-            validation_markers("<div><svelte:window /></div>:"),
-            (false, true)
         );
     }
 
