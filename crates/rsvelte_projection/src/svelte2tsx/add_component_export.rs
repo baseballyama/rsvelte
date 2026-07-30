@@ -126,11 +126,15 @@ pub(crate) fn add_component_export(
         + 256;
     let mut closing = String::with_capacity(common_capacity);
     closing.push_str("};\n");
-    let _ = writeln!(
-        closing,
-        "return {{ props: {}{}{}, slots: {}, events: {} }}}}",
-        props_str, exports_str, bindings_str, slots_str, events_str,
-    );
+    closing.push_str("return { props: ");
+    closing.push_str(&props_str);
+    closing.push_str(&exports_str);
+    closing.push_str(&bindings_str);
+    closing.push_str(", slots: ");
+    closing.push_str(&slots_str);
+    closing.push_str(", events: ");
+    closing.push_str(&events_str);
+    closing.push_str(" }}\n");
 
     // component_doc is emitted immediately before each component const/class
     // declaration below (mirroring upstream addComponentExport.ts which places
