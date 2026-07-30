@@ -366,6 +366,56 @@ fn remap_forward_segments_oracle(
     remapped
 }
 
+fn contains_exact_script_close_tag(script: &str) -> bool {
+    let bytes = script.as_bytes();
+    let exact = b"</script>";
+    if bytes.len() >= exact.len() && bytes[bytes.len() - exact.len()..].eq_ignore_ascii_case(exact)
+    {
+        return true;
+    }
+
+    // Keep the full scan for malformed parser spans that official svelte2tsx still accepts.
+    bytes
+        .windows(exact.len())
+        .any(|window| window.eq_ignore_ascii_case(exact))
+}
+
+#[cfg(test)]
+mod script_close_tag_tests {
+    use super::contains_exact_script_close_tag;
+
+    fn oracle(script: &str) -> bool {
+        script
+            .as_bytes()
+            .windows(9)
+            .any(|window| window.eq_ignore_ascii_case(b"</script>"))
+    }
+
+    #[test]
+    fn exact_close_tag_fast_path_matches_the_full_scan() {
+        for prefix_len in [0, 1, 8, 64, 4096] {
+            let mut script = "x".repeat(prefix_len);
+            script.push_str("</ScRiPt>");
+            assert!(contains_exact_script_close_tag(&script));
+            assert_eq!(contains_exact_script_close_tag(&script), oracle(&script));
+        }
+    }
+
+    #[test]
+    fn malformed_and_nonterminal_close_tags_match_the_full_scan() {
+        for script in [
+            "",
+            "</script",
+            "</script   >",
+            "before</SCRIPT>after",
+            "before</script>\n",
+            "before<\\/script>after",
+        ] {
+            assert_eq!(contains_exact_script_close_tag(script), oracle(script));
+        }
+    }
+}
+
 /// Convert a Svelte component source to TypeScript/TSX for type checking.
 ///
 /// This is the main entry point for the svelte2tsx module. It:
@@ -624,10 +674,7 @@ pub fn svelte2tsx(
     // does NOT contain the exact ASCII string `</script>` (case-insensitive).
     let has_instance_script = ast.instance.as_ref().is_some_and(|inst| {
         let slice = slice_src(source, inst.start as usize, inst.end as usize);
-        slice
-            .as_bytes()
-            .windows(9)
-            .any(|w| w.eq_ignore_ascii_case(b"</script>"))
+        contains_exact_script_close_tag(slice)
     });
     let has_module_script = ast.module.is_some();
 
