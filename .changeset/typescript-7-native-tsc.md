@@ -1,5 +1,5 @@
 ---
-"rsvelte-check": patch
+"@rsvelte/svelte-check": patch
 ---
 
 Make `--tsgo` mean "type-check with the TypeScript 7 native compiler", matching
