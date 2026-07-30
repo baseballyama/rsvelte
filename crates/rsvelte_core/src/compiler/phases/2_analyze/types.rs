@@ -714,11 +714,12 @@ fn strip_typescript_from_program_impl(
             // An inline TS type annotation starts with `:` (optionally preceded by
             // whitespace already emitted). If the removed chunk starts with `:`, it
             // is a type annotation — skip comment re-emission for it entirely.
-            // A definite-assignment `!` is spliced together with the annotation
-            // that follows it, so look past it before testing for the sigil.
+            // A definite-assignment `!` / optional `?` marker is spliced together
+            // with the annotation that follows it, so look past it before testing
+            // for the sigil.
             let is_inline_type_annotation = removed
                 .trim_start()
-                .trim_start_matches('!')
+                .trim_start_matches(['!', '?'])
                 .trim_start()
                 .starts_with(':');
             if !is_inline_type_annotation
@@ -988,17 +989,21 @@ fn collect_ts_removals_from_class(
                     removals.push((method.span.start, method.span.end));
                     continue;
                 }
+                let key_span = method.key.span();
+                let modifiers = oxc_span::Span::new(method.span.start, key_span.start);
                 if let Some(ref accessibility) = method.accessibility {
                     remove_keyword_from_source(
-                        match accessibility {
-                            oxc_ast::ast::TSAccessibility::Public => "public",
-                            oxc_ast::ast::TSAccessibility::Private => "private",
-                            oxc_ast::ast::TSAccessibility::Protected => "protected",
-                        },
-                        method.span,
+                        accessibility_keyword(accessibility),
+                        modifiers,
                         source,
                         removals,
                     );
+                }
+                if method.r#override {
+                    remove_keyword_from_source("override", modifiers, source, removals);
+                }
+                if method.optional {
+                    collect_optional_marker_removal(key_span.end, source, removals);
                 }
                 collect_ts_removals_from_function(&method.value, source, removals);
             }
@@ -1018,20 +1023,24 @@ fn collect_ts_removals_from_class(
                     }
                     removals.push((type_ann.span.start, type_ann.span.end));
                 }
+                let key_span = prop.key.span();
+                let modifiers = oxc_span::Span::new(prop.span.start, key_span.start);
                 if let Some(ref accessibility) = prop.accessibility {
                     remove_keyword_from_source(
-                        match accessibility {
-                            oxc_ast::ast::TSAccessibility::Public => "public",
-                            oxc_ast::ast::TSAccessibility::Private => "private",
-                            oxc_ast::ast::TSAccessibility::Protected => "protected",
-                        },
-                        prop.span,
+                        accessibility_keyword(accessibility),
+                        modifiers,
                         source,
                         removals,
                     );
                 }
                 if prop.readonly {
-                    remove_keyword_from_source("readonly", prop.span, source, removals);
+                    remove_keyword_from_source("readonly", modifiers, source, removals);
+                }
+                if prop.r#override {
+                    remove_keyword_from_source("override", modifiers, source, removals);
+                }
+                if prop.optional {
+                    collect_optional_marker_removal(key_span.end, source, removals);
                 }
                 if let Some(ref value) = prop.value {
                     collect_ts_removals_from_expression(value, source, removals);
@@ -1043,6 +1052,40 @@ fn collect_ts_removals_from_class(
                 }
             }
             _ => {}
+        }
+    }
+}
+
+fn accessibility_keyword(accessibility: &oxc_ast::ast::TSAccessibility) -> &'static str {
+    match accessibility {
+        oxc_ast::ast::TSAccessibility::Public => "public",
+        oxc_ast::ast::TSAccessibility::Private => "private",
+        oxc_ast::ast::TSAccessibility::Protected => "protected",
+    }
+}
+
+/// Remove the TS optional marker `?` that follows a class member's key
+/// (`x?: T`, `m?(): void`). Only whitespace and a computed key's closing `]` may
+/// sit between the key and the marker, so a `?` elsewhere in the member (inside
+/// a string value, say) can never match.
+fn collect_optional_marker_removal(key_end: u32, source: &str, removals: &mut Vec<(u32, u32)>) {
+    let bytes = source.as_bytes();
+    let mut pos = key_end as usize;
+    let mut start = pos;
+    let mut seen_bracket = false;
+    while pos < bytes.len() {
+        match bytes[pos] {
+            b'?' => {
+                removals.push((start as u32, pos as u32 + 1));
+                return;
+            }
+            b']' if !seen_bracket => {
+                seen_bracket = true;
+                pos += 1;
+                start = pos;
+            }
+            b if b.is_ascii_whitespace() => pos += 1,
+            _ => return,
         }
     }
 }
@@ -2976,6 +3019,45 @@ let {
             ),
             ("export let a!: number;\n", "export let a;\n"),
             ("class Foo {\n\tx!: string;\n}\n", "class Foo {\n\tx;\n}\n"),
+        ] {
+            assert_eq!(strip_typescript(ts), expected, "input: {ts:?}");
+        }
+    }
+
+    /// TS optional markers and the `override` modifier on class members are
+    /// erased by the official compiler; leaving them behind emits invalid JS
+    /// (`x?;`, `override x = 2`).
+    #[test]
+    fn optional_marker_and_override_modifier_are_stripped() {
+        for (ts, expected) in [
+            ("class Foo {\n\tx?: string;\n}\n", "class Foo {\n\tx;\n}\n"),
+            ("class Foo {\n\tx?;\n}\n", "class Foo {\n\tx;\n}\n"),
+            ("class Foo {\n\tx ?: string;\n}\n", "class Foo {\n\tx;\n}\n"),
+            (
+                "class Foo {\n\t['k']?: number;\n}\n",
+                "class Foo {\n\t['k'];\n}\n",
+            ),
+            (
+                "class Foo {\n\tm?(): void {}\n}\n",
+                "class Foo {\n\tm() {}\n}\n",
+            ),
+            (
+                "class Bar extends B {\n\toverride x = 2;\n}\n",
+                "class Bar extends B {\n\tx = 2;\n}\n",
+            ),
+            (
+                "class Bar extends B {\n\toverride m(): void {}\n}\n",
+                "class Bar extends B {\n\tm() {}\n}\n",
+            ),
+            (
+                "class Bar extends B {\n\tpublic override readonly z: string = 'override';\n}\n",
+                "class Bar extends B {\n\tz = 'override';\n}\n",
+            ),
+            // A member whose value merely mentions the keyword must survive intact.
+            (
+                "class Foo {\n\ts = 'override';\n\tt = 'readonly';\n}\n",
+                "class Foo {\n\ts = 'override';\n\tt = 'readonly';\n}\n",
+            ),
         ] {
             assert_eq!(strip_typescript(ts), expected, "input: {ts:?}");
         }
