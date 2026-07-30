@@ -740,6 +740,79 @@ pub(super) fn process_derived_destructuring_pattern(
     }
 }
 
+/// The expression inside a computed destructuring key (`[k]` → `k`).
+fn computed_key_expr(key: &str) -> Option<&str> {
+    let key = key.trim();
+    Some(key.strip_prefix('[')?.strip_suffix(']')?.trim())
+}
+
+/// Whether `key` is a single complete string literal (`'a-b'` / `"a-b"`).
+fn is_string_literal_key(key: &str) -> bool {
+    let bytes = key.as_bytes();
+    if bytes.len() < 2 {
+        return false;
+    }
+    let quote = bytes[0];
+    if quote != b'\'' && quote != b'"' {
+        return false;
+    }
+    let mut i = 1;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' {
+            i += 2;
+            continue;
+        }
+        if bytes[i] == quote {
+            return i == bytes.len() - 1;
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Whether `key` is a numeric literal (`0`, `1.5`) — `base.0` is not valid JS.
+fn is_numeric_literal_key(key: &str) -> bool {
+    !key.is_empty()
+        && key.as_bytes()[0].is_ascii_digit()
+        && key.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+}
+
+/// Member access for a destructured property key, mirroring upstream's
+/// `b.member(expression, prop.key, prop.computed || prop.key.type !== 'Identifier')`.
+///
+/// Computed / literal keys need bracket notation, and they read from
+/// `base_expr` rather than `member_base`: upstream's rest-prop rewrite only
+/// retargets *static* member reads (`props.a` → `$$props.a`), so `props[k]`
+/// keeps the binding itself as its object.
+pub(super) fn derived_prop_access(base_expr: &str, member_base: &str, key: &str) -> String {
+    if let Some(expr) = computed_key_expr(key) {
+        format!("{}[{}]", base_expr, expr)
+    } else if is_string_literal_key(key) || is_numeric_literal_key(key) {
+        format!("{}[{}]", base_expr, key)
+    } else {
+        format!("{}.{}", member_base, key)
+    }
+}
+
+/// The `$.exclude_from_object(base, [...])` entry for a non-rest property key.
+/// Upstream turns identifier and `Literal` keys into string literals and every
+/// other computed key into `String(<expr>)`, so the rest subtracts it at runtime.
+pub(super) fn exclude_key_literal(key: &str) -> String {
+    if let Some(expr) = computed_key_expr(key) {
+        if is_string_literal_key(expr) {
+            expr.to_string()
+        } else if is_numeric_literal_key(expr) {
+            format!("\"{}\"", expr)
+        } else {
+            format!("String({})", expr)
+        }
+    } else if is_string_literal_key(key) {
+        key.to_string()
+    } else {
+        format!("\"{}\"", key)
+    }
+}
+
 pub(super) fn process_derived_object_pattern(
     inner: &str,
     base_expr: &str,
@@ -759,7 +832,7 @@ pub(super) fn process_derived_object_pattern(
         if let Some(colon_pos) = find_derived_property_colon(prop) {
             let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
-            let prop_access = format!("{}.{}", member_base, key);
+            let prop_access = derived_prop_access(base_expr, member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                 let (nested_pattern, _default_val) = split_nested_pattern_default(value_pattern);
                 collect_array_helpers_only(nested_pattern, &prop_access, declarations)?;
@@ -787,12 +860,7 @@ pub(super) fn process_derived_object_pattern(
                     key
                 }
             };
-            // Handle computed keys and quoted keys
-            if key.starts_with('[') {
-                None // computed keys can't be excluded statically
-            } else {
-                Some(format!("\"{}\"", key))
-            }
+            Some(exclude_key_literal(key))
         })
         .collect();
 
@@ -814,7 +882,7 @@ pub(super) fn process_derived_object_pattern(
         if let Some(colon_pos) = find_derived_property_colon(prop) {
             let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
-            let prop_access = format!("{}.{}", member_base, key);
+            let prop_access = derived_prop_access(base_expr, member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                 // Handle nested destructuring patterns, possibly with default values
                 // e.g., `measured: { width: w, height: h } = { width: 0, height: 0 }`
@@ -922,7 +990,7 @@ pub(super) fn collect_array_helpers_only(
             if let Some(colon_pos) = find_derived_property_colon(prop) {
                 let key = prop[..colon_pos].trim();
                 let value_pattern = prop[colon_pos + 1..].trim();
-                let prop_access = format!("{}.{}", base_expr, key);
+                let prop_access = derived_prop_access(base_expr, base_expr, key);
                 if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                     collect_array_helpers_only(value_pattern, &prop_access, declarations)?;
                 }
@@ -997,11 +1065,7 @@ pub(super) fn process_nested_pattern_elements(
                 } else {
                     prop
                 };
-                if key.starts_with('[') {
-                    None
-                } else {
-                    Some(format!("\"{}\"", key))
-                }
+                Some(exclude_key_literal(key))
             })
             .collect();
 
@@ -1022,7 +1086,7 @@ pub(super) fn process_nested_pattern_elements(
             if let Some(colon_pos) = find_derived_property_colon(prop) {
                 let key = prop[..colon_pos].trim();
                 let value_pattern = prop[colon_pos + 1..].trim();
-                let prop_access = format!("{}.{}", base_expr, key);
+                let prop_access = derived_prop_access(base_expr, base_expr, key);
                 if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                     let (nested_pattern, default_val) = split_nested_pattern_default(value_pattern);
                     let effective_access = if let Some(dv) = default_val {
