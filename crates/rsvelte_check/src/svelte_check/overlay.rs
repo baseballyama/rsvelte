@@ -1288,7 +1288,12 @@ fn rebase_spec(spec: &str, base_dir: &Path, cache_dir: &Path) -> String {
 /// Make `path` absolute by anchoring relative paths on the current working
 /// directory, then normalise `.`/`..` lexically. No filesystem access
 /// beyond reading the CWD, so it works for not-yet-created paths.
-fn absolutize(path: &Path) -> PathBuf {
+///
+/// `pub(crate)`: also the canonical implementation behind
+/// `runner::absolutize_workspace`, which `runner::run` uses to normalise
+/// `RunOptions::workspace` up front (#1919) — kept as one function so the
+/// two callers can never drift apart on what "absolute" means here.
+pub(crate) fn absolutize(path: &Path) -> PathBuf {
     let joined = if path.is_absolute() {
         path.to_path_buf()
     } else {

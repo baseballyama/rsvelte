@@ -163,6 +163,12 @@ fn main() -> ExitCode {
     let workspace = cli
         .workspace
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    // `run` absolutizes `RunOptions::workspace` internally (#1919), so every
+    // diagnostic it returns carries an absolute `file`. Normalise this local
+    // copy the same way — via the same `absolutize_workspace` — so
+    // `print_run`'s relativization against it doesn't fall back to printing
+    // the whole absolute path for a relative `--workspace .`.
+    let workspace = rsvelte_check::runner::absolutize_workspace(&workspace);
     let ignore = cli
         .ignore
         .as_deref()

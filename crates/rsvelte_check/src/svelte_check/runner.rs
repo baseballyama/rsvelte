@@ -161,10 +161,33 @@ impl RunResult {
     }
 }
 
+/// Anchor `path` on the process CWD when it isn't already absolute, then
+/// normalise `.`/`..` lexically. Exposed so a caller (the CLI's own
+/// diagnostic-path relativisation in `main.rs`) can agree with what `run`
+/// does to `RunOptions::workspace` internally — see `run`'s doc comment.
+pub fn absolutize_workspace(path: &Path) -> PathBuf {
+    super::overlay::absolutize(path)
+}
+
 /// Run rsvelte's compiler on every `.svelte` file under `options.workspace`
 /// and collect the resulting diagnostics. tsgo / svelte2tsx integration
 /// will plug in here in a follow-up.
+///
+/// `options.workspace` is absolutized up front (`--workspace .`, the
+/// documented CLI form, or any other relative / `..`-bearing path would
+/// otherwise leave every derived path — walked file entries, the overlay's
+/// `.tsx` shadows, `RewriteExternalImportsOptions::workspace_path` handed to
+/// svelte2tsx — relative in a way that varies by caller), so every
+/// diagnostic's `file` this returns is an absolute path. A caller that
+/// relativizes those paths for display (the CLI's `print_run`) must
+/// normalise its own copy of the workspace the same way via
+/// `absolutize_workspace`, or the two won't agree (#1919).
 pub fn run(options: &RunOptions) -> RunResult {
+    let workspace = absolutize_workspace(&options.workspace);
+    let options = &RunOptions {
+        workspace,
+        ..options.clone()
+    };
     let kit_settings =
         load_kit_files_settings_with_config(&options.workspace, options.config.as_deref());
     // `compilerOptions` that influence diagnostics (e.g. `experimental.async`),
