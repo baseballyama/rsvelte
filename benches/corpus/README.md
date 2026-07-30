@@ -43,7 +43,6 @@ prefix so iteration order is deterministic.
 | `07-snippets.svelte`        | runes  | `{#snippet}` / `{@render}`, `{@const}`, snippet props |
 | `08-control-flow.svelte`    | runes  | `{#if}`/`{#each}`/`{#await}`/`{#key}` mix, `{@html}` |
 | `09-typescript-generics.svelte` | runes + TS | generic `$props`, typed snippets/callbacks, type assertions |
-| `10-typescript-untyped-props.svelte` | runes + TS | untyped `$props`, local type dependency graph, typed runes |
 
 Synthetic *scale* inputs (large, deterministic, generated in-code) live in the
 bench files themselves, not here — they're pure functions, so they're stable

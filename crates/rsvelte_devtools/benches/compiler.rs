@@ -64,6 +64,15 @@ fn workload() -> Vec<Sample> {
     files
 }
 
+fn svelte2tsx_workload() -> Vec<Sample> {
+    let mut files = corpus::load();
+    files.push(Sample::synthetic(
+        "untyped-props",
+        include_str!("../../../benches/svelte2tsx-corpus/untyped-props.svelte").to_string(),
+    ));
+    files
+}
+
 /// A large markup-heavy synthetic, to stress template/codegen scaling.
 fn create_large_synthetic_file() -> Sample {
     let mut source = String::from(
@@ -398,7 +407,7 @@ fn bench_compile_both(c: &mut Criterion) {
 
 /// Full Svelte-to-TypeScript projection used by language tooling.
 fn bench_svelte2tsx(c: &mut Criterion) {
-    let files = corpus::load();
+    let files = svelte2tsx_workload();
     let mut group = c.benchmark_group("svelte2tsx");
 
     for sample in &files {
