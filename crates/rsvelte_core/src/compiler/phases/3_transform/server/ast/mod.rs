@@ -379,10 +379,14 @@ impl<'a> ServerTransformState<'a> {
     /// contains exactly one node that is a non-dynamic RenderTag or non-dynamic
     /// Component (so the parent anchors suffice and the trailing `<!---->` is
     /// elided). Snippet defs / const tags / head-like nodes are hoisted out.
-    pub fn is_standalone_fragment(nodes: &[TemplateNode], preserve_whitespace: bool) -> bool {
+    pub fn is_standalone_fragment<'t, N: AsRef<TemplateNode<'t>>>(
+        nodes: &[N],
+        preserve_whitespace: bool,
+    ) -> bool {
         use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
         let meaningful: Vec<&TemplateNode> = nodes
             .iter()
+            .map(|n| n.as_ref())
             .filter(|n| match n {
                 // In a whitespace-preserving context (`<pre>` / `<textarea>` /
                 // sticky descendant), whitespace-only text is NOT trimmed, so it
@@ -885,7 +889,7 @@ pub fn server_component_ast<'a>(
     // rendered template, after the instance body), and for block-nested snippets
     // they stay inside their block body. No extra splice is needed here.
     let template_body =
-        visitors::shared::build_fragment_body(&ast.fragment, true, true, &mut state);
+        visitors::shared::build_fragment_body(&ast.fragment.nodes, true, true, &mut state);
 
     // -- component-bindings settle-loop (upstream lines 178-211) ------------
     // If the component binds to a child (`<Child bind:value={v} />`), legacy

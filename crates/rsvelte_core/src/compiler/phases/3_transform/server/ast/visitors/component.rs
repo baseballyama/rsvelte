@@ -58,8 +58,8 @@
 //! dynamic path (the guard supplies its own close marker).
 
 use crate::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, Fragment, FragmentType, SnippetBlock,
-    SpreadAttribute, TemplateNode,
+    Attribute, AttributeValue, AttributeValuePart, Fragment, SnippetBlock, SpreadAttribute,
+    TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
@@ -539,20 +539,14 @@ fn build_component_children<'a, 'b>(
 }
 
 /// Render a slot body (a slice of sibling template nodes) into the statements of
-/// a fragment block. Wraps the nodes in a synthetic [`Fragment`] and routes them
-/// through the shared fragment machinery — a Component slot IS an `is_text_first`
-/// parent, so leading text gets the `<!---->` anchor.
+/// a fragment block. Routes the nodes through the shared fragment machinery — a
+/// Component slot IS an `is_text_first` parent, so leading text gets the
+/// `<!---->` anchor.
 fn render_slot_body<'a>(
     nodes: &[&TemplateNode<'a>],
     is_text_first_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
-    let synthetic = Fragment {
-        node_type: FragmentType::Fragment,
-        nodes: nodes.iter().map(|n| (*n).clone()).collect(),
-        metadata: Default::default(),
-    };
-
     // Slot content is its own fragment, and a component is a namespace-RESET
     // boundary, so re-infer the namespace from the slot children — DEEPLY,
     // descending through `{#if}` / `{#each}` blocks (写经 upstream
@@ -564,7 +558,7 @@ fn render_slot_body<'a>(
     // `<!---->` markers) rather than kept. `process_fragment`'s own shallow
     // re-inference then inherits this value when it finds no direct element.
     use crate::compiler::phases::phase3_transform::utils::{NsScan, check_nodes_for_namespace};
-    let inferred_ns: &'static str = match check_nodes_for_namespace(&synthetic.nodes) {
+    let inferred_ns: &'static str = match check_nodes_for_namespace(nodes) {
         NsScan::Html => "html",
         NsScan::Svg => "svg",
         NsScan::Mathml => "mathml",
@@ -572,7 +566,7 @@ fn render_slot_body<'a>(
     };
     let saved_namespace = state.namespace;
     state.namespace = inferred_ns;
-    let body = super::shared::build_fragment_body(&synthetic, is_text_first_parent, true, state);
+    let body = super::shared::build_fragment_body(nodes, is_text_first_parent, true, state);
     state.namespace = saved_namespace;
     body
 }
@@ -714,7 +708,7 @@ fn build_snippet_declaration<'a>(
     }
     state.shadowed_names.push(shadow);
     // SnippetBlock body IS an `is_text_first` parent.
-    let body_block = super::shared::build_fragment_body(&snippet.body, true, true, state);
+    let body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
     state.shadowed_names.pop();
     let fn_body = state.b.body(body_block);
     state.b.function_declaration(name, params, fn_body, false)

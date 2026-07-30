@@ -98,8 +98,8 @@ pub fn process_children<'a>(
 /// pushed so the text node isn't fused with the surrounding fragment during
 /// hydration. RegularElement / TitleElement parents pass `false` (they are not
 /// in upstream's `is_text_first` parent list).
-pub fn process_children_inner<'a>(
-    nodes: &[TemplateNode<'a>],
+pub fn process_children_inner<'a, N: AsRef<TemplateNode<'a>>>(
+    nodes: &[N],
     parent: Option<&RegularElement<'_>>,
     namespace: &str,
     is_block_parent: bool,
@@ -140,7 +140,7 @@ pub fn process_children_inner<'a>(
     let reordered = sort_const_tags(nodes, state);
     let iter_nodes: Vec<&TemplateNode> = match reordered {
         Some(v) => v,
-        None => nodes.iter().collect(),
+        None => nodes.iter().map(|n| n.as_ref()).collect(),
     };
 
     let mut hoisted: Vec<&TemplateNode> = Vec::new();
@@ -737,8 +737,8 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
 /// dependency scan only needs each const's declared names + the identifiers
 /// referenced in its initializer (reusing the same string-based extraction the
 /// const-tag visitor uses, so the two stay consistent).
-fn sort_const_tags<'n, 'b>(
-    nodes: &'n [TemplateNode<'b>],
+fn sort_const_tags<'n, 'b, N: AsRef<TemplateNode<'b>>>(
+    nodes: &'n [N],
     state: &ServerTransformState<'_>,
 ) -> Option<Vec<&'n TemplateNode<'b>>> {
     if state.analysis.runes {
@@ -754,6 +754,7 @@ fn sort_const_tags<'n, 'b>(
     let mut consts: Vec<ConstInfo<'n, 'b>> = Vec::new();
     let mut others: Vec<&'n TemplateNode> = Vec::new();
     for n in nodes {
+        let n = n.as_ref();
         if let TemplateNode::ConstTag(ct) = n {
             // Slice the FIRST declarator's span (`x = (rhs)`), not the whole
             // `VariableDeclaration` span — the latter now starts at the `const`
@@ -982,8 +983,8 @@ pub fn build_template<'a>(
 /// `{#key}` / `{#await}` arms) pass `false` and keep the shallow direct-child
 /// inference — mirroring upstream `infer_namespace`, which only runs the deep
 /// check for the reset-parent kinds.
-pub fn build_fragment_body<'a>(
-    fragment: &Fragment<'a>,
+pub fn build_fragment_body<'a, N: AsRef<TemplateNode<'a>>>(
+    nodes: &[N],
     is_text_first_parent: bool,
     reset_namespace: bool,
     state: &mut ServerTransformState<'a>,
@@ -1008,7 +1009,7 @@ pub fn build_fragment_body<'a>(
     // upstream.
     let saved_standalone = state.is_standalone;
     state.is_standalone =
-        ServerTransformState::is_standalone_fragment(&fragment.nodes, state.preserve_whitespace);
+        ServerTransformState::is_standalone_fragment(nodes, state.preserve_whitespace);
     // Track fragment nesting depth: the root component fragment is depth 1; any
     // nested block / boundary / snippet body is depth ≥ 2. The boundary visitor
     // reads this to decide `failed`-snippet hoist-vs-inline placement.
@@ -1047,12 +1048,12 @@ pub fn build_fragment_body<'a>(
     // (issue #1227). The root component fragment has `state.namespace == "html"`,
     // so its default is unchanged.
     let fragment_namespace = if reset_namespace {
-        infer_namespace_reset(&fragment.nodes, state.namespace)
+        infer_namespace_reset(nodes, state.namespace)
     } else {
-        infer_namespace_from_nodes_owned(&fragment.nodes, state.namespace)
+        infer_namespace_from_nodes_owned(nodes, state.namespace)
     };
     process_children_inner(
-        &fragment.nodes,
+        nodes,
         None,
         &fragment_namespace,
         is_text_first_parent,
@@ -1210,7 +1211,7 @@ pub fn build_fragment_block<'a>(
     // Block visitors (IfBlock / EachBlock / KeyBlock / AwaitBlock) are NOT
     // namespace-resetting parents upstream, so they keep the shallow direct-child
     // inference (`reset_namespace = false`).
-    let body = build_fragment_body(fragment, is_text_first_parent, false, state);
+    let body = build_fragment_body(&fragment.nodes, is_text_first_parent, false, state);
     state.b.block(body)
 }
 
@@ -1778,10 +1779,10 @@ fn check_ns_walk(node: &TemplateNode, ns: &mut NsCheck) {
     }
 }
 
-fn check_nodes_for_namespace(nodes: &[TemplateNode]) -> NsCheck {
+fn check_nodes_for_namespace<'t, N: AsRef<TemplateNode<'t>>>(nodes: &[N]) -> NsCheck {
     let mut ns = NsCheck::Keep;
     for node in nodes {
-        check_ns_walk(node, &mut ns);
+        check_ns_walk(node.as_ref(), &mut ns);
         if ns == NsCheck::Html {
             return ns;
         }
@@ -1795,7 +1796,10 @@ fn check_nodes_for_namespace(nodes: &[TemplateNode]) -> NsCheck {
 /// inside `{#if}` / `{#each}` blocks); a definitive verdict wins, otherwise
 /// falls back to the shallow direct-child inference. 写经 upstream
 /// `infer_namespace`'s reset-parent branch + element-loop fall-through.
-pub(crate) fn infer_namespace_reset(nodes: &[TemplateNode<'_>], parent_namespace: &str) -> String {
+pub(crate) fn infer_namespace_reset<'a, N: AsRef<TemplateNode<'a>>>(
+    nodes: &[N],
+    parent_namespace: &str,
+) -> String {
     match check_nodes_for_namespace(nodes) {
         NsCheck::Svg => "svg".to_string(),
         NsCheck::Mathml => "mathml".to_string(),
@@ -1806,13 +1810,13 @@ pub(crate) fn infer_namespace_reset(nodes: &[TemplateNode<'_>], parent_namespace
     }
 }
 
-pub(crate) fn infer_namespace_from_nodes_owned(
-    nodes: &[TemplateNode<'_>],
+pub(crate) fn infer_namespace_from_nodes_owned<'a, N: AsRef<TemplateNode<'a>>>(
+    nodes: &[N],
     parent_namespace: &str,
 ) -> String {
     let mut found_namespace: Option<&str> = None;
     for node in nodes {
-        if let TemplateNode::RegularElement(el) = node {
+        if let TemplateNode::RegularElement(el) = node.as_ref() {
             if el.metadata.svg {
                 match found_namespace {
                     None => found_namespace = Some("svg"),

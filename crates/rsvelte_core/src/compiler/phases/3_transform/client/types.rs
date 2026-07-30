@@ -120,7 +120,7 @@ impl<'a> ComponentContext<'a> {
         };
 
         let component_name = comp.name.to_string();
-        let stmt = build_component(ComponentNode::Component(comp.clone()), component_name, self);
+        let stmt = build_component(ComponentNode::Component(comp), component_name, self);
 
         TransformResult::Statement(stmt)
     }
@@ -136,7 +136,7 @@ impl<'a> ComponentContext<'a> {
 
         // For svelte:component, we use '$$component' as the component name
         let stmt = build_component(
-            ComponentNode::SvelteComponent(comp.clone()),
+            ComponentNode::SvelteComponent(comp),
             "$$component".to_string(),
             self,
         );
@@ -155,11 +155,7 @@ impl<'a> ComponentContext<'a> {
 
         // For svelte:self, we use the component's own name for self-reference
         let component_name = self.state.analysis.name.clone();
-        let stmt = build_component(
-            ComponentNode::SvelteSelf(self_node.clone()),
-            component_name,
-            self,
-        );
+        let stmt = build_component(ComponentNode::SvelteSelf(self_node), component_name, self);
 
         TransformResult::Statement(stmt)
     }

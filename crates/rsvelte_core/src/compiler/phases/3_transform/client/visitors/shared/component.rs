@@ -19,16 +19,16 @@ use indexmap::IndexMap;
 
 /// Component node types.
 #[derive(Debug, Clone)]
-pub enum ComponentNode<'a> {
+pub enum ComponentNode<'n, 'a> {
     /// Regular component (`<MyComponent>`)
-    Component(Component<'a>),
+    Component(&'n Component<'a>),
     /// Dynamic component (`<svelte:component this={...}>`)
-    SvelteComponent(SvelteComponentElement<'a>),
+    SvelteComponent(&'n SvelteComponentElement<'a>),
     /// Self-reference (`<svelte:self>`)
-    SvelteSelf(SvelteElement<'a>),
+    SvelteSelf(&'n SvelteElement<'a>),
 }
 
-impl<'a> ComponentNode<'a> {
+impl<'a> ComponentNode<'_, 'a> {
     /// Get the start position of the component node.
     pub fn start(&self) -> u32 {
         match self {
@@ -67,7 +67,7 @@ struct DelayedProp {
 ///
 /// Returns a statement that instantiates the component.
 pub fn build_component(
-    node: ComponentNode<'_>,
+    node: ComponentNode<'_, '_>,
     component_name: String,
     context: &mut ComponentContext,
 ) -> JsStatement {
@@ -2215,7 +2215,7 @@ fn visit_slot_children(
     context: &mut ComponentContext,
 ) -> Vec<JsStatement> {
     use crate::compiler::phases::phase3_transform::client::transform_template::Namespace;
-    use crate::compiler::phases::phase3_transform::utils::clean_nodes;
+    use crate::compiler::phases::phase3_transform::utils::clean_nodes_refs;
 
     // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
     // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
@@ -2223,9 +2223,6 @@ fn visit_slot_children(
     // and traversal is single-threaded (no aliasing).
     let arena_local2: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
         unsafe { &*(&context.arena as *const _) };
-
-    // Convert &[&TemplateNode] to Vec<TemplateNode> for clean_nodes
-    let nodes: Vec<TemplateNode> = children.iter().map(|n| (*n).clone()).collect();
 
     // Slot content is its own fragment, so its namespace is RE-INFERRED from the
     // children (a component is a namespace-reset boundary), NOT inherited from
@@ -2239,15 +2236,15 @@ fn visit_slot_children(
     let inferred_ns = crate::compiler::phases::phase3_transform::utils::infer_namespace(
         &context.state.metadata.namespace,
         crate::compiler::phases::phase3_transform::utils::ParentRef::None,
-        &nodes,
+        children,
         context.state.analysis,
         true,
     );
 
     // Clean the nodes (trim whitespace, etc.)
-    let cleaned = clean_nodes(
+    let cleaned = clean_nodes_refs(
         crate::compiler::phases::phase3_transform::utils::ParentRef::None, // No parent in slot context
-        &nodes,
+        children,
         &context.path,
         inferred_ns,
         context.state.scope,
@@ -2797,7 +2794,7 @@ fn visit_slot_children(
 
 /// Build the component expression for dynamic components.
 fn build_component_expression(
-    node: &ComponentNode<'_>,
+    node: &ComponentNode<'_, '_>,
     component_name: &str,
     context: &mut ComponentContext,
 ) -> JsExpr {
@@ -3079,7 +3076,7 @@ fn build_component_meta_stmt(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
     expression: JsExpr,
-    node: &ComponentNode<'_>,
+    node: &ComponentNode<'_, '_>,
     analysis_name: &str,
     dev: bool,
     source: &str,
