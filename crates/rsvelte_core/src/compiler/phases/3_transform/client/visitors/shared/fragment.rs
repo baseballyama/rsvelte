@@ -10,7 +10,9 @@ use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_template_chunk;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, replace_leading_whitespace, replace_trailing_whitespace,
+};
 use std::borrow::Cow;
 
 /// NON_STATIC_PROPERTIES - properties that cannot be set statically
@@ -790,61 +792,14 @@ fn push_static_element_to_template_inner(
                     .map(|i| i + 1)
                     .unwrap_or(0);
 
-                let raw_range = &children[start..end.max(start)];
-                // Pre-pass: when comments are being removed, merge consecutive text
-                // nodes that are only separated by removed comments. This avoids
-                // double-spacing where each side independently collapses to a single
-                // space.
-                let merged_range: Vec<TemplateNode> = if preserve_comments {
-                    raw_range.to_vec()
-                } else {
-                    let mut out: Vec<TemplateNode> = Vec::with_capacity(raw_range.len());
-                    let mut pending_text: Option<crate::ast::template::Text> = None;
-                    for child in raw_range.iter() {
-                        match child {
-                            TemplateNode::Comment(_) => {
-                                // Skip — but keep pending_text alive so the next text
-                                // will merge with it.
-                            }
-                            TemplateNode::Text(t) => {
-                                if let Some(prev) = pending_text.take() {
-                                    // Merge: combine prev.data + t.data (and raw)
-                                    let mut merged = prev.clone();
-                                    let mut new_data = prev.data.to_string();
-                                    new_data.push_str(&t.data);
-                                    merged.data = Cow::Owned(new_data);
-                                    let mut new_raw = prev.raw.to_string();
-                                    new_raw.push_str(&t.raw);
-                                    merged.raw = Cow::Owned(new_raw);
-                                    pending_text = Some(merged);
-                                } else {
-                                    pending_text = Some(t.clone());
-                                }
-                            }
-                            other => {
-                                if let Some(t) = pending_text.take() {
-                                    out.push(TemplateNode::Text(t));
-                                }
-                                out.push(other.clone());
-                            }
-                        }
-                    }
-                    if let Some(t) = pending_text.take() {
-                        out.push(TemplateNode::Text(t));
-                    }
-                    out
-                };
-                let range: &[TemplateNode] = &merged_range;
-                // Collect non-comment children indices for boundary trimming
-                let meaningful_indices: Vec<usize> = range
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, c)| preserve_comments || !matches!(c, TemplateNode::Comment(_)))
-                    .map(|(i, _)| i)
-                    .collect();
+                let range = &children[start..end.max(start)];
+                let last_idx = range.len().saturating_sub(1);
 
-                let first_meaningful = meaningful_indices.first().copied();
-                let last_meaningful = meaningful_indices.last().copied();
+                // 写经 `clean_nodes` (utils.js:223-251): each text node's leading run is
+                // dropped only when the *preceding* node's already-rewritten data still
+                // ends in whitespace. A text emptied that way stays in the chain with no
+                // trailing whitespace, so the next one contributes its own single space.
+                let mut prev_ends_with_whitespace = false;
 
                 for (i, child) in range.iter().enumerate() {
                     if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
@@ -853,68 +808,31 @@ fn push_static_element_to_template_inner(
                     // Trim/collapse whitespace from text nodes to match clean_nodes behavior
                     if let TemplateNode::Text(text) = child {
                         let ws = |c: char| c == ' ' || c == '\t' || c == '\n' || c == '\r';
-                        let mut data = text.data.to_string();
-                        let mut raw = text.raw.to_string();
-                        if Some(i) == first_meaningful {
-                            // First text: trim leading whitespace entirely
-                            let trimmed = data.trim_start_matches(ws);
-                            if trimmed.len() < data.len() {
-                                let start = data.len() - trimmed.len();
-                                data.drain(..start);
-                            }
-                            let trimmed = raw.trim_start_matches(ws);
-                            if trimmed.len() < raw.len() {
-                                let start = raw.len() - trimmed.len();
-                                raw.drain(..start);
-                            }
-                        } else {
-                            // Non-first text: collapse leading whitespace to single space
-                            let trimmed_data = data.trim_start_matches(ws);
-                            if trimmed_data.len() < data.len() && !trimmed_data.is_empty() {
-                                let start = data.len() - trimmed_data.len();
-                                data.drain(..start);
-                                data.insert(0, ' ');
-                            } else if trimmed_data.is_empty() && !data.is_empty() {
-                                data.clear();
-                                data.push(' ');
-                            }
-                            let trimmed_raw = raw.trim_start_matches(ws);
-                            if trimmed_raw.len() < raw.len() && !trimmed_raw.is_empty() {
-                                let start = raw.len() - trimmed_raw.len();
-                                raw.drain(..start);
-                                raw.insert(0, ' ');
-                            } else if trimmed_raw.is_empty() && !raw.is_empty() {
-                                raw.clear();
-                                raw.push(' ');
-                            }
+                        let mut data: &str = &text.data;
+                        let mut raw: &str = &text.raw;
+
+                        // `regular[0]` / `regular.at(-1)` lose their outer whitespace runs
+                        if i == 0 {
+                            data = data.trim_start_matches(ws);
+                            raw = raw.trim_start_matches(ws);
                         }
-                        if Some(i) == last_meaningful {
-                            // Last text: trim trailing whitespace entirely
-                            let trimmed = data.trim_end_matches(ws);
-                            data.truncate(trimmed.len());
-                            let trimmed = raw.trim_end_matches(ws);
-                            raw.truncate(trimmed.len());
-                        } else {
-                            // Non-last text: collapse trailing whitespace to single space
-                            let trimmed_data = data.trim_end_matches(ws);
-                            if trimmed_data.len() < data.len() && !trimmed_data.is_empty() {
-                                let new_len = trimmed_data.len();
-                                data.truncate(new_len);
-                                data.push(' ');
-                            } else if trimmed_data.is_empty() && !data.is_empty() {
-                                data.clear();
-                                data.push(' ');
-                            }
-                            let trimmed_raw = raw.trim_end_matches(ws);
-                            if trimmed_raw.len() < raw.len() && !trimmed_raw.is_empty() {
-                                let new_len = trimmed_raw.len();
-                                raw.truncate(new_len);
-                                raw.push(' ');
-                            } else if trimmed_raw.is_empty() && !raw.is_empty() {
-                                raw.clear();
-                                raw.push(' ');
-                            }
+                        if i == last_idx {
+                            data = data.trim_end_matches(ws);
+                            raw = raw.trim_end_matches(ws);
                         }
+
+                        let leading = if prev_ends_with_whitespace { "" } else { " " };
+                        let data = replace_trailing_whitespace(
+                            &replace_leading_whitespace(data, leading),
+                            " ",
+                        );
+                        let raw = replace_trailing_whitespace(
+                            &replace_leading_whitespace(raw, leading),
+                            " ",
+                        );
+
+                        prev_ends_with_whitespace = data.ends_with(ws);
+
                         // Skip whitespace-only text that would collapse to just space
                         // in SVG namespace (can_remove_entirely logic)
                         if !data.is_empty()
@@ -945,6 +863,7 @@ fn push_static_element_to_template_inner(
                             );
                         }
                     } else {
+                        prev_ends_with_whitespace = false;
                         push_static_element_to_template_inner(
                             child,
                             template,
