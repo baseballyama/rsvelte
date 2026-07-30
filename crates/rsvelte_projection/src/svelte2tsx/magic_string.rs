@@ -507,22 +507,30 @@ fn push_ascii_hires_segments(mappings: &mut String, count: usize) {
 
 #[derive(Default)]
 struct OutputEstimate {
+    code_bytes: usize,
     mapping_bytes: usize,
     forward_segments: usize,
 }
 
 impl OutputEstimate {
     #[inline]
+    fn add_code_bytes(&mut self, bytes: usize) {
+        self.code_bytes = self.code_bytes.saturating_add(bytes);
+    }
+
+    #[inline]
     fn add_mapping_bytes(&mut self, bytes: usize) {
         self.mapping_bytes = self.mapping_bytes.saturating_add(bytes);
     }
 
     #[inline]
-    fn add_unmapped(&mut self, content: &str) {
+    fn add_unmapped_output(&mut self, content: &str) {
+        self.add_code_bytes(content.len());
         self.add_mapping_bytes(memchr::memchr_iter(b'\n', content.as_bytes()).count());
     }
 
     fn add_chunk_body(&mut self, chunk: &Chunk, body: &str) {
+        self.add_code_bytes(body.len());
         if body.is_empty() {
             return;
         }
@@ -530,7 +538,7 @@ impl OutputEstimate {
         // Four u32-domain VLQ fields plus a possible comma fit in 24 bytes.
         self.add_mapping_bytes(MAX_HIRES_SEGMENT_BYTES);
         if chunk.is_edited() {
-            self.add_unmapped(body);
+            self.add_mapping_bytes(memchr::memchr_iter(b'\n', body.as_bytes()).count());
             return;
         }
 
@@ -1246,11 +1254,6 @@ impl<'source> MagicString<'source> {
         } = options;
         let source = source.unwrap_or_default();
         let estimate = self.estimate_outputs();
-        let code_capacity = self
-            .original
-            .len()
-            .saturating_add(self.intro.len())
-            .saturating_add(self.outro.len());
         let metadata_bytes = file
             .as_ref()
             .map_or(0, String::len)
@@ -1270,7 +1273,7 @@ impl<'source> MagicString<'source> {
             include_content.then_some(self.original),
         );
 
-        let mut code = String::with_capacity(code_capacity);
+        let mut code = String::with_capacity(estimate.code_bytes);
         let mut forward_segments = Vec::with_capacity(estimate.forward_segments);
         self.traverse_outputs(
             Some(&mut code),
@@ -1292,22 +1295,22 @@ impl<'source> MagicString<'source> {
 
     fn estimate_outputs(&self) -> OutputEstimate {
         let mut estimate = OutputEstimate::default();
-        estimate.add_unmapped(&self.intro);
+        estimate.add_unmapped_output(&self.intro);
 
         let mut cur = Some(self.first_chunk.index());
         while let Some(chunk_index) = cur {
             let chunk = &self.chunks[chunk_index];
             let body = self.chunk_content(chunk_index);
-            estimate.add_unmapped(&chunk.intro);
+            estimate.add_unmapped_output(&chunk.intro);
             estimate.add_chunk_body(chunk, body);
-            estimate.add_unmapped(&chunk.outro);
+            estimate.add_unmapped_output(&chunk.outro);
             if !chunk.is_edited() && chunk.end > chunk.start {
                 estimate.forward_segments = estimate.forward_segments.saturating_add(1);
             }
             cur = chunk.next_index();
         }
 
-        estimate.add_unmapped(&self.outro);
+        estimate.add_unmapped_output(&self.outro);
         estimate
     }
 
@@ -1532,10 +1535,9 @@ mod tests {
         ];
         let expected_code = value.to_string();
         let expected_forward_segments = value.forward_segments();
-        assert_eq!(
-            value.estimate_outputs().forward_segments,
-            expected_forward_segments.len()
-        );
+        let estimate = value.estimate_outputs();
+        assert_eq!(estimate.forward_segments, expected_forward_segments.len());
+        assert_eq!(estimate.code_bytes, expected_code.len());
         for options in options {
             let expected_source_map = value.generate_map(options.clone()).to_json();
 
