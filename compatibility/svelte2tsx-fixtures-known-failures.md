@@ -25,7 +25,7 @@ UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 `STRICT_S2TSX_FIXTURES=1` ignores the baseline entirely (every failure fails),
 which is how you check whether an entry is still needed.
 
-## Current baseline: 8 of 254 (pass rate 96.9%)
+## Current baseline: 5 of 254 (pass rate 98.0%)
 
 ### Harness gap — 1
 
@@ -38,27 +38,6 @@ which is how you check whether an entry is still needed.
   Component props (`<Component someAttr="5" />`) already keep their case in both.
   This is the cheapest entry to remove — it needs a runner change, not a compiler
   change — but it is out of scope for the PR that introduced this ratchet.
-
-### `$props.id()` mis-resolved as a store — 3
-
-- **`props-variable-and-$props.id.v5`**
-- **`props-variable-and-$props.id-destructured.v5`**
-- **`props-variable-and-$props.id-spread.v5`**
-
-  All three declare a binding literally named `props` and then call `$props.id()`
-  (the Svelte 5 component-id rune). rsvelte's text-level `$name` scan
-  (`collect_store_references` / `collect_loose_dollar_names_from_script` in
-  `crates/rsvelte_projection/src/svelte2tsx/script/mod.rs`) sees the `$props`
-  token, finds a declared binding `props`, and injects a store subscription:
-
-  ```
-  let props = $props()/*Ωignore_startΩ*/;let $props = __sveltets_2_store_get(props);/*Ωignore_endΩ*/;
-  ```
-
-  Upstream emits no subscription. `$props.id` is a rune namespace, never a store
-  auto-subscription, so the member-access form must be excluded from the scan even
-  when a same-named binding exists. Fixing this is a single rule in the loose-dollar
-  scanner; the three fixtures are the same bug at three destructuring shapes.
 
 ### Statement ordering around `function $$render()` — 2
 

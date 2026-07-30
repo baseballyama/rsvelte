@@ -102,6 +102,8 @@ impl<'s> StoreScanContext<'s> {
         }
     }
 
+    /// `$state`/`$props`/`$derived` occurrences excluded from store resolution:
+    /// self-named rune calls, plus `$props.id()` beside a `props` rune binding.
     pub(super) fn add_self_named_rune_call(&mut self, pos: u32) {
         self.self_named_rune_calls.push(pos);
     }
@@ -608,6 +610,37 @@ fn resolve_store_candidate<'s>(
     }
     let name = candidate.name(source);
     (!is_dollar_binding_shadowed(shadow, name, pos as usize)).then_some(name)
+}
+
+/// True when any identifier named `props` appears in a declaration's binding
+/// name — including an object-pattern KEY (`{ props: renamed }`), which upstream
+/// also counts because it walks every identifier of the name subtree.
+pub(super) fn binding_pattern_mentions_props(pattern: &oxc::BindingPattern) -> bool {
+    match pattern {
+        oxc::BindingPattern::BindingIdentifier(id) => id.name == "props",
+        oxc::BindingPattern::ObjectPattern(obj) => {
+            obj.properties.iter().any(|prop| {
+                matches!(&prop.key, oxc::PropertyKey::StaticIdentifier(key) if key.name == "props")
+                    || binding_pattern_mentions_props(&prop.value)
+            }) || obj
+                .rest
+                .as_ref()
+                .is_some_and(|rest| binding_pattern_mentions_props(&rest.argument))
+        }
+        oxc::BindingPattern::ArrayPattern(arr) => {
+            arr.elements
+                .iter()
+                .flatten()
+                .any(binding_pattern_mentions_props)
+                || arr
+                    .rest
+                    .as_ref()
+                    .is_some_and(|rest| binding_pattern_mentions_props(&rest.argument))
+        }
+        oxc::BindingPattern::AssignmentPattern(assign) => {
+            binding_pattern_mentions_props(&assign.left)
+        }
+    }
 }
 
 /// True when the `$name` token spanning `[pos, end)` is an object-literal
@@ -1171,6 +1204,66 @@ mod tests {
         assert!(
             !result.code.contains("__sveltets_2_store_get(derived)"),
             "should NOT have derived store subscription in Svelte 5 mode"
+        );
+    }
+
+    #[test]
+    fn props_id_rune_next_to_props_declaration_is_not_a_store() {
+        for decl in [
+            "let props = $props();",
+            "let { props } = $props();",
+            "let {...props} = $props();",
+            "let props: MyProps = $props();",
+        ] {
+            let source =
+                format!("<script>\n    {decl}\n    let id = $props.id();\n</script>\n{{id}}");
+            let result = run_svelte2tsx(&source);
+            assert!(
+                !result.code.contains("__sveltets_2_store_get(props)"),
+                "`$props.id()` must not subscribe `props` as a store for `{decl}`:\n{}",
+                result.code
+            );
+        }
+    }
+
+    #[test]
+    fn props_id_rune_without_props_rune_declaration_still_subscribes() {
+        // Upstream sample `props-variable-and-$props.id-not-$props-init.v5`: the
+        // filter only applies when `props` really comes from `$props()`.
+        let source =
+            "<script>\n    let props = {};\n    let id = $props.id();\n</script>\n{id} {props}";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("__sveltets_2_store_get(props)"),
+            "non-rune `props` binding keeps its store subscription:\n{}",
+            result.code
+        );
+    }
+
+    #[test]
+    fn state_snapshot_member_access_still_subscribes() {
+        let source = "<script>\n    let state = $state([]);\n    const snap = $state.snapshot(state);\n</script>\n{snap}";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("__sveltets_2_store_get(state)"),
+            "only `$props.id()` is filtered — `$state.snapshot` keeps upstream's behaviour:\n{}",
+            result.code
+        );
+    }
+
+    #[test]
+    fn genuine_store_next_to_props_id_rune_still_subscribes() {
+        let source = "<script>\n    import { count } from './stores';\n    let props = $props();\n    let id = $props.id();\n</script>\n{$count} {id}";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("__sveltets_2_store_get(count)"),
+            "a real store next to `$props.id()` still auto-subscribes:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("__sveltets_2_store_get(props)"),
+            "`props` must stay unsubscribed:\n{}",
+            result.code
         );
     }
 

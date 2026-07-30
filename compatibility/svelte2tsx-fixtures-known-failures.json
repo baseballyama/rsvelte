@@ -1,9 +1,6 @@
 [
 	"attributes-foreign-ns",
 	"module-snippet-component-instance-reference.v5",
-	"props-variable-and-$props.id-destructured.v5",
-	"props-variable-and-$props.id-spread.v5",
-	"props-variable-and-$props.id.v5",
 	"ts-await-generics.v5",
 	"ts-runes-hoistable-props-false-6.v5",
 	"ts-type-assertion"

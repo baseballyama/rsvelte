@@ -12,7 +12,7 @@ Layer 1 (`compatibility/check-known-failures.md`) is at full parity on committed
 mini-projects. Layer 2 exists because every one of #1883–#1889 was found by
 pointing the checker at somebody's actual repository, and none of them by a
 fixture: a synthetic project only contains the shapes its author already thought
-of. The four clusters below are what one afternoon of real trees produced.
+of. The clusters below are what one afternoon of real trees produced.
 
 Entry format: `<project>/<unit>|<+|-><SEVERITY> <relpath>:<line> <code>[ xN]`.
 `+` = rsvelte-only (a **false positive** — official reports nothing).
@@ -29,12 +29,13 @@ message text are not part of the key — see the header of `check-verify.mjs`.
 | `skeleton/playground` | `playgrounds/skeleton-svelte` of [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) — a SvelteKit app inside a pnpm workspace | Cross-package resolution: imports two **sibling workspace packages** whose `exports` point at the sibling's `src/index.ts`, so sibling `.svelte`/`.ts` sources really enter the program |
 | `skeleton/library` | `packages/skeleton-svelte` of the same monorepo — 300+ components | The library the playground resolves into: `.ts` barrels re-exporting types out of `<script module>`, `.svelte.ts` rune modules, `$props.id()` |
 
-## Current baseline: 404 entries / 405 surplus diagnostics
+## Current baseline: 374 entries / 375 surplus diagnostics
 
-All four clusters are **rsvelte-only false positives**; there are no false
+All remaining clusters are **rsvelte-only false positives**; there are no false
 negatives. Nothing here is a wontfix — each cluster is a live bug filed with a
-reproduction (E1 + E3 → #1916, E2 → #1917, E4 → #1918), and the ratchet shrinks
-as they land.
+reproduction (E1 + E3 → #1916, E4 → #1918), and the ratchet shrinks as they land.
+Cluster E2 (`$props` treated as a store subscription, 30 entries, `TS2448`,
+#1917) is **fixed** and pruned.
 
 ### Cluster E1 — ambient `*.svelte` shadows real resolution for named imports (372 entries, `TS2614`, #1916)
 
@@ -62,31 +63,6 @@ on-disk overlay with a stock compiler and must repoint the specifiers itself.
 already does exactly that for **aliased** specifiers (#1888, fixed by #1895) but
 returns early for anything starting with `.`, and it never runs over real
 `.ts`/`.js` sources at all.
-
-### Cluster E2 — `$props` treated as a store subscription in runes mode (30 entries, `TS2448`, #1917)
-
-`skeleton/library`, every entry `Block-scoped variable '$props' used before its
-declaration`. The shape is a component that declares a variable literally named
-`props` *and* uses the `$props.id()` rune:
-
-```svelte
-const props: AccordionRootProps = $props();
-…
-const id = $props.id();
-```
-
-`svelte2tsx` sees `$props` next to a local `props` and emits a store
-auto-subscription for it, on the same line as the use:
-
-```ts
-const props: AccordionRootProps = $props()/*Ωignore_startΩ*/;let $props = __sveltets_2_store_get(props);/*Ωignore_endΩ*/;
-```
-
-`$props()` on that line now precedes the `let $props` binding, hence `TS2448`.
-In runes mode `$props` is a rune, never a store subscription, so the rewrite
-should not be emitted at all. This is a `.tsx`-text divergence, which means the
-svelte2tsx parity gate would also catch it — once these sources are in the
-compile corpus (see "Enrolling skeleton in the compile corpus" below).
 
 ### Cluster E3 — snippet parameter implicit `any` (1 entry, `TS7006`, #1916)
 
@@ -135,9 +111,10 @@ a second place.
 `submodules/skeleton` is intentionally **not** in
 `scripts/compat-corpus/corpus-sources.json` yet: adding a source repository
 requires re-baselining the compiler, svelte2tsx, fmt and lint ratchets in the
-same change, which is a separate piece of work from this gate. Cluster E2 is a
-`.tsx`-text divergence that the svelte2tsx track would catch, so enrolling it is
-worth doing.
+same change, which is a separate piece of work from this gate. Cluster E2 showed
+why it is worth doing: it was a `.tsx`-text divergence, so the svelte2tsx track
+would have caught it natively (upstream's own `props-variable-and-$props.id*`
+samples did, once that fixture ratchet existed).
 
 The submodule is also **not** in `auto-update-submodules.yml`. This ratchet keys
 on line numbers in skeleton's sources, so an automatic weekly bump would turn CI

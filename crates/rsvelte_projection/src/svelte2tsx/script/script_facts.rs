@@ -3,7 +3,9 @@ use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
 use super::ast_utils::collect_binding_names;
-use super::stores::{StoreScanContext, collect_self_named_rune_call_positions};
+use super::stores::{
+    StoreScanContext, binding_pattern_mentions_props, collect_self_named_rune_call_positions,
+};
 
 pub(super) struct ScriptFacts {
     pub(super) type_assertions: Vec<TypeAssertionFacts>,
@@ -17,7 +19,7 @@ impl ScriptFacts {
         program: &oxc::Program,
         offset: u32,
         raw_content: &str,
-        collect_dollar_param_shadow: bool,
+        is_instance_script: bool,
         store_scan: &mut StoreScanContext<'s>,
     ) -> Self {
         store_scan.begin_script_facts();
@@ -28,8 +30,12 @@ impl ScriptFacts {
         let mut collector = ScriptFactsCollector {
             offset,
             raw_content,
-            collect_dollar_param_shadow: collect_store_facts && collect_dollar_param_shadow,
+            // Official resolves stores over the INSTANCE script only, so the
+            // module pass collects no store facts at all.
+            collect_store_facts: collect_store_facts && is_instance_script,
             store_scan,
+            props_id_calls: Vec::new(),
+            has_props_rune_declaration: false,
             facts: Self {
                 type_assertions: Vec::new(),
                 arrow_generic_commas: Vec::new(),
@@ -38,6 +44,7 @@ impl ScriptFacts {
             },
         };
         collector.visit_program(program);
+        collector.commit_props_id_calls();
         collector.store_scan.finish_script_facts();
         collector.facts
     }
@@ -62,14 +69,19 @@ pub(super) struct VisitorDispatches {
 struct ScriptFactsCollector<'r, 'c, 's> {
     offset: u32,
     raw_content: &'r str,
-    collect_dollar_param_shadow: bool,
+    collect_store_facts: bool,
     store_scan: &'c mut StoreScanContext<'s>,
+    /// `$props` positions of `$props.id()` calls, kept aside until the whole
+    /// script is walked because the declaration that validates them may come
+    /// after (upstream filters the collected list at the end for the same reason).
+    props_id_calls: Vec<u32>,
+    has_props_rune_declaration: bool,
     facts: ScriptFacts,
 }
 
 impl ScriptFactsCollector<'_, '_, '_> {
     fn add_params(&mut self, params: &oxc::FormalParameters, span: oxc_span::Span) {
-        if !self.collect_dollar_param_shadow {
+        if !self.collect_store_facts {
             return;
         }
         let src_span = (span.start + self.offset, span.end + self.offset);
@@ -79,6 +91,52 @@ impl ScriptFactsCollector<'_, '_, '_> {
             for name in names {
                 self.store_scan.add_dollar_param_shadow(&name, src_span);
             }
+        }
+    }
+
+    /// Source text of `span`, mirroring upstream's `node.getText()` comparisons.
+    fn text(&self, span: oxc_span::Span) -> &str {
+        self.raw_content
+            .get(span.start as usize..span.end as usize)
+            .unwrap_or_default()
+    }
+
+    /// Upstream's `isPropsDeclarationRune`: a binding named `props` whose
+    /// initializer is literally `$props()`.
+    fn note_props_rune_declaration(&mut self, declarator: &oxc::VariableDeclarator<'_>) {
+        if !self.collect_store_facts || self.has_props_rune_declaration {
+            return;
+        }
+        if let Some(init) = declarator.init.as_ref()
+            && self.text(init.span()) == "$props()"
+            && binding_pattern_mentions_props(&declarator.id)
+        {
+            self.has_props_rune_declaration = true;
+        }
+    }
+
+    /// Upstream's `isPropsId`: the `$props` of a `$props.id()` call.
+    fn note_props_id_call(&mut self, call: &oxc::CallExpression<'_>) {
+        if !self.collect_store_facts || !call.arguments.is_empty() {
+            return;
+        }
+        if let oxc::Expression::StaticMemberExpression(member) = &call.callee
+            && self.text(member.span) == "$props.id"
+            && let oxc::Expression::Identifier(object) = &member.object
+        {
+            self.props_id_calls.push(object.span.start + self.offset);
+        }
+    }
+
+    /// `$props.id()` is the component-id rune, never a `props` store
+    /// auto-subscription — but only when `props` really came from `$props()`,
+    /// which is exactly when upstream drops these from store resolution.
+    fn commit_props_id_calls(&mut self) {
+        if !self.has_props_rune_declaration {
+            return;
+        }
+        for pos in std::mem::take(&mut self.props_id_calls) {
+            self.store_scan.add_self_named_rune_call(pos);
         }
     }
 
@@ -124,6 +182,16 @@ impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
         self.add_params(&it.params, it.span);
         self.add_arrow_generic_comma(it);
         oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
+    }
+
+    fn visit_variable_declarator(&mut self, it: &oxc::VariableDeclarator<'a>) {
+        self.note_props_rune_declaration(it);
+        oxc_ast_visit::walk::walk_variable_declarator(self, it);
+    }
+
+    fn visit_call_expression(&mut self, it: &oxc::CallExpression<'a>) {
+        self.note_props_id_call(it);
+        oxc_ast_visit::walk::walk_call_expression(self, it);
     }
 
     fn visit_ts_type_assertion(&mut self, it: &oxc::TSTypeAssertion<'a>) {
