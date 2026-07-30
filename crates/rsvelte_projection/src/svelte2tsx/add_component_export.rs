@@ -115,7 +115,16 @@ pub(crate) fn add_component_export(
     // Build events string from template info and component events
     let events_str = build_events_str(exported_names, template_info, events);
 
-    let mut closing = String::new();
+    let component_doc_len = component_doc.as_deref().map_or(0, str::len);
+    let common_capacity = props_str.len()
+        + exports_str.len()
+        + bindings_str.len()
+        + slots_str.len()
+        + events_str.len()
+        + safe_name.len() * 4
+        + component_doc_len
+        + 256;
+    let mut closing = String::with_capacity(common_capacity);
     closing.push_str("};\n");
     let _ = writeln!(
         closing,
