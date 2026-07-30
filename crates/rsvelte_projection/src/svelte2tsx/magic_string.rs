@@ -546,10 +546,12 @@ impl<'a> MappingState<'a> {
             Err(index) => index - 1,
         };
         let line_start = self.original_line_starts[line];
-        let column = original[line_start..offset]
-            .chars()
-            .map(char::len_utf16)
-            .sum::<usize>();
+        let column_source = &original[line_start..offset];
+        let column = if column_source.is_ascii() {
+            column_source.len()
+        } else {
+            column_source.chars().map(char::len_utf16).sum::<usize>()
+        };
         (line as i64, column as i64)
     }
 
@@ -1341,11 +1343,7 @@ impl fmt::Display for MagicString<'_> {
 /// Compute byte offsets of line starts (the offset of the first character on each line).
 fn line_starts(s: &str) -> Vec<usize> {
     let mut starts = vec![0usize];
-    for (i, ch) in s.char_indices() {
-        if ch == '\n' {
-            starts.push(i + 1);
-        }
-    }
+    starts.extend(memchr::memchr_iter(b'\n', s.as_bytes()).map(|index| index + 1));
     starts
 }
 
