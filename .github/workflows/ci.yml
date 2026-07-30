@@ -572,11 +572,8 @@ jobs:
           OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
           RSVELTE_FMT_TW_TEST_DIR: ${{ runner.temp }}/tw-oracle
 
-  # The language tooling and oxlint integrations use independent artifacts.
-  # Keeping them in separate jobs avoids serializing the three expensive WASM /
-  # NAPI builds on the same runner.
-  language-server-tests:
-    name: Language server tests
+  language-server:
+    name: Language server
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -601,7 +598,7 @@ jobs:
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          shared-key: language-tooling
+          shared-key: language-server
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install dependencies
@@ -609,6 +606,12 @@ jobs:
 
       - name: Build lint wasm (nodejs target)
         run: pnpm run build:wasm:lint-node
+
+      - name: Build core wasm
+        run: pnpm run build:wasm:core
+
+      - name: Run @rsvelte/svelte2tsx tests
+        run: pnpm --filter @rsvelte/svelte2tsx run test
 
       # apps/npm/svelte-check/bin/svelte-check.cjs (the npm launcher) had zero
       # tests (#1897 Layer 4 CI hygiene). Its smoke test drives the launcher
@@ -619,6 +622,18 @@ jobs:
 
       - name: Run @rsvelte/svelte-check smoke test (npm launcher)
         run: pnpm --filter @rsvelte/svelte-check run test
+
+      - name: Generate oxlint-plugin recommended config
+        run: pnpm run build:oxlint-plugin
+
+      - name: Check oxlint-plugin recommended config is in sync
+        run: git diff --exit-code apps/npm/oxlint-plugin/recommended.json
+
+      - name: Build rsvelte-lint NAPI addon
+        run: pnpm run build:lint-native
+
+      - name: Run oxlint-plugin E2E
+        run: pnpm run test:oxlint-plugin
 
       - name: Build native rsvelte-fmt
         run: cargo build -p rsvelte_fmt --bin rsvelte-fmt
@@ -633,75 +648,6 @@ jobs:
         run: |
           pnpm --filter rsvelte-vscode run typecheck
           pnpm --filter rsvelte-vscode run build
-
-  oxlint-plugin:
-    name: Oxlint plugin
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: false
-
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
-
-      - uses: ./.github/actions/setup-rust
-        with:
-          targets: wasm32-unknown-unknown
-          mold: 'true'
-          wasm-pack: 'true'
-
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          cache: 'true'
-
-      - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-        with:
-          shared-key: language-tooling
-          save-if: 'false'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build core wasm
-        run: pnpm run build:wasm:core
-
-      - name: Run @rsvelte/svelte2tsx tests
-        run: pnpm --filter @rsvelte/svelte2tsx run test
-
-      - name: Generate oxlint-plugin recommended config
-        run: pnpm run build:oxlint-plugin
-
-      - name: Check oxlint-plugin recommended config is in sync
-        run: git diff --exit-code apps/npm/oxlint-plugin/recommended.json
-
-      - name: Build rsvelte-lint NAPI addon
-        run: pnpm run build:lint-native
-
-      - name: Run oxlint-plugin E2E
-        run: pnpm run test:oxlint-plugin
-
-  language-tooling:
-    name: Language server
-    needs: [language-server-tests, oxlint-plugin]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - name: Verify language tooling jobs passed
-        shell: bash
-        env:
-          LANGUAGE_SERVER: ${{ needs.language-server-tests.result }}
-          OXLINT_PLUGIN: ${{ needs.oxlint-plugin.result }}
-        run: |
-          echo "language-server-tests: $LANGUAGE_SERVER"
-          echo "oxlint-plugin: $OXLINT_PLUGIN"
-          if [[ "$LANGUAGE_SERVER" != "success" || "$OXLINT_PLUGIN" != "success" ]]; then
-            echo "::error::One or more language tooling jobs did not succeed."
-            exit 1
-          fi
 
   # Single required status check that fans the sharded `Test` matrix and the
   # dedicated heavy-test jobs back into one signal: branch protection can require
