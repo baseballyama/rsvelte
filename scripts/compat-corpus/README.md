@@ -135,7 +135,17 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
    `compatibility/known-failures.server.json` (SSR) — both checked in, both may
    only shrink. Exits non-zero only on a **regression** (a `(id, target)` pair
    that diverges but is absent from that target's baseline).
-   `--update-baseline` rewrites both files from the current run.
+   `--update-baseline` rewrites every baseline from the current run;
+   `--update-baseline <target>` rewrites only that target's file.
+
+The compared targets (their `generate` / `dev` options, whether CSS is compared,
+and which baseline file they ratchet against) are declared once in
+`targets.mjs`; `compile.mjs` / `verify.mjs` / `one.mjs` / `cluster.mjs` all
+iterate that list, so adding a target is a one-line change plus its baseline.
+
+`verify.mjs --from-report <path>` skips normalization and comparison and derives
+the baselines from an existing `report.json` — e.g. one downloaded from a CI
+run, so a new target's baseline can be bootstrapped without a local full run.
 
 Debugging helpers:
 
