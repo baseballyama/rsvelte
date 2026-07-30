@@ -491,6 +491,7 @@ const ASCII_HIRES_BLOCK: &str = concat!(
 #[cfg(test)]
 std::thread_local! {
     static VLQ_ENCODE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static ASCII_HIRES_RESERVE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 #[inline]
@@ -514,8 +515,12 @@ fn vlq_encode(encoded: &mut String, value: i64) {
 }
 
 #[inline]
-fn push_ascii_hires_segments(mappings: &mut String, count: usize) {
-    mappings.reserve(count * ASCII_HIRES_SEGMENT.len());
+fn push_ascii_hires_segments<const CAPACITY_GUARANTEED: bool>(mappings: &mut String, count: usize) {
+    if !CAPACITY_GUARANTEED {
+        #[cfg(test)]
+        ASCII_HIRES_RESERVE_CALLS.with(|calls| calls.set(calls.get() + 1));
+        mappings.reserve(count * ASCII_HIRES_SEGMENT.len());
+    }
 
     let mut remaining = count;
     while remaining >= ASCII_HIRES_BLOCK_SEGMENTS {
@@ -585,7 +590,7 @@ impl OutputEstimate {
     }
 }
 
-struct MappingState<'a> {
+struct MappingState<'a, const CAPACITY_GUARANTEED: bool> {
     mappings: &'a mut String,
     original_line_starts: Vec<usize>,
     generated_column: i64,
@@ -594,7 +599,7 @@ struct MappingState<'a> {
     first_segment_on_line: bool,
 }
 
-impl<'a> MappingState<'a> {
+impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> {
     fn new(mappings: &'a mut String, original: &str) -> Self {
         Self {
             mappings,
@@ -715,7 +720,7 @@ impl<'a> MappingState<'a> {
                     byte_index += 1;
                 }
                 let run_len = byte_index - run_start;
-                push_ascii_hires_segments(self.mappings, run_len);
+                push_ascii_hires_segments::<CAPACITY_GUARANTEED>(self.mappings, run_len);
                 self.generated_column += run_len as i64;
                 current_source_column += run_len as i64;
                 self.original_column = current_source_column;
@@ -1264,7 +1269,7 @@ impl<'source> MagicString<'source> {
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         let mut result = String::with_capacity(self.original.len());
-        self.traverse_outputs(Some(&mut result), None, None);
+        self.traverse_outputs::<false>(Some(&mut result), None, None);
         result
     }
 
@@ -1288,7 +1293,7 @@ impl<'source> MagicString<'source> {
     #[allow(dead_code, reason = "preserved as the standalone MagicString API")]
     pub fn forward_segments(&self) -> Vec<(u32, u32, u32)> {
         let mut segments = Vec::with_capacity(self.chunks.len());
-        self.traverse_outputs(None, None, Some(&mut segments));
+        self.traverse_outputs::<false>(None, None, Some(&mut segments));
         segments
     }
 
@@ -1342,7 +1347,7 @@ impl<'source> MagicString<'source> {
 
         let mut code = String::with_capacity(estimate.code_bytes);
         let mut forward_segments = Vec::with_capacity(estimate.forward_segments);
-        self.traverse_outputs(
+        self.traverse_outputs::<true>(
             Some(&mut code),
             Some(&mut source_map),
             Some(&mut forward_segments),
@@ -1389,17 +1394,19 @@ impl<'source> MagicString<'source> {
     #[allow(dead_code, reason = "used by the standalone MagicString API")]
     fn generate_mappings(&self) -> String {
         let mut mappings = String::new();
-        self.traverse_outputs(None, Some(&mut mappings), None);
+        self.traverse_outputs::<false>(None, Some(&mut mappings), None);
         mappings
     }
 
-    fn traverse_outputs(
+    fn traverse_outputs<const MAPPINGS_CAPACITY_GUARANTEED: bool>(
         &self,
         mut code: Option<&mut String>,
         mappings: Option<&mut String>,
         mut forward_segments: Option<&mut Vec<(u32, u32, u32)>>,
     ) {
-        let mut mapping = mappings.map(|mappings| MappingState::new(mappings, self.original));
+        let mut mapping = mappings.map(|mappings| {
+            MappingState::<MAPPINGS_CAPACITY_GUARANTEED>::new(mappings, self.original)
+        });
         if let Some(code) = &mut code {
             code.push_str(&self.intro);
         }
@@ -1863,10 +1870,12 @@ mod tests {
     #[test]
     fn unedited_heavy_bundle_reserves_the_mapping_once() {
         let source = "x".repeat(64 * 1024);
+        ASCII_HIRES_RESERVE_CALLS.with(|calls| calls.set(0));
         let generated = MagicString::new(&source).generate_bundle(GenerateMapOptions::default());
 
         assert!(generated.source_map.len() > source.len() * 5);
         assert!(!BUNDLE_SOURCE_MAP_CAPACITY_GREW.with(std::cell::Cell::get));
+        assert_eq!(ASCII_HIRES_RESERVE_CALLS.with(std::cell::Cell::get), 0);
     }
 
     #[test]
@@ -2448,9 +2457,16 @@ mod tests {
     fn ascii_hires_segment_batches_are_exact() {
         for count in 0..=ASCII_HIRES_BLOCK_SEGMENTS * 2 {
             let mut actual = String::new();
-            push_ascii_hires_segments(&mut actual, count);
+            push_ascii_hires_segments::<false>(&mut actual, count);
             assert_eq!(actual, ASCII_HIRES_SEGMENT.repeat(count));
         }
+    }
+
+    #[test]
+    fn standalone_mappings_keep_ascii_hires_reservation() {
+        ASCII_HIRES_RESERVE_CALLS.with(|calls| calls.set(0));
+        MagicString::new("ascii").generate_mappings();
+        assert_eq!(ASCII_HIRES_RESERVE_CALLS.with(std::cell::Cell::get), 1);
     }
 
     #[test]
@@ -2462,7 +2478,7 @@ mod tests {
             ("\n😀", 2, ";", 2),
         ] {
             let mut mappings = String::new();
-            let mut state = MappingState::new(&mut mappings, "");
+            let mut state = MappingState::<false>::new(&mut mappings, "");
             state.generated_column = initial_column;
             state.advance_unmapped(content);
             assert_eq!(state.mappings, expected_mappings, "{content:?}");
