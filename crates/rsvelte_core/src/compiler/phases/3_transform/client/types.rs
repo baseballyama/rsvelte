@@ -2601,6 +2601,11 @@ pub struct ComponentMetadata {
     /// When true, infer_namespace should NOT re-evaluate from children,
     /// because the namespace is determined at runtime by $.element().
     pub svelte_element_child: bool,
+
+    /// Whether an ancestor element is a `<text>` element. Stands in for upstream
+    /// `clean_nodes`' `path.some((n) => n.type === 'RegularElement' && n.name ===
+    /// 'text')`, because this port never populates `context.path`.
+    pub in_text_element: bool,
 }
 
 impl Default for ComponentMetadata {
@@ -2609,6 +2614,7 @@ impl Default for ComponentMetadata {
             namespace: "html".to_string(),
             scoped: false,
             svelte_element_child: false,
+            in_text_element: false,
         }
     }
 }

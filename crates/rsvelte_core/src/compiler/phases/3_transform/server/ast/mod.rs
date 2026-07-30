@@ -85,6 +85,10 @@ pub struct ServerTransformState<'a> {
     /// `<span>` inside a `<pre>` keeps its inner whitespace. The element visitor
     /// saves/restores it around its children.
     pub preserve_whitespace: bool,
+    /// Sticky "an ancestor element is a `<text>`" flag, standing in for upstream
+    /// `clean_nodes`' `path.some((n) => n.type === 'RegularElement' && n.name ===
+    /// 'text')`: whitespace-only text survives anywhere below an SVG `<text>`.
+    pub in_text_element: bool,
     /// Current element namespace for the children being visited (`"html"` /
     /// `"svg"` / `"mathml"`), mirroring upstream `state.namespace`. Set by
     /// `process_children_inner` from the namespace it is handed and restored
@@ -254,6 +258,7 @@ impl<'a> ServerTransformState<'a> {
             is_standalone: false,
             fragment_depth: 0,
             preserve_whitespace: options.preserve_whitespace,
+            in_text_element: false,
             namespace: "html",
             each_index: 0,
             eval_inputs: EvalInputs::default(),

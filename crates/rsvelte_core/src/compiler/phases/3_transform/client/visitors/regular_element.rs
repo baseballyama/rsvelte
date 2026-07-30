@@ -832,10 +832,16 @@ pub fn visit_regular_element(
         child_namespace.clone(),
     );
 
+    // `node` itself is the `parent` argument below, so the flag handed to
+    // `clean_nodes` must cover only the elements ABOVE it.
+    let saved_in_text_element = context.state.metadata.in_text_element;
+    context.state.metadata.in_text_element = saved_in_text_element || node.name == "text";
+
     let cleaned = clean_nodes(
         crate::compiler::phases::phase3_transform::utils::ParentRef::RegularElement(node),
         &node.fragment.nodes,
         &[], // path - not needed for our implementation
+        saved_in_text_element,
         &context.state.metadata.namespace,
         context.state.scope,
         context.state.analysis,
@@ -1576,6 +1582,7 @@ pub fn visit_regular_element(
 
     // Restore namespace after processing children
     context.state.metadata.namespace = saved_namespace;
+    context.state.metadata.in_text_element = saved_in_text_element;
 
     // Restore original transforms that were saved before let: directives
     for (name, saved) in &let_directive_result.saved_transforms {

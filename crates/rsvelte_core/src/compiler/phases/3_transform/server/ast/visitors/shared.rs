@@ -164,7 +164,13 @@ pub fn process_children_inner<'a>(
         super::visit_node(node, state);
     }
 
-    let mut cleaned = clean_whitespace(&filtered, parent, namespace, preserve_whitespace);
+    let mut cleaned = clean_whitespace(
+        &filtered,
+        parent,
+        namespace,
+        preserve_whitespace,
+        state.in_text_element,
+    );
 
     // 写经 `clean_nodes` (utils.js:254-263): if the first surviving child of a
     // `<pre>` is a Text node whose data is a single newline (`'\n'` / `'\r\n'`),
@@ -371,13 +377,15 @@ pub fn process_children_inner<'a>(
 ///   an `ExpressionTag`.
 /// - A Text node that reduces to a single `' '` is dropped entirely when the
 ///   parent is a `select` / `tr` / `table` / `tbody` / `thead` / `tfoot` /
-///   `colgroup` / `datalist`, or any non-`text` SVG element (`can_remove_entirely`).
+///   `colgroup` / `datalist`, or an SVG element with no `<text>` anywhere above it
+///   (`can_remove_entirely`).
 /// - The first Text node inside `<pre>` is dropped if it is a lone `\n` / `\r\n`.
 fn clean_whitespace<'n, 'b>(
     nodes: &[&'n TemplateNode<'b>],
     parent: Option<&RegularElement<'_>>,
     namespace: &str,
     preserve_whitespace: bool,
+    in_text_element: bool,
 ) -> Vec<Cow<'n, TemplateNode<'b>>> {
     if preserve_whitespace {
         return nodes.iter().map(|n| Cow::Borrowed(*n)).collect();
@@ -424,6 +432,7 @@ fn clean_whitespace<'n, 'b>(
         ),
         None => false,
     } || (namespace == "svg"
+        && !in_text_element
         && !matches!(parent, Some(el) if el.name.as_str() == "text"));
 
     let last_idx = window.len() - 1;

@@ -588,6 +588,8 @@ pub struct CleanedNodes<'a> {
 /// * `parent` - The parent node
 /// * `nodes` - The nodes to clean
 /// * `path` - The path of parent nodes
+/// * `path_has_text_element` - Whether any node above `parent` is a `<text>`
+///   element (upstream reads this off `path`, which this port leaves empty)
 /// * `namespace` - The namespace (html, svg, mathml)
 /// * `scope` - The current scope
 /// * `analysis` - The component analysis
@@ -601,6 +603,7 @@ pub fn clean_nodes<'a>(
     parent: ParentRef<'_>,
     nodes: &'a [TemplateNode<'a>],
     _path: &[&TemplateNode<'_>],
+    path_has_text_element: bool,
     namespace: &str,
     _scope: &Scope,
     analysis: &ComponentAnalysis,
@@ -665,7 +668,7 @@ pub fn clean_nodes<'a>(
     let mut trimmed = if preserve_whitespace {
         regular
     } else {
-        trim_whitespace(parent, &regular, namespace)
+        trim_whitespace(parent, &regular, path_has_text_element, namespace)
     };
 
     // If first text node inside a <pre> is a single newline, discard it, because otherwise
@@ -764,6 +767,7 @@ pub fn clean_nodes<'a>(
 fn trim_whitespace<'a>(
     parent: ParentRef<'_>,
     nodes: &[Cow<'a, TemplateNode<'a>>],
+    path_has_text_element: bool,
     namespace: &str,
 ) -> Vec<Cow<'a, TemplateNode<'a>>> {
     if nodes.is_empty() {
@@ -810,9 +814,10 @@ fn trim_whitespace<'a>(
     let slice_len = trimmed_slice.len();
 
     // Determine if whitespace-only text nodes can be removed entirely
-    // This applies to svg (except text elements) and certain HTML elements
+    // This applies to svg (except inside a `<text>`, at any depth) and certain HTML elements
     let can_remove_entirely = (namespace == "svg"
-        && !matches!(parent.as_regular_element(), Some(elem) if elem.name == "text"))
+        && !matches!(parent.as_regular_element(), Some(elem) if elem.name == "text")
+        && !path_has_text_element)
         || matches!(parent.as_regular_element(), Some(elem) if matches!(
             elem.name.as_str(),
             "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
@@ -1236,6 +1241,7 @@ mod tests {
             ParentRef::None,
             &[],
             &[],
+            false,
             "html",
             &scope,
             &analysis,
@@ -1291,6 +1297,7 @@ mod tests {
             ParentRef::None,
             &nodes,
             &[],
+            false,
             "html",
             &scope,
             &analysis,
@@ -1330,6 +1337,7 @@ mod tests {
             ParentRef::None,
             &nodes,
             &[],
+            false,
             "html",
             &scope,
             &analysis,
@@ -1373,6 +1381,7 @@ mod tests {
             ParentRef::None,
             &nodes,
             &[],
+            false,
             "html",
             &scope,
             &analysis,

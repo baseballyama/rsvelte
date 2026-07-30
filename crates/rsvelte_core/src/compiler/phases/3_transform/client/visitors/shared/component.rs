@@ -2249,6 +2249,7 @@ fn visit_slot_children(
         crate::compiler::phases::phase3_transform::utils::ParentRef::None, // No parent in slot context
         &nodes,
         &context.path,
+        context.state.metadata.in_text_element,
         inferred_ns,
         context.state.scope,
         context.state.analysis,

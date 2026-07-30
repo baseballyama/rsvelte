@@ -451,12 +451,14 @@ pub fn process_children<F>(
                     // Push the static element to the template
                     let css_hash = &context.state.analysis.css.hash;
                     let preserve_comments = context.state.options.preserve_comments;
+                    let in_text_element = context.state.metadata.in_text_element;
                     let had_lone_script = push_static_element_to_template(
                         node,
                         &mut context.state.template,
                         &context.state.metadata.namespace,
                         css_hash,
                         preserve_comments,
+                        in_text_element,
                     );
 
                     // When a static element has a lone <script> child, the official
@@ -603,6 +605,7 @@ fn push_static_element_to_template(
     namespace: &str,
     css_hash: &str,
     preserve_comments: bool,
+    in_text_element: bool,
 ) -> bool {
     push_static_element_to_template_inner(
         node,
@@ -611,11 +614,16 @@ fn push_static_element_to_template(
         css_hash,
         preserve_comments,
         false,
+        in_text_element,
     )
 }
 
 /// Inner implementation with preserve_whitespace tracking.
 /// Returns true if a lone <script> child was encountered (and a <!> comment was added).
+///
+/// `in_text_element` stands in for upstream `clean_nodes`' `path.some((n) => n.type
+/// === 'RegularElement' && n.name === 'text')`: whitespace-only text survives
+/// anywhere below an SVG `<text>`, not just as its direct child.
 fn push_static_element_to_template_inner(
     node: &TemplateNode,
     template: &mut Template,
@@ -623,6 +631,7 @@ fn push_static_element_to_template_inner(
     css_hash: &str,
     preserve_comments: bool,
     preserve_whitespace: bool,
+    in_text_element: bool,
 ) -> bool {
     match node {
         TemplateNode::RegularElement(elem) => {
@@ -733,6 +742,7 @@ fn push_static_element_to_template_inner(
                 elem.name == "script" || elem.name == "pre" || elem.name == "textarea";
 
             let effective_preserve_ws = preserve_ws || preserve_whitespace;
+            let child_in_text_element = in_text_element || elem.name == "text";
             if effective_preserve_ws {
                 // For script/pre/textarea elements, add all children without whitespace trimming
                 let mut is_first = true;
@@ -758,6 +768,7 @@ fn push_static_element_to_template_inner(
                         css_hash,
                         preserve_comments,
                         effective_preserve_ws,
+                        child_in_text_element,
                     );
                 }
             } else {
@@ -837,7 +848,7 @@ fn push_static_element_to_template_inner(
                         // in SVG namespace (can_remove_entirely logic)
                         if !data.is_empty()
                             && !(data == " "
-                                && (child_namespace == "svg"
+                                && ((child_namespace == "svg" && !child_in_text_element)
                                     || matches!(
                                         elem_name.as_str(),
                                         "select"
@@ -860,6 +871,7 @@ fn push_static_element_to_template_inner(
                                 css_hash,
                                 preserve_comments,
                                 false,
+                                child_in_text_element,
                             );
                         }
                     } else {
@@ -871,6 +883,7 @@ fn push_static_element_to_template_inner(
                             css_hash,
                             preserve_comments,
                             false,
+                            child_in_text_element,
                         );
                     }
                 }
