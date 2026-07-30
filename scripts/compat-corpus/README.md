@@ -1,6 +1,7 @@
 # compat-corpus — real-world output-equality pipeline
 
-Verifies that rsvelte's CSR (client) and SSR (server) compile output is
+Verifies that rsvelte's CSR (client), SSR (server) and dev-mode CSR
+(client-dev) compile output is
 **byte-identical** to the official Svelte compiler's, over every
 `.svelte` / `.svelte.js` / `.svelte.ts` source — including code blocks inside
 markdown — found in the corpus source repositories.
@@ -136,16 +137,17 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
 `sources.json` and `.oxfmtrc.json` is generated and gitignored):
 
 1. `collect.mjs` — gathers sources into `compatibility/sources/` + `manifest.json`
-2. `compile.mjs` — dual-compiles every entry for client + server into
-   `compatibility/{expected,actual}/<id>/{client.js,server.js,client.css,error.json}`.
+2. `compile.mjs` — compiles every entry for all three targets into
+   `compatibility/{expected,actual}/<id>/{client.js,server.js,client-dev.js,client.css,client-dev.css,error.json}`.
    Sharded across worker processes; a Rust panic is recorded as a `rust_panic`
    error for that entry instead of killing the run.
 3. `verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes `report.json`,
    and ratchets each target independently against
-   `compatibility/known-failures.client.json` (CSR) and
-   `compatibility/known-failures.server.json` (SSR) — both checked in, both may
-   only shrink. Exits non-zero only on a **regression** (a `(id, target)` pair
-   that diverges but is absent from that target's baseline).
+   `compatibility/known-failures.client.json` (CSR),
+   `compatibility/known-failures.server.json` (SSR) and
+   `compatibility/known-failures.client-dev.json` (CSR with `dev: true`) — all
+   checked in, all may only shrink. Exits non-zero only on a **regression** (a
+   `(id, target)` pair that diverges but is absent from that target's baseline).
    `--update-baseline` rewrites every baseline from the current run;
    `--update-baseline <target>` rewrites only that target's file.
 
@@ -154,9 +156,31 @@ and which baseline file they ratchet against) are declared once in
 `targets.mjs`; `compile.mjs` / `verify.mjs` / `one.mjs` / `cluster.mjs` all
 iterate that list, so adding a target is a one-line change plus its baseline.
 
+| Target | `generate` | `dev` | CSS compared | Baseline |
+|---|---|---|---|---|
+| `client` | `client` | `false` | yes | `known-failures.client.json` |
+| `server` | `server` | `false` | no | `known-failures.server.json` |
+| `client-dev` | `client` | `true` | yes | `known-failures.client-dev.json` |
+
+`dev` is not a cosmetic flag: it gates 18 client codegen files and the CSS
+transform (empty rules survive pruning in dev), so `client-dev` compares CSS
+too. A `dev`-only divergence is invisible to the two `dev: false` targets —
+which is why #1981 stayed undetected across 524 corpus files.
+
+`compile.mjs --targets <keys>` / `verify.mjs --targets <keys>` (comma-separated)
+narrow a run to a subset of targets while iterating locally — e.g.
+`pnpm run corpus:compile:dev && pnpm run corpus:verify:dev`. An unfiltered
+`compile.mjs` always wipes `expected/` + `actual/` first, so a target-scoped
+compile leaves ONLY those targets on disk; re-run the unscoped compile before an
+unscoped verify.
+
 `verify.mjs --from-report <path>` skips normalization and comparison and derives
 the baselines from an existing `report.json` — e.g. one downloaded from a CI
 run, so a new target's baseline can be bootstrapped without a local full run.
+The failing `corpus` job also uploads `compatibility/cluster.txt` (the
+`cluster.mjs` grouping, computed on the runner because the `expected/` /
+`actual/` trees it reads are not uploaded), which is what turns that report into
+per-cluster justifications.
 
 Debugging helpers:
 
@@ -494,7 +518,7 @@ To add a repository:
    ```
 
    The new entries appear under the `repo/…` id prefix in the unified
-   `known-failures.{client,server}.json` / `svelte2tsx-known-failures.json` /
+   `known-failures.{client,server,client-dev}.json` / `svelte2tsx-known-failures.json` /
    `fmt-known-failures.json`. Like every ratchet they may only **shrink** — a new
    divergence on a later run fails CI. Regenerate baselines on Linux (CI is the
    source of truth — see the formatter-parity environment note above).

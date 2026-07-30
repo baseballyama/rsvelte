@@ -5,8 +5,9 @@ name: Corpus Compat
 # svelte.dev, and the real-world projects bits-ui / flowbite-svelte / melt-ui /
 # shadcn-svelte, each pinned by its submodule gitlink (see
 # scripts/compat-corpus/corpus-sources.json) — with BOTH the official Svelte
-# compiler and rsvelte, for client (CSR) and server (SSR) targets, normalizes
-# both output trees with oxfmt, and requires the results to be byte-identical.
+# compiler and rsvelte, for the client (CSR), server (SSR) and client-dev
+# (CSR with `dev: true`) targets, normalizes both output trees with oxfmt, and
+# requires the results to be byte-identical.
 # The same corpus also drives a svelte2tsx TSX output-parity check (official
 # svelte2tsx from submodules/language-tools vs rsvelte's port). See
 # scripts/compat-corpus/README.md.
@@ -220,7 +221,7 @@ jobs:
       - name: Collect corpus
         run: node scripts/compat-corpus/collect.mjs
 
-      - name: Compile corpus (official svelte + rsvelte, CSR + SSR)
+      - name: Compile corpus (official svelte + rsvelte, CSR + SSR + CSR dev)
         run: node scripts/compat-corpus/compile.mjs
 
       - name: Verify (oxfmt-normalized outputs must be identical)
@@ -238,6 +239,12 @@ jobs:
       - name: Verify CSS-prune sweep (no new divergences)
         run: node scripts/compat-corpus/css-prune-sweep.mjs --check
 
+      # The expected/actual trees cluster.mjs reads are not uploaded (too large),
+      # so the clustering has to happen here, on the runner, while they exist.
+      - name: Cluster failures
+        if: failure()
+        run: node scripts/compat-corpus/cluster.mjs > compatibility/cluster.txt || true
+
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -247,6 +254,7 @@ jobs:
             compatibility/report.json
             compatibility/report-s2t.json
             compatibility/manifest.json
+            compatibility/cluster.txt
           if-no-files-found: ignore
           retention-days: 14
 

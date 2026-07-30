@@ -1,7 +1,7 @@
-# known-failures.{client,server}.json — why each entry is accepted
+# known-failures.{client,server,client-dev}.json — why each entry is accepted
 
 The output-equality corpus compiles every source with both the official Svelte
-compiler and rsvelte (CSR + SSR) and requires byte-identical output after
+compiler and rsvelte (CSR + SSR + CSR `dev: true`) and requires byte-identical output after
 comparison-side normalization. The comparison is **AST-structural**
 (`normalize.astEquivalent` via acorn): comment position, `${}` line-wrapping,
 redundant parens, and quote style are already absorbed, so any entry here is a
@@ -56,6 +56,17 @@ fixed for the client only. SSR still emits `$.to_array(obj, 1)` where upstream
 omits the length entirely for a pattern ending in a `RestElement`, so the
 iterable is truncated (`b === []` instead of the remaining items) and SSR
 disagrees with CSR — a hydration-mismatch source.
+
+## Client dev (`known-failures.client-dev.json`, 0 entries)
+
+The `client-dev` target is the `client` target with `dev: true`. It is a
+separate ratchet because `dev` gates 18 client codegen files plus the CSS
+transform (`css/index.js:146` keeps empty rules in dev), so a dev-only
+divergence is invisible to the two `dev: false` targets — #1981
+(`<X.Y bind:…>`) was live in 524 corpus files and undetected for exactly that
+reason. CSS is compared for this target too.
+
+No accepted dev-mode divergences remain.
 
 ## Hard-cluster warnings for future work
 

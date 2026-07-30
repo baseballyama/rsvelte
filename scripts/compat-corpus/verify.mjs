@@ -3,20 +3,22 @@
  * Normalize both output trees with oxfmt (formatting-only differences are
  * explicitly tolerated by the corpus contract), then require byte-identical
  * outputs between the official Svelte compiler (expected/) and rsvelte
- * (actual/) for every corpus entry and target (client = CSR, server = SSR).
+ * (actual/) for every corpus entry and target (client = CSR, server = SSR,
+ * client-dev = CSR with `dev: true`).
  *
  * Verdicts per entry:
- *   - match           js (post-oxfmt) and css byte-identical for both targets
+ *   - match           js (post-oxfmt) and css byte-identical for every target
  *   - error-parity    official compiler rejected; rsvelte rejected too
  *   - js-mismatch / css-mismatch / error-mismatch (rsvelte errs where official
  *     compiles, or vice versa)
  *
  * Writes compatibility/report.json.
  *
- * Ratchet baselines (checked in), one per target (see targets.mjs) so CSR and
- * SSR are tracked independently:
- *   - compatibility/known-failures.client.json  (CSR / client target)
- *   - compatibility/known-failures.server.json  (SSR / server target)
+ * Ratchet baselines (checked in), one per target (see targets.mjs) so every
+ * target is tracked independently:
+ *   - compatibility/known-failures.client.json      (CSR / client target)
+ *   - compatibility/known-failures.server.json      (SSR / server target)
+ *   - compatibility/known-failures.client-dev.json  (CSR with `dev: true`)
  * Each lists the entry ids whose output diverges for that target. Verification
  * exits non-zero only when a (id, target) pair NOT in its baseline fails (a
  * regression) — known failures are tolerated and burned down over time (see
@@ -29,7 +31,7 @@
  * baselines from an existing report.json (e.g. downloaded from a CI run), so a
  * new target's baseline can be bootstrapped without a local full run.
  *
- * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--from-report <path>] [--strict]
+ * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--from-report <path>] [--targets <keys>] [--strict]
  */
 
 import fs from 'node:fs';
@@ -37,7 +39,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { flattenTemplateHoles, stripBlankLines, astEquivalent, readIf, firstDiffLine } from './normalize.mjs';
-import { TARGETS, TARGET_KEYS } from './targets.mjs';
+import { TARGET_KEYS as ALL_TARGET_KEYS, selectTargets } from './targets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -50,6 +52,8 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = Number(args[args.indexOf('--max-print') + 1] || 20);
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
+const TARGETS = selectTargets(args);
+const TARGET_KEYS = TARGETS.map((t) => t.key);
 
 // `--update-baseline <target>` limits the rewrite to one target; bare
 // `--update-baseline` rewrites every target's baseline (the historical
@@ -86,7 +90,11 @@ function partitionFailures(failures) {
 		for (const d of f.details) {
 			const set = byTarget.get(d.target);
 			if (set) set.add(f.id);
-			else console.warn(`[verify] ignoring failure detail for unknown target "${d.target}" (${f.id})`);
+			// Silently skip targets deselected via --targets; warn only for a
+			// target no descriptor declares (a stale report, or a typo that would
+			// otherwise drop failures on the floor).
+			else if (!ALL_TARGET_KEYS.includes(d.target))
+				console.warn(`[verify] ignoring failure detail for unknown target "${d.target}" (${f.id})`);
 		}
 	}
 	return byTarget;
@@ -263,7 +271,10 @@ const fixedKnown = fixedByTarget.reduce((n, [, ids]) => n + ids.length, 0);
 if (fixedKnown) {
 	const breakdown = fixedByTarget.map(([key, ids]) => `${key} ${ids.length}`).join(', ');
 	console.log(`\n[verify] 🎉 ${fixedKnown} known failures now PASS (${breakdown}) — shrink the baselines:`);
-	console.log('  node scripts/compat-corpus/verify.mjs --no-fmt --update-baseline');
+	// A target-scoped run only measured those targets, so the suggested rewrite
+	// must stay scoped too — otherwise it would empty the unmeasured baselines.
+	const scope = TARGET_KEYS.length === ALL_TARGET_KEYS.length ? '' : ` --targets ${TARGET_KEYS.join(',')}`;
+	console.log(`  node scripts/compat-corpus/verify.mjs --no-fmt${scope} --update-baseline`);
 }
 
 if (regressions.length) {
