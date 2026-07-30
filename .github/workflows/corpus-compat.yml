@@ -284,7 +284,8 @@ jobs:
         id: pins
         # One combined hash over every corpus source submodule SHA, so a bump to
         # any source (svelte, svelte.dev, or a real-world project) invalidates the
-        # cached fmt oracle.
+        # cached fmt oracle. The in-repo `pattern` source has no gitlink, so its
+        # files are hashed into the cache key directly (see below).
         run: |
           echo "sources=$(git submodule status submodules/svelte submodules/svelte.dev submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/cmsaasstarter submodules/skeleton | awk '{print $1}' | sort | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
 
@@ -296,7 +297,7 @@ jobs:
           path: |
             compatibility/fmt/oracle
             compatibility/fmt/meta.json
-          key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.sources }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml') }}
+          key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.sources }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml', 'compatibility/pattern-corpus/**') }}
 
       - name: Build fmt trees (oracle cached, actual via rsvelte-fmt)
         run: node scripts/compat-corpus/fmt.mjs

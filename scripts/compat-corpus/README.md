@@ -50,8 +50,9 @@ in [`compatibility/`](../../compatibility/).
 | [vatro/svelthree](https://github.com/vatro/svelthree) | `submodules/svelthree` | Three.js components (awesome-svelte) |
 | [CriticalMoments/CMSaasStarter](https://github.com/CriticalMoments/CMSaasStarter) | `submodules/cmsaasstarter` | SvelteKit SaaS starter (awesome-svelte) |
 | [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) | `submodules/skeleton` | UI library + docs/playground monorepo (also the svelte-check e2e gate) |
+| — (in-repo) | `compatibility/pattern-corpus` | hand-written patterns: one minimal repro per fixed divergence + the feature matrices around them ([README](../../compatibility/pattern-corpus/README.md)) |
 
-Every source is **pinned by its submodule gitlink** and bumped by
+Every source but the last is **pinned by its submodule gitlink** and bumped by
 `auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes through
 `auto-update-svelte.yml`). `skeleton` is the one exception: it also feeds the
 line-number-keyed svelte-check e2e ratchet, so it is deliberately excluded from
@@ -61,6 +62,12 @@ real-world projects only their **shipped**
 skipped (they carry non-Svelte doc tooling and truncated pseudo-code the official
 compiler itself rejects, which is noise, not a compatibility gap). Each source is
 collected under its `id` prefix (`bits-ui/…`, `svelte.dev/…`, …).
+
+`compatibility/pattern-corpus` (`pattern/…`) is the one source that is **not** an
+upstream pin: the pinned repositories only cover shapes somebody happened to
+write, so a divergence in a shape none of them uses is invisible however many
+repositories are added. That source is where such a shape is written down —
+see [Adding a pattern file](#adding-a-pattern-file).
 
 Both compilers run with identical default options (`dev: false`,
 `css: 'external'`). `.svelte.ts` modules are TS-stripped before compilation,
@@ -264,7 +271,8 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
   shallow-initialised, so the whole unified corpus runs on each PR. Expected
   outputs are regenerated from the pinned submodules on every run, so bumping a
   pin automatically refreshes the corpus *and* its expectations; the fmt oracle
-  is cached by a combined hash of all source SHAs + oxfmt + config.
+  is cached by a combined hash of all source SHAs + the `pattern` source's file
+  contents + oxfmt + config.
 - Source bumps arrive via `auto-update-submodules.yml` (weekly PR per submodule —
   svelte.dev and each real-world project) and `auto-update-svelte.yml` (the
   compiler). Both trigger corpus-compat through its submodule path filters, which
@@ -493,3 +501,40 @@ To add a repository:
 
 The corpus only ever **reads** source files — it never installs deps or runs a
 project's build, so a shallow submodule is all that is needed.
+
+## Adding a pattern file
+
+[`compatibility/pattern-corpus/`](../../compatibility/pattern-corpus/) is a
+checked-in corpus source for shapes the pinned repositories do not contain: one
+minimal repro per fixed divergence under `issues/`, and the axes around it under
+`matrix/<axis>/`. Files there are collected, compiled and ratcheted exactly like
+submodule sources (ids `pattern/issues/…`, `pattern/matrix/…`), and — since the
+manifest is shared — they also flow through the fmt and svelte2tsx gates.
+
+1. **Write the file.** `issues/<issue-number>-<slug>.svelte` for a repro,
+   `matrix/<axis>/<slug>.svelte` for an axis point. Self-contained (imports need
+   not resolve), accepted by the **official** compiler, one behaviour per file,
+   minimal, and **formatted** — it is a formatter case too, so an unformatted
+   file just adds noise to the fmt gate.
+
+2. **Do not put provenance in an HTML comment.** Removed comments are themselves
+   a whitespace-sensitive compiler input, so a `<!-- issue N -->` line changes
+   what the file tests. Record it in the table in
+   [`compatibility/pattern-corpus/README.md`](../../compatibility/pattern-corpus/README.md)
+   instead — that table is the only provenance record.
+
+3. **Land it with the fix.** A repro for a still-open divergence would have to be
+   seeded into `known-failures.*`; add it in the fix PR (or right after it
+   merges) so it lands green.
+
+4. **Check it.**
+
+   ```bash
+   pnpm run corpus:collect
+   node scripts/compat-corpus/compile.mjs --filter pattern/
+   node scripts/compat-corpus/verify.mjs
+   node scripts/compat-corpus/one.mjs pattern/issues/<file>.svelte   # diff one entry
+   ```
+
+No submodule, `.gitmodules`, CI path-filter or auto-update entry is involved —
+`compatibility/**` is already a trigger path for `corpus-compat.yml`.

@@ -4,12 +4,14 @@
  * blocks inside markdown files) from every repository listed in
  * `corpus-sources.json` into `compatibility/sources/`.
  *
- * The corpus is a single flat set of source repositories (all git submodules):
- * sveltejs/svelte + sveltejs/svelte.dev provide svelte's own fixtures and the
- * curated docs, and the real-world projects (bits-ui, flowbite-svelte, melt-ui,
- * shadcn-svelte, …) provide production component-library source. There is no
- * separate "ecosystem" track — to grow the corpus, add a submodule and a line
- * to `corpus-sources.json`. Each source is collected under its `id` prefix.
+ * The corpus is a single flat set of sources: sveltejs/svelte +
+ * sveltejs/svelte.dev provide svelte's own fixtures and the curated docs, the
+ * real-world projects (bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, …)
+ * provide production component-library source — all git submodules — and
+ * `compatibility/pattern-corpus` adds hand-written patterns for shapes none of
+ * them contains. There is no separate "ecosystem" track — to grow the corpus,
+ * add a submodule and a line to `corpus-sources.json`. Each source is collected
+ * under its `id` prefix.
  *
  * Markdown extraction rules (mirrors svelte.dev's site-kit renderer):
  *   - ```svelte fences            -> .svelte snippets
@@ -34,8 +36,9 @@ const ROOT = path.resolve(__dirname, '../..');
 const CORPUS = path.join(ROOT, 'compatibility');
 const OUT = path.join(CORPUS, 'sources');
 
-// The corpus source repositories — all git submodules. Each entry: { path, id,
-// markdown, required }. `markdown` controls whether ```svelte / ```js+file
+// The corpus sources — git submodules plus the in-repo `pattern` directory.
+// Each entry: { path, id, markdown, required }.
+// `markdown` controls whether ```svelte / ```js+file
 // fences inside .md docs are extracted (true for the curated svelte/svelte.dev
 // docs, false for real-world projects whose docs carry non-Svelte doc tooling
 // and pseudo-code the compiler rejects). `required` sources abort collection
