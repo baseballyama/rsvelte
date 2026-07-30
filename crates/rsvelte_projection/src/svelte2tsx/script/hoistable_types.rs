@@ -398,7 +398,7 @@ pub(super) fn resolve_hoistable_type_decls(
     // `$$ComponentProps` props-interface dependency set.
     props_inline_type: Option<&str>,
 ) {
-    if candidates.is_empty() {
+    if candidates.is_empty() || (props_named_ref.is_none() && props_inline_type.is_none()) {
         return;
     }
     let mut candidate_indices: FxHashMap<&str, u32> =
@@ -408,6 +408,10 @@ pub(super) fn resolve_hoistable_type_decls(
             .entry(candidate.name.as_str())
             .or_insert(index as u32);
     }
+    if props_named_ref.is_some_and(|named| !candidate_indices.contains_key(named)) {
+        return;
+    }
+
     // Per-candidate: collect generic parameter names (so `interface Props<T>`
     // doesn't see `T` as a dependency).
     let generics: Vec<FxHashSet<&str>> = candidates
@@ -1172,6 +1176,31 @@ mod tests {
             local_pos > render_pos,
             "type Local must stay inside $$render (not hoisted above it):\n{out}"
         );
+    }
+
+    #[test]
+    fn missing_props_interfaces_skip_dependency_graphs() {
+        for declaration in [
+            "let { value } = $props();",
+            "let { value }: ImportedProps = $props();",
+        ] {
+            let source = format!(
+                "<script lang=\"ts\">\n\
+                 import type {{ ImportedProps }} from './types';\n\
+                 type Leaf = string;\n\
+                 type Wrapper = {{ value: Leaf }};\n\
+                 {declaration}\n\
+                 </script>\n\
+                 <p>{{value}}</p>"
+            );
+            reset_dependency_edges();
+            let output = convert_ts(&source);
+            let render = output.code.find("function $$render").expect("render");
+
+            assert_eq!(dependency_edges(), 0);
+            assert!(output.code.find("type Leaf").expect("Leaf") > render);
+            assert!(output.code.find("type Wrapper").expect("Wrapper") > render);
+        }
     }
 
     #[test]
