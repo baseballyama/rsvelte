@@ -138,6 +138,12 @@ struct ChunkStart {
 
 // This caps reverse-order dense insertion at 256 KiB of total entry movement.
 const DENSE_CHUNK_START_LIMIT: usize = 256;
+const FIRST_SPLIT_RESERVE_LIMIT: usize = 16;
+
+#[inline]
+fn first_split_capacity(source_len: usize) -> usize {
+    source_len.clamp(1, FIRST_SPLIT_RESERVE_LIMIT)
+}
 
 enum ChunkStarts {
     Dense(Vec<ChunkStart>),
@@ -179,6 +185,12 @@ impl ChunkStarts {
             position: 0,
             chunk: ChunkId::from_index(0),
         }])
+    }
+
+    fn reserve_dense_exact(&mut self, capacity: usize) {
+        if let Self::Dense(entries) = self {
+            entries.reserve_exact(capacity.saturating_sub(entries.len()));
+        }
     }
 
     fn get(&self, position: u32) -> Option<usize> {
@@ -908,6 +920,13 @@ impl<'source> MagicString<'source> {
         dense_insert_slot: Option<DenseSlot>,
     ) -> ChunkBoundary {
         debug_assert!(index > self.chunks[cur].start && index < self.chunks[cur].end);
+
+        if self.chunks.len() == 1 {
+            let capacity = first_split_capacity(self.original.len());
+            self.chunks
+                .reserve_exact(capacity.saturating_sub(self.chunks.len()));
+            self.by_start.reserve_dense_exact(capacity);
+        }
 
         let old_next = self.chunks[cur].next_index();
         let mut new_chunk = self.chunks[cur].split(index);
@@ -1945,6 +1964,59 @@ mod tests {
         s.append_right(2, "A");
 
         assert_eq!(s.to_string(), "abXLRefQPAcd");
+    }
+
+    #[test]
+    fn first_split_reserve_is_lazy_and_source_bounded() {
+        assert_eq!(first_split_capacity(0), 1);
+        assert_eq!(first_split_capacity(1), 1);
+        assert_eq!(first_split_capacity(2), 2);
+        assert_eq!(
+            first_split_capacity(FIRST_SPLIT_RESERVE_LIMIT),
+            FIRST_SPLIT_RESERVE_LIMIT
+        );
+        assert_eq!(
+            first_split_capacity(FIRST_SPLIT_RESERVE_LIMIT + 1),
+            FIRST_SPLIT_RESERVE_LIMIT
+        );
+
+        let source = "x".repeat(FIRST_SPLIT_RESERVE_LIMIT);
+        let mut s = MagicString::new(&source);
+        let initial_chunk_capacity = s.chunks.capacity();
+        let ChunkStarts::Dense(entries) = &s.by_start else {
+            panic!("new chunk starts must use the dense index");
+        };
+        let initial_start_capacity = entries.capacity();
+
+        s.prepend_str("<").append_str(">");
+        assert_eq!(s.chunks.capacity(), initial_chunk_capacity);
+        let ChunkStarts::Dense(entries) = &s.by_start else {
+            panic!("unsplit chunk starts must use the dense index");
+        };
+        assert_eq!(entries.capacity(), initial_start_capacity);
+
+        s.append_right(1, "_");
+        let reserved_chunk_capacity = s.chunks.capacity();
+        let ChunkStarts::Dense(entries) = &s.by_start else {
+            panic!("first split must keep the dense index");
+        };
+        let reserved_start_capacity = entries.capacity();
+        assert!(reserved_chunk_capacity >= FIRST_SPLIT_RESERVE_LIMIT);
+        assert!(reserved_start_capacity >= FIRST_SPLIT_RESERVE_LIMIT);
+
+        for index in 2..FIRST_SPLIT_RESERVE_LIMIT {
+            s.append_right(index as u32, "_");
+        }
+
+        assert_eq!(s.chunks.len(), FIRST_SPLIT_RESERVE_LIMIT);
+        assert_eq!(s.chunks.capacity(), reserved_chunk_capacity);
+        let ChunkStarts::Dense(entries) = &s.by_start else {
+            panic!("bounded chunk starts must use the dense index");
+        };
+        assert_eq!(entries.len(), FIRST_SPLIT_RESERVE_LIMIT);
+        assert_eq!(entries.capacity(), reserved_start_capacity);
+        assert_eq!(s.to_string(), format!("<x{}>", "_x".repeat(15)));
+        assert_bidirectional_links(&s);
     }
 
     #[test]
