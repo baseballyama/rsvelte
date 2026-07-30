@@ -7,8 +7,7 @@ use crate::ast::template::Root;
 use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions};
 use super::magic_string::MagicString;
 use super::nodes::generics::{
-    extract_generics_from_script_tag, split_generic_param_names, type_text_references_any,
-    type_text_typeof_references_local_value,
+    split_generic_param_names, type_text_references_any, type_text_typeof_references_local_value,
 };
 use super::nodes::scripts::{detect_top_level_await, find_script_close_tag_start};
 use super::script::ExportedNames;
@@ -30,6 +29,7 @@ pub(crate) fn process_instance_script_tag(
     instance_program: &oxc_ast::ast::Program,
     source: &str,
     options: &Svelte2TsxOptions,
+    generics_param: Option<&str>,
     str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
     dollar_decls: &str,
@@ -80,15 +80,11 @@ pub(crate) fn process_instance_script_tag(
     }
     let async_prefix = if has_top_level_await { "async " } else { "" };
 
-    // Detect `generics` attribute on the script tag
-    let script_tag_text = slice_src(source, script_start as usize, content_start as usize);
-    let generics_param = extract_generics_from_script_tag(script_tag_text);
     let use_jsdoc_generics = options.emit_jsdoc && !options.is_ts_file;
     // For JS files emitting JSDoc, the generics live on a `/** @template T */`
     // line *before* `function $$render()`, not as `<T>` on the function.
     let template_comment = if use_jsdoc_generics {
         generics_param
-            .as_ref()
             .filter(|g| !g.is_empty())
             .map(|g| format!("\n/** @template {} */\n", g))
             .unwrap_or_default()
@@ -105,7 +101,6 @@ pub(crate) fn process_instance_script_tag(
         String::new()
     } else {
         generics_param
-            .as_ref()
             .map(|g| {
                 if options.is_ts_file {
                     // TS files: no ignore markers around generics
@@ -157,7 +152,6 @@ pub(crate) fn process_instance_script_tag(
             // Check if type references generics from $$render
             let has_generic_dep = !render_generics.is_empty()
                 && generics_param
-                    .as_ref()
                     .map(|g| {
                         // Extract generic param names and check if any appear in the type
                         split_generic_param_names(g)

@@ -175,7 +175,7 @@ fn extract_param_name(param: &str) -> String {
 }
 
 /// Extract the `generics` attribute value from a script tag text.
-pub(crate) fn extract_generics_from_script_tag(tag_text: &str) -> Option<String> {
+pub(crate) fn extract_generics_from_script_tag(tag_text: &str) -> Option<&str> {
     if let Some(pos) = tag_text.find("generics=") {
         let after = &tag_text[pos + 9..];
         let trimmed = after.trim_start();
@@ -183,7 +183,7 @@ pub(crate) fn extract_generics_from_script_tag(tag_text: &str) -> Option<String>
             if quote_char == '"' || quote_char == '\'' {
                 let content = &trimmed[1..];
                 if let Some(end) = content.find(quote_char) {
-                    return Some(content[..end].to_string());
+                    return Some(&content[..end]);
                 }
             } else {
                 // Unquoted value: take until whitespace or `>`
@@ -191,7 +191,7 @@ pub(crate) fn extract_generics_from_script_tag(tag_text: &str) -> Option<String>
                     .find(|c: char| c.is_whitespace() || c == '>')
                     .unwrap_or(trimmed.len());
                 if end > 0 {
-                    return Some(trimmed[..end].to_string());
+                    return Some(&trimmed[..end]);
                 }
             }
         }
@@ -207,6 +207,27 @@ mod tests {
 
     fn set(names: &[&str]) -> HashSet<String> {
         names.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn extracts_borrowed_quoted_generics() {
+        assert_eq!(
+            extract_generics_from_script_tag(r#"<script lang="ts" generics="T extends string">"#),
+            Some("T extends string")
+        );
+        assert_eq!(
+            extract_generics_from_script_tag("<script generics='T, U'>"),
+            Some("T, U")
+        );
+    }
+
+    #[test]
+    fn distinguishes_empty_and_absent_generics() {
+        assert_eq!(
+            extract_generics_from_script_tag(r#"<script generics="">"#),
+            Some("")
+        );
+        assert_eq!(extract_generics_from_script_tag("<script>"), None);
     }
 
     #[test]

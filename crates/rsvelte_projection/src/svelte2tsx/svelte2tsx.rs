@@ -545,20 +545,17 @@ pub fn svelte2tsx(
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_string();
-    let script_generic_names: std::collections::HashSet<String> = ast
-        .instance
-        .as_ref()
-        .map(|instance| {
-            let tag_text = slice_src(
-                source,
-                instance.start as usize,
-                instance.content_offset as usize,
-            );
-            extract_generics_from_script_tag(tag_text)
-        })
-        .unwrap_or_default()
+    let instance_generics = ast.instance.as_ref().and_then(|instance| {
+        let tag_text = slice_src(
+            source,
+            instance.start as usize,
+            instance.content_offset as usize,
+        );
+        extract_generics_from_script_tag(tag_text)
+    });
+    let script_generic_names: std::collections::HashSet<String> = instance_generics
         .map(|raw| {
-            split_generic_param_names(&raw)
+            split_generic_param_names(raw)
                 .into_iter()
                 .collect::<std::collections::HashSet<String>>()
         })
@@ -750,17 +747,7 @@ pub fn svelte2tsx(
         template_info.dollar_slot_names.as_deref(),
     );
 
-    // Detect generics attribute from the script tag (available for component export)
-    let mut generics_attribute: Option<String> = None;
-    if has_instance_script {
-        let instance = ast.instance.as_ref().unwrap();
-        let script_tag_text = slice_src(
-            source,
-            instance.start as usize,
-            instance.content_offset as usize,
-        );
-        generics_attribute = extract_generics_from_script_tag(script_tag_text);
-    }
+    let generics_attribute = has_instance_script.then_some(instance_generics).flatten();
 
     // Phase 2: Overwrite instance script tags and lift imports. Split into its
     // own module, but it must still run before Phase 3's moves — see the
@@ -775,6 +762,7 @@ pub fn svelte2tsx(
                 .program(),
             source,
             &options,
+            generics_attribute,
             &mut str,
             &mut exported_names,
             &dollar_decls,
@@ -840,7 +828,7 @@ pub fn svelte2tsx(
             template_info: &template_info,
             exported_names: &exported_names,
             events: &mut events,
-            generics_attribute: generics_attribute.as_deref(),
+            generics_attribute,
             has_slot_elements,
             has_top_level_await,
             uses_dollar_props,
