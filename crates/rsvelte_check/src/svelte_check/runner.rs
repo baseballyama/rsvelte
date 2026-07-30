@@ -220,6 +220,7 @@ pub fn run(options: &RunOptions) -> RunResult {
             options.tsconfig.as_deref(),
             options.incremental,
             &kit_settings,
+            &options.ignore,
         ) {
             Ok(layout) => {
                 if options.type_check {

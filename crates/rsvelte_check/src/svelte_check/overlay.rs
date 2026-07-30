@@ -198,7 +198,7 @@ pub fn materialize_overlay(
     files: &[PathBuf],
     tsconfig_path: Option<&Path>,
 ) -> Result<OverlayLayout, OverlayError> {
-    materialize_overlay_with(workspace, files, tsconfig_path, false)
+    materialize_overlay_with(workspace, files, tsconfig_path, false, &[])
 }
 
 /// Same as [`materialize_overlay_with`] but also materialises SvelteKit
@@ -213,8 +213,10 @@ pub fn materialize_overlay_with_kit(
     tsconfig_path: Option<&Path>,
     incremental: bool,
     settings: &KitFilesSettings,
+    ignore: &[String],
 ) -> Result<OverlayLayout, OverlayError> {
-    let mut layout = materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental)?;
+    let mut layout =
+        materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental, ignore)?;
     layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
     materialize_kit_types(workspace, &layout.emit_dir, kit_files)?;
     Ok(layout)
@@ -227,11 +229,16 @@ pub fn materialize_overlay_with_kit(
 /// `.tsx` / `.d.ts` shadows still exist on disk). The source map for
 /// skipped files is recovered from the sibling `.tsx.map` file written
 /// on the previous run, so downstream diagnostic mapping still works.
+///
+/// `ignore` is the CLI's `--ignore` list, applied to the extra workspace walk
+/// `emit_svelte_module_bridges` does so it sees the same tree the checked
+/// file set was collected from.
 pub fn materialize_overlay_with(
     workspace: &Path,
     files: &[PathBuf],
     tsconfig_path: Option<&Path>,
     incremental: bool,
+    ignore: &[String],
 ) -> Result<OverlayLayout, OverlayError> {
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
@@ -287,9 +294,9 @@ pub fn materialize_overlay_with(
             svelte_resolver.as_ref(),
             &ext_root_dir_pairs,
         )?;
-        emit_svelte_module_bridges(&pkg.real_dir, &pkg.mirror_dir)?;
+        emit_svelte_module_bridges(&pkg.real_dir, &pkg.mirror_dir, &[])?;
     }
-    emit_svelte_module_bridges(workspace, &emit_dir)?;
+    emit_svelte_module_bridges(workspace, &emit_dir, ignore)?;
 
     let mut entries = Vec::with_capacity(files.len());
     let mut augments: Vec<CompanionAugment> = Vec::new();
@@ -412,9 +419,9 @@ pub fn materialize_overlay_with(
             result.map
         };
 
-        // Written on every run, cache hit included: a `.svelte-check` dir left
-        // by a build without bridges would otherwise never gain them.
-        write_esm_bridge(&tsx_path, &shadow_reexport(&tsx_path))?;
+        // Outside the cache-hit branch: a `.svelte-check` dir left by a build
+        // without bridges would otherwise never gain them.
+        write_esm_bridge(&tsx_path, &shadow_reexport(&tsx_path), can_skip)?;
 
         // A duplicated input would emit the same `declare module` block twice.
         if let Some(companion) = find_companion_module(abs_source)
@@ -714,7 +721,7 @@ fn emit_external_shadows(
         fs::write(&tsx_path, &tsx_code)?;
         let dts_content = shadow_reexport(&tsx_path);
         fs::write(&dts_path, &dts_content)?;
-        write_esm_bridge(&tsx_path, &dts_content)?;
+        write_esm_bridge(&tsx_path, &dts_content, false)?;
     }
     Ok(())
 }
@@ -1780,13 +1787,20 @@ pub(super) fn esm_bridge_path(path: &Path) -> Option<PathBuf> {
 /// pre-ESM algorithm for `.svelte` specifiers inside its own
 /// `resolveModuleNames` hook (`module-loader.ts`); a stock compiler driven over
 /// an on-disk overlay has to supply the file it actually looks for. Emitting it
-/// unconditionally keeps resolution identical in both modes and independent of
+/// for every shadow keeps resolution identical in both modes and independent of
 /// whether the importer is a `.svelte` shadow or a plain `.ts` file we cannot
 /// rewrite.
-fn write_esm_bridge(path: &Path, content: &str) -> io::Result<()> {
+///
+/// `only_if_missing` is for an incremental cache hit, whose shadow was not
+/// rewritten either: the bridge still has to be backfilled when it comes from a
+/// build that never wrote one, but its content cannot have gone stale.
+fn write_esm_bridge(path: &Path, content: &str, only_if_missing: bool) -> io::Result<()> {
     let Some(bridge) = esm_bridge_path(path) else {
         return Ok(());
     };
+    if only_if_missing && bridge.exists() {
+        return Ok(());
+    }
     fs::write(bridge, content)
 }
 
@@ -1797,8 +1811,15 @@ fn write_esm_bridge(path: &Path, content: &str) -> io::Result<()> {
 /// A module with a sibling `<base>.svelte` component is skipped: the component's
 /// own bridge already claims the specifier, and its shadow re-exports the
 /// companion's names (see [`companion_reexport_specifier`]).
-fn emit_svelte_module_bridges(root: &Path, mirror_dir: &Path) -> Result<(), OverlayError> {
-    let mut modules = super::walker::find_svelte_suffixed_modules(root, &[]);
+///
+/// These bridges have no manifest entry to prune them by, so the mirror is also
+/// swept for ones whose source module has since been deleted or renamed.
+fn emit_svelte_module_bridges(
+    root: &Path,
+    mirror_dir: &Path,
+    ignore: &[String],
+) -> Result<(), OverlayError> {
+    let mut modules = super::walker::find_svelte_suffixed_modules(root, ignore);
     // `x.svelte.ts` and `x.svelte.js` share one bridge path; TypeScript probes
     // `.ts` first, so let it win.
     modules.sort_by_key(|p| {
@@ -1838,7 +1859,35 @@ fn emit_svelte_module_bridges(root: &Path, mirror_dir: &Path) -> Result<(), Over
         }
         fs::write(&bridge, content)?;
     }
+    prune_orphaned_module_bridges(mirror_dir, &written);
     Ok(())
+}
+
+/// Drop `.d.svelte.ts` files under `mirror_dir` that this run did not write and
+/// that no component shadow owns — i.e. bridges left behind by a rune module
+/// that has since been deleted or renamed. A component's bridge is recognised by
+/// its `.svelte.tsx` sibling, so the sweep is safe whichever order the two kinds
+/// of bridge are emitted in.
+fn prune_orphaned_module_bridges(mirror_dir: &Path, written: &std::collections::HashSet<PathBuf>) {
+    // A bridge's own name ends in `.svelte.ts`, so the rune-module finder lists
+    // it too — filter for the declaration form.
+    for bridge in super::walker::find_svelte_suffixed_modules(mirror_dir, &[]) {
+        let Some(base) = bridge
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".d.svelte.ts"))
+        else {
+            continue;
+        };
+        if written.contains(&bridge) {
+            continue;
+        }
+        let shadow = bridge.with_file_name(format!("{base}.svelte.tsx"));
+        if shadow.is_file() {
+            continue;
+        }
+        let _ = fs::remove_file(&bridge);
+    }
 }
 
 fn module_has_default(path: &Path) -> bool {
@@ -2542,7 +2591,7 @@ mod tests {
         let files = vec![svelte_path];
 
         // Non-incremental: no compiler-side build info (each run is cold).
-        let layout = materialize_overlay_with(&tmp, &files, None, false).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
         assert!(
@@ -2552,7 +2601,7 @@ mod tests {
 
         // Incremental: hand tsgo/tsc a `tsBuildInfoFile` so the compiler caches
         // its program graph across runs (the warm-run speedup).
-        let layout = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
         assert_eq!(
@@ -2583,7 +2632,7 @@ mod tests {
         // Cold cache: produces tsx + dts + manifest. (`.tsx.map` is only
         // written when svelte2tsx returns a source map — currently a
         // future-proofing pathway, not exercised here.)
-        let layout1 = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout1 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let entry = &layout1.entries[0];
         assert!(entry.tsx_path.exists());
         assert!(entry.dts_path.exists());
@@ -2596,7 +2645,7 @@ mod tests {
         fs::write(&entry.tsx_path, "// intentionally broken").unwrap();
 
         // Warm cache, source unchanged → should not re-emit.
-        let layout2 = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout2 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let entry2 = &layout2.entries[0];
         assert_eq!(
             fs::read_to_string(&entry2.tsx_path).unwrap(),
@@ -2608,7 +2657,7 @@ mod tests {
         // miss and re-emit.
         std::thread::sleep(std::time::Duration::from_millis(10));
         fs::write(&svelte_path, b"<script>let y = 1;</script>{y}").unwrap();
-        let layout3 = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout3 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let entry3 = &layout3.entries[0];
         let regenerated = fs::read_to_string(&entry3.tsx_path).unwrap();
         assert_ne!(
@@ -2630,7 +2679,8 @@ mod tests {
         fs::write(&removed, "<span />").unwrap();
 
         let layout1 =
-            materialize_overlay_with(&tmp, &[kept.clone(), removed.clone()], None, true).unwrap();
+            materialize_overlay_with(&tmp, &[kept.clone(), removed.clone()], None, true, &[])
+                .unwrap();
         let removed_tsx = layout1
             .entries
             .iter()
@@ -2649,7 +2699,8 @@ mod tests {
         // Source removed from disk and from input list → second pass
         // should unlink the orphaned overlay artefacts.
         fs::remove_file(&removed).unwrap();
-        let _ = materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, true).unwrap();
+        let _ =
+            materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, true, &[]).unwrap();
         assert!(!removed_tsx.exists(), "stale .tsx should have been pruned");
         assert!(!removed_dts.exists(), "stale .d.ts should have been pruned");
 
@@ -3120,6 +3171,37 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
     }
 
+    /// A rune module's bridge has no manifest entry to prune it by, so the
+    /// sweep in `emit_svelte_module_bridges` is what keeps a deleted module from
+    /// leaving a permanently resolvable `./x.svelte`.
+    #[test]
+    fn orphaned_rune_module_bridge_is_swept_on_the_next_run() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_sweep_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let component = tmp.join("src/Keep.svelte");
+        fs::write(&component, "<div></div>").unwrap();
+        let module = tmp.join("src/gone.svelte.ts");
+        fs::write(&module, "export const x = 1;\n").unwrap();
+
+        let files = [component];
+        let layout = materialize_overlay(&tmp, &files, None).unwrap();
+        let orphan = layout.emit_dir.join("src/gone.d.svelte.ts");
+        let component_bridge = layout.emit_dir.join("src/Keep.d.svelte.ts");
+        assert!(orphan.is_file());
+        assert!(component_bridge.is_file());
+
+        fs::remove_file(&module).unwrap();
+        materialize_overlay(&tmp, &files, None).unwrap();
+        assert!(!orphan.exists(), "orphaned rune bridge should be swept");
+        assert!(
+            component_bridge.is_file(),
+            "a component's own bridge must survive the sweep"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
     #[test]
     fn aliased_svelte_import_is_rewritten_to_its_shadow() {
         let tmp = std::env::temp_dir().join(format!("svc_alias_{}", std::process::id()));
@@ -3146,7 +3228,7 @@ mod tests {
             tmp.join("src/lib/Button.svelte"),
         ];
         let tsconfig = tmp.join("tsconfig.json");
-        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let app_tsx =
             fs::read_to_string(tmp.join(".svelte-check/svelte/src/App.svelte.tsx")).unwrap();
@@ -3198,7 +3280,7 @@ mod tests {
         let workspace = tmp.join("pkg-a");
         let files = vec![workspace.join("src/consumer.svelte")];
         let tsconfig = workspace.join("tsconfig.json");
-        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false).unwrap();
+        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let consumer_tsx =
             fs::read_to_string(workspace.join(".svelte-check/svelte/src/consumer.svelte.tsx"))
@@ -3245,7 +3327,7 @@ mod tests {
         let workspace = tmp.join("apps/web");
         let files = vec![workspace.join("src/App.svelte")];
         let tsconfig = workspace.join("tsconfig.json");
-        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false).unwrap();
+        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let ext_root = workspace.join(".svelte-check/ext");
         let mirrored: Vec<String> = fs::read_dir(&ext_root)
@@ -3307,6 +3389,7 @@ mod tests {
                 &files,
                 Some(Path::new("./tsconfig.json")),
                 false,
+                &[],
             )
         };
         std::env::set_current_dir(&cwd).unwrap();
@@ -3405,6 +3488,7 @@ mod tests {
                     &files,
                     Some(Path::new("./tsconfig.json")),
                     false,
+                    &[],
                 )
             };
             std::env::set_current_dir(&cwd).unwrap();
@@ -3444,7 +3528,7 @@ mod tests {
 
         let files = vec![tmp.join("src/lib/Button.svelte")];
         let tsconfig = tmp.join("tsconfig.json");
-        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
@@ -3502,7 +3586,7 @@ mod tests {
 
         let files = vec![tmp.join("src/lib/Button.svelte")];
         let tsconfig = tmp.join("tsconfig.json");
-        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
         let paths = &cfg["compilerOptions"]["paths"];
@@ -3564,6 +3648,7 @@ mod tests {
                 &files,
                 Some(Path::new("./tsconfig.json")),
                 false,
+                &[],
             )
         };
         std::env::set_current_dir(&cwd).unwrap();

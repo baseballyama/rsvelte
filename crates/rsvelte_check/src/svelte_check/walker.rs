@@ -210,11 +210,23 @@ mod tests {
         touch(&tmp.join("src/legacy.svelte.js"));
         touch(&tmp.join("src/plain.ts"));
         touch(&tmp.join("node_modules/something/dep.svelte.ts"));
-        let names: Vec<_> = find_svelte_suffixed_modules(&tmp, &[])
-            .iter()
-            .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
-            .collect();
-        assert_eq!(names, vec!["legacy.svelte.js", "state.svelte.ts"]);
+        touch(&tmp.join("dist/built.svelte.js"));
+        let names = |filter: &[String]| -> Vec<String> {
+            find_svelte_suffixed_modules(&tmp, filter)
+                .iter()
+                .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .collect()
+        };
+        assert_eq!(
+            names(&[]),
+            vec!["built.svelte.js", "legacy.svelte.js", "state.svelte.ts"]
+        );
+        // `--ignore` applies here too, so the bridges the overlay emits cover
+        // exactly the tree the checked file set was collected from.
+        assert_eq!(
+            names(&["dist".to_string()]),
+            vec!["legacy.svelte.js", "state.svelte.ts"]
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
