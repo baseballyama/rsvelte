@@ -16,7 +16,7 @@ entries are the seed set from enrolling `submodules/skeleton` in the corpus
 a cluster (9 into the new Cluster 9, 2 into the new Cluster 10, the other 6 into
 existing Clusters 1/2/3).
 
-## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (6)
+## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (4)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements
 (`<a>`, `<span>`, `<title>`, a `<pre><code>` pair, small inline components
@@ -43,26 +43,28 @@ overflows, re-hugs only when the attrs themselves break onto multiple lines,
 and (when `<pre>` itself overflows) prefers breaking a breakable child's tag
 over the `<pre>`'s own attributes.
 
-The remaining 5 entries are the shapes those widening steps did not reach: an
-`<a>`/`<span>` dangling-close that falls through to the compact fallback (3
-ids — `</div></a>`, a `<span>…</span>` pair, and an `<a>…</Blockquote` pair),
-an `<a>` hug decision that breaks the wrong node (a wrapping
-`{item.name || ...}` expression instead of the tag itself, 1 id), and — in
-the opposite direction — a short `<a>` kept compact by rsvelte that the
-oracle still breaks onto its own lines (1 id, entangled with Cluster 2 and
-the since-resolved Cluster 5). The first two categories (4 ids: `svelte-ux/
-.../Collapse.svelte`, `cmsaasstarter/.../(marketing)/+page.svelte`,
-`svelte-ux/.../TextField/+page.svelte`, `layercake/routes/components/
-+page.svelte`) all sit behind the same `>`-prefix bail in `try_children_port`.
-A strict-condition experiment narrowing that bail from `>`/`}` to `}`-only
-was tried and reverted — **0 fixed / 1 regressed** (`shadcn` code-viewer),
-and the 4 targeted ids stayed unchanged or got worse (see Proven
-net-negative) — confirming, alongside the earlier `hug_glue_prefix`
-narrowing experiment, that this cluster needs children.rs's hug-boundary
-construction rebuilt, not a gate relaxation. Fix belongs in rsvelte —
-continuing to widen the `children.rs` Doc-IR gate.
+The remaining 3 entries are the shapes those widening steps did not reach: an
+`<a>`/`<span>` dangling-close that falls through to the compact fallback (2
+ids — `cmsaasstarter/.../(marketing)/+page.svelte`'s `</div></a>` pair and
+`svelte-ux/.../Collapse.svelte`'s `<span>…</span>` pair), and — in the
+opposite direction — a short `<a>` kept compact by rsvelte that the oracle
+still breaks onto its own lines (1 id, entangled with Cluster 2 and the
+since-resolved Cluster 5). Both compact-fallback ids sit behind the same
+`>`-prefix bail in `try_children_port`. A strict-condition experiment
+narrowing that bail from `>`/`}` to `}`-only was tried and reverted — **0
+fixed / 1 regressed** (`shadcn` code-viewer), and the (then four) targeted
+ids stayed unchanged or got worse (see Proven net-negative) — confirming,
+alongside the earlier `hug_glue_prefix` narrowing experiment, that this
+cluster needs children.rs's hug-boundary construction rebuilt, not a gate
+relaxation. Fix belongs in rsvelte — continuing to widen the `children.rs`
+Doc-IR gate. (Two ids formerly listed in this paragraph —
+`svelte-ux/.../TextField/+page.svelte`'s wrong-node `<a>`-hug and
+`layercake/.../routes/components/+page.svelte`'s `<a>…</Blockquote` pair —
+are gone from the baseline: PR #1877's real-world-layout width fix, already
+on `main` before this corpus expansion, cleared both; this doc just hadn't
+caught up.)
 
-The 6th member (`skeleton/sites/skeleton.dev/src/components/landing-page/
+The 4th member (`skeleton/sites/skeleton.dev/src/components/landing-page/
 design-system.svelte`) is the `<pre><code>` shape again: the `<code>` open tag's
 `>` must dangle onto the child's line when the child is a multi-line template
 literal (`<code\n  >{`…`}</code\n>`), which is one shape past the three
@@ -553,7 +555,9 @@ while afterward — that divergence is since resolved too (see Resolved,
   (`shadcn` code-viewer), and the 4 targeted ids stayed unchanged or got
   worse. Matches the earlier `hug_glue_prefix` narrowing result: this cluster
   needs `children.rs`'s hug-boundary construction rebuilt, gate relaxation
-  alone doesn't reach it.
+  alone doesn't reach it. (The `TextField` and `layercake/routes/components`
+  ids have since left the baseline via #1877, unrelated to this experiment;
+  see Cluster 1.)
 - **Relaxing `build_attrs_concat`'s multi-line-attribute bail**: rescues zero
   ids — for every id that hits it, the multi-line attribute is the *symptom*
   (their real divergences are Cluster 2 and the since-resolved Cluster 7),
