@@ -1,5 +1,12 @@
 # @rsvelte/compiler
 
+## 0.9.6
+
+### Patch Changes
+
+- b311eec: Split the embeddable compiler, TypeScript projection, project checker, bindings support, and development tools into ownership-focused Rust crates while preserving the existing JavaScript and CLI behavior. Add the stable `rsvelte` facade, crates.io package gates, and an independently versioned `rsvelte_esrap` 0.8.0 release.
+- a82a230: svelte2tsx: keep comments that sit between the last attribute and the `>` of an element or component opening tag, matching official svelte2tsx's trailing-comment handling.
+
 ## 0.9.5
 
 ### Patch Changes
