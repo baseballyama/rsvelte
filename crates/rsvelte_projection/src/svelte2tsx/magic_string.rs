@@ -404,6 +404,7 @@ const VLQ_BASE_MASK: u32 = VLQ_BASE - 1; // 31
 const VLQ_CONTINUATION_BIT: u32 = VLQ_BASE; // 32
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const VLQ_I64_MIN: &str = "hgggggggggggQ";
 
 const ASCII_HIRES_SEGMENT: &str = ",AAAC";
 const ASCII_HIRES_BLOCK_SEGMENTS: usize = 16;
@@ -423,23 +424,19 @@ fn vlq_encode(encoded: &mut String, value: i64) {
     #[cfg(test)]
     VLQ_ENCODE_CALLS.with(|calls| calls.set(calls.get() + 1));
 
-    let mut vlq = if value < 0 {
-        ((-value) as u32) << 1 | 1
-    } else {
-        (value as u32) << 1
-    };
-
-    loop {
-        let mut digit = vlq & VLQ_BASE_MASK;
-        vlq >>= VLQ_BASE_SHIFT;
-        if vlq > 0 {
-            digit |= VLQ_CONTINUATION_BIT;
-        }
-        encoded.push(BASE64_CHARS[digit as usize] as char);
-        if vlq == 0 {
-            break;
-        }
+    // Sign-magnitude VLQ needs 65 bits only for this otherwise unreachable source-map delta.
+    if value == i64::MIN {
+        encoded.push_str(VLQ_I64_MIN);
+        return;
     }
+
+    let mut vlq = (value.unsigned_abs() << 1) | u64::from(value < 0);
+    while vlq >= u64::from(VLQ_BASE) {
+        let digit = (vlq as u32 & VLQ_BASE_MASK) | VLQ_CONTINUATION_BIT;
+        encoded.push(BASE64_CHARS[digit as usize] as char);
+        vlq >>= VLQ_BASE_SHIFT;
+    }
+    encoded.push(BASE64_CHARS[vlq as usize] as char);
 }
 
 #[inline]
@@ -1394,6 +1391,31 @@ mod tests {
         assert_eq!(forward.iter().copied().rev().collect::<Vec<_>>(), backward);
     }
 
+    fn vlq_decode(encoded: &str) -> i64 {
+        let mut value = 0u128;
+        let mut shift = 0;
+        for (index, byte) in encoded.bytes().enumerate() {
+            let digit = BASE64_CHARS
+                .iter()
+                .position(|candidate| *candidate == byte)
+                .expect("VLQ output must use the base64 alphabet") as u128;
+            value |= (digit & u128::from(VLQ_BASE_MASK)) << shift;
+            if digit & u128::from(VLQ_CONTINUATION_BIT) == 0 {
+                assert_eq!(index + 1, encoded.len());
+                let magnitude = value >> 1;
+                return if value & 1 == 0 {
+                    i64::try_from(magnitude).expect("positive VLQ fits i64")
+                } else if magnitude == 1u128 << 63 {
+                    i64::MIN
+                } else {
+                    -i64::try_from(magnitude).expect("negative VLQ magnitude fits i64")
+                };
+            }
+            shift += VLQ_BASE_SHIFT;
+        }
+        panic!("unterminated VLQ");
+    }
+
     #[test]
     fn chunk_layout_compacts_links_and_groups_hot_fields() {
         assert_eq!(size_of::<ChunkId>(), 4);
@@ -2030,6 +2052,51 @@ mod tests {
             vlq_encode(&mut encoded, value);
         }
         assert_eq!(encoded, "prefix:ACDKgB");
+    }
+
+    #[test]
+    fn vlq_round_trips_every_i16_and_signed_boundaries() {
+        for value in i16::MIN..=i16::MAX {
+            let mut encoded = String::new();
+            vlq_encode(&mut encoded, i64::from(value));
+            assert_eq!(vlq_decode(&encoded), i64::from(value));
+        }
+
+        let mut boundaries = vec![i64::MIN, i64::MAX];
+        for bit in 0..=62 {
+            let value = 1i64 << bit;
+            boundaries.extend([
+                value.saturating_sub(1),
+                value,
+                value.saturating_add(1),
+                value.saturating_neg().saturating_sub(1),
+                value.saturating_neg(),
+                value.saturating_neg().saturating_add(1),
+            ]);
+        }
+        for value in boundaries {
+            let mut encoded = String::new();
+            vlq_encode(&mut encoded, value);
+            assert_eq!(vlq_decode(&encoded), value);
+        }
+    }
+
+    #[test]
+    fn vlq_digit_width_transitions_are_exact() {
+        for (value, expected) in [
+            (-17, "jB"),
+            (-16, "hB"),
+            (15, "e"),
+            (16, "gB"),
+            (-513, "jgB"),
+            (-512, "hgB"),
+            (511, "+f"),
+            (512, "ggB"),
+        ] {
+            let mut encoded = String::new();
+            vlq_encode(&mut encoded, value);
+            assert_eq!(encoded, expected);
+        }
     }
 
     #[test]
