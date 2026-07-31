@@ -110,6 +110,55 @@ shorthand / shadow の各ガード）は**そのまま再利用でき、再導�
 3. store / props / reactive / state の各クラスタ
 4. 最後に **mod.rs 直下の 9 本**（`state_reads` を含む＝§4 の本丸）
 
+#### 台帳の更新（2026-08-01 後半）— 実測で 12 本まで絞れた
+
+三つのコーパスで「どのパスが実際に走るか」を計測した（`RSVELTE_AST_DUAL_RUN=1`）。
+
+| コーパス | ファイル | 再パース | splice |
+|---|---|---|---|
+| flowbite（実アプリ・runes） | 1,296 | 120（0.09/file） | 13 |
+| **公式 Svelte フィクスチャ** | 4,459 | 4,470（1.0/file） | **397** |
+| compatibility/pattern-corpus | 79 | 6 | 0 |
+
+**flowbite だけを見て範囲を決めてはいけない。** flowbite は runes のみで legacy `$:` / store /
+props をほぼ踏まないため 3 本しか動かないが、**バイト同一ゲートである公式フィクスチャは 22 本を起動する**。
+
+**parse と splice を区別すること。** parse だけのパスは「変更なし」と判断できればよく、(3) の配管時に
+`None` を返してフォールバックさせられる。**実際に編集を出す 12 本だけが load-bearing**:
+
+```
+state_assigns_combined 152 / prop_assign 83 / state_set_reactive 35
+legacy_state_member_mutate 26 / store_assign 19 / store_unsub_wrap 16
+prop_member_mutate 10 / reactive_update 10 / state_pipeline 8
+store_update 7 / store_member_mutate 7 / private_class_assign 1
+```
+→ 移植対象は **37 本 13,010 行 → 12 本 約 4,000 行**。着手順は公式フィクスチャの踏み方に合わせ
+legacy / props / store クラスタから（flowbite 基準の module_state_runes 先行案は公式で 0 回なので棄却）。
+
+`state_reads_ast` は 844 parses で splice 0。編集が `ast_state_transform` の統合パスに吸収されている
+と見られる。**(3) の設計時に吸収先を確認すること。**
+
+esrap 正規化の冪等性は 3 コーパス通算 410 件の splice 出力すべてで成立（ミスマッチ 0）。
+
+#### (3) の実価値（2026-08-01、マージ済み main・静穏環境で再測）
+
+```
+TOTAL 200.69µs/file        script_text 27.76 / js_codegen 39.55 / template_fragment 37.82
+transform_instance_script_for_visitors  inclusive 30.9µs / self 3.7µs
+Cx::parse_chunk                         inclusive  7.5µs（うち script 本体 79.8% ≈ 6.0µs）
+```
+
+**(3) が消せるのは 13〜17µs**（parse_chunk の script 分 6.0 + to_oxc の script 分 3〜4 +
+テキスト生成/splice 往復 3〜5 + script-text 自時間の文字列処理 1〜2）。
+
+**(3) では消えない**: AST 変換本体（rune lowering・read wrapping・代入 lowering）は表現が変わるだけで
+仕事量は同じ。esrap 印字 27.7µs は M4、Phase1/2 のパース 8.1µs は正当なパース。
+
+**追加リスク**: `innermost_only` のネスト編集解決は現在「テキストに書き戻して再パース」で成立している。
+AST 化するとその正規化が消えるため自前で持つ必要があり、12 本すべてに触る横断変更で 200〜400 行の
+新規設計を要する。**M1 で最も設計が固まっていない部分。**
+
+
 
 
 撤退条件を暦日でなく**作業セッション数**で数えるのは、この作業がエージェントのセッション単位で進み、
