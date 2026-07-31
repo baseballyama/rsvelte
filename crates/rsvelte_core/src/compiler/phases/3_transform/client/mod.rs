@@ -7,6 +7,7 @@
 
 pub(crate) use super::shared::ast_rewrite;
 use std::fmt::Write as _;
+mod ast;
 mod ast_state_transform;
 mod class_body_ast;
 mod class_transforms;
@@ -216,6 +217,28 @@ pub(crate) fn transform_client(
     options: &CompileOptions,
     retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
 ) -> Result<CodegenResult, TransformError> {
+    if ast::oracle::enabled() {
+        // Run both pipelines and score the AST one against the text one, which
+        // is the specification here (it passes every fixture). The text result
+        // is what we return, so turning the oracle on cannot change output.
+        let oracle =
+            transform_client_with_visitors(analysis, ast, source, options, retained_scripts)?;
+        ast::oracle::record(
+            match ast::transform_client_ast(analysis, ast, source, options) {
+                None => ast::oracle::Verdict::FellBack,
+                Some(candidate) if candidate.code == oracle.code => ast::oracle::Verdict::Matched,
+                Some(_) => ast::oracle::Verdict::Mismatched,
+            },
+        );
+        return Ok(oracle);
+    }
+
+    if *ast::CLIENT_AST
+        && let Some(result) = ast::transform_client_ast(analysis, ast, source, options)
+    {
+        return Ok(result);
+    }
+
     transform_client_with_visitors(analysis, ast, source, options, retained_scripts)
 }
 
