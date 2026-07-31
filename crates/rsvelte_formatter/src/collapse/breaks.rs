@@ -9,7 +9,11 @@ pub(super) fn collect_content_tag_breaks(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
         if let TemplateNode::ExpressionTag(_) = node
             && let Some(edit) = try_break_inline_content_tag(out, node, line_width, options)
         {
@@ -35,7 +39,11 @@ pub(super) fn collect_break_block_non_ws_prefix(
     line_width: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (node_idx, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, node_idx) {
+            continue;
+        }
         match node {
             TemplateNode::RegularElement(e) => {
                 if is_whitespace_preserving(e.name.as_str()) {

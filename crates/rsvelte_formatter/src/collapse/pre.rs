@@ -59,7 +59,11 @@ pub(super) fn collect_pre_block_reformats(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
         if let TemplateNode::RegularElement(e) = node
             && matches!(e.name.as_str(), "pre" | "textarea")
             && (fragment_has_block(&e.fragment) || fragment_has_element_with_children(&e.fragment))

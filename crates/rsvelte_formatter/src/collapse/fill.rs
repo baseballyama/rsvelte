@@ -101,12 +101,20 @@ pub(super) fn fill_inline_runs(
 
     let mut i = 0;
     while i < nodes.len() {
-        if !is_run_member(out, &nodes[i]) {
+        // A `<!-- prettier-ignore -->`d node must never join a run (it — and its
+        // whole subtree — stays verbatim): treat it as a run boundary so it's
+        // skipped here and left for `collect`'s own per-node guard.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(nodes, i)
+            || !is_run_member(out, &nodes[i])
+        {
             i += 1;
             continue;
         }
         let mut j = i;
-        while j < nodes.len() && is_run_member(out, &nodes[j]) {
+        while j < nodes.len()
+            && is_run_member(out, &nodes[j])
+            && !crate::prettier_ignore::preceded_by_prettier_ignore(nodes, j)
+        {
             j += 1;
         }
         if let Some(edit) = try_fill_run(

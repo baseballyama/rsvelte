@@ -23,7 +23,11 @@ pub(super) fn collect_break_inline_open_tag(
     line_width: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (node_idx, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, node_idx) {
+            continue;
+        }
         match node {
             TemplateNode::RegularElement(e) => {
                 // For block/whitespace-preserving elements that are EMPTY (no
@@ -369,7 +373,11 @@ pub(super) fn collect_recollapse_open_tag(
     line_width: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (node_idx, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, node_idx) {
+            continue;
+        }
         match node {
             TemplateNode::RegularElement(e) => {
                 if is_whitespace_preserving(e.name.as_str()) {

@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 31 entries**, concentrated in real-world corpus repos
+**Current baseline: 29 entries**, concentrated in real-world corpus repos
 (skeleton, layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail).
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every
@@ -248,30 +248,27 @@ duplicated across skeleton's date-picker examples and playground page. Fix
 belongs in rsvelte — reproduce the oracle's break-then-flatten layout for
 block-header expressions (rather than only ever printing them flat).
 
-## Cluster 10 — `prettier-ignore` subtree only partially preserved (2) (#1977)
-
-Also new with #1924. A `<!-- prettier-ignore -->` comment must leave the whole
-next node's source verbatim. rsvelte-fmt preserves the ignored element's own
-lines (tabs and all) but still reformats a **nested** element inside it, breaking
-its attributes onto separate lines:
-
-```svelte
-<!-- prettier-ignore -->
-<p class="opacity-60">
-	Set the scale factor for <a href="…" target="_blank" class="…">Tailwind Spacing</a> utilities.
-</p>
-```
-
-The oracle emits the `<a …>` line untouched; rsvelte-fmt splits the open tag and
-dangles `</a\n>`. Both entries
-(`skeleton/sites/themes.skeleton.dev/.../Controls/ControlsSpacing.svelte` and
-`.../Preview/Preview.svelte`) are this one shape, reproduced standalone in 6
-lines. Only these two of the 12 parity-set components containing
-`prettier-ignore` fail, so the ignore range itself is honoured — what leaks is
-the nested-element re-print inside it. Fix belongs in rsvelte — make the ignore
-range verbatim for the entire subtree.
-
 ## Resolved
+
+- **Cluster 10 — `prettier-ignore` subtree only partially preserved (2 ids,
+  #1977).** A `<!-- prettier-ignore -->` comment must leave the whole next
+  node's source verbatim, but only 2 of the collapse pass's 12 recursive
+  collectors (`collect` and `collect_children_port_only`; `fill_inline_runs`,
+  which builds prose-run edits ahead of the per-node guard, had no check
+  either) checked `prettier_ignore::preceded_by_prettier_ignore` before
+  recursing/reflowing — `collect_try_collapse_only`,
+  `collect_hug_mixed_non_ws_prefix`, `collect_break_block_non_ws_prefix`,
+  `collect_break_inline_open_tag`, `collect_recollapse_open_tag`,
+  `collect_content_tag_breaks`, and `collect_pre_block_reformats` had no
+  guard, so a nested element inside an ignored subtree (e.g. the `<a>` inside
+  an ignored `<p>`) could still get its open tag broken by a later sweep. Both
+  ids were this one shape (`<a href="…" target="_blank" class="…">` re-broken
+  inside an ignored `<p>`), reproduced standalone in
+  `crates/rsvelte_formatter/tests/prettier_ignore.rs`. Fixed by adding the same
+  index-based guard (`continue` without recursing when the node is preceded by
+  the ignore comment in its own parent fragment) to every unguarded collector,
+  and by making `fill_inline_runs` treat an ignored node as a run boundary so
+  it can never join — or get folded into — a prose-run edit.
 
 - **`RenderTag` claimed as a bare atom in the children port (Cluster 1,
   `{:else if}` title/element dangle, 2 ids).** `node_to_child` had no arm for

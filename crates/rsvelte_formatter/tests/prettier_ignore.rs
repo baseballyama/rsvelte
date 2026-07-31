@@ -1,0 +1,75 @@
+use rsvelte_formatter::{FormatOptions, format};
+
+fn assert_parity(source: &str, expected: &str) {
+    let formatted = format(source, &FormatOptions::default()).expect("format ok");
+    assert_eq!(formatted, expected);
+    assert_eq!(
+        format(&formatted, &FormatOptions::default()).expect("format ok"),
+        formatted,
+        "formatting must be idempotent"
+    );
+}
+
+// `<!-- prettier-ignore -->` must leave the WHOLE next node's subtree verbatim —
+// not just the node's own open/close tags. Regression coverage for #1977: the
+// collapse pass's multi-sweep pipeline (`crates/rsvelte_formatter/src/collapse/`)
+// had 7 recursive collectors (plus `fill_inline_runs`) that never checked
+// `prettier_ignore::preceded_by_prettier_ignore` before recursing into — or
+// reflowing — a node, so a nested element inside an ignored subtree (e.g. the
+// `<a>` below) could still get re-broken by a later sweep even though the
+// ignored element's own tags were left alone.
+
+#[test]
+fn nested_inline_element_stays_verbatim() {
+    let source = r#"<!-- prettier-ignore -->
+<p class="opacity-60">
+	Set the scale factor for <a href="https://tailwindcss.com/docs/theme#spacing" target="_blank" class="anchor">Tailwind Spacing</a> utilities.
+</p>
+"#;
+    assert_parity(source, source);
+}
+
+#[test]
+fn nested_two_levels_deep_stays_verbatim() {
+    let source = r#"<div>
+  <!-- prettier-ignore -->
+  <p>
+		<span class="opacity-60">Copy the theme code and follow the</span> <a href="https://www.skeleton.dev/docs/svelte/design/themes#custom-themes" target="_blank" class="anchor">documentation instructions</a>.
+	</p>
+</div>
+"#;
+    assert_parity(source, source);
+}
+
+#[test]
+fn ignore_before_if_block_stays_verbatim() {
+    let source = r#"<!-- prettier-ignore -->
+{#if condition}
+	<div    class = "a"  >
+		<span>weird     spacing</span>
+	</div>
+{/if}
+"#;
+    assert_parity(source, source);
+}
+
+#[test]
+fn ignore_before_overflowing_open_tag_stays_verbatim() {
+    // Directly reproduces the corpus root cause: `collect_break_inline_open_tag`
+    // broke the sibling `<button>`'s open tag onto separate lines even though it
+    // is the ignored node — only the surrounding indentation (tabs → 2 spaces)
+    // is normal-formatted, matching the oracle exactly.
+    let source = "<div>\n\t<!-- prettier-ignore -->\n\t<button      type=\"button\"    class=\"a\"   onclick={() =>    doSomething( )}>Click     me</button>\n\t<p>after</p>\n</div>\n";
+    let expected = "<div>\n  <!-- prettier-ignore -->\n  <button      type=\"button\"    class=\"a\"   onclick={() =>    doSomething( )}>Click     me</button>\n  <p>after</p>\n</div>\n";
+    assert_parity(source, expected);
+}
+
+#[test]
+fn ignore_before_component_with_wrapped_open_tag_stays_verbatim() {
+    let source = r#"<!-- prettier-ignore -->
+<MyComponent    foo="bar"   >
+	<span class="a"      style="weird">Some     really    long    text    that    would    otherwise    wrap    across    multiple    lines    because    it    is    long</span>
+</MyComponent>
+"#;
+    assert_parity(source, source);
+}

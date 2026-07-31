@@ -13,7 +13,11 @@ pub(super) fn collect_try_collapse_only(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    for node in &fragment.nodes {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
         match node {
             TemplateNode::RegularElement(elem) => {
                 if is_whitespace_preserving(elem.name.as_str()) {
