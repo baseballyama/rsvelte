@@ -48,12 +48,15 @@ esrap 印字は corpus 25.1µs/file、svelte-rs の `oxc_codegen` は 8.1µs/fil
 | M | 内容 | 期待削減 | 撤退条件 |
 |---|---|---|---|
 | M0 | oracle ハーネス + `client/ast/` スケルトン + 本ドキュメント復活 | 0（インフラ） | なし |
-| M1 | client script 変換の単一 AST パス化（`server/ast/script.rs` + `read_wrap.rs` 写経） | −30〜35µs | oracle 差分 50 件超が 2 週間縮まらなければブランチ破棄 |
+| M1 | client script 変換の単一 AST パス化（`server/ast/script.rs` + `read_wrap.rs` 写経） | −30〜35µs | oracle 差分が 3 連続作業セッションで減少しない、または差分原因が §4 の構造問題（単一パス不能）と特定された場合はブランチ破棄 |
 | M2 | テンプレート式変換の単一 AST パス化（`has_reactive_state_json` 550 行の typed 化を吸収） | −20〜25µs | 220 件回帰の再演を検知したら即 revert |
-| M3 | `js_ast` IR 廃止（`to_oxc.rs` / `codegen.rs` 削除） | −14µs | テキストプリンタ経路の差分が 1 週間解決しなければ縮退 |
+| M3 | `js_ast` IR 廃止（`to_oxc.rs` / `codegen.rs` 削除） | −14µs | テキストプリンタ経路（scriptless）の差分が 3 連続作業セッションで解決しなければ、テキストプリンタだけ残す縮退案へ |
 | M4 | esrap 最適化 + `*_ast.rs` 36 ファイル削除 + CI ガード | −10〜13µs | バイト差が出たら即 revert |
 
 **M0 を飛ばして M1 に入ることは禁止**（§5 の「220 件回帰 ×2」を再演するため）。
+
+撤退条件を暦日でなく**作業セッション数**で数えるのは、この作業がエージェントのセッション単位で進み、
+実時間の経過が進捗と対応しないため。1 セッション = oracle 差分を 1 回以上測って記録した単位とする。
 
 ---
 
