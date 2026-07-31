@@ -57,6 +57,8 @@
 		"corpus:collect": "node scripts/compat-corpus/collect.mjs",
 		"corpus:compile": "node scripts/compat-corpus/compile.mjs",
 		"corpus:verify": "node scripts/compat-corpus/verify.mjs",
+		"corpus:compile:dev": "node scripts/compat-corpus/compile.mjs --targets client-dev",
+		"corpus:verify:dev": "node scripts/compat-corpus/verify.mjs --targets client-dev",
 		"corpus:fmt": "node scripts/compat-corpus/fmt.mjs",
 		"corpus:fmt-verify": "node scripts/compat-corpus/fmt-verify.mjs",
 		"corpus:s2t:compile": "node scripts/compat-corpus/svelte2tsx-compile.mjs",

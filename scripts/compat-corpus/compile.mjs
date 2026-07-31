@@ -2,9 +2,10 @@
 /**
  * Compile every corpus entry (see collect.mjs) with BOTH the official Svelte
  * compiler (from submodules/svelte) and rsvelte (NAPI binding), for every
- * target in targets.mjs (client = CSR, server = SSR), writing the outputs to:
+ * target in targets.mjs (client = CSR, server = SSR, client-dev = CSR with
+ * `dev: true`), writing the outputs to:
  *
- *   compatibility/expected/<id>/{client.js,server.js,client.css,error.json}
+ *   compatibility/expected/<id>/{client.js,server.js,client-dev.js,client.css,client-dev.css,error.json}
  *   compatibility/actual/<id>/{...same...}
  *
  * Files the OFFICIAL compiler rejects are error cases: rsvelte must reject
@@ -15,7 +16,7 @@
  * parent records the offending entry as a `panic` error on the rsvelte side
  * and resumes from the next entry, so one panic cannot kill the whole run.
  *
- * Usage: node scripts/compat-corpus/compile.mjs [--binding <path>] [--filter <substr>] [--jobs <n>]
+ * Usage: node scripts/compat-corpus/compile.mjs [--binding <path>] [--filter <substr>] [--jobs <n>] [--targets <keys>]
  */
 
 import fs from 'node:fs';
@@ -24,7 +25,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { TARGETS, TARGET_KEYS } from './targets.mjs';
+import { selectTargets } from './targets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -39,6 +40,7 @@ function argValue(name, fallback) {
 }
 const FILTER = argValue('--filter', null);
 const BINDING = path.resolve(ROOT, argValue('--binding', '.corpus-cache/rsvelte.node'));
+const TARGETS = selectTargets(args);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8')).filter(
 	(e) => !FILTER || e.id.includes(FILTER)
@@ -150,6 +152,10 @@ if (!fs.existsSync(BINDING)) {
 	process.exit(1);
 }
 
+// A full run always starts from a clean tree so removed corpus ids and stale
+// error.json files cannot survive. A target-scoped run therefore leaves ONLY
+// the selected targets on disk — it is for iterating on one target, not for
+// feeding an unscoped verify.
 if (!FILTER) {
 	fs.rmSync(EXPECTED, { recursive: true, force: true });
 	fs.rmSync(ACTUAL, { recursive: true, force: true });
@@ -166,7 +172,7 @@ function recordPanic(i) {
 	const dir = path.join(ACTUAL, id);
 	fs.mkdirSync(dir, { recursive: true });
 	const err = { code: 'rust_panic', message: 'rsvelte compiler panicked (process aborted)' };
-	const errors = Object.fromEntries(TARGET_KEYS.map((key) => [key, err]));
+	const errors = Object.fromEntries(TARGETS.map((t) => [t.key, err]));
 	fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(errors, null, '\t') + '\n');
 }
 
@@ -185,6 +191,8 @@ function runRange(start, end) {
 				'--binding',
 				BINDING,
 				...(FILTER ? ['--filter', FILTER] : []),
+				'--targets',
+				TARGETS.map((t) => t.key).join(','),
 			],
 			{ stdio: ['ignore', 'pipe', 'inherit'] }
 		);
@@ -214,7 +222,9 @@ const shard = Math.ceil(manifest.length / JOBS);
 const ranges = [];
 for (let s = 0; s < manifest.length; s += shard) ranges.push([s, Math.min(s + shard, manifest.length)]);
 
-console.log(`[compile] ${manifest.length} entries across ${ranges.length} workers…`);
+console.log(
+	`[compile] ${manifest.length} entries × ${TARGETS.length} targets (${TARGETS.map((t) => t.key).join(', ')}) across ${ranges.length} workers…`
+);
 await Promise.all(ranges.map(([s, e]) => runRange(s, e)));
 
 if (panics.length) {

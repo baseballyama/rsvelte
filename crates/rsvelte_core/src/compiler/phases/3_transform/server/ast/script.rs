@@ -46,11 +46,7 @@
 //!   $.to_array(tmp, N)` for array/iterable destructures + per-leaf
 //!   declarators). The `tmp` temp is deconflicted across the component (a second
 //!   destructured `$state(...)` uses `tmp_1`, 写经 `scope.generate('tmp')`).
-//!   KNOWN GAPS: `$$array` is not yet deconflicted; rest elements, computed
-//!   `[expr]` keys, and `build_fallback` default wrapping are not handled.
-//!   Destructured
-//!   `$derived` / `$derived.by` (the `$$d` / `$$derived_array` / `$.derived`
-//!   form) is still kept verbatim (NOT expanded).
+//!   KNOWN GAP: `$$array` is not yet deconflicted.
 
 use super::ServerTransformState;
 use crate::ast::template::Script;
@@ -1736,15 +1732,73 @@ fn create_state_declarators<'a>(
     }
 }
 
+/// The property access for a destructuring key, 写経 upstream `b.member(expression,
+/// prop.key, prop.computed || prop.key.type !== 'Identifier')`. The key NODE is
+/// reused verbatim, so `{ 0: z }` prints `obj[0]` (not `obj['0']`) and a quoted
+/// key keeps its original quoting and escapes.
+///
+/// `prepare_key` sees the moved key expression before it becomes the property:
+/// the `$derived` lowering visits the extracted access (so a rune/store read in a
+/// computed key is wrapped), while `create_state_declarators` does not.
+fn prop_member_access<'a>(
+    b: B<'a>,
+    base: OxcExpression<'a>,
+    key: oxc_ast::ast::PropertyKey<'a>,
+    computed: bool,
+    prepare_key: impl FnOnce(&mut OxcExpression<'a>),
+) -> OxcExpression<'a> {
+    use oxc_ast::ast::PropertyKey;
+    match key {
+        PropertyKey::StaticIdentifier(ident) if !computed => b.member(base, ident.name.as_str()),
+        // A private identifier can never be a destructuring key.
+        PropertyKey::PrivateIdentifier(_) => base,
+        PropertyKey::StaticIdentifier(ident) => {
+            b.member_computed(base, b.string(ident.name.as_str()))
+        }
+        key => {
+            let mut key = key.into_expression();
+            prepare_key(&mut key);
+            b.member_computed(base, key)
+        }
+    }
+}
+
+/// The `$.exclude_from_object(base, [...])` entry for a non-rest property key,
+/// 写経 upstream: a non-computed identifier and any literal (computed or not)
+/// become a string literal of their VALUE (`0x10` → `'16'`); every other computed
+/// key becomes `String(<key>)`, which the runtime resolves.
+fn exclude_object_key<'a>(
+    key: &oxc_ast::ast::PropertyKey<'a>,
+    computed: bool,
+    state: &ServerTransformState<'a>,
+) -> Option<OxcExpression<'a>> {
+    use oxc_allocator::CloneIn;
+    use oxc_ast::ast::PropertyKey;
+    let b = state.b;
+    match key {
+        PropertyKey::PrivateIdentifier(_) => None,
+        PropertyKey::StaticIdentifier(ident) if !computed => Some(b.string(ident.name.as_str())),
+        PropertyKey::BooleanLiteral(lit) => {
+            Some(b.string(if lit.value { "true" } else { "false" }))
+        }
+        PropertyKey::StringLiteral(_)
+        | PropertyKey::NumericLiteral(_)
+        | PropertyKey::BigIntLiteral(_)
+        | PropertyKey::RegExpLiteral(_)
+        | PropertyKey::NullLiteral(_)
+        | PropertyKey::StaticIdentifier(_) => key.static_name().map(|name| b.string(&name)),
+        key => Some(b.call(
+            "String",
+            vec![key.clone_in(state.allocator).into_expression()],
+        )),
+    }
+}
+
 /// Port of upstream `_extract_paths` (`utils/ast.js:269-415`) over an oxc
 /// `BindingPattern`. Walks the destructure tree, pushing one `(leaf_pattern,
 /// access_expression)` pair per terminal binding into `paths`, and one
 /// `$.to_array(...)` expression per `ArrayPattern` into `inserts` (the caller
 /// names the corresponding `$$array` temp and substitutes it as the array base).
-///
-/// Handles identifier / object / array / assignment(default) patterns. Rest
-/// elements and computed/non-identifier object keys fall through verbatim
-/// (KNOWN GAP — not exercised by the in-scope SSR fixtures).
 fn extract_paths<'a>(
     pat: oxc_ast::ast::BindingPattern<'a>,
     expression: OxcExpression<'a>,
@@ -1765,24 +1819,14 @@ fn extract_paths<'a>(
             // them (写经 the upstream `$.exclude_from_object(expr, [keys])` build).
             let mut exclude_keys: Vec<Option<OxcExpression<'a>>> = Vec::new();
             for prop in obj.properties {
-                if let Some(name) = prop.key.static_name() {
-                    exclude_keys.push(Some(b.string(&name)));
+                if let Some(key) = exclude_object_key(&prop.key, prop.computed, state) {
+                    exclude_keys.push(Some(key));
                 }
                 let base = expression_clone(&expression, state);
-                // Upstream: `b.member(expression, prop.key,
-                // prop.computed || prop.key.type !== 'Identifier')`. A plain
-                // identifier key (non-computed) → static `expr.key`; otherwise
-                // (computed, string/numeric literal, …) → `expr[<key>]`.
-                let is_static = prop.key.is_identifier() && !prop.computed;
-                let object_expression = if is_static {
-                    let name = prop.key.name().unwrap_or(std::borrow::Cow::Borrowed(""));
-                    b.member(base, &name)
-                } else if let Some(name) = prop.key.static_name() {
-                    b.member_computed(base, b.string(&name))
-                } else {
-                    // Computed `[expr]` key — KNOWN GAP; keep the base verbatim.
-                    base
-                };
+                // `create_state_declarators` is NOT re-visited upstream, so a
+                // computed key keeps its raw reads (`tmp[k]`, never `tmp[k()]`).
+                let object_expression =
+                    prop_member_access(b, base, prop.key, prop.computed, |_| {});
                 extract_paths(
                     prop.value,
                     object_expression,
@@ -2021,21 +2065,16 @@ fn extract_derived_paths<'a>(
         }
         BindingPattern::ObjectPattern(obj) => {
             let obj = obj.unbox();
-            // Collect the static key list for the `$.exclude_from_object` rest
-            // (写经 `_extract_paths` ObjectPattern RestElement branch) BEFORE the
-            // property loop consumes `obj.properties`. Upstream pushes every
-            // non-private property key: a non-computed `Identifier`/`Literal`
-            // becomes a string literal; a computed non-static key would become a
-            // `String(key)` call (still a KNOWN GAP here — rare).
+            // Collect the key list for the `$.exclude_from_object` rest (写経
+            // `_extract_paths` ObjectPattern RestElement branch) BEFORE the
+            // property loop consumes `obj.properties`.
             let exclude_keys: Vec<OxcExpression<'a>> = if obj.rest.is_some() {
                 obj.properties
                     .iter()
                     .filter_map(|prop| {
-                        if prop.key.is_identifier() && !prop.computed {
-                            prop.key.name().map(|n| b.string(&n))
-                        } else {
-                            prop.key.static_name().map(|n| b.string(&n))
-                        }
+                        let mut key = exclude_object_key(&prop.key, prop.computed, state)?;
+                        wrap_derived_key_reads(&mut key, state);
+                        Some(key)
                     })
                     .collect()
             } else {
@@ -2043,15 +2082,10 @@ fn extract_derived_paths<'a>(
             };
             for prop in obj.properties {
                 let base = expression_clone(&expression, state);
-                let is_static = prop.key.is_identifier() && !prop.computed;
-                let object_expression = if is_static {
-                    let name = prop.key.name().unwrap_or(std::borrow::Cow::Borrowed(""));
-                    b.member(base, &name)
-                } else if let Some(name) = prop.key.static_name() {
-                    b.member_computed(base, b.string(&name))
-                } else {
-                    base
-                };
+                let computed = prop.computed;
+                let object_expression = prop_member_access(b, base, prop.key, computed, |key| {
+                    wrap_derived_key_reads(key, state)
+                });
                 extract_derived_paths(prop.value, object_expression, state, paths, inserts);
             }
             if let Some(rest) = obj.rest {
@@ -2071,9 +2105,14 @@ fn extract_derived_paths<'a>(
             let arr = arr.unbox();
             let name = state.next_derived_array_name();
             let len = arr.elements.len();
-            // `$.to_array(<expression>, <len>)` (rest-less length; rest patterns
-            // are a KNOWN GAP for SSR derived, so always emit the length arg).
-            let to_array = b.call("$.to_array", vec![expression, b.number(len as f64)]);
+            // The element count is OMITTED when the pattern ends in a `...rest`:
+            // the iterable has to be drained completely, and a length would
+            // truncate it.
+            let to_array = if arr.rest.is_some() {
+                b.call("$.to_array", vec![expression])
+            } else {
+                b.call("$.to_array", vec![expression, b.number(len as f64)])
+            };
             inserts.push((name.clone(), to_array));
 
             for (i, element) in arr.elements.into_iter().enumerate() {
@@ -2083,6 +2122,19 @@ fn extract_derived_paths<'a>(
                     let array_expression = b.member_computed(base, b.number(i as f64));
                     extract_derived_paths(element, array_expression, state, paths, inserts);
                 }
+            }
+            // `[a, ...rest]` → `rest = $$derived_array().slice(i)`, where `i` is
+            // the rest's position (= element count, holes included).
+            if let Some(rest) = arr.rest {
+                let base = b.call(b.id(&name), vec![]);
+                let rest_expression = b.call(b.member(base, "slice"), vec![b.number(len as f64)]);
+                extract_derived_paths(
+                    rest.unbox().argument,
+                    rest_expression,
+                    state,
+                    paths,
+                    inserts,
+                );
             }
         }
         BindingPattern::AssignmentPattern(asgn) => {
@@ -2095,6 +2147,18 @@ fn extract_derived_paths<'a>(
             extract_derived_paths(asgn.left, fallback, state, paths, inserts);
         }
     }
+}
+
+/// Read-wrap a computed destructuring key for the `$derived` lowering: upstream
+/// visits every extracted access, so `{ [k]: c } = $derived(o)` reads a `$derived`
+/// `k` as `k()` and a store `$k` as `$.store_get(…)`.
+fn wrap_derived_key_reads<'a>(key: &mut OxcExpression<'a>, state: &ServerTransformState<'a>) {
+    super::read_wrap::wrap_reads(
+        key,
+        state.b,
+        state.analysis,
+        state.analysis.root.instance_scope_index,
+    );
 }
 
 /// Port of upstream `build_fallback` (`utils/ast.js`): wrap a per-leaf access in

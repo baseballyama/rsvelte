@@ -71,6 +71,30 @@ doesn't conflict with the official Svelte extension):
 | `rsvelte.lint.enable` | `true` | Enable linting via the bundled engine. |
 | `rsvelte.rsvelteFmtPath` | `""` | Explicit path to a `rsvelte-fmt` binary. |
 
+## Lint configuration
+
+Which rules run, at what severity, comes from a `rsvelte-lint.json` (or
+`.rsvelte-lintrc.json`) in your project — the same file the
+[`rsvelte-lint`](https://www.npmjs.com/package/@rsvelte/lint) CLI reads, found
+by walking up from the file being linted, so the editor reports what CI does:
+
+```json
+{
+  "rules": {
+    "svelte/no-unused-class-name": "off",
+    "svelte/no-at-html-tags": "error"
+  }
+}
+```
+
+Without one, every rule runs at its default severity — noisy in a codebase that
+has never been linted with rsvelte. Start from nothing with
+`"extends": ["none"]` and opt rules in, or turn off the ones your project
+already covers elsewhere (e.g. via `eslint-plugin-svelte`). Saving the config
+applies it immediately. See the
+[configuration reference](https://www.npmjs.com/package/@rsvelte/lint#configuration)
+for the full shape.
+
 ## License
 
 MIT. The bundled grammars, snippets and language configurations are copied from

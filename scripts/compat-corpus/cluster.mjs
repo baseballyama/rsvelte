@@ -75,7 +75,7 @@ for (const f of report.failures) {
 	}
 	for (const d of f.details.filter((d) => d.kind === 'css')) {
 		foundReal = true;
-		add(`CSS: E:${(d.expected ?? '').trim()} | A:${(d.actual ?? '').trim()}`, f.id, d);
+		add(`CSS ${d.target}: E:${(d.expected ?? '').trim()} | A:${(d.actual ?? '').trim()}`, f.id, d);
 	}
 	if (!foundReal && (f.verdict === 'js-mismatch' || f.verdict === 'css-mismatch')) {
 		blankOnly++;

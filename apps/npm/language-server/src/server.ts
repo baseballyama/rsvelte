@@ -22,6 +22,11 @@ import { dirname } from "node:path";
 import { lintJsonToDiagnostics } from "./diagnostics.js";
 import { formatWithRsvelteFmt, resolveRsvelteFmt } from "./format.js";
 import { lintVersion, runLint } from "./lint.js";
+import {
+  clearLintConfigCache,
+  isLintConfigPath,
+  resolveLintConfig,
+} from "./lintConfig.js";
 
 interface RsvelteSettings {
   format: { enable: boolean };
@@ -104,10 +109,10 @@ async function refreshSettings(): Promise<void> {
 
 connection.onDidChangeConfiguration(async () => {
   await refreshSettings();
-  // Re-lint every open document under the new settings.
-  for (const doc of documents.all()) {
-    scheduleLint(doc, 0);
-  }
+  // A `rsvelte-lint.json` edit reaches the server as a configuration change
+  // too, so the resolved configs are dropped along with the client settings.
+  clearLintConfigCache();
+  relintOpenDocuments();
 });
 
 // ── Formatting ──────────────────────────────────────────────────────────────
@@ -153,14 +158,34 @@ async function lintDocument(doc: TextDocument): Promise<void> {
     connection.sendDiagnostics({ uri: doc.uri, diagnostics: [] });
     return;
   }
-  const json = runLint(doc.getText(), docFsPath(doc.uri));
+  const fsPath = docFsPath(doc.uri);
+  const config = resolveLintConfig(dirname(fsPath), (message) =>
+    connection.console.warn(message),
+  );
+  const json = runLint(doc.getText(), fsPath, config.text);
   const diagnostics = json ? lintJsonToDiagnostics(json) : [];
   connection.sendDiagnostics({ uri: doc.uri, diagnostics });
 }
 
+/** Re-lint every open document, e.g. after the rule set behind them changed. */
+function relintOpenDocuments(): void {
+  for (const doc of documents.all()) {
+    scheduleLint(doc, 0);
+  }
+}
+
 documents.onDidOpen((e) => scheduleLint(e.document, 0));
 documents.onDidChangeContent((e) => scheduleLint(e.document));
-documents.onDidSave((e) => scheduleLint(e.document, 0));
+documents.onDidSave((e) => {
+  // With no `didChangeWatchedFiles` registration, a config saved through the
+  // client is the only config edit the server can observe.
+  if (isLintConfigPath(docFsPath(e.document.uri))) {
+    clearLintConfigCache();
+    relintOpenDocuments();
+    return;
+  }
+  scheduleLint(e.document, 0);
+});
 
 documents.onDidClose((e) => {
   const timer = debounceTimers.get(e.document.uri);

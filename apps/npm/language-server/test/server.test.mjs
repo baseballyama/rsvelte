@@ -4,10 +4,11 @@
 
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { after, before, test } from "node:test";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -175,6 +176,32 @@ test("diagnostics match the lint wasm output", async () => {
     assert.equal(d.range.start.character, e.column, `start.char[${i}]`);
     assert.equal(d.range.end.line, e.endLine - 1, `end.line[${i}]`);
     assert.equal(d.range.end.character, e.endColumn, `end.char[${i}]`);
+  }
+});
+
+test("a rsvelte-lint.json governs the rule set", async () => {
+  const configured = mkdtempSync(join(tmpdir(), "rsvelte-ls-configured-"));
+  const plain = mkdtempSync(join(tmpdir(), "rsvelte-ls-plain-"));
+  writeFileSync(
+    join(configured, "rsvelte-lint.json"),
+    '{ "rules": { "svelte/no-at-html-tags": "off" } }',
+  );
+  const source = "<div>{@html x}</div>\n";
+  const has = (diags) => diags.some((d) => d.code === "svelte/no-at-html-tags");
+
+  try {
+    const plainUri = pathToFileURL(join(plain, "App.svelte")).href;
+    const plainP = waitDiagnostics(plainUri);
+    openDoc(plainUri, "svelte", source);
+    assert.ok(has(await plainP), "the rule fires without a config");
+
+    const configuredUri = pathToFileURL(join(configured, "App.svelte")).href;
+    const configuredP = waitDiagnostics(configuredUri);
+    openDoc(configuredUri, "svelte", source);
+    assert.ok(!has(await configuredP), "the config turns the rule off");
+  } finally {
+    rmSync(configured, { recursive: true, force: true });
+    rmSync(plain, { recursive: true, force: true });
   }
 });
 

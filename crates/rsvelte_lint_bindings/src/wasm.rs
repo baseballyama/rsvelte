@@ -1,7 +1,8 @@
-//! Browser entry point for the playground.
+//! Browser entry point for the playground, also vendored into
+//! `@rsvelte/language-server` (wasm-pack `nodejs` target).
 //!
-//! Exposes `lint(source, filename)` and `lint_rules()`, thin `#[wasm_bindgen]`
-//! wrappers over the engine-only `rsvelte_lint::json_api` functions (shared
+//! Exposes `lint(source, filename)`, `lint_with_config(…)` and `lint_rules()`,
+//! thin `#[wasm_bindgen]` wrappers over the engine-only `json_api` functions (shared
 //! verbatim with the NAPI export, so native and wasm return byte-identical
 //! JSON). The rsvelte_core compiler's own wasm exports (`parse_svelte`,
 //! `compile_client`, `compile_server`, `version`) are linked in transitively
@@ -16,6 +17,14 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn lint(source: &str, filename: &str) -> String {
     rsvelte_lint::json_api::lint(source, filename)
+}
+
+/// [`lint`] under the text of a `rsvelte-lint.json`. Wasm has no filesystem, so
+/// the host (the language server) discovers the config file and passes its
+/// contents in; `""` selects the recommended preset.
+#[wasm_bindgen]
+pub fn lint_with_config(source: &str, filename: &str, config: &str) -> String {
+    rsvelte_lint::json_api::lint_with_config(source, filename, config)
 }
 
 /// The rsvelte-lint crate version (for the playground UI).

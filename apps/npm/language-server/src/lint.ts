@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 interface LintModule {
-  lint(source: string, filename: string): string;
+  lint_with_config(source: string, filename: string, config: string): string;
   lint_version(): string;
 }
 
@@ -39,12 +39,20 @@ function load(): LintModule | null {
   }
 }
 
-/** Run the linter, returning its raw JSON string. `null` if wasm is missing. */
-export function runLint(source: string, filename: string): string | null {
+/**
+ * Run the linter under `config` (a `rsvelte-lint.json` document; `""` selects
+ * the recommended preset), returning its raw JSON string. `null` if wasm is
+ * missing.
+ */
+export function runLint(
+  source: string,
+  filename: string,
+  config: string,
+): string | null {
   const m = load();
   if (!m) return null;
   try {
-    return m.lint(source, filename);
+    return m.lint_with_config(source, filename, config);
   } catch {
     return null;
   }

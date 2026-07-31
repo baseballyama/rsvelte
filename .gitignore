@@ -137,6 +137,7 @@ compatibility/actual-s2t/
 compatibility/manifest.json
 compatibility/report.json
 compatibility/report-s2t.json
+compatibility/cluster.txt
 
 # Lint-compat pipeline (generated; lint-known-failures.json is tracked)
 compatibility/lint-sources/
