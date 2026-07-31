@@ -2618,12 +2618,19 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                 self.visit_argument(cb_arg);
                 let cb_span = cb_arg.span();
                 let cb_text = self.apply_and_drain_inner_replacements(cb_span.start, cb_span.end);
+                let inspector = if cb_arg
+                    .as_expression()
+                    .is_none_or(super::inspect_rune_ast::needs_parens)
+                {
+                    format!("({cb_text})")
+                } else {
+                    cb_text
+                };
                 self.add_replacement(
                     expr.span.start,
                     expr.span.end,
                     format!(
-                        "$.inspect(() => [{}], (...$$args) => ({})(...$$args))",
-                        args_text, cb_text
+                        "$.inspect(() => [{args_text}], (...$$args) => {inspector}(...$$args))"
                     ),
                 );
                 return;

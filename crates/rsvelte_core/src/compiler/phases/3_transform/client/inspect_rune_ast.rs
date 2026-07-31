@@ -28,7 +28,7 @@ pub(super) fn source_has_inspect_rune(s: &str) -> bool {
 
 /// An inspector that is not already a plain reference has to be parenthesised
 /// before it can be invoked — `((t, v) => …)(...$$args)`.
-fn needs_parens(expr: &Expression<'_>) -> bool {
+pub(super) fn needs_parens(expr: &Expression<'_>) -> bool {
     !matches!(
         expr,
         Expression::Identifier(_)
@@ -58,11 +58,12 @@ impl<'src> InspectCollector<'src> {
     }
 
     /// `() => [arg, arg, …]` built from a `$inspect(...)` call's arguments.
+    /// Slices each argument's own span so a `...spread` survives — narrowing to
+    /// `as_expression()` would drop it from the array.
     fn args_thunk(&self, call: &CallExpression<'_>) -> String {
         let args = call
             .arguments
             .iter()
-            .filter_map(|a| a.as_expression())
             .map(|a| self.text(a.span()))
             .collect::<Vec<_>>()
             .join(", ");
@@ -115,5 +116,79 @@ impl<'a, 'src> Visit<'a> for InspectCollector<'src> {
         }
 
         walk::walk_call_expression(self, expr);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::module_dev_tail_ast::transform_module_dev_tail_ast;
+
+    /// Through the production entry point, so the gate is exercised too.
+    fn lower(source: &str) -> Option<String> {
+        transform_module_dev_tail_ast(source, true, false)
+    }
+
+    #[test]
+    fn lowers_the_bare_rune() {
+        assert_eq!(
+            lower("$inspect(a);").unwrap(),
+            "$.inspect(() => [a], (...$$args) => console.log(...$$args), true);"
+        );
+    }
+
+    #[test]
+    fn lowers_multiple_arguments() {
+        assert_eq!(
+            lower("$inspect(a, b);").unwrap(),
+            "$.inspect(() => [a, b], (...$$args) => console.log(...$$args), true);"
+        );
+    }
+
+    #[test]
+    fn keeps_a_spread_argument() {
+        assert_eq!(
+            lower("$inspect(a, ...b, 3);").unwrap(),
+            "$.inspect(() => [a, ...b, 3], (...$$args) => console.log(...$$args), true);"
+        );
+    }
+
+    #[test]
+    fn with_a_named_inspector_is_called_directly() {
+        assert_eq!(
+            lower("$inspect(a).with(fn);").unwrap(),
+            "$.inspect(() => [a], (...$$args) => fn(...$$args));"
+        );
+        assert_eq!(
+            lower("$inspect(a).with(obj.fn);").unwrap(),
+            "$.inspect(() => [a], (...$$args) => obj.fn(...$$args));"
+        );
+    }
+
+    #[test]
+    fn with_an_inline_inspector_is_parenthesised() {
+        assert_eq!(
+            lower("$inspect(a).with((t, v) => log(t, v));").unwrap(),
+            "$.inspect(() => [a], (...$$args) => ((t, v) => log(t, v))(...$$args));"
+        );
+    }
+
+    #[test]
+    fn does_not_touch_a_rune_shaped_string() {
+        assert!(lower(r#"let s = "$inspect(a)";"#).is_none());
+    }
+
+    #[test]
+    fn the_generated_default_inspector_is_not_re_wrapped() {
+        // The console collector runs in the same batch; its skip for
+        // `console.log(...$$args)` has to hold for what this pass just emitted.
+        let out = lower("$inspect(a);\nconsole.log(b);").unwrap();
+        assert!(
+            out.contains("(...$$args) => console.log(...$$args), true)"),
+            "default inspector was rewritten: {out}"
+        );
+        assert!(
+            out.contains(r#"console.log(...$.log_if_contains_state("log", b));"#),
+            "the user's own console call should still be wrapped: {out}"
+        );
     }
 }
