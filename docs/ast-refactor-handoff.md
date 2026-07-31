@@ -55,6 +55,36 @@ esrap 印字は corpus 25.1µs/file、svelte-rs の `oxc_codegen` は 8.1µs/fil
 
 **M0 を飛ばして M1 に入ることは禁止**（§5 の「220 件回帰 ×2」を再演するため）。
 
+### M1 着手時の調査（2026-08-01）— 見積りが下がる方向の発見
+
+M1 を「`server/ast/script.rs` を写経して意味論を移植し直す」と想定していたが、**client 側の意味論は
+すでに AST 形で移植済み**だった。`client/*_ast.rs` は **37 本・13,010 行**あり、**37 本すべてが
+`&str -> Option<String>`**、すなわち `shared/ast_rewrite.rs` の
+「パース → `Visit` で `(start, end, replacement)` を収集 → ソース文字列に `replace_range`」型である。
+
+つまり M1 で作り直すのは**意味論ではなく配管**:
+
+- 現状: 1 パスごとに「script をパース → 編集を収集 → テキストに戻す」。適用パス数だけ
+  **パースとシリアライズを往復**する（`ast_rewrite.rs` のドキュメント自身が
+  「Every `transform_*_ast` pass in this directory follows the same shape」と明記）
+- M1 後: script を **1 回だけ**パースし、37 本の collector を `VisitMut` で **同じ `Program` に対して
+  in-place 適用**、最後に esrap で 1 回印字
+
+これは §4 の「read-wrapping は単一パスでしかできない」とも一致する。既存 collector が持つ判定ロジック
+（例: `state_reads_ast.rs` の 14 行の対応表 — `$.get(count)` 済み / `$.set` の第 1 引数 / property key /
+shorthand / shadow の各ガード）は**そのまま再利用でき、再導出は不要**。
+
+したがって M1 の risk は「意味論の移植ミス」より「**37 本を 1 つの Program に載せ替える際の適用順序**」に
+移る。順序は現在テキストの逐次適用が暗黙に決めているので、**移行時に順序を明示的に固定する**こと。
+
+進め方（更新）:
+1. `ast_rewrite.rs` に `with_program_mut`（`&mut Program` を渡す）を足す。既存の splice 版は残す
+2. パスを 1 本ずつ `&mut Program` 版に移す。**移行中は「まとめて 1 回の切り替え」制約に抵触しない** —
+   各パスは独立で、テキスト経路と AST 経路の出力が同じである限り oracle 差分は 0 のまま
+3. 全パスが `&mut Program` になった時点で、初めて「1 回パース → 全パス適用 → 1 回印字」に配管を繋ぐ。
+   **この最後の 1 手だけが不可分**
+
+
 撤退条件を暦日でなく**作業セッション数**で数えるのは、この作業がエージェントのセッション単位で進み、
 実時間の経過が進捗と対応しないため。1 セッション = oracle 差分を 1 回以上測って記録した単位とする。
 
