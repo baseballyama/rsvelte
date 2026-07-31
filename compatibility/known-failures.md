@@ -63,7 +63,8 @@ and the `array-` / `nested-call-default.svelte` points of
 declared with `$.tag(...)` in dev (CD2), and the repro's `$props()` also trips
 CD5, so *any* faithful repro of that shape lands here until CD2 is ported. The
 remaining five files of that matrix were written on `$state` destructuring, which
-is dev-clean, so the axis costs three entries rather than eight.
+is dev-clean, so the axis costs three entries rather than eight. That leaves 13
+`pattern/` entries in this list.
 
 The entries are not independent bugs. Most are dev-only instrumentation helpers
 that rsvelte's client codegen does not emit **at all** — each such cluster is a
@@ -95,7 +96,7 @@ so a dev build of any component using it throws `ReferenceError`. CD13 is the
 highest-severity entry in this table despite being the smallest. CD11 only
 becomes observable once CD1 lands.
 
-The remaining 260 entries not in the table above are residue of the same root causes
+The remaining 263 entries not in the table above are residue of the same root causes
 rather than separate ones, so they are expected to clear with their parents.
 Two things spread them out. The statement reshaping CD6/CD7/CD9 perform
 (`const x = (await …)()`, multi-line `console.*`) relocates the divergence

@@ -62,8 +62,13 @@ pub(crate) fn compute_eval_inputs(
     // function body (e.g. within a `$derived.by` arrow) must not be folded
     // into template reads of a same-named outer binding.
     if let Some(analysis) = analysis {
-        let template_scopes: rustc_hash::FxHashSet<usize> =
-            analysis.root.template_scope_map.values().copied().collect();
+        let template_scopes: rustc_hash::FxHashSet<usize> = analysis
+            .root
+            .template_scope_map
+            .values()
+            .chain(analysis.root.if_alternate_scope_map.values())
+            .copied()
+            .collect();
         for binding in &analysis.root.bindings {
             if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
                 && (binding.scope_index == 0

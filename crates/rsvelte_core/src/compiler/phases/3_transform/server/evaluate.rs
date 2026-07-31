@@ -823,9 +823,14 @@ impl<'a> EvalCtx<'a> {
         let mut bindings: Vec<_> = self
             .analysis
             .map(|a| {
-                let template_scopes = self
-                    .template_scopes_cache
-                    .get_or_init(|| a.root.template_scope_map.values().copied().collect());
+                let template_scopes = self.template_scopes_cache.get_or_init(|| {
+                    a.root
+                        .template_scope_map
+                        .values()
+                        .chain(a.root.if_alternate_scope_map.values())
+                        .copied()
+                        .collect()
+                });
                 a.root
                     .bindings
                     .iter()

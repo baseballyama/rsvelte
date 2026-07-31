@@ -95,7 +95,12 @@ pub fn visit<'a, 'b: 'a>(
     // Analyze the alternate if present
     if let Some(ref mut alternate) = block.alternate {
         let old_scope = context.scope;
-        if let Some(&alternate_scope) = context.analysis.root.template_scope_map.get(&block.end) {
+        if let Some(&alternate_scope) = context
+            .analysis
+            .root
+            .if_alternate_scope_map
+            .get(&block.start)
+        {
             context.scope = alternate_scope;
         }
         fragment::analyze(alternate, context)?;

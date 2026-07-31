@@ -79,6 +79,9 @@ pub struct ScopeBuilder<'a> {
     /// Used by Phase 2 visitors to properly track context.scope when entering
     /// scope-creating template nodes (EachBlock, AwaitBlock, SnippetBlock, etc.).
     template_scope_map: FxHashMap<u32, usize>,
+    /// `{:else}` fragment scopes keyed by the enclosing `{#if}`'s start (see
+    /// `ScopeRoot::if_alternate_scope_map`).
+    if_alternate_scope_map: FxHashMap<u32, usize>,
     /// Scope indices created for `{#snippet …}` bodies (see
     /// `ScopeRoot::snippet_scope_indices`).
     snippet_scope_indices: rustc_hash::FxHashSet<usize>,
@@ -129,6 +132,7 @@ impl<'a> ScopeBuilder<'a> {
             current_script_offset: 0,
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            if_alternate_scope_map: FxHashMap::default(),
             snippet_scope_indices: rustc_hash::FxHashSet::default(),
             template_expression_params: Vec::new(),
             nested_declared_names: rustc_hash::FxHashSet::default(),
@@ -335,6 +339,7 @@ impl<'a> ScopeBuilder<'a> {
                 function_scope_map: self.function_scope_map,
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
+                if_alternate_scope_map: self.if_alternate_scope_map,
                 snippet_scope_indices: self.snippet_scope_indices,
                 conflicts,
                 bindings_by_name: self.bindings_by_name,
@@ -3391,9 +3396,11 @@ impl<'a> ScopeBuilder<'a> {
         // Visit alternate if present, also in its own scope
         if let Some(ref alternate) = block.alternate {
             let old_scope = self.push_scope();
-            // Use block.end as a unique key for the alternate scope.
-            self.template_scope_map
-                .insert(block.end, self.current_scope);
+            // Keyed by the block's start, not its end: `block.end` is exclusive,
+            // so it equals the start of a sibling that follows `{/if}` with no
+            // whitespace, and every `{:else if}` in a chain shares one end.
+            self.if_alternate_scope_map
+                .insert(block.start, self.current_scope);
             self.visit_fragment(alternate);
             self.pop_scope(old_scope);
         }

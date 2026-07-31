@@ -35,6 +35,14 @@ pub struct ScopeRoot {
     /// Key: start position of the template node
     /// Value: scope index in all_scopes
     pub template_scope_map: FxHashMap<u32, usize>,
+    /// Scope indices of `{:else}` fragments, keyed by their `{#if}`'s start
+    /// position. An if-block owns two scopes, and its alternate has no start
+    /// offset of its own — keying it by the block's *end* would collide with the
+    /// start of a sibling that follows `{/if}` with no whitespace (and, since
+    /// `update_if_block_ends` gives every `{:else if}` in a chain the same end,
+    /// with the other links of the chain), so the alternates live in their own
+    /// map under the enclosing block's unique start.
+    pub if_alternate_scope_map: FxHashMap<u32, usize>,
     /// Scope indices created for `{#snippet …}` bodies. Snippet bodies become
     /// separate functions in the generated output, so template declarations
     /// (`{@const}` / `{const}` / `{let}`) made inside one snippet are NOT
@@ -67,6 +75,7 @@ impl ScopeRoot {
             function_scope_map: FxHashMap::default(),
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            if_alternate_scope_map: FxHashMap::default(),
             snippet_scope_indices: FxHashSet::default(),
             conflicts: FxHashSet::default(),
             bindings_by_name: FxHashMap::default(),
