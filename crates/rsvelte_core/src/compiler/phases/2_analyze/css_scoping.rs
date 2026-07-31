@@ -183,6 +183,18 @@ fn get_possible_attr_values(
     expr: &crate::ast::js::Expression,
     is_class: bool,
 ) -> Option<Vec<String>> {
+    // Every node type `gather_possible_values` doesn't match falls to its `_`
+    // arm and returns `None` anyway, so skip the JSON materialization for
+    // those up front (mirrors the same guard in css/utils.rs).
+    if let Some(node_type) = expr.node_type() {
+        let inspected = matches!(
+            node_type,
+            "Literal" | "ConditionalExpression" | "LogicalExpression" | "TemplateLiteral"
+        ) || (is_class && matches!(node_type, "ArrayExpression" | "ObjectExpression"));
+        if !inspected {
+            return None;
+        }
+    }
     let json = expr.as_json();
     let mut values = Vec::new();
     let mut unknown = false;
