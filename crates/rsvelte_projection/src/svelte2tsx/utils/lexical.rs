@@ -15,32 +15,17 @@ pub(crate) fn contains_word(haystack: &[u8], needle: &[u8]) -> bool {
     if needle.is_empty() || haystack.len() < needle.len() {
         return false;
     }
-    let first = needle[0];
-    let mut i = 0;
-    while i + needle.len() <= haystack.len() {
-        let off = match memchr::memchr(first, &haystack[i..]) {
-            Some(o) => o,
-            None => return false,
-        };
-        let pos = i + off;
-        if pos + needle.len() > haystack.len() {
-            return false;
+    let finder = memchr::memmem::Finder::new(needle);
+    let mut search = 0;
+    while let Some(offset) = finder.find(&haystack[search..]) {
+        let pos = search + offset;
+        let before_ok = pos == 0 || !is_ident_char(haystack[pos - 1]);
+        let after = pos + needle.len();
+        let after_ok = after == haystack.len() || !is_ident_char(haystack[after]);
+        if before_ok && after_ok {
+            return true;
         }
-        if &haystack[pos..pos + needle.len()] == needle {
-            let before_ok = pos == 0
-                || !(haystack[pos - 1].is_ascii_alphanumeric()
-                    || haystack[pos - 1] == b'_'
-                    || haystack[pos - 1] == b'$');
-            let after = pos + needle.len();
-            let after_ok = after == haystack.len()
-                || !(haystack[after].is_ascii_alphanumeric()
-                    || haystack[after] == b'_'
-                    || haystack[after] == b'$');
-            if before_ok && after_ok {
-                return true;
-            }
-        }
-        i = pos + 1;
+        search = pos + 1;
     }
     false
 }
@@ -181,6 +166,37 @@ pub(crate) fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn contains_word_checks_every_match_and_identifier_boundary() {
+        assert!(contains_word(b"await", b"await"));
+        assert!(contains_word(b"x;await()", b"await"));
+        assert!(contains_word(b"xawait await", b"await"));
+        assert!(!contains_word(b"xawait", b"await"));
+        assert!(!contains_word(b"awaited", b"await"));
+        assert!(!contains_word(b"$await _await", b"await"));
+        assert!(!contains_word(b"", b"await"));
+        assert!(!contains_word(b"await", b""));
+    }
+
+    #[test]
+    fn contains_word_matches_identifier_boundaries_for_every_byte() {
+        for needle in [b"await".as_slice(), b"import", b"function"] {
+            let mut haystack = [0; 10];
+            haystack[1..needle.len() + 1].copy_from_slice(needle);
+            for before in u8::MIN..=u8::MAX {
+                haystack[0] = before;
+                for after in u8::MIN..=u8::MAX {
+                    haystack[needle.len() + 1] = after;
+                    assert_eq!(
+                        contains_word(&haystack[..needle.len() + 2], needle),
+                        !is_ident_char(before) && !is_ident_char(after),
+                        "needle={needle:?}, before={before}, after={after}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn lexical_identifiers_in_expressions_only_reads_brace_blocks() {

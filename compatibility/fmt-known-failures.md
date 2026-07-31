@@ -5,14 +5,18 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 16 entries**, concentrated in real-world corpus repos
-(layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail). Oracle-bug /
-invalid-input / migrate cases are NOT here — those are permanently excluded in
-`fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every entry here was
-individually diffed against its oracle to confirm the cluster it belongs to;
-none is a guess from file-name pattern-matching.
+**Current baseline: 31 entries**, concentrated in real-world corpus repos
+(skeleton, layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail).
+Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
+excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every
+entry here was individually diffed against its oracle to confirm the cluster it
+belongs to; none is a guess from file-name pattern-matching. The 17 `skeleton/…`
+entries are the seed set from enrolling `submodules/skeleton` in the corpus
+(#1924); each was reduced to a standalone minimal repro before being filed into
+a cluster (9 into the new Cluster 9, 2 into the new Cluster 10, the other 6 into
+existing Clusters 1/2/3).
 
-## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (5)
+## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (4)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements
 (`<a>`, `<span>`, `<title>`, a `<pre><code>` pair, small inline components
@@ -39,26 +43,34 @@ overflows, re-hugs only when the attrs themselves break onto multiple lines,
 and (when `<pre>` itself overflows) prefers breaking a breakable child's tag
 over the `<pre>`'s own attributes.
 
-The remaining 5 entries are the shapes those widening steps did not reach: an
-`<a>`/`<span>` dangling-close that falls through to the compact fallback (3
-ids — `</div></a>`, a `<span>…</span>` pair, and an `<a>…</Blockquote` pair),
-an `<a>` hug decision that breaks the wrong node (a wrapping
-`{item.name || ...}` expression instead of the tag itself, 1 id), and — in
-the opposite direction — a short `<a>` kept compact by rsvelte that the
-oracle still breaks onto its own lines (1 id, entangled with Cluster 2 and
-the since-resolved Cluster 5). The first two categories (4 ids: `svelte-ux/
-.../Collapse.svelte`, `cmsaasstarter/.../(marketing)/+page.svelte`,
-`svelte-ux/.../TextField/+page.svelte`, `layercake/routes/components/
-+page.svelte`) all sit behind the same `>`-prefix bail in `try_children_port`.
-A strict-condition experiment narrowing that bail from `>`/`}` to `}`-only
-was tried and reverted — **0 fixed / 1 regressed** (`shadcn` code-viewer),
-and the 4 targeted ids stayed unchanged or got worse (see Proven
-net-negative) — confirming, alongside the earlier `hug_glue_prefix`
-narrowing experiment, that this cluster needs children.rs's hug-boundary
-construction rebuilt, not a gate relaxation. Fix belongs in rsvelte —
-continuing to widen the `children.rs` Doc-IR gate.
+The remaining 3 entries are the shapes those widening steps did not reach: an
+`<a>`/`<span>` dangling-close that falls through to the compact fallback (2
+ids — `cmsaasstarter/.../(marketing)/+page.svelte`'s `</div></a>` pair and
+`svelte-ux/.../Collapse.svelte`'s `<span>…</span>` pair), and — in the
+opposite direction — a short `<a>` kept compact by rsvelte that the oracle
+still breaks onto its own lines (1 id, entangled with Cluster 2 and the
+since-resolved Cluster 5). Both compact-fallback ids sit behind the same
+`>`-prefix bail in `try_children_port`. A strict-condition experiment
+narrowing that bail from `>`/`}` to `}`-only was tried and reverted — **0
+fixed / 1 regressed** (`shadcn` code-viewer), and the (then four) targeted
+ids stayed unchanged or got worse (see Proven net-negative) — confirming,
+alongside the earlier `hug_glue_prefix` narrowing experiment, that this
+cluster needs children.rs's hug-boundary construction rebuilt, not a gate
+relaxation. Fix belongs in rsvelte — continuing to widen the `children.rs`
+Doc-IR gate. (Two ids formerly listed in this paragraph —
+`svelte-ux/.../TextField/+page.svelte`'s wrong-node `<a>`-hug and
+`layercake/.../routes/components/+page.svelte`'s `<a>…</Blockquote` pair —
+are gone from the baseline: PR #1877's real-world-layout width fix, already
+on `main` before this corpus expansion, cleared both; this doc just hadn't
+caught up.)
 
-## Cluster 2 — attribute/style/directive value break-point selection (4)
+The 4th member (`skeleton/sites/skeleton.dev/src/components/landing-page/
+design-system.svelte`) is the `<pre><code>` shape again: the `<code>` open tag's
+`>` must dangle onto the child's line when the child is a multi-line template
+literal (`<code\n  >{`…`}</code\n>`), which is one shape past the three
+`<pre><code>` hug rules already ported.
+
+## Cluster 2 — attribute/style/directive value break-point selection (8)
 
 A quoted attribute or directive value with one or more `{…}` interpolations
 overflows the line, and the oracle's break-point choice differs from
@@ -93,13 +105,23 @@ break-point choice is downstream of the same narrow-width limitation, so its
 current diff still shows the un-routed symptom rather than the indent
 symptom.
 
+The four skeleton entries are the same limitation on four value shapes: a
+`class="…{cond === x ? 'a' : ''}"` conditional whose interpolation the oracle
+breaks one operand earlier (`sites/skeleton.dev/.../ui/header/theme.svelte`,
+`.../ui/preview.svelte`), a `bind:value={obj[call(…)]}` directive where the
+oracle breaks immediately after `{` and indents the whole member expression
+(`sites/themes.skeleton.dev/.../Controls/ControlsColors.svelte`), and a
+`style:background={obj["k"] === "inherit" ? … : …}` directive — the `style:`
+sub-case named above — where the oracle breaks *inside* the computed member
+(`.../Controls/ControlsTypography.svelte`).
+
 The RawExpr model has captured everything reachable within its architecture;
 what remains needs printing-time nested-expression formatting. Fix belongs
 in rsvelte — give each interpolation a *live* Doc subtree (formatted at its
 real indent) instead of a pre-narrowed string, so a nested subexpression can
 measure against its true column.
 
-## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (4)
+## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (5)
 
 A single JS expression inside one interpolation (`a.b.c`, `x ?? 'default'`)
 needs to break, and oxc's chosen break point differs from what the oracle
@@ -132,6 +154,12 @@ trailing space immediately before an `<a>` link's text. The break-point part
 is the same oxc member-chain heuristic divergence as the other three ids in
 this cluster; the trailing-space part is unexamined but low-priority next to
 it.
+
+`skeleton/sites/plus.skeleton.dev/src/routes/(app)/content/blocks/+page.svelte`
+is the same mechanism in element content: a parenthesized
+`(arr.find(fn)?.blocks ?? []).length` interpolation, where the oracle breaks
+inside the parens (`>{(` then the chain indented) while oxc keeps the whole
+`find(…)` call on the first line and breaks before `.length`.
 
 ## Cluster 4 — inline `{expr} {expr}` hug/join collapse (1)
 
@@ -198,6 +226,50 @@ cannot clear the entry while the mode difference remains. Unfixable in-repo;
 a root fix would need oxfmt's standalone path to preserve multi-line
 function-value interiors verbatim (high blast radius upstream). This is the
 one entry in the baseline that is pure CSS formatting, not HTML/JS layout.
+
+## Cluster 9 — overflowing block-header expression: oracle breaks then re-joins (9) (#1976)
+
+New with the skeleton enrolment (#1924) and the single largest cluster in the
+baseline. When a block header's expression does not fit the print width, the
+oracle's prettier-plugin-svelte layer lets the expression's own group break and
+then prints the header on **one** line anyway, so the broken call-argument list
+survives as interior spaces:
+
+```svelte
+{#each datePicker().getMonthsGrid( { columns: 4, format: "short" } ) as months, id (id)}   <!-- oracle -->
+{#each datePicker().getMonthsGrid({ columns: 4, format: "short" }) as months, id (id)}      <!-- rsvelte -->
+```
+
+Confirmed width-triggered by minimal repro: the identical header nested shallow
+enough to fit prints hugged (`f({ … })`) on **both** sides, and only the
+overflowing form diverges. rsvelte prints the flat/hugged expression regardless.
+All 9 ids are the same `{#each …getMonthsGrid({ columns, format }) …}` header
+duplicated across skeleton's date-picker examples and playground page. Fix
+belongs in rsvelte — reproduce the oracle's break-then-flatten layout for
+block-header expressions (rather than only ever printing them flat).
+
+## Cluster 10 — `prettier-ignore` subtree only partially preserved (2) (#1977)
+
+Also new with #1924. A `<!-- prettier-ignore -->` comment must leave the whole
+next node's source verbatim. rsvelte-fmt preserves the ignored element's own
+lines (tabs and all) but still reformats a **nested** element inside it, breaking
+its attributes onto separate lines:
+
+```svelte
+<!-- prettier-ignore -->
+<p class="opacity-60">
+	Set the scale factor for <a href="…" target="_blank" class="…">Tailwind Spacing</a> utilities.
+</p>
+```
+
+The oracle emits the `<a …>` line untouched; rsvelte-fmt splits the open tag and
+dangles `</a\n>`. Both entries
+(`skeleton/sites/themes.skeleton.dev/.../Controls/ControlsSpacing.svelte` and
+`.../Preview/Preview.svelte`) are this one shape, reproduced standalone in 6
+lines. Only these two of the 12 parity-set components containing
+`prettier-ignore` fail, so the ignore range itself is honoured — what leaks is
+the nested-element re-print inside it. Fix belongs in rsvelte — make the ignore
+range verbatim for the entire subtree.
 
 ## Resolved
 
@@ -483,7 +555,9 @@ while afterward — that divergence is since resolved too (see Resolved,
   (`shadcn` code-viewer), and the 4 targeted ids stayed unchanged or got
   worse. Matches the earlier `hug_glue_prefix` narrowing result: this cluster
   needs `children.rs`'s hug-boundary construction rebuilt, gate relaxation
-  alone doesn't reach it.
+  alone doesn't reach it. (The `TextField` and `layercake/routes/components`
+  ids have since left the baseline via #1877, unrelated to this experiment;
+  see Cluster 1.)
 - **Relaxing `build_attrs_concat`'s multi-line-attribute bail**: rescues zero
   ids — for every id that hits it, the multi-line attribute is the *symptom*
   (their real divergences are Cluster 2 and the since-resolved Cluster 7),

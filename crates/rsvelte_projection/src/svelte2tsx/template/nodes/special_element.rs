@@ -37,7 +37,7 @@ pub(crate) fn handle_svelte_special_element(
     el: &SvelteElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -45,9 +45,14 @@ pub(crate) fn handle_svelte_special_element(
         return;
     }
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let mut attrs_str =
-        build_attributes_string(&el.attributes, source, counter.slot_inst.is_some());
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
+    let mut attrs_str = build_attributes_string(
+        &el.attributes,
+        source,
+        &counter.element_opener_comments,
+        counter.slot_inst.is_some(),
+    );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     if !el.attributes.is_empty() && !attrs_str.is_empty() {
@@ -220,9 +225,13 @@ pub(crate) fn handle_svelte_special_element(
         let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
         let closing_tag_start = find_closing_tag_start(source, el.end);
         if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, &format!(" }}{}", extra_close));
+            str.overwrite_fmt(
+                closing_tag_start,
+                el.end,
+                format_args!(" }}{}", extra_close),
+            );
         } else {
-            str.append_left(el.end, &format!("}}{}", extra_close));
+            str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
         }
     }
 }

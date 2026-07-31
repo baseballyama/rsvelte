@@ -16,9 +16,10 @@ pub(super) mod transition;
 
 use crate::ast::template::Attribute;
 use crate::svelte2tsx::svelte2tsx::slice_src;
+use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::nodes::attach_tag::format_attach_tag_segments;
 use crate::svelte2tsx::template::segs::{
-    Seg, segs_is_empty, segs_push_lit, segs_push_src, segs_to_string,
+    Seg, segs_is_empty, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
 };
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_expression_range, get_expression_text,
@@ -27,7 +28,7 @@ use crate::svelte2tsx::template::utils::expr::{
 
 use action::format_use_directive;
 use attribute::{
-    format_attribute_node, format_attribute_node_segments, trailing_attr_comment_segs,
+    append_attribute_node_segments, format_attribute_node, trailing_attr_comment_segs,
     trailing_attr_comment_text,
 };
 use binding::{bind_is_filtered_from_props, format_bind_directive_segments};
@@ -37,7 +38,7 @@ use spread::{format_spread_attribute, format_spread_attribute_segments};
 use transition::format_transition_directive;
 
 /// End offset of an attribute or directive in the element opener.
-fn attribute_end(attr: &Attribute) -> u32 {
+pub(super) fn attribute_end(attr: &Attribute) -> u32 {
     match attr {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,
@@ -115,18 +116,27 @@ fn splice_trailing_text(part: &mut String, trailing: &str) {
 pub(super) fn build_attributes_string(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     in_slot_context: bool,
 ) -> String {
-    build_attributes_string_with_tag(attributes, source, "", in_slot_context)
+    build_attributes_string_with_tag(attributes, source, comments, "", in_slot_context)
 }
 
 pub(super) fn build_attributes_string_with_tag(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     parent_tag: &str,
     in_slot_context: bool,
 ) -> String {
-    let segs = build_attribute_segments(attributes, source, parent_tag, in_slot_context, None);
+    let segs = build_attribute_segments(
+        attributes,
+        source,
+        comments,
+        parent_tag,
+        in_slot_context,
+        None,
+    );
     segs_to_string(&segs, source)
 }
 
@@ -142,11 +152,12 @@ pub(super) fn build_attributes_string_with_tag(
 pub(super) fn build_attribute_segments(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     parent_tag: &str,
     in_slot_context: bool,
     opener_content_start: Option<u32>,
 ) -> Vec<Seg> {
-    let mut segs: Vec<Seg> = Vec::new();
+    let mut segs: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
     let mut any_pushed = false;
     // Position immediately after the previous attribute (or after the tag name
     // for the first attribute). Used to recover a comment that precedes a
@@ -182,12 +193,10 @@ pub(super) fn build_attribute_segments(
                     }
                     _ => "",
                 };
-                if let Some(part) =
-                    format_attribute_node_segments(node, source, true, parent_tag, leading)
-                {
-                    push_with_separator(&mut segs, part);
-                    any_pushed = true;
-                }
+                append_attribute_node_segments(
+                    &mut segs, node, source, comments, true, parent_tag, leading,
+                );
+                any_pushed = true;
                 prev_end = Some(node.end);
             }
             Attribute::SpreadAttribute(spread) => {
@@ -243,7 +252,7 @@ pub(super) fn build_attribute_segments(
                 if !in_slot_context {
                     let mut part: Vec<Seg> = Vec::new();
                     if let Some(ref expr) = let_dir.expression {
-                        segs_push_lit(&mut part, &format!("\"let:{}\":", let_dir.name));
+                        segs_push_fmt(&mut part, format_args!("\"let:{}\":", let_dir.name));
                         if let Some((s, e)) = get_expression_range(expr) {
                             segs_push_src(&mut part, s, e);
                         } else {
@@ -251,7 +260,7 @@ pub(super) fn build_attribute_segments(
                         }
                         segs_push_lit(&mut part, ",");
                     } else {
-                        segs_push_lit(&mut part, &format!("\"let:{}\":true,", let_dir.name));
+                        segs_push_fmt(&mut part, format_args!("\"let:{}\":true,", let_dir.name));
                     }
                     push_with_separator(&mut segs, part);
                     any_pushed = true;
@@ -266,7 +275,7 @@ pub(super) fn build_attribute_segments(
     }
 
     if any_pushed && let Some(end) = opener_trailing_comment_range(attributes) {
-        let trailing = trailing_attr_comment_segs(end, source);
+        let trailing = trailing_attr_comment_segs(end, source, comments);
         splice_trailing_segs(&mut segs, &trailing);
     }
 
@@ -290,7 +299,11 @@ pub(super) fn build_attribute_segments(
 ///
 /// When `on:` directives are present but filtered out, a space is added inside
 /// the empty braces to match the JS svelte2tsx output: `props: { }`.
-pub(super) fn build_component_props_string(attributes: &[Attribute], source: &str) -> String {
+pub(super) fn build_component_props_string(
+    attributes: &[Attribute],
+    source: &str,
+    comments: &ElementOpenerCommentIndex,
+) -> String {
     let mut parts: Vec<String> = Vec::new();
     let mut has_on_directives = false;
     let mut let_count = 0u32;
@@ -383,7 +396,7 @@ pub(super) fn build_component_props_string(attributes: &[Attribute], source: &st
     if let Some(end) = opener_trailing_comment_range(attributes)
         && let Some(last) = parts.last_mut()
     {
-        splice_trailing_text(last, &trailing_attr_comment_text(end, source));
+        splice_trailing_text(last, &trailing_attr_comment_text(end, source, comments));
     }
 
     let result = parts.join("");
@@ -412,9 +425,10 @@ pub(super) fn build_component_props_string(attributes: &[Attribute], source: &st
 pub(super) fn build_component_props_segments(
     attributes: &[Attribute],
     source: &str,
+    comments: &ElementOpenerCommentIndex,
     drop_slot: bool,
 ) -> Vec<Seg> {
-    let mut inner: Vec<Seg> = Vec::new();
+    let mut inner: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
     let mut has_on_directives = false;
     let mut let_count = 0u32;
 
@@ -438,11 +452,9 @@ pub(super) fn build_component_props_segments(
                     continue;
                 }
                 // is_element=false: --* attrs get __sveltets_2_cssProp wrapping
-                // inside format_attribute_node_segments (mirrors Attribute.ts).
+                // inside append_attribute_node_segments (mirrors Attribute.ts).
                 // Components preserve attribute-name case, so the tag is unused.
-                if let Some(part) = format_attribute_node_segments(node, source, false, "", "") {
-                    extend_segs(&mut inner, part);
-                }
+                append_attribute_node_segments(&mut inner, node, source, comments, false, "", "");
             }
             Attribute::SpreadAttribute(spread) => {
                 if let Some(part) = format_spread_attribute_segments(spread, source) {
@@ -469,7 +481,7 @@ pub(super) fn build_component_props_segments(
                 }
                 // Component-side bind:foo={expr} → foo:expr, (no quotes,
                 // no `bind:` prefix). Mirrors the JS reference.
-                segs_push_lit(&mut inner, &format!("{}:", bind.name));
+                segs_push_fmt(&mut inner, format_args!("{}:", bind.name));
                 if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source)
                 {
                     // Svelte 5 function binding `bind:foo={getFn, setFn}` →
@@ -522,7 +534,7 @@ pub(super) fn build_component_props_segments(
     }
 
     if let Some(end) = opener_trailing_comment_range(attributes) {
-        let trailing = trailing_attr_comment_segs(end, source);
+        let trailing = trailing_attr_comment_segs(end, source, comments);
         splice_trailing_segs(&mut inner, &trailing);
     }
 

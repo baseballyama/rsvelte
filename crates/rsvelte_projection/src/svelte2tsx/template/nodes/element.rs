@@ -37,7 +37,7 @@ pub(crate) fn handle_regular_element(
     el: &RegularElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -94,7 +94,8 @@ pub(crate) fn handle_regular_element(
     }
 
     // Find the end of the opening tag (after the `>`)
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
 
     // Build attribute segments. Source-bearing expressions become
     // `Seg::Src` so the resulting overwrite leaves them as unedited
@@ -111,6 +112,7 @@ pub(crate) fn handle_regular_element(
     let mut attr_segs = build_attribute_segments(
         &el.attributes,
         source,
+        &counter.element_opener_comments,
         &el.name,
         saved_slot.is_some(),
         Some(opener_content_start),
@@ -253,7 +255,7 @@ pub(crate) fn handle_regular_element(
         .ends_with("/>");
     let is_void = crate::compiler::utils::is_void_element(&el.name);
     if is_void || is_self_closing_source {
-        str.append_left(el.end, &format!("}}{}", extra_close));
+        str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
     } else {
         let closing_tag_start = find_closing_tag_start(source, el.end);
         // An auto-closed element (`<p><p>`, `<li><li>`, …) has NO `</name>` at
@@ -265,9 +267,13 @@ pub(crate) fn handle_regular_element(
             && closing_tag_name_matches(source, closing_tag_start, &el.name)
         {
             // Non-self-closing: preserve space before closing brace
-            str.overwrite(closing_tag_start, el.end, &format!(" }}{}", extra_close));
+            str.overwrite_fmt(
+                closing_tag_start,
+                el.end,
+                format_args!(" }}{}", extra_close),
+            );
         } else {
-            str.append_left(el.end, &format!("}}{}", extra_close));
+            str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
         }
     }
     // Restore the slot context for following siblings (this element's own
@@ -280,7 +286,7 @@ pub(crate) fn handle_title_element(
     el: &TitleElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -288,8 +294,14 @@ pub(crate) fn handle_title_element(
         return;
     }
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let attrs_str = build_attributes_string(&el.attributes, source, counter.slot_inst.is_some());
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
+    let attrs_str = build_attributes_string(
+        &el.attributes,
+        source,
+        &counter.element_opener_comments,
+        counter.slot_inst.is_some(),
+    );
 
     let opener = format!(
         " {{ svelteHTML.createElement(\"title\", {{{}}});",

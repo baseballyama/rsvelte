@@ -2,12 +2,13 @@
 
 use memchr::memmem;
 
-use super::destructure_transforms::build_fallback_string;
+use super::destructure_transforms::{build_fallback_string, literal_key_value};
 use super::{
     ARRAY_LOOKUP_COUNTER, SCRIPT_ARRAY_COUNTER, find_matching_paren,
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Transform runes for client-side usage with skip and state variable handling.
 pub(super) fn transform_client_runes_with_skip_and_state(
@@ -740,6 +741,89 @@ pub(super) fn process_derived_destructuring_pattern(
     }
 }
 
+/// The expression inside a computed destructuring key (`[k]` → `k`).
+fn computed_key_expr(key: &str) -> Option<&str> {
+    let key = key.trim();
+    Some(key.strip_prefix('[')?.strip_suffix(']')?.trim())
+}
+
+/// Whether `key` is a single complete string literal (`'a-b'` / `"a-b"`).
+fn is_string_literal_key(key: &str) -> bool {
+    let bytes = key.as_bytes();
+    if bytes.len() < 2 {
+        return false;
+    }
+    let quote = bytes[0];
+    if quote != b'\'' && quote != b'"' {
+        return false;
+    }
+    let mut i = 1;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' {
+            i += 2;
+            continue;
+        }
+        if bytes[i] == quote {
+            return i == bytes.len() - 1;
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Whether `key` is a numeric literal (`0`, `1.5`) — `base.0` is not valid JS.
+fn is_numeric_literal_key(key: &str) -> bool {
+    !key.is_empty()
+        && key.as_bytes()[0].is_ascii_digit()
+        && key.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+}
+
+/// Member access for a destructured property key, mirroring upstream's
+/// `b.member(expression, prop.key, prop.computed || prop.key.type !== 'Identifier')`.
+///
+/// Computed / literal keys need bracket notation, and they read from
+/// `base_expr` rather than `member_base`: upstream's rest-prop rewrite only
+/// retargets *static* member reads (`props.a` → `$$props.a`), so `props[k]`
+/// keeps the binding itself as its object.
+pub(super) fn derived_prop_access(base_expr: &str, member_base: &str, key: &str) -> String {
+    if let Some(expr) = computed_key_expr(key) {
+        format!("{}[{}]", base_expr, expr)
+    } else if is_string_literal_key(key) || is_numeric_literal_key(key) {
+        format!("{}[{}]", base_expr, key)
+    } else {
+        format!("{}.{}", member_base, key)
+    }
+}
+
+/// The `$.exclude_from_object(base, [...])` entry for a non-rest property key.
+/// Upstream turns identifier and `Literal` keys into string literals and every
+/// other computed key into `String(<expr>)`, so the rest subtracts it at runtime.
+///
+/// Unlike the member access, the key list is *not* source-verbatim: upstream
+/// builds it with `b.literal(...)`, a fresh node with no `raw`, so the printer
+/// always emits the decoded value single-quoted.
+pub(super) fn exclude_key_literal(key: &str) -> String {
+    if let Some(expr) = computed_key_expr(key) {
+        return match literal_key_value(expr) {
+            Some(value) => quote_exclude_key(&value),
+            None => format!("String({})", expr),
+        };
+    }
+    // A non-computed key is either a literal or an identifier, whose name is
+    // already its own value — only a literal needs the re-parse.
+    if !is_string_literal_key(key) && !is_numeric_literal_key(key) {
+        return quote_exclude_key(key);
+    }
+    match literal_key_value(key) {
+        Some(value) => quote_exclude_key(&value),
+        None => quote_exclude_key(key),
+    }
+}
+
+fn quote_exclude_key(value: &str) -> String {
+    format!("'{}'", escape_js_string(value))
+}
+
 pub(super) fn process_derived_object_pattern(
     inner: &str,
     base_expr: &str,
@@ -759,7 +843,7 @@ pub(super) fn process_derived_object_pattern(
         if let Some(colon_pos) = find_derived_property_colon(prop) {
             let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
-            let prop_access = format!("{}.{}", member_base, key);
+            let prop_access = derived_prop_access(base_expr, member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                 let (nested_pattern, _default_val) = split_nested_pattern_default(value_pattern);
                 collect_array_helpers_only(nested_pattern, &prop_access, declarations)?;
@@ -768,8 +852,10 @@ pub(super) fn process_derived_object_pattern(
     }
 
     // Collect all non-rest property keys for $.exclude_from_object
+    let has_rest = properties.iter().any(|prop| prop.trim().starts_with("..."));
     let excluded_keys: Vec<String> = properties
         .iter()
+        .filter(|_| has_rest)
         .filter_map(|prop| {
             let prop = prop.trim();
             if prop.is_empty() || prop.starts_with("...") {
@@ -787,12 +873,7 @@ pub(super) fn process_derived_object_pattern(
                     key
                 }
             };
-            // Handle computed keys and quoted keys
-            if key.starts_with('[') {
-                None // computed keys can't be excluded statically
-            } else {
-                Some(format!("\"{}\"", key))
-            }
+            Some(exclude_key_literal(key))
         })
         .collect();
 
@@ -814,7 +895,7 @@ pub(super) fn process_derived_object_pattern(
         if let Some(colon_pos) = find_derived_property_colon(prop) {
             let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
-            let prop_access = format!("{}.{}", member_base, key);
+            let prop_access = derived_prop_access(base_expr, member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                 // Handle nested destructuring patterns, possibly with default values
                 // e.g., `measured: { width: w, height: h } = { width: 0, height: 0 }`
@@ -866,9 +947,26 @@ pub(super) fn process_derived_object_pattern(
     Some(())
 }
 
+/// The `$.to_array(...)` call for an array pattern. Upstream passes a length only
+/// when the pattern has no rest element — with one the iterable must be drained
+/// completely, and a fixed length would truncate it.
+fn to_array_call(base_expr: &str, elements: &[String]) -> String {
+    let has_rest = elements
+        .last()
+        .is_some_and(|element| element.trim().starts_with("..."));
+    if has_rest {
+        format!("$.to_array({})", base_expr)
+    } else {
+        format!("$.to_array({}, {})", base_expr, elements.len())
+    }
+}
+
 /// Collect ONLY $$array helper declarations from nested patterns.
 /// This is used in the first pass to ensure $$array declarations come before
 /// the variable declarations that depend on them.
+///
+/// Only ever reached below the top level, so `base_expr` is already a resolved
+/// member/element access and the `member_base` distinction does not apply.
 pub(super) fn collect_array_helpers_only(
     pattern: &str,
     base_expr: &str,
@@ -878,7 +976,6 @@ pub(super) fn collect_array_helpers_only(
     if pattern.starts_with('[') && pattern.ends_with(']') {
         let inner = &pattern[1..pattern.len() - 1];
         let elements = split_derived_array_elements(inner);
-        let element_count = elements.len();
 
         // Generate the $$array helper
         let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
@@ -894,8 +991,9 @@ pub(super) fn collect_array_helpers_only(
         };
 
         declarations.push(format!(
-            "{} = $.derived(() => $.to_array({}, {}))",
-            array_var, base_expr, element_count
+            "{} = $.derived(() => {})",
+            array_var,
+            to_array_call(base_expr, &elements)
         ));
 
         // Recursively collect array helpers from nested patterns
@@ -922,7 +1020,7 @@ pub(super) fn collect_array_helpers_only(
             if let Some(colon_pos) = find_derived_property_colon(prop) {
                 let key = prop[..colon_pos].trim();
                 let value_pattern = prop[colon_pos + 1..].trim();
-                let prop_access = format!("{}.{}", base_expr, key);
+                let prop_access = derived_prop_access(base_expr, base_expr, key);
                 if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                     collect_array_helpers_only(value_pattern, &prop_access, declarations)?;
                 }
@@ -970,6 +1068,10 @@ pub(super) fn process_nested_pattern_elements(
                     declarations,
                     _array_counter,
                 )?;
+            } else if let Some(eq_pos) = find_default_equals(element) {
+                let name = element[..eq_pos].trim();
+                let fallback = build_fallback_string(&element_access, element[eq_pos + 1..].trim());
+                declarations.push(format!("{} = $.derived(() => {})", name, fallback));
             } else {
                 declarations.push(format!("{} = $.derived(() => {})", element, element_access));
             }
@@ -979,8 +1081,10 @@ pub(super) fn process_nested_pattern_elements(
         let properties = split_derived_object_properties(inner);
 
         // Collect all non-rest property keys for $.exclude_from_object
+        let has_rest = properties.iter().any(|prop| prop.trim().starts_with("..."));
         let excluded_keys: Vec<String> = properties
             .iter()
+            .filter(|_| has_rest)
             .filter_map(|prop| {
                 let prop = prop.trim();
                 if prop.is_empty() || prop.starts_with("...") {
@@ -988,14 +1092,12 @@ pub(super) fn process_nested_pattern_elements(
                 }
                 let key = if let Some(colon_pos) = find_derived_property_colon(prop) {
                     prop[..colon_pos].trim()
+                } else if let Some(eq_pos) = find_default_equals(prop) {
+                    prop[..eq_pos].trim()
                 } else {
-                    prop.trim()
+                    prop
                 };
-                if key.starts_with('[') {
-                    None
-                } else {
-                    Some(format!("\"{}\"", key))
-                }
+                Some(exclude_key_literal(key))
             })
             .collect();
 
@@ -1016,7 +1118,7 @@ pub(super) fn process_nested_pattern_elements(
             if let Some(colon_pos) = find_derived_property_colon(prop) {
                 let key = prop[..colon_pos].trim();
                 let value_pattern = prop[colon_pos + 1..].trim();
-                let prop_access = format!("{}.{}", base_expr, key);
+                let prop_access = derived_prop_access(base_expr, base_expr, key);
                 if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                     let (nested_pattern, default_val) = split_nested_pattern_default(value_pattern);
                     let effective_access = if let Some(dv) = default_val {
@@ -1044,6 +1146,11 @@ pub(super) fn process_nested_pattern_elements(
                         ));
                     }
                 }
+            } else if let Some(eq_pos) = find_default_equals(prop) {
+                let name = prop[..eq_pos].trim();
+                let member_access = format!("{}.{}", base_expr, name);
+                let fallback = build_fallback_string(&member_access, prop[eq_pos + 1..].trim());
+                declarations.push(format!("{} = $.derived(() => {})", name, fallback));
             } else {
                 declarations.push(format!(
                     "{} = $.derived(() => {}.{})",
@@ -1115,17 +1222,15 @@ pub(super) fn get_current_array_var_for_base(_base_expr: &str) -> String {
 
 pub(super) fn process_derived_array_pattern(
     inner: &str,
-    // Array destructuring never emits `$.exclude_from_object` (the rest is a
-    // `$.get($$array).slice(i)`), so only `member_base` — the value being
-    // `$.to_array`-ed / indexed — is used; `base_expr` is kept for signature
-    // symmetry with `process_derived_object_pattern`.
-    _base_expr: &str,
-    member_base: &str,
+    // An array pattern consumes the *value*, not a named member of it, so
+    // `$.to_array` takes `base_expr`; `member_base` (upstream's rest-prop member
+    // rewrite target) never applies here.
+    base_expr: &str,
+    _member_base: &str,
     declarations: &mut Vec<String>,
     _array_counter: &mut usize,
 ) -> Option<()> {
     let elements = split_derived_array_elements(inner);
-    let element_count = elements.len();
 
     // Use the global counter to generate a unique $$array variable name
     // This ensures unique names across multiple $derived destructuring patterns
@@ -1142,8 +1247,9 @@ pub(super) fn process_derived_array_pattern(
     };
 
     declarations.push(format!(
-        "{} = $.derived(() => $.to_array({}, {}))",
-        array_var, member_base, element_count
+        "{} = $.derived(() => {})",
+        array_var,
+        to_array_call(base_expr, &elements)
     ));
     for (index, element) in elements.iter().enumerate() {
         let element = element.trim();
@@ -1169,6 +1275,10 @@ pub(super) fn process_derived_array_pattern(
                 declarations,
                 &mut nested_counter,
             )?;
+        } else if let Some(eq_pos) = find_default_equals(element) {
+            let name = element[..eq_pos].trim();
+            let fallback = build_fallback_string(&element_access, element[eq_pos + 1..].trim());
+            declarations.push(format!("{} = $.derived(() => {})", name, fallback));
         } else {
             declarations.push(format!("{} = $.derived(() => {})", element, element_access));
         }
@@ -1176,95 +1286,122 @@ pub(super) fn process_derived_array_pattern(
     Some(())
 }
 
-pub(super) fn split_derived_object_properties(inner: &str) -> Vec<String> {
-    let mut properties = Vec::new();
-    let mut current = String::new();
-    let mut depth = 0;
-    for c in inner.chars() {
-        match c {
-            '{' | '[' | '(' => {
-                depth += 1;
-                current.push(c);
-            }
-            '}' | ']' | ')' => {
-                depth -= 1;
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                if !current.trim().is_empty() {
-                    properties.push(current.trim().to_string());
-                }
-                current = String::new();
-            }
-            _ => current.push(c),
+/// Split a destructuring pattern body on its top-level `,` separators, skipping
+/// nested patterns, string/template literals and comments — a comma inside a
+/// default value (`b = 'x,y'`) is not a separator.
+fn split_top_level_commas(inner: &str) -> Vec<&str> {
+    let bytes = inner.as_bytes();
+    let mut segments = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if let Some(end) = skip_literal_or_comment(bytes, i) {
+            i = end + 1;
+            continue;
         }
+        match bytes[i] {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b',' if depth == 0 => {
+                segments.push(&inner[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
     }
-    if !current.trim().is_empty() {
-        properties.push(current.trim().to_string());
-    }
-    properties
+    segments.push(&inner[start..]);
+    segments
+}
+
+pub(super) fn split_derived_object_properties(inner: &str) -> Vec<String> {
+    split_top_level_commas(inner)
+        .into_iter()
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 pub(super) fn split_derived_array_elements(inner: &str) -> Vec<String> {
-    let mut elements = Vec::new();
-    let mut current = String::new();
-    let mut depth = 0;
-    for c in inner.chars() {
-        match c {
-            '{' | '[' | '(' => {
-                depth += 1;
-                current.push(c);
-            }
-            '}' | ']' | ')' => {
-                depth -= 1;
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                elements.push(current.clone());
-                current = String::new();
-            }
-            _ => current.push(c),
-        }
-    }
-    elements.push(current);
-    elements
+    split_top_level_commas(inner)
+        .into_iter()
+        .map(str::to_string)
+        .collect()
 }
 
 pub(super) fn find_derived_property_colon(prop: &str) -> Option<usize> {
-    let mut depth = 0;
-    for (i, c) in prop.char_indices() {
-        match c {
-            '{' | '[' | '(' => depth += 1,
-            '}' | ']' | ')' => depth -= 1,
-            ':' if depth == 0 => return Some(i),
-            _ => {}
-        }
-    }
-    None
+    scan_property_separators(prop).0
 }
 
 /// Find the position of `=` in a shorthand destructuring property with a default value.
 /// e.g., `animated = false` → Some(9), `animated` → None
 /// Respects nesting so `data = { x: 1 }` finds the top-level `=`.
 pub(super) fn find_default_equals(prop: &str) -> Option<usize> {
-    let mut depth = 0;
+    scan_property_separators(prop).1
+}
+
+/// Byte offsets of a destructuring property's key separator `:` and default-value
+/// `=`, skipping nested patterns, string/template literals and comments.
+///
+/// A property is always `key: value = default`, so the key separator can only
+/// precede the default `=` — scanning the whole property would otherwise mistake a
+/// `:` from the default (a ternary, a string literal) for the key separator.
+fn scan_property_separators(prop: &str) -> (Option<usize>, Option<usize>) {
     let bytes = prop.as_bytes();
+    let mut depth = 0i32;
+    let mut colon = None;
     let mut i = 0;
     while i < bytes.len() {
+        if let Some(end) = skip_literal_or_comment(bytes, i) {
+            i = end + 1;
+            continue;
+        }
         match bytes[i] {
             b'{' | b'[' | b'(' => depth += 1,
             b'}' | b']' | b')' => depth -= 1,
+            b':' if depth == 0 && colon.is_none() => colon = Some(i),
             b'=' if depth == 0 => {
-                // Make sure it's not `==` or `=>`
-                if i + 1 < bytes.len() && (bytes[i + 1] == b'=' || bytes[i + 1] == b'>') {
-                    i += 2;
-                    continue;
+                let prev = if i > 0 { bytes[i - 1] } else { 0 };
+                let is_operator = matches!(bytes.get(i + 1), Some(b'=' | b'>'))
+                    || matches!(prev, b'!' | b'<' | b'>' | b'=');
+                if !is_operator {
+                    return (colon, Some(i));
                 }
-                return Some(i);
             }
             _ => {}
         }
         i += 1;
     }
-    None
+    (colon, None)
+}
+
+/// Index of the last byte of the comment or string/template literal starting at
+/// `i`, or `None` when `i` does not start one. Callers resume at `end + 1`.
+fn skip_literal_or_comment(bytes: &[u8], i: usize) -> Option<usize> {
+    match bytes[i] {
+        b'/' if bytes.get(i + 1) == Some(&b'/') => {
+            let mut j = i;
+            while j < bytes.len() && bytes[j] != b'\n' {
+                j += 1;
+            }
+            Some(j)
+        }
+        b'/' if bytes.get(i + 1) == Some(&b'*') => {
+            let mut j = i + 2;
+            while j < bytes.len() && !(bytes[j] == b'*' && bytes.get(j + 1) == Some(&b'/')) {
+                j += 1;
+            }
+            Some(j + 1)
+        }
+        quote @ (b'\'' | b'"' | b'`') => {
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j] != quote {
+                j += if bytes[j] == b'\\' { 2 } else { 1 };
+            }
+            Some(j)
+        }
+        _ => None,
+    }
 }

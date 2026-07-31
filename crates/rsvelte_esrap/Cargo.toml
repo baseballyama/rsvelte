@@ -22,14 +22,14 @@ crate-type = ["rlib"]
 [dependencies]
 compact_str = "0.10"
 memchr = "2.7"
-oxc_allocator = "0.141"
-oxc_ast = "0.141"
-oxc_span = "0.141"
-oxc_syntax = "0.141"
+oxc_allocator = "0.142"
+oxc_ast = "0.142"
+oxc_span = "0.142"
+oxc_syntax = "0.142"
 
 [dev-dependencies]
-oxc_parser = "0.141"
-oxc_ast_visit = "0.141"
+oxc_parser = "0.142"
+oxc_ast_visit = "0.142"
 
 [lints]
 workspace = true

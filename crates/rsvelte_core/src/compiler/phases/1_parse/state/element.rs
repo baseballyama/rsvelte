@@ -16,6 +16,7 @@ use memchr::memmem;
 use memchr::{memchr, memchr3};
 use smallvec::SmallVec;
 
+use crate::ast::SourceLocation;
 use crate::ast::js::Expression;
 use crate::ast::template::{
     AttributeNode, AttributeValue, AttributeValuePart, Comment, Component, ExpressionTag, Fragment,
@@ -1342,28 +1343,29 @@ impl<'a> Parser<'a> {
             let prefix = &name.as_bytes()[..colon_pos];
             match prefix {
                 b"on" => {
-                    return self.parse_on_directive(start, &name, name_start, name_end);
+                    return self.parse_on_directive(start, &name, name_loc, name_end);
                 }
                 b"bind" => {
-                    return self.parse_bind_directive(start, &name, name_start, name_end);
+                    return self.parse_bind_directive(start, &name, name_start, name_loc, name_end);
                 }
                 b"use" => {
-                    return self.parse_use_directive(start, &name, name_start, name_end);
+                    return self.parse_use_directive(start, &name, name_loc, name_end);
                 }
                 b"class" => {
-                    return self.parse_class_directive(start, &name, name_start, name_end);
+                    return self
+                        .parse_class_directive(start, &name, name_start, name_loc, name_end);
                 }
                 b"style" => {
-                    return self.parse_style_directive(start, &name, name_start, name_end);
+                    return self.parse_style_directive(start, &name, name_loc, name_end);
                 }
                 b"transition" | b"in" | b"out" => {
-                    return self.parse_transition_directive(start, &name, name_start, name_end);
+                    return self.parse_transition_directive(start, &name, name_loc, name_end);
                 }
                 b"animate" => {
-                    return self.parse_animate_directive(start, &name, name_start, name_end);
+                    return self.parse_animate_directive(start, &name, name_loc, name_end);
                 }
                 b"let" => {
-                    return self.parse_let_directive(start, &name, name_start, name_end);
+                    return self.parse_let_directive(start, &name, name_loc, name_end);
                 }
                 _ => {} // Not a directive, fall through to normal attribute
             }
@@ -1404,7 +1406,7 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
         full_name: &str,
-        name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract event name and modifiers from "on:click|preventDefault"
@@ -1418,8 +1420,6 @@ impl<'a> Parser<'a> {
         } else {
             (CompactString::from(after_on), SmallVec::new())
         };
-
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         // Parse the value (expression)
         let (expression, end_pos) = if self.eat_optional("=") {
@@ -1488,6 +1488,7 @@ impl<'a> Parser<'a> {
         start: usize,
         full_name: &str,
         name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract property name and modifiers from "bind:value|modifier"
@@ -1501,8 +1502,6 @@ impl<'a> Parser<'a> {
         } else {
             (after_bind, SmallVec::new())
         };
-
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         // Parse the value (expression)
         let (expression, end_pos) = if self.eat_optional("=") {
@@ -1596,7 +1595,7 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
         full_name: &str,
-        name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let action_name = &full_name[4..]; // Skip "use:"
@@ -1609,8 +1608,6 @@ impl<'a> Parser<'a> {
                 (start, name_end),
             ));
         }
-
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1682,6 +1679,7 @@ impl<'a> Parser<'a> {
         start: usize,
         full_name: &str,
         name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let class_name = &full_name[6..]; // Skip "class:"
@@ -1694,8 +1692,6 @@ impl<'a> Parser<'a> {
                 (start, name_end),
             ));
         }
-
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -1760,7 +1756,7 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
         full_name: &str,
-        name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract property name and modifiers from "style:color|important"
@@ -1774,8 +1770,6 @@ impl<'a> Parser<'a> {
         } else {
             (after_style, SmallVec::new())
         };
-
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let has_value = self.eat_optional("=");
         let value = if has_value {
@@ -1947,7 +1941,7 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
         full_name: &str,
-        name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Determine type and extract name with modifiers
@@ -1974,8 +1968,6 @@ impl<'a> Parser<'a> {
                 (start, name_end),
             ));
         }
-
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -2058,11 +2050,10 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
         full_name: &str,
-        name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let animate_name = &full_name[8..]; // Skip "animate:"
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2117,11 +2108,10 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
         full_name: &str,
-        name_start: usize,
+        name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let let_name = &full_name[4..]; // Skip "let:"
-        let name_loc = self.create_name_loc_optional(name_start, name_end);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {

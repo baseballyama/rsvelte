@@ -1,0 +1,8 @@
+{
+	"name": "rsvelte-svelte-check-smoke-ts-toolchain",
+	"private": true,
+	"description": "Isolated `tsc` install for apps/npm/svelte-check's launcher smoke test (test/bin.test.mjs), which needs a real TypeScript compiler to prove an intentional type error becomes a non-zero exit. Installed with --no-package-lock, same as scripts/compat-corpus/check-oracle and scripts/dev/type-aware-lint, so it stays outside the pnpm workspace (not under apps/npm/*) and never touches pnpm-lock.yaml. Unlike those two, this is not exact-pinned: the smoke test only exercises the CLI's argv/exit-code plumbing (bin/svelte-check.cjs -> the native binary), not diagnostic parity against an oracle, so a floating range is fine and skips Renovate PRs for a test-only toolchain. Matches the `typescript` version scripts/compat-corpus/check-oracle pins.",
+	"dependencies": {
+		"typescript": "^6.0.3"
+	}
+}

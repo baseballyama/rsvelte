@@ -312,3 +312,14 @@
 	branch = main
 	ignore = dirty
 	shallow = true
+# Real pnpm workspace monorepo for the svelte-check e2e parity gate (Layer 2 of
+# #1897): its playground app resolves two sibling workspace packages, and the
+# library those siblings point at is 300+ components. Deliberately NOT in the
+# auto-update rotation — the gate's ratchet keys on line numbers in these
+# sources, so the pin moves only with a deliberate re-baseline.
+[submodule "submodules/skeleton"]
+	path = submodules/skeleton
+	url = https://github.com/skeletonlabs/skeleton.git
+	branch = main
+	ignore = dirty
+	shallow = true

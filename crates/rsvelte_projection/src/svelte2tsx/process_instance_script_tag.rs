@@ -10,9 +10,7 @@ use super::nodes::generics::{
     extract_generics_from_script_tag, split_generic_param_names, type_text_references_any,
     type_text_typeof_references_local_value,
 };
-use super::nodes::scripts::{
-    detect_top_level_await, find_instance_imports, find_script_close_tag_start,
-};
+use super::nodes::scripts::{detect_top_level_await, find_script_close_tag_start};
 use super::script::ExportedNames;
 use super::svelte2tsx::slice_src;
 
@@ -29,14 +27,16 @@ use super::svelte2tsx::slice_src;
 )]
 pub(crate) fn process_instance_script_tag(
     ast: &Root,
+    instance_program: &oxc_ast::ast::Program,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
     dollar_decls: &str,
     has_module_script: bool,
     has_slot_elements: bool,
     hoistable_snippet_ranges: &[(u32, u32)],
+    imports: &[(u32, u32, u32)],
 ) -> bool {
     let instance = ast.instance.as_ref().unwrap();
     let script_start = instance.start;
@@ -55,7 +55,8 @@ pub(crate) fn process_instance_script_tag(
     // official does NOT detect its top-level `await` / wrap `$$render` in
     // `async`; mirror that (the awaits stay in the raw, oxfmt-skipped output).
     let script_parse_failed = !instance.raw_content.is_empty();
-    let has_top_level_await = !script_parse_failed && detect_top_level_await(raw_content);
+    let has_top_level_await =
+        !script_parse_failed && detect_top_level_await(raw_content, instance_program);
     if has_top_level_await {
         exported_names.set_uses_runes(true);
     }
@@ -120,15 +121,12 @@ pub(crate) fn process_instance_script_tag(
             .unwrap_or_default()
     };
 
-    // Find import declarations in the instance script content
-    let imports = find_instance_imports(instance, source);
-
     let has_imports = !imports.is_empty();
     // Lift imports above $$render(): each import is collected individually
     // (without leading whitespace) and inserted into the <script> tag
     // replacement, with the original positions blanked out.
     let import_text = if has_imports {
-        collect_lifted_imports(&imports, source, content_start, str)
+        collect_lifted_imports(imports, source, content_start, str)
     } else {
         String::new()
     };
@@ -326,8 +324,7 @@ pub(crate) fn process_instance_script_tag(
         // BEFORE the interface that depends on it, even when it appears
         // later in source. Sorting by start position would wrongly
         // restore source order.
-        let type_ranges = exported_names.hoistable_type_ranges.clone();
-        for (s, e) in type_ranges {
+        for &(s, e) in &exported_names.hoistable_type_ranges {
             if s < e && (e as usize) <= source.len() {
                 // `prepend_right` / `append_left` add to the moved
                 // chunk itself (intro / outro of the [s..e] chunk),
@@ -354,9 +351,9 @@ pub(crate) fn process_instance_script_tag(
         // `node.getStart()` (no leading trivia) and ends the chunk
         // with `\n` so the following text in `part_b` (`function
         // $$render`) starts on its own line.
-        let mut nodes_to_move = exported_names.dollar_generic_referenced_ranges.clone();
-        nodes_to_move.sort_by_key(|(s, _)| *s);
-        for (s, e) in nodes_to_move {
+        // `hoist_dollar_generic_referenced_types` filters the source-ordered
+        // candidate list, matching upstream `InterfacesAndTypes.all.filter`.
+        for &(s, e) in &exported_names.dollar_generic_referenced_ranges {
             if s < e && (e as usize) <= source.len() {
                 str.prepend_right(s, "\n");
                 str.append_left(e, "\n");
@@ -368,10 +365,10 @@ pub(crate) fn process_instance_script_tag(
         }
         str.overwrite(sp, content_start, &part_b);
     } else if script_start < content_start {
-        str.overwrite(
+        str.overwrite_fmt(
             script_start,
             content_start,
-            &format!("{}{}", part_a, part_b),
+            format_args!("{}{}", part_a, part_b),
         );
     }
 
@@ -381,17 +378,22 @@ pub(crate) fn process_instance_script_tag(
             exported_names.props_type_text.as_ref(),
         )
     {
-        let snippet = if force_inside_render {
-            format!(";type $$ComponentProps =  {};", type_text)
+        if force_inside_render {
+            str.append_left_fmt(
+                let_pos,
+                format_args!(";type $$ComponentProps =  {};", type_text),
+            );
         } else {
             // type_already_inserted (auto-generated SvelteKit / fallback type).
             // JS reference wraps in surroundWithIgnoreComments.
-            format!(
-                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                type_text
-            )
-        };
-        str.append_left(let_pos, &snippet);
+            str.append_left_fmt(
+                let_pos,
+                format_args!(
+                    "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                    type_text
+                ),
+            );
+        }
     }
 
     // Overwrite `</script>` with slot declaration + `async () => {`.
@@ -408,14 +410,13 @@ pub(crate) fn process_instance_script_tag(
             } else {
                 ""
             };
-            let slot_decl = format!(
-                "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot{}();/*\u{03A9}ignore_end\u{03A9}*/;",
-                slot_generic
-            );
-            str.overwrite(
+            str.overwrite_fmt(
                 content_end,
                 script_end,
-                &format!("{}\nasync () => {{", slot_decl),
+                format_args!(
+                    "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot{}();/*\u{03A9}ignore_end\u{03A9}*/;\nasync () => {{",
+                    slot_generic
+                ),
             );
         } else {
             str.overwrite(content_end, script_end, ";\nasync () => {");
@@ -441,7 +442,7 @@ fn collect_lifted_imports(
     imports: &[(u32, u32, u32)],
     source: &str,
     content_start: u32,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
 ) -> String {
     let mut import_text = String::new();
     for (i, &(comments_start, import_start_rel, import_end)) in imports.iter().enumerate() {

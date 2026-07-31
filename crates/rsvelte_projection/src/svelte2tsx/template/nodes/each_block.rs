@@ -107,7 +107,7 @@ pub(crate) fn handle_each_block(
     block: &EachBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {

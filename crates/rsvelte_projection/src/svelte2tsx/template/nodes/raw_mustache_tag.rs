@@ -8,7 +8,7 @@ use crate::svelte2tsx::template::utils::expr::get_expression_range;
 /// Handle an HTML tag: `{@html expression}`.
 ///
 /// The expression needs type checking even though it's raw HTML.
-pub(crate) fn handle_html_tag(html: &HtmlTag, _source: &str, str: &mut MagicString) {
+pub(crate) fn handle_html_tag(html: &HtmlTag, _source: &str, str: &mut MagicString<'_>) {
     if html.start >= html.end {
         return;
     }

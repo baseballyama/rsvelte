@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripBlankLines, readIf } from './normalize.mjs';
+import { TARGET_KEYS } from './targets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -62,7 +63,7 @@ for (const f of report.failures) {
 		continue;
 	}
 	let foundReal = false;
-	for (const target of ['client', 'server']) {
+	for (const target of TARGET_KEYS) {
 		const exp = readIf(path.join(CORPUS, 'expected', f.id, `${target}.js`));
 		const act = readIf(path.join(CORPUS, 'actual', f.id, `${target}.js`));
 		if (exp == null || act == null || exp === act) continue;

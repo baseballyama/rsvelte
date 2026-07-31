@@ -1,5 +1,306 @@
 # @rsvelte/svelte-check
 
+## 0.5.5
+
+### Patch Changes
+
+- 6ea4b7e: Reduce svelte2tsx source scanning by collecting validation markers in the
+  existing source-feature pass.
+- 66ac8b6: Reduce svelte2tsx output allocation by reserving the exact generated
+  MagicString bundle code size.
+- 5f4f61c: Reduce svelte2tsx source-map overhead by scanning unmapped UTF-8 content once
+  while updating generated UTF-16 columns.
+- 59f0ad7: Reduce svelte2tsx MagicString growth by lazily reserving storage for the first
+  set of source splits.
+- bd1c724: Reduce svelte2tsx instance-script work by collecting import ranges during the
+  existing top-level statement traversal.
+- 09e2658: Reduce svelte2tsx transformation overhead by reusing MagicString overwrite
+  boundary lookup results.
+- e7cba19: Reduce svelte2tsx store scanning by reusing parsed script body ranges.
+- b9d5ef4: Reduce svelte2tsx opening-tag scans by starting after the final parsed
+  attribute.
+- 76bd9f4: Reduce svelte2tsx parse time and memory by skipping discarded template
+  comment AST conversion when comments are not requested.
+- 4445c51: Reduce svelte2tsx parse time and memory by skipping unused expression
+  location objects.
+- 4dae1ba: Reduce svelte2tsx source-map work by specializing bundle generation for its
+  pre-reserved mapping capacity.
+- 2729edc: Reduce svelte2tsx formatting overhead for common Svelte 5 component exports.
+- e2692ed: Reduce svelte2tsx transformation overhead by streaming the component return
+  object into its output buffer.
+
+## 0.5.4
+
+### Patch Changes
+
+- fbd0d37: Fix a **relative** `.svelte`-suffixed import never resolving under ESM-mode
+  module resolution. With `moduleResolution: node16`/`nodenext` inside a
+  `"type": "module"` package — the configuration every published Svelte component
+  library uses — TypeScript performs no implicit extension substitution, so the
+  only candidate it probes for `./x.svelte` is `./x.d.svelte.ts`. Neither the
+  overlay's `.svelte.tsx` shadow nor a real `x.svelte.ts` rune module was ever
+  reached, the specifier fell through to the ambient `declare module '*.svelte'`
+  wildcard, and every _named_ import errored with
+  `Module '"*.svelte"' has no exported member 'X'` (a default import silently
+  degraded to `any`). Both shapes were affected: a plain `.ts` barrel
+  re-exporting a component's `<script module>` type
+  (`export type { ArrowProps } from './anatomy/arrow.svelte'`) and a `.svelte.ts`
+  rune module imported with the extension stripped
+  (`import { useProvider } from './modules/provider.svelte'`).
+
+  The overlay now emits the `.d.svelte.ts` file TypeScript actually looks for
+  next to every component shadow, and — for a `.svelte.ts` / `.svelte.js` rune
+  module with no sibling component — a bridge re-exporting the real module.
+  Resolution no longer depends on the specifier's shape (relative, `paths`-aliased
+  or bare) nor on whether the importing file is a `.svelte` shadow we can rewrite
+  or a plain `.ts` source we cannot, matching how official `svelte-check` forces
+  the pre-ESM algorithm for `.svelte` specifiers in its own `resolveModuleNames`
+  hook.
+
+  Fixes #1916.
+
+- f148cdf: svelte2tsx: stop emitting a store auto-subscription for `$props.id()` when the
+  component also declares a binding named `props` from `$props()`.
+
+  `const props: Props = $props()` next to `const id = $props.id()` made the
+  text-level `$name` scan see a `$props` token beside a declared `props`, so it
+  injected `;let $props = __sveltets_2_store_get(props);` right after the
+  declaration — after the `$props()` call that opens the same line, which
+  TypeScript then reports as `TS2448: Block-scoped variable '$props' used before
+its declaration`.
+
+  Upstream's `processInstanceScriptContent` tags each `$props.id()` occurrence
+  `isPropsId` and drops all of them once it has seen a `props` binding
+  initialized by literally `$props()`; that pair of conditions is now mirrored, so
+  `$props.id` without a call, `$props.id(arg)`, a non-rune `let props = {}`, and
+  `$state.snapshot(state)` all keep upstream's behaviour. Fixes upstream's own
+  `props-variable-and-$props.id{,-destructured,-spread}.v5` samples and removes 30
+  false-positive `TS2448` diagnostics from the svelte-check e2e parity corpus.
+
+  Fixes #1917.
+
+- e23a4a4: Fix `--workspace .` (a relative workspace path — the documented CLI form) emitting one extra `../` in rewritten escaping relative imports, producing false-positive `TS2307` diagnostics.
+
+  Two compounding bugs in the `svelte2tsx` external-import rewrite pass: `relative_posix` filtered empty path segments but not `.`, so a leading `./` (introduced when a relative `.` workspace path is joined onto a file path) was counted as one directory level — one `../` too many in any specifier that did get rewritten. Separately, a relative workspace made `is_within_dir`'s containment check fail to recognize workspace-internal targets, so the rewrite fired at all for imports that resolve inside the workspace and need no rewrite.
+
+  `relative_posix` now skips `.` segments. `rewrite_external_imports.rs` otherwise keeps its existing "inputs are absolute" contract — the actual fix is `svelte-check`'s `runner::run` absolutizing `RunOptions::workspace` once at its entry point (the same class of fix as #1900's `oxc_resolver` absolutization), so every downstream path (walked files, the overlay's `.tsx` shadows, the `workspace_path` handed to svelte2tsx) is consistently absolute regardless of how `--workspace` was spelled on the command line.
+
+- b379d80: Fix a false `implicit any` (TS7031/TS7006) on SvelteKit route files whose
+  handlers are written as `const` arrow functions or function expressions
+  instead of `export function` declarations — e.g. `+server.js`'s
+  `export const GET = async ({ url, locals }) => {...}`. `kit_file.rs`'s
+  route-handler matcher (`add_api_method_types`) matched only
+  `FunctionDeclaration`, the same #1886 narrowing recurring in the route arm
+  after #1892 fixed it for hooks only. Audited the rest of the route-file
+  augmentation for the same gap: `entries` had no `const`-form handling at
+  all (now fixed alongside `GET`/`PUT`/`POST`/`PATCH`/`DELETE`/`OPTIONS`/
+  `HEAD`/`fallback`), and `params/*.js`'s `match` had the identical
+  `FunctionDeclaration`-only narrowing (also fixed). `load`'s `const` form
+  was already covered by the existing `satisfies` wrapper.
+
+  Extended the `kit-routes-js` fixture with arrow-const arms for `GET`,
+  `match`, and `entries` to guard against regressions of this narrowing.
+
+- 6d7be78: Make `--tsgo` mean "type-check with the TypeScript 7 native compiler", matching
+  official svelte-check's flag of the same name (sveltejs/language-tools#3073).
+  TypeScript 7 is looked up as `@typescript/native` — the npm alias it is
+  installed under when a TypeScript 6 `typescript` has to stay alongside it — and
+  then as the legacy `@typescript/native-preview`, accepting only major 7 or
+  newer. Resolution goes through the package directory rather than
+  `node_modules/.bin`, because an aliased TypeScript 7 declares the same `tsc` bin
+  name as the real `typescript` and whichever install wins that shim is an
+  install-order coin flip.
+
+  Without the flag, the workspace's own `tsc` is used whatever its major version
+  is, exactly as before. Passing `--tsgo` with no TypeScript 7 installed is now an
+  error rather than a silent downgrade to a different compiler; the message tells
+  you how to install it:
+
+  ```sh
+  npm install --save-dev typescript@~6 @typescript/native@npm:typescript@7
+  ```
+
+## 0.5.3
+
+### Patch Changes
+
+- e5ae47d: Fix `rsvelte-check --output machine-verbose` (and the terser `machine`
+  format) diverging from upstream `svelte-check`: they were line-oriented text
+  with no diagnostic `code`, instead of upstream's one-`<epoch-ms> <JSON>`-
+  line-per-diagnostic shape (`type`/`filename`/`start`/`end`/`message`/`code`/
+  `source`, 0-indexed `start`/`end`), and were missing the bracketing `START`
+  / `COMPLETED` lines. Drop-in consumers (editor integrations, CI annotators,
+  scripts keyed on `code`) can now parse rsvelte's machine output the same way
+  they parse upstream's. Fixes #1901.
+
+  Fix the overlay tsconfig synthesized for a `--tsconfig`-less run specifying
+  no `target`, which let tsgo/tsc fall back to the ES5 default lib — the
+  vendored shims themselves then failed to compile (`Cannot find name
+'Iterable'`) before any user code was considered. The overlay now mirrors
+  official svelte-check's own default-compiler-options forcing: an unset
+  target becomes the latest (`ESNext`), and a target below ES2015 is bumped
+  up to ES2015; an already-modern target is left untouched. Fixes #1898.
+
+- 2ce282c: Fix `<svelte:boundary onerror={e => ...}>`'s callback parameter reporting a
+  false `implicit any`. The embedded `svelte-jsx-v4.d.ts` shim's
+  `IntrinsicElements` had no `'svelte:boundary'` entry, so the generated
+  `svelteHTML.createElement("svelte:boundary", { onerror: ... })` call fell
+  through to the interface's `[name: string]: { [name: string]: any }`
+  catch-all — every prop (including `onerror`) contextually typed as bare
+  `any`, which doesn't propagate a parameter type to an inline arrow function
+  the way an actual function-typed prop would.
+
+  Added the missing `'svelte:boundary'` entry (`onerror`/`failed`/`pending`,
+  mirroring `svelte/elements`' own `SvelteHTMLElements['svelte:boundary']`),
+  matching how `'svelte:window'`/`'svelte:body'`/`'svelte:document'` are
+  already declared in the same interface.
+
+  Fixes #1889.
+
+- 9c77a3e: Track the installed Svelte's element typings instead of a frozen snapshot.
+  The overlay used to inject the vendored `svelte-jsx-v4.d.ts` unconditionally,
+  whose hand-enumerated `svelteHTML.IntrinsicElements` predates every tag
+  `svelte/elements` has gained since the shim was copied — so a post-snapshot
+  element's props fell through to the interface's
+  `[name: string]: { [name: string]: any }` catch-all and became bare `any`
+  (#1889's `<svelte:boundary onerror>` was one instance of that class).
+
+  svelte2tsx's `get_global_types` is now ported: when the project's own
+  `<sveltePath>/svelte-html.d.ts` exists (Svelte 4+), it is added to the program
+  and the vendored JSX shim is dropped. That file extends `SvelteHTMLElements`
+  from the installed `svelte/elements`, so element and attribute types follow the
+  user's Svelte version instead of a copy date. Projects where `svelte` cannot be
+  resolved from the workspace keep the vendored shims as a fallback.
+
+- b311eec: Split the embeddable compiler, TypeScript projection, project checker, bindings support, and development tools into ownership-focused Rust crates while preserving the existing JavaScript and CLI behavior. Add the stable `rsvelte` facade, crates.io package gates, and an independently versioned `rsvelte_esrap` 0.8.0 release.
+- 6893718: Fix a plain `.ts`/`.js`/`.svelte.ts` source file's `paths`-aliased `.svelte`
+  import never resolving to the component's real type. Only `.svelte` files go
+  through svelte2tsx, so `rewrite_aliased_svelte_imports` never touched a plain
+  source file that imports a `.svelte` component the same way — the alias fell
+  back to the ambient `declare module '*.svelte'` wildcard, surfacing either as
+  `Module '"*.svelte"' has no exported member 'X'` (a named `<script module>`
+  export) or `Type 'Comp' is not generic` (a default import used as a generic
+  type annotation). This also cascaded into any `.svelte` file that consumed a
+  type declared this way, reporting a spurious mismatch against the (correctly
+  typed) component.
+
+  For every discovered `.svelte` file reachable through a `paths` alias, the
+  overlay tsconfig now adds an exact (non-wildcard) `paths` entry redirecting
+  that specific specifier straight at the component's shadow `.tsx` — since the
+  resolved target no longer ends in `.svelte`, the ambient wildcard is never
+  consulted, regardless of which kind of file does the importing. The original
+  `paths` (including unrelated entries) is preserved; only this component's
+  own alias gets a more specific override alongside it.
+
+  Restating `paths` in the overlay tsconfig follows TypeScript's own resolution
+  rules: targets resolve against `baseUrl` when one is set (including one
+  inherited through `extends`), else against the directory of the config that
+  declared `paths`, and every target of a multi-target entry is kept.
+
+  Fixes #1888.
+
+- 6b52469: Fix a residual false `implicit any` on SvelteKit files written as plain
+  JS/JSDoc `export function` declarations (not TypeScript): hooks
+  (`handle`/`handleError`/`handleFetch`/`reroute`), route `load`/`entries`,
+  `+server.js` request-method handlers (`GET`/`POST`/...), and
+  `params/*.js`'s `match` all prepended their `/** @type {...} */` or
+  `/** @param {...} */` JSDoc annotation between `export` and `function`,
+  which TypeScript silently ignores. A JSDoc tag only re-types a `function`
+  declaration when it leads the _entire_ exported statement — matching the
+  official implementation, whose `ts.FunctionDeclaration.getStart()`
+  includes the `export` modifier in the node's own span. Every affected
+  parameter stayed implicit `any` despite the annotation being present in
+  the overlay.
+
+  The `const` + arrow-function/function-expression form (`export const
+handle = (...) => {...}`, fixed by #1892) already anchored the JSDoc
+  annotation correctly and is unaffected.
+
+  This completes #1886's fix for the JSDoc/JS path (closed by #1892, but
+  the `kit-hooks-js` fixture still diverged for the plain `export function`
+  hooks) and fixes the same latent bug across the other four JSDoc-emitting
+  paths in `kit_file.rs`, previously untested by the diagnostic-parity gate
+  — added a new `kit-routes-js` fixture covering all four.
+
+- c44ff68: Fix a bare package specifier deep-importing a `.svelte` file from a
+  `node_modules`-symlinked sibling (`import X from 'libs/components/x.svelte'`)
+  resolving to the ambient `declare module '*.svelte'` fallback, so the
+  component's `<script module>` named exports were reported missing.
+
+  `rootDirs` only bridges relative specifiers, so a bare one has to be rewritten
+  to point at the sibling's shadow directly. The rewrite resolved the specifier
+  from the importing file's directory, which `--workspace .` — the documented CLI
+  usage, and what the overlay walks with — leaves relative; a relative resolution
+  base has no parent to climb, so the resolver's `node_modules` walk-up never
+  reached the sibling's symlink and nothing was rewritten. A `paths`-aliased
+  specifier was unaffected because it resolves through the tsconfig's own
+  absolute base.
+
+  Fixes #1900.
+
+- 92ba89f: Fix `--tsgo`/`svelte-check` false `implicit any` on SvelteKit hooks written as
+  `export const handleFetch = async ({ request, fetch, event }) => {...}`
+  (the `const` + arrow/function-expression form). Only the function-declaration
+  form (`export function handleFetch(...) {...}`) was augmented with parameter
+  and return types before; the `const` form now gets the same treatment.
+
+  Also wrap every kit-file type injection (hooks, `load`, `actions`, params,
+  route methods) in the same `Ωignore` markers the official implementation
+  uses, so a diagnostic the injected type itself provokes (e.g. an async
+  hook's `ReturnType<HandleFetch>` tripping TS1064, since `HandleFetch`
+  returns `MaybePromise<Response>` rather than a literal `Promise<T>`) is
+  dropped instead of surfacing as a false positive — matching official
+  svelte-check's `isInGeneratedCode` allowlist.
+
+  The arrow form's return type is anchored on the `=>` token, matching the
+  official implementation's `equalsGreaterThanToken.getStart()` byte-for-byte,
+  and a parenthesis-less arrow parameter (`export const handleError = e => ...`)
+  gets wrapped in parentheses so the annotation is syntactically valid.
+
+  Fixes #1886.
+
+- a4ece55: Fix `ComponentProps<typeof X>['prop']` losing its callback's parameter types
+  when `X` is a component reached through a self-referential `paths`/bundler
+  alias _inside its own external (workspace-sibling) package_ — a common
+  monorepo pattern where a design-system package imports its own components
+  through the same public alias its consumers use, not a relative path.
+
+  `emit_external_shadows` (which materialises shadows for a sibling package
+  discovered via a `node_modules` symlink) never rewrote aliased `.svelte`
+  imports inside the shadows it emits, so a component's own such import fell
+  back to the ambient `*.svelte` wildcard (default export only) in its shadow —
+  poisoning `ComponentProps<...>` for every consumer. `rewrite_aliased_svelte_imports`
+  now also matches specifiers resolving under an external package's own real
+  dir (not just the workspace), and `emit_external_shadows` runs it too.
+
+  Also anchor a relative `--tsconfig` path on the CWD before building the
+  alias-resolution `Resolver` — otherwise oxc_resolver's tsconfig discovery
+  silently returns `NotFound` for any `paths` target escaping the CWD via `..`,
+  which is exactly the cross-package aliases this fix (and `--tsconfig
+./tsconfig.json`, the CLI's own documented usage) depends on.
+
+  An external package's aliases are resolved with that package's own tsconfig
+  when it ships one, and a specifier that resolves outside the package being
+  emitted keeps its original form — `$lib` is SvelteKit's own convention, so a
+  consumer and a package routinely both define it, and resolving the package's
+  own import with the consumer's `paths` would silently swap in an unrelated
+  component.
+
+  Fixes #1887.
+
+- a82a230: svelte2tsx: keep comments that sit between the last attribute and the `>` of an element or component opening tag, matching official svelte2tsx's trailing-comment handling.
+- c5c4c26: Fix `--tsgo`/`svelte-check` false "has no exported member" / "has no default export" diagnostics for a `.svelte` import resolved through a `tsconfig.json` `compilerOptions.paths` alias (e.g. SvelteKit's `kit.alias`) into a sibling workspace package with no `node_modules` entry at all. `discover_external_svelte_packages` previously only found sibling packages reachable via a `node_modules` symlink (#782/#805); it now also resolves `paths` alias targets that land outside the workspace and mirrors those too.
+
+  Also fixes a related bug this surfaced: with a relative `--tsconfig` path (the CLI's own documented usage, `--tsconfig ./tsconfig.json`), `oxc_resolver`'s tsconfig discovery silently returned `NotFound` for any `paths` target that resolves outside the current working directory via `..` — exactly what every cross-package alias does. `build_svelte_import_resolver` now absolutises the tsconfig path before handing it to `oxc_resolver`.
+
+  Alias targets follow TypeScript's own rules — resolved against `baseUrl` when
+  one is set (including one inherited through `extends`), else against the
+  directory of the config that declared `paths`. A target that does not exist is
+  skipped rather than widened to its parent directory, and one that names a
+  directory _containing_ the workspace (`"@/*": ["../../*"]` in a monorepo) is
+  never mirrored: the workspace's own files are already covered and the walk
+  would cover the whole repository.
+
 ## 0.5.2
 
 ### Patch Changes

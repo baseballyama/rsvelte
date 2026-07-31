@@ -31,42 +31,66 @@ pub(crate) fn detect_runes_mode(ast: &Root) -> bool {
     false
 }
 
-/// Detect `await` expressions inside template expression tags, e.g. `{await t}`.
-///
-/// This walks the template fragment AST looking for `ExpressionTag` nodes whose
-/// expression is (or begins with) an `AwaitExpression`. Await-in-template forces
-/// runes mode — async template expressions are Svelte 5 runes-only.
-///
-/// NOTE: `{#await ...}` block syntax is NOT detected here — only bare `await`
-/// inside `{...}` expression tags counts.
-///
-/// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
-///   `isRunes = true when component has AWAIT INSIDE A TEMPLATE EXPRESSION`
-///   ("True if uses runes or top level await or await in template expressions")
-pub(crate) fn detect_await_in_template(ast: &Root, source: &str) -> bool {
-    // Fast path: if the source doesn't contain `await` as a word, bail immediately.
-    if !contains_word(source.as_bytes(), b"await") {
-        return false;
-    }
-
-    fragment_has_template_await(&ast.fragment, source, &ast.arena)
+pub(crate) struct TemplateRunesDetector {
+    check_await: bool,
+    check_rune_global: bool,
+    has_await: bool,
+    has_rune_global: bool,
 }
 
-/// Recursively walk a template fragment checking for `{await ...}` ExpressionTags.
-fn fragment_has_template_await(
-    fragment: &crate::ast::template::Fragment,
-    source: &str,
-    arena: &crate::ast::arena::ParseArena,
-) -> bool {
-    for node in &fragment.nodes {
-        if template_node_has_await(node, source, arena) {
-            return true;
+impl TemplateRunesDetector {
+    pub(crate) fn new(
+        check_await: bool,
+        check_rune_global: bool,
+        instance_value_names: &std::collections::HashSet<String>,
+    ) -> Self {
+        if check_rune_global {
+            SHADOWED_RUNE_BASES.with(|set| {
+                let mut set = set.borrow_mut();
+                set.clear();
+                for base in ["state", "derived", "effect"] {
+                    if instance_value_names.contains(base) {
+                        set.insert(base.to_string());
+                    }
+                }
+            });
+        }
+        Self {
+            check_await,
+            check_rune_global,
+            has_await: false,
+            has_rune_global: false,
         }
     }
-    false
+
+    #[inline]
+    pub(crate) fn observe(
+        &mut self,
+        node: &crate::ast::template::TemplateNode,
+        source: &str,
+        arena: &crate::ast::arena::ParseArena,
+    ) {
+        if self.check_await && !self.has_await {
+            self.has_await = template_node_has_await(node, source, arena);
+        }
+        if self.check_rune_global && !self.has_rune_global {
+            self.has_rune_global = template_node_has_rune_global(node, source, arena);
+        }
+    }
+
+    pub(crate) fn uses_runes(&self) -> bool {
+        self.has_await || self.has_rune_global
+    }
 }
 
-/// Check a single template node for `{await ...}` patterns, recursing into children.
+impl Drop for TemplateRunesDetector {
+    fn drop(&mut self) {
+        if self.check_rune_global {
+            SHADOWED_RUNE_BASES.with(|set| set.borrow_mut().clear());
+        }
+    }
+}
+
 fn template_node_has_await(
     node: &crate::ast::template::TemplateNode,
     source: &str,
@@ -77,76 +101,22 @@ fn template_node_has_await(
     match node {
         // The key check: ExpressionTag with an AwaitExpression.
         TemplateNode::ExpressionTag(tag) => expression_is_await(&tag.expression, source, arena),
-        // Recurse into element children and attributes
-        TemplateNode::RegularElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_await(attr, source, arena))
-                || fragment_has_template_await(&elem.fragment, source, arena)
-        }
-        TemplateNode::Component(comp) => {
-            comp.attributes
-                .iter()
-                .any(|attr| attr_has_await(attr, source, arena))
-                || fragment_has_template_await(&comp.fragment, source, arena)
-        }
-        TemplateNode::IfBlock(block) => {
-            // Also check the `{#if await cond}` test expression — mirrors 2_analyze
-            // which walks `block.test` for has_await.
-            expression_is_await(&block.test, source, arena)
-                || fragment_has_template_await(&block.consequent, source, arena)
-                || block
-                    .alternate
-                    .as_ref()
-                    .map(|alt| fragment_has_template_await(alt, source, arena))
-                    .unwrap_or(false)
-        }
-        TemplateNode::EachBlock(block) => {
-            expression_is_await(&block.expression, source, arena)
-                || fragment_has_template_await(&block.body, source, arena)
-                || block
-                    .fallback
-                    .as_ref()
-                    .map(|fb| fragment_has_template_await(fb, source, arena))
-                    .unwrap_or(false)
-        }
-        TemplateNode::KeyBlock(block) => {
-            expression_is_await(&block.expression, source, arena)
-                || fragment_has_template_await(&block.fragment, source, arena)
-        }
-        // SnippetBlock: official svelte2tsx's `isRunes` sets true for an
-        // AwaitExpression whose ancestor path has no function-expression node —
-        // a SnippetBlock is NOT such a node, so an `await` inside a snippet body
-        // (e.g. `{#snippet}{@const x = await …}{/snippet}`) DOES force runes.
-        // (This is svelte2tsx-specific; the compiler's 2_analyze skips snippets,
-        // but this detector mirrors svelte2tsx, not the compiler.)
-        TemplateNode::SnippetBlock(block) => {
-            fragment_has_template_await(&block.body, source, arena)
-        }
-        // AwaitBlock ({#await expr}) — the `expression` could itself contain an
-        // await (e.g. `{#await await promise}`). Also recurse into the pending /
-        // then / catch sub-fragments since they can contain nested {await ...}
-        // ExpressionTags. Mirrors 2_analyze AwaitBlock fragment_check_features walk.
-        TemplateNode::AwaitBlock(block) => {
-            expression_is_await(&block.expression, source, arena)
-                || block
-                    .pending
-                    .as_ref()
-                    .map(|f| fragment_has_template_await(f, source, arena))
-                    .unwrap_or(false)
-                || block
-                    .then
-                    .as_ref()
-                    .map(|f| fragment_has_template_await(f, source, arena))
-                    .unwrap_or(false)
-                || block
-                    .catch
-                    .as_ref()
-                    .map(|f| fragment_has_template_await(f, source, arena))
-                    .unwrap_or(false)
-        }
-        // SvelteHead, SvelteFragment, SvelteBody, SvelteWindow, SvelteDocument,
-        // SvelteBoundary, SvelteOptions, SvelteSelf — all use the SvelteElement struct.
+        TemplateNode::RegularElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_await(attr, source, arena)),
+        TemplateNode::Component(comp) => comp
+            .attributes
+            .iter()
+            .any(|attr| attr_has_await(attr, source, arena)),
+        TemplateNode::SvelteComponent(comp) => comp
+            .attributes
+            .iter()
+            .any(|attr| attr_has_await(attr, source, arena)),
+        TemplateNode::IfBlock(block) => expression_is_await(&block.test, source, arena),
+        TemplateNode::EachBlock(block) => expression_is_await(&block.expression, source, arena),
+        TemplateNode::KeyBlock(block) => expression_is_await(&block.expression, source, arena),
+        TemplateNode::AwaitBlock(block) => expression_is_await(&block.expression, source, arena),
         TemplateNode::SvelteHead(elem)
         | TemplateNode::SvelteFragment(elem)
         | TemplateNode::SvelteBody(elem)
@@ -154,36 +124,22 @@ fn template_node_has_await(
         | TemplateNode::SvelteDocument(elem)
         | TemplateNode::SvelteBoundary(elem)
         | TemplateNode::SvelteOptions(elem)
-        | TemplateNode::SvelteSelf(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_await(attr, source, arena))
-                || fragment_has_template_await(&elem.fragment, source, arena)
-        }
-        TemplateNode::SvelteComponent(comp) => {
-            comp.attributes
-                .iter()
-                .any(|attr| attr_has_await(attr, source, arena))
-                || fragment_has_template_await(&comp.fragment, source, arena)
-        }
-        TemplateNode::SvelteElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_await(attr, source, arena))
-                || fragment_has_template_await(&elem.fragment, source, arena)
-        }
-        TemplateNode::TitleElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_await(attr, source, arena))
-                || fragment_has_template_await(&elem.fragment, source, arena)
-        }
-        TemplateNode::SlotElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_await(attr, source, arena))
-                || fragment_has_template_await(&elem.fragment, source, arena)
-        }
+        | TemplateNode::SvelteSelf(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_await(attr, source, arena)),
+        TemplateNode::SvelteElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_await(attr, source, arena)),
+        TemplateNode::TitleElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_await(attr, source, arena)),
+        TemplateNode::SlotElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_await(attr, source, arena)),
         // HtmlTag ({@html expr}) and RenderTag ({@render expr}) — if the expression
         // itself is an AwaitExpression (e.g. `{@html await t}`) trigger runes mode.
         TemplateNode::HtmlTag(tag) => expression_is_await(&tag.expression, source, arena),
@@ -308,56 +264,6 @@ fn expression_is_await(
 //   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
 // =============================================================================
 
-/// Detect any `$state`/`$derived`/`$effect` rune-global reference inside the
-/// template fragment.
-///
-/// Fast-path: returns `false` immediately when none of the three magic words
-/// appear as a word boundary in the raw source.  The AST walk is only done when
-/// a quick substring match succeeds.
-pub(crate) fn detect_rune_global_in_template(
-    ast: &Root,
-    source: &str,
-    instance_value_names: &std::collections::HashSet<String>,
-) -> bool {
-    // Fast path: if neither $state, $derived, nor $effect appears in the source
-    // as a word start, bail immediately.  These identifiers always start with `$`
-    // so a simple substring check is conservative (won't false-positive on
-    // e.g. `some_$state_like_string` since we still walk the AST after this).
-    if !source.contains("$state") && !source.contains("$derived") && !source.contains("$effect") {
-        return false;
-    }
-
-    // Populate the shadowed-rune set: a `state`/`derived`/`effect` declared as an
-    // instance variable makes the matching `$`-rune a store sub, not a rune.
-    SHADOWED_RUNE_BASES.with(|s| {
-        let mut set = s.borrow_mut();
-        set.clear();
-        for base in ["state", "derived", "effect"] {
-            if instance_value_names.contains(base) {
-                set.insert(base.to_string());
-            }
-        }
-    });
-    let result = fragment_has_template_rune_global(&ast.fragment, source, &ast.arena);
-    SHADOWED_RUNE_BASES.with(|s| s.borrow_mut().clear());
-    result
-}
-
-/// Recursively walk a template fragment checking for rune-global references.
-fn fragment_has_template_rune_global(
-    fragment: &crate::ast::template::Fragment,
-    source: &str,
-    arena: &crate::ast::arena::ParseArena,
-) -> bool {
-    for node in &fragment.nodes {
-        if template_node_has_rune_global(node, source, arena) {
-            return true;
-        }
-    }
-    false
-}
-
-/// Check a single template node for rune-global references, recursing into children.
 fn template_node_has_rune_global(
     node: &crate::ast::template::TemplateNode,
     source: &str,
@@ -371,68 +277,30 @@ fn template_node_has_rune_global(
         TemplateNode::ExpressionTag(tag) => {
             expression_references_rune_global(&tag.expression, source, arena)
         }
-        // Recurse into element children and attributes
-        TemplateNode::RegularElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_rune_global(attr, source, arena))
-                || fragment_has_template_rune_global(&elem.fragment, source, arena)
-        }
-        TemplateNode::Component(comp) => {
-            comp.attributes
-                .iter()
-                .any(|attr| attr_has_rune_global(attr, source, arena))
-                || fragment_has_template_rune_global(&comp.fragment, source, arena)
-        }
+        TemplateNode::RegularElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_rune_global(attr, source, arena)),
+        TemplateNode::Component(comp) => comp
+            .attributes
+            .iter()
+            .any(|attr| attr_has_rune_global(attr, source, arena)),
+        TemplateNode::SvelteComponent(comp) => comp
+            .attributes
+            .iter()
+            .any(|attr| attr_has_rune_global(attr, source, arena)),
         TemplateNode::IfBlock(block) => {
             expression_references_rune_global(&block.test, source, arena)
-                || fragment_has_template_rune_global(&block.consequent, source, arena)
-                || block
-                    .alternate
-                    .as_ref()
-                    .map(|alt| fragment_has_template_rune_global(alt, source, arena))
-                    .unwrap_or(false)
         }
         TemplateNode::EachBlock(block) => {
             expression_references_rune_global(&block.expression, source, arena)
-                || fragment_has_template_rune_global(&block.body, source, arena)
-                || block
-                    .fallback
-                    .as_ref()
-                    .map(|fb| fragment_has_template_rune_global(fb, source, arena))
-                    .unwrap_or(false)
         }
         TemplateNode::KeyBlock(block) => {
             expression_references_rune_global(&block.expression, source, arena)
-                || fragment_has_template_rune_global(&block.fragment, source, arena)
-        }
-        // SnippetBlock: official's global collection (checkGlobalsForRunes via
-        // implicitStoreValues) walks the whole component including snippet
-        // bodies, so a rune call inside a snippet (`{#snippet}{@const x =
-        // $derived(…)}{/snippet}`) forces runes mode. Recurse into the body.
-        TemplateNode::SnippetBlock(block) => {
-            fragment_has_template_rune_global(&block.body, source, arena)
         }
         TemplateNode::AwaitBlock(block) => {
             expression_references_rune_global(&block.expression, source, arena)
-                || block
-                    .pending
-                    .as_ref()
-                    .map(|f| fragment_has_template_rune_global(f, source, arena))
-                    .unwrap_or(false)
-                || block
-                    .then
-                    .as_ref()
-                    .map(|f| fragment_has_template_rune_global(f, source, arena))
-                    .unwrap_or(false)
-                || block
-                    .catch
-                    .as_ref()
-                    .map(|f| fragment_has_template_rune_global(f, source, arena))
-                    .unwrap_or(false)
         }
-        // SvelteHead, SvelteFragment, SvelteBody, SvelteWindow, SvelteDocument,
-        // SvelteBoundary, SvelteOptions, SvelteSelf — all use the SvelteElement struct.
         TemplateNode::SvelteHead(elem)
         | TemplateNode::SvelteFragment(elem)
         | TemplateNode::SvelteBody(elem)
@@ -440,36 +308,22 @@ fn template_node_has_rune_global(
         | TemplateNode::SvelteDocument(elem)
         | TemplateNode::SvelteBoundary(elem)
         | TemplateNode::SvelteOptions(elem)
-        | TemplateNode::SvelteSelf(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_rune_global(attr, source, arena))
-                || fragment_has_template_rune_global(&elem.fragment, source, arena)
-        }
-        TemplateNode::SvelteComponent(comp) => {
-            comp.attributes
-                .iter()
-                .any(|attr| attr_has_rune_global(attr, source, arena))
-                || fragment_has_template_rune_global(&comp.fragment, source, arena)
-        }
-        TemplateNode::SvelteElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_rune_global(attr, source, arena))
-                || fragment_has_template_rune_global(&elem.fragment, source, arena)
-        }
-        TemplateNode::TitleElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_rune_global(attr, source, arena))
-                || fragment_has_template_rune_global(&elem.fragment, source, arena)
-        }
-        TemplateNode::SlotElement(elem) => {
-            elem.attributes
-                .iter()
-                .any(|attr| attr_has_rune_global(attr, source, arena))
-                || fragment_has_template_rune_global(&elem.fragment, source, arena)
-        }
+        | TemplateNode::SvelteSelf(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_rune_global(attr, source, arena)),
+        TemplateNode::SvelteElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_rune_global(attr, source, arena)),
+        TemplateNode::TitleElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_rune_global(attr, source, arena)),
+        TemplateNode::SlotElement(elem) => elem
+            .attributes
+            .iter()
+            .any(|attr| attr_has_rune_global(attr, source, arena)),
         // HtmlTag ({@html expr}) and RenderTag ({@render expr})
         TemplateNode::HtmlTag(tag) => {
             expression_references_rune_global(&tag.expression, source, arena)

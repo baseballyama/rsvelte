@@ -3,6 +3,8 @@
 //! the parser never CSS-parses it, and recovering `<script>` tags the HTML
 //! parser swallowed.
 
+use std::borrow::Cow;
+
 use crate::ast::template::Root;
 
 use super::super::magic_string::MagicString;
@@ -16,18 +18,37 @@ fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
     if from > haystack.len() {
         return None;
     }
-    haystack[from..]
-        .windows(needle.len())
-        .position(|w| w.eq_ignore_ascii_case(needle))
-        .map(|p| from + p)
+    assert!(!needle.is_empty());
+    let last_start = haystack.len().checked_sub(needle.len())?;
+    if from > last_start {
+        return None;
+    }
+
+    let first_lower = needle[0].to_ascii_lowercase();
+    let first_upper = needle[0].to_ascii_uppercase();
+    let mut search = from;
+    while search <= last_start {
+        let candidates = &haystack[search..=last_start];
+        let offset = if first_lower == first_upper {
+            memchr::memchr(first_lower, candidates)
+        } else {
+            memchr::memchr2(first_lower, first_upper, candidates)
+        }?;
+        let candidate = search + offset;
+        if haystack[candidate..candidate + needle.len()].eq_ignore_ascii_case(needle) {
+            return Some(candidate);
+        }
+        search = candidate + 1;
+    }
+    None
 }
 
 /// Replace the content of every `<style …>…</style>` with spaces (newlines and
 /// carriage returns preserved) so the parser never CSS-parses it. Works at the
 /// BYTE level so the result is exactly the same length as `source` — every AST
 /// offset still indexes the original source. Case-insensitive on the tag name.
-pub(crate) fn blank_style_content(source: &str) -> String {
-    let mut bytes = source.as_bytes().to_vec();
+pub(crate) fn blank_style_content(source: &str) -> Cow<'_, str> {
+    let mut blanked = None;
     let sb = source.as_bytes();
     let mut search = 0usize;
     while let Some(tag_start) = find_ci(sb, search, b"<style") {
@@ -52,14 +73,22 @@ pub(crate) fn blank_style_content(source: &str) -> String {
         let Some(content_end) = find_ci(sb, content_start, b"</style") else {
             break;
         };
-        for b in &mut bytes[content_start..content_end] {
-            if *b != b'\n' && *b != b'\r' {
-                *b = b' ';
+        if sb[content_start..content_end]
+            .iter()
+            .any(|byte| !matches!(byte, b'\n' | b'\r'))
+        {
+            let bytes = blanked.get_or_insert_with(|| sb.to_vec());
+            for b in &mut bytes[content_start..content_end] {
+                if *b != b'\n' && *b != b'\r' {
+                    *b = b' ';
+                }
             }
         }
         search = content_end;
     }
-    String::from_utf8(bytes).unwrap_or_else(|_| source.to_string())
+    blanked.map_or(Cow::Borrowed(source), |bytes| {
+        Cow::Owned(String::from_utf8(bytes).expect("blanking style content preserves UTF-8"))
+    })
 }
 
 /// Remove embedded `<script>` tags that are NOT the top-level instance / module
@@ -67,7 +96,7 @@ pub(crate) fn blank_style_content(source: &str) -> String {
 /// Overwriting their range with `""` truncates any attribute whose source span
 /// covers the range; the joined content is returned for injection into the
 /// `$$render()` body when the file has no top-level script.
-pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicString) -> String {
+pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicString<'_>) -> String {
     let orphan_scripts = find_orphan_scripts(ast, source);
     // Remove orphan scripts from the MagicString (must happen BEFORE
     // process_template_inplace so the overwrite is in place when the template
@@ -88,7 +117,7 @@ pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicStr
 /// blanks any style tag the parser captured in `ast.css`, then always runs a
 /// fallback scanner to catch style tags the parser did not capture (e.g.,
 /// `<style global>`, `<style lang="...">`).
-pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString) {
+pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'_>) {
     let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
     if let Some(ref css) = ast.css
         && css.start < css.end
@@ -317,7 +346,64 @@ fn collect_html_tag_ranges(fragment: &crate::ast::template::Fragment, out: &mut 
 /// Returns a list of `(start, end, inner_content)` triples, where `start`/`end`
 /// are byte offsets in `source` and `inner_content` is the raw text between
 /// `<script…>` and `</script>`.
+fn only_has_top_level_script_candidates(ast: &Root, source: &str) -> bool {
+    only_has_script_candidates_in_ranges(
+        source,
+        ast.instance
+            .as_ref()
+            .map(|script| (script.start, script.end)),
+        ast.module.as_ref().map(|script| (script.start, script.end)),
+    )
+}
+
+fn only_has_script_candidates_in_ranges(
+    source: &str,
+    instance: Option<(u32, u32)>,
+    module: Option<(u32, u32)>,
+) -> bool {
+    let bytes = source.as_bytes();
+    let mut search = 0;
+
+    while search < bytes.len() {
+        let Some(relative_start) = memchr::memchr(b'<', &bytes[search..]) else {
+            break;
+        };
+        let tag_start = search + relative_start;
+        search = tag_start + 1;
+        let Some(tag) = bytes.get(tag_start..tag_start + 7) else {
+            continue;
+        };
+        if !tag.eq_ignore_ascii_case(b"<script") {
+            continue;
+        }
+
+        let after = bytes.get(tag_start + 7).copied();
+        search = tag_start + 7;
+        if !matches!(
+            after,
+            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+        ) {
+            continue;
+        }
+
+        let tag_start = tag_start as u32;
+        if ![instance, module]
+            .into_iter()
+            .flatten()
+            .any(|(start, end)| tag_start == start || (tag_start > start && tag_start < end))
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
 fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
+    if only_has_top_level_script_candidates(ast, source) {
+        return Vec::new();
+    }
+
     // 1. Collect known "legitimate" script start positions and their full ranges.
     let mut known_starts: std::collections::HashSet<u32> = std::collections::HashSet::default();
     // Also collect ranges of instance/module scripts so we can skip `<script>`
@@ -405,4 +491,151 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compiler::phases::phase1_parse::{self, ParseOptions};
+
+    fn parse(source: &str) -> Root<'_> {
+        phase1_parse::parse_script_ts(
+            source,
+            ParseOptions {
+                modern: true,
+                ..Default::default()
+            },
+        )
+        .expect("fixture should parse")
+    }
+
+    fn can_skip(source: &str) -> bool {
+        only_has_top_level_script_candidates(&parse(source), source)
+    }
+
+    fn orphans(source: &str) -> Vec<(u32, u32, String)> {
+        find_orphan_scripts(&parse(source), source)
+    }
+
+    #[test]
+    fn case_insensitive_search_preserves_utf8_byte_offsets() {
+        let source = "前😀<STYLE>色</StYlE>後";
+        let open = source.find("<STYLE>").unwrap();
+        let close = source.find("</StYlE>").unwrap();
+
+        assert_eq!(find_ci(source.as_bytes(), 0, b"<style"), Some(open));
+        assert_eq!(
+            find_ci(source.as_bytes(), open + 1, b"</style>"),
+            Some(close)
+        );
+        assert_eq!(find_ci(source.as_bytes(), close + 1, b"<style"), None);
+    }
+
+    #[test]
+    fn search_skips_partial_candidates_and_honors_start_offset() {
+        let source = "<stale><StYlInG><style lang=\"scss\">";
+        let expected = source.find("<style lang").unwrap();
+
+        assert_eq!(find_ci(source.as_bytes(), 0, b"<style"), Some(expected));
+        assert_eq!(find_ci(source.as_bytes(), expected + 1, b"<style"), None);
+        assert_eq!(find_ci(source.as_bytes(), 0, b">"), source.find('>'));
+        assert_eq!(
+            find_ci(source.as_bytes(), source.len() + 1, b"<style"),
+            None
+        );
+    }
+
+    #[test]
+    fn style_blanking_keeps_unicode_offsets_and_line_endings() {
+        let source = "前<STYLE lang=\"x\">色 {\r\n color: red;\n}</StYlE>後";
+        let blanked = blank_style_content(source);
+
+        assert_eq!(blanked.len(), source.len());
+        assert!(blanked.starts_with("前<STYLE lang=\"x\">"));
+        assert!(blanked.ends_with("</StYlE>後"));
+        assert_eq!(
+            blanked
+                .bytes()
+                .enumerate()
+                .filter_map(|(index, byte)| matches!(byte, b'\r' | b'\n').then_some((index, byte)))
+                .collect::<Vec<_>>(),
+            source
+                .bytes()
+                .enumerate()
+                .filter_map(|(index, byte)| matches!(byte, b'\r' | b'\n').then_some((index, byte)))
+                .collect::<Vec<_>>()
+        );
+        assert!(!blanked.contains("color"));
+    }
+
+    #[test]
+    fn style_blanking_borrows_unchanged_sources() {
+        for source in [
+            "",
+            "<main>Hello</main>",
+            "<styled>content</styled>",
+            "<style />",
+            "<style>unterminated",
+            "<style></style>",
+            "<style>\r\n</style>",
+        ] {
+            assert!(matches!(blank_style_content(source), Cow::Borrowed(_)));
+        }
+        assert!(matches!(
+            blank_style_content("<style>content</style>"),
+            Cow::Owned(_)
+        ));
+    }
+
+    #[test]
+    fn orphan_script_fast_path_accepts_templates_without_script_candidates() {
+        assert!(can_skip("<main><h1>Hello</h1><scripted /></main>"));
+    }
+
+    #[test]
+    fn orphan_script_fast_path_accepts_top_level_scripts_and_inner_candidates() {
+        let source = r#"<script context="module">
+const module_marker = "<SCRIPT data-marker>";
+</script>
+<script>
+const instance_marker = `<script data-marker>`;
+</script>
+<main>Hello</main>"#;
+        assert!(can_skip(source));
+    }
+
+    #[test]
+    fn orphan_script_fast_path_defers_uppercase_and_nested_scripts() {
+        let uppercase = "<SCRIPT>console.log('upper')</SCRIPT>";
+        let nested = "<main><script>console.log('nested')</script></main>";
+        assert!(!can_skip(uppercase));
+        assert!(!can_skip(nested));
+        assert_eq!(orphans(uppercase)[0].2, "console.log('upper')");
+        assert!(orphans(nested).is_empty());
+    }
+
+    #[test]
+    fn orphan_script_fast_path_defers_raw_html_and_comments() {
+        let raw_html = r#"{@html "<script>raw</script>"}"#;
+        let comment = "<!-- <script>comment</script> -->";
+        assert!(!can_skip(raw_html));
+        assert!(!can_skip(comment));
+        assert!(orphans(raw_html).is_empty());
+        assert_eq!(orphans(comment)[0].2, "comment");
+    }
+
+    #[test]
+    fn orphan_script_fast_path_defers_attribute_and_malformed_candidates() {
+        assert!(!only_has_script_candidates_in_ranges(
+            r#"<noscript><a href="</noscript><script>orphan</script>">link</a>"#,
+            None,
+            None,
+        ));
+        assert!(!only_has_script_candidates_in_ranges(
+            r#"<div data-script="<script data-x>">value</div>"#,
+            None,
+            None,
+        ));
+        assert!(!only_has_script_candidates_in_ranges("<script", None, None,));
+    }
 }

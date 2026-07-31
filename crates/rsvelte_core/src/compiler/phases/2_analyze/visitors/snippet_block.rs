@@ -516,27 +516,31 @@ fn check_hoistable(
     param_names: &FxHashSet<String>,
     context: &VisitorContext,
 ) -> bool {
-    // `{@const x = …}` declarations create local bindings that are in scope for the
-    // whole fragment. A later reference to `x` is therefore local (declared inside
-    // the snippet, function_depth >= snippet), NOT an instance-level reference, so
-    // it must not block hoisting — mirrors upstream `can_hoist_snippet`'s
-    // `binding.scope.function_depth >= scope.function_depth` skip. (Each const's
-    // own initializer is still checked individually in the ConstTag arm below.)
+    // `{@const x = …}` and `{let x = …}` / `{const x = …}` declarations create
+    // local bindings that are in scope for the whole fragment. A later reference to
+    // `x` is therefore local (declared inside the snippet, function_depth >=
+    // snippet), NOT an instance-level reference, so it must not block hoisting —
+    // mirrors upstream `can_hoist_snippet`'s
+    // `binding.scope.function_depth >= scope.function_depth` skip. (Each
+    // initializer is still checked individually in the arms below.)
     let mut local_params = param_names.clone();
     for node in nodes {
-        if let TemplateNode::ConstTag(tag) = node {
-            let json = tag.declaration.as_json();
-            if let Some(obj) = json.as_object()
-                && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
-            {
-                for d in decls {
-                    if let Some(id) = d.get("id")
-                        && let Some(names) = extract_pattern_names(id)
-                    {
-                        for n in names {
-                            local_params.insert(n);
-                        }
+        let declaration = match node {
+            TemplateNode::ConstTag(tag) => &tag.declaration,
+            TemplateNode::DeclarationTag(tag) => &tag.declaration,
+            _ => continue,
+        };
+        let json = declaration.as_json();
+        if let Some(obj) = json.as_object()
+            && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+            && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
+        {
+            for d in decls {
+                if let Some(id) = d.get("id")
+                    && let Some(names) = extract_pattern_names(id)
+                {
+                    for n in names {
+                        local_params.insert(n);
                     }
                 }
             }
@@ -742,6 +746,42 @@ fn check_hoistable(
                 }
             }
 
+            // A bare `{@attach expr}` fragment node (the attribute form is
+            // handled by `check_attribute_hoistable`).
+            TemplateNode::AttachTag(tag)
+                if !expr_only_uses_params(&tag.expression, param_names, context) =>
+            {
+                return false;
+            }
+
+            // `{@debug a, b}` references each identifier.
+            TemplateNode::DebugTag(tag) => {
+                for id in &tag.identifiers {
+                    if !expr_only_uses_params(id, param_names, context) {
+                        return false;
+                    }
+                }
+            }
+
+            // `{let x = expr}` / `{const x = expr}` — check each initializer, as
+            // for ConstTag. (The declared names were registered above.)
+            TemplateNode::DeclarationTag(tag) => {
+                let json = tag.declaration.as_json();
+                if let Some(obj) = json.as_object()
+                    && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                    && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
+                {
+                    for d in decls {
+                        if let Some(init) = d.get("init")
+                            && !init.is_null()
+                            && !expression_only_uses_params(init, param_names, context)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
             // RenderTag — already handled above when the expression check fails.
             // The non-guarded fall-through here ensures a render tag without
             // instance-level references is treated as safe.
@@ -790,50 +830,102 @@ fn check_hoistable(
                 }
             }
 
-            // Other nodes - assume safe to hoist
+            // Required, not a convenience: guarded arms (ExpressionTag / HtmlTag /
+            // RenderTag / AttachTag) don't count towards exhaustiveness, so this is
+            // their "check passed" fall-through. `<svelte:options>` is the only
+            // variant reaching it unguarded, and it carries no expressions.
             _ => {}
         }
     }
     true
 }
 
+/// Check if an attribute value is hoistable.
+fn check_attribute_value_hoistable(
+    value: &crate::ast::template::AttributeValue,
+    param_names: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    match value {
+        crate::ast::template::AttributeValue::Sequence(parts) => {
+            for p in parts {
+                if let crate::ast::template::AttributeValuePart::ExpressionTag(tag) = p
+                    && !expr_only_uses_params(&tag.expression, param_names, context)
+                {
+                    return false;
+                }
+            }
+            true
+        }
+        crate::ast::template::AttributeValue::Expression(tag) => {
+            expr_only_uses_params(&tag.expression, param_names, context)
+        }
+        crate::ast::template::AttributeValue::True(_) => true,
+    }
+}
+
+/// Check if a `use:` / `transition:` / `in:` / `out:` / `animate:` directive is
+/// hoistable. Mirrors upstream `scope.js`'s `SvelteDirective`, which references
+/// `node.name.split('.')[0]` in addition to visiting the optional expression.
+fn check_svelte_directive_hoistable(
+    name: &str,
+    expression: Option<&Expression>,
+    param_names: &FxHashSet<String>,
+    context: &VisitorContext,
+) -> bool {
+    let root = name.split('.').next().unwrap_or(name);
+    if !is_identifier_hoistable(root, param_names, context) {
+        return false;
+    }
+    expression.is_none_or(|expr| expr_only_uses_params(expr, param_names, context))
+}
+
 /// Check if an attribute is hoistable.
+///
+/// The match is exhaustive on purpose: a silent `_ => true` arm is what let
+/// `{@attach …}` expressions escape the free-variable walk (issue #1982).
 fn check_attribute_hoistable(
     attr: &crate::ast::template::Attribute,
     param_names: &FxHashSet<String>,
     context: &VisitorContext,
 ) -> bool {
+    use crate::ast::template::Attribute as A;
     match attr {
-        crate::ast::template::Attribute::Attribute(a) => match &a.value {
-            crate::ast::template::AttributeValue::Sequence(parts) => {
-                for p in parts {
-                    if let crate::ast::template::AttributeValuePart::ExpressionTag(tag) = p
-                        && !expr_only_uses_params(&tag.expression, param_names, context)
-                    {
-                        return false;
-                    }
-                }
-                true
-            }
-            crate::ast::template::AttributeValue::Expression(tag) => {
-                expr_only_uses_params(&tag.expression, param_names, context)
-            }
-            _ => true,
-        },
-        crate::ast::template::Attribute::BindDirective(bind) => {
-            expr_only_uses_params(&bind.expression, param_names, context)
-        }
-        crate::ast::template::Attribute::OnDirective(on) => {
-            if let Some(ref expr) = on.expression {
-                expr_only_uses_params(expr, param_names, context)
-            } else {
-                true
-            }
-        }
-        crate::ast::template::Attribute::SpreadAttribute(spread) => {
+        A::Attribute(a) => check_attribute_value_hoistable(&a.value, param_names, context),
+        A::BindDirective(bind) => expr_only_uses_params(&bind.expression, param_names, context),
+        A::OnDirective(on) => on
+            .expression
+            .as_ref()
+            .is_none_or(|expr| expr_only_uses_params(expr, param_names, context)),
+        A::SpreadAttribute(spread) => {
             expr_only_uses_params(&spread.expression, param_names, context)
         }
-        _ => true,
+        A::AttachTag(attach) => expr_only_uses_params(&attach.expression, param_names, context),
+        // `class:name` shorthand is parsed into `Identifier(name)`, so the
+        // expression alone covers both forms.
+        A::ClassDirective(class) => expr_only_uses_params(&class.expression, param_names, context),
+        A::StyleDirective(style) => {
+            // `style:height` shorthand references a variable named after the property.
+            if matches!(
+                style.value,
+                crate::ast::template::AttributeValue::True(true)
+            ) && !is_identifier_hoistable(style.name.as_str(), param_names, context)
+            {
+                return false;
+            }
+            check_attribute_value_hoistable(&style.value, param_names, context)
+        }
+        A::UseDirective(d) => {
+            check_svelte_directive_hoistable(&d.name, d.expression.as_ref(), param_names, context)
+        }
+        A::TransitionDirective(d) => {
+            check_svelte_directive_hoistable(&d.name, d.expression.as_ref(), param_names, context)
+        }
+        A::AnimateDirective(d) => {
+            check_svelte_directive_hoistable(&d.name, d.expression.as_ref(), param_names, context)
+        }
+        // `let:x` declares a name rather than referencing one.
+        A::LetDirective(_) => true,
     }
 }
 

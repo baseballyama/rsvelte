@@ -53,23 +53,18 @@ jobs:
       - name: Checkout svelte + language-tools submodules
         run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          toolchain: 1.97.1
+          cache: 'true'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-      - name: Resolve Svelte submodule SHA
-        id: svelte-sha
+      - name: Resolve benchmark submodule SHAs
+        id: baseline-shas
         shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "svelte=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+          echo "language_tools=$(git submodule status submodules/language-tools | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       # The JS baselines (svelte/compiler, svelte2tsx, language-server,
       # svelte-check) are rollup/tsc build outputs that run-benchmark.mjs
@@ -92,7 +87,7 @@ jobs:
             submodules/language-tools/packages/language-server/dist
             submodules/language-tools/packages/svelte-check/dist
             scripts/compat-corpus/lint-oracle/node_modules
-          key: js-baselines-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules', 'scripts/compat-corpus/lint-oracle/package.json') }}
+          key: js-baselines-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.baseline-shas.outputs.svelte }}-${{ steps.baseline-shas.outputs.language_tools }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml', 'submodules/language-tools/pnpm-lock.yaml', 'scripts/compat-corpus/lint-oracle/package.json') }}
 
       # prettier + prettier-plugin-svelte (the JS `fmt` baseline) resolve from
       # the repo-root node_modules.

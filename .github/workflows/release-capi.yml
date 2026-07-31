@@ -30,6 +30,10 @@ on:
 permissions:
   contents: write   # gh release create / upload
 
+concurrency:
+  group: release-capi-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -52,16 +56,17 @@ jobs:
         with:
           submodules: false
 
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
       - name: Install cross-compile linker
         if: matrix.apt
         run: |
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.apt }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry + target

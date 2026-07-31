@@ -4,12 +4,15 @@
 
 use std::fmt::Write as _;
 
+use indexmap::IndexSet;
+
 use crate::ast::template::Root;
 
 use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions};
 use super::magic_string::MagicString;
 use super::nodes::scripts::find_instance_imports;
-use super::nodes::slot::{collect_slot_names_from_ast, escape_js_single_quoted};
+use super::nodes::slot::escape_js_single_quoted;
+use super::script::StoreScanContext;
 use super::svelte2tsx::slice_src;
 
 /// Prepend the reference-types header and open the `$$render()` wrapper.
@@ -21,9 +24,11 @@ use super::svelte2tsx::slice_src;
 )]
 pub(crate) fn create_render_function(
     ast: &Root,
+    module_program: Option<&oxc_ast::ast::Program>,
     source: &str,
+    store_scan: &mut StoreScanContext<'_>,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     dollar_decls: &str,
     has_instance_script: bool,
     has_module_script: bool,
@@ -55,7 +60,8 @@ pub(crate) fn create_render_function(
         // ? lastImport.end + moduleAst.astOffset : moduleAst.astOffset` and the
         // accompanying `appendLeft(target, '\n')` for the no-imports case.
         if !hoistable_snippet_ranges.is_empty() {
-            let module_imports = find_instance_imports(module, source);
+            let module_imports =
+                find_instance_imports(module, source, module_program.expect("module script"));
             let module_hoist_target = match module_imports.last() {
                 Some(&(_, _, last_end)) => mod_content_start + last_end,
                 None => mod_content_start,
@@ -70,7 +76,8 @@ pub(crate) fn create_render_function(
 
         // For module-script-only components, inject store subscriptions for
         // module-level imports at the start of the $$render async wrapper.
-        let store_decls = super::script::collect_module_import_store_declarations(source);
+        let store_decls =
+            super::script::collect_module_import_store_declarations(store_scan, module_program);
         // Suppress the `__sveltets_createSlot` binding in dts mode; matches
         // `createRenderFunction.ts`'s `slots.size > 0 && mode !== 'dts'` gate.
         let slot_decl_mod = if has_slot_elements && !is_dts_mode {
@@ -139,10 +146,10 @@ pub(crate) fn create_render_function(
 /// the `$$render()` header for a component that references those legacy magic
 /// variables.
 pub(crate) fn build_dollar_declarations(
-    ast: &Root,
     uses_dollar_props: bool,
     uses_dollar_rest_props: bool,
     uses_dollar_slots: bool,
+    dollar_slot_names: Option<&IndexSet<String>>,
 ) -> String {
     let mut dollar_decls = String::new();
     if uses_dollar_props {
@@ -152,17 +159,14 @@ pub(crate) fn build_dollar_declarations(
         dollar_decls.push_str(" let $$restProps = __sveltets_2_restPropsType();");
     }
     if uses_dollar_slots {
-        // Collect slot names from the template AST for $$slots declaration
-        let slot_names = collect_slot_names_from_ast(&ast.fragment);
-        let slots_obj: Vec<String> = slot_names
-            .iter()
-            .map(|name| format!("'{}': ''", escape_js_single_quoted(name)))
-            .collect();
-        let _ = write!(
-            dollar_decls,
-            " let $$slots = __sveltets_2_slotsType({{{}}});",
-            slots_obj.join(", ")
-        );
+        dollar_decls.push_str(" let $$slots = __sveltets_2_slotsType({");
+        for (index, name) in dollar_slot_names.into_iter().flatten().enumerate() {
+            if index > 0 {
+                dollar_decls.push_str(", ");
+            }
+            let _ = write!(dollar_decls, "'{}': ''", escape_js_single_quoted(name));
+        }
+        dollar_decls.push_str("});");
     }
     dollar_decls
 }

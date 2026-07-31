@@ -9,7 +9,8 @@
 //!   `.svelte-kit/` when the workspace looks like a SvelteKit project.
 //! - `.svelte` → `<cacheDir>/svelte/<rel>.svelte.tsx` plus a
 //!   sibling `<rel>.svelte.d.ts` re-exporting the `.tsx`'s default and
-//!   named exports (so import-by-name still resolves).
+//!   named exports (so import-by-name still resolves), and a
+//!   `<rel>.d.svelte.ts` twin of it (see `write_esm_bridge`).
 //! - The emitted overlay tsconfig EXTENDS the original tsconfig.json
 //!   instead of duplicating compiler options.
 
@@ -46,9 +47,90 @@ const SHIM_SVELTE_JSX_V4: &str = include_str!("shims/svelte-jsx-v4.d.ts");
 /// Filenames the shims are written under inside the cache dir. Names
 /// match upstream so diagnostics / `isSvelteShim`-style checks line up.
 const SHIM_FILES: &[(&str, &str)] = &[
-    ("svelte-shims-v4.d.ts", SHIM_SVELTE_SHIMS_V4),
-    ("svelte-jsx-v4.d.ts", SHIM_SVELTE_JSX_V4),
+    (SHIM_SHIMS_V4_NAME, SHIM_SVELTE_SHIMS_V4),
+    (SHIM_JSX_V4_NAME, SHIM_SVELTE_JSX_V4),
 ];
+
+const SHIM_SHIMS_V4_NAME: &str = "svelte-shims-v4.d.ts";
+const SHIM_JSX_V4_NAME: &str = "svelte-jsx-v4.d.ts";
+
+/// The `svelte` package file that supersedes the vendored JSX shim.
+const SVELTE_HTML_DTS: &str = "svelte-html.d.ts";
+
+/// The ambient `.d.ts` environment handed to the overlay program — the port
+/// of `get_global_types`
+/// (`submodules/language-tools/packages/svelte2tsx/src/helpers/files.ts`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GlobalTypes {
+    /// Vendored shims (basenames from [`SHIM_FILES`]) to materialise into
+    /// the cache dir and list in the overlay tsconfig.
+    shims: Vec<&'static str>,
+    /// The installed `svelte` package's `svelte-html.d.ts`, when present.
+    svelte_html: Option<PathBuf>,
+}
+
+/// The installed `svelte` package, as `getPackageInfo('svelte', …)` in
+/// `language-server/src/importPackage.ts` resolves it.
+struct SveltePackage {
+    dir: PathBuf,
+    major: Option<u32>,
+}
+
+/// Port of `get_global_types`' file selection. Upstream prefers the
+/// project's own `<sveltePath>/svelte-html.d.ts` (Svelte 4+) and then omits
+/// `svelte-jsx-v4.d.ts`, because the vendored shim hand-enumerates
+/// `IntrinsicElements` while `svelte-html.d.ts` extends `SvelteHTMLElements`
+/// from the installed `svelte/elements` — so it tracks the user's Svelte
+/// version instead of freezing at the snapshot date (#1889).
+///
+/// Two upstream branches are deliberately not reproduced: the Svelte 3 shim
+/// pair (`svelte-shims.d.ts` / `svelte-jsx.d.ts`), which rsvelte does not
+/// vendor because it is a Svelte 5 compiler — Svelte 3 falls back to the v4
+/// pair; and `svelte-native-jsx.d.ts`, which only types the
+/// `svelteNative.JSX` namespace rsvelte never emits (the overlay always runs
+/// svelte2tsx with `Svelte2TsxNamespace::Html`), matching upstream
+/// svelte-check's own commented-out entry in `incremental.ts`.
+fn select_global_types(workspace: &Path) -> GlobalTypes {
+    // The resolved path is written into the overlay tsconfig, which lives in
+    // a different directory than the CLI's cwd a relative `--workspace`
+    // resolves against.
+    let root = fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
+    let svelte_html = resolve_svelte_package(&root).and_then(|pkg| {
+        if pkg.major == Some(3) {
+            return None;
+        }
+        let path = pkg.dir.join(SVELTE_HTML_DTS);
+        path.is_file().then_some(path)
+    });
+    let mut shims = vec![SHIM_SHIMS_V4_NAME];
+    if svelte_html.is_none() {
+        shims.push(SHIM_JSX_V4_NAME);
+    }
+    GlobalTypes { shims, svelte_html }
+}
+
+/// Walk `node_modules` upwards from `from` for the `svelte` package, the
+/// Rust equivalent of `require.resolve('svelte/package.json', { paths })`.
+fn resolve_svelte_package(from: &Path) -> Option<SveltePackage> {
+    let mut cursor = Some(from);
+    while let Some(dir) = cursor {
+        let pkg_dir = dir.join("node_modules").join("svelte");
+        let manifest = pkg_dir.join("package.json");
+        if manifest.is_file() {
+            let major = fs::read_to_string(&manifest)
+                .ok()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .and_then(|v| v.get("version")?.as_str().map(str::to_owned))
+                .and_then(|v| v.split('.').next()?.parse().ok());
+            return Some(SveltePackage {
+                dir: pkg_dir,
+                major,
+            });
+        }
+        cursor = dir.parent();
+    }
+    None
+}
 
 /// One emitted `.svelte` → `.tsx` shadow.
 #[derive(Debug, Clone)]
@@ -116,7 +198,7 @@ pub fn materialize_overlay(
     files: &[PathBuf],
     tsconfig_path: Option<&Path>,
 ) -> Result<OverlayLayout, OverlayError> {
-    materialize_overlay_with(workspace, files, tsconfig_path, false)
+    materialize_overlay_with(workspace, files, tsconfig_path, false, &[])
 }
 
 /// Same as [`materialize_overlay_with`] but also materialises SvelteKit
@@ -131,8 +213,10 @@ pub fn materialize_overlay_with_kit(
     tsconfig_path: Option<&Path>,
     incremental: bool,
     settings: &KitFilesSettings,
+    ignore: &[String],
 ) -> Result<OverlayLayout, OverlayError> {
-    let mut layout = materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental)?;
+    let mut layout =
+        materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental, ignore)?;
     layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
     materialize_kit_types(workspace, &layout.emit_dir, kit_files)?;
     Ok(layout)
@@ -145,11 +229,16 @@ pub fn materialize_overlay_with_kit(
 /// `.tsx` / `.d.ts` shadows still exist on disk). The source map for
 /// skipped files is recovered from the sibling `.tsx.map` file written
 /// on the previous run, so downstream diagnostic mapping still works.
+///
+/// `ignore` is the CLI's `--ignore` list, applied to the extra workspace walk
+/// `emit_svelte_module_bridges` does so it sees the same tree the checked
+/// file set was collected from.
 pub fn materialize_overlay_with(
     workspace: &Path,
     files: &[PathBuf],
     tsconfig_path: Option<&Path>,
     incremental: bool,
+    ignore: &[String],
 ) -> Result<OverlayLayout, OverlayError> {
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
@@ -205,7 +294,9 @@ pub fn materialize_overlay_with(
             svelte_resolver.as_ref(),
             &ext_root_dir_pairs,
         )?;
+        emit_svelte_module_bridges(&pkg.real_dir, &pkg.mirror_dir, &[])?;
     }
+    emit_svelte_module_bridges(workspace, &emit_dir, ignore)?;
 
     let mut entries = Vec::with_capacity(files.len());
     let mut augments: Vec<CompanionAugment> = Vec::new();
@@ -302,15 +393,7 @@ pub fn materialize_overlay_with(
 
             // `<name>.svelte.d.ts` re-exports default + named so module
             // resolution by `import Foo from './Foo.svelte'` still works.
-            let import_basename = tsx_path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("missing.tsx");
-            let dts_content = format!(
-                "export {{ default }} from \"./{0}\";\nexport * from \"./{0}\";\n",
-                import_basename
-            );
-            fs::write(&dts_path, dts_content)?;
+            fs::write(&dts_path, shadow_reexport(&tsx_path))?;
             // Persist the source map so the next incremental run can
             // recover it without re-running svelte2tsx.
             if let Some(map) = &result.map {
@@ -336,6 +419,10 @@ pub fn materialize_overlay_with(
             result.map
         };
 
+        // Outside the cache-hit branch: a `.svelte-check` dir left by a build
+        // without bridges would otherwise never gain them.
+        write_esm_bridge(&tsx_path, &shadow_reexport(&tsx_path), can_skip)?;
+
         // A duplicated input would emit the same `declare module` block twice.
         if let Some(companion) = find_companion_module(abs_source)
             && !augments.iter().any(|a| a.source_path == *abs_source)
@@ -355,11 +442,19 @@ pub fn materialize_overlay_with(
     }
     let has_augments = write_companion_augmentation(&cache_dir, &augments)?;
 
-    // Materialise the svelte2tsx shims into the cache dir so the overlay
-    // tsconfig can reference them by a stable relative path regardless of
-    // what's installed in the consumer's node_modules.
+    // Materialise the selected svelte2tsx shims into the cache dir so the
+    // overlay tsconfig can reference them by a stable relative path — a
+    // standalone rsvelte install has no `node_modules/svelte2tsx` to read.
+    let global_types = select_global_types(workspace);
     for (name, contents) in SHIM_FILES {
-        fs::write(cache_dir.join(name), contents)?;
+        let path = cache_dir.join(name);
+        if global_types.shims.contains(name) {
+            fs::write(path, contents)?;
+        } else {
+            // A previous run's copy would otherwise linger in the cache dir
+            // and be picked up by an inherited `include` pattern.
+            let _ = fs::remove_file(path);
+        }
     }
 
     // A PLAIN `.ts`/`.js`/`.svelte.ts` source file that imports a `.svelte`
@@ -388,6 +483,7 @@ pub fn materialize_overlay_with(
         incremental,
         has_augments,
         &alias_path_overrides,
+        &global_types,
     );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
@@ -623,15 +719,9 @@ fn emit_external_shadows(
             );
         }
         fs::write(&tsx_path, &tsx_code)?;
-        let import_basename = tsx_path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("missing.tsx");
-        let dts_content = format!(
-            "export {{ default }} from \"./{0}\";\nexport * from \"./{0}\";\n",
-            import_basename
-        );
-        fs::write(&dts_path, dts_content)?;
+        let dts_content = shadow_reexport(&tsx_path);
+        fs::write(&dts_path, &dts_content)?;
+        write_esm_bridge(&tsx_path, &dts_content, false)?;
     }
     Ok(())
 }
@@ -854,6 +944,7 @@ fn build_overlay_tsconfig(
     incremental: bool,
     has_companion_augmentation: bool,
     alias_path_overrides: &[(String, PathBuf)],
+    global_types: &GlobalTypes,
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -889,6 +980,10 @@ fn build_overlay_tsconfig(
     // output is written against. The overlay tsconfig is isolated, so this
     // never leaks into the user's real build.
     compiler_opts.insert("jsx".into(), "preserve".into());
+    // An unset target falls back to tsgo/tsc's ES5/ES3 default lib, which breaks the vendored shims themselves; mirrors `service.ts#getParsedConfig`'s unconditional forcing.
+    if let Some(target) = resolve_forced_target(original) {
+        compiler_opts.insert("target".into(), target.into());
+    }
     // rootDirs: virtually overlay the emitted `.tsx`/kit shadows
     // (`<cacheDir>/svelte`) on top of the project's own rootDirs. We must
     // MERGE — not replace — the base rootDirs, otherwise frameworks that
@@ -1001,22 +1096,29 @@ fn build_overlay_tsconfig(
         );
     }
 
-    // Reference the svelte2tsx shim `.d.ts` files we materialised into the
-    // cache dir (see `SHIM_FILES`). Without these, tsgo / tsc trips on
-    // every reference to `__sveltets_2_with_any_event` / `svelteHTML` etc
-    // that svelte2tsx emits into the `.tsx` shadow. Equivalent to
-    // `resolveSvelte2tsxShims` in the JS reference, except we embed the
-    // shims rather than resolving them from `node_modules/svelte2tsx`
-    // (which a standalone rsvelte install has no reason to provide).
+    // Reference the ambient `.d.ts` environment `select_global_types` chose
+    // (the port of `get_global_types`): the vendored shims we materialised
+    // into the cache dir, plus the installed svelte's `svelte-html.d.ts`
+    // when it exists. Without these, tsgo / tsc trips on every reference to
+    // `__sveltets_2_with_any_event` / `svelteHTML` etc that svelte2tsx emits
+    // into the `.tsx` shadow. We embed the shims rather than resolving them
+    // from `node_modules/svelte2tsx` (which a standalone rsvelte install has
+    // no reason to provide).
     //
     // We always set `files` so any `.svelte` entries listed in the base
     // tsconfig (TS rejects arbitrary extensions in `files` even with
     // `allowArbitraryExtensions` → TS6054) get overridden out. Non-
     // `.svelte` entries from the user's `files` are forwarded.
-    let mut files_entries: Vec<String> = SHIM_FILES
+    let mut files_entries: Vec<String> = global_types
+        .shims
         .iter()
-        .map(|(name, _)| format!("./{name}"))
+        .map(|name| format!("./{name}"))
         .collect();
+    if let Some(svelte_html) = &global_types.svelte_html {
+        // Absolute: `files` resolves against the overlay dir, and the svelte
+        // package sits outside it.
+        files_entries.push(tsconfig_absolute_path(svelte_html));
+    }
     if has_companion_augmentation {
         files_entries.push(format!("./{COMPANION_AUGMENT_FILE}"));
     }
@@ -1186,7 +1288,12 @@ fn rebase_spec(spec: &str, base_dir: &Path, cache_dir: &Path) -> String {
 /// Make `path` absolute by anchoring relative paths on the current working
 /// directory, then normalise `.`/`..` lexically. No filesystem access
 /// beyond reading the CWD, so it works for not-yet-created paths.
-fn absolutize(path: &Path) -> PathBuf {
+///
+/// `pub(crate)`: also the canonical implementation behind
+/// `runner::absolutize_workspace`, which `runner::run` uses to normalise
+/// `RunOptions::workspace` up front (#1919) — kept as one function so the
+/// two callers can never drift apart on what "absolute" means here.
+pub(crate) fn absolutize(path: &Path) -> PathBuf {
     let joined = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -1365,6 +1472,61 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
         }
     }
     Vec::new()
+}
+
+/// Whether a tsconfig `target` is ES2015+; `None` for an unrecognized string — a year-numbered target is parsed generically so newer TS releases need no change here.
+fn is_es2015_or_newer(target: &str) -> Option<bool> {
+    Some(match target.to_ascii_lowercase().as_str() {
+        "es3" | "es5" => false,
+        "es6" | "esnext" | "latest" => true,
+        other => other.strip_prefix("es")?.parse::<u32>().ok()? >= 2015,
+    })
+}
+
+/// Nearest-definition-wins `compilerOptions.target`, found by following the `extends` chain the same way [`resolve_root_dirs_abs`] does.
+fn resolve_effective_target(tsconfig_path: Option<&Path>) -> Option<String> {
+    let mut current = tsconfig_path.map(Path::to_path_buf);
+    let mut hops = 0;
+    while let Some(file) = current {
+        hops += 1;
+        if hops > 32 {
+            break;
+        }
+        let Ok(raw) = fs::read_to_string(&file) else {
+            break;
+        };
+        let stripped = strip_jsonc_comments(&raw);
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
+            break;
+        };
+        let dir = file.parent().unwrap_or(Path::new("."));
+
+        if let Some(target) = parsed
+            .get("compilerOptions")
+            .and_then(|c| c.get("target"))
+            .and_then(|v| v.as_str())
+        {
+            return Some(target.to_string());
+        }
+
+        match parsed.get("extends").and_then(|v| v.as_str()) {
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
+            _ => break,
+        }
+    }
+    None
+}
+
+/// The `target` the overlay tsconfig should force, or `None` to leave the inherited value alone (already ES2015+, so the `extends` chain provides it).
+fn resolve_forced_target(original: Option<&Path>) -> Option<&'static str> {
+    match resolve_effective_target(original)
+        .as_deref()
+        .map(is_es2015_or_newer)
+    {
+        None | Some(None) => Some("ESNext"),
+        Some(Some(false)) => Some("ES2015"),
+        Some(Some(true)) => None,
+    }
 }
 
 /// The nearest `compilerOptions.paths` in a tsconfig's `extends` chain, paired
@@ -1594,6 +1756,149 @@ fn resolve_paths_object_abs(tsconfig_path: &Path) -> serde_json::Map<String, ser
         out.insert(key.clone(), serde_json::Value::Array(abs_targets));
     }
     out
+}
+
+/// A re-export of one component shadow's default + named exports, shared by the
+/// `.svelte.d.ts` twin and the `.d.svelte.ts` bridge that sit next to it.
+fn shadow_reexport(tsx_path: &Path) -> String {
+    let basename = tsx_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("missing.tsx");
+    format!("export {{ default }} from \"./{basename}\";\nexport * from \"./{basename}\";\n")
+}
+
+/// `<dir>/<base>.svelte.<ext>` → `<dir>/<base>.d.svelte.ts`.
+pub(super) fn esm_bridge_path(path: &Path) -> Option<PathBuf> {
+    let name = path.file_name()?.to_str()?;
+    let base = name.split_once(".svelte.")?.0;
+    Some(path.with_file_name(format!("{base}.d.svelte.ts")))
+}
+
+/// Write the `.d.svelte.ts` twin of a `.svelte`-suffixed overlay file.
+///
+/// Under ESM-mode resolution (`moduleResolution: node16`/`nodenext` inside a
+/// `"type": "module"` package) TypeScript performs NO implicit extension
+/// substitution, so the single candidate it probes for `./Foo.svelte` is
+/// `./Foo.d.svelte.ts` (the `allowArbitraryExtensions` form) — never the
+/// `.svelte.tsx` shadow, and never a real `Foo.svelte.ts`. The specifier then
+/// falls through to the ambient `declare module "*.svelte"` and every *named*
+/// import errors with `TS2614` (#1916). Official svelte-check instead forces the
+/// pre-ESM algorithm for `.svelte` specifiers inside its own
+/// `resolveModuleNames` hook (`module-loader.ts`); a stock compiler driven over
+/// an on-disk overlay has to supply the file it actually looks for. Emitting it
+/// for every shadow keeps resolution identical in both modes and independent of
+/// whether the importer is a `.svelte` shadow or a plain `.ts` file we cannot
+/// rewrite.
+///
+/// `only_if_missing` is for an incremental cache hit, whose shadow was not
+/// rewritten either: the bridge still has to be backfilled when it comes from a
+/// build that never wrote one, but its content cannot have gone stale.
+fn write_esm_bridge(path: &Path, content: &str, only_if_missing: bool) -> io::Result<()> {
+    let Some(bridge) = esm_bridge_path(path) else {
+        return Ok(());
+    };
+    if only_if_missing && bridge.exists() {
+        return Ok(());
+    }
+    fs::write(bridge, content)
+}
+
+/// Emit the [`write_esm_bridge`] twins for `<base>.svelte.ts` /
+/// `<base>.svelte.js` rune modules under `root`, into `mirror_dir`'s matching
+/// subtree so the overlay's `rootDirs` pair bridges them.
+///
+/// A module with a sibling `<base>.svelte` component is skipped: the component's
+/// own bridge already claims the specifier, and its shadow re-exports the
+/// companion's names (see [`companion_reexport_specifier`]).
+///
+/// These bridges have no manifest entry to prune them by, so the mirror is also
+/// swept for ones whose source module has since been deleted or renamed.
+fn emit_svelte_module_bridges(
+    root: &Path,
+    mirror_dir: &Path,
+    ignore: &[String],
+) -> Result<(), OverlayError> {
+    let mut modules = super::walker::find_svelte_suffixed_modules(root, ignore);
+    // `x.svelte.ts` and `x.svelte.js` share one bridge path; TypeScript probes
+    // `.ts` first, so let it win.
+    modules.sort_by_key(|p| {
+        let is_js = p.extension().and_then(|e| e.to_str()) == Some("js");
+        (is_js, p.clone())
+    });
+    let mut written: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    for module in &modules {
+        if module.with_extension("").is_file() {
+            continue;
+        }
+        let rel = safe_relative(module, root);
+        let Some(bridge) = esm_bridge_path(&mirror_dir.join(&rel)) else {
+            continue;
+        };
+        if !written.insert(bridge.clone()) {
+            continue;
+        }
+        let Some(bridge_dir) = bridge.parent() else {
+            continue;
+        };
+        fs::create_dir_all(bridge_dir)?;
+        let mut spec = lexical_relative_posix(&absolutize(bridge_dir), &absolutize(module));
+        // A `.js` specifier is the one form TypeScript substitutes for the real
+        // `.ts` in every resolution mode, so it needs neither an implicit
+        // extension nor `allowImportingTsExtensions`.
+        if let Some(stripped) = spec.strip_suffix(".ts") {
+            spec = format!("{stripped}.js");
+        }
+        if !spec.starts_with('.') {
+            spec = format!("./{spec}");
+        }
+        let mut content = format!("export * from \"{spec}\";\n");
+        // `export *` never forwards a default.
+        if module_has_default(module) {
+            let _ = writeln!(content, "export {{ default }} from \"{spec}\";");
+        }
+        fs::write(&bridge, content)?;
+    }
+    prune_orphaned_module_bridges(mirror_dir, &written);
+    Ok(())
+}
+
+/// Drop `.d.svelte.ts` files under `mirror_dir` that this run did not write and
+/// that no component shadow owns — i.e. bridges left behind by a rune module
+/// that has since been deleted or renamed. A component's bridge is recognised by
+/// its `.svelte.tsx` sibling, so the sweep is safe whichever order the two kinds
+/// of bridge are emitted in.
+fn prune_orphaned_module_bridges(mirror_dir: &Path, written: &std::collections::HashSet<PathBuf>) {
+    // A bridge's own name ends in `.svelte.ts`, so the rune-module finder lists
+    // it too — filter for the declaration form.
+    for bridge in super::walker::find_svelte_suffixed_modules(mirror_dir, &[]) {
+        let Some(base) = bridge
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".d.svelte.ts"))
+        else {
+            continue;
+        };
+        if written.contains(&bridge) {
+            continue;
+        }
+        let shadow = bridge.with_file_name(format!("{base}.svelte.tsx"));
+        if shadow.is_file() {
+            continue;
+        }
+        let _ = fs::remove_file(&bridge);
+    }
+}
+
+fn module_has_default(path: &Path) -> bool {
+    let source_type = if path.extension().and_then(|e| e.to_str()) == Some("ts") {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    fs::read_to_string(path)
+        .map(|src| module_exports(&src, source_type).has_default)
+        .unwrap_or(false)
 }
 
 /// Sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`) of a
@@ -1887,8 +2192,9 @@ fn build_svelte_import_resolver(tsconfig: Option<&Path>) -> Option<oxc_resolver:
 /// sibling package discovered by [`discover_external_svelte_packages`], via
 /// either a `node_modules` symlink or a `paths` alias) is rewritten to that
 /// package's mirror shadow instead — `rootDirs` cannot bridge a non-relative
-/// alias (#782), so the specifier itself has to point at the shadow. Bare
-/// packages and anything resolving outside both are left untouched.
+/// alias (#782), so the specifier itself has to point at the shadow. A bare
+/// package specifier deep-importing a `.svelte` file from such a package is
+/// rewritten the same way; anything resolving outside both is left untouched.
 ///
 /// `confine_to` restricts what counts as a valid target: when emitting an
 /// external package's own shadows the alias was resolved with a `paths` map
@@ -1907,6 +2213,11 @@ fn rewrite_aliased_svelte_imports(
     let (Some(source_dir), Some(generated_dir)) = (abs_source.parent(), tsx_path.parent()) else {
         return tsx.to_string();
     };
+    // `--workspace .` makes every walked source path relative, and a relative
+    // resolution base has no parent to climb, so oxc_resolver's `node_modules`
+    // walk-up never leaves the workspace and every bare specifier fails.
+    let source_dir = absolutize(source_dir);
+    let source_dir = source_dir.as_path();
     // oxc_resolver returns canonicalised paths (symlinks resolved), so compare
     // against a canonicalised workspace — otherwise a symlinked root (e.g.
     // macOS `/var` → `/private/var`) makes `strip_prefix` spuriously fail and
@@ -2096,6 +2407,24 @@ fn lexical_relative_posix(from_dir: &Path, to_path: &Path) -> String {
     }
 }
 
+/// POSIX-style *absolute* path for a tsconfig entry. Everything else in the
+/// generated tsconfig goes through [`path_relative`], which sidesteps this by
+/// dropping `Component::Prefix` outright; an entry that has to stay absolute
+/// (the installed svelte's `svelte-html.d.ts`) must instead strip Windows'
+/// `\\?\` verbatim prefix, which `fs::canonicalize` adds and tsc/tsgo cannot
+/// resolve once the separators are flipped.
+fn tsconfig_absolute_path(path: &Path) -> String {
+    let slashed = path.to_string_lossy().replace('\\', "/");
+    // `\\?\UNC\server\share\…` denotes `\\server\share\…`.
+    if let Some(rest) = slashed.strip_prefix("//?/UNC/") {
+        return format!("//{rest}");
+    }
+    if let Some(rest) = slashed.strip_prefix("//?/") {
+        return rest.to_owned();
+    }
+    slashed
+}
+
 /// POSIX-style relative path from `from_dir` to `to_path` (so the
 /// generated tsconfig is consumable on every platform).
 fn path_relative(from_dir: &Path, to_path: &Path) -> String {
@@ -2262,7 +2591,7 @@ mod tests {
         let files = vec![svelte_path];
 
         // Non-incremental: no compiler-side build info (each run is cold).
-        let layout = materialize_overlay_with(&tmp, &files, None, false).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
         assert!(
@@ -2272,7 +2601,7 @@ mod tests {
 
         // Incremental: hand tsgo/tsc a `tsBuildInfoFile` so the compiler caches
         // its program graph across runs (the warm-run speedup).
-        let layout = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
         assert_eq!(
@@ -2303,7 +2632,7 @@ mod tests {
         // Cold cache: produces tsx + dts + manifest. (`.tsx.map` is only
         // written when svelte2tsx returns a source map — currently a
         // future-proofing pathway, not exercised here.)
-        let layout1 = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout1 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let entry = &layout1.entries[0];
         assert!(entry.tsx_path.exists());
         assert!(entry.dts_path.exists());
@@ -2316,7 +2645,7 @@ mod tests {
         fs::write(&entry.tsx_path, "// intentionally broken").unwrap();
 
         // Warm cache, source unchanged → should not re-emit.
-        let layout2 = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout2 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let entry2 = &layout2.entries[0];
         assert_eq!(
             fs::read_to_string(&entry2.tsx_path).unwrap(),
@@ -2328,7 +2657,7 @@ mod tests {
         // miss and re-emit.
         std::thread::sleep(std::time::Duration::from_millis(10));
         fs::write(&svelte_path, b"<script>let y = 1;</script>{y}").unwrap();
-        let layout3 = materialize_overlay_with(&tmp, &files, None, true).unwrap();
+        let layout3 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let entry3 = &layout3.entries[0];
         let regenerated = fs::read_to_string(&entry3.tsx_path).unwrap();
         assert_ne!(
@@ -2350,7 +2679,8 @@ mod tests {
         fs::write(&removed, "<span />").unwrap();
 
         let layout1 =
-            materialize_overlay_with(&tmp, &[kept.clone(), removed.clone()], None, true).unwrap();
+            materialize_overlay_with(&tmp, &[kept.clone(), removed.clone()], None, true, &[])
+                .unwrap();
         let removed_tsx = layout1
             .entries
             .iter()
@@ -2369,7 +2699,8 @@ mod tests {
         // Source removed from disk and from input list → second pass
         // should unlink the orphaned overlay artefacts.
         fs::remove_file(&removed).unwrap();
-        let _ = materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, true).unwrap();
+        let _ =
+            materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, true, &[]).unwrap();
         assert!(!removed_tsx.exists(), "stale .tsx should have been pruned");
         assert!(!removed_dts.exists(), "stale .d.ts should have been pruned");
 
@@ -2475,6 +2806,160 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// With no `--tsconfig` at all, tsgo/tsc would otherwise fall back to the ES5/ES3 default lib and the vendored shims themselves fail to compile.
+    #[test]
+    fn overlay_tsconfig_forces_modern_target_with_no_tsconfig() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_none_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let layout = materialize_overlay(&tmp, &files, None).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert_eq!(
+            cfg["compilerOptions"]["target"],
+            serde_json::json!("ESNext")
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A target below ES2015 is bumped to ES2015 rather than left at whatever pre-ES2015 default lib it would otherwise pull in.
+    #[test]
+    fn overlay_tsconfig_bumps_low_target_to_es2015() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_es5_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "es5" } }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert_eq!(
+            cfg["compilerOptions"]["target"],
+            serde_json::json!("ES2015")
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// The overlay must not clobber a deliberate, already-modern-enough target with its own override.
+    #[test]
+    fn overlay_tsconfig_leaves_modern_target_untouched() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_modern_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "ES2022" } }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert!(
+            cfg["compilerOptions"]["target"].is_null(),
+            "overlay should not override an already-modern target: {cfg}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A year-numbered target beyond the hardcoded aliases (`es3`/`es5`/`es6`/`esnext`) must still be recognized as modern via the generic `esNNNN` parse.
+    #[test]
+    fn overlay_tsconfig_leaves_es2025_target_untouched() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_es2025_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "ES2025" } }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert!(
+            cfg["compilerOptions"]["target"].is_null(),
+            "overlay should not override an already-modern target: {cfg}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A target set only on a grandparent config (e.g. SvelteKit's generated `.svelte-kit/tsconfig.json`) must still be found via the `extends` chain.
+    #[test]
+    fn overlay_tsconfig_target_search_follows_extends_chain() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_target_chain_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::create_dir_all(tmp.join(".svelte-kit")).unwrap();
+        fs::write(
+            tmp.join(".svelte-kit/tsconfig.json"),
+            r#"{ "compilerOptions": { "target": "ES2020" } }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "extends": "./.svelte-kit/tsconfig.json" }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        assert!(
+            cfg["compilerOptions"]["target"].is_null(),
+            "inherited ES2020 target found via extends chain should not be overridden: {cfg}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn is_es2015_or_newer_parses_year_targets_generically() {
+        assert_eq!(is_es2015_or_newer("es3"), Some(false));
+        assert_eq!(is_es2015_or_newer("es5"), Some(false));
+        assert_eq!(is_es2015_or_newer("ES6"), Some(true));
+        assert_eq!(is_es2015_or_newer("es2015"), Some(true));
+        assert_eq!(is_es2015_or_newer("ES2024"), Some(true));
+        // Not a hardcoded alias — must resolve through the generic `esNNNN` parse.
+        assert_eq!(is_es2015_or_newer("es2025"), Some(true));
+        assert_eq!(is_es2015_or_newer("esnext"), Some(true));
+        assert_eq!(is_es2015_or_newer("latest"), Some(true));
+        assert_eq!(is_es2015_or_newer("nonsense"), None);
     }
 
     /// `rebase_spec` must rebase the non-glob directory prefix and keep
@@ -2596,6 +3081,128 @@ mod tests {
     }
 
     #[test]
+    fn esm_bridge_path_replaces_the_svelte_suffix() {
+        let bridge = |p: &str| {
+            esm_bridge_path(Path::new(p))
+                .map(|b| b.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default()
+        };
+        assert_eq!(bridge("/w/src/Foo.svelte.tsx"), "/w/src/Foo.d.svelte.ts");
+        assert_eq!(bridge("/w/src/store.svelte.ts"), "/w/src/store.d.svelte.ts");
+        assert_eq!(bridge("/w/src/store.svelte.js"), "/w/src/store.d.svelte.ts");
+        // Nothing to bridge for a file whose name has no `.svelte.` segment.
+        assert_eq!(esm_bridge_path(Path::new("/w/src/plain.ts")), None);
+    }
+
+    /// Regression test for #1916: ESM-mode module resolution probes only
+    /// `./Foo.d.svelte.ts` for `./Foo.svelte`, so the overlay has to emit it.
+    #[test]
+    fn overlay_emits_an_esm_bridge_per_component_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_bridge_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let svelte_path = tmp.join("src/Foo.svelte");
+        fs::File::create(&svelte_path)
+            .unwrap()
+            .write_all(b"<div>hi</div>")
+            .unwrap();
+
+        let layout = materialize_overlay(&tmp, &[svelte_path], None).unwrap();
+        let bridge = layout.emit_dir.join("src/Foo.d.svelte.ts");
+        let content = fs::read_to_string(&bridge).unwrap_or_default();
+        assert_eq!(
+            content,
+            fs::read_to_string(&layout.entries[0].dts_path).unwrap(),
+            "the bridge forwards exactly what the `.svelte.d.ts` twin does"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Second half of #1916: a `.svelte.ts` rune module with no sibling
+    /// component is reached through the same `./x.svelte` specifier shape, and
+    /// only `export *` forwards its names — a default needs its own clause.
+    #[test]
+    fn overlay_bridges_svelte_suffixed_rune_modules() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_rune_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/modules")).unwrap();
+        fs::File::create(tmp.join("src/modules/provider.svelte.ts"))
+            .unwrap()
+            .write_all(b"export function useProvider() {}\n")
+            .unwrap();
+        fs::File::create(tmp.join("src/modules/theme.svelte.ts"))
+            .unwrap()
+            .write_all(b"export const tokens = [];\nexport default {};\n")
+            .unwrap();
+        // A companion of a real component is covered by that component's own
+        // shadow, so it must not get a competing bridge of its own.
+        fs::File::create(tmp.join("src/modules/Pair.svelte"))
+            .unwrap()
+            .write_all(b"<div></div>")
+            .unwrap();
+        fs::File::create(tmp.join("src/modules/Pair.svelte.ts"))
+            .unwrap()
+            .write_all(b"export const pair = 1;\n")
+            .unwrap();
+
+        let layout =
+            materialize_overlay(&tmp, &[tmp.join("src/modules/Pair.svelte")], None).unwrap();
+        let read = |name: &str| fs::read_to_string(layout.emit_dir.join("src/modules").join(name));
+
+        let provider = read("provider.d.svelte.ts").unwrap();
+        assert!(
+            provider.contains("export * from \"../../../../src/modules/provider.svelte.js\";"),
+            "{provider}"
+        );
+        assert!(
+            !provider.contains("default"),
+            "no default to forward: {provider}"
+        );
+        let theme = read("theme.d.svelte.ts").unwrap();
+        assert!(
+            theme.contains("export { default } from \"../../../../src/modules/theme.svelte.js\";"),
+            "{theme}"
+        );
+        // Pair's bridge is the component's, pointing at the shadow.
+        let pair = read("Pair.d.svelte.ts").unwrap();
+        assert!(pair.contains("./Pair.svelte.tsx"), "{pair}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A rune module's bridge has no manifest entry to prune it by, so the
+    /// sweep in `emit_svelte_module_bridges` is what keeps a deleted module from
+    /// leaving a permanently resolvable `./x.svelte`.
+    #[test]
+    fn orphaned_rune_module_bridge_is_swept_on_the_next_run() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_sweep_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let component = tmp.join("src/Keep.svelte");
+        fs::write(&component, "<div></div>").unwrap();
+        let module = tmp.join("src/gone.svelte.ts");
+        fs::write(&module, "export const x = 1;\n").unwrap();
+
+        let files = [component];
+        let layout = materialize_overlay(&tmp, &files, None).unwrap();
+        let orphan = layout.emit_dir.join("src/gone.d.svelte.ts");
+        let component_bridge = layout.emit_dir.join("src/Keep.d.svelte.ts");
+        assert!(orphan.is_file());
+        assert!(component_bridge.is_file());
+
+        fs::remove_file(&module).unwrap();
+        materialize_overlay(&tmp, &files, None).unwrap();
+        assert!(!orphan.exists(), "orphaned rune bridge should be swept");
+        assert!(
+            component_bridge.is_file(),
+            "a component's own bridge must survive the sweep"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn aliased_svelte_import_is_rewritten_to_its_shadow() {
         let tmp = std::env::temp_dir().join(format!("svc_alias_{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
@@ -2621,7 +3228,7 @@ mod tests {
             tmp.join("src/lib/Button.svelte"),
         ];
         let tsconfig = tmp.join("tsconfig.json");
-        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let app_tsx =
             fs::read_to_string(tmp.join(".svelte-check/svelte/src/App.svelte.tsx")).unwrap();
@@ -2673,7 +3280,7 @@ mod tests {
         let workspace = tmp.join("pkg-a");
         let files = vec![workspace.join("src/consumer.svelte")];
         let tsconfig = workspace.join("tsconfig.json");
-        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false).unwrap();
+        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let consumer_tsx =
             fs::read_to_string(workspace.join(".svelte-check/svelte/src/consumer.svelte.tsx"))
@@ -2720,7 +3327,7 @@ mod tests {
         let workspace = tmp.join("apps/web");
         let files = vec![workspace.join("src/App.svelte")];
         let tsconfig = workspace.join("tsconfig.json");
-        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false).unwrap();
+        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let ext_root = workspace.join(".svelte-check/ext");
         let mirrored: Vec<String> = fs::read_dir(&ext_root)
@@ -2782,6 +3389,7 @@ mod tests {
                 &files,
                 Some(Path::new("./tsconfig.json")),
                 false,
+                &[],
             )
         };
         std::env::set_current_dir(&cwd).unwrap();
@@ -2799,6 +3407,31 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// `select_global_types` canonicalises its root, so expectations have to
+    /// go through the same normalisation (`/var` -> `/private/var` on macOS).
+    fn expected_svelte_html(root: &Path) -> Option<PathBuf> {
+        Some(
+            fs::canonicalize(root)
+                .unwrap()
+                .join("node_modules/svelte/svelte-html.d.ts"),
+        )
+    }
+
+    /// Lay out `<root>/node_modules/svelte` with the given version, and
+    /// `svelte-html.d.ts` when asked for.
+    fn fake_svelte_package(root: &Path, version: &str, with_svelte_html: bool) {
+        let pkg = root.join("node_modules/svelte");
+        fs::create_dir_all(&pkg).unwrap();
+        fs::write(
+            pkg.join("package.json"),
+            format!("{{ \"name\": \"svelte\", \"version\": \"{version}\" }}"),
+        )
+        .unwrap();
+        if with_svelte_html {
+            fs::write(pkg.join("svelte-html.d.ts"), "declare global {}\n").unwrap();
+        }
     }
 
     #[test]
@@ -2855,6 +3488,7 @@ mod tests {
                     &files,
                     Some(Path::new("./tsconfig.json")),
                     false,
+                    &[],
                 )
             };
             std::env::set_current_dir(&cwd).unwrap();
@@ -2894,7 +3528,7 @@ mod tests {
 
         let files = vec![tmp.join("src/lib/Button.svelte")];
         let tsconfig = tmp.join("tsconfig.json");
-        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
 
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
@@ -2952,7 +3586,7 @@ mod tests {
 
         let files = vec![tmp.join("src/lib/Button.svelte")];
         let tsconfig = tmp.join("tsconfig.json");
-        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false).unwrap();
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
         let cfg: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
         let paths = &cfg["compilerOptions"]["paths"];
@@ -3014,6 +3648,7 @@ mod tests {
                 &files,
                 Some(Path::new("./tsconfig.json")),
                 false,
+                &[],
             )
         };
         std::env::set_current_dir(&cwd).unwrap();
@@ -3052,5 +3687,111 @@ mod tests {
              'svelte:boundary' (onerror/failed/pending), not fall through to \
              the catch-all index signature"
         );
+    }
+
+    #[test]
+    fn tsconfig_absolute_path_strips_the_windows_verbatim_prefix() {
+        // A string-level test so it runs on the CI runners we actually have:
+        // `Path::components` only recognises a Windows prefix on Windows.
+        assert_eq!(
+            tsconfig_absolute_path(Path::new(
+                r"\\?\C:\proj\node_modules\svelte\svelte-html.d.ts"
+            )),
+            "C:/proj/node_modules/svelte/svelte-html.d.ts",
+            "tsc/tsgo cannot resolve the `//?/` form `fs::canonicalize` produces"
+        );
+        assert_eq!(
+            tsconfig_absolute_path(Path::new(r"\\?\UNC\server\share\proj\svelte-html.d.ts")),
+            "//server/share/proj/svelte-html.d.ts"
+        );
+        assert_eq!(
+            tsconfig_absolute_path(Path::new(r"C:\proj\svelte-html.d.ts")),
+            "C:/proj/svelte-html.d.ts"
+        );
+        assert_eq!(
+            tsconfig_absolute_path(Path::new("/proj/node_modules/svelte/svelte-html.d.ts")),
+            "/proj/node_modules/svelte/svelte-html.d.ts"
+        );
+    }
+
+    #[test]
+    fn global_types_prefer_project_svelte_html_over_the_vendored_jsx_shim() {
+        // #1889: the vendored shim's hand-enumerated `IntrinsicElements`
+        // freezes at its snapshot date, so every tag `svelte/elements` gained
+        // since (`svelte:boundary`, `search`, …) falls through to the
+        // catch-all index signature and its props become bare `any`.
+        let tmp = std::env::temp_dir().join(format!("svc_gt_html_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fake_svelte_package(&tmp, "5.56.8", true);
+
+        let selected = select_global_types(&tmp);
+        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME]);
+        assert_eq!(selected.svelte_html, expected_svelte_html(&tmp));
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_fall_back_to_the_vendored_jsx_shim_without_svelte_html() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_nohtml_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fake_svelte_package(&tmp, "5.56.8", false);
+
+        let selected = select_global_types(&tmp);
+        assert_eq!(
+            selected.shims,
+            vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME],
+            "without a project `svelte-html.d.ts` the vendored JSX shim is the \
+             only source of `svelteHTML.IntrinsicElements`"
+        );
+        assert_eq!(selected.svelte_html, None);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_ignore_svelte_html_on_svelte_3() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_v3_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        // Upstream skips the lookup entirely for Svelte 3, so even a stray
+        // `svelte-html.d.ts` must not displace the JSX shim.
+        fake_svelte_package(&tmp, "3.59.2", true);
+
+        let selected = select_global_types(&tmp);
+        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME]);
+        assert_eq!(selected.svelte_html, None);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_fall_back_when_svelte_is_not_installed() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_nosvelte_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+
+        let selected = select_global_types(&tmp.join("src"));
+        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME]);
+        assert_eq!(selected.svelte_html, None);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn global_types_resolve_svelte_from_a_parent_node_modules() {
+        let tmp = std::env::temp_dir().join(format!("svc_gt_hoisted_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fake_svelte_package(&tmp, "5.56.8", true);
+        let nested = tmp.join("packages/app");
+        fs::create_dir_all(&nested).unwrap();
+
+        let selected = select_global_types(&nested);
+        assert_eq!(
+            selected.svelte_html,
+            expected_svelte_html(&tmp),
+            "a hoisted monorepo install must still be found by walking up"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

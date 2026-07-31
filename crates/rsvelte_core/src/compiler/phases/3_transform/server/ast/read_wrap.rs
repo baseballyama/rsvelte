@@ -500,7 +500,7 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
         if !changed {
             taken.right = rhs;
             return Some(Expression::AssignmentExpression(
-                oxc_allocator::ArenaBox::new_in(taken, &b.ab),
+                oxc_allocator::ArenaBox::new_in(taken, &b.ab()),
             ));
         }
 

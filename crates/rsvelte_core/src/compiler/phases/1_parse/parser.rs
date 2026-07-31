@@ -143,6 +143,13 @@ pub struct Parser<'a> {
 /// and the 8 MiB of a default main thread.
 pub const MAX_NESTING_DEPTH: u32 = 128;
 
+impl Parser<'_> {
+    #[inline]
+    pub(crate) fn should_defer_template_parse(&self) -> bool {
+        !self.script_ts && self.options.defer_script_parse
+    }
+}
+
 /// An entry on the parser stack.
 #[derive(Debug, Clone)]
 pub enum StackEntry {
@@ -439,10 +446,17 @@ impl<'a> Parser<'a> {
             .saturating_sub(1);
         let start_line_start = self.line_offsets.get(start_line).copied().unwrap_or(0);
 
-        let end_line = self
+        let end_line = if self
             .line_offsets
-            .partition_point(|&offset| offset <= end)
-            .saturating_sub(1);
+            .get(start_line + 1)
+            .is_none_or(|&offset| end < offset)
+        {
+            start_line
+        } else {
+            self.line_offsets
+                .partition_point(|&offset| offset <= end)
+                .saturating_sub(1)
+        };
         let end_line_start = self.line_offsets.get(end_line).copied().unwrap_or(0);
 
         SourceLocation {

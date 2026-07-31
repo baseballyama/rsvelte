@@ -353,7 +353,7 @@ impl<'a> Parser<'a> {
         // by the underlying CSS parser (e.g. `css_expected_identifier` for
         // tokens like `$blue`) propagate to the user instead of being
         // silently dropped.
-        let css_children = if self.options.defer_script_parse {
+        let css_children = if self.should_defer_template_parse() {
             Vec::new() // Will be resolved by ensure_css_parsed() before analysis
         } else if lenient_non_css {
             // Non-CSS `lang` block in lint mode: the body is sass/scss/stylus/…,

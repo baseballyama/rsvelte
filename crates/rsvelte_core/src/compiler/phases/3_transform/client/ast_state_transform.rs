@@ -16,12 +16,13 @@ use oxc_ast_visit::walk;
 use oxc_parser::Parser;
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
+use oxc_span::Span;
 use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UpdateOperator};
 use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
-use super::destructure_transforms::unthunk_string;
+use super::destructure_transforms::{build_fallback_string, js_number_to_string, unthunk_string};
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
@@ -32,6 +33,7 @@ use super::rune_transforms::{process_derived_destructuring_pattern, wrap_state_v
 use super::{DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_STATE_VARS};
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
+use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 thread_local! {
     static AST_TRANSFORM_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -948,8 +950,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
     /// Walk an ObjectPattern and append `name = $.state(...)` declarations
     /// for each property. Returns false if any property is unsupported
-    /// (computed key, nested pattern beyond simple identifier targets,
-    /// etc.) so the caller can bail back to the text path.
+    /// (nested pattern beyond simple identifier targets, etc.) so the caller
+    /// can bail back to the text path.
     fn collect_state_object_pattern(
         &mut self,
         obj: &ObjectPattern<'_>,
@@ -966,28 +968,20 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 BindingPattern::AssignmentPattern(_) => &prop.value,
                 _ => return false,
             };
-            // Drop AssignmentPattern wrapper — the text path ignores the
-            // default value, only using the left-hand identifier.
-            let var_ident = match value_pattern {
-                BindingPattern::BindingIdentifier(id) => id,
+            let (var_ident, default_span) = match value_pattern {
+                BindingPattern::BindingIdentifier(id) => (id, None),
                 BindingPattern::AssignmentPattern(assign) => match &assign.left {
-                    BindingPattern::BindingIdentifier(id) => id,
+                    BindingPattern::BindingIdentifier(id) => (id, Some(assign.right.span())),
                     _ => return false,
                 },
                 _ => return false,
             };
             let var_name = var_ident.name.as_str();
 
-            // Resolve the source-side key text.
-            let key_text = match &prop.key {
-                PropertyKey::StaticIdentifier(id) => id.name.as_str().to_string(),
-                PropertyKey::StringLiteral(s) => s.value.as_str().to_string(),
-                _ => return false,
-            };
-
             let is_skip = self.is_state_destructure_skip(var_name);
-            let member_access = format!("{}.{}", tmp_name, key_text);
-            let value_expr = wrap_state_value(&member_access, is_raw, is_skip);
+            let member_access = self.state_key_access(tmp_name, prop);
+            let access = self.apply_pattern_default(member_access, default_span);
+            let value_expr = wrap_state_value(&access, is_raw, is_skip);
             let value_expr = self.maybe_tag_declarator(var_name, value_expr);
             declarations.push(format!("{} = {}", var_name, value_expr));
         }
@@ -999,7 +993,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             };
             let var_name = var_ident.name.as_str();
             let is_skip = self.is_state_destructure_skip(var_name);
-            let access = format!("{}.{}", tmp_name, var_name);
+            let keys: Vec<String> = obj
+                .properties
+                .iter()
+                .map(|prop| self.state_exclude_key_literal(prop))
+                .collect();
+            let access = format!("$.exclude_from_object({}, [{}])", tmp_name, keys.join(", "));
             let value_expr = if is_raw {
                 access
             } else if is_skip {
@@ -1011,6 +1010,60 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             declarations.push(format!("{} = {}", var_name, value_expr));
         }
         true
+    }
+
+    /// Member access for a destructured `$state` property key, mirroring
+    /// upstream's
+    /// `b.member(expression, prop.key, prop.computed || prop.key.type !== 'Identifier')`.
+    /// The key's source text is reused verbatim so a literal keeps its original
+    /// quoting, as upstream's printer does.
+    fn state_key_access(&self, tmp_name: &str, prop: &BindingProperty<'_>) -> String {
+        if !prop.computed
+            && let PropertyKey::StaticIdentifier(id) = &prop.key
+        {
+            return format!("{}.{}", tmp_name, id.name);
+        }
+        let span = prop.key.span();
+        format!(
+            "{}[{}]",
+            tmp_name,
+            self.source[span.start as usize..span.end as usize].trim()
+        )
+    }
+
+    /// The `$.exclude_from_object(tmp, [...])` entry for a non-rest property key.
+    /// Upstream turns identifier and `Literal` keys into string literals and every
+    /// other computed key into `String(<expr>)`, so the rest subtracts it at runtime.
+    fn state_exclude_key_literal(&self, prop: &BindingProperty<'_>) -> String {
+        if !prop.computed
+            && let PropertyKey::StaticIdentifier(id) = &prop.key
+        {
+            return format!("'{}'", escape_js_string(id.name.as_str()));
+        }
+        match &prop.key {
+            PropertyKey::StringLiteral(s) => format!("'{}'", escape_js_string(s.value.as_str())),
+            PropertyKey::NumericLiteral(n) => format!("'{}'", js_number_to_string(n.value)),
+            key => {
+                let span = key.span();
+                format!(
+                    "String({})",
+                    self.source[span.start as usize..span.end as usize].trim()
+                )
+            }
+        }
+    }
+
+    /// Wrap a destructured access in `$.fallback(...)` when the pattern element
+    /// carried a default, mirroring upstream's `AssignmentPattern` →
+    /// `build_fallback` step in `extract_paths`.
+    fn apply_pattern_default(&self, access: String, default_span: Option<Span>) -> String {
+        match default_span {
+            Some(span) => build_fallback_string(
+                &access,
+                self.source[span.start as usize..span.end as usize].trim(),
+            ),
+            None => access,
+        }
     }
 
     /// Walk an ArrayPattern and append the `$$array = $.derived(() => $.to_array(...))`
@@ -1048,10 +1101,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         for (index, elem_opt) in arr.elements.iter().enumerate() {
             let Some(elem) = elem_opt else { continue };
-            let var_ident = match elem {
-                BindingPattern::BindingIdentifier(id) => id,
+            let (var_ident, default_span) = match elem {
+                BindingPattern::BindingIdentifier(id) => (id, None),
                 BindingPattern::AssignmentPattern(assign) => match &assign.left {
-                    BindingPattern::BindingIdentifier(id) => id,
+                    BindingPattern::BindingIdentifier(id) => (id, Some(assign.right.span())),
                     _ => return false,
                 },
                 _ => return false,
@@ -1059,6 +1112,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let var_name = var_ident.name.as_str();
             let is_skip = self.is_state_destructure_skip(var_name);
             let element_access = format!("$.get({})[{}]", array_var, index);
+            let element_access = self.apply_pattern_default(element_access, default_span);
             let value_expr = wrap_state_value(&element_access, is_raw, is_skip);
             let value_expr = self.maybe_tag_declarator(var_name, value_expr);
             declarations.push(format!("{} = {}", var_name, value_expr));

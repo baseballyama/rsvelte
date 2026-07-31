@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
@@ -13,6 +17,15 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+  # CI validates behavior, not distribution-binary throughput. Release artifacts
+  # keep the workspace's fat-LTO profiles in release.yml.
+  CARGO_PROFILE_RELEASE_LTO: "off"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+  CARGO_PROFILE_DIST_LINT_LTO: "off"
+  CARGO_PROFILE_DIST_LINT_CODEGEN_UNITS: "16"
 
 jobs:
   fmt:
@@ -22,10 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           components: rustfmt
 
       - name: Check formatting
@@ -42,13 +53,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: '24'
+          cache: 'true'
+          cache-dependency-path: apps/playground/pnpm-lock.yaml
 
       - name: Check playground lockfile is in sync
         working-directory: apps/playground
@@ -61,16 +69,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: true
+          submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           components: clippy
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -82,10 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
-        with:
-          toolchain: 1.97.1
+      - uses: ./.github/actions/setup-rust
 
       - name: Check compiler-only graph and package leaf
         run: scripts/ci/check-embeddable-core.sh
@@ -147,33 +155,17 @@ jobs:
       - name: Checkout needed submodules (shallow)
         run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/eslint-plugin-svelte submodules/esrap
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
+          mold: 'true'
+          nextest: 'true'
 
-      # mold is a drop-in faster linker. The test build links ~150 separate
-      # integration-test binaries (one per tests/*.rs), so link time is a real
-      # chunk of the cold/changed-crate build. `make-default: true` replaces the
-      # system `cc` linker transparently, so no RUSTFLAGS change is needed and
-      # the rust-cache key is unaffected.
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
-
-      # nextest runs every test from every binary in a single global process
-      # pool, instead of `cargo test`'s one-binary-at-a-time serial harness —
-      # a ~2x wall-clock win on this suite. Installed as a prebuilt binary so
-      # there's no compile cost.
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          cache: 'true'
+          cache-dependency-path: |
+            submodules/svelte/pnpm-lock.yaml
+            submodules/language-tools/pnpm-lock.yaml
 
       - name: Resolve Svelte submodule SHA
         id: svelte-sha
@@ -240,6 +232,8 @@ jobs:
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # NOTE: the oxfmt install + svelte.dev formatter-parity corpus generation
       # (~130 s on a cold macOS runner) used to live here, but the only tests
@@ -318,26 +312,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: true
+          submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
+          mold: 'true'
+          nextest: 'true'
 
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          cache: 'true'
+          cache-dependency-path: submodules/svelte/pnpm-lock.yaml
 
       - name: Resolve Svelte submodule SHA
         id: svelte-sha
@@ -413,16 +401,10 @@ jobs:
       - name: Checkout svelte submodule (shallow)
         run: git submodule update --init --depth 1 submodules/svelte
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
-
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
+          mold: 'true'
+          nextest: 'true'
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -461,16 +443,10 @@ jobs:
       - name: Checkout svelte submodule (shallow)
         run: git submodule update --init --depth 1 submodules/svelte
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
-
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
+          mold: 'true'
+          nextest: 'true'
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -504,24 +480,12 @@ jobs:
       - name: Checkout svelte + svelte.dev submodules (shallow)
         run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
+          mold: 'true'
+          nextest: 'true'
 
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: ./.github/actions/setup-node-pnpm
 
       - name: Install oxfmt for the formatter parity corpus
         # Isolated install (avoids a full monorepo `pnpm install`) that provides
@@ -608,14 +572,10 @@ jobs:
           OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
           RSVELTE_FMT_TW_TEST_DIR: ${{ runner.temp }}/tw-oracle
 
-  # Builds the lint wasm (nodejs target) + the native rsvelte-fmt binary, bundles
-  # @rsvelte/language-server, and runs its headless LSP smoke tests (formatting
-  # matches rsvelte-fmt; diagnostics match the lint wasm) plus the lint→Diagnostic
-  # unit tests. Also typechecks + bundles the VS Code extension.
   language-server:
     name: Language server
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -625,32 +585,21 @@ jobs:
       - name: Checkout svelte submodule (shallow)
         run: git submodule update --init --depth 1 submodules/svelte
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           targets: wasm32-unknown-unknown
+          mold: 'true'
+          wasm-pack: 'true'
 
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
-
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@0d096b08b4e5a7de8c28de67e11e945404e9eefa # v0.4.0
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          version: 'v0.15.0'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          cache: 'true'
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           shared-key: language-server
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -658,33 +607,32 @@ jobs:
       - name: Build lint wasm (nodejs target)
         run: pnpm run build:wasm:lint-node
 
-      # @rsvelte/oxlint-plugin runs on the web-target wasm published as
-      # @rsvelte/compiler (pkg/). Build it, regenerate the plugin's recommended
-      # config from the live rule catalog, then run the oxlint E2E.
-      - name: Build core wasm (web target) for oxlint-plugin
+      - name: Build core wasm
         run: pnpm run build:wasm:core
 
-      # @rsvelte/svelte2tsx wraps the same web-target wasm (pkg/). Its test's
-      # `pretest` links @rsvelte/compiler at pkg/, then asserts the public
-      # `svelte2tsx()` is synchronous (matching upstream).
-      - name: Run @rsvelte/svelte2tsx tests (sync API)
+      - name: Run @rsvelte/svelte2tsx tests
         run: pnpm --filter @rsvelte/svelte2tsx run test
+
+      # apps/npm/svelte-check/bin/svelte-check.cjs (the npm launcher) had zero
+      # tests (#1897 Layer 4 CI hygiene). Its smoke test drives the launcher
+      # against a locally built native binary via RSVELTE_CHECK_BIN, so build
+      # that binary first; debug is enough and this job never runs --release.
+      - name: Build rsvelte-check
+        run: cargo build -p rsvelte_check --bin svelte_check
+
+      - name: Run @rsvelte/svelte-check smoke test (npm launcher)
+        run: pnpm --filter @rsvelte/svelte-check run test
 
       - name: Generate oxlint-plugin recommended config
         run: pnpm run build:oxlint-plugin
 
-      # recommended.json is generated from the live rule catalog but committed
-      # (it ships in the npm package without a build step). Fail if the
-      # committed copy has drifted from the catalog.
       - name: Check oxlint-plugin recommended config is in sync
         run: git diff --exit-code apps/npm/oxlint-plugin/recommended.json
 
-      # Build the native NAPI addon for the host triple so the plugin's
-      # native-first engine path is exercised (the E2E asserts `engine=native`).
-      - name: Build rsvelte-lint NAPI addon (host)
+      - name: Build rsvelte-lint NAPI addon
         run: pnpm run build:lint-native
 
-      - name: Run oxlint-plugin E2E (native + wasm paths)
+      - name: Run oxlint-plugin E2E
         run: pnpm run test:oxlint-plugin
 
       - name: Build native rsvelte-fmt
@@ -739,20 +687,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: true
+          submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - name: Checkout fixture submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          toolchain: 1.97.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          cache: 'true'
+          cache-dependency-path: |
+            submodules/svelte/pnpm-lock.yaml
+            submodules/language-tools/pnpm-lock.yaml
 
       - name: Resolve Svelte submodule SHA
         id: svelte-sha
@@ -795,6 +742,8 @@ jobs:
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Generate compatibility report
         run: pnpm run compatibility-report
@@ -869,15 +818,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: true
+          submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
-        with:
-          toolchain: 1.97.1
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - uses: ./.github/actions/setup-rust
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build documentation
         run: cargo doc --no-deps
@@ -900,26 +851,19 @@ jobs:
       - name: Checkout svelte submodule (shallow)
         run: git submodule update --init --depth 1 submodules/svelte
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
+          mold: 'true'
 
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          cache: 'true'
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           shared-key: vps-shim
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -937,7 +881,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: true
+          submodules: false
+
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
 
       - name: Check vite-plugin-svelte-native VERSION matches submodules/svelte
         run: node scripts/dev/check-vps-version.mjs

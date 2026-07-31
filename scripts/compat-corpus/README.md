@@ -49,14 +49,25 @@ in [`compatibility/`](../../compatibility/).
 | [beyonk-adventures/svelte-toggle](https://github.com/beyonk-adventures/svelte-toggle) | `submodules/svelte-toggle` | Toggle (awesome-svelte) |
 | [vatro/svelthree](https://github.com/vatro/svelthree) | `submodules/svelthree` | Three.js components (awesome-svelte) |
 | [CriticalMoments/CMSaasStarter](https://github.com/CriticalMoments/CMSaasStarter) | `submodules/cmsaasstarter` | SvelteKit SaaS starter (awesome-svelte) |
+| [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) | `submodules/skeleton` | UI library + docs/playground monorepo (also the svelte-check e2e gate) |
+| — (in-repo) | `compatibility/pattern-corpus` | hand-written patterns: one minimal repro per fixed divergence + the feature matrices around them ([README](../../compatibility/pattern-corpus/README.md)) |
 
-Every source is **pinned by its submodule gitlink** and bumped by
+Every source but the last is **pinned by its submodule gitlink** and bumped by
 `auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes through
-`auto-update-svelte.yml`). For the real-world projects only their **shipped**
+`auto-update-svelte.yml`). `skeleton` is the one exception: it also feeds the
+line-number-keyed svelte-check e2e ratchet, so it is deliberately excluded from
+the weekly bump (see `compatibility/check-e2e-known-failures.md`). For the
+real-world projects only their **shipped**
 `.svelte` / `.svelte.(js|ts)` files are collected — their markdown docs are
 skipped (they carry non-Svelte doc tooling and truncated pseudo-code the official
 compiler itself rejects, which is noise, not a compatibility gap). Each source is
 collected under its `id` prefix (`bits-ui/…`, `svelte.dev/…`, …).
+
+`compatibility/pattern-corpus` (`pattern/…`) is the one source that is **not** an
+upstream pin: the pinned repositories only cover shapes somebody happened to
+write, so a divergence in a shape none of them uses is invisible however many
+repositories are added. That source is where such a shape is written down —
+see [Adding a pattern file](#adding-a-pattern-file).
 
 Both compilers run with identical default options (`dev: false`,
 `css: 'external'`). `.svelte.ts` modules are TS-stripped before compilation,
@@ -135,7 +146,17 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
    `compatibility/known-failures.server.json` (SSR) — both checked in, both may
    only shrink. Exits non-zero only on a **regression** (a `(id, target)` pair
    that diverges but is absent from that target's baseline).
-   `--update-baseline` rewrites both files from the current run.
+   `--update-baseline` rewrites every baseline from the current run;
+   `--update-baseline <target>` rewrites only that target's file.
+
+The compared targets (their `generate` / `dev` options, whether CSS is compared,
+and which baseline file they ratchet against) are declared once in
+`targets.mjs`; `compile.mjs` / `verify.mjs` / `one.mjs` / `cluster.mjs` all
+iterate that list, so adding a target is a one-line change plus its baseline.
+
+`verify.mjs --from-report <path>` skips normalization and comparison and derives
+the baselines from an existing `report.json` — e.g. one downloaded from a CI
+run, so a new target's baseline can be bootstrapped without a local full run.
 
 Debugging helpers:
 
@@ -250,7 +271,8 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
   shallow-initialised, so the whole unified corpus runs on each PR. Expected
   outputs are regenerated from the pinned submodules on every run, so bumping a
   pin automatically refreshes the corpus *and* its expectations; the fmt oracle
-  is cached by a combined hash of all source SHAs + oxfmt + config.
+  is cached by a combined hash of all source SHAs + the `pattern` source's file
+  contents + oxfmt + config.
 - Source bumps arrive via `auto-update-submodules.yml` (weekly PR per submodule —
   svelte.dev and each real-world project) and `auto-update-svelte.yml` (the
   compiler). Both trigger corpus-compat through its submodule path filters, which
@@ -276,6 +298,7 @@ the compile corpus pins:
 | [themesberg/flowbite-svelte](https://github.com/themesberg/flowbite-svelte) | `submodules/flowbite-svelte` gitlink | real-world |
 | [melt-ui/melt-ui](https://github.com/melt-ui/melt-ui) | `submodules/melt-ui` gitlink | real-world |
 | [huntabyte/shadcn-svelte](https://github.com/huntabyte/shadcn-svelte) | `submodules/shadcn-svelte` gitlink | real-world |
+| [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) | `submodules/skeleton` gitlink | real-world |
 
 The two eslint repos' rule/parser fixtures, docs snippets and demo components
 exercise exactly the surface the linter must match; the real-world libraries add
@@ -290,7 +313,7 @@ engines, diffed.)
 ### How it works
 
 ```bash
-pnpm run lint-corpus:sync             # init the eslint + real-world (bits-ui/flowbite/melt/shadcn) submodules
+pnpm run lint-corpus:sync             # init the eslint + real-world (bits-ui/flowbite/melt/shadcn/skeleton) submodules
 pnpm run lint-corpus:oracle-install   # install the pinned real eslint-plugin-svelte (oracle)
 cargo build --profile dist-lint --bin rsvelte-lint   # `panic = "unwind"` → per-file panic isolation holds
 pnpm run lint-corpus:collect          # gather .svelte sources -> compatibility/lint-sources/
@@ -343,13 +366,24 @@ pnpm run check-corpus:verify           # diff oracle vs rsvelte-check, ratchet c
 # or, all of the above:
 pnpm run test:svelte-check
 pnpm run check-corpus:update           # re-baseline check-known-failures.json after a fix
+
+# rsvelte-check's *other* backend (rsvelte-check --tsgo). The oracle stays
+# tsc-based in both cases — only rsvelte-check's own compiler switches:
+pnpm run check-corpus:tsgo-install
+pnpm run test:svelte-check:tsgo
 ```
 
 - **Oracle** (`check-oracle/`) — an isolated package pinning `svelte-check`,
   `svelte`, `typescript` and `@sveltejs/kit` at **exact** versions. Its
   `node_modules` is symlinked into each materialised fixture and also supplies
-  the `tsc` that `rsvelte-check` runs (`TSGO_BIN`), so both sides type-check
-  against byte-identical dependencies.
+  the `tsc` that `rsvelte-check` runs (`TSGO_BIN`) by default, so both sides
+  type-check against byte-identical dependencies.
+- **tsgo backend** (`check-tsgo/`) — a separate isolated package pinning
+  `@typescript/native-preview` at an **exact** version, used only when
+  `check-verify.mjs --rsvelte-backend tsgo` points rsvelte-check's `TSGO_BIN`
+  at it instead of the oracle's `tsc`. Kept out of `check-oracle/` on purpose:
+  that directory is the ground-truth environment (never swapped), this one is
+  just the other backend under test.
 - **Scenarios** (`compatibility/check-fixtures/<name>/`) — `scenario.json`
   (workspace, `--tsconfig`, extra `node_modules` symlinks) plus a `project/`
   tree. Each encodes one real-world shape: single package, pnpm sibling via a
@@ -369,8 +403,52 @@ pnpm run check-corpus:update           # re-baseline check-known-failures.json a
   ` xN` suffix when the surplus is larger than one. Justifications live in
   [compatibility/check-known-failures.md](../../compatibility/check-known-failures.md).
 
-The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track;
+The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track
+as a `backend: [tsc, tsgo]` matrix (see [check-known-failures.md](../../compatibility/check-known-failures.md#backend-matrix-tsc-vs-tsgo));
 it needs no submodules.
+
+### Layer 2 — real-project e2e parity (`check-e2e-verify.mjs`)
+
+The scenarios above are mini-projects somebody wrote down. Layer 2 runs the same
+comparison over **real repositories**, pinned as submodules and installed with
+their own lockfiles: real `tsconfig` chains, real `svelte.config.js`, real
+`node_modules`, and — for the monorepo — real cross-package resolution. That is
+the shape all five reports in #1883–#1889 came from; every one was found by
+pointing the checker at somebody's actual repository, never by a fixture.
+
+```bash
+pnpm run test:svelte-check-e2e              # submodules + build + oracle + verify
+pnpm run check-e2e-corpus:verify            # verify only (deps already installed)
+node scripts/compat-corpus/check-e2e-verify.mjs --skip-install   # reuse an installed tree
+node scripts/compat-corpus/check-e2e-verify.mjs --update         # re-baseline
+```
+
+- **Units** — one directory with its own `tsconfig.json`, i.e. the granularity at
+  which these repositories run `svelte-check` themselves. Currently
+  `cmsaasstarter/app` (single-package SvelteKit app, npm),
+  `skeleton/playground` (SvelteKit app inside a pnpm workspace, importing two
+  sibling workspace packages) and `skeleton/library` (the 300-component package
+  those siblings resolve to). The list lives in `PROJECTS` at the top of
+  `check-e2e-verify.mjs`.
+- **Invocation** — both checkers run from the unit directory with
+  `--tsconfig ./tsconfig.json` and **no** `--workspace`, i.e. exactly what the
+  project's own `check` script runs. SvelteKit units get `svelte-kit sync` first
+  so both sides read the same generated `.svelte-kit/`.
+- **What is shared, what is not** — the projects keep their own `svelte` /
+  `@sveltejs/kit` (their types are half of what is being checked); the *checker*
+  is shared. Official `svelte-check` runs from the pinned oracle, and
+  `rsvelte-check` is pointed at that same oracle `tsc` via `TSGO_BIN`, so both
+  sides type-check the project's real dependency tree with one identical
+  compiler.
+- **Normalization and ratchet** — identical to Layer 1 (the parser, the key and
+  the multiset diff are shared in `check-diagnostics.mjs`), with the entry
+  prefixed `<project>/<unit>` instead of `<scenario>`. Baseline:
+  `compatibility/check-e2e-known-failures.json`, justified per cluster in
+  [check-e2e-known-failures.md](../../compatibility/check-e2e-known-failures.md).
+
+The `check-e2e-parity` job in `.github/workflows/corpus-compat.yml` runs this
+track. Adding a unit means adding a submodule + a `PROJECTS` entry + the
+submodule to that job's checkout step, then `--update` to seed its divergences.
 
 ## Adding a repository to the corpus
 
@@ -423,3 +501,40 @@ To add a repository:
 
 The corpus only ever **reads** source files — it never installs deps or runs a
 project's build, so a shallow submodule is all that is needed.
+
+## Adding a pattern file
+
+[`compatibility/pattern-corpus/`](../../compatibility/pattern-corpus/) is a
+checked-in corpus source for shapes the pinned repositories do not contain: one
+minimal repro per fixed divergence under `issues/`, and the axes around it under
+`matrix/<axis>/`. Files there are collected, compiled and ratcheted exactly like
+submodule sources (ids `pattern/issues/…`, `pattern/matrix/…`), and — since the
+manifest is shared — they also flow through the fmt and svelte2tsx gates.
+
+1. **Write the file.** `issues/<issue-number>-<slug>.svelte` for a repro,
+   `matrix/<axis>/<slug>.svelte` for an axis point. Self-contained (imports need
+   not resolve), accepted by the **official** compiler, one behaviour per file,
+   minimal, and **formatted** — it is a formatter case too, so an unformatted
+   file just adds noise to the fmt gate.
+
+2. **Do not put provenance in an HTML comment.** Removed comments are themselves
+   a whitespace-sensitive compiler input, so a `<!-- issue N -->` line changes
+   what the file tests. Record it in the table in
+   [`compatibility/pattern-corpus/README.md`](../../compatibility/pattern-corpus/README.md)
+   instead — that table is the only provenance record.
+
+3. **Land it with the fix.** A repro for a still-open divergence would have to be
+   seeded into `known-failures.*`; add it in the fix PR (or right after it
+   merges) so it lands green.
+
+4. **Check it.**
+
+   ```bash
+   pnpm run corpus:collect
+   node scripts/compat-corpus/compile.mjs --filter pattern/
+   node scripts/compat-corpus/verify.mjs
+   node scripts/compat-corpus/one.mjs pattern/issues/<file>.svelte   # diff one entry
+   ```
+
+No submodule, `.gitmodules`, CI path-filter or auto-update entry is involved —
+`compatibility/**` is already a trigger path for `corpus-compat.yml`.

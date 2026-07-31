@@ -24,7 +24,7 @@ struct ParsedProgram<'alloc> {
 }
 
 self_cell!(
-    pub(crate) struct RetainedProgram<'source> {
+    pub struct RetainedProgram<'source> {
         owner: ProgramOwner<'source>,
 
         #[covariant]
@@ -33,7 +33,7 @@ self_cell!(
 );
 
 impl<'source> RetainedProgram<'source> {
-    pub(crate) fn parse(source: &'source str, is_typescript: bool) -> Self {
+    pub fn parse(source: &'source str, is_typescript: bool) -> Self {
         let source_type = if is_typescript {
             SourceType::ts()
         } else {
@@ -57,19 +57,19 @@ impl<'source> RetainedProgram<'source> {
         )
     }
 
-    pub(crate) fn program(&self) -> &Program<'_> {
+    pub fn program(&self) -> &Program<'_> {
         &self.borrow_dependent().program
     }
 
-    pub(crate) fn source(&self) -> &str {
+    pub fn source(&self) -> &str {
         self.borrow_owner().source()
     }
 
-    pub(crate) fn diagnostics(&self) -> &[OxcDiagnostic] {
+    pub fn diagnostics(&self) -> &[OxcDiagnostic] {
         &self.borrow_dependent().diagnostics
     }
 
-    pub(crate) fn panicked(&self) -> bool {
+    pub fn panicked(&self) -> bool {
         self.borrow_dependent().panicked
     }
 }

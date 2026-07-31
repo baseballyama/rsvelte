@@ -15,7 +15,7 @@ use crate::svelte2tsx::template::attributes::class_style::build_class_style_dire
 use crate::svelte2tsx::template::attributes::directive_suffix::build_component_directive_suffix;
 use crate::svelte2tsx::template::attributes::event_handler::{build_on_calls, get_on_directives};
 use crate::svelte2tsx::template::attributes::let_::{
-    build_let_destructure_string, get_let_directives,
+    build_let_destructure_string, has_let_directives,
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::attributes::{
@@ -29,9 +29,7 @@ use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
 };
-use crate::svelte2tsx::template::utils::names::{
-    reversed_component_instance_name, reversed_component_name,
-};
+use crate::svelte2tsx::template::utils::names::reversed_component_name;
 use crate::svelte2tsx::template::utils::source::{
     count_tag_to_attr_spaces, find_closing_tag_start, find_opening_tag_end,
 };
@@ -56,7 +54,7 @@ pub(crate) fn handle_component(
     comp: &Component,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -95,10 +93,16 @@ pub(crate) fn handle_component(
     // the official `computeDepth()` in `htmlxtojsx_v2/nodes/InlineComponent.ts`.
     // Two sibling `<A/>` at the same depth both get `$$_A<depth>C`, which is correct —
     // the official tool reuses the same name for components at the same depth.
-    let ctor_var = reversed_component_name(&comp.name, depth);
+    let inst_var = reversed_component_name(&comp.name, depth);
 
     // Find the end of the opening tag
-    let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
+    let opening_tag_end = find_opening_tag_end(
+        source,
+        comp.start,
+        comp.end,
+        comp.name.as_str(),
+        &comp.attributes,
+    );
 
     // Collect on: directives and let: directives
     let on_directives = get_on_directives(&comp.attributes);
@@ -107,12 +111,7 @@ pub(crate) fn handle_component(
     // consumed by the parent's `$$slot_def["x"]` destructure, so don't re-emit
     // them here as the component's own default-slot let block.
     let suppress_lets = std::mem::take(&mut counter.suppress_component_lets);
-    let let_directives = if suppress_lets {
-        Vec::new()
-    } else {
-        get_let_directives(&comp.attributes)
-    };
-    let has_lets = !let_directives.is_empty();
+    let has_lets = !suppress_lets && has_let_directives(&comp.attributes);
 
     // Check if component has meaningful children
     let has_children = has_component_slot_children(&comp.fragment, source);
@@ -178,7 +177,12 @@ pub(crate) fn handle_component(
     // When this component is named-slot-routed (`named_slot_close`), its static
     // `slot="…"` attribute is consumed by the `$$slot_def[…]` wrapper, so drop it
     // from the props object; otherwise (root, or dynamic `slot={…}`) keep it.
-    let mut attr_segs = build_component_props_segments(&comp.attributes, source, named_slot_close);
+    let mut attr_segs = build_component_props_segments(
+        &comp.attributes,
+        source,
+        &counter.element_opener_comments,
+        named_slot_close,
+    );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     let attrs_empty_before_pad = segs_is_empty(&attr_segs);
@@ -228,7 +232,6 @@ pub(crate) fn handle_component(
     }
 
     // Build the replacement for the opening tag.
-    let inst_var = reversed_component_instance_name(&comp.name, depth);
     // Component-side `bind:` suffix: type-widener + `$$bindings` marker.
     // Mirrors the JS reference's component branch in
     // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`:
@@ -300,16 +303,16 @@ pub(crate) fn handle_component(
         };
         (
             format!(
-                " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{",
-                ctor_var, comp.name, inst_var, ctor_var,
+                " {{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
+                inst_var, comp.name, inst_var, inst_var,
             ),
             format!("}}}});{}{}", component_bind_suffix, on_calls),
         )
     } else {
         (
             format!(
-                " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{",
-                ctor_var, comp.name, ctor_var,
+                " {{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{",
+                inst_var, comp.name, inst_var,
             ),
             "}});".to_string(),
         )
@@ -346,7 +349,7 @@ pub(crate) fn handle_component(
         process_component_children_with_slots(
             comp,
             &inst_var,
-            &let_directives,
+            has_lets,
             source,
             options,
             str,
@@ -435,7 +438,7 @@ pub(crate) fn handle_component(
     let inline_block = if needs_inline_block {
         format!(
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;}}",
-            build_let_destructure_string(&let_directives, source),
+            build_let_destructure_string(&comp.attributes, source),
             inst_var
         )
     } else {
@@ -454,10 +457,14 @@ pub(crate) fn handle_component(
             // the component-name reference + the named-slot-block close after.
             str.overwrite(closing_tag_start, comp.end, " }");
         } else {
-            str.overwrite(closing_tag_start, comp.end, &format!(" {}}}", comp.name));
+            str.overwrite_fmt(
+                closing_tag_start,
+                comp.end,
+                format_args!(" {}}}", comp.name),
+            );
         }
     } else if needs_inline_block {
-        str.append_left(comp.end, &format!("{}{}}}", inline_block, comp.name));
+        str.append_left_fmt(comp.end, format_args!("{}{}}}", inline_block, comp.name));
     } else {
         str.append_left(comp.end, "}");
     }
@@ -470,7 +477,7 @@ pub(crate) fn handle_svelte_component(
     comp: &SvelteComponentElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -483,17 +490,21 @@ pub(crate) fn handle_svelte_component(
     let saved_outer_slot = counter.slot_inst.take();
 
     let expr_text = get_expression_text(&comp.expression, source);
-    // Use "svelte:component" as the name for variable naming, with ':' replaced by '_'
-    let scomp_name = "svelte:component".replace(':', "_");
-
-    let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
+    let opening_tag_end = find_opening_tag_end(
+        source,
+        comp.start,
+        comp.end,
+        comp.name.as_str(),
+        &comp.attributes,
+    );
 
     // Collect on: directives
     let on_directives = get_on_directives(&comp.attributes);
     let has_events = !on_directives.is_empty();
 
     // Build attribute/props string (excluding on: directives)
-    let mut attrs_str = build_component_props_string(&comp.attributes, source);
+    let mut attrs_str =
+        build_component_props_string(&comp.attributes, source, &counter.element_opener_comments);
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     if !comp.attributes.is_empty() && !attrs_str.is_empty() {
@@ -509,8 +520,7 @@ pub(crate) fn handle_svelte_component(
     // Check if component has meaningful children for Svelte 5 children prop
     let has_children = has_component_slot_children(&comp.fragment, source);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
-    let let_directives_scomp = get_let_directives(&comp.attributes);
-    let has_lets_scomp = !let_directives_scomp.is_empty();
+    let has_lets_scomp = has_let_directives(&comp.attributes);
     // Emit the synthetic `children` prop whenever there is default-slot content,
     // even alongside `let:` directives — matching handle_component (which has no
     // such guard). The `let:` destructure is emitted independently below.
@@ -528,8 +538,7 @@ pub(crate) fn handle_svelte_component(
         }
     }
 
-    let ctor_var = reversed_component_name(&scomp_name, depth);
-    let inst_var = reversed_component_instance_name(&scomp_name, depth);
+    let inst_var = reversed_component_name("svelte_component", depth);
     // A `bind:` directive on the component needs the instance variable too: it
     // emits a `inst.$$bindings = 'name'` marker (and a type-widener) after the
     // `new` statement, mirroring `handle_component`.
@@ -590,13 +599,13 @@ pub(crate) fn handle_svelte_component(
             String::new()
         };
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
-            ctor_var, expr_text, inst_var, ctor_var, attrs_str, component_bind_suffix, on_calls
+            " {{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
+            inst_var, expr_text, inst_var, inst_var, attrs_str, component_bind_suffix, on_calls
         )
     } else {
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
-            ctor_var, expr_text, ctor_var, attrs_str
+            " {{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});",
+            inst_var, expr_text, inst_var, attrs_str
         )
     };
 
@@ -604,7 +613,7 @@ pub(crate) fn handle_svelte_component(
     // Mirrors `defaultSlotLetTransformation` in the JS reference's
     // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
     if has_lets_scomp {
-        let destructure = build_let_destructure_string(&let_directives_scomp, source);
+        let destructure = build_let_destructure_string(&comp.attributes, source);
         let _ = write!(
             opener,
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
@@ -641,7 +650,7 @@ pub(crate) fn handle_svelte_self(
     el: &SvelteElement,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -649,14 +658,15 @@ pub(crate) fn handle_svelte_self(
         return;
     }
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let closing_tag_start = find_closing_tag_start(source, el.end);
     let has_closing_tag = closing_tag_start < el.end;
 
     // Separate on: + let: directives from regular attributes
     let mut has_on_directives = false;
     let mut on_directives = Vec::new();
-    let let_directives = get_let_directives(&el.attributes);
+    let has_lets = has_let_directives(&el.attributes);
     let mut prop_parts = Vec::new();
 
     for attr in &el.attributes {
@@ -666,7 +676,7 @@ pub(crate) fn handle_svelte_self(
                 on_directives.push(on);
             }
             Attribute::LetDirective(_) => {
-                // Handled below via `let_directives` — not emitted as a prop.
+                // Handled below — not emitted as a prop.
             }
             _ => match attr {
                 Attribute::Attribute(node) => {
@@ -714,7 +724,7 @@ pub(crate) fn handle_svelte_self(
         }
     };
 
-    let needs_inst_var = has_on_directives || !let_directives.is_empty();
+    let needs_inst_var = has_on_directives || has_lets;
     // Use depth as the instance variable index, mirroring official InlineComponent.ts
     // `this._name = '$$_svelteself' + this.computeDepth()`.
     let var_name = if needs_inst_var {
@@ -750,9 +760,8 @@ pub(crate) fn handle_svelte_self(
     // block right after the create call, with a matching `}` at the end.
     // Mirrors the JS reference's `defaultSlotLetTransformation` in
     // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
-    let has_lets = !let_directives.is_empty();
     if has_lets {
-        let destructure = build_let_destructure_string(&let_directives, source);
+        let destructure = build_let_destructure_string(&el.attributes, source);
         let inst_name = var_name
             .as_ref()
             .expect("let: directive requires an instance variable name");

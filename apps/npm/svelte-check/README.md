@@ -27,10 +27,12 @@ If your platform isn't listed, please [open an issue](https://github.com/basebal
 From your project root:
 
 ```bash
-# Svelte + TypeScript diagnostics (TypeScript runs via tsc by default)
+# Svelte + TypeScript diagnostics (uses the workspace's own tsc)
 npx rsvelte-check
 
-# Prefer Microsoft's native tsgo backend (faster than tsc)
+# Type-check with the TypeScript 7 native compiler instead.
+# Requires TypeScript 7 in the workspace:
+#   npm install --save-dev typescript@~6 @typescript/native@npm:typescript@7
 npx rsvelte-check --tsgo
 
 # Compiler + A11y + CSS diagnostics only (fast — no TypeScript)
@@ -59,7 +61,7 @@ Add it to your `package.json`:
 | `--output <format>` | `human`, `human-verbose` (default), `machine`, `machine-verbose`, or `github-actions`. |
 | `--ignore <list>` | Comma-separated path components to skip while walking the workspace. |
 | `--fail-on-warnings` | Exit non-zero when any warning is reported (default: errors only). |
-| `--tsgo` | Prefer [tsgo](https://github.com/microsoft/typescript-go) over `tsc` as the TypeScript backend (each falls back to the other if missing). |
+| `--tsgo` | Type-check with the TypeScript 7 native compiler (`@typescript/native`, else `@typescript/native-preview`) instead of the workspace's own `tsc`. Errors when TypeScript 7 is not installed. |
 | `--no-type-check` | Skip TypeScript entirely — Svelte compiler / A11y / CSS diagnostics only. |
 | `--tsconfig <path>` | Base `tsconfig.json` for the overlay to `extends`. |
 | `--no-tsconfig` | Ignore any project tsconfig/jsconfig (no `--tsconfig` extends, no discovery) — check only the Svelte files. |

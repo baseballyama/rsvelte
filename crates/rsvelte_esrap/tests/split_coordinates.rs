@@ -12,9 +12,9 @@
 //! is exactly what makes it "synthesized" to the printer), and a comment-bearing
 //! chunk parses from `pad + text` so its spans land at its region.
 
-use oxc_allocator::{Allocator, Vec as ArenaVec};
-use oxc_ast::AstBuilder;
+use oxc_allocator::{Allocator, GetAllocator, Vec as ArenaVec};
 use oxc_ast::ast::{Program, Statement};
+use oxc_ast::builder::AstBuilder;
 use oxc_parser::Parser;
 use oxc_span::{SourceType, Span};
 
@@ -51,7 +51,7 @@ impl<'a> Assembler<'a> {
     }
 
     fn parse(&self, text: &'a str) -> Program<'a> {
-        let ret = Parser::new(self.ab.allocator, text, SourceType::mjs()).parse();
+        let ret = Parser::new(self.ab.allocator(), text, SourceType::mjs()).parse();
         assert!(ret.diagnostics.is_empty(), "parse error in {text:?}");
         ret.program
     }
@@ -59,7 +59,7 @@ impl<'a> Assembler<'a> {
     /// A generated chunk with no comments: parsed in place, so all its spans sit
     /// below `loc_base` and read as synthesized.
     fn push_synthesized(&mut self, text: &str) {
-        let owned = self.ab.allocator.alloc_str(text);
+        let owned = self.ab.allocator().alloc_str(text);
         assert!(
             (owned.len() as u32) < self.loc_base,
             "test chunk must stay below loc_base"
@@ -79,7 +79,7 @@ impl<'a> Assembler<'a> {
         let mut padded = " ".repeat(base as usize - 1);
         padded.push('\n');
         padded.push_str(text);
-        let owned = self.ab.allocator.alloc_str(&padded);
+        let owned = self.ab.allocator().alloc_str(&padded);
         let program = self.parse(owned);
         assert!(
             !program.comments.is_empty(),

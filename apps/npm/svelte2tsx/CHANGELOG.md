@@ -1,5 +1,94 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.6
+
+### Patch Changes
+
+- 6ea4b7e: Reduce svelte2tsx source scanning by collecting validation markers in the
+  existing source-feature pass.
+- 66ac8b6: Reduce svelte2tsx output allocation by reserving the exact generated
+  MagicString bundle code size.
+- 5f4f61c: Reduce svelte2tsx source-map overhead by scanning unmapped UTF-8 content once
+  while updating generated UTF-16 columns.
+- 59f0ad7: Reduce svelte2tsx MagicString growth by lazily reserving storage for the first
+  set of source splits.
+- bd1c724: Reduce svelte2tsx instance-script work by collecting import ranges during the
+  existing top-level statement traversal.
+- 09e2658: Reduce svelte2tsx transformation overhead by reusing MagicString overwrite
+  boundary lookup results.
+- e7cba19: Reduce svelte2tsx store scanning by reusing parsed script body ranges.
+- b9d5ef4: Reduce svelte2tsx opening-tag scans by starting after the final parsed
+  attribute.
+- 76bd9f4: Reduce svelte2tsx parse time and memory by skipping discarded template
+  comment AST conversion when comments are not requested.
+- 4445c51: Reduce svelte2tsx parse time and memory by skipping unused expression
+  location objects.
+- 4dae1ba: Reduce svelte2tsx source-map work by specializing bundle generation for its
+  pre-reserved mapping capacity.
+- 2729edc: Reduce svelte2tsx formatting overhead for common Svelte 5 component exports.
+- e2692ed: Reduce svelte2tsx transformation overhead by streaming the component return
+  object into its output buffer.
+- Updated dependencies [6ea4b7e]
+- Updated dependencies [66ac8b6]
+- Updated dependencies [5293c32]
+- Updated dependencies [abcd1de]
+- Updated dependencies [8a25666]
+- Updated dependencies [a53706f]
+- Updated dependencies [55ad083]
+- Updated dependencies [f84860e]
+- Updated dependencies [ed39ec4]
+- Updated dependencies [c32f8f8]
+- Updated dependencies [ac8140e]
+- Updated dependencies [5f4f61c]
+- Updated dependencies [59f0ad7]
+- Updated dependencies [bd1c724]
+- Updated dependencies [09e2658]
+- Updated dependencies [e7cba19]
+- Updated dependencies [b9d5ef4]
+- Updated dependencies [76bd9f4]
+- Updated dependencies [4445c51]
+- Updated dependencies [4dae1ba]
+- Updated dependencies [2729edc]
+- Updated dependencies [e2692ed]
+  - @rsvelte/compiler@0.9.8
+
+## 0.2.5
+
+### Patch Changes
+
+- f148cdf: svelte2tsx: stop emitting a store auto-subscription for `$props.id()` when the
+  component also declares a binding named `props` from `$props()`.
+
+  `const props: Props = $props()` next to `const id = $props.id()` made the
+  text-level `$name` scan see a `$props` token beside a declared `props`, so it
+  injected `;let $props = __sveltets_2_store_get(props);` right after the
+  declaration — after the `$props()` call that opens the same line, which
+  TypeScript then reports as `TS2448: Block-scoped variable '$props' used before
+its declaration`.
+
+  Upstream's `processInstanceScriptContent` tags each `$props.id()` occurrence
+  `isPropsId` and drops all of them once it has seen a `props` binding
+  initialized by literally `$props()`; that pair of conditions is now mirrored, so
+  `$props.id` without a call, `$props.id(arg)`, a non-rune `let props = {}`, and
+  `$state.snapshot(state)` all keep upstream's behaviour. Fixes upstream's own
+  `props-variable-and-$props.id{,-destructured,-spread}.v5` samples and removes 30
+  false-positive `TS2448` diagnostics from the svelte-check e2e parity corpus.
+
+  Fixes #1917.
+
+- Updated dependencies [f148cdf]
+  - @rsvelte/compiler@0.9.7
+
+## 0.2.4
+
+### Patch Changes
+
+- b311eec: Split the embeddable compiler, TypeScript projection, project checker, bindings support, and development tools into ownership-focused Rust crates while preserving the existing JavaScript and CLI behavior. Add the stable `rsvelte` facade, crates.io package gates, and an independently versioned `rsvelte_esrap` 0.8.0 release.
+- a82a230: svelte2tsx: keep comments that sit between the last attribute and the `>` of an element or component opening tag, matching official svelte2tsx's trailing-comment handling.
+- Updated dependencies [b311eec]
+- Updated dependencies [a82a230]
+  - @rsvelte/compiler@0.9.6
+
 ## 0.2.3
 
 ### Patch Changes

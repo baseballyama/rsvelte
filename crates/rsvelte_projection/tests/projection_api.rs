@@ -74,7 +74,8 @@ fn projection_has_bidirectional_exact_byte_mappings_and_frozen_facts() {
 
 #[test]
 fn projection_preserves_mappings_across_external_import_rewrites() {
-    let source = r#"<script>import x from "../../outside.js";</script><p>{x}</p>"#;
+    let source =
+        r#"<script>const emoji = "😀"; import x from "../../outside/😀.js";</script><p>{x}</p>"#;
     let projection = ProjectionEngine::new()
         .project(
             source,
@@ -89,7 +90,7 @@ fn projection_preserves_mappings_across_external_import_rewrites() {
         )
         .expect("project component");
 
-    assert!(projection.code.contains("../../../outside.js"));
+    assert!(projection.code.contains("../../../outside/😀.js"));
     let mappings = projection
         .exact_mappings
         .as_ref()
@@ -101,7 +102,7 @@ fn projection_preserves_mappings_across_external_import_rewrites() {
         &projection.code[offset as usize..offset as usize + 1] == "x"
             && mappings.generated_to_source(offset) == Some(source_x)
     }));
-    let rewritten_specifier = projection.code.find("../../../outside.js").unwrap() as u32;
+    let rewritten_specifier = projection.code.find("../../../outside/😀.js").unwrap() as u32;
     assert_eq!(
         mappings.generated_to_source(rewritten_specifier),
         None,
@@ -127,6 +128,29 @@ fn projection_preserves_mappings_across_external_import_rewrites() {
     assert!(raw.map.is_some());
     assert!(!raw.forward_map.is_empty());
     assert!(raw.map_offset_forward(source_x).is_some());
+}
+
+#[test]
+fn no_op_external_import_rewrite_preserves_projection_output() {
+    let source = r#"<script>import x from "../shared.js";</script><p>{x}</p>"#;
+    let baseline = rsvelte_projection::svelte2tsx::svelte2tsx(source, Svelte2TsxOptions::default())
+        .expect("baseline projection");
+    let with_rewrite = rsvelte_projection::svelte2tsx::svelte2tsx(
+        source,
+        Svelte2TsxOptions {
+            rewrite_external_imports: Some(RewriteExternalImportsOptions {
+                source_path: "/workspace/src/App.svelte".to_string(),
+                generated_path: "/workspace/.generated/nested/App.svelte.tsx".to_string(),
+                workspace_path: "/workspace".to_string(),
+            }),
+            ..Default::default()
+        },
+    )
+    .expect("projection with no-op rewrite");
+
+    assert_eq!(with_rewrite.code, baseline.code);
+    assert_eq!(with_rewrite.map, baseline.map);
+    assert_eq!(with_rewrite.forward_map, baseline.forward_map);
 }
 
 #[test]

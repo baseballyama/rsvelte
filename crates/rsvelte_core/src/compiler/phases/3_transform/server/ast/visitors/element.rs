@@ -278,6 +278,12 @@ fn emit_element_body<'a>(
         if matches!(name, "pre" | "textarea") {
             state.preserve_whitespace = true;
         }
+        // Same STICKY treatment for upstream `clean_nodes`' `path.some((n) => n.name
+        // === 'text')`: whitespace survives at any depth below an SVG `<text>`.
+        let saved_in_text_element = state.in_text_element;
+        if name == "text" {
+            state.in_text_element = true;
+        }
         if let Some(content) = content {
             // Content bind: render the bound value as the body when truthy,
             // otherwise fall back to the element's own (trimmed) children.
@@ -299,6 +305,7 @@ fn emit_element_body<'a>(
             }
         }
         state.preserve_whitespace = saved_preserve_ws;
+        state.in_text_element = saved_in_text_element;
         state
             .template
             .push(TemplateEntry::Literal(format!("</{name}>")));

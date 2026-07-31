@@ -1,0 +1,7 @@
+{
+	"description": "The `ts-relative-import-nodenext` sources under `moduleResolution: bundler`, where relative `.svelte` imports already resolved through the overlay's `rootDirs`. Guards the precedence shift #1916's fix introduces: the emitted `.d.svelte.ts` bridge is probed BEFORE the `.svelte.tsx` shadow, so it must carry the same types — generic components and rune-module defaults included.",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1916
+	]
+}

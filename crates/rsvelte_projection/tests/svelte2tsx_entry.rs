@@ -4,6 +4,17 @@
 use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, svelte2tsx};
 
 #[test]
+fn result_does_not_borrow_the_input_source() {
+    let result = {
+        let source = String::from("<h1>hello</h1>");
+        svelte2tsx(&source, Svelte2TsxOptions::default()).unwrap()
+    };
+
+    assert!(result.code.contains("svelteHTML.createElement(\"h1\","));
+    assert!(result.map.as_deref().is_some_and(|map| !map.is_empty()));
+}
+
+#[test]
 fn test_svelte2tsx_simple_template() {
     let source = "<h1>hello</h1>";
     let result = svelte2tsx(source, Svelte2TsxOptions::default());
@@ -117,6 +128,19 @@ fn test_svelte2tsx_component() {
         "Should contain reversed component name, got: {}",
         result.code
     );
+}
+
+#[test]
+fn test_svelte2tsx_mixed_forwarded_event_sources() {
+    let source =
+        "<div on:mix></div><Inner on:mix/><svelte:window on:resize/><svelte:body on:focus/>";
+    let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+    assert!(result.code.contains(
+        "events: {'mix':__sveltets_2_unionType(__sveltets_2_mapElementEvent('mix'), \
+         __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(Inner).$$events_def, 'mix')), \
+         'resize':__sveltets_2_mapWindowEvent('resize'), \
+         'focus':__sveltets_2_mapBodyEvent('focus')}"
+    ));
 }
 
 #[test]

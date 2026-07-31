@@ -18,72 +18,40 @@ positions back through its own source map and TypeScript wording moves between
 patch releases, so keying on them would make the ratchet churn without telling
 anyone anything. See the header of `check-verify.mjs`.
 
-## Current baseline: 4 entries / 5 surplus diagnostics (all FP, 0 FN)
+## Backend matrix (tsc vs tsgo)
 
-The gate landed with 16 entries across the #1883–#1889 cluster; `sibling-paths-alias`
-(#1883), `external-self-alias` (#1887), `ts-aliased-import` (#1888) and
-`kit-hooks-arrow-ts` (#1886) are now fully green and have been pruned. What
-remains:
+`check-parity` in `corpus-compat.yml` runs this gate twice: `--rsvelte-backend
+tsc` (rsvelte-check type-checks with the oracle's own `tsc`, as before) and
+`--rsvelte-backend tsgo` (rsvelte-check type-checks with the pinned
+`@typescript/native-preview` in `scripts/compat-corpus/check-tsgo` — the other
+backend the product ships, `rsvelte-check --tsgo`, previously never exercised
+in CI; #1897 Layer 4). The oracle side is unconditionally `tsc`-based in both
+legs — only rsvelte-check's own backend switches.
 
-| Scenario | Entries | Diagnostics | Issue | Class |
-|---|---|---|---|---|
-| `sibling-symlink` | 1 | 1 | #1883 (same class) | bare-specifier deep `.svelte` import through a `node_modules` symlink |
-| `kit-hooks-js` | 2 | 3 | #1886 | JSDoc/JS `export function` hooks still not augmented |
-| `boundary-elements` | 1 | 1 | #1889 | vendored `svelte-jsx-v4` shim predates `svelte:boundary` |
+Measured locally across every scenario at the time the matrix landed: **tsc and
+tsgo produce byte-for-byte identical diagnostic sets** (down to file/line/code
+for every diagnostic in every scenario, `basic` included). Both legs therefore
+ratchet against the same `check-known-failures.json` rather than a
+backend-specific file — see the `BACKEND`/`KNOWN` comment in
+`check-verify.mjs` for the reasoning. If a real tsc/tsgo divergence is ever
+found, split the ratchet then (a `.tsgo.json` sibling, same shrink-only +
+per-entry-justification convention) rather than papering over it in the shared
+file.
 
-### `sibling-symlink` — same class as #1883, different trigger
+## Current baseline: 0 entries / 0 surplus diagnostics — full parity
 
-```
-sibling-symlink|+ERROR src/deep.svelte:1 2614
-```
+The gate landed with 16 entries across the #1883–#1889 cluster and is now empty:
+`sibling-paths-alias` (#1883, fixed by #1884), `external-self-alias` (#1887, fixed
+by #1893), `ts-aliased-import` (#1888, fixed by #1895), `kit-hooks-arrow-ts`
+(#1886, fixed by #1892), `kit-hooks-js` (#1886, fixed by #1892 for the
+arrow/function-expression form and a follow-up JSDoc-anchor fix for the plain
+`export function` form), `sibling-symlink` (#1900, fixed by #1907) and
+`boundary-elements` (#1889, fixed by #1906) have all been pruned.
 
-Found while building this gate, not previously reported. The sibling *is*
-discovered here (there is a `node_modules/libs` symlink) and a shadow *is*
-emitted with a `rootDirs` bridge — but `rootDirs` only applies to **relative**
-specifiers, and `libs/components/survey-options.svelte` is a bare package
-specifier, so the bridge never fires. The barrel arm of the same scenario
-(`src/barrel.svelte`, importing through the package `exports` barrel — the shape
-#782/#805 fixed) is green and must stay green.
-
-### `kit-hooks-js` — #1886, JSDoc/JS `export function` path
-
-```
-kit-hooks-js|+ERROR src/hooks.js:1 7031
-kit-hooks-js|+ERROR src/hooks.server.js:1 7031 x2
-```
-
-#1892 fixed the `const` + arrow/function-expression form (`kit-hooks-arrow-ts` is
-now fully green, and so are the arrow-const hooks inside this same JS fixture —
-`hooks.client.js`'s `handleError`, `hooks.server.js`'s `handleError`/
-`handleFetch`). What's left is the plain `export function` form under JSDoc
-(`hooks.js`'s `reroute`, `hooks.server.js`'s `handle`): still `TS7031` on every
-binding element, tracked as the JSDoc/JS-path remainder of #1886.
-
-The four `kit-hooks-*` scenarios are one matrix:
-
-| Scenario | Form | Status |
-|---|---|---|
-| `kit-hooks-fn-ts` | `export function` (TS) | green — the form the port already matches |
-| `kit-hooks-arrow-ts` | `export const … = () => {}` (TS) | green — fixed by #1892 |
-| `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards the #1886 fix against over-augmenting |
-| `kit-hooks-js` | plain JS under `checkJs`, function + arrow | red (partial) — arrow/function-expression forms fixed by #1892, plain `export function` still open |
-
-### `boundary-elements` — #1889
-
-```
-boundary-elements|+ERROR src/Boundary.svelte:9 7006
-```
-
-The overlay unconditionally injects the vendored `svelte-jsx-v4.d.ts`, whose
-hand-enumerated `IntrinsicElements` snapshot predates `svelte:boundary`, so
-`onerror`'s callback parameter falls back to `any`. Official's `get_global_types`
-prefers `<sveltePath>/svelte-html.d.ts` instead — porting that is Layer 3 of
-#1897 and the wholesale fix for this class.
-
-The scenario also exercises `<search>`, the other element `svelte/elements` gained
-after the shim snapshot. It currently agrees on both sides and is therefore not in
-the ratchet — it is here as the drift canary for the next `svelte/elements`
-addition.
+Every scenario now agrees with official `svelte-check` diagnostic-for-diagnostic,
+so this is a **hard gate**: any divergence at all fails CI. The sections below
+document what each scenario is guarding, since a green scenario only earns its
+keep by turning red when the thing it covers regresses.
 
 ## Scenarios with no entries
 
@@ -102,12 +70,41 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
 - **`sibling-paths-alias`**, **`external-self-alias`**, **`ts-aliased-import`** —
   fixed by #1884/#1893/#1895 respectively; kept as regression guards for their
   alias-rewrite paths.
-- **`kit-hooks-fn-ts`**, **`kit-hooks-arrow-ts`**, **`kit-hooks-satisfies-ts`** —
-  see the matrix above.
-- **`sibling-symlink` / `src/barrel.svelte`** — the cross-package shape #782/#805
-  fixed.
+- **`ts-relative-import-nodenext`**, **`ts-relative-import-bundler`** — #1916, the
+  *relative* counterpart of `ts-aliased-import`: one source tree checked under
+  both module-resolution modes. The `nodenext` arm is the failing axis (ESM-mode
+  resolution adds no implicit extension, so `./x.svelte` only ever probes
+  `./x.d.svelte.ts` and everything else fell through to the ambient `*.svelte`
+  wildcard); the `bundler` arm guards the precedence shift the fix introduces,
+  since the emitted `.d.svelte.ts` bridge is now probed *before* the
+  `.svelte.tsx` shadow and has to carry the same types. Both arms cover a
+  component, a generic component and two `.svelte.ts` rune modules (one with a
+  default export), imported from a plain `.ts` barrel and from a `.svelte` file.
+- **`kit-hooks-fn-ts`**, **`kit-hooks-arrow-ts`**, **`kit-hooks-satisfies-ts`**,
+  **`kit-hooks-js`** — one matrix covering every `handle`/`handleError`/
+  `handleFetch`/`reroute` declaration shape:
+
+  | Scenario | Form | Status |
+  |---|---|---|
+  | `kit-hooks-fn-ts` | `export function` (TS) | green — the form the port already matches |
+  | `kit-hooks-arrow-ts` | `export const … = () => {}` (TS) | green — fixed by #1892 |
+  | `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards the #1886 fix against over-augmenting |
+  | `kit-hooks-js` | plain JS under `checkJs`, function + arrow | green — arrow/function-expression forms fixed by #1892, plain `export function` form fixed by anchoring its JSDoc `@type` tag at the exported statement's start instead of the `function` keyword (TypeScript ignores the tag otherwise) |
+  | `kit-routes-js` | `+page.js` `load`/`entries`, `+server.js` method handlers, `params/*.js` `match` under `checkJs` | green — regression guard for the same anchor bug across the other JSDoc-emitting paths in `kit_file.rs` |
+- **`sibling-symlink`** — both cross-package shapes: `src/barrel.svelte` through
+  the package `exports` barrel (#782/#805) and `src/deep.svelte` through a bare
+  deep specifier (#1900).
+- **`boundary-elements`** — #1889, fixed by #1906: the overlay follows
+  `get_global_types` and prefers the installed svelte's `svelte-html.d.ts` over
+  the vendored `svelte-jsx-v4.d.ts`, so element and attribute types track
+  `svelte/elements` instead of a frozen snapshot. Both arms
+  (`<svelte:boundary onerror>` and `<search>`) are the standing canary for the
+  next `svelte/elements` addition — a red here means the type environment has
+  drifted away from the user's Svelte version again.
 
 ## Burning an entry down
+
+Kept for the next time the baseline is non-empty (a new scenario lands red, say):
 
 1. Fix the underlying issue.
 2. `pnpm run test:svelte-check` — the run reports how many divergences

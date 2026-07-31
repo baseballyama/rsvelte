@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Compile every corpus entry (see collect.mjs) with BOTH the official Svelte
- * compiler (from submodules/svelte) and rsvelte (NAPI binding), for both
- * generate targets (client = CSR, server = SSR), writing the outputs to:
+ * compiler (from submodules/svelte) and rsvelte (NAPI binding), for every
+ * target in targets.mjs (client = CSR, server = SSR), writing the outputs to:
  *
  *   compatibility/expected/<id>/{client.js,server.js,client.css,error.json}
  *   compatibility/actual/<id>/{...same...}
@@ -24,6 +24,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { TARGETS, TARGET_KEYS } from './targets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -91,8 +92,8 @@ if (args.includes('--worker')) {
 		return { code, message: message.split('\n')[0] };
 	};
 
-	function compileOne(compiler, kind, source, id, generate) {
-		const options = { generate, dev: false, filename: id };
+	function compileOne(compiler, kind, source, id, target) {
+		const options = { generate: target.generate, dev: target.dev, filename: id };
 		if (kind === 'component') options.css = 'external';
 		try {
 			const result =
@@ -105,19 +106,22 @@ if (args.includes('--worker')) {
 		}
 	}
 
+	function compileAll(compiler, kind, source, id) {
+		return TARGETS.map((target) => [target, compileOne(compiler, kind, source, id, target)]);
+	}
+
 	function writeOutputs(baseDir, id, results) {
 		const dir = path.join(baseDir, id);
 		fs.mkdirSync(dir, { recursive: true });
 		const errors = {};
-		for (const target of ['client', 'server']) {
-			const r = results[target];
+		for (const [target, r] of results) {
 			if (r.error) {
-				errors[target] = r.error;
+				errors[target.key] = r.error;
 				continue;
 			}
-			fs.writeFileSync(path.join(dir, `${target}.js`), r.js);
-			if (target === 'client' && r.css != null) {
-				fs.writeFileSync(path.join(dir, 'client.css'), r.css);
+			fs.writeFileSync(path.join(dir, `${target.key}.js`), r.js);
+			if (target.css && r.css != null) {
+				fs.writeFileSync(path.join(dir, `${target.key}.css`), r.css);
 			}
 		}
 		if (Object.keys(errors).length) {
@@ -129,14 +133,8 @@ if (args.includes('--worker')) {
 		const { id, kind } = manifest[i];
 		console.log(`IDX ${i}`);
 		const source = prepareSource(id, fs.readFileSync(path.join(CORPUS, 'sources', id), 'utf8'));
-		writeOutputs(EXPECTED, id, {
-			client: compileOne(svelte, kind, source, id, 'client'),
-			server: compileOne(svelte, kind, source, id, 'server'),
-		});
-		writeOutputs(ACTUAL, id, {
-			client: compileOne(rsvelte, kind, source, id, 'client'),
-			server: compileOne(rsvelte, kind, source, id, 'server'),
-		});
+		writeOutputs(EXPECTED, id, compileAll(svelte, kind, source, id));
+		writeOutputs(ACTUAL, id, compileAll(rsvelte, kind, source, id));
 	}
 	process.exit(0);
 }
@@ -168,10 +166,8 @@ function recordPanic(i) {
 	const dir = path.join(ACTUAL, id);
 	fs.mkdirSync(dir, { recursive: true });
 	const err = { code: 'rust_panic', message: 'rsvelte compiler panicked (process aborted)' };
-	fs.writeFileSync(
-		path.join(dir, 'error.json'),
-		JSON.stringify({ client: err, server: err }, null, '\t') + '\n'
-	);
+	const errors = Object.fromEntries(TARGET_KEYS.map((key) => [key, err]));
+	fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(errors, null, '\t') + '\n');
 }
 
 function runRange(start, end) {

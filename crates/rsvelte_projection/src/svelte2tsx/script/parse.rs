@@ -1,40 +1,54 @@
-//! Script-content extraction and OXC re-parsing.
+//! Retained OXC programs shared by every script-processing pass.
 
-use oxc_allocator::Allocator;
 use oxc_ast::ast as oxc;
-use oxc_parser::Parser as OxcParser;
-use oxc_span::SourceType;
 
-use crate::ast::template::Script;
+use crate::ast::oxc_program::RetainedProgram;
+use crate::ast::template::Root;
 
-use super::super::svelte2tsx::slice_src;
+pub(crate) struct ParsedScript<'source> {
+    retained: RetainedProgram<'source>,
+}
 
-/// Extract the raw script content from the source and parse it with OXC,
-/// then invoke the callback with the parsed program.
-///
-/// This approach avoids lifetime issues since the OXC allocator and parsed
-/// program are created and consumed within the closure scope.
-pub(super) fn with_parsed_script<F>(script: &Script, source: &str, f: F)
+impl<'source> ParsedScript<'source> {
+    fn new(script: &mut crate::ast::template::Script<'source>) -> Self {
+        let retained = RetainedProgram::parse(script.raw_content, true);
+        // raw_content doubles as the lenient script-parse failure marker.
+        if retained.diagnostics().is_empty() {
+            script.raw_content = "";
+        }
+        Self { retained }
+    }
+
+    pub(crate) fn program(&self) -> &oxc::Program<'_> {
+        self.retained.program()
+    }
+
+    pub(crate) fn source(&self) -> &str {
+        self.retained.source()
+    }
+}
+
+pub(crate) struct ParsedScripts<'source> {
+    pub(crate) instance: Option<ParsedScript<'source>>,
+    pub(crate) module: Option<ParsedScript<'source>>,
+}
+
+impl<'source> ParsedScripts<'source> {
+    pub(crate) fn new(ast: &mut Root<'source>) -> Self {
+        Self {
+            instance: ast
+                .instance
+                .as_mut()
+                .map(|script| ParsedScript::new(script)),
+            module: ast.module.as_mut().map(|script| ParsedScript::new(script)),
+        }
+    }
+}
+
+#[inline]
+pub(super) fn with_parsed_script<F>(script: &ParsedScript<'_>, f: F)
 where
     F: FnOnce(&oxc::Program, &str),
 {
-    let content_start = script.content_offset as usize;
-    // Find the end of script content: from content_offset to the start of </script>
-    let script_source = slice_src(source, script.start as usize, script.end as usize);
-    let close_tag_offset = script_source
-        .rfind("</script>")
-        .or_else(|| script_source.rfind("</Script>"))
-        .unwrap_or(script_source.len());
-    let content_end = script.start as usize + close_tag_offset;
-    let raw_content = &source[content_start..content_end];
-
-    let allocator = Allocator::default();
-    // Always use TypeScript source type. TypeScript is a superset of JavaScript,
-    // so TS parsing handles both TS syntax (like `import type`, type annotations)
-    // and regular JS correctly, even when the script doesn't have `lang="ts"`.
-    let source_type = SourceType::ts();
-    let parser = OxcParser::new(&allocator, raw_content, source_type);
-    let result = parser.parse();
-
-    f(&result.program, raw_content);
+    f(script.program(), script.source());
 }

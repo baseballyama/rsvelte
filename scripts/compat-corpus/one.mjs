@@ -21,6 +21,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { flattenTemplateHoles, stripBlankLines } from './normalize.mjs';
+import { TARGETS, TARGET_KEYS } from './targets.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,8 +63,8 @@ const svelte = await import(
 );
 const rsvelte = require(path.join(ROOT, '.corpus-cache/rsvelte.node'));
 
-function compileOne(compiler, generate) {
-	const options = { generate, dev: false, filename: id };
+function compileOne(compiler, target) {
+	const options = { generate: target.generate, dev: target.dev, filename: id };
 	if (kind === 'component') options.css = 'external';
 	try {
 		const r = kind === 'component' ? compiler.compile(source, options) : compiler.compileModule(source, options);
@@ -93,8 +94,14 @@ function fmt(code, name) {
 	return stripBlankLines(out);
 }
 
-for (const target of targetArg ? [targetArg] : ['client', 'server']) {
-	console.log(`\n========== ${target} ==========`);
+const selected = targetArg ? TARGETS.filter((t) => t.key === targetArg) : TARGETS;
+if (!selected.length) {
+	console.error(`[one] unknown --target "${targetArg}" (known: ${TARGET_KEYS.join(', ')})`);
+	process.exit(2);
+}
+
+for (const target of selected) {
+	console.log(`\n========== ${target.key} ==========`);
 	const e = compileOne(svelte, target);
 	const a = compileOne(rsvelte, target);
 	if (e.error || a.error) {
@@ -104,7 +111,8 @@ for (const target of targetArg ? [targetArg] : ['client', 'server']) {
 	}
 	const ef = fmt(e.js, 'e');
 	const af = fmt(a.js, 'a');
-	if (ef === af && (e.css ?? '') === (a.css ?? '')) {
+	const cssDiffers = target.css && (e.css ?? '') !== (a.css ?? '');
+	if (ef === af && !cssDiffers) {
 		console.log('MATCH');
 		continue;
 	}
@@ -118,7 +126,7 @@ for (const target of targetArg ? [targetArg] : ['client', 'server']) {
 		fs.unlinkSync(tmpE);
 		fs.unlinkSync(tmpA);
 	}
-	if ((e.css ?? '') !== (a.css ?? '')) {
+	if (cssDiffers) {
 		console.log('--- css expected\n' + e.css + '\n--- css actual\n' + a.css);
 	}
 }

@@ -13,7 +13,7 @@ pub(crate) fn handle_key_block(
     block: &KeyBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -55,7 +55,7 @@ pub(crate) fn handle_key_block(
             str.append_left(expr_end, "; {");
         }
     } else {
-        str.overwrite(block.start, content_start, &format!("{expr_text}; {{"));
+        str.overwrite_fmt(block.start, content_start, format_args!("{expr_text}; {{"));
     }
 
     // Process children

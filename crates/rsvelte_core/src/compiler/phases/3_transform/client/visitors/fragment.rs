@@ -101,6 +101,7 @@ pub fn fragment(
         parent,
         &node.nodes,
         &context.path,
+        context.state.metadata.in_text_element,
         &namespace,
         context.state.scope,
         context.state.analysis,
@@ -164,6 +165,7 @@ pub fn fragment(
             // Reset svelte_element_child flag for the new state - it was only
             // needed to prevent namespace inference at the immediate child level
             svelte_element_child: false,
+            in_text_element: context.state.metadata.in_text_element,
         },
         in_constructor: false,
         in_derived: false,

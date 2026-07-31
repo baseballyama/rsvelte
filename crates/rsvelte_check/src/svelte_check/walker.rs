@@ -26,10 +26,46 @@ pub struct RelevantFiles {
 /// path contains any fragment as a path component are skipped).
 pub fn find_svelte_files(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
-    let walker = WalkDir::new(root)
+    for entry in pruned_walk(root, filter_paths).flatten() {
+        if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "svelte") {
+            out.push(entry.into_path());
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Find every `<name>.svelte.ts` / `<name>.svelte.js` module under `root` — a
+/// Svelte 5 "rune module", whose import specifier is conventionally written
+/// with the trailing extension stripped (`./provider.svelte`). Same pruning as
+/// [`find_svelte_files`]. Needed because such a specifier ends in `.svelte`
+/// and therefore competes with the overlay's ambient wildcard (#1916).
+pub fn find_svelte_suffixed_modules(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    for entry in pruned_walk(root, filter_paths).flatten() {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy();
+        if name.ends_with(".svelte.ts") || name.ends_with(".svelte.js") {
+            out.push(entry.into_path());
+        }
+    }
+    out.sort();
+    out
+}
+
+/// The shared traversal both finders use: skip `node_modules`, hidden
+/// directories and any user-supplied ignore fragment.
+fn pruned_walk(
+    root: &Path,
+    filter_paths: &[String],
+) -> impl Iterator<Item = walkdir::Result<walkdir::DirEntry>> {
+    let filter_paths = filter_paths.to_vec();
+    WalkDir::new(root)
         .follow_links(false)
         .into_iter()
-        .filter_entry(|e| {
+        .filter_entry(move |e| {
             // Never prune the walk root itself — it's the workspace the user
             // explicitly pointed us at. `WalkDir::new(".")` / `"./"` reports a
             // depth-0 entry whose `file_name()` falls back to the path string
@@ -55,14 +91,7 @@ pub fn find_svelte_files(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
                 path.components()
                     .any(|c| c.as_os_str().to_string_lossy() == *frag)
             })
-        });
-    for entry in walker.flatten() {
-        if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "svelte") {
-            out.push(entry.into_path());
-        }
-    }
-    out.sort();
-    out
+        })
 }
 
 /// Find both `.svelte` files and SvelteKit `.ts` / `.js` files (route,
@@ -74,28 +103,7 @@ pub fn find_relevant_files(
     settings: &KitFilesSettings,
 ) -> RelevantFiles {
     let mut out = RelevantFiles::default();
-    let walker = WalkDir::new(root)
-        .follow_links(false)
-        .into_iter()
-        .filter_entry(|e| {
-            // Never prune the walk root — see `find_svelte_files` (issue #718).
-            if e.depth() == 0 {
-                return true;
-            }
-            let name = e.file_name().to_string_lossy();
-            if name == "node_modules" || name.starts_with('.') {
-                return false;
-            }
-            if filter_paths.is_empty() {
-                return true;
-            }
-            let path = e.path();
-            !filter_paths.iter().any(|frag| {
-                path.components()
-                    .any(|c| c.as_os_str().to_string_lossy() == *frag)
-            })
-        });
-    for entry in walker.flatten() {
+    for entry in pruned_walk(root, filter_paths).flatten() {
         if !entry.file_type().is_file() {
             continue;
         }
@@ -183,6 +191,41 @@ mod tests {
         assert!(
             !names.contains(&"Hidden.svelte".into()),
             "descendant hidden dirs are still skipped"
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn finds_svelte_suffixed_modules() {
+        let tmp = std::env::temp_dir().join(format!("svc_walker_runes_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        setup_project(&tmp);
+        let touch = |p: &Path| {
+            fs::File::create(p)
+                .unwrap()
+                .write_all(b"export {};")
+                .unwrap();
+        };
+        touch(&tmp.join("src/state.svelte.ts"));
+        touch(&tmp.join("src/legacy.svelte.js"));
+        touch(&tmp.join("src/plain.ts"));
+        touch(&tmp.join("node_modules/something/dep.svelte.ts"));
+        touch(&tmp.join("dist/built.svelte.js"));
+        let names = |filter: &[String]| -> Vec<String> {
+            find_svelte_suffixed_modules(&tmp, filter)
+                .iter()
+                .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .collect()
+        };
+        assert_eq!(
+            names(&[]),
+            vec!["built.svelte.js", "legacy.svelte.js", "state.svelte.ts"]
+        );
+        // `--ignore` applies here too, so the bridges the overlay emits cover
+        // exactly the tree the checked file set was collected from.
+        assert_eq!(
+            names(&["dist".to_string()]),
+            vec!["legacy.svelte.js", "state.svelte.ts"]
         );
         let _ = fs::remove_dir_all(&tmp);
     }

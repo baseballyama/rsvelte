@@ -54,14 +54,10 @@ jobs:
           # Only the two submodules this suite needs, checked out shallow below.
           submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+      - uses: ./.github/actions/setup-rust
         with:
-          toolchain: 1.97.1
           components: rustfmt, clippy
-
-      - name: Setup mold linker
-        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+          mold: 'true'
 
       # MUST come before the cache step: rust-cache runs `cargo metadata` to
       # build its key, and the crate path-depends on corsa-bind. Without the
@@ -77,6 +73,7 @@ jobs:
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: crates/rsvelte_lint_types
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:

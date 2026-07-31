@@ -4,9 +4,7 @@
 //! Extracts exported names, component events, and prop declarations to generate
 //! proper TypeScript type information.
 //!
-//! Script AST is obtained by re-parsing the raw script content via OXC and walking
-//! the OXC AST directly. This avoids dependency on the thread-local ParseArena
-//! used by the main compiler, keeping svelte2tsx self-contained.
+//! Script AST is parsed once with OXC and retained across every processing pass.
 
 mod ast_utils;
 mod component_events;
@@ -17,6 +15,7 @@ mod parse;
 mod props_rune;
 mod reactive;
 mod runes;
+mod script_facts;
 mod stores;
 #[cfg(test)]
 mod test_support;
@@ -30,11 +29,13 @@ use oxc_span::GetSpan;
 use crate::ast::template::Script;
 
 use super::magic_string::MagicString;
+use super::nodes::scripts::InstanceImportCollector;
 use super::svelte2tsx::slice_src;
+use super::utils::lexical::contains_word;
 
 pub use component_events::ComponentEvents;
 pub use exported_names::{ExportedNameInfo, ExportedNames};
-pub use stores::collect_module_import_store_declarations;
+pub(super) use stores::{StoreScanContext, collect_module_import_store_declarations};
 
 use ast_utils::{
     binding_pattern_simple_name, collect_top_level_declared_names, declarator_has_boolean_init,
@@ -48,6 +49,7 @@ use hoistable_types::{
     is_special_type_name, resolve_hoistable_type_decls, rewrite_interface_to_type_dts,
 };
 use parse::with_parsed_script;
+pub(crate) use parse::{ParsedScript, ParsedScripts};
 use props_rune::{
     PropsRuneInfo, apply_props_typedef, collect_props_rune_info, detect_props_rune_oxc,
 };
@@ -56,11 +58,11 @@ use runes::{
     detect_rune_in_class_body, detect_rune_in_expr, detect_rune_in_nested_body, detect_runes_call,
     detect_runes_expr_stmt, scope_with_params,
 };
+use script_facts::ScriptFacts;
 use stores::{
-    collect_loose_dollar_names_from_script, inject_store_subscriptions_vars_only_with_program,
-    inject_store_subscriptions_with_program,
+    inject_store_subscriptions_vars_only_with_program, inject_store_subscriptions_with_program,
 };
-use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions_with_program};
+use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions};
 
 /// Classify a Svelte component basename for SvelteKit autotype injection.
 ///
@@ -97,8 +99,11 @@ pub fn classify_kit_route_file(basename: &str) -> Option<bool> {
 /// - Store subscriptions
 pub fn process_instance_script(
     script: &Script,
+    parsed: &ParsedScript<'_>,
+    module_program: Option<&oxc::Program<'_>>,
     source: &str,
-    str: &mut MagicString,
+    store_scan: &mut StoreScanContext<'_>,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
     _events: &mut ComponentEvents,
     is_ts: bool,
@@ -106,9 +111,14 @@ pub fn process_instance_script(
     emit_jsdoc: bool,
     is_dts_mode: bool,
     script_generic_names: &HashSet<String>,
-) {
+) -> Vec<(u32, u32, u32)> {
     let offset = script.content_offset;
-    with_parsed_script(script, source, |program, raw_content| {
+    let mut instance_imports = Vec::new();
+    with_parsed_script(parsed, |program, raw_content| {
+        let script_facts = ScriptFacts::collect(program, offset, raw_content, true, store_scan);
+        let mut import_collector = contains_word(raw_content.as_bytes(), b"import")
+            .then(|| InstanceImportCollector::new(raw_content, &program.comments));
+
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
         // Pre-populate with ALL top-level declared names so rune-vs-store
@@ -116,7 +126,7 @@ pub fn process_instance_script(
         // `state`) sees the complete scope — incl. a name declared by the very
         // statement whose initializer we're checking. See
         // collect_top_level_declared_names.
-        let mut declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
+        let declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -152,11 +162,8 @@ pub fn process_instance_script(
                         ) {
                             props_rune_infos.push(info);
                         }
-                        let names = extract_all_names_from_binding_pattern(&declarator.id);
-                        for name in &names {
-                            declared_names.insert(name.clone());
-                        }
-                        if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                        if let oxc::BindingPattern::BindingIdentifier(id) = &declarator.id {
+                            let name = id.name.to_string();
                             let ta_text = declarator.type_annotation.as_ref().and_then(|ta| {
                                 let ts_type = &ta.type_annotation;
                                 let start = ts_type.span().start as usize;
@@ -168,7 +175,7 @@ pub fn process_instance_script(
                                 }
                             });
                             possible_exports.insert(
-                                name,
+                                name.to_owned(),
                                 PossibleExport {
                                     is_let,
                                     has_init: declarator.init.is_some(),
@@ -179,7 +186,8 @@ pub fn process_instance_script(
                                     doc: leading_jsdoc_comment(
                                         raw_content,
                                         var_decl.span.start as usize,
-                                    ),
+                                    )
+                                    .map(str::to_string),
                                 },
                             );
                         } else {
@@ -188,9 +196,9 @@ pub fn process_instance_script(
                             // re-exported via `export { a, c }`. Record them as
                             // possible exports so the specifier handler resolves
                             // the correct `is_let` (a `let` destructure → prop).
-                            for name in &names {
+                            for name in extract_all_names_from_binding_pattern(&declarator.id) {
                                 possible_exports.insert(
-                                    name.clone(),
+                                    name,
                                     PossibleExport {
                                         is_let,
                                         has_init: declarator.init.is_some(),
@@ -206,6 +214,9 @@ pub fn process_instance_script(
                     }
                 }
                 oxc::Statement::ImportDeclaration(import) => {
+                    if let Some(collector) = &mut import_collector {
+                        collector.push_import(import);
+                    }
                     if let Some(ref specifiers) = import.specifiers {
                         for spec in specifiers.iter() {
                             let name = match spec {
@@ -219,15 +230,11 @@ pub fn process_instance_script(
                                     s.local.name.to_string()
                                 }
                             };
-                            declared_names.insert(name.clone());
                             exported_names.instance_import_names.insert(name);
                         }
                     }
                 }
                 oxc::Statement::FunctionDeclaration(func) => {
-                    if let Some(ref id) = func.id {
-                        declared_names.insert(id.name.to_string());
-                    }
                     // Detect rune calls nested inside the function body.
                     // The official svelte2tsx `checkGlobalsForRunes` walks the
                     // entire TypeScript AST (including function bodies) and flags
@@ -245,9 +252,6 @@ pub fn process_instance_script(
                     }
                 }
                 oxc::Statement::ClassDeclaration(class) => {
-                    if let Some(ref id) = class.id {
-                        declared_names.insert(id.name.to_string());
-                    }
                     // Detect rune calls nested inside class method bodies.
                     if class.body.body.iter().any(|member| match member {
                         oxc::ClassElement::MethodDefinition(method) => {
@@ -264,18 +268,6 @@ pub fn process_instance_script(
                         exported_names.set_uses_runes(true);
                     }
                 }
-                // Track instance-script namespace and enum names so the
-                // hoist analyser treats `A.Abc` references as blocking when
-                // `A` is bound in the instance script. Mirrors the JS
-                // reference's `disallowed_types.add(...)` for namespaces.
-                oxc::Statement::TSModuleDeclaration(module) => {
-                    if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &module.id {
-                        declared_names.insert(id.name.to_string());
-                    }
-                }
-                oxc::Statement::TSEnumDeclaration(enum_decl) => {
-                    declared_names.insert(enum_decl.id.name.to_string());
-                }
                 oxc::Statement::ExportNamedDeclaration(export) => {
                     // Also check exports for declared names
                     if let Some(ref decl) = export.declaration {
@@ -286,11 +278,6 @@ pub fn process_instance_script(
                                 let is_let =
                                     matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                                 for declarator in var_decl.declarations.iter() {
-                                    let names =
-                                        extract_all_names_from_binding_pattern(&declarator.id);
-                                    for name in &names {
-                                        declared_names.insert(name.clone());
-                                    }
                                     if let Some(name) = binding_pattern_simple_name(&declarator.id)
                                     {
                                         let ta_text =
@@ -305,7 +292,7 @@ pub fn process_instance_script(
                                                 }
                                             });
                                         possible_exports.insert(
-                                            name,
+                                            name.to_owned(),
                                             PossibleExport {
                                                 is_let,
                                                 has_init: declarator.init.is_some(),
@@ -320,16 +307,14 @@ pub fn process_instance_script(
                                                 doc: leading_jsdoc_comment(
                                                     raw_content,
                                                     var_decl.span.start as usize,
-                                                ),
+                                                )
+                                                .map(str::to_string),
                                             },
                                         );
                                     }
                                 }
                             }
                             oxc::Declaration::FunctionDeclaration(func) => {
-                                if let Some(ref id) = func.id {
-                                    declared_names.insert(id.name.to_string());
-                                }
                                 // Runes inside an exported function body still
                                 // put the component in runes mode.
                                 if let Some(ref body) = func.body {
@@ -340,9 +325,6 @@ pub fn process_instance_script(
                                 }
                             }
                             oxc::Declaration::ClassDeclaration(class) => {
-                                if let Some(ref id) = class.id {
-                                    declared_names.insert(id.name.to_string());
-                                }
                                 // `export class C { x = $state(0) }` → runes mode.
                                 if detect_rune_in_class_body(class, &declared_names) {
                                     exported_names.set_uses_runes(true);
@@ -540,7 +522,7 @@ pub fn process_instance_script(
                             // Match through aliases: `export { v1 as a1 }` keys
                             // the entry by `a1`, so `has(v1)` is false — check
                             // the local name too.
-                            exported_names.has(&name) || exported_names.has_local(&name)
+                            exported_names.has(name) || exported_names.has_local(name)
                         } else {
                             false
                         }
@@ -567,7 +549,7 @@ pub fn process_instance_script(
                             let Some(name) = binding_pattern_simple_name(&d.id) else {
                                 continue;
                             };
-                            if exported_names.has(&name) || exported_names.has_local(&name) {
+                            if exported_names.has(name) || exported_names.has_local(name) {
                                 continue;
                             }
                             // Match handleTypeAssertion's widening condition:
@@ -617,9 +599,7 @@ pub fn process_instance_script(
         // Snapshot instance-script value declarations so callers (in particular
         // the force-inside-render heuristic for `$$ComponentProps`) can detect
         // when the props type references an instance-scope binding.
-        for name in declared_names.iter() {
-            exported_names.instance_value_names.insert(name.clone());
-        }
+        exported_names.instance_value_names = declared_names;
 
         // Collect loose `$name` references from the instance script WITHOUT the
         // rune-exclusion filter.  The official JS svelte2tsx's `is_rune` check is
@@ -630,11 +610,11 @@ pub fn process_instance_script(
         // snippets that reference `props` / `bindable` / etc. as plain identifiers
         // (e.g. from a nested `{#snippet child({ props })}`) to be treated as
         // non-hoistable.  Mirroring that behaviour here.
-        for name in collect_loose_dollar_names_from_script(raw_content) {
-            exported_names
-                .instance_script_loose_dollar_names
-                .insert(name);
-        }
+        store_scan.collect_loose_dollar_names(
+            content_start,
+            content_end,
+            &mut exported_names.instance_script_loose_dollar_names,
+        );
 
         // Unconditionally hoist instance-script type/interface declarations whose
         // names appear as `$$Generic<X>` constraints. Mirrors the JS reference's
@@ -718,17 +698,22 @@ pub fn process_instance_script(
 
         // Pass 5: store subscriptions. Reuses the already-parsed program
         // so we don't re-parse the instance script content with OXC.
-        inject_store_subscriptions_with_program(program, offset, source, str);
+        inject_store_subscriptions_with_program(program, module_program, offset, store_scan, str);
 
         // Pass 6: disambiguate generic arrow type-parameter lists for the
         // `.tsx` overlay (`<T>` → `<T,>`) so they aren't misparsed as JSX.
-        disambiguate_arrow_type_params(program, offset, raw_content, str);
+        disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
 
         // Pass 7: rewrite TS angle-bracket type assertions (`<X>e` → `e as X`)
         // anywhere in the instance script — TSX cannot parse the `<X>e` form.
         // Mirrors official `handleTypeAssertion`, applied during the same walk.
-        rewrite_type_assertions_with_program(program, offset as usize, str);
+        rewrite_type_assertions(&script_facts.type_assertions, str);
+
+        if let Some(collector) = import_collector {
+            instance_imports = collector.finish();
+        }
     });
+    instance_imports
 }
 /// Process a module script block (`<script context="module">`).
 ///
@@ -746,8 +731,9 @@ pub fn process_instance_script(
 /// * `exported_names` - Accumulator for exported names
 pub fn process_module_script(
     script: &Script,
-    source: &str,
-    str: &mut MagicString,
+    parsed: &ParsedScript<'_>,
+    store_scan: &mut StoreScanContext<'_>,
+    str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
 ) {
     // Module script exports are kept as-is (with the export keyword).
@@ -757,22 +743,24 @@ pub fn process_module_script(
     // store-subscription injection, type-assertion rewrite, name snapshot).
     // Parse once and share the program across all three passes.
     let offset = script.content_offset;
-    with_parsed_script(script, source, |program, raw_content| {
+    with_parsed_script(parsed, |program, raw_content| {
+        let script_facts = ScriptFacts::collect(program, offset, raw_content, false, store_scan);
+
         // Inject store subscriptions for module-level variable declarations
         // only. Import-based store subscriptions are NOT injected here
         // because they need to go inside the $$render function body.
-        inject_store_subscriptions_vars_only_with_program(program, offset, source, str);
+        inject_store_subscriptions_vars_only_with_program(program, offset, store_scan, str);
 
         // Rewrite TypeScript angle-bracket type assertions (`<X>e`) into
         // the `e as X` form. Inside the module script the rewrite is
         // required because the generated `.tsx` parses the module-script
         // body at top level, where `<X>e` would be lexed as JSX.
-        rewrite_type_assertions_with_program(program, offset as usize, str);
+        rewrite_type_assertions(&script_facts.type_assertions, str);
 
         // Disambiguate generic arrow type-parameter lists (`<T>` → `<T,>`) so
         // the module-script body, parsed at the top level of the `.tsx`
         // overlay, doesn't lex a single-parameter arrow generic as JSX.
-        disambiguate_arrow_type_params(program, offset, raw_content, str);
+        disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
 
         // Snapshot top-level module-script names for the snippet hoist analysis.
         for stmt in program.body.iter() {
@@ -894,7 +882,7 @@ pub fn process_module_script(
 
 #[cfg(test)]
 mod tests {
-    use super::test_support::run_svelte2tsx;
+    use super::test_support::{run_svelte2tsx, run_svelte2tsx_ts};
     use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
     #[test]
@@ -966,5 +954,118 @@ mod tests {
         assert!(result.exported_names.has("name"));
         assert!(result.exported_names.get("name").unwrap().is_prop);
         assert_eq!(result.exported_names.get_prop_names(), vec!["name"]);
+    }
+
+    #[test]
+    fn top_level_binding_inventory_covers_every_prepass_declaration() {
+        let source = r#"<script lang="ts">
+import default_import, { named as aliased_import } from "pkg";
+import * as namespace_import from "other";
+var plain_var;
+let plain_let = 1;
+const plain_const = 2;
+function plain_function() {}
+class PlainClass {}
+namespace PlainNamespace {}
+enum PlainEnum { Value }
+export let exported_var = 3;
+export function exported_function() {}
+export class ExportedClass {}
+</script>"#;
+        let result = run_svelte2tsx_ts(source);
+        let expected = [
+            "default_import",
+            "aliased_import",
+            "namespace_import",
+            "plain_var",
+            "plain_let",
+            "plain_const",
+            "plain_function",
+            "PlainClass",
+            "PlainNamespace",
+            "PlainEnum",
+            "exported_var",
+            "exported_function",
+            "ExportedClass",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+
+        assert_eq!(result.exported_names.instance_value_names, expected);
+    }
+
+    #[test]
+    fn top_level_binding_inventory_flattens_deep_destructuring_and_rest() {
+        let source = r#"<script lang="ts">
+let {
+    direct,
+    nested: { assigned = 1, ...object_rest },
+    list: [array_first, , { deep }, ...array_rest],
+    ...outer_rest
+} = {} as any;
+</script>"#;
+        let result = run_svelte2tsx_ts(source);
+        let expected = [
+            "direct",
+            "assigned",
+            "object_rest",
+            "array_first",
+            "deep",
+            "array_rest",
+            "outer_rest",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+
+        assert_eq!(result.exported_names.instance_value_names, expected);
+    }
+
+    #[test]
+    fn late_same_name_binding_keeps_earlier_dollar_call_out_of_runes_mode() {
+        let source = r#"<script>
+let answer = $state(0);
+let state;
+</script>"#;
+        let result = run_svelte2tsx(source);
+
+        assert!(!result.exported_names.is_runes_mode());
+        assert!(
+            result.code.contains("bindings: \"\""),
+            "legacy bindings marker missing:\n{}",
+            result.code
+        );
+    }
+
+    #[test]
+    fn binding_inventory_does_not_affect_output_or_source_maps() {
+        let source = r#"<script lang="ts">
+import { readable as mapped_import } from "svelte/store";
+let { nested: { mapped_binding }, ...mapped_rest } = {} as any;
+export { mapped_binding };
+</script>
+<p>{mapped_binding}{mapped_rest}{mapped_import}</p>"#;
+        let first = run_svelte2tsx_ts(source);
+        let second = run_svelte2tsx_ts(source);
+
+        assert_eq!(first.code, second.code);
+        assert_eq!(first.map, second.map);
+        assert_eq!(first.forward_map, second.forward_map);
+
+        let binding_offset = source.find("mapped_binding").unwrap() as u32;
+        let generated_offset = first
+            .map_offset_forward(binding_offset)
+            .expect("binding declaration should remain forward-mapped")
+            as usize;
+        assert_eq!(
+            &first.code[generated_offset..generated_offset + "mapped_binding".len()],
+            "mapped_binding"
+        );
+
+        let raw_map = first.map.as_deref().expect("source map");
+        let map = sourcemap::SourceMap::from_slice(raw_map.as_bytes()).expect("valid source map");
+        assert_eq!(map.get_source(0), Some("Component.svelte"));
+        assert!(map.tokens().next().is_some());
     }
 }

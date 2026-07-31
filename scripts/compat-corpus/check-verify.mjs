@@ -8,7 +8,8 @@
  *      see byte-identical dependencies.
  *   2. Check it with the REAL `svelte-check` — the ground truth.
  *   3. Check it with the native `rsvelte-check` binary.
- *   4. Diff the two normalized diagnostic sets.
+ *   4. Diff the two normalized diagnostic sets — both sides read via
+ *      `--output machine-verbose`, so one parser covers both.
  *
  * Unlike the compiler / fmt / svelte2tsx / lint gates, this one compares
  * *diagnostics of a type-checked project*, not per-file text: alias resolution,
@@ -17,7 +18,8 @@
  *
  * NORMALIZATION — a diagnostic collapses to `<SEVERITY> <relpath>:<line> <code>`:
  *   - path is relative to the checked workspace, `/`-separated;
- *   - line is 1-based (the oracle's machine-verbose JSON is 0-based, so +1);
+ *   - line is 1-based (both sides' machine-verbose JSON `start.line` is
+ *     0-based, so +1);
  *   - code is the bare TS error number (`TS2322` -> `2322`) or, for Svelte
  *     compiler diagnostics, the warning/error code string.
  * COLUMN and MESSAGE TEXT are deliberately dropped: both differ for reasons that
@@ -38,20 +40,25 @@
  *   node scripts/compat-corpus/check-verify.mjs --show N       # print up to N new diffs
  *   node scripts/compat-corpus/check-verify.mjs --scenario a,b # restrict to scenarios
  *   node scripts/compat-corpus/check-verify.mjs --keep         # keep the temp workspaces
+ *   node scripts/compat-corpus/check-verify.mjs --rsvelte-backend tsgo
+ *                                                               # type-check the rsvelte
+ *                                                               # side with tsgo instead of
+ *                                                               # tsc (scripts/compat-corpus/
+ *                                                               # check-tsgo); the oracle side
+ *                                                               # is always tsc-based.
  */
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { diffCounts, parseMachineVerbose, runCapture } from './check-diagnostics.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const FIXTURES = path.join(ROOT, 'compatibility/check-fixtures');
-const KNOWN = path.join(ROOT, 'compatibility/check-known-failures.json');
-const REPORT = path.join(ROOT, 'compatibility/check-report.json');
 const ORACLE_DIR = path.join(__dirname, 'check-oracle');
+const TSGO_DIR = path.join(__dirname, 'check-tsgo');
 
 const args = process.argv.slice(2);
 const UPDATE = args.includes('--update');
@@ -60,6 +67,28 @@ const SHOW = args.includes('--show') ? Number(args[args.indexOf('--show') + 1] |
 const ONLY = args.includes('--scenario')
 	? new Set((args[args.indexOf('--scenario') + 1] || '').split(',').filter(Boolean))
 	: null;
+// Which compiler backend rsvelte-check itself type-checks with. The oracle
+// (real svelte-check) is unconditionally tsc-based regardless of this flag —
+// only the side under test switches. `tsc` keeps today's behaviour untouched;
+// `tsgo` is the product's other shipped backend (`rsvelte-check --tsgo`),
+// exercised nowhere else in CI (#1897 Layer 4).
+const BACKEND = args.includes('--rsvelte-backend')
+	? args[args.indexOf('--rsvelte-backend') + 1]
+	: 'tsc';
+if (BACKEND !== 'tsc' && BACKEND !== 'tsgo') {
+	fail(`--rsvelte-backend must be "tsc" or "tsgo", got "${BACKEND}"`);
+}
+// One ratchet shared by both backends: measured locally, tsc and tsgo produce
+// IDENTICAL diagnostic sets across every scenario (0 divergence either way —
+// see the tsc-vs-tsgo comparison in the PR that added `--rsvelte-backend`).
+// Splitting the file only pays off once the backends actually disagree; until
+// then a shared ratchet is simpler and a `tsgo`-only regression still fails
+// the gate (it shows up as a new divergence against the same known-good
+// baseline the `tsc` leg already cleared).
+const KNOWN = path.join(ROOT, 'compatibility/check-known-failures.json');
+// Report filename still varies by backend so a `--rsvelte-backend tsgo` run
+// doesn't clobber the `tsc` leg's debug artifact when run back-to-back locally.
+const REPORT = path.join(ROOT, `compatibility/check-report${BACKEND === 'tsgo' ? '.tsgo' : ''}.json`);
 
 function fail(msg) {
 	console.error(`[check-verify] ${msg}`);
@@ -96,6 +125,27 @@ function oracleModules() {
 	return nm;
 }
 
+/** Resolve the compiler binary rsvelte-check's TSGO_BIN should point at, per `--rsvelte-backend`. */
+function rsvelteCompiler(oracleNodeModules) {
+	if (BACKEND === 'tsc') {
+		// The real TypeScript's own launcher, NOT `.bin/tsc`: the oracle also
+		// installs TypeScript 7 under the `@typescript/native` alias, which
+		// declares the same `tsc` bin name, so the shim points at whichever of
+		// the two npm linked last. Everything but the `ts7-native` scenario
+		// must type-check with the TS 6 svelte-check itself runs on.
+		const tsc = path.join(oracleNodeModules, 'typescript/bin/tsc');
+		if (!fs.existsSync(tsc)) return fail(`oracle typescript missing its tsc at ${tsc}`);
+		return tsc;
+	}
+	const tsgo = path.join(TSGO_DIR, 'node_modules/.bin/tsgo');
+	if (!fs.existsSync(tsgo)) {
+		return fail(
+			'tsgo backend not installed; run `npm --prefix scripts/compat-corpus/check-tsgo install --no-package-lock`'
+		);
+	}
+	return tsgo;
+}
+
 function scenarios() {
 	return fs
 		.readdirSync(FIXTURES, { withFileTypes: true })
@@ -120,111 +170,11 @@ function materialize(name, config, dest, nodeModules) {
 	}
 }
 
-function runCapture(program, argv, cwd, env) {
-	try {
-		return execFileSync(program, argv, {
-			cwd,
-			encoding: 'utf8',
-			maxBuffer: 1 << 28,
-			env: { ...process.env, ...env }
-		});
-	} catch (err) {
-		// Both CLIs exit non-zero as soon as they report an error; stdout is on err.
-		if (err.stdout === undefined) throw err;
-		return err.stdout;
-	}
-}
-
-const rel = (p) => p.split(path.sep).join('/');
-const key = (severity, file, line, code) => `${severity} ${rel(file)}:${line} ${code}`;
-
-const bump = (counts, k) => counts.set(k, (counts.get(k) ?? 0) + 1);
-
-/** `TS2322` / `2322` / 2322 -> `2322`; Svelte codes stay as written. */
-function normalizeCode(code) {
-	if (code === undefined || code === null || code === '') return '?';
-	return String(code).replace(/^TS(?=\d)/, '');
-}
-
-/**
- * Official `--output machine-verbose`: one `<epoch-ms> <payload>` line per
- * event, where a diagnostic payload is the JSON object built by
- * `MachineFriendlyWriter`. START / COMPLETED lines are not JSON objects.
- */
-function parseOracle(stdout) {
-	const counts = new Map();
-	const detail = [];
-	for (const line of stdout.split('\n')) {
-		const payload = line.slice(line.indexOf(' ') + 1).trim();
-		if (!payload.startsWith('{')) continue;
-		let d;
-		try {
-			d = JSON.parse(payload);
-		} catch {
-			continue;
-		}
-		if (d.type !== 'ERROR' && d.type !== 'WARNING') continue;
-		const k = key(d.type, d.filename, d.start.line + 1, normalizeCode(d.code));
-		bump(counts, k);
-		detail.push({ key: k, message: d.message, source: d.source });
-	}
-	return { counts, detail };
-}
-
-/**
- * rsvelte-check's `--output github-actions`:
- *   `::<level> file=<rel>,line=<L>,col=<C>::(<source>) <message> [<code>]`
- * It is the only rsvelte output format carrying the diagnostic code, which the
- * normalization key needs. (rsvelte's own `machine-verbose` is a line-oriented
- * format rather than upstream's JSON — a separate parity gap, tracked outside
- * this gate.)
- */
-function parseRsvelte(stdout) {
-	const unescape = (s) =>
-		s
-			.replace(/%3A/g, ':')
-			.replace(/%2C/g, ',')
-			.replace(/%0A/g, '\n')
-			.replace(/%0D/g, '\r')
-			.replace(/%25/g, '%');
-	const counts = new Map();
-	const detail = [];
-	const re = /^::(error|warning|notice) file=(.*?),line=(\d+),col=(\d+)::(.*)$/;
-	for (const line of stdout.split('\n')) {
-		const m = re.exec(line.trim());
-		if (!m) continue;
-		const level = m[1] === 'error' ? 'ERROR' : m[1] === 'warning' ? 'WARNING' : null;
-		if (!level) continue;
-		// Match the trailing `[code]` on the still-escaped body: the message may
-		// carry `%0A`-encoded newlines, but a code never does.
-		const codeMatch = /\[([^\]]+)\]$/.exec(m[5]);
-		const k = key(level, unescape(m[2]), Number(m[3]), normalizeCode(codeMatch?.[1]));
-		bump(counts, k);
-		detail.push({ key: k, message: unescape(m[5]) });
-	}
-	return { counts, detail };
-}
-
-/**
- * Multiset difference: one entry per key whose multiplicity differs, tagged with
- * the side that has the surplus and how large it is.
- */
-function diffCounts(scenario, oracle, rsvelte) {
-	const out = [];
-	for (const k of new Set([...oracle.keys(), ...rsvelte.keys()])) {
-		const delta = (rsvelte.get(k) ?? 0) - (oracle.get(k) ?? 0);
-		if (delta === 0) continue;
-		const n = Math.abs(delta);
-		out.push(`${scenario}|${delta > 0 ? '+' : '-'}${k}${n > 1 ? ` x${n}` : ''}`);
-	}
-	return out;
-}
-
 function main() {
 	const bin = findBinary();
 	const nodeModules = oracleModules();
-	const tsc = path.join(nodeModules, '.bin/tsc');
-	if (!fs.existsSync(tsc)) return fail(`oracle typescript missing its tsc at ${tsc}`);
+	const rsvelteTsBin = rsvelteCompiler(nodeModules);
+	console.log(`[check-verify] rsvelte-check backend: ${BACKEND} (${rsvelteTsBin})`);
 	const names = scenarios();
 	if (names.length === 0) return fail('no scenarios under compatibility/check-fixtures');
 
@@ -246,9 +196,17 @@ function main() {
 		// it against the workspace, rsvelte-check against cwd).
 		const common = ['--workspace', '.'];
 		if (config.tsconfig) common.push('--tsconfig', config.tsconfig);
+		// `args` opts a scenario into a flag both checkers understand — the
+		// point being to compare the diagnostics that flag produces, so it has
+		// to reach both sides identically.
+		for (const extra of config.args ?? []) common.push(extra);
 		const ws = config.workspace ?? '.';
+		// `TSGO_BIN` pins rsvelte-check to the backend selected above so both
+		// sides type-check with the same compiler. A scenario whose whole
+		// subject IS compiler discovery has to be allowed to do its own.
+		const actualEnv = config.discoverCompiler ? {} : { TSGO_BIN: rsvelteTsBin };
 
-		const oracle = parseOracle(
+		const oracle = parseMachineVerbose(
 			runCapture(
 				'node',
 				[
@@ -260,10 +218,21 @@ function main() {
 				path.join(oracleDir, ws)
 			)
 		);
-		const actual = parseRsvelte(
-			runCapture(bin, ['--output', 'github-actions', ...common], path.join(actualDir, ws), {
-				TSGO_BIN: tsc
-			})
+		// `TSGO_BIN` always wins over `--tsgo` (see tsgo.rs's `find_compiler`), so
+		// pointing it straight at the chosen binary is enough on its own; `--tsgo`
+		// is added too so the invocation matches how a real caller selects the
+		// backend and isn't relying on an implementation detail of the override.
+		// A scenario that already asks for `--tsgo` itself must not get a second
+		// copy — clap rejects a repeated flag outright.
+		const backendArgs =
+			BACKEND === 'tsgo' && !(config.args ?? []).includes('--tsgo') ? ['--tsgo'] : [];
+		const actual = parseMachineVerbose(
+			runCapture(
+				bin,
+				['--output', 'machine-verbose', ...common, ...backendArgs],
+				path.join(actualDir, ws),
+				actualEnv
+			)
 		);
 
 		diffs.push(...diffCounts(name, oracle.counts, actual.counts));

@@ -2257,7 +2257,7 @@ impl<'a> Parser<'a> {
         offset: usize,
     ) -> crate::error::ParseResult<Expression<'a>> {
         // In deferred mode, create a Lazy expression
-        if self.options.defer_script_parse {
+        if self.should_defer_template_parse() {
             let trimmed = content.trim_ws();
             if !trimmed.is_empty() {
                 let leading_ws = content.len() - content.trim_start().len();
@@ -2323,7 +2323,7 @@ impl<'a> Parser<'a> {
         trimmed_offset: usize,
         kind: LazyKind,
     ) -> Option<Expression<'a>> {
-        (self.options.defer_script_parse
+        (self.should_defer_template_parse()
             && !self.options.loose
             && !self.in_svelte_options
             && !trimmed.is_empty()

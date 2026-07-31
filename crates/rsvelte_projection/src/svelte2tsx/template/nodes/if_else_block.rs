@@ -18,7 +18,7 @@ pub(crate) fn handle_if_block(
     block: &IfBlock,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
@@ -90,7 +90,11 @@ pub(crate) fn handle_if_block(
                 str.append_left(consequent_start, ")");
             }
         } else {
-            str.overwrite(block.start, consequent_start, &format!("if({})", test_text));
+            str.overwrite_fmt(
+                block.start,
+                consequent_start,
+                format_args!("if({})", test_text),
+            );
         }
         // Insert opening brace
         str.append_left(consequent_start, "{");

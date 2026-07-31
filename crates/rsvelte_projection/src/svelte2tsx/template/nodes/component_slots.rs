@@ -2,8 +2,8 @@
 //! Mirrors `htmlxtojsx_v2/nodes/slot.ts` and `Let.ts`.
 
 use crate::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, Component, Fragment, LetDirective,
-    RegularElement, SvelteElement, TemplateNode,
+    Attribute, AttributeValue, AttributeValuePart, Component, Fragment, RegularElement,
+    SvelteElement, TemplateNode,
 };
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
@@ -13,7 +13,7 @@ use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
 use crate::svelte2tsx::template::attributes::event_handler::format_on_directive;
 use crate::svelte2tsx::template::attributes::let_::{
-    build_let_destructure_string, get_let_directives,
+    build_let_destructure_string, has_let_directives,
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::attributes::transition::format_transition_directive;
@@ -130,7 +130,7 @@ pub(crate) fn has_default_slot_let_children(fragment: &Fragment, _source: &str) 
             TemplateNode::SvelteElement(e) => &e.attributes,
             _ => return false,
         };
-        !get_let_directives(attrs).is_empty()
+        has_let_directives(attrs)
     })
 }
 
@@ -227,17 +227,19 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool
 pub(crate) fn process_component_children_with_slots(
     comp: &Component,
     inst_var: &str,
-    let_directives: &[&LetDirective],
+    has_lets: bool,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
-    let has_lets = !let_directives.is_empty();
-
     // Build the default slot destructuring if needed
-    let let_destructure = build_let_destructure_string(let_directives, source);
+    let let_destructure = if has_lets {
+        build_let_destructure_string(&comp.attributes, source)
+    } else {
+        String::new()
+    };
 
     // Group children into default slot and named slots
     // For each child, determine if it belongs to a named slot or the default slot
@@ -273,7 +275,7 @@ pub(crate) fn process_component_children_with_slots(
         default_slot_opened = true;
     }
 
-    for (i, node) in comp.fragment.nodes.iter().enumerate() {
+    for node in &comp.fragment.nodes {
         let is_named_slot = match node {
             TemplateNode::RegularElement(el) => {
                 get_slot_attr_value(&el.attributes, source).is_some()
@@ -313,28 +315,6 @@ pub(crate) fn process_component_children_with_slots(
                     process_node_inplace(node, source, options, str, counter, depth);
                 }
             }
-
-            // Re-open default slot block after this named slot child if needed
-            if has_lets {
-                // Check if there are more non-named-slot children after this
-                let _has_more_default = comp.fragment.nodes[i + 1..].iter().any(|n| match n {
-                    TemplateNode::RegularElement(el) => {
-                        get_slot_attr_value(&el.attributes, source).is_none()
-                    }
-                    TemplateNode::Component(c) => {
-                        get_slot_attr_value(&c.attributes, source).is_none()
-                    }
-                    TemplateNode::SvelteFragment(el) => {
-                        get_slot_attr_value(&el.attributes, source).is_none()
-                    }
-                    TemplateNode::Text(_) => true,
-                    _ => true,
-                });
-
-                // Don't re-open if there are no more default slot children
-                // Actually, we should re-open for any remaining children
-                // We'll handle this below
-            }
         } else {
             // Default slot child - process normally
             // If the default slot block was closed for a named slot, re-open it
@@ -358,19 +338,17 @@ pub(crate) fn process_component_children_with_slots(
             // `handle_component` already emits. Routing it through the parent
             // here would wrongly duplicate the destructure onto the parent
             // instance (#1232).
-            let fragment_lets: Option<Vec<&LetDirective>> = match node {
-                TemplateNode::SvelteFragment(el) => {
-                    let lets = get_let_directives(&el.attributes);
-                    if lets.is_empty() { None } else { Some(lets) }
+            let fragment_lets = match node {
+                TemplateNode::SvelteFragment(el) if has_let_directives(&el.attributes) => {
+                    Some(el.attributes.as_slice())
                 }
-                TemplateNode::RegularElement(el) => {
-                    let lets = get_let_directives(&el.attributes);
-                    if lets.is_empty() { None } else { Some(lets) }
+                TemplateNode::RegularElement(el) if has_let_directives(&el.attributes) => {
+                    Some(el.attributes.as_slice())
                 }
                 _ => None,
             };
-            let fragment_block_open = if let Some(ref lets) = fragment_lets {
-                let destructure = build_let_destructure_string(lets, source);
+            let fragment_block_open = if let Some(attributes) = fragment_lets {
+                let destructure = build_let_destructure_string(attributes, source);
                 let block = format!(
                     "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
                     destructure, inst_var
@@ -418,13 +396,12 @@ pub(crate) fn handle_named_slot_element(
     inst_var: &str,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
     let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
-    let let_directives = get_let_directives(&el.attributes);
-    let let_destructure = build_let_destructure_string(&let_directives.to_vec(), source);
+    let let_destructure = build_let_destructure_string(&el.attributes, source);
 
     // Build the slot def block opener
     let block_open = format!(
@@ -435,7 +412,8 @@ pub(crate) fn handle_named_slot_element(
     // Build attributes string excluding `slot` and `let:` directives
     let attrs_str = build_named_slot_element_attrs(&el.attributes, source);
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
 
     // class:/style: directives lower to statements after createElement
     // (`class:bar` → ` bar;`), same as a regular element. The `let:` binding
@@ -491,13 +469,12 @@ pub(crate) fn handle_named_slot_svelte_fragment(
     inst_var: &str,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
     let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
-    let let_directives = get_let_directives(&el.attributes);
-    let let_destructure = build_let_destructure_string(&let_directives.to_vec(), source);
+    let let_destructure = build_let_destructure_string(&el.attributes, source);
 
     // Leading ` ` matches the JS reference, which produces
     // `\t {const ... ;{ svelteHTML.createElement(...)` after the tab indent
@@ -507,7 +484,8 @@ pub(crate) fn handle_named_slot_svelte_fragment(
         let_destructure, inst_var, slot_name
     );
 
-    let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let closing_tag_start = find_closing_tag_start(source, el.end);
     let has_closing_tag = closing_tag_start < el.end;
 
@@ -559,13 +537,12 @@ pub(crate) fn handle_named_slot_component(
     inst_var: &str,
     source: &str,
     options: &Svelte2TsxOptions,
-    str: &mut MagicString,
+    str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
 ) {
     let slot_name = get_slot_attr_value(&comp.attributes, source).unwrap_or_default();
-    let let_directives = get_let_directives(&comp.attributes);
-    let let_destructure = build_let_destructure_string(&let_directives.to_vec(), source);
+    let let_destructure = build_let_destructure_string(&comp.attributes, source);
 
     // Build the slot def block opener
     let block_open = format!(
@@ -589,7 +566,7 @@ pub(crate) fn handle_named_slot_component(
     // close the named-slot block.
     let closing_tag_start = find_closing_tag_start(source, comp.end);
     if closing_tag_start < comp.end {
-        str.append_left(comp.end, &format!(" {}}}", comp.name));
+        str.append_left_fmt(comp.end, format_args!(" {}}}", comp.name));
     } else {
         str.append_left(comp.end, "}");
     }
