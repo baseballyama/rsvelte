@@ -1,15 +1,13 @@
 //! SvelteKit kit-file augmentation. Mirrors
 //! `submodules/language-tools/packages/svelte2tsx/src/helpers/sveltekit.ts`.
 //!
-//! When tsgo / tsc walks a `.ts` file that lives at a known SvelteKit
-//! path (`+page.ts`, `+layout.ts`, `+server.ts`, hooks, params), we
-//! want it to type-check the file *as if* the framework's type stubs
-//! were written explicitly. The JS reference parses with TypeScript
-//! and emits an `AddedCode` list of pure text insertions; we do the
-//! same with oxc.
-//!
-//! Only the TS path is implemented for now — JSDoc emission for `.js`
-//! kit files is a follow-up.
+//! When tsgo / tsc walks a `.ts` or `.js` file that lives at a known
+//! SvelteKit path (`+page.ts`, `+layout.ts`, `+server.ts`, hooks,
+//! params), we want it to type-check the file *as if* the framework's
+//! type stubs were written explicitly. The JS reference parses with
+//! TypeScript and emits an `AddedCode` list of pure text insertions;
+//! we do the same with oxc. `.ts` files get inline type annotations;
+//! `.js` files get the equivalent JSDoc tag.
 
 use std::path::Path;
 
@@ -321,6 +319,7 @@ pub fn build_added_code(
     let parser = OxcParser::new(&allocator, source, source_type);
     let result = parser.parse();
     let body = &result.program.body;
+    let comments = &result.program.comments;
 
     let mut adds: Vec<AddedCode> = Vec::new();
     if is_kit_route_file(path) {
@@ -333,23 +332,25 @@ pub fn build_added_code(
             if is_server { "Server" } else { "" }
         );
         for stmt in body {
-            visit_route_statement(stmt, source, &load_type, basename, is_ts, &mut adds);
+            visit_route_statement(
+                stmt, source, &load_type, basename, is_ts, comments, &mut adds,
+            );
         }
     } else if is_params_file(path, &settings.params_path) {
         for stmt in body {
-            visit_param_statement(stmt, source, is_ts, &mut adds);
+            visit_param_statement(stmt, source, is_ts, comments, &mut adds);
         }
     } else if is_hooks_file(path, &settings.server_hooks_path) {
         for stmt in body {
-            visit_server_hooks_statement(stmt, source, is_ts, &mut adds);
+            visit_server_hooks_statement(stmt, source, is_ts, comments, &mut adds);
         }
     } else if is_hooks_file(path, &settings.client_hooks_path) {
         for stmt in body {
-            visit_client_hooks_statement(stmt, source, is_ts, &mut adds);
+            visit_client_hooks_statement(stmt, source, is_ts, comments, &mut adds);
         }
     } else if is_hooks_file(path, &settings.universal_hooks_path) {
         for stmt in body {
-            visit_universal_hooks_statement(stmt, source, is_ts, &mut adds);
+            visit_universal_hooks_statement(stmt, source, is_ts, comments, &mut adds);
         }
     } else {
         return None;
@@ -409,12 +410,198 @@ fn unwrap_parens<'a>(expr: &'a oxc::Expression<'a>) -> &'a oxc::Expression<'a> {
     }
 }
 
+/// Parses each top-level JSDoc tag out of a `/** ... */` comment's raw span
+/// text: a "tag line" is any line that, after stripping the comment's
+/// `/**`/`*`/`*/` decoration and surrounding whitespace, starts with `@`
+/// followed by a maximal run of ASCII letters — that run is the tag name,
+/// and everything after it (trimmed) is the tag's remainder. This is
+/// structural rather than a substring search, so `@typedef` never matches a
+/// check for `@type`, and a description line that merely *mentions*
+/// `@types/node` never matches at all (it doesn't start the line with `@`).
+/// Mirrors, informally, what TypeScript's real JSDoc tag scanner does
+/// structurally when `getJSDocType`/`getJSDocTags`/`getJSDocParameterTags`
+/// walk a comment.
+fn jsdoc_tags(text: &str) -> impl Iterator<Item = (&str, &str)> {
+    text.lines().filter_map(|raw_line| {
+        let mut line = raw_line.trim();
+        if let Some(rest) = line.strip_prefix("/**") {
+            line = rest.trim_start();
+        } else if let Some(rest) = line.strip_prefix('*') {
+            line = rest.trim_start();
+        }
+        if let Some(rest) = line.strip_suffix("*/") {
+            line = rest.trim_end();
+        }
+        let rest = line.strip_prefix('@')?;
+        let name_end = rest
+            .find(|c: char| !c.is_ascii_alphabetic())
+            .unwrap_or(rest.len());
+        (name_end > 0).then(|| (&rest[..name_end], rest[name_end..].trim_start()))
+    })
+}
+
+/// The identifier a `@param` tag's remainder (the text after `@param`)
+/// targets: skips an optional `{Type}` annotation, then unwraps `[name]` /
+/// `[name=default]` for an optional parameter. `None` for a malformed tag
+/// with no name at all.
+fn jsdoc_param_target(rest: &str) -> Option<&str> {
+    let rest = rest.trim_start();
+    let rest = match rest.strip_prefix('{') {
+        // The type annotation can itself contain braces (`{{ url: URL }}`,
+        // `Array<{ a: string }>`), so the closing `}` has to be found by
+        // depth, not by the first `}` in the string.
+        Some(after_brace) => {
+            let mut depth = 1u32;
+            let mut close = None;
+            for (i, c) in after_brace.char_indices() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            close = Some(i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            after_brace[close?..].strip_prefix('}')?.trim_start()
+        }
+        None => rest,
+    };
+    let rest = rest.strip_prefix('[').unwrap_or(rest);
+    let end = rest
+        .find(|c: char| c.is_whitespace() || c == ']' || c == '=')
+        .unwrap_or(rest.len());
+    (end > 0).then(|| &rest[..end])
+}
+
+/// What a JSDoc `@param` tag must target to count as already typing a given
+/// parameter, mirroring `ts.getJSDocParameterTags`: a simple identifier
+/// parameter needs a tag whose declared name matches it exactly; a
+/// destructuring pattern has no single name to match against, so
+/// TypeScript accepts *any* `@param` tag (including a mismatched name, or
+/// the `@param {T} parent` / `@param {T} parent.field` dotted-property
+/// convention) as targeting it; and a function with no parameter at all
+/// (`entries`) never has one to target, so `@param` tags are irrelevant.
+#[derive(Clone, Copy)]
+enum ParamTarget<'a> {
+    None,
+    Named(&'a str),
+    Anonymous,
+}
+
+impl<'a> ParamTarget<'a> {
+    fn for_pattern(pattern: &'a oxc::BindingPattern<'a>) -> Self {
+        match binding_pattern_name(pattern) {
+            Some(name) => ParamTarget::Named(name),
+            None => ParamTarget::Anonymous,
+        }
+    }
+}
+
+fn jsdoc_comments_at<'a>(
+    comments: &'a [oxc::Comment],
+    source: &'a str,
+    pos: u32,
+) -> impl Iterator<Item = &'a str> {
+    comments
+        .iter()
+        .filter(move |c| {
+            c.attached_to == pos
+                && matches!(
+                    c.content,
+                    oxc::CommentContent::Jsdoc | oxc::CommentContent::JsdocLegal
+                )
+        })
+        .map(move |c| &source[c.span.start as usize..c.span.end as usize])
+}
+
+fn jsdoc_has_type_tag(comments: &[oxc::Comment], source: &str, pos: u32) -> bool {
+    jsdoc_comments_at(comments, source, pos)
+        .any(|text| jsdoc_tags(text).any(|(name, _)| name == "type"))
+}
+
+fn jsdoc_has_satisfies_tag(comments: &[oxc::Comment], source: &str, pos: u32) -> bool {
+    jsdoc_comments_at(comments, source, pos)
+        .any(|text| jsdoc_tags(text).any(|(name, _)| name == "satisfies"))
+}
+
+fn jsdoc_has_param_tag(
+    comments: &[oxc::Comment],
+    source: &str,
+    pos: u32,
+    target: ParamTarget,
+) -> bool {
+    let ParamTarget::None = target else {
+        return jsdoc_comments_at(comments, source, pos).any(|text| {
+            jsdoc_tags(text).any(|(name, rest)| {
+                name == "param"
+                    && match target {
+                        ParamTarget::Named(expected) => jsdoc_param_target(rest) == Some(expected),
+                        ParamTarget::Anonymous => true,
+                        ParamTarget::None => unreachable!(),
+                    }
+            })
+        });
+    };
+    false
+}
+
+/// Mirrors the JS-only half of `hasTypedParameter` in the JS reference:
+/// `!isTsFile && (getJSDocType(node) || getJSDocParameterTags(param).length)`.
+/// TypeScript resolves a function-like export's JSDoc host by walking from
+/// the function-like node up through its variable declaration to the
+/// enclosing statement, so both the function-like node's own leading
+/// position (`fn_like_start`, meaningful for a `const x = (...) => ...`
+/// initializer) and the whole exported statement's position (`stmt_start`)
+/// are accepted anchors — for a plain `function` declaration the two
+/// coincide, since `node` there *is* the statement.
+fn function_already_typed(
+    comments: &[oxc::Comment],
+    source: &str,
+    is_ts: bool,
+    stmt_start: u32,
+    fn_like_start: u32,
+    param: ParamTarget,
+) -> bool {
+    if is_ts {
+        return false;
+    }
+    jsdoc_has_type_tag(comments, source, stmt_start)
+        || jsdoc_has_param_tag(comments, source, stmt_start, param)
+        || (fn_like_start != stmt_start
+            && (jsdoc_has_type_tag(comments, source, fn_like_start)
+                || jsdoc_has_param_tag(comments, source, fn_like_start, param)))
+}
+
+/// Mirrors `findExports`'s `hasTypeDefinition` for a `var`-classified export:
+/// an explicit type annotation, an initializer already wrapped in
+/// `satisfies`, or (JS-only) a `@type`/`@satisfies` JSDoc tag on the
+/// statement.
+fn var_already_typed(
+    comments: &[oxc::Comment],
+    source: &str,
+    is_ts: bool,
+    stmt_start: u32,
+    has_explicit_annotation: bool,
+    init: Option<&oxc::Expression>,
+) -> bool {
+    has_explicit_annotation
+        || matches!(init, Some(oxc::Expression::TSSatisfiesExpression(_)))
+        || (!is_ts
+            && (jsdoc_has_type_tag(comments, source, stmt_start)
+                || jsdoc_has_satisfies_tag(comments, source, stmt_start)))
+}
+
 fn visit_route_statement(
     stmt: &oxc::Statement,
     source: &str,
     load_type: &str,
     basename: &str,
     is_ts: bool,
+    comments: &[oxc::Comment],
     adds: &mut Vec<AddedCode>,
 ) {
     let oxc::Statement::ExportNamedDeclaration(ex) = stmt else {
@@ -423,136 +610,191 @@ fn visit_route_statement(
     let Some(decl) = &ex.declaration else { return };
     match decl {
         oxc::Declaration::VariableDeclaration(var) => {
-            for d in &var.declarations {
-                let oxc::BindingPattern::BindingIdentifier(id) = &d.id else {
-                    continue;
-                };
-                let name = id.name.as_str();
-                let name_end = id.span.end;
-                let has_type_annotation = d.type_annotation.is_some();
-                if has_type_annotation {
-                    continue;
+            // `findExports` only recognises a single-declarator
+            // `export const x = ...` (`statement.declarationList.declarations.length
+            // === 1`) — `export const a = 1, b = 2;` isn't looked up under either
+            // name at all, so neither gets augmented.
+            if var.declarations.len() != 1 {
+                return;
+            }
+            let d = &var.declarations[0];
+            let oxc::BindingPattern::BindingIdentifier(id) = &d.id else {
+                return;
+            };
+            let name = id.name.as_str();
+            let name_end = id.span.end;
+            // Mirrors `findExports`'s `hasTypeDefinition`, which is OR'd into
+            // both the `'var'` and `'function'` classifications below — an
+            // explicit annotation, a pre-existing `satisfies`, or (JS-only) a
+            // `@type`/`@satisfies` JSDoc tag suppresses every export name.
+            if var_already_typed(
+                comments,
+                source,
+                is_ts,
+                ex.span.start,
+                d.type_annotation.is_some(),
+                d.init.as_ref(),
+            ) {
+                return;
+            }
+            match name {
+                "ssr" | "csr" | "prerender" | "trailingSlash" => {
+                    let ty = match name {
+                        "ssr" | "csr" => "boolean",
+                        "prerender" => "boolean | 'auto'",
+                        "trailingSlash" => "'never' | 'always' | 'ignore'",
+                        _ => unreachable!(),
+                    };
+                    if is_ts {
+                        adds.push(AddedCode {
+                            original_pos: name_end,
+                            inserted: format!(" : {ty}"),
+                        });
+                    } else if let Some(init) = &d.init {
+                        add_jsdoc_var_type(init, ty, adds);
+                    }
                 }
-                match name {
-                    "ssr" | "csr" | "prerender" | "trailingSlash" => {
-                        let ty = match name {
-                            "ssr" | "csr" => "boolean",
-                            "prerender" => "boolean | 'auto'",
-                            "trailingSlash" => "'never' | 'always' | 'ignore'",
-                            _ => unreachable!(),
-                        };
-                        if is_ts {
-                            adds.push(AddedCode {
-                                original_pos: name_end,
-                                inserted: format!(" : {ty}"),
-                            });
-                        } else if let Some(init) = &d.init {
-                            add_jsdoc_var_type(init, ty, adds);
+                "load" => {
+                    let Some(init) = &d.init else { return };
+                    match unwrap_parens(init) {
+                        oxc::Expression::ArrowFunctionExpression(af) => {
+                            let needs_parens =
+                                source.as_bytes().get(af.params.span.start as usize) != Some(&b'(');
+                            add_load_param_type_to_function_like(
+                                &af.params,
+                                af.span.start,
+                                needs_parens,
+                                load_type,
+                                is_ts,
+                                comments,
+                                source,
+                                ex.span.start,
+                                adds,
+                            );
                         }
-                    }
-                    "load" => {
-                        let Some(init) = &d.init else { continue };
-                        if is_ts {
-                            let init_span = init.span();
-                            adds.push(AddedCode {
-                                original_pos: init_span.start,
-                                inserted: "(".into(),
-                            });
-                            adds.push(AddedCode {
-                                original_pos: init_span.end,
-                                inserted: format!(") satisfies {load_type}"),
-                            });
-                        } else {
-                            add_jsdoc_var_satisfies(init, load_type, adds);
+                        oxc::Expression::FunctionExpression(f) => {
+                            add_load_param_type_to_function_like(
+                                &f.params,
+                                f.span.start,
+                                false,
+                                load_type,
+                                is_ts,
+                                comments,
+                                source,
+                                ex.span.start,
+                                adds,
+                            );
                         }
-                    }
-                    "actions" => {
-                        let Some(init) = &d.init else { continue };
-                        if is_ts {
-                            let end = init.span().end;
-                            adds.push(AddedCode {
-                                original_pos: end,
-                                inserted: " satisfies import('./$types.js').Actions".into(),
-                            });
-                        } else {
-                            add_jsdoc_var_satisfies(init, "import('./$types.js').Actions", adds);
-                        }
-                    }
-                    "entries" => {
-                        if basename.starts_with("+layout") {
-                            continue;
-                        }
-                        let Some(init) = &d.init else { continue };
-                        match unwrap_parens(init) {
-                            oxc::Expression::ArrowFunctionExpression(af) => {
-                                let arrow_pos = find_arrow_token(
-                                    source,
-                                    af.params.span.end,
-                                    af.body.span.start,
-                                );
-                                add_entries_type_to_function_like(
-                                    &af.params,
-                                    af.return_type.is_some(),
-                                    arrow_pos,
-                                    af.span.start,
-                                    is_ts,
-                                    adds,
-                                );
+                        _ => {
+                            // Not a function-like initializer: `findExports` classifies
+                            // this as `type: 'var'` and wraps it in `satisfies` instead
+                            // of typing a parameter.
+                            if is_ts {
+                                let init_span = init.span();
+                                adds.push(AddedCode {
+                                    original_pos: init_span.start,
+                                    inserted: "(".into(),
+                                });
+                                adds.push(AddedCode {
+                                    original_pos: init_span.end,
+                                    inserted: format!(") satisfies {load_type}"),
+                                });
+                            } else {
+                                add_jsdoc_var_satisfies(init, load_type, adds);
                             }
-                            oxc::Expression::FunctionExpression(f) => {
-                                add_entries_type_to_function_like(
-                                    &f.params,
-                                    f.return_type.is_some(),
-                                    f.body.as_deref().map(|b| b.span().start),
-                                    f.span.start,
-                                    is_ts,
-                                    adds,
-                                );
-                            }
-                            _ => {}
                         }
                     }
-                    "GET" | "PUT" | "POST" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD"
-                    | "fallback" => {
-                        let Some(init) = &d.init else { continue };
-                        match unwrap_parens(init) {
-                            oxc::Expression::ArrowFunctionExpression(af) => {
-                                let arrow_pos = find_arrow_token(
-                                    source,
-                                    af.params.span.end,
-                                    af.body.span.start,
-                                );
-                                let parenless =
-                                    source.as_bytes().get(af.params.span.start as usize)
-                                        != Some(&b'(');
-                                add_api_method_types_to_function_like(
-                                    &af.params,
-                                    af.return_type.is_some(),
-                                    arrow_pos,
-                                    af.span.start,
-                                    parenless,
-                                    af.r#async,
-                                    is_ts,
-                                    adds,
-                                );
-                            }
-                            oxc::Expression::FunctionExpression(f) => {
-                                add_api_method_types_to_function_like(
-                                    &f.params,
-                                    f.return_type.is_some(),
-                                    f.body.as_deref().map(|b| b.span().start),
-                                    f.span.start,
-                                    false,
-                                    f.r#async,
-                                    is_ts,
-                                    adds,
-                                );
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
                 }
+                "actions" => {
+                    let Some(init) = &d.init else { return };
+                    if is_ts {
+                        let end = init.span().end;
+                        adds.push(AddedCode {
+                            original_pos: end,
+                            inserted: " satisfies import('./$types.js').Actions".into(),
+                        });
+                    } else {
+                        add_jsdoc_var_satisfies(init, "import('./$types.js').Actions", adds);
+                    }
+                }
+                "entries" => {
+                    if basename.starts_with("+layout") {
+                        return;
+                    }
+                    let Some(init) = &d.init else { return };
+                    match unwrap_parens(init) {
+                        oxc::Expression::ArrowFunctionExpression(af) => {
+                            let arrow_pos =
+                                find_arrow_token(source, af.params.span.end, af.body.span.start);
+                            add_entries_type_to_function_like(
+                                &af.params,
+                                af.return_type.is_some(),
+                                arrow_pos,
+                                af.span.start,
+                                is_ts,
+                                comments,
+                                source,
+                                ex.span.start,
+                                adds,
+                            );
+                        }
+                        oxc::Expression::FunctionExpression(f) => {
+                            add_entries_type_to_function_like(
+                                &f.params,
+                                f.return_type.is_some(),
+                                f.body.as_deref().map(|b| b.span().start),
+                                f.span.start,
+                                is_ts,
+                                comments,
+                                source,
+                                ex.span.start,
+                                adds,
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+                "GET" | "PUT" | "POST" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD" | "fallback" => {
+                    let Some(init) = &d.init else { return };
+                    match unwrap_parens(init) {
+                        oxc::Expression::ArrowFunctionExpression(af) => {
+                            let arrow_pos =
+                                find_arrow_token(source, af.params.span.end, af.body.span.start);
+                            let parenless =
+                                source.as_bytes().get(af.params.span.start as usize) != Some(&b'(');
+                            add_api_method_types_to_function_like(
+                                &af.params,
+                                af.return_type.is_some(),
+                                arrow_pos,
+                                af.span.start,
+                                parenless,
+                                af.r#async,
+                                is_ts,
+                                comments,
+                                source,
+                                ex.span.start,
+                                adds,
+                            );
+                        }
+                        oxc::Expression::FunctionExpression(f) => {
+                            add_api_method_types_to_function_like(
+                                &f.params,
+                                f.return_type.is_some(),
+                                f.body.as_deref().map(|b| b.span().start),
+                                f.span.start,
+                                false,
+                                f.r#async,
+                                is_ts,
+                                comments,
+                                source,
+                                ex.span.start,
+                                adds,
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
         }
         oxc::Declaration::FunctionDeclaration(f) => {
@@ -560,34 +802,17 @@ fn visit_route_statement(
             let name = id.name.as_str();
             match name {
                 "load" => {
-                    if f.return_type.is_some() {
-                        return;
-                    }
-                    if f.params.items.len() != 1 {
-                        return;
-                    }
-                    let param = &f.params.items[0];
-                    if param.type_annotation.is_some() {
-                        return;
-                    }
-                    if is_ts {
-                        let param_end = param.pattern.span().end;
-                        adds.push(AddedCode {
-                            original_pos: param_end,
-                            inserted: format!(": {load_type}Event"),
-                        });
-                    } else {
-                        // JSDoc `@param` must precede the whole exported statement, not just
-                        // `function` — TypeScript ignores a tag sandwiched after `export`.
-                        let param_name = binding_pattern_name(&param.pattern).unwrap_or("arg0");
-                        adds.push(AddedCode {
-                            original_pos: ex.span.start,
-                            inserted: format!(
-                                "/** @param {{{}Event}} {} */ ",
-                                load_type, param_name
-                            ),
-                        });
-                    }
+                    add_load_param_type_to_function_like(
+                        &f.params,
+                        ex.span.start,
+                        false,
+                        load_type,
+                        is_ts,
+                        comments,
+                        source,
+                        ex.span.start,
+                        adds,
+                    );
                 }
                 "entries" => {
                     if basename.starts_with("+layout") {
@@ -599,6 +824,9 @@ fn visit_route_statement(
                         f.body.as_deref().map(|b| b.span().start),
                         ex.span.start,
                         is_ts,
+                        comments,
+                        source,
+                        ex.span.start,
                         adds,
                     );
                 }
@@ -611,6 +839,9 @@ fn visit_route_statement(
                         false,
                         f.r#async,
                         is_ts,
+                        comments,
+                        source,
+                        ex.span.start,
                         adds,
                     );
                 }
@@ -618,6 +849,73 @@ fn visit_route_statement(
             }
         }
         _ => {}
+    }
+}
+
+/// Shared param-type augmentation for a route's `load` export, regardless of
+/// whether it arrived as a `FunctionDeclaration` or a `const` initializer
+/// (`ArrowFunctionExpression` / `FunctionExpression`). Mirrors the
+/// `load?.type === 'function'` branch in `upsertKitRouteFile` in the JS
+/// reference — unlike the API-method/hooks/match helpers, `load` never gets a
+/// return-type annotation (only its single parameter is typed), and its gate
+/// only ever considers the parameter, not any pre-existing return-type
+/// annotation on the function itself.
+#[allow(clippy::too_many_arguments)]
+fn add_load_param_type_to_function_like(
+    params: &oxc::FormalParameters,
+    fn_like_start: u32,
+    needs_parens: bool,
+    load_type: &str,
+    is_ts: bool,
+    comments: &[oxc::Comment],
+    source: &str,
+    stmt_start: u32,
+    adds: &mut Vec<AddedCode>,
+) {
+    if params.items.len() != 1 {
+        return;
+    }
+    let param = &params.items[0];
+    if param.type_annotation.is_some()
+        || function_already_typed(
+            comments,
+            source,
+            is_ts,
+            stmt_start,
+            fn_like_start,
+            ParamTarget::for_pattern(&param.pattern),
+        )
+    {
+        return;
+    }
+    if is_ts {
+        let pos = param.pattern.span().end;
+        if needs_parens {
+            adds.push(AddedCode {
+                original_pos: param.pattern.span().start,
+                inserted: "(".into(),
+            });
+        }
+        adds.push(AddedCode {
+            original_pos: pos,
+            inserted: format!(": {load_type}Event"),
+        });
+        if needs_parens {
+            adds.push(AddedCode {
+                original_pos: pos,
+                inserted: ")".into(),
+            });
+        }
+    } else {
+        // JSDoc `@param` is anchored on the function-like value itself: the
+        // exported statement for a `FunctionDeclaration` (TypeScript ignores a
+        // tag sandwiched between `export` and `function`), or the initializer
+        // for a `const` arrow/function-expression form.
+        let param_name = binding_pattern_name(&param.pattern).unwrap_or("arg0");
+        adds.push(AddedCode {
+            original_pos: fn_like_start,
+            inserted: format!("/** @param {{{load_type}Event}} {param_name} */ "),
+        });
     }
 }
 
@@ -635,19 +933,32 @@ fn add_api_method_types_to_function_like(
     needs_parens: bool,
     is_async: bool,
     is_ts: bool,
+    comments: &[oxc::Comment],
+    source: &str,
+    stmt_start: u32,
     adds: &mut Vec<AddedCode>,
 ) {
     if params.items.len() != 1 {
         return;
     }
     let param = &params.items[0];
+    // Official gates both the param and the return-type insertion on a single
+    // `!fn.hasTypeDefinition` (a manually-typed param — or, in a `.js` file, a
+    // pre-existing `@type`/`@param` JSDoc tag — means "leave this function
+    // alone entirely"; see `addTypeToFunction` in the JS reference).
+    if param.type_annotation.is_some()
+        || function_already_typed(
+            comments,
+            source,
+            is_ts,
+            stmt_start,
+            fn_like_start,
+            ParamTarget::for_pattern(&param.pattern),
+        )
+    {
+        return;
+    }
     if is_ts {
-        // Official gates both the param and the return-type insertion on a single
-        // `!fn.hasTypeDefinition` (a manually-typed param means "leave this function
-        // alone entirely" — see `addTypeToFunction` in the JS reference).
-        if param.type_annotation.is_some() {
-            return;
-        }
         let pos = param.pattern.span().end;
         if needs_parens {
             adds.push(AddedCode {
@@ -698,15 +1009,29 @@ fn add_api_method_types_to_function_like(
 /// Shared augmentation for a route's `entries` export, regardless of whether it
 /// arrived as a `FunctionDeclaration` or a `const` initializer. Mirrors the
 /// `entries` block in `upsertKitRouteFile` in the JS reference.
+#[allow(clippy::too_many_arguments)]
 fn add_entries_type_to_function_like(
     params: &oxc::FormalParameters,
     has_return_type: bool,
     return_insert_pos: Option<u32>,
     fn_like_start: u32,
     is_ts: bool,
+    comments: &[oxc::Comment],
+    source: &str,
+    stmt_start: u32,
     adds: &mut Vec<AddedCode>,
 ) {
     if !params.items.is_empty() {
+        return;
+    }
+    if function_already_typed(
+        comments,
+        source,
+        is_ts,
+        stmt_start,
+        fn_like_start,
+        ParamTarget::None,
+    ) {
         return;
     }
     if is_ts {
@@ -729,6 +1054,7 @@ fn visit_param_statement(
     stmt: &oxc::Statement,
     source: &str,
     is_ts: bool,
+    comments: &[oxc::Comment],
     adds: &mut Vec<AddedCode>,
 ) {
     let oxc::Statement::ExportNamedDeclaration(ex) = stmt else {
@@ -748,6 +1074,9 @@ fn visit_param_statement(
                 ex.span.start,
                 false,
                 is_ts,
+                comments,
+                source,
+                ex.span.start,
                 adds,
             );
         }
@@ -762,7 +1091,16 @@ fn visit_param_statement(
             let oxc::BindingPattern::BindingIdentifier(id) = &d.id else {
                 return;
             };
-            if id.name.as_str() != "match" || d.type_annotation.is_some() {
+            if id.name.as_str() != "match"
+                || var_already_typed(
+                    comments,
+                    source,
+                    is_ts,
+                    ex.span.start,
+                    d.type_annotation.is_some(),
+                    d.init.as_ref(),
+                )
+            {
                 return;
             }
             let Some(init) = &d.init else { return };
@@ -779,6 +1117,9 @@ fn visit_param_statement(
                         af.span.start,
                         parenless,
                         is_ts,
+                        comments,
+                        source,
+                        ex.span.start,
                         adds,
                     );
                 }
@@ -790,6 +1131,9 @@ fn visit_param_statement(
                         f.span.start,
                         false,
                         is_ts,
+                        comments,
+                        source,
+                        ex.span.start,
                         adds,
                     );
                 }
@@ -804,6 +1148,7 @@ fn visit_param_statement(
 /// regardless of whether it arrived as a `FunctionDeclaration` or a `const`
 /// initializer. Mirrors `addTypeToFunction('match', 'string', 'boolean')` in the
 /// JS reference.
+#[allow(clippy::too_many_arguments)]
 fn add_match_type_to_function_like(
     params: &oxc::FormalParameters,
     has_return_type: bool,
@@ -811,18 +1156,30 @@ fn add_match_type_to_function_like(
     fn_like_start: u32,
     needs_parens: bool,
     is_ts: bool,
+    comments: &[oxc::Comment],
+    source: &str,
+    stmt_start: u32,
     adds: &mut Vec<AddedCode>,
 ) {
     if params.items.len() != 1 {
         return;
     }
     let param = &params.items[0];
+    // Single gate for both insertions — see the identical comment in
+    // `add_api_method_types_to_function_like`.
+    if param.type_annotation.is_some()
+        || function_already_typed(
+            comments,
+            source,
+            is_ts,
+            stmt_start,
+            fn_like_start,
+            ParamTarget::for_pattern(&param.pattern),
+        )
+    {
+        return;
+    }
     if is_ts {
-        // Single gate for both insertions — see the identical comment in
-        // `add_api_method_types_to_function_like`.
-        if param.type_annotation.is_some() {
-            return;
-        }
         let pos = param.pattern.span().end;
         if needs_parens {
             adds.push(AddedCode {
@@ -860,6 +1217,7 @@ fn visit_server_hooks_statement(
     stmt: &oxc::Statement,
     source: &str,
     is_ts: bool,
+    comments: &[oxc::Comment],
     adds: &mut Vec<AddedCode>,
 ) {
     add_hooks_type(
@@ -868,6 +1226,7 @@ fn visit_server_hooks_statement(
         "handleError",
         "import('@sveltejs/kit').HandleServerError",
         is_ts,
+        comments,
         adds,
     );
     add_hooks_type(
@@ -876,6 +1235,7 @@ fn visit_server_hooks_statement(
         "handle",
         "import('@sveltejs/kit').Handle",
         is_ts,
+        comments,
         adds,
     );
     add_hooks_type(
@@ -884,6 +1244,7 @@ fn visit_server_hooks_statement(
         "handleFetch",
         "import('@sveltejs/kit').HandleFetch",
         is_ts,
+        comments,
         adds,
     );
 }
@@ -892,6 +1253,7 @@ fn visit_client_hooks_statement(
     stmt: &oxc::Statement,
     source: &str,
     is_ts: bool,
+    comments: &[oxc::Comment],
     adds: &mut Vec<AddedCode>,
 ) {
     add_hooks_type(
@@ -900,6 +1262,7 @@ fn visit_client_hooks_statement(
         "handleError",
         "import('@sveltejs/kit').HandleClientError",
         is_ts,
+        comments,
         adds,
     );
 }
@@ -908,6 +1271,7 @@ fn visit_universal_hooks_statement(
     stmt: &oxc::Statement,
     source: &str,
     is_ts: bool,
+    comments: &[oxc::Comment],
     adds: &mut Vec<AddedCode>,
 ) {
     add_hooks_type(
@@ -916,6 +1280,7 @@ fn visit_universal_hooks_statement(
         "reroute",
         "import('@sveltejs/kit').Reroute",
         is_ts,
+        comments,
         adds,
     );
 }
@@ -926,6 +1291,7 @@ fn add_hooks_type(
     name: &str,
     ty: &str,
     is_ts: bool,
+    comments: &[oxc::Comment],
     adds: &mut Vec<AddedCode>,
 ) {
     let oxc::Statement::ExportNamedDeclaration(ex) = stmt else {
@@ -947,6 +1313,9 @@ fn add_hooks_type(
                 false,
                 ty,
                 is_ts,
+                comments,
+                source,
+                ex.span.start,
                 adds,
             );
         }
@@ -964,7 +1333,16 @@ fn add_hooks_type(
             let oxc::BindingPattern::BindingIdentifier(id) = &d.id else {
                 return;
             };
-            if id.name.as_str() != name || d.type_annotation.is_some() {
+            if id.name.as_str() != name
+                || var_already_typed(
+                    comments,
+                    source,
+                    is_ts,
+                    ex.span.start,
+                    d.type_annotation.is_some(),
+                    d.init.as_ref(),
+                )
+            {
                 return;
             }
             let Some(init) = &d.init else { return };
@@ -988,6 +1366,9 @@ fn add_hooks_type(
                         parenless,
                         ty,
                         is_ts,
+                        comments,
+                        source,
+                        ex.span.start,
                         adds,
                     );
                 }
@@ -1000,6 +1381,9 @@ fn add_hooks_type(
                         false,
                         ty,
                         is_ts,
+                        comments,
+                        source,
+                        ex.span.start,
                         adds,
                     );
                 }
@@ -1031,18 +1415,30 @@ fn add_hooks_type_to_function_like(
     needs_parens: bool,
     ty: &str,
     is_ts: bool,
+    comments: &[oxc::Comment],
+    source: &str,
+    stmt_start: u32,
     adds: &mut Vec<AddedCode>,
 ) {
     if params.items.len() != 1 {
         return;
     }
     let param = &params.items[0];
+    // Single gate for both insertions — see the identical comment in
+    // `add_api_method_types_to_function_like`.
+    if param.type_annotation.is_some()
+        || function_already_typed(
+            comments,
+            source,
+            is_ts,
+            stmt_start,
+            fn_like_start,
+            ParamTarget::for_pattern(&param.pattern),
+        )
+    {
+        return;
+    }
     if is_ts {
-        // Single gate for both insertions — see the identical comment in
-        // `add_api_method_types_to_function_like`.
-        if param.type_annotation.is_some() {
-            return;
-        }
         let pos = param.pattern.span().end;
         // Insertions anchored at the same offset keep their push order
         // (`sort_by_key` is stable), so the closing paren has to go after
@@ -1154,9 +1550,34 @@ mod tests {
     }
 
     #[test]
-    fn load_var_form_emits_satisfies_wrapper() {
+    fn load_var_arrow_form_gets_param_type_not_satisfies() {
+        // #2055 (2): `findExports` classifies a `const load = (...) => ...` whose
+        // initializer is itself function-like as `type: 'function'`, not `'var'` —
+        // only the parameter gets typed, exactly like the `function load(...)` form.
+        // The `satisfies` wrapper is reserved for a non-function-like initializer
+        // (see `load_var_non_function_form_emits_satisfies_wrapper` below).
         let path = PathBuf::from("src/routes/+layout.server.ts");
         let source = "export const load = async ({ url }) => ({ url });\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default()).expect("load");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            !augmented.contains("satisfies"),
+            "a function-like `load` initializer must not be wrapped in `satisfies`: {augmented}"
+        );
+        assert!(
+            augmented.contains(&format!(
+                "({{ url }}{IGNORE_START_COMMENT}: import('./$types.js').LayoutServerLoadEvent{IGNORE_END_COMMENT}) =>"
+            )),
+            "got: {augmented}"
+        );
+    }
+
+    #[test]
+    fn load_var_non_function_form_emits_satisfies_wrapper() {
+        // The `satisfies` wrapper only applies when `load`'s initializer isn't
+        // function-like — `findExports` then classifies it as `type: 'var'`.
+        let path = PathBuf::from("src/routes/+layout.server.ts");
+        let source = "import { loadImpl } from './helpers';\nexport const load = loadImpl;\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default()).expect("load");
         let augmented = apply_added_code(source, &adds);
         assert!(
@@ -1328,6 +1749,366 @@ mod tests {
         assert!(build_added_code(&path, source, &KitFilesSettings::default()).is_none());
     }
 
+    // #2055 (1): official's `load` gate for a `function load(...)` declaration is
+    // `hasTypedParameter`, which only looks at the *parameter's* type — an
+    // existing return-type annotation must not suppress the param injection.
+
+    #[test]
+    fn return_typed_function_load_still_gets_param_type() {
+        let path = PathBuf::from("src/routes/+page.ts");
+        let source = "export async function load(event): Promise<{}> {\n  return {};\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("a return-typed load function must still get its param typed");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "load(event{IGNORE_START_COMMENT}: import('./$types.js').PageLoadEvent{IGNORE_END_COMMENT}): Promise<{{}}>"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    // #2055 (2): `findExports` classifies a `const load = (...) => ...` whose
+    // initializer is already a function expression as `type: 'function'`; a
+    // manually-typed param there means "leave alone", same as the
+    // `function load(...)` form — no `satisfies` wrapper is ever added.
+
+    #[test]
+    fn load_var_arrow_already_typed_parenthesized_is_left_alone() {
+        let path = PathBuf::from("src/routes/+page.ts");
+        let source = "export const load = (async (event: import('./$types.js').PageLoadEvent) => {\n  return {};\n});\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "an already-typed parenthesized arrow-const load must not be re-annotated or wrapped"
+        );
+    }
+
+    #[test]
+    fn load_var_arrow_parenless_param_gets_wrapped_in_parentheses() {
+        // Same syntax-safety fix already applied to hooks/API methods/match
+        // (see `hooks_parenthesis_less_arrow_param_gets_wrapped_in_parentheses`) —
+        // annotating a parenthesis-less arrow param in place would emit
+        // `event: T => ...`, which does not parse.
+        let path = PathBuf::from("src/routes/+page.server.ts");
+        let source = "export const load = event => ({ user: event.locals.user });\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("parenthesis-less arrow load should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}({IGNORE_END_COMMENT}event{IGNORE_START_COMMENT}: import('./$types.js').PageServerLoadEvent{IGNORE_END_COMMENT}{IGNORE_START_COMMENT}){IGNORE_END_COMMENT} =>"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    // #2055 (3): the JSDoc gate must apply on `.js` files for every function-like
+    // and var-like export, not just the API-method/hooks paths #1944 already
+    // covered — an existing `@type`/`@param`/`@satisfies` tag must suppress
+    // re-annotation everywhere `hasTypeDefinition`/`hasTypedParameter` do in the
+    // JS reference.
+
+    #[test]
+    fn js_hooks_handle_with_existing_type_tag_is_left_alone() {
+        let path = PathBuf::from("src/hooks.server.js");
+        let source = "/**\n * @type {Handle}\n */\nexport async function handle({ event, resolve }) {\n  return resolve(event);\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "an existing `@type` JSDoc tag must suppress re-annotation"
+        );
+    }
+
+    #[test]
+    fn js_server_get_with_existing_param_tag_is_left_alone() {
+        let path = PathBuf::from("src/routes/api/+server.js");
+        let source = "/**\n * @param {RequestEvent} event\n */\nexport async function GET(event) {\n  return new Response();\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "an existing `@param` JSDoc tag must suppress re-annotation"
+        );
+    }
+
+    #[test]
+    fn js_route_load_with_existing_param_tag_is_left_alone() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @param {PageLoadEvent} event\n */\nexport async function load(event) {\n  return {};\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "an existing `@param` JSDoc tag must suppress re-annotation"
+        );
+    }
+
+    // Review follow-up on the #2055 implementation: the JSDoc gate must match
+    // TypeScript's *structural* `getJSDocType`/`getJSDocTags`/
+    // `getJSDocParameterTags`, not a bare substring search — `@typedef`
+    // contains `@type` as a substring, a description can mention `@types/node`
+    // or `@param` in running prose, and a `@param` tag only counts if its
+    // declared name actually matches the parameter it's meant to type. Every
+    // case below was verified against the real `upsertKitFile` first — the
+    // official checker augments each of these (0 errors either way only
+    // because the augmentation still runs).
+
+    #[test]
+    fn js_load_typedef_only_still_gets_augmented() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @typedef {import('./$types.js').PageLoadEvent} Event\n */\nexport async function load(event) {\n  return {};\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("`@typedef` is not `@type` — the gate must not confuse the two");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @param {{import('./$types.js').PageLoadEvent}} event */ {IGNORE_END_COMMENT}export async function load"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_prose_types_mention_still_gets_augmented() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * Uses conventions from @types/node.\n */\nexport async function load(event) {\n  return {};\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("a prose mention of `@types/node` must not read as an `@type` tag");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains("@param {import('./$types.js').PageLoadEvent} event"),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_hooks_handle_typedef_only_still_gets_augmented() {
+        let path = PathBuf::from("src/hooks.server.js");
+        let source = "/**\n * @typedef {import('@sveltejs/kit').Handle} Handle\n */\nexport async function handle({ event, resolve }) {\n  return resolve(event);\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("`@typedef` is not `@type` — the gate must not confuse the two");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').Handle}} */ {IGNORE_END_COMMENT}export async function handle"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_entries_typedef_only_still_gets_augmented() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @typedef {import('./$types.js').EntryGenerator} Gen\n */\nexport function entries() {\n  return [];\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("`@typedef` is not `@type` — the gate must not confuse the two");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "{IGNORE_START_COMMENT}/** @type {{import('./$types.js').EntryGenerator}} */ {IGNORE_END_COMMENT}export function entries"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_ssr_typedef_only_still_gets_augmented() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @typedef {boolean} Flag\n */\nexport const ssr = true;\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("`@typedef` is not `@type` — the gate must not confuse the two");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{boolean}} */ ({IGNORE_END_COMMENT}true{IGNORE_START_COMMENT}){IGNORE_END_COMMENT};"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_actions_typedef_only_still_gets_augmented() {
+        let path = PathBuf::from("src/routes/+page.server.js");
+        let source = "/**\n * @typedef {import('./$types.js').Actions} A\n */\nexport const actions = {\n  default: async (event) => ({})\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("`@typedef` is not `@satisfies` — the gate must not confuse the two");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @satisfies {{import('./$types.js').Actions}} */ ({IGNORE_END_COMMENT}{{"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_param_tag_wrong_name_still_gets_augmented() {
+        // Official's `getJSDocParameterTags` only recognises a `@param` tag
+        // whose declared name matches the actual identifier parameter — a tag
+        // documenting an unrelated name doesn't count as typing `event`.
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @param {number} other\n */\nexport async function load(event) {\n  return { other };\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("a `@param` tag naming a different identifier must not suppress augmentation");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains("@param {import('./$types.js').PageLoadEvent} event"),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    // Review follow-up: `jsdoc_param_target`'s brace-skip used to stop at the
+    // *first* `}`, so a `@param` type annotation containing its own braces
+    // mis-extracted the declared name and the tag was wrongly treated as not
+    // targeting the real parameter — the gate then failed to suppress
+    // augmentation and rsvelte double-annotated where official leaves the
+    // file untouched. Verified against the real `upsertKitFile` first.
+
+    #[test]
+    fn js_load_param_tag_nested_object_type_matching_name_is_left_alone() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @param {{ url: URL }} event\n */\nexport async function load(event) {\n  return { url: event.url };\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.as_ref().is_none_or(|a| a.is_empty()),
+            "a `@param` tag with a brace-nested type must still be parsed to its real name: {adds:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_param_tag_generic_nested_object_type_matching_name_is_left_alone() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @param {Array<{ a: string }>} event\n */\nexport async function load(event) {\n  return { event };\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.as_ref().is_none_or(|a| a.is_empty()),
+            "a `@param` tag with a generic+brace-nested type must still be parsed to its real name: {adds:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_param_tag_plain_type_matching_name_is_left_alone() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @param {number} event\n */\nexport async function load(event) {\n  return { event };\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.as_ref().is_none_or(|a| a.is_empty()),
+            "a plain (unbraced-body) `@param` type must still resolve to the right name: {adds:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_param_tag_nested_object_type_wrong_name_still_gets_augmented() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @param {{ url: URL }} other\n */\nexport async function load(event) {\n  return { url: event.url };\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default()).expect(
+            "a brace-nested `@param` type naming a different identifier must not suppress augmentation",
+        );
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains("@param {import('./$types.js').PageLoadEvent} event"),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_var_typedef_only_still_gets_augmented() {
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * @typedef {import('./$types.js').PageLoadEvent} Event\n */\nexport const load = async (event) => {\n  return {};\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("`@typedef` is not `@type`/`@param` — the gate must not confuse the two");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @param {{import('./$types.js').PageLoadEvent}} event */ {IGNORE_END_COMMENT}async (event)"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_hooks_arrow_typedef_only_still_gets_augmented() {
+        let path = PathBuf::from("src/hooks.server.js");
+        let source = "/**\n * @typedef {import('@sveltejs/kit').Handle} Handle\n */\nexport const handle = async ({ event, resolve }) => {\n  return resolve(event);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("`@typedef` is not `@type` — the gate must not confuse the two");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @type {{import('@sveltejs/kit').Handle}} */ {IGNORE_END_COMMENT}async ({{ event, resolve }})"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_multiline_jsdoc_desc_mentioning_param_word_still_gets_augmented() {
+        // A description line that merely *contains* the substring `@param`
+        // (not at the start of the line) must not read as a real tag.
+        let path = PathBuf::from("src/routes/+page.js");
+        let source = "/**\n * Some description mentions the pattern @param inline without it being a tag.\n */\nexport async function load(event) {\n  return {};\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("a mid-line `@param` mention in prose must not read as a real tag");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains("@param {import('./$types.js').PageLoadEvent} event"),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_hooks_handle_with_existing_satisfies_tag_is_left_alone() {
+        // #2055 P2 follow-up: `add_hooks_type`'s `VariableDeclaration` arm only
+        // checked `d.type_annotation.is_some()`, never `var_already_typed`, so
+        // a `@satisfies` tag (JS-only half of `hasTypeDefinition`) didn't
+        // suppress re-annotation.
+        let path = PathBuf::from("src/hooks.server.js");
+        let source = "/**\n * @satisfies {import('@sveltejs/kit').Handle}\n */\nexport const handle = async ({ event, resolve }) => {\n  return resolve(event);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.as_ref().is_none_or(|a| a.is_empty()),
+            "an existing `@satisfies` JSDoc tag must suppress re-annotation: {adds:?}"
+        );
+    }
+
+    #[test]
+    fn js_match_with_existing_satisfies_tag_is_left_alone() {
+        // Same follow-up as above, for `visit_param_statement`'s
+        // `VariableDeclaration` arm.
+        let path = PathBuf::from("src/params/slug.js");
+        let source = "/**\n * @satisfies {(param: string) => boolean}\n */\nexport const match = (param) => param.length > 0;\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.as_ref().is_none_or(|a| a.is_empty()),
+            "an existing `@satisfies` JSDoc tag must suppress re-annotation: {adds:?}"
+        );
+    }
+
+    // #2055 (4): official's `findExports` only recognises a single-declarator
+    // `export const x = ...` — a multi-declarator statement isn't looked up
+    // under either name, so neither export gets augmented.
+
+    #[test]
+    fn multi_declarator_export_is_left_alone() {
+        let path = PathBuf::from("src/routes/api/+server.ts");
+        let source = "export const ssr = true, GET = async (event) => new Response();\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "a multi-declarator export statement must not be augmented at all"
+        );
+    }
+
+    #[test]
+    fn multi_declarator_load_export_is_left_alone() {
+        let path = PathBuf::from("src/routes/+page.ts");
+        let source = "export const prerender = true, load = async (event) => ({});\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "a multi-declarator export statement must not be augmented at all"
+        );
+    }
+
     #[test]
     fn js_ssr_uses_jsdoc_type_wrapper() {
         let path = PathBuf::from("src/routes/+page.js");
@@ -1345,15 +2126,35 @@ mod tests {
     }
 
     #[test]
-    fn js_load_uses_jsdoc_satisfies_wrapper() {
+    fn js_load_var_arrow_form_uses_jsdoc_param_not_satisfies() {
+        // JS mirror of `load_var_arrow_form_gets_param_type_not_satisfies`.
         let path = PathBuf::from("src/routes/+layout.server.js");
         let source = "export const load = async ({ url }) => ({ url });\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default())
             .expect("js load should emit insertions");
         let augmented = apply_added_code(source, &adds);
         assert!(
+            !augmented.contains("@satisfies"),
+            "a function-like `load` initializer must not get a `@satisfies` JSDoc wrapper: {augmented}"
+        );
+        assert!(
             augmented.contains(&format!(
-                "= {IGNORE_START_COMMENT}/** @satisfies {{import('./$types.js').LayoutServerLoad}} */ ({IGNORE_END_COMMENT}async ({{ url }}) => ({{ url }}){IGNORE_START_COMMENT}){IGNORE_END_COMMENT};"
+                "= {IGNORE_START_COMMENT}/** @param {{import('./$types.js').LayoutServerLoadEvent}} arg0 */ {IGNORE_END_COMMENT}async ({{ url }})"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn js_load_var_non_function_form_uses_jsdoc_satisfies_wrapper() {
+        let path = PathBuf::from("src/routes/+layout.server.js");
+        let source = "import { loadImpl } from './helpers.js';\nexport const load = loadImpl;\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("js load should emit insertions");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= {IGNORE_START_COMMENT}/** @satisfies {{import('./$types.js').LayoutServerLoad}} */ ({IGNORE_END_COMMENT}loadImpl{IGNORE_START_COMMENT}){IGNORE_END_COMMENT};"
             )),
             "augmented = {augmented:?}"
         );
