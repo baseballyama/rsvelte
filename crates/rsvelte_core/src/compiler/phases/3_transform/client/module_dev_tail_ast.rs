@@ -58,7 +58,9 @@ pub fn transform_module_dev_tail_ast(source: &str, dev: bool, is_ts: bool) -> Op
             || memchr::memmem::find(bytes, b"$.derived").is_some()
             || memchr::memmem::find(bytes, b"$.proxy").is_some());
 
-    if !has_effect && !has_strict && !has_console && !has_tag {
+    let has_inspect = dev && super::inspect_rune_ast::source_has_inspect_rune(source);
+
+    if !has_effect && !has_strict && !has_console && !has_tag && !has_inspect {
         return None;
     }
 
@@ -88,6 +90,11 @@ pub fn transform_module_dev_tail_ast(source: &str, dev: bool, is_ts: bool) -> Op
             }
             if has_tag {
                 edits.extend(super::tag_declarator_ast::collect_tag_declarator_edits(
+                    program, src,
+                ));
+            }
+            if has_inspect {
+                edits.extend(super::inspect_rune_ast::collect_inspect_rune_edits(
                     program, src,
                 ));
             }

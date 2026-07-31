@@ -3948,6 +3948,10 @@ fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> b
     let has_strict_equals = config.dev && super::strict_equals_ast::source_has_equality_op(script);
     // Dev-mode `await X` → `(await $.track_reactivity_loss(X))()` rewrite.
     let has_await = config.dev && memchr::memmem::find(script.as_bytes(), b"await").is_some();
+    // Dev-mode `$inspect(...)` → `$.inspect(...)`; without its own probe the
+    // rewrite only fires once some other rune has opened the pass.
+    let has_inspect =
+        config.dev && config.is_runes && super::inspect_rune_ast::source_has_inspect_rune(script);
 
     if !has_state
         && !has_props
@@ -3961,6 +3965,7 @@ fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> b
         && !has_host_calls
         && !has_strict_equals
         && !has_await
+        && !has_inspect
     {
         return false;
     }
@@ -4020,6 +4025,7 @@ fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> b
         // `await` is a keyword, not an identifier, so it can only be carried by
         // its own probe here.
         || has_await
+        || has_inspect
 }
 
 fn state_assignment_needs_semantic(program: &Program<'_>, state_vars: &FxHashSet<&str>) -> bool {

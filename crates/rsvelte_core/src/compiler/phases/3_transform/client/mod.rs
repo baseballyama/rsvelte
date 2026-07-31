@@ -16,6 +16,7 @@ mod destructure_transforms;
 mod effect_rune_ast;
 mod expression_utils;
 mod formatting;
+mod inspect_rune_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
 mod module_dev_tail_ast;
@@ -5989,6 +5990,9 @@ fn transform_instance_script_for_visitors(
         let has_strict_equals = dev && strict_equals_ast::source_has_equality_op(&result);
         // Dev-mode `await X` → `(await $.track_reactivity_loss(X))()` rewrite.
         let has_await = dev && memmem::find(result.as_bytes(), b"await").is_some();
+        // Dev-mode `$inspect(...)` → `$.inspect(...)`; see the matching probe in
+        // `ast_state_transform`. This block already sits under `analysis.runes`.
+        let has_inspect = dev && inspect_rune_ast::source_has_inspect_rune(&result);
         let has_transforms = !state_vars.is_empty()
             || !prop_assignment_transform_vars.is_empty()
             || !store_sub_vars.is_empty()
@@ -6000,7 +6004,8 @@ fn transform_instance_script_for_visitors(
             || has_props_calls
             || has_host_calls
             || has_strict_equals
-            || has_await;
+            || has_await
+            || has_inspect;
 
         if has_transforms {
             // Collect $derived / $derived.by binding names so AST assignment transforms
