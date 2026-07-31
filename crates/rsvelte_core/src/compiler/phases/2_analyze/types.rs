@@ -858,207 +858,431 @@ fn collect_ts_removals_from_program(
     source: &str,
     removals: &mut Vec<(u32, u32)>,
 ) {
-    for stmt in &program.body {
-        collect_ts_removals_from_statement(stmt, source, removals);
-    }
+    use oxc_ast_visit::Visit;
+    ts_removals::TsRemovalCollector { source, removals }.visit_program(program);
 }
 
-/// Collect TS removals from a function (type params, return type, this param).
-fn collect_ts_removals_from_function(
-    func: &oxc_ast::ast::Function,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    // Remove type parameters: function foo<T>()
-    if let Some(ref type_params) = func.type_parameters {
-        removals.push((type_params.span.start, type_params.span.end));
+/// Span collector behind [`collect_ts_removals_from_program`].
+///
+/// Upstream (`1-parse/remove_typescript_nodes.js`) walks the AST generically and
+/// its catch-all visitor deletes `typeAnnotation` / `typeParameters` /
+/// `typeArguments` / `returnType` / `accessibility` / `readonly` / `definite` /
+/// `override` / `optional` on *every* node, so no node kind can be silently
+/// skipped. Driving this collector from `oxc_ast_visit::Visit` reproduces that
+/// property: the default walk reaches every child, and an override is needed
+/// only where a source span must be removed or a subtree must be cut off.
+/// (issue #1999)
+mod ts_removals {
+    use oxc_ast::ast::*;
+    use oxc_ast_visit::{Visit, walk};
+    use oxc_span::{GetSpan, Span};
+    use oxc_syntax::scope::ScopeFlags;
+
+    use super::{
+        accessibility_keyword, collect_definite_marker_removal, collect_optional_marker_removal,
+        is_paren_safe_to_drop, peel_ts_wrappers, remove_keyword_from_source,
+        remove_specifier_with_comma,
+    };
+
+    pub(super) struct TsRemovalCollector<'s, 'r> {
+        pub(super) source: &'s str,
+        pub(super) removals: &'r mut Vec<(u32, u32)>,
     }
 
-    // Remove return type: function foo(): string
-    if let Some(ref return_type) = func.return_type {
-        removals.push((return_type.span.start, return_type.span.end));
-    }
+    impl TsRemovalCollector<'_, '_> {
+        fn remove(&mut self, span: Span) {
+            self.removals.push((span.start, span.end));
+        }
 
-    // Remove `this` parameter type: function foo(this: any)
-    if let Some(ref this_param) = func.this_param {
-        // Need to also remove the comma after `this: any` if there are more params
-        let end = if !func.params.items.is_empty() {
-            // Remove up to the start of the first param, including comma
-            func.params.items[0].span.start
-        } else {
-            this_param.span.end
-        };
-        removals.push((this_param.span.start, end));
-    }
+        fn remove_range(&mut self, start: u32, end: u32) {
+            self.removals.push((start, end));
+        }
 
-    // Recurse into params for type annotations and optional markers
-    for param in &func.params.items {
-        // Remove optional `?` marker (e.g., `key?: Type` → `key`)
-        if param.optional {
-            use oxc_span::GetSpan;
-            // The `?` sits right after the binding pattern's span end
-            let pattern_end = param.pattern.span().end;
-            if (pattern_end as usize) < source.len()
-                && source.as_bytes()[pattern_end as usize] == b'?'
-            {
-                removals.push((pattern_end, pattern_end + 1));
+        /// `abstract` / `implements` are keywords rather than child nodes, so
+        /// they have no span of their own and must be located in the source.
+        fn remove_class_modifiers(&mut self, class: &Class<'_>) {
+            if class.r#abstract && !self.source.is_empty() {
+                let class_source = &self.source[class.span.start as usize..class.span.end as usize];
+                if let Some(abstract_pos) =
+                    memchr::memmem::find(class_source.as_bytes(), b"abstract")
+                {
+                    let abs_start = class.span.start + abstract_pos as u32;
+                    let abs_end = abs_start + 8;
+                    let space_end = if (abs_end as usize) < self.source.len()
+                        && self.source.as_bytes()[abs_end as usize] == b' '
+                    {
+                        abs_end + 1
+                    } else {
+                        abs_end
+                    };
+                    self.remove_range(abs_start, space_end);
+                }
             }
-        }
-        if let Some(ref type_ann) = param.type_annotation {
-            removals.push((type_ann.span.start, type_ann.span.end));
-        }
-        collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
-    }
 
-    // Strip type annotation from rest param: `(...args: Type[])` → `(...args)`
-    if let Some(ref rest) = func.params.rest
-        && let Some(ref type_ann) = rest.type_annotation
-    {
-        removals.push((type_ann.span.start, type_ann.span.end));
-    }
-
-    // Recurse into function body
-    if let Some(ref body) = func.body {
-        for stmt in &body.statements {
-            collect_ts_removals_from_statement(stmt, source, removals);
-        }
-    }
-}
-
-/// Collect TS removals from a class (abstract keyword, type params, implements, members).
-fn collect_ts_removals_from_class(
-    class: &oxc_ast::ast::Class,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    use oxc_span::GetSpan;
-
-    // Remove `abstract` keyword before `class`
-    if class.r#abstract && !source.is_empty() {
-        let class_source = &source[class.span.start as usize..class.span.end as usize];
-        if let Some(abstract_pos) = memchr::memmem::find(class_source.as_bytes(), b"abstract") {
-            let abs_start = class.span.start + abstract_pos as u32;
-            let abs_end = abs_start + 8; // "abstract" is 8 chars
-            let space_end = if (abs_end as usize) < source.len()
-                && source.as_bytes()[abs_end as usize] == b' '
-            {
-                abs_end + 1
+            if class.implements.is_empty() || self.source.is_empty() {
+                return;
+            }
+            let last_impl = class.implements.last().unwrap();
+            let search_start = if let Some(super_class) = &class.super_class {
+                super_class.span().end as usize
+            } else if let Some(type_params) = &class.type_parameters {
+                type_params.span.end as usize
+            } else if let Some(id) = &class.id {
+                id.span.end as usize
             } else {
-                abs_end
+                class.span.start as usize
             };
-            removals.push((abs_start, space_end));
-        }
-    }
-
-    // Remove type parameters: class Foo<T>
-    if let Some(ref type_params) = class.type_parameters {
-        removals.push((type_params.span.start, type_params.span.end));
-    }
-
-    // Remove super type arguments: extends Bar<T>
-    if let Some(ref super_type_args) = class.super_type_arguments {
-        removals.push((super_type_args.span.start, super_type_args.span.end));
-    }
-
-    // Remove `implements` clause
-    if !class.implements.is_empty() && !source.is_empty() {
-        let last_impl = class.implements.last().unwrap();
-        let search_start = if let Some(ref _super) = class.super_class {
-            _super.span().end as usize
-        } else if let Some(ref type_params) = class.type_parameters {
-            type_params.span.end as usize
-        } else if let Some(ref id) = class.id {
-            id.span.end as usize
-        } else {
-            class.span.start as usize
-        };
-
-        if search_start < class.body.span.start as usize {
-            let search_source = &source[search_start..class.body.span.start as usize];
+            if search_start >= class.body.span.start as usize {
+                return;
+            }
+            let search_source = &self.source[search_start..class.body.span.start as usize];
             if let Some(impl_pos) = memchr::memmem::find(search_source.as_bytes(), b"implements") {
                 let abs_start = search_start as u32 + impl_pos as u32;
-                removals.push((abs_start, last_impl.span.end));
+                self.remove_range(abs_start, last_impl.span.end);
                 if abs_start > 0
-                    && (abs_start as usize) <= source.len()
-                    && source.as_bytes()[(abs_start - 1) as usize] == b' '
+                    && (abs_start as usize) <= self.source.len()
+                    && self.source.as_bytes()[(abs_start - 1) as usize] == b' '
                 {
-                    removals.push((abs_start - 1, abs_start));
+                    self.remove_range(abs_start - 1, abs_start);
                 }
             }
         }
     }
 
-    // Process class body members
-    for element in &class.body.body {
-        match element {
-            oxc_ast::ast::ClassElement::MethodDefinition(method) => {
-                if method.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition {
-                    removals.push((method.span.start, method.span.end));
-                    continue;
-                }
-                let key_span = method.key.span();
-                let modifiers = oxc_span::Span::new(method.span.start, key_span.start);
-                if let Some(ref accessibility) = method.accessibility {
-                    remove_keyword_from_source(
-                        accessibility_keyword(accessibility),
-                        modifiers,
-                        source,
-                        removals,
-                    );
-                }
-                if method.r#override {
-                    remove_keyword_from_source("override", modifiers, source, removals);
-                }
-                if method.optional {
-                    collect_optional_marker_removal(key_span.end, source, removals);
-                }
-                collect_ts_removals_from_function(&method.value, source, removals);
+    /// An ambient function declaration (`declare function f(): void`) or a bare
+    /// overload signature is deleted whole. A method's empty body is spelled
+    /// `TSEmptyBodyFunctionExpression` instead, and upstream leaves those alone.
+    fn is_ambient_function(func: &Function<'_>) -> bool {
+        func.r#type == FunctionType::TSDeclareFunction
+            || func.declare
+            || (func.body.is_none() && func.r#type != FunctionType::TSEmptyBodyFunctionExpression)
+    }
+
+    impl<'a> Visit<'a> for TsRemovalCollector<'_, '_> {
+        // ---- type-only syntax: removed wherever it appears, never walked into ----
+
+        fn visit_ts_type_annotation(&mut self, it: &TSTypeAnnotation<'a>) {
+            self.remove(it.span);
+        }
+
+        fn visit_ts_type_parameter_declaration(&mut self, it: &TSTypeParameterDeclaration<'a>) {
+            self.remove(it.span);
+        }
+
+        fn visit_ts_type_parameter_instantiation(&mut self, it: &TSTypeParameterInstantiation<'a>) {
+            self.remove(it.span);
+        }
+
+        fn visit_ts_type_alias_declaration(&mut self, it: &TSTypeAliasDeclaration<'a>) {
+            self.remove(it.span);
+        }
+
+        fn visit_ts_interface_declaration(&mut self, it: &TSInterfaceDeclaration<'a>) {
+            self.remove(it.span);
+        }
+
+        fn visit_ts_module_declaration(&mut self, it: &TSModuleDeclaration<'a>) {
+            self.remove(it.span);
+        }
+
+        fn visit_ts_enum_declaration(&mut self, it: &TSEnumDeclaration<'a>) {
+            self.remove(it.span);
+        }
+
+        // Upstream passes these through verbatim (a class index signature even
+        // makes it throw), so they are left exactly as written.
+        fn visit_ts_index_signature(&mut self, _it: &TSIndexSignature<'a>) {}
+        fn visit_ts_export_assignment(&mut self, _it: &TSExportAssignment<'a>) {}
+        fn visit_ts_import_equals_declaration(&mut self, _it: &TSImportEqualsDeclaration<'a>) {}
+        fn visit_ts_namespace_export_declaration(
+            &mut self,
+            _it: &TSNamespaceExportDeclaration<'a>,
+        ) {
+        }
+
+        // ---- TS expression wrappers: drop the marker, keep the operand ----
+
+        fn visit_ts_as_expression(&mut self, it: &TSAsExpression<'a>) {
+            self.remove_range(it.expression.span().end, it.span.end);
+            self.visit_expression(&it.expression);
+        }
+
+        fn visit_ts_satisfies_expression(&mut self, it: &TSSatisfiesExpression<'a>) {
+            self.remove_range(it.expression.span().end, it.span.end);
+            self.visit_expression(&it.expression);
+        }
+
+        fn visit_ts_non_null_expression(&mut self, it: &TSNonNullExpression<'a>) {
+            self.remove_range(it.expression.span().end, it.span.end);
+            self.visit_expression(&it.expression);
+        }
+
+        fn visit_ts_instantiation_expression(&mut self, it: &TSInstantiationExpression<'a>) {
+            self.remove_range(it.expression.span().end, it.span.end);
+            self.visit_expression(&it.expression);
+        }
+
+        fn visit_ts_type_assertion(&mut self, it: &TSTypeAssertion<'a>) {
+            self.remove_range(it.span.start, it.expression.span().start);
+            self.visit_expression(&it.expression);
+        }
+
+        fn visit_parenthesized_expression(&mut self, it: &ParenthesizedExpression<'a>) {
+            // When parens wrap a TS-only wrapper like `(X as T)` or `(X!)` whose
+            // runtime value is simply `X`, the outer parens become redundant once
+            // the type annotation is stripped. Collapse them together so that
+            // `((expr)?.filter(x) as T[])[0]` becomes `(expr)?.filter(x)[0]`,
+            // matching esrap/astring output. Only drop them when peeling the
+            // wrapper exposes an expression whose precedence never required them
+            // — for a unary / binary / logical / conditional operand, removing
+            // the parens can silently change the meaning (e.g.
+            // `(-n as number) ** 2` → `-n ** 2` is a JS syntax error).
+            // (issue #457, H-125)
+            let inner = &it.expression;
+            let is_ts_wrapper = matches!(
+                inner,
+                Expression::TSAsExpression(_)
+                    | Expression::TSSatisfiesExpression(_)
+                    | Expression::TSNonNullExpression(_)
+                    | Expression::TSTypeAssertion(_)
+                    | Expression::TSInstantiationExpression(_)
+            );
+            if is_ts_wrapper && is_paren_safe_to_drop(peel_ts_wrappers(inner)) {
+                self.remove_range(it.span.start, inner.span().start);
+                self.remove_range(inner.span().end, it.span.end);
             }
-            oxc_ast::ast::ClassElement::PropertyDefinition(prop) => {
-                if prop.declare {
-                    removals.push((prop.span.start, prop.span.end));
-                    continue;
-                }
-                if prop.r#type == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition
+            self.visit_expression(inner);
+        }
+
+        // ---- declarations carrying TS-only modifiers ----
+
+        fn visit_function(&mut self, it: &Function<'a>, flags: ScopeFlags) {
+            if is_ambient_function(it) {
+                self.remove(it.span);
+                return;
+            }
+            // `this: T` is a whole parameter, so the following comma goes too.
+            if let Some(this_param) = &it.this_param {
+                let end = match it.params.items.first() {
+                    Some(first) => first.span.start,
+                    None => this_param.span.end,
+                };
+                self.remove_range(this_param.span.start, end);
+            }
+            walk::walk_function(self, it, flags);
+        }
+
+        fn visit_formal_parameter(&mut self, it: &FormalParameter<'a>) {
+            if it.optional {
+                let pattern_end = it.pattern.span().end;
+                if (pattern_end as usize) < self.source.len()
+                    && self.source.as_bytes()[pattern_end as usize] == b'?'
                 {
-                    removals.push((prop.span.start, prop.span.end));
-                    continue;
+                    self.remove_range(pattern_end, pattern_end + 1);
                 }
-                if let Some(ref type_ann) = prop.type_annotation {
-                    if prop.definite {
-                        collect_definite_marker_removal(type_ann.span.start, source, removals);
+            }
+            walk::walk_formal_parameter(self, it);
+        }
+
+        fn visit_variable_declaration(&mut self, it: &VariableDeclaration<'a>) {
+            if it.declare {
+                self.remove(it.span);
+                return;
+            }
+            walk::walk_variable_declaration(self, it);
+        }
+
+        fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
+            if it.definite
+                && let Some(type_ann) = &it.type_annotation
+            {
+                collect_definite_marker_removal(type_ann.span.start, self.source, self.removals);
+            }
+            walk::walk_variable_declarator(self, it);
+        }
+
+        fn visit_class(&mut self, it: &Class<'a>) {
+            if it.declare {
+                self.remove(it.span);
+                return;
+            }
+            self.remove_class_modifiers(it);
+            walk::walk_class(self, it);
+        }
+
+        fn visit_method_definition(&mut self, it: &MethodDefinition<'a>) {
+            if it.r#type == MethodDefinitionType::TSAbstractMethodDefinition {
+                self.remove(it.span);
+                return;
+            }
+            let key_span = it.key.span();
+            let modifiers = Span::new(it.span.start, key_span.start);
+            if let Some(accessibility) = &it.accessibility {
+                remove_keyword_from_source(
+                    accessibility_keyword(accessibility),
+                    modifiers,
+                    self.source,
+                    self.removals,
+                );
+            }
+            if it.r#override {
+                remove_keyword_from_source("override", modifiers, self.source, self.removals);
+            }
+            if it.optional {
+                collect_optional_marker_removal(key_span.end, self.source, self.removals);
+            }
+            walk::walk_method_definition(self, it);
+        }
+
+        fn visit_property_definition(&mut self, it: &PropertyDefinition<'a>) {
+            if it.declare || it.r#type == PropertyDefinitionType::TSAbstractPropertyDefinition {
+                self.remove(it.span);
+                return;
+            }
+            if it.definite
+                && let Some(type_ann) = &it.type_annotation
+            {
+                collect_definite_marker_removal(type_ann.span.start, self.source, self.removals);
+            }
+            let key_span = it.key.span();
+            let modifiers = Span::new(it.span.start, key_span.start);
+            if let Some(accessibility) = &it.accessibility {
+                remove_keyword_from_source(
+                    accessibility_keyword(accessibility),
+                    modifiers,
+                    self.source,
+                    self.removals,
+                );
+            }
+            if it.readonly {
+                remove_keyword_from_source("readonly", modifiers, self.source, self.removals);
+            }
+            if it.r#override {
+                remove_keyword_from_source("override", modifiers, self.source, self.removals);
+            }
+            if it.optional {
+                collect_optional_marker_removal(key_span.end, self.source, self.removals);
+            }
+            walk::walk_property_definition(self, it);
+        }
+
+        // ---- module declarations: type-only specifiers need comma repair ----
+
+        fn visit_import_declaration(&mut self, it: &ImportDeclaration<'a>) {
+            if it.import_kind == ImportOrExportKind::Type {
+                self.remove(it.span);
+                return;
+            }
+            let Some(specifiers) = &it.specifiers else {
+                return;
+            };
+            let type_specs: Vec<_> = specifiers
+                .iter()
+                .filter(|s| {
+                    matches!(s, ImportDeclarationSpecifier::ImportSpecifier(spec)
+                        if spec.import_kind == ImportOrExportKind::Type)
+                })
+                .collect();
+            if type_specs.is_empty() {
+                return;
+            }
+            if type_specs.len() == specifiers.len() {
+                self.remove(it.span);
+                return;
+            }
+            // A default or namespace specifier may survive, so the `{ … }` block
+            // is only collapsible when every *named* specifier is type-only.
+            let named_specs: Vec<_> = specifiers
+                .iter()
+                .filter(|s| matches!(s, ImportDeclarationSpecifier::ImportSpecifier(_)))
+                .collect();
+            let all_named_are_type = !named_specs.is_empty()
+                && named_specs.iter().all(|s| {
+                    matches!(s, ImportDeclarationSpecifier::ImportSpecifier(spec)
+                        if spec.import_kind == ImportOrExportKind::Type)
+                });
+            if all_named_are_type {
+                let first_span = named_specs.first().unwrap().span();
+                let last_span = named_specs.last().unwrap().span();
+                let before = &self.source[..first_span.start as usize];
+                if let Some(brace_pos) = before.rfind('{') {
+                    let after = &self.source[last_span.end as usize..];
+                    if let Some(close_offset) = after.find('}') {
+                        let close_pos = last_span.end as usize + close_offset + 1;
+                        let before_brace = &self.source[..brace_pos];
+                        let comma_start = before_brace.rfind(',').unwrap_or(brace_pos);
+                        self.remove_range(comma_start as u32, close_pos as u32);
                     }
-                    removals.push((type_ann.span.start, type_ann.span.end));
                 }
-                let key_span = prop.key.span();
-                let modifiers = oxc_span::Span::new(prop.span.start, key_span.start);
-                if let Some(ref accessibility) = prop.accessibility {
-                    remove_keyword_from_source(
-                        accessibility_keyword(accessibility),
-                        modifiers,
-                        source,
-                        removals,
-                    );
-                }
-                if prop.readonly {
-                    remove_keyword_from_source("readonly", modifiers, source, removals);
-                }
-                if prop.r#override {
-                    remove_keyword_from_source("override", modifiers, source, removals);
-                }
-                if prop.optional {
-                    collect_optional_marker_removal(key_span.end, source, removals);
-                }
-                if let Some(ref value) = prop.value {
-                    collect_ts_removals_from_expression(value, source, removals);
+            } else {
+                for spec in type_specs {
+                    remove_specifier_with_comma(spec.span(), self.source, self.removals);
                 }
             }
-            oxc_ast::ast::ClassElement::StaticBlock(block) => {
-                for stmt in &block.body {
-                    collect_ts_removals_from_statement(stmt, source, removals);
+        }
+
+        fn visit_export_named_declaration(&mut self, it: &ExportNamedDeclaration<'a>) {
+            if it.export_kind == ImportOrExportKind::Type {
+                self.remove(it.span);
+                return;
+            }
+            if let Some(declaration) = &it.declaration {
+                // An ambient / type-only declaration takes the `export` keyword
+                // with it, so the statement is removed rather than the child.
+                let drop_statement = match declaration {
+                    Declaration::FunctionDeclaration(func) => is_ambient_function(func),
+                    Declaration::ClassDeclaration(class) => class.declare,
+                    Declaration::VariableDeclaration(var_decl) => var_decl.declare,
+                    Declaration::TSTypeAliasDeclaration(_)
+                    | Declaration::TSInterfaceDeclaration(_)
+                    | Declaration::TSEnumDeclaration(_)
+                    | Declaration::TSModuleDeclaration(_) => true,
+                    _ => false,
+                };
+                if drop_statement {
+                    self.remove(it.span);
+                    return;
+                }
+                self.visit_declaration(declaration);
+                return;
+            }
+            let type_specs: Vec<_> = it
+                .specifiers
+                .iter()
+                .filter(|s| s.export_kind == ImportOrExportKind::Type)
+                .collect();
+            if type_specs.is_empty() {
+                return;
+            }
+            if type_specs.len() == it.specifiers.len() {
+                self.remove(it.span);
+            } else {
+                for spec in type_specs {
+                    remove_specifier_with_comma(spec.span, self.source, self.removals);
                 }
             }
-            _ => {}
+        }
+
+        fn visit_export_default_declaration(&mut self, it: &ExportDefaultDeclaration<'a>) {
+            let drop_statement = match &it.declaration {
+                ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => true,
+                ExportDefaultDeclarationKind::FunctionDeclaration(func) => {
+                    is_ambient_function(func)
+                }
+                ExportDefaultDeclarationKind::ClassDeclaration(class) => class.declare,
+                _ => false,
+            };
+            if drop_statement {
+                self.remove(it.span);
+                return;
+            }
+            walk::walk_export_default_declaration(self, it);
+        }
+
+        fn visit_export_all_declaration(&mut self, it: &ExportAllDeclaration<'a>) {
+            if it.export_kind == ImportOrExportKind::Type {
+                self.remove(it.span);
+            }
         }
     }
 }
@@ -1185,645 +1409,6 @@ fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
     )
 }
 
-/// Collect TS removals from a call/new argument. `Argument::as_expression()`
-/// returns `None` for spread arguments, so `...(<expr> as T)` (and any TS
-/// syntax nested inside a spread) must be unwrapped explicitly — otherwise
-/// the cast survives stripping and the output is not valid JavaScript.
-fn collect_ts_removals_from_argument(
-    arg: &oxc_ast::ast::Argument,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    if let oxc_ast::ast::Argument::SpreadElement(spread) = arg {
-        collect_ts_removals_from_expression(&spread.argument, source, removals);
-    } else if let Some(e) = arg.as_expression() {
-        collect_ts_removals_from_expression(e, source, removals);
-    }
-}
-
-/// Collect TS removals from an expression.
-fn collect_ts_removals_from_expression(
-    expr: &oxc_ast::ast::Expression,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    use oxc_ast::ast::Expression as E;
-    use oxc_span::GetSpan;
-
-    match expr {
-        E::TSAsExpression(ts_as) => {
-            removals.push((ts_as.expression.span().end, ts_as.span.end));
-            collect_ts_removals_from_expression(&ts_as.expression, source, removals);
-        }
-        E::TSSatisfiesExpression(ts_sat) => {
-            removals.push((ts_sat.expression.span().end, ts_sat.span.end));
-            collect_ts_removals_from_expression(&ts_sat.expression, source, removals);
-        }
-        E::TSNonNullExpression(ts_nn) => {
-            removals.push((ts_nn.expression.span().end, ts_nn.span.end));
-            collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
-        }
-        E::TSTypeAssertion(ts_assertion) => {
-            removals.push((
-                ts_assertion.span.start,
-                ts_assertion.expression.span().start,
-            ));
-            collect_ts_removals_from_expression(&ts_assertion.expression, source, removals);
-        }
-        E::TSInstantiationExpression(ts_inst) => {
-            removals.push((ts_inst.expression.span().end, ts_inst.span.end));
-            collect_ts_removals_from_expression(&ts_inst.expression, source, removals);
-        }
-        E::CallExpression(call) => {
-            collect_ts_removals_from_expression(&call.callee, source, removals);
-            if let Some(ref type_args) = call.type_arguments {
-                removals.push((type_args.span.start, type_args.span.end));
-            }
-            for arg in &call.arguments {
-                collect_ts_removals_from_argument(arg, source, removals);
-            }
-        }
-        E::NewExpression(new_expr) => {
-            collect_ts_removals_from_expression(&new_expr.callee, source, removals);
-            if let Some(ref type_args) = new_expr.type_arguments {
-                removals.push((type_args.span.start, type_args.span.end));
-            }
-            for arg in &new_expr.arguments {
-                collect_ts_removals_from_argument(arg, source, removals);
-            }
-        }
-        E::TaggedTemplateExpression(tagged) => {
-            collect_ts_removals_from_expression(&tagged.tag, source, removals);
-            if let Some(ref type_args) = tagged.type_arguments {
-                removals.push((type_args.span.start, type_args.span.end));
-            }
-        }
-        E::AssignmentExpression(assign) => {
-            collect_ts_removals_from_assignment_target(&assign.left, source, removals);
-            collect_ts_removals_from_expression(&assign.right, source, removals);
-        }
-        E::BinaryExpression(bin) => {
-            collect_ts_removals_from_expression(&bin.left, source, removals);
-            collect_ts_removals_from_expression(&bin.right, source, removals);
-        }
-        E::LogicalExpression(log) => {
-            collect_ts_removals_from_expression(&log.left, source, removals);
-            collect_ts_removals_from_expression(&log.right, source, removals);
-        }
-        E::ConditionalExpression(cond) => {
-            collect_ts_removals_from_expression(&cond.test, source, removals);
-            collect_ts_removals_from_expression(&cond.consequent, source, removals);
-            collect_ts_removals_from_expression(&cond.alternate, source, removals);
-        }
-        E::UnaryExpression(unary) => {
-            collect_ts_removals_from_expression(&unary.argument, source, removals);
-        }
-        E::UpdateExpression(update) => {
-            collect_ts_removals_from_simple_assignment_target(&update.argument, source, removals);
-        }
-        E::SequenceExpression(seq) => {
-            for e in &seq.expressions {
-                collect_ts_removals_from_expression(e, source, removals);
-            }
-        }
-        E::ArrayExpression(arr) => {
-            use oxc_ast::ast::ArrayExpressionElement as AEE;
-            for elem in &arr.elements {
-                match elem {
-                    AEE::SpreadElement(spread) => {
-                        collect_ts_removals_from_expression(&spread.argument, source, removals);
-                    }
-                    AEE::Elision(_) => {}
-                    _ => {
-                        if let Some(e) = elem.as_expression() {
-                            collect_ts_removals_from_expression(e, source, removals);
-                        }
-                    }
-                }
-            }
-        }
-        E::ObjectExpression(obj) => {
-            for prop in &obj.properties {
-                match prop {
-                    oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
-                        // Visit computed keys for TS expressions like `[foo as number]`
-                        if p.computed
-                            && let Some(key_expr) = match &p.key {
-                                oxc_ast::ast::PropertyKey::StaticIdentifier(_)
-                                | oxc_ast::ast::PropertyKey::PrivateIdentifier(_) => None,
-                                other => other.as_expression(),
-                            }
-                        {
-                            collect_ts_removals_from_expression(key_expr, source, removals);
-                        }
-                        collect_ts_removals_from_expression(&p.value, source, removals);
-                    }
-                    oxc_ast::ast::ObjectPropertyKind::SpreadProperty(spread) => {
-                        collect_ts_removals_from_expression(&spread.argument, source, removals);
-                    }
-                }
-            }
-        }
-        E::ArrowFunctionExpression(arrow) => {
-            if let Some(ref type_params) = arrow.type_parameters {
-                removals.push((type_params.span.start, type_params.span.end));
-            }
-            if let Some(ref return_type) = arrow.return_type {
-                removals.push((return_type.span.start, return_type.span.end));
-            }
-            for param in &arrow.params.items {
-                if param.optional {
-                    let pattern_end = param.pattern.span().end;
-                    if (pattern_end as usize) < source.len()
-                        && source.as_bytes()[pattern_end as usize] == b'?'
-                    {
-                        removals.push((pattern_end, pattern_end + 1));
-                    }
-                }
-                if let Some(ref type_ann) = param.type_annotation {
-                    removals.push((type_ann.span.start, type_ann.span.end));
-                }
-                collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
-            }
-            // Strip type annotation from rest param: `(...args: Type[])` → `(...args)`
-            if let Some(ref rest) = arrow.params.rest
-                && let Some(ref type_ann) = rest.type_annotation
-            {
-                removals.push((type_ann.span.start, type_ann.span.end));
-            }
-            for stmt in &arrow.body.statements {
-                collect_ts_removals_from_statement(stmt, source, removals);
-            }
-        }
-        E::FunctionExpression(func) => {
-            collect_ts_removals_from_function(func, source, removals);
-        }
-        E::ClassExpression(class) => {
-            collect_ts_removals_from_class(class, source, removals);
-        }
-        E::TemplateLiteral(tmpl) => {
-            for e in &tmpl.expressions {
-                collect_ts_removals_from_expression(e, source, removals);
-            }
-        }
-        E::ParenthesizedExpression(paren) => {
-            // When parens wrap a TS-only wrapper like `(X as T)` or `(X!)` whose
-            // runtime value is simply `X`, the outer parens become redundant once
-            // the type annotation is stripped. Collapse them together so that
-            // `((expr)?.filter(x) as T[])[0]` becomes `(expr)?.filter(x)[0]`,
-            // matching esrap/astring output. We only drop the outer parens when
-            // the inner expression is one of the single-value TS wrappers AND
-            // peeling the wrapper exposes a "simple" expression — one whose
-            // precedence never requires the surrounding parens. For a unary /
-            // binary / logical / conditional / etc. expression we keep the
-            // parens because removing them can silently change the meaning
-            // (e.g. `(-n as number) ** 2` → `-n ** 2` is a JS syntax error;
-            // `(a + b as T) * c` → `a + b * c` reassociates). (issue #457, H-125)
-            let inner = &paren.expression;
-            let is_ts_wrapper = matches!(
-                inner,
-                E::TSAsExpression(_)
-                    | E::TSSatisfiesExpression(_)
-                    | E::TSNonNullExpression(_)
-                    | E::TSTypeAssertion(_)
-                    | E::TSInstantiationExpression(_)
-            );
-            if is_ts_wrapper {
-                let unwrapped = peel_ts_wrappers(inner);
-                if is_paren_safe_to_drop(unwrapped) {
-                    // Remove `(` and `)` surrounding the TS wrapper.
-                    removals.push((paren.span.start, inner.span().start));
-                    removals.push((inner.span().end, paren.span.end));
-                }
-            }
-            collect_ts_removals_from_expression(inner, source, removals);
-        }
-        E::AwaitExpression(await_expr) => {
-            collect_ts_removals_from_expression(&await_expr.argument, source, removals);
-        }
-        E::YieldExpression(yield_expr) => {
-            if let Some(ref arg) = yield_expr.argument {
-                collect_ts_removals_from_expression(arg, source, removals);
-            }
-        }
-        // MemberExpression variants are inherited into Expression
-        E::ComputedMemberExpression(computed) => {
-            collect_ts_removals_from_expression(&computed.object, source, removals);
-            collect_ts_removals_from_expression(&computed.expression, source, removals);
-        }
-        E::StaticMemberExpression(static_member) => {
-            collect_ts_removals_from_expression(&static_member.object, source, removals);
-        }
-        E::PrivateFieldExpression(pfe) => {
-            collect_ts_removals_from_expression(&pfe.object, source, removals);
-        }
-        E::ChainExpression(chain) => match &chain.expression {
-            oxc_ast::ast::ChainElement::CallExpression(call) => {
-                collect_ts_removals_from_expression(&call.callee, source, removals);
-                if let Some(ref type_args) = call.type_arguments {
-                    removals.push((type_args.span.start, type_args.span.end));
-                }
-                for arg in &call.arguments {
-                    collect_ts_removals_from_argument(arg, source, removals);
-                }
-            }
-            oxc_ast::ast::ChainElement::StaticMemberExpression(static_member) => {
-                collect_ts_removals_from_expression(&static_member.object, source, removals);
-            }
-            oxc_ast::ast::ChainElement::ComputedMemberExpression(computed) => {
-                collect_ts_removals_from_expression(&computed.object, source, removals);
-                collect_ts_removals_from_expression(&computed.expression, source, removals);
-            }
-            oxc_ast::ast::ChainElement::PrivateFieldExpression(pfe) => {
-                collect_ts_removals_from_expression(&pfe.object, source, removals);
-            }
-            oxc_ast::ast::ChainElement::TSNonNullExpression(ts_nn) => {
-                removals.push((ts_nn.expression.span().end, ts_nn.span.end));
-                collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
-            }
-        },
-        _ => {}
-    }
-}
-
-/// Collect TS removals from an assignment target (left side of assignments).
-fn collect_ts_removals_from_assignment_target(
-    target: &oxc_ast::ast::AssignmentTarget,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    if let Some(simple) = target.as_simple_assignment_target() {
-        collect_ts_removals_from_simple_assignment_target(simple, source, removals);
-    }
-}
-
-/// Collect TS removals from a simple assignment target.
-///
-/// Shared by `AssignmentExpression.left` and `UpdateExpression.argument`: the
-/// latter is a `SimpleAssignmentTarget` too, and it can carry a TS wrapper
-/// (`count!++`), which used to be skipped here and leak an invalid `!` into the
-/// generated JS.
-fn collect_ts_removals_from_simple_assignment_target(
-    target: &oxc_ast::ast::SimpleAssignmentTarget,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    use oxc_ast::ast::SimpleAssignmentTarget as SAT;
-    use oxc_span::GetSpan;
-
-    match target {
-        SAT::TSAsExpression(ts_as) => {
-            removals.push((ts_as.expression.span().end, ts_as.span.end));
-            collect_ts_removals_from_expression(&ts_as.expression, source, removals);
-        }
-        SAT::TSSatisfiesExpression(ts_sat) => {
-            removals.push((ts_sat.expression.span().end, ts_sat.span.end));
-            collect_ts_removals_from_expression(&ts_sat.expression, source, removals);
-        }
-        SAT::TSNonNullExpression(ts_nn) => {
-            removals.push((ts_nn.expression.span().end, ts_nn.span.end));
-            collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
-        }
-        SAT::TSTypeAssertion(ts_assertion) => {
-            removals.push((
-                ts_assertion.span.start,
-                ts_assertion.expression.span().start,
-            ));
-            collect_ts_removals_from_expression(&ts_assertion.expression, source, removals);
-        }
-        SAT::ComputedMemberExpression(computed) => {
-            collect_ts_removals_from_expression(&computed.object, source, removals);
-            collect_ts_removals_from_expression(&computed.expression, source, removals);
-        }
-        SAT::StaticMemberExpression(static_member) => {
-            collect_ts_removals_from_expression(&static_member.object, source, removals);
-        }
-        SAT::PrivateFieldExpression(pfe) => {
-            collect_ts_removals_from_expression(&pfe.object, source, removals);
-        }
-        SAT::AssignmentTargetIdentifier(_) => {}
-    }
-}
-
-/// Collect TS removals from a statement.
-fn collect_ts_removals_from_statement(
-    stmt: &oxc_ast::ast::Statement,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    use oxc_ast::ast::*;
-    use oxc_span::GetSpan;
-
-    match stmt {
-        Statement::ExpressionStatement(expr_stmt) => {
-            collect_ts_removals_from_expression(&expr_stmt.expression, source, removals);
-        }
-        Statement::VariableDeclaration(var_decl) => {
-            if var_decl.declare {
-                removals.push((var_decl.span.start, var_decl.span.end));
-                return;
-            }
-            for decl in &var_decl.declarations {
-                collect_ts_removals_from_declarator(decl, source, removals);
-            }
-        }
-        Statement::ReturnStatement(ret) => {
-            if let Some(ref arg) = ret.argument {
-                collect_ts_removals_from_expression(arg, source, removals);
-            }
-        }
-        Statement::IfStatement(if_stmt) => {
-            collect_ts_removals_from_expression(&if_stmt.test, source, removals);
-            collect_ts_removals_from_statement(&if_stmt.consequent, source, removals);
-            if let Some(ref alt) = if_stmt.alternate {
-                collect_ts_removals_from_statement(alt, source, removals);
-            }
-        }
-        Statement::BlockStatement(block) => {
-            for s in &block.body {
-                collect_ts_removals_from_statement(s, source, removals);
-            }
-        }
-        Statement::ForStatement(for_stmt) => {
-            if let Some(ref init) = for_stmt.init
-                && let ForStatementInit::VariableDeclaration(vd) = init
-            {
-                for decl in &vd.declarations {
-                    collect_ts_removals_from_declarator(decl, source, removals);
-                }
-            }
-            if let Some(ref test) = for_stmt.test {
-                collect_ts_removals_from_expression(test, source, removals);
-            }
-            if let Some(ref update) = for_stmt.update {
-                collect_ts_removals_from_expression(update, source, removals);
-            }
-            collect_ts_removals_from_statement(&for_stmt.body, source, removals);
-        }
-        Statement::WhileStatement(while_stmt) => {
-            collect_ts_removals_from_expression(&while_stmt.test, source, removals);
-            collect_ts_removals_from_statement(&while_stmt.body, source, removals);
-        }
-        Statement::DoWhileStatement(do_while) => {
-            collect_ts_removals_from_statement(&do_while.body, source, removals);
-            collect_ts_removals_from_expression(&do_while.test, source, removals);
-        }
-        Statement::ForOfStatement(for_of) => {
-            if let ForStatementLeft::VariableDeclaration(vd) = &for_of.left {
-                for decl in &vd.declarations {
-                    collect_ts_removals_from_declarator(decl, source, removals);
-                }
-            }
-            collect_ts_removals_from_expression(&for_of.right, source, removals);
-            collect_ts_removals_from_statement(&for_of.body, source, removals);
-        }
-        Statement::ForInStatement(for_in) => {
-            if let ForStatementLeft::VariableDeclaration(vd) = &for_in.left {
-                for decl in &vd.declarations {
-                    collect_ts_removals_from_declarator(decl, source, removals);
-                }
-            }
-            collect_ts_removals_from_expression(&for_in.right, source, removals);
-            collect_ts_removals_from_statement(&for_in.body, source, removals);
-        }
-        Statement::LabeledStatement(labeled) => {
-            collect_ts_removals_from_statement(&labeled.body, source, removals);
-        }
-        Statement::FunctionDeclaration(func) => {
-            if func.r#type == FunctionType::TSDeclareFunction || func.declare || func.body.is_none()
-            {
-                removals.push((func.span.start, func.span.end));
-            } else {
-                collect_ts_removals_from_function(func, source, removals);
-            }
-        }
-        Statement::ClassDeclaration(class) => {
-            if class.declare {
-                removals.push((class.span.start, class.span.end));
-            } else {
-                collect_ts_removals_from_class(class, source, removals);
-            }
-        }
-        Statement::ThrowStatement(throw_stmt) => {
-            collect_ts_removals_from_expression(&throw_stmt.argument, source, removals);
-        }
-        Statement::TryStatement(try_stmt) => {
-            for s in &try_stmt.block.body {
-                collect_ts_removals_from_statement(s, source, removals);
-            }
-            if let Some(ref handler) = try_stmt.handler {
-                // Remove type annotation from catch clause parameter: catch (err: unknown)
-                if let Some(ref param) = handler.param {
-                    if let Some(ref type_ann) = param.type_annotation {
-                        removals.push((type_ann.span.start, type_ann.span.end));
-                    }
-                    collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
-                }
-                for s in &handler.body.body {
-                    collect_ts_removals_from_statement(s, source, removals);
-                }
-            }
-            if let Some(ref finalizer) = try_stmt.finalizer {
-                for s in &finalizer.body {
-                    collect_ts_removals_from_statement(s, source, removals);
-                }
-            }
-        }
-        Statement::SwitchStatement(switch_stmt) => {
-            collect_ts_removals_from_expression(&switch_stmt.discriminant, source, removals);
-            for case in &switch_stmt.cases {
-                if let Some(ref test) = case.test {
-                    collect_ts_removals_from_expression(test, source, removals);
-                }
-                for s in &case.consequent {
-                    collect_ts_removals_from_statement(s, source, removals);
-                }
-            }
-        }
-        // Import/Export declarations
-        Statement::ImportDeclaration(import_decl) => {
-            if import_decl.import_kind == ImportOrExportKind::Type {
-                removals.push((import_decl.span.start, import_decl.span.end));
-            } else if let Some(specifiers) = &import_decl.specifiers {
-                let type_specs: Vec<_> = specifiers
-                    .iter()
-                    .filter(|s| {
-                        if let ImportDeclarationSpecifier::ImportSpecifier(spec) = s {
-                            spec.import_kind == ImportOrExportKind::Type
-                        } else {
-                            false
-                        }
-                    })
-                    .collect();
-                if !type_specs.is_empty() {
-                    if type_specs.len() == specifiers.len() {
-                        removals.push((import_decl.span.start, import_decl.span.end));
-                    } else {
-                        // Check if all named ImportSpecifiers are type-only
-                        // (there may be a DefaultSpecifier or NamespaceSpecifier remaining)
-                        let named_specs: Vec<_> = specifiers
-                            .iter()
-                            .filter(|s| matches!(s, ImportDeclarationSpecifier::ImportSpecifier(_)))
-                            .collect();
-                        let all_named_are_type = !named_specs.is_empty()
-                            && named_specs.iter().all(|s| {
-                                if let ImportDeclarationSpecifier::ImportSpecifier(spec) = s {
-                                    spec.import_kind == ImportOrExportKind::Type
-                                } else {
-                                    false
-                                }
-                            });
-                        if all_named_are_type && named_specs.len() >= 2 {
-                            // Multiple named type specs: remove the whole { ... } block
-                            // including the preceding comma
-                            let first_span = named_specs.first().unwrap().span();
-                            let last_span = named_specs.last().unwrap().span();
-                            // Find the opening `{` before the first named spec
-                            let before = &source[..first_span.start as usize];
-                            if let Some(brace_pos) = before.rfind('{') {
-                                // Find the closing `}` after the last named spec
-                                let after = &source[last_span.end as usize..];
-                                if let Some(close_offset) = after.find('}') {
-                                    let close_pos = last_span.end as usize + close_offset + 1;
-                                    // Also remove the comma before `{`
-                                    let before_brace = &source[..brace_pos];
-                                    let comma_start = before_brace.rfind(',').unwrap_or(brace_pos);
-                                    removals.push((comma_start as u32, close_pos as u32));
-                                }
-                            }
-                        } else if all_named_are_type {
-                            // Single named type spec: remove it and clean up the braces + comma
-                            let spec = named_specs[0];
-                            let spec_span = spec.span();
-                            // Find the opening `{` before this spec
-                            let before = &source[..spec_span.start as usize];
-                            if let Some(brace_pos) = before.rfind('{') {
-                                // Find the closing `}` after this spec
-                                let after = &source[spec_span.end as usize..];
-                                if let Some(close_offset) = after.find('}') {
-                                    let close_pos = spec_span.end as usize + close_offset + 1;
-                                    // Also remove the comma before `{`
-                                    let before_brace = &source[..brace_pos];
-                                    let comma_start = before_brace.rfind(',').unwrap_or(brace_pos);
-                                    removals.push((comma_start as u32, close_pos as u32));
-                                }
-                            }
-                        } else {
-                            for spec in type_specs {
-                                remove_specifier_with_comma(spec.span(), source, removals);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Statement::ExportNamedDeclaration(export_decl) => {
-            if export_decl.export_kind == ImportOrExportKind::Type {
-                removals.push((export_decl.span.start, export_decl.span.end));
-            } else {
-                if let Some(ref decl) = export_decl.declaration {
-                    match decl {
-                        Declaration::FunctionDeclaration(func) => {
-                            if func.r#type == FunctionType::TSDeclareFunction
-                                || func.declare
-                                || func.body.is_none()
-                            {
-                                removals.push((export_decl.span.start, export_decl.span.end));
-                            } else {
-                                collect_ts_removals_from_function(func, source, removals);
-                            }
-                        }
-                        Declaration::ClassDeclaration(class) => {
-                            if class.declare {
-                                removals.push((export_decl.span.start, export_decl.span.end));
-                            } else {
-                                collect_ts_removals_from_class(class, source, removals);
-                            }
-                        }
-                        Declaration::VariableDeclaration(var_decl) => {
-                            if var_decl.declare {
-                                removals.push((export_decl.span.start, export_decl.span.end));
-                            } else {
-                                for decl in &var_decl.declarations {
-                                    collect_ts_removals_from_declarator(decl, source, removals);
-                                }
-                            }
-                        }
-                        Declaration::TSTypeAliasDeclaration(_)
-                        | Declaration::TSInterfaceDeclaration(_)
-                        | Declaration::TSEnumDeclaration(_)
-                        | Declaration::TSModuleDeclaration(_) => {
-                            removals.push((export_decl.span.start, export_decl.span.end));
-                        }
-                        _ => {}
-                    }
-                }
-                // Type-only export specifiers
-                let type_specs: Vec<_> = export_decl
-                    .specifiers
-                    .iter()
-                    .filter(|s| s.export_kind == ImportOrExportKind::Type)
-                    .collect();
-                if !type_specs.is_empty() && export_decl.declaration.is_none() {
-                    if type_specs.len() == export_decl.specifiers.len() {
-                        removals.push((export_decl.span.start, export_decl.span.end));
-                    } else {
-                        for spec in type_specs {
-                            remove_specifier_with_comma(spec.span, source, removals);
-                        }
-                    }
-                }
-            }
-        }
-        Statement::ExportDefaultDeclaration(export_decl) => match &export_decl.declaration {
-            ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => {
-                removals.push((export_decl.span.start, export_decl.span.end));
-            }
-            ExportDefaultDeclarationKind::FunctionDeclaration(func) => {
-                if func.r#type == FunctionType::TSDeclareFunction
-                    || func.declare
-                    || func.body.is_none()
-                {
-                    removals.push((export_decl.span.start, export_decl.span.end));
-                } else {
-                    collect_ts_removals_from_function(func, source, removals);
-                }
-            }
-            ExportDefaultDeclarationKind::ClassDeclaration(class) => {
-                if class.declare {
-                    removals.push((export_decl.span.start, export_decl.span.end));
-                } else {
-                    collect_ts_removals_from_class(class, source, removals);
-                }
-            }
-            _ => {
-                if let Some(expr) = export_decl.declaration.as_expression() {
-                    collect_ts_removals_from_expression(expr, source, removals);
-                }
-            }
-        },
-        Statement::ExportAllDeclaration(export_decl)
-            if export_decl.export_kind == ImportOrExportKind::Type =>
-        {
-            removals.push((export_decl.span.start, export_decl.span.end));
-        }
-        // TS-only statements
-        Statement::TSTypeAliasDeclaration(decl) => {
-            removals.push((decl.span.start, decl.span.end));
-        }
-        Statement::TSInterfaceDeclaration(decl) => {
-            removals.push((decl.span.start, decl.span.end));
-        }
-        Statement::TSModuleDeclaration(decl) => {
-            removals.push((decl.span.start, decl.span.end));
-        }
-        Statement::TSEnumDeclaration(decl) => {
-            removals.push((decl.span.start, decl.span.end));
-        }
-        _ => {}
-    }
-}
-
 /// Extend a type-annotation removal backwards over a definite-assignment `!`
 /// (`let x!: T`, `class A { x!: T }`). The official compiler deletes the
 /// `definite` flag from the AST, so the marker must not survive into the JS.
@@ -1848,59 +1433,6 @@ fn collect_definite_marker_removal(
         start -= 1;
     }
     removals.push((start as u32, type_ann_start));
-}
-
-/// Collect TS removals from a single variable declarator: the type annotation,
-/// the definite-assignment `!`, then the pattern and the initializer.
-fn collect_ts_removals_from_declarator(
-    decl: &oxc_ast::ast::VariableDeclarator,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    if let Some(ref type_ann) = decl.type_annotation {
-        if decl.definite {
-            collect_definite_marker_removal(type_ann.span.start, source, removals);
-        }
-        removals.push((type_ann.span.start, type_ann.span.end));
-    }
-    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
-    if let Some(ref init) = decl.init {
-        collect_ts_removals_from_expression(init, source, removals);
-    }
-}
-
-/// Collect TS removals from a binding pattern.
-fn collect_ts_removals_from_binding_pattern(
-    pattern: &oxc_ast::ast::BindingPattern,
-    source: &str,
-    removals: &mut Vec<(u32, u32)>,
-) {
-    match pattern {
-        oxc_ast::ast::BindingPattern::BindingIdentifier(_) => {
-            // A `BindingIdentifier` carries no type annotation of its own in OXC's
-            // AST (the annotation lives on the enclosing pattern), so nothing to strip.
-        }
-        oxc_ast::ast::BindingPattern::ObjectPattern(obj) => {
-            for prop in &obj.properties {
-                collect_ts_removals_from_binding_pattern(&prop.value, source, removals);
-            }
-            if let Some(ref rest) = obj.rest {
-                collect_ts_removals_from_binding_pattern(&rest.argument, source, removals);
-            }
-        }
-        oxc_ast::ast::BindingPattern::ArrayPattern(arr) => {
-            for elem in arr.elements.iter().flatten() {
-                collect_ts_removals_from_binding_pattern(elem, source, removals);
-            }
-            if let Some(ref rest) = arr.rest {
-                collect_ts_removals_from_binding_pattern(&rest.argument, source, removals);
-            }
-        }
-        oxc_ast::ast::BindingPattern::AssignmentPattern(assign) => {
-            collect_ts_removals_from_binding_pattern(&assign.left, source, removals);
-            collect_ts_removals_from_expression(&assign.right, source, removals);
-        }
-    }
 }
 
 /// Remove a specifier from its surrounding context, including the comma.
