@@ -5,10 +5,12 @@
 # directory's lockfile stale — which is how Deploy Docs broke on #1591.
 #
 # Because this is its own workspace root, the repo-root pnpm-workspace.yaml's
-# minimumReleaseAgeExclude does not apply here. `svelte`, `vite`, and `oxlint`
-# are Renovate-bumped tooling deps here too, so mirror the same exclude list
-# to avoid ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION on fresh bumps.
+# minimumReleaseAgeExclude does not apply here. `svelte`, `vite`, `oxlint`, and
+# `@sveltejs/kit` are Renovate-bumped tooling deps here too, so mirror the same
+# exclude list to avoid ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION on fresh bumps
+# (see the @sveltejs/kit@2.70.2 violation on #1920).
 minimumReleaseAgeExclude:
   - svelte
   - vite
   - oxlint
+  - '@sveltejs/kit'
