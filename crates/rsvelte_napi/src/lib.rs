@@ -251,7 +251,7 @@ pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi
 /// dual-output build otherwise pays for that shared work twice by calling
 /// `compile` once per target. `options.generate` is ignored; the result is
 /// `{ client, server }`, each shaped like the `compile` return value.
-#[napi(js_name = "compileBoth")]
+#[napi(js_name = "compileBoth", catch_unwind)]
 pub fn napi_compile_both(
     source: String,
     options: Option<NapiCompileOptions>,
