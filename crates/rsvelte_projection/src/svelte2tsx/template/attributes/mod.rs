@@ -19,7 +19,7 @@ use crate::svelte2tsx::svelte2tsx::slice_src;
 use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::nodes::attach_tag::format_attach_tag_segments;
 use crate::svelte2tsx::template::segs::{
-    Seg, segs_is_empty, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
+    Seg, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
 };
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_expression_range, get_expression_text,
@@ -279,17 +279,9 @@ pub(super) fn build_attribute_segments(
         splice_trailing_segs(&mut segs, &trailing);
     }
 
-    if any_pushed && !segs_is_empty(&segs) {
-        // Leading single space: `{ "attr":val,}` (not `{"attr":val,}`).
-        // Inserted as a fresh first Lit so callers can replace/pad it
-        // without disturbing the inner segments.
-        let mut padded: Vec<Seg> = Vec::with_capacity(segs.len() + 1);
-        padded.push(Seg::Lit(" ".to_string()));
-        padded.extend(segs);
-        padded
-    } else {
-        segs
-    }
+    // The leading whitespace inside `{ … }` is not per-attribute: it is the
+    // opening tag's collapsed source gaps, counted by `opener_spacing`.
+    segs
 }
 
 /// Build the attributes/props string for a component, excluding `on:` directives.
@@ -305,8 +297,6 @@ pub(super) fn build_component_props_string(
     comments: &ElementOpenerCommentIndex,
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
-    let mut has_on_directives = false;
-    let mut let_count = 0u32;
 
     for attr in attributes {
         match attr {
@@ -358,7 +348,6 @@ pub(super) fn build_component_props_string(
             }
             Attribute::OnDirective(_) => {
                 // Excluded from component props - handled as $on() calls
-                has_on_directives = true;
             }
             Attribute::ClassDirective(class) => {
                 parts.push(format_class_directive(class, source));
@@ -377,9 +366,7 @@ pub(super) fn build_component_props_string(
                 }
             }
             Attribute::LetDirective(_) => {
-                // Let directives don't produce props but add a space to match
-                // JS svelte2tsx whitespace behavior
-                let_count += 1;
+                // Let directives don't produce props
             }
             Attribute::AnimateDirective(_) => {
                 // Animate directives don't produce TSX output
@@ -399,23 +386,7 @@ pub(super) fn build_component_props_string(
         splice_trailing_text(last, &trailing_attr_comment_text(end, source, comments));
     }
 
-    let result = parts.join("");
-    let let_spaces = " ".repeat(let_count as usize);
-    if result.is_empty() {
-        if has_on_directives && let_count == 0 {
-            // When only on: directives were filtered out, add a space inside the
-            // empty braces to match JS svelte2tsx output: `props: { }`
-            " ".to_string()
-        } else if let_count > 0 {
-            // Each let: directive adds a space to match JS svelte2tsx whitespace
-            let_spaces
-        } else {
-            result
-        }
-    } else {
-        // Add let: directive spaces before the regular props
-        format!(" {}{}", let_spaces, result)
-    }
+    parts.join("")
 }
 
 /// Structured-bake variant of [`build_component_props_string`]. Same
@@ -429,8 +400,6 @@ pub(super) fn build_component_props_segments(
     drop_slot: bool,
 ) -> Vec<Seg> {
     let mut inner: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
-    let mut has_on_directives = false;
-    let mut let_count = 0u32;
 
     let extend_segs = |dst: &mut Vec<Seg>, src: Vec<Seg>| {
         for s in src {
@@ -507,7 +476,7 @@ pub(super) fn build_component_props_segments(
                 segs_push_lit(&mut inner, ",");
             }
             Attribute::OnDirective(_) => {
-                has_on_directives = true;
+                // Excluded from component props - handled as $on() calls.
             }
             Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
                 // `class:`/`style:` directives are element-only. Official
@@ -521,7 +490,7 @@ pub(super) fn build_component_props_segments(
                 // the `new …({...})` call (see build_component_directive_suffix).
             }
             Attribute::LetDirective(_) => {
-                let_count += 1;
+                // Let directives don't produce props.
             }
             Attribute::AnimateDirective(_) => {
                 // animate: lowers to an ensureAnimation suffix, not a prop.
@@ -538,19 +507,5 @@ pub(super) fn build_component_props_segments(
         splice_trailing_segs(&mut inner, &trailing);
     }
 
-    let let_spaces = " ".repeat(let_count as usize);
-    if segs_is_empty(&inner) {
-        if has_on_directives && let_count == 0 {
-            vec![Seg::Lit(" ".to_string())]
-        } else if let_count > 0 {
-            vec![Seg::Lit(let_spaces)]
-        } else {
-            Vec::new()
-        }
-    } else {
-        let mut out: Vec<Seg> = Vec::with_capacity(inner.len() + 1);
-        out.push(Seg::Lit(format!(" {}", let_spaces)));
-        out.extend(inner);
-        out
-    }
+    inner
 }

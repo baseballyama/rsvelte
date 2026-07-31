@@ -119,9 +119,11 @@ pub(crate) fn handle_if_block(
             block.end
         };
 
-        // Check if the alternate is an elseif
-        let has_elseif =
-            alternate.nodes.len() == 1 && matches!(alternate.nodes[0], TemplateNode::IfBlock(_));
+        // Check if the alternate is an elseif. `{:else}{#if …}{/if}` also nests a
+        // lone IfBlock, so the node's own `elseif` flag decides (upstream reads
+        // `ifBlock.elseif`), not the shape of the alternate.
+        let has_elseif = alternate.nodes.len() == 1
+            && matches!(&alternate.nodes[0], TemplateNode::IfBlock(nested) if nested.elseif);
 
         if has_elseif {
             // Don't insert anything between consequent end and the nested
@@ -158,8 +160,26 @@ pub(crate) fn handle_if_block(
                 ((p + 1).min(bytes.len())) as u32
             };
 
-            // Overwrite {:else} with `} else {`
-            str.overwrite(consequent_end, alternate_start, "} else {");
+            // Mirror `htmlxtojsx_v2/nodes/IfElseBlock.ts::handleElse`: unlike the
+            // `elseif` header (which uses the literal `} else if (`, spaces
+            // included), the plain `{:else}` tag is rewritten character-by-character
+            // — the opening `{` becomes `}`, the closing `}` becomes `{`, and the
+            // `:` is dropped — leaving `else` (and any surrounding source
+            // whitespace) untouched in between. For the common `{:else}` spelling
+            // this produces `}else{`, with no inserted spaces.
+            //
+            // The three positions are found by scanning *backwards* from the else
+            // branch's start, as upstream does: a forward scan from the consequent
+            // would run into a nested block's own braces first.
+            let else_close = source[..alternate_start as usize].rfind('}');
+            let colon = else_close.and_then(|end| source[..end].rfind(":else"));
+            let else_open = colon.and_then(|word| source[..word].rfind('{'));
+            if let (Some(else_open), Some(colon), Some(else_close)) = (else_open, colon, else_close)
+            {
+                str.overwrite(else_open as u32, else_open as u32 + 1, "}");
+                str.overwrite(else_close as u32, else_close as u32 + 1, "{");
+                str.remove(colon as u32, colon as u32 + 1);
+            }
 
             // Hoist alternate-branch snippets above sibling declarations too.
             hoist_snippet_blocks(alternate, source, str);

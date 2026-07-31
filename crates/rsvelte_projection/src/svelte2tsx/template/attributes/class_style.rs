@@ -36,9 +36,8 @@ pub(crate) fn class_style_directive_seg(attr: &Attribute, source: &str) -> Optio
     let mut out: Vec<Seg> = Vec::new();
     match attr {
         Attribute::ClassDirective(class) => {
-            // `class:xx={expr}` → ` expr;` — type-check the toggle
+            // `class:xx={expr}` → `expr;` — type-check the toggle
             // expression as a standalone statement.
-            segs_push_lit(&mut out, " ");
             if let Some((s, e)) = get_expression_range(&class.expression) {
                 segs_push_src(&mut out, s, e);
             } else {
@@ -47,8 +46,8 @@ pub(crate) fn class_style_directive_seg(attr: &Attribute, source: &str) -> Optio
             segs_push_lit(&mut out, ";");
         }
         Attribute::StyleDirective(style) => {
-            // `style:xx={expr}` → ` __sveltets_2_ensureType(String, Number, expr);`
-            segs_push_lit(&mut out, " __sveltets_2_ensureType(String, Number, ");
+            // `style:xx={expr}` → `__sveltets_2_ensureType(String, Number, expr);`
+            segs_push_lit(&mut out, "__sveltets_2_ensureType(String, Number, ");
             match &style.value {
                 AttributeValue::True(_) => {
                     // Shorthand `style:color` → `…, color);` (implicit

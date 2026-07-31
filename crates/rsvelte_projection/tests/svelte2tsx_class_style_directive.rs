@@ -39,13 +39,13 @@ fn class_and_style_directives_are_not_props_keys() {
 
     // The props object is empty for this element.
     assert!(
-        out.contains("svelteHTML.createElement(\"div\", { });"),
+        out.contains("svelteHTML.createElement(\"div\", {  });"),
         "expected empty props object, got:\n{out}"
     );
 
     // class: lowers to a bare expression statement; style: to ensureType.
     assert!(
-        out.contains("); on;"),
+        out.contains(");on;"),
         "class: expr statement missing:\n{out}"
     );
     assert!(
@@ -66,7 +66,7 @@ fn class_shorthand_directive_is_not_props_key() {
         "class: shorthand leaked into props:\n{out}"
     );
     assert!(
-        out.contains("); active;"),
+        out.contains(");active;"),
         "class: shorthand statement missing:\n{out}"
     );
 }
@@ -101,7 +101,7 @@ fn class_style_alongside_real_attributes() {
         "class: directive leaked into props:\n{out}"
     );
     assert!(
-        out.contains("); on;"),
+        out.contains(");on;"),
         "class: expr statement missing:\n{out}"
     );
 }

@@ -14,9 +14,8 @@ use crate::svelte2tsx::template::attributes::directive_suffix::{
 };
 use crate::svelte2tsx::template::attributes::{build_attribute_segments, build_attributes_string};
 use crate::svelte2tsx::template::ctx::Counter;
-use crate::svelte2tsx::template::segs::{
-    Seg, bake_out_of_order_src, emit_segmented_overwrite, segs_is_empty, segs_trim_start,
-};
+use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{
     closing_tag_name_matches, find_closing_tag_start, find_opening_tag_end,
 };
@@ -118,16 +117,24 @@ pub(crate) fn handle_regular_element(
         Some(opener_content_start),
     );
 
-    // Official always emits exactly ONE inherent space after the `{` of the
-    // attribute object, regardless of the source whitespace between the tag name
-    // and the first attribute (verified: `<button onclick>`, `<button  onclick>`,
-    // `<button\n\tonclick>` all → `{ "onclick":… }`). oxfmt normalises this away
-    // for valid output, but a raw top-level-await component keeps it exact.
-    let attrs_empty_before_pad = segs_is_empty(&attr_segs);
-    if !el.attributes.is_empty() && !attrs_empty_before_pad {
-        segs_trim_start(&mut attr_segs);
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        Some((el.start + 1, opener_content_start)),
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: saved_slot.is_some(),
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
+    if spacing.in_attr_object > 0 {
         let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
-        padded.push(Seg::Lit(" ".to_string()));
+        padded.push(Seg::Lit(" ".repeat(spacing.in_attr_object)));
         padded.extend(attr_segs);
         attr_segs = padded;
     }
@@ -187,13 +194,6 @@ pub(crate) fn handle_regular_element(
         &el.name,
     );
 
-    // When all surviving props are empty but a `bind:` / `class:` / `style:`
-    // directive was stripped, JS reference still leaves whitespace inside
-    // `{ }`. Add a single space so `createElement("div", { })` matches.
-    if segs_is_empty(&attr_segs) && !segs_is_empty(&suffix_segs) {
-        attr_segs.push(Seg::Lit(" ".into()));
-    }
-
     // Build the opener as a `Vec<Seg>` (header lit + attr segs + trailer
     // lit) and apply via `emit_segmented_overwrite`. Action declarations
     // (if any) are emitted *before* the inner `{ … createElement(…); … }`
@@ -204,15 +204,16 @@ pub(crate) fn handle_regular_element(
     } else {
         String::new()
     };
+    let indent = " ".repeat(spacing.before_block);
     let header_lit = if !directive_prefix.is_empty() {
         format!(
-            " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
-            directive_prefix, element_var_decl, el.name, actions_arg,
+            "{}{{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
+            indent, directive_prefix, element_var_decl, el.name, actions_arg,
         )
     } else {
         format!(
-            " {{ {}svelteHTML.createElement(\"{}\"{}, {{",
-            element_var_decl, el.name, actions_arg,
+            "{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
+            indent, element_var_decl, el.name, actions_arg,
         )
     };
     // The trailer closes the props object + createElement call (`}});`), then
@@ -303,8 +304,25 @@ pub(crate) fn handle_title_element(
         counter.slot_inst.is_some(),
     );
 
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        Some((el.start + 1, el.start + 1 + el.name.len() as u32)),
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: counter.slot_inst.is_some(),
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
     let opener = format!(
-        " {{ svelteHTML.createElement(\"title\", {{{}}});",
+        "{}{{ svelteHTML.createElement(\"title\", {{{}{}}});",
+        " ".repeat(spacing.before_block),
+        " ".repeat(spacing.in_attr_object),
         attrs_str
     );
     str.overwrite(el.start, opening_tag_end, &opener);

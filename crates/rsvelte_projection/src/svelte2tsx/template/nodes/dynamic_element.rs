@@ -17,6 +17,7 @@ use crate::svelte2tsx::template::attributes::let_::build_let_destructure_string;
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::segs::segs_to_string;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
+use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
@@ -45,14 +46,13 @@ pub(crate) fn handle_svelte_dynamic_element(
     let named_slot: Option<(String, String)> = saved_slot.as_ref().and_then(|inst| {
         get_slot_attr_value(&el.attributes, source).map(|name| (inst.clone(), name))
     });
-    if let Some((ref inst, ref target_slot)) = named_slot {
+    let named_slot_block = named_slot.as_ref().map(|(inst, target_slot)| {
         let let_destructure = build_let_destructure_string(&el.attributes, source);
-        let block_open = format!(
+        format!(
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
             let_destructure, inst, target_slot
-        );
-        str.prepend_left(el.start, &block_open);
-    }
+        )
+    });
 
     let raw_tag_text = get_expression_text(&el.tag, source);
     // If the `this` attribute value is a plain string literal (this="tag"),
@@ -86,6 +86,40 @@ pub(crate) fn handle_svelte_dynamic_element(
             &counter.element_opener_comments,
             saved_slot.is_some(),
         )
+    };
+
+    // `<svelte:element this={tag}>` names itself with the tag expression; a
+    // literal `this="div"` is emitted as a string and keeps no source range.
+    let tag_range = if tag_text.starts_with('"') {
+        None
+    } else {
+        get_expression_range(&el.tag)
+    };
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        tag_range,
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: saved_slot.is_some(),
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
+    // The slot-def block sits inside the opening tag's leading whitespace, so it
+    // is emitted after the indent rather than before it.
+    let indent = " ".repeat(spacing.before_block);
+    if let Some(block) = named_slot_block {
+        str.prepend_left(el.start, &format!("{}{}", indent, block));
+    }
+    let indent = if named_slot.is_some() {
+        String::new()
+    } else {
+        indent
     };
 
     // `use:` / `transition:` / `animate:` directives, same V4 emission as on a
@@ -123,15 +157,12 @@ pub(crate) fn handle_svelte_dynamic_element(
             .ends_with("/>")
             || crate::compiler::utils::is_void_element(&el.name));
 
-    let attrs_self = if attrs_str.is_empty() {
-        "  "
+    let attrs_inner = if spacing.in_attr_object > 0 {
+        let mut padded = " ".repeat(spacing.in_attr_object);
+        padded.push_str(&attrs_str);
+        padded
     } else {
-        &attrs_str
-    };
-    let attrs_open = if attrs_str.is_empty() {
-        " "
-    } else {
-        &attrs_str
+        attrs_str
     };
     // With directives an extra inner block scope wraps the createElement so the
     // action declarations (in `directive_prefix`) are in scope: ` {<prefix>{ … }}`.
@@ -224,19 +255,21 @@ pub(crate) fn handle_svelte_dynamic_element(
     if is_self_closing {
         // Self-closing: outer block, optional inner directive block, close both.
         let opener = format!(
-            " {{{}{}{}{}}}",
+            "{}{{{}{}{}{}}}",
+            indent,
             directive_prefix,
             inner_open,
-            create(attrs_self),
+            create(&attrs_inner),
             inner_close
         );
         str.overwrite(el.start, el.end, &opener);
     } else {
         let opener = format!(
-            " {{{}{}{}",
+            "{}{{{}{}{}",
+            indent,
             directive_prefix,
             inner_open,
-            create(attrs_open)
+            create(&attrs_inner)
         );
         str.overwrite(el.start, opening_tag_end, &opener);
 

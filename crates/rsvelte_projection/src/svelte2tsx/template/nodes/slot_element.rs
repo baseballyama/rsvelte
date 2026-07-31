@@ -10,6 +10,7 @@ use crate::svelte2tsx::template::attributes::let_::build_let_destructure_string;
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::utils::expr::get_expression_text;
+use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
@@ -40,14 +41,13 @@ pub(crate) fn handle_slot_element(
     let named_slot: Option<(String, String)> = saved_slot.as_ref().and_then(|inst| {
         get_slot_attr_value(&el.attributes, source).map(|name| (inst.clone(), name))
     });
-    if let Some((ref inst, ref target_slot)) = named_slot {
+    let named_slot_block = named_slot.as_ref().map(|(inst, target_slot)| {
         let let_destructure = build_let_destructure_string(&el.attributes, source);
-        let block_open = format!(
+        format!(
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
             let_destructure, inst, target_slot
-        );
-        str.prepend_left(el.start, &block_open);
-    }
+        )
+    });
 
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
@@ -58,31 +58,54 @@ pub(crate) fn handle_slot_element(
     // Check for bind:this directive
     let bind_this_expr = get_bind_this_expr(&el.attributes, source);
 
-    // Build slot props string (excluding `name` attribute and `bind:this`).
-    // Official emits a leading space inside a non-empty props object
-    // (`{ "message":… }`); empty stays `{}`. oxfmt normalises this for valid
-    // output, but a top-level-await slot is emitted raw, where the space matters.
-    // Note: `build_slot_props_string` already prepends a space to non-empty
-    // results, so we must NOT add another space here in the format string.
+    // Build slot props string (excluding the `name` attribute and `bind:this`).
     let slot_props = build_slot_props_string(&el.attributes, source);
-    let slot_props_obj = if slot_props.is_empty() {
+    // `__sveltets_createSlot("name"` keeps the source range of a static slot
+    // name; a defaulted (absent) name is a literal and keeps none.
+    let name_range = get_slot_name_range(&el.attributes);
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        name_range,
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: saved_slot.is_some(),
+            tag_name: &el.name,
+            is_slot_tag: true,
+        },
+    );
+    let slot_props_obj = if slot_props.is_empty() && spacing.in_attr_object == 0 {
         "{}".to_string()
     } else {
-        format!("{{{}}}", slot_props)
+        format!("{{{}{}}}", " ".repeat(spacing.in_attr_object), slot_props)
     };
 
-    // Build the slot call
+    // The slot-def block sits inside the opening tag's leading whitespace, so it
+    // is emitted after the indent rather than before it.
+    let indent = " ".repeat(spacing.before_block);
+    let indent = match named_slot_block {
+        Some(block) => {
+            str.prepend_left(el.start, &format!("{}{}", indent, block));
+            String::new()
+        }
+        None => indent,
+    };
     let opener = if bind_this_expr.is_some() {
         format!(
-            " {{ const $$_slot{} = __sveltets_createSlot(\"{}\", {});",
+            "{}{{ const $$_slot{} = __sveltets_createSlot(\"{}\", {});",
+            indent,
             counter.next_slot(),
             slot_name,
             slot_props_obj
         )
     } else {
         format!(
-            " {{ __sveltets_createSlot(\"{}\", {});",
-            slot_name, slot_props_obj
+            "{}{{ __sveltets_createSlot(\"{}\", {});",
+            indent, slot_name, slot_props_obj
         )
     };
     str.overwrite(el.start, opening_tag_end, &opener);
@@ -181,6 +204,23 @@ pub(crate) fn dollar_slot_name(attributes: &[Attribute]) -> String {
         }
     }
     slot_name
+}
+
+/// Source range of the `<slot name=…>` value that the start transformation
+/// keeps (`surroundWith(str, [slotName.start, slotName.end], '"', '"')`); `None`
+/// when the name defaults, which official emits as a literal.
+fn get_slot_name_range(attributes: &[Attribute]) -> Option<(u32, u32)> {
+    attributes.iter().find_map(|attr| match attr {
+        Attribute::Attribute(node) if node.name == "name" => match &node.value {
+            AttributeValue::Sequence(parts) => parts.first().map(|part| match part {
+                AttributeValuePart::Text(text) => (text.start, text.end),
+                AttributeValuePart::ExpressionTag(tag) => (tag.start, tag.end),
+            }),
+            AttributeValue::Expression(tag) => Some((tag.start, tag.end)),
+            AttributeValue::True(_) => None,
+        },
+        _ => None,
+    })
 }
 
 pub(crate) fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
@@ -285,16 +325,7 @@ pub(crate) fn build_slot_props_string(attributes: &[Attribute], source: &str) ->
         }
     }
 
-    let result = parts.join("");
-    if result.is_empty() {
-        // Empty props: `{}` (no space)
-        String::new()
-    } else {
-        // Slot props go inside `{<props>}`. Official preserves the source
-        // whitespace between `<slot` and the first attribute (always at least
-        // one space) as a leading space after `{`, e.g. `{ "message":… }`.
-        format!(" {result}")
-    }
+    parts.join("")
 }
 
 /// Get the static `slot="name"` attribute value from an element's attributes.

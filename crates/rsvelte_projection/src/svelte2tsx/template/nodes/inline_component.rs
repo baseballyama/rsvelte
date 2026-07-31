@@ -22,17 +22,16 @@ use crate::svelte2tsx::template::attributes::{
     build_component_props_segments, build_component_props_string,
 };
 use crate::svelte2tsx::template::ctx::Counter;
-use crate::svelte2tsx::template::segs::{
-    Seg, bake_out_of_order_src, emit_segmented_overwrite, segs_is_empty, segs_trim_start,
-};
+use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
 };
 use crate::svelte2tsx::template::utils::names::reversed_component_name;
-use crate::svelte2tsx::template::utils::source::{
-    count_tag_to_attr_spaces, find_closing_tag_start, find_opening_tag_end,
+use crate::svelte2tsx::template::utils::opener_spacing::{
+    OpenerCtx, closing_tag_spacing, opener_spacing,
 };
+use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
 
 use super::component_slots::{
@@ -41,6 +40,22 @@ use super::component_slots::{
 };
 use super::slot_element::get_slot_attr_value;
 use super::snippet_block::handle_snippet_block_as_component_prop;
+
+/// The `</Component>` → `Component}` mapping upstream keeps for the closing tag.
+/// The `svelte:` tags keep nothing there, and neither does a component whose
+/// closing tag is missing.
+fn component_closing_name_range(
+    name: &str,
+    closing_tag_start: u32,
+    node_end: u32,
+) -> Option<(u32, u32)> {
+    (!name.starts_with("svelte:") && closing_tag_start != node_end).then(|| {
+        (
+            closing_tag_start + 2,
+            closing_tag_start + 2 + name.len() as u32,
+        )
+    })
+}
 
 /// Handle a Svelte component: `<Component ...>`.
 ///
@@ -185,50 +200,57 @@ pub(crate) fn handle_component(
     );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
-    let attrs_empty_before_pad = segs_is_empty(&attr_segs);
-    if !comp.attributes.is_empty() && !attrs_empty_before_pad {
-        let extra_spaces = count_tag_to_attr_spaces(&comp.name, comp.start, source);
-        if extra_spaces >= 1 {
-            let total_spaces = extra_spaces + 1;
-            segs_trim_start(&mut attr_segs);
-            let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
-            padded.push(Seg::Lit(" ".repeat(total_spaces)));
-            padded.extend(attr_segs);
-            attr_segs = padded;
-        }
+    let name_start = source[comp.start as usize..]
+        .find(comp.name.as_str())
+        .map_or(comp.start + 1, |o| comp.start + o as u32);
+    let spacing = opener_spacing(
+        source,
+        comp.start,
+        &comp.name,
+        opening_tag_end,
+        Some((name_start, name_start + comp.name.len() as u32)),
+        &comp.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: false,
+            in_component_slot: named_slot_close,
+            tag_name: &comp.name,
+            is_slot_tag: false,
+        },
+    );
+    if spacing.in_attr_object > 0 {
+        let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
+        padded.push(Seg::Lit(" ".repeat(spacing.in_attr_object)));
+        padded.extend(attr_segs);
+        attr_segs = padded;
     }
+    // A named-slot child's `$$slot_def[…]` prologue is emitted by the caller
+    // ahead of this block, and takes the leading gaps with it.
+    let block_indent = if named_slot_close {
+        String::new()
+    } else {
+        " ".repeat(spacing.before_block)
+    };
 
     // Add children prop for Svelte 5 if component has children. Inserted
     // at the beginning of the props object, AFTER any leading whitespace
     // from the attribute spacing (when applicable).
     if is_svelte5 && has_children {
         let children_text = "children:() => { return __sveltets_2_any(0); },";
-        if segs_is_empty(&attr_segs) {
-            attr_segs = vec![Seg::Lit(children_text.to_string())];
-        } else if has_lets || children_have_named_slots {
-            // Slot let-forwarding owns the leading whitespace already.
-            segs_trim_start(&mut attr_segs);
-            let mut prefixed: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
-            prefixed.push(Seg::Lit(children_text.to_string()));
-            prefixed.extend(attr_segs);
-            attr_segs = prefixed;
-        } else {
-            // Has other attrs: insert children between the leading whitespace
-            // `Lit` and the first attribute.
-            let mut leading_ws = String::new();
-            if let Some(Seg::Lit(first)) = attr_segs.first_mut() {
-                let trimmed = first.trim_start_matches(|c: char| c.is_whitespace());
-                leading_ws.push_str(&first[..first.len() - trimmed.len()]);
-                *first = trimmed.to_string();
-                if first.is_empty() {
-                    attr_segs.remove(0);
-                }
+        // Insert between the leading whitespace `Lit` and the first attribute.
+        let mut leading_ws = String::new();
+        if let Some(Seg::Lit(first)) = attr_segs.first_mut() {
+            let trimmed = first.trim_start_matches(|c: char| c.is_whitespace());
+            leading_ws.push_str(&first[..first.len() - trimmed.len()]);
+            *first = trimmed.to_string();
+            if first.is_empty() {
+                attr_segs.remove(0);
             }
-            let mut prefixed: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
-            prefixed.push(Seg::Lit(format!("{}{}", leading_ws, children_text)));
-            prefixed.extend(attr_segs);
-            attr_segs = prefixed;
         }
+        let mut prefixed: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+        prefixed.push(Seg::Lit(format!("{}{}", leading_ws, children_text)));
+        prefixed.extend(attr_segs);
+        attr_segs = prefixed;
     }
 
     // Build the replacement for the opening tag.
@@ -303,16 +325,16 @@ pub(crate) fn handle_component(
         };
         (
             format!(
-                " {{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
-                inst_var, comp.name, inst_var, inst_var,
+                "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
+                block_indent, inst_var, comp.name, inst_var, inst_var,
             ),
             format!("}}}});{}{}", component_bind_suffix, on_calls),
         )
     } else {
         (
             format!(
-                " {{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{",
-                inst_var, comp.name, inst_var,
+                "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{",
+                block_indent, inst_var, comp.name, inst_var,
             ),
             "}});".to_string(),
         )
@@ -344,9 +366,10 @@ pub(crate) fn handle_component(
     let is_self_closing = closing_tag_start >= comp.end;
 
     // Handle children with slot awareness
+    let mut deferred_slot_close = false;
     if has_lets || children_have_named_slots || children_have_default_slot_lets {
         // Process children with slot scoping
-        process_component_children_with_slots(
+        deferred_slot_close = process_component_children_with_slots(
             comp,
             &inst_var,
             has_lets,
@@ -435,9 +458,11 @@ pub(crate) fn handle_component(
         .iter()
         .any(|n| !matches!(n, TemplateNode::Text(t) if t.start >= t.end));
     let needs_inline_block = has_lets && !has_children_for_block;
+    // Body of the `let:` scope block, without the `}` that closes it — upstream
+    // closes it from the closing-tag transform, i.e. after that tag's gaps.
     let inline_block = if needs_inline_block {
         format!(
-            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;}}",
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
             build_let_destructure_string(&comp.attributes, source),
             inst_var
         )
@@ -452,19 +477,35 @@ pub(crate) fn handle_component(
             // bindings have a scope.
             str.append_left(closing_tag_start, &inline_block);
         }
+        let spaces = " ".repeat(closing_tag_spacing(
+            closing_tag_start,
+            comp.end,
+            component_closing_name_range(&comp.name, closing_tag_start, comp.end),
+        ));
+        let slot_close = if needs_inline_block || deferred_slot_close {
+            "}"
+        } else {
+            ""
+        };
         if named_slot_close {
             // Close just this component's block; the named-slot caller emits
             // the component-name reference + the named-slot-block close after.
-            str.overwrite(closing_tag_start, comp.end, " }");
+            str.overwrite_fmt(
+                closing_tag_start,
+                comp.end,
+                format_args!("{}{}}}", spaces, slot_close),
+            );
         } else {
             str.overwrite_fmt(
                 closing_tag_start,
                 comp.end,
-                format_args!(" {}}}", comp.name),
+                format_args!("{}{}{}}}", spaces, slot_close, comp.name),
             );
         }
     } else if needs_inline_block {
-        str.append_left_fmt(comp.end, format_args!("{}{}}}", inline_block, comp.name));
+        // A self-closing tag has no `</Component>` for upstream to map, so the
+        // name is never referenced here — only the `let:` scope and block close.
+        str.append_left_fmt(comp.end, format_args!("{}}}}}", inline_block));
     } else {
         str.append_left(comp.end, "}");
     }
@@ -507,14 +548,25 @@ pub(crate) fn handle_svelte_component(
         build_component_props_string(&comp.attributes, source, &counter.element_opener_comments);
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
-    if !comp.attributes.is_empty() && !attrs_str.is_empty() {
-        let extra_spaces = count_tag_to_attr_spaces("svelte:component", comp.start, source);
-        if extra_spaces >= 1 {
-            let total_spaces = extra_spaces + 1;
-            let mut padded = " ".repeat(total_spaces);
-            padded.push_str(attrs_str.trim_start());
-            attrs_str = padded;
-        }
+    let scomp_spacing = opener_spacing(
+        source,
+        comp.start,
+        &comp.name,
+        opening_tag_end,
+        get_expression_range(&comp.expression),
+        &comp.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: false,
+            in_component_slot: false,
+            tag_name: &comp.name,
+            is_slot_tag: false,
+        },
+    );
+    if scomp_spacing.in_attr_object > 0 {
+        let mut padded = " ".repeat(scomp_spacing.in_attr_object);
+        padded.push_str(&attrs_str);
+        attrs_str = padded;
     }
 
     // Check if component has meaningful children for Svelte 5 children prop
@@ -527,15 +579,8 @@ pub(crate) fn handle_svelte_component(
     if is_svelte5 && has_children {
         let children_text = "children:() => { return __sveltets_2_any(0); },";
         let trimmed = attrs_str.trim_start();
-        if trimmed.is_empty() {
-            attrs_str = children_text.to_string();
-        } else {
-            let leading_ws: String = attrs_str
-                .chars()
-                .take_while(|c| c.is_whitespace())
-                .collect();
-            attrs_str = format!("{}{}{}", leading_ws, children_text, trimmed);
-        }
+        let leading_ws = &attrs_str[..attrs_str.len() - trimmed.len()];
+        attrs_str = format!("{}{}{}", leading_ws, children_text, trimmed);
     }
 
     let inst_var = reversed_component_name("svelte_component", depth);
@@ -599,13 +644,24 @@ pub(crate) fn handle_svelte_component(
             String::new()
         };
         format!(
-            " {{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
-            inst_var, expr_text, inst_var, inst_var, attrs_str, component_bind_suffix, on_calls
+            "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
+            " ".repeat(scomp_spacing.before_block),
+            inst_var,
+            expr_text,
+            inst_var,
+            inst_var,
+            attrs_str,
+            component_bind_suffix,
+            on_calls
         )
     } else {
         format!(
-            " {{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});",
-            inst_var, expr_text, inst_var, attrs_str
+            "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});",
+            " ".repeat(scomp_spacing.before_block),
+            inst_var,
+            expr_text,
+            inst_var,
+            attrs_str
         )
     };
 
@@ -633,7 +689,14 @@ pub(crate) fn handle_svelte_component(
     let closing_tag_start = find_closing_tag_start(source, comp.end);
     let closing_text = if has_lets_scomp { "}}" } else { "}" };
     if closing_tag_start < comp.end {
-        str.overwrite(closing_tag_start, comp.end, closing_text);
+        // `svelte:component` keeps no name mapping on its closing tag, so its
+        // collapsed gaps are all that precede the closers.
+        let spaces = " ".repeat(closing_tag_spacing(closing_tag_start, comp.end, None));
+        str.overwrite_fmt(
+            closing_tag_start,
+            comp.end,
+            format_args!("{}{}", spaces, closing_text),
+        );
     } else {
         str.append_left(comp.end, closing_text);
     }
@@ -713,15 +776,33 @@ pub(crate) fn handle_svelte_self(
         );
     }
 
+    // `svelte:self` emits its opener as a pure string, so it contributes no
+    // source range before the attribute list.
+    let self_spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        None,
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: false,
+            in_component_slot: false,
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
     let props_inner = if prop_parts.is_empty() {
-        " ".to_string()
+        " ".repeat(self_spacing.in_attr_object)
     } else {
-        let extra_spaces = count_tag_to_attr_spaces(&el.name, el.start, source);
-        if extra_spaces >= 1 {
-            format!("{}{}", " ".repeat(extra_spaces + 1), prop_parts.join(""))
-        } else {
-            format!(" {}", prop_parts.join(""))
-        }
+        // `svelte:self` emits its opener as a pure string, so it contributes no
+        // source range before the attribute list.
+        format!(
+            "{}{}",
+            " ".repeat(self_spacing.in_attr_object),
+            prop_parts.join("")
+        )
     };
 
     let needs_inst_var = has_on_directives || has_lets;
@@ -735,11 +816,17 @@ pub(crate) fn handle_svelte_self(
 
     let create_call = if let Some(ref name) = var_name {
         format!(
-            " {{ const {} = __sveltets_2_createComponentAny({{{}}});",
-            name, props_inner
+            "{}{{ const {} = __sveltets_2_createComponentAny({{{}}});",
+            " ".repeat(self_spacing.before_block),
+            name,
+            props_inner
         )
     } else {
-        format!(" {{ __sveltets_2_createComponentAny({{{}}});", props_inner)
+        format!(
+            "{}{{ __sveltets_2_createComponentAny({{{}}});",
+            " ".repeat(self_spacing.before_block),
+            props_inner
+        )
     };
 
     let mut opener = create_call;
@@ -786,5 +873,12 @@ pub(crate) fn handle_svelte_self(
     // svelte:self is a component → children at depth+1.
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
     let trailing = if has_lets { "}}" } else { "}" };
-    str.overwrite(closing_tag_start, el.end, trailing);
+    // `svelte:self` keeps no name mapping on its closing tag, so its collapsed
+    // gaps are all that precede the closers.
+    let spaces = " ".repeat(closing_tag_spacing(closing_tag_start, el.end, None));
+    str.overwrite_fmt(
+        closing_tag_start,
+        el.end,
+        format_args!("{}{}", spaces, trailing),
+    );
 }

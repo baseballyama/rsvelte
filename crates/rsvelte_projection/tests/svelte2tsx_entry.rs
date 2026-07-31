@@ -94,6 +94,165 @@ fn test_svelte2tsx_if_block() {
     );
 }
 
+/// `{:else}` (no `if`) must rewrite to `}else{` with no inserted spaces —
+/// `handleElse` in the JS reference rewrites the tag character-by-character
+/// (`{`→`}`, `}`→`{`, drop the `:`), it never appends a literal `'} else {'`.
+/// `{:else if}`, by contrast, keeps its spaces (`} else if (`) — that literal
+/// IS hardcoded upstream.
+#[test]
+fn plain_else_rewrites_without_inserted_spaces() {
+    let result = svelte2tsx("{#if a}{b}{:else}{c}{/if}", Svelte2TsxOptions::default()).unwrap();
+    assert!(
+        result.code.contains("if(a){b;}else{c;}"),
+        "got:\n{}",
+        result.code
+    );
+}
+
+#[test]
+fn else_if_keeps_its_hardcoded_spaces() {
+    let result = svelte2tsx(
+        "{#if a}{b}{:else if c}{d}{/if}",
+        Svelte2TsxOptions::default(),
+    )
+    .unwrap();
+    assert!(
+        result.code.contains("if(a){b;} else if (c){d;}"),
+        "got:\n{}",
+        result.code
+    );
+}
+
+/// `{:else}` followed by a nested `{#if}` also nests a lone `IfBlock` in the
+/// alternate, but it is not an `{:else if}` — the tag still has to be rewritten.
+#[test]
+fn plain_else_wrapping_a_nested_if_is_not_an_else_if() {
+    let result = svelte2tsx(
+        "{#if x}a{:else}{#if y}b{:else}c{/if}{/if}",
+        Svelte2TsxOptions::default(),
+    )
+    .unwrap();
+    assert!(
+        result.code.contains("if(x){ }else{if(y){ }else{ }}"),
+        "got:\n{}",
+        result.code
+    );
+}
+
+/// The whitespace inside an element's attribute object (and ahead of its block)
+/// is not a fixed single space: it is the opening tag's source characters that
+/// no transformation kept, each run collapsed to one space by upstream's
+/// `transform` helper. Every expectation below is the byte-exact output of the
+/// official svelte2tsx in `submodules/language-tools`.
+#[test]
+fn opener_whitespace_matches_the_official_gap_collapsing() {
+    for (source, expected) in [
+        // Gaps inside the opener land after the `{` of the attribute object.
+        ("<div {...attributes}>x</div>", "\"div\", {...attributes,}"),
+        ("<div a=\"1\">x</div>", "\"div\", { \"a\":`1`,}"),
+        ("<div a>x</div>", "\"div\", {\"a\":true,}"),
+        (
+            "<div a=\"1\" b=\"2\">x</div>",
+            "\"div\", {   \"a\":`1`,\"b\":`2`,}",
+        ),
+        (
+            "<div class=\"a\" {...attributes}>x</div>",
+            "\"div\", {  \"class\":`a`,...attributes,}",
+        ),
+        ("<Foo {...attributes} />", "props: { ...attributes,}"),
+        ("<Foo  {...attributes} />", "props: {  ...attributes,}"),
+        ("<Foo {...a} b={1} />", "props: {   ...a,\"b\":1,}"),
+        ("<Foo\n  {...attributes}\n/>", "props: {  ...attributes,}"),
+        (
+            "<svelte:element this={tag} {...attributes}>x</svelte:element>",
+            "createElement(tag, {  ...attributes,}",
+        ),
+        (
+            "<slot x={1} />",
+            "__sveltets_createSlot(\"default\", {  \"x\":1,}",
+        ),
+        (
+            "<slot name=\"a\" x={1} />",
+            "__sveltets_createSlot(\"a\", {    \"x\":1,}",
+        ),
+        ("<title a=\"1\">x</title>", "\"title\", { \"a\":`1`,}"),
+        (
+            "<svelte:element this=\"div\" a=\"1\">x</svelte:element>",
+            "\"div\", {  \"a\":`1`,}",
+        ),
+        (
+            "<Foo><div slot=\"a\" let:v>{v}</div></Foo>",
+            "$$_$$;{ svelteHTML.createElement(\"div\", {  });",
+        ),
+        // Directives keep their gaps even though they contribute no props.
+        ("<div transition:fade>y</div>", "\"div\", { });"),
+        ("<div transition:fade={{d:1}}>y</div>", "\"div\", {  });"),
+        ("<Foo on:click={h} />", "props: {   }});"),
+        ("<svelte:self />", "__sveltets_2_createComponentAny({});"),
+        // Gaps that are never moved stay ahead of the generated block.
+        ("<button\n  {...attributes}\n>x</button>", "  { svelteHTML"),
+        ("<div a={ 1 }>x</div>", "  { svelteHTML"),
+        (
+            "<Foo><span slot=\"a\">y</span></Foo>",
+            "props: {}}); {const {",
+        ),
+    ] {
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        assert!(
+            result.code.contains(expected),
+            "{source:?}\n  expected to contain {expected:?}\n  got:\n{}",
+            result.code
+        );
+    }
+}
+
+/// `performTransformation` runs a second `transform` over the closing tag, so the
+/// same gaps collapse there. A component keeps a `</Component>` → `Component}`
+/// mapping in the middle of that range, which splits it into two gaps; every
+/// other tag keeps nothing and always collapses to a single space. Whatever
+/// closes a `let:` scope goes after those gaps, not before. Every expectation
+/// below is the byte-exact output of the official svelte2tsx.
+#[test]
+fn closing_tag_whitespace_matches_the_official_gap_collapsing() {
+    for (source, expected) in [
+        ("<Foo></Foo>", "props: {}}); Foo}"),
+        ("<Foo></Foo  >", "props: {}});  Foo}"),
+        ("<Foo></Foo   >", "props: {}});  Foo}"),
+        ("<div></div   >", "\"div\", {}); }"),
+        ("<Foo let:x></Foo>", "$$slot_def.default;$$_$$; }Foo}"),
+        ("<Foo let:x></Foo  >", "$$slot_def.default;$$_$$;  }Foo}"),
+        ("<Foo let:x>y</Foo>", "$$slot_def.default;$$_$$;  }Foo}"),
+        (
+            "<svelte:self></svelte:self>",
+            "__sveltets_2_createComponentAny({}); }",
+        ),
+        (
+            "<svelte:component this={C}></svelte:component>",
+            "props: { }}); }",
+        ),
+        (
+            "<Foo><Bar slot=\"a\">y</Bar></Foo>",
+            "__sveltets_2_any(0); },}});  }Bar} Foo}",
+        ),
+        // A self-closing tag has no `</Component>` to map, so the name is never
+        // referenced — only the `let:` scope and block closers.
+        ("<Foo let:x />", "$$slot_def.default;$$_$$;}}"),
+        ("<Foo let:x let:y />", "$$_$$;}}"),
+        ("<Foo also=\"1\" let:x />", "$$slot_def.default;$$_$$;}}"),
+        (
+            "<Foo let:x={a} />",
+            "x:a,} = $$_ooF0.$$slot_def.default;$$_$$;}}",
+        ),
+    ] {
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        assert!(
+            result.code.contains(expected),
+            "{source:?}\n  expected to contain {expected:?}\n  got:\n{}",
+            result.code
+        );
+    }
+}
+
 #[test]
 fn test_svelte2tsx_each_block() {
     let source = "{#each items as item}<p>{item}</p>{/each}";

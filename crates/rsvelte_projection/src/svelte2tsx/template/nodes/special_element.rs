@@ -13,9 +13,8 @@ use crate::svelte2tsx::template::attributes::binding::{
 use crate::svelte2tsx::template::attributes::build_attributes_string;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_directive_prefix_suffix;
 use crate::svelte2tsx::template::ctx::Counter;
-use crate::svelte2tsx::template::utils::source::{
-    count_tag_to_attr_spaces, find_closing_tag_start, find_opening_tag_end,
-};
+use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
+use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
 
 use super::snippet_block::handle_snippet_block_as_component_prop;
@@ -54,16 +53,29 @@ pub(crate) fn handle_svelte_special_element(
         counter.slot_inst.is_some(),
     );
 
-    // Add extra whitespace to match JS svelte2tsx position-preserving behavior
-    if !el.attributes.is_empty() && !attrs_str.is_empty() {
-        let extra_spaces = count_tag_to_attr_spaces(&el.name, el.start, source);
-        if extra_spaces >= 1 {
-            let total_spaces = extra_spaces + 1;
-            let mut padded = " ".repeat(total_spaces);
-            padded.push_str(attrs_str.trim_start());
-            attrs_str = padded;
-        }
+    // The special `svelte:…` elements name themselves with a literal in the start
+    // transformation, so it contributes no source range.
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        None,
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: counter.slot_inst.is_some(),
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
+    if spacing.in_attr_object > 0 {
+        let mut padded = " ".repeat(spacing.in_attr_object);
+        padded.push_str(&attrs_str);
+        attrs_str = padded;
     }
+    let indent = " ".repeat(spacing.before_block);
 
     // `svelte:boundary` treats direct {#snippet} children as implicit props on
     // the `createElement` attrs object — exactly like InlineComponent in the
@@ -87,8 +99,8 @@ pub(crate) fn handle_svelte_special_element(
         //   <non-snippet children>
         // }
         let opener = format!(
-            " {{ svelteHTML.createElement(\"{}\", {{{}",
-            el.name, attrs_str
+            "{}{{ svelteHTML.createElement(\"{}\", {{{}",
+            indent, el.name, attrs_str
         );
         str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -201,12 +213,13 @@ pub(crate) fn handle_svelte_special_element(
         // declarations), closed by a matching extra `}` after the children.
         let opener = if directive_prefix.is_empty() {
             format!(
-                " {{ {}svelteHTML.createElement(\"{}\", {{{}}});{}{}",
-                element_var_decl, el.name, attrs_str, bind_suffix, directive_suffix
+                "{}{{ {}svelteHTML.createElement(\"{}\", {{{}}});{}{}",
+                indent, element_var_decl, el.name, attrs_str, bind_suffix, directive_suffix
             )
         } else {
             format!(
-                " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
+                "{}{{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
+                indent,
                 directive_prefix,
                 element_var_decl,
                 el.name,

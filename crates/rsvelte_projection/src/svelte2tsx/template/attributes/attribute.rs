@@ -981,7 +981,7 @@ mod tests {
 
         assert!(
             out.contains(
-                "{ \"disabled\":true,\"title\":`plain`,\"count\":value,\
+                "{        \"disabled\":true,\"title\":`plain`,\"count\":value,\
                  \"mixed\":`pre ${value} post`,\
                  ...__sveltets_2_empty({\"data-id\":`7`}),value,}"
             ),

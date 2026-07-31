@@ -19,6 +19,7 @@ use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::attributes::transition::format_transition_directive;
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
 use crate::svelte2tsx::template::segs::segs_to_string;
+use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
 
@@ -224,6 +225,10 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool
 /// This handles:
 /// - Default slot wrapping with `let:` destructuring
 /// - Named slot wrapping with `slot="name"` children
+///
+/// Returns whether the default-slot block is still open at the closing tag and
+/// so must be closed by the caller's closing-tag overwrite.
+#[must_use]
 pub(crate) fn process_component_children_with_slots(
     comp: &Component,
     inst_var: &str,
@@ -233,7 +238,7 @@ pub(crate) fn process_component_children_with_slots(
     str: &mut MagicString<'_>,
     counter: &mut Counter,
     depth: u32,
-) {
+) -> bool {
     // Build the default slot destructuring if needed
     let let_destructure = if has_lets {
         build_let_destructure_string(&comp.attributes, source)
@@ -380,12 +385,14 @@ pub(crate) fn process_component_children_with_slots(
         if let Some(end) = prev_end {
             let closing_tag_start = find_closing_tag_start(source, comp.end);
             if closing_tag_start < comp.end {
-                str.append_left(closing_tag_start, "}");
-            } else {
-                str.append_left(end, "}");
+                // The closing tag's own collapsed gaps come first, so the caller
+                // emits this `}` as part of that overwrite.
+                return true;
             }
+            str.append_left(end, "}");
         }
     }
+    false
 }
 
 /// Handle a regular element child with `slot="name"` attribute inside a component.
@@ -424,13 +431,33 @@ pub(crate) fn handle_named_slot_element(
         source,
     );
 
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        Some((el.start + 1, el.start + 1 + el.name.len() as u32)),
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: true,
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
     // NOTE: the `let:foo={bar}` binding is reflected purely via the slot-def
     // destructure (`{ …, foo: bar } = …$$slot_def["…"]`); official emits NO
     // separate `bar;` reflection statement (that would duplicate the `{bar}`
     // content expression).
     let opener = format!(
-        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}",
-        block_open, el.name, attrs_str, class_style_suffix
+        "{}{}{{ svelteHTML.createElement(\"{}\", {{{}{}}});{}",
+        " ".repeat(spacing.before_block),
+        block_open,
+        el.name,
+        " ".repeat(spacing.in_attr_object),
+        attrs_str,
+        class_style_suffix
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -551,7 +578,32 @@ pub(crate) fn handle_named_slot_component(
     );
 
     // Insert the block opener before the component
-    str.append_left(comp.start, &block_open);
+    // The component's own leading gaps precede the `$$slot_def[…]` prologue, so
+    // they are emitted here (`handle_component` skips them for this path).
+    let spacing = opener_spacing(
+        source,
+        comp.start,
+        &comp.name,
+        find_opening_tag_end(source, comp.start, comp.end, &comp.name, &comp.attributes),
+        source[comp.start as usize..]
+            .find(comp.name.as_str())
+            .map(|o| {
+                let start = comp.start + o as u32;
+                (start, start + comp.name.len() as u32)
+            }),
+        &comp.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: false,
+            in_component_slot: true,
+            tag_name: &comp.name,
+            is_slot_tag: false,
+        },
+    );
+    str.append_left_fmt(
+        comp.start,
+        format_args!("{}{}", " ".repeat(spacing.before_block), block_open),
+    );
 
     // Process the component normally. Suppress its component-name reference at
     // the close so we can emit it *outside* the component's own block (matching
@@ -566,7 +618,8 @@ pub(crate) fn handle_named_slot_component(
     // close the named-slot block.
     let closing_tag_start = find_closing_tag_start(source, comp.end);
     if closing_tag_start < comp.end {
-        str.append_left_fmt(comp.end, format_args!(" {}}}", comp.name));
+        // The closing tag's gaps were emitted by the component's own overwrite.
+        str.append_left_fmt(comp.end, format_args!("{}}}", comp.name));
     } else {
         str.append_left(comp.end, "}");
     }
@@ -619,10 +672,5 @@ pub(crate) fn build_named_slot_element_attrs(attributes: &[Attribute], source: &
         }
     }
 
-    let result = parts.join("");
-    if result.is_empty() {
-        result
-    } else {
-        format!(" {}", result)
-    }
+    parts.join("")
 }

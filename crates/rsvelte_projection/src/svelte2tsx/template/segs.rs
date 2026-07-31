@@ -76,37 +76,6 @@ pub(super) fn segs_to_string(segs: &[Seg], source: &str) -> String {
     out
 }
 
-/// Returns true when no `Src` is present and every `Lit` is empty.
-pub(super) fn segs_is_empty(segs: &[Seg]) -> bool {
-    segs.iter().all(|s| match s {
-        Seg::Lit(t) => t.is_empty(),
-        Seg::Src(_, _) => false,
-    })
-}
-
-/// Trim leading whitespace from the very first textual position in `segs`
-/// (across leading whitespace-only `Lit` segments). Returns the resulting
-/// vector with its head normalized — used by the element-opener leading
-/// whitespace bookkeeping.
-pub(super) fn segs_trim_start(segs: &mut Vec<Seg>) {
-    while let Some(first) = segs.first_mut() {
-        match first {
-            Seg::Lit(s) => {
-                let trimmed = s.trim_start_matches(|c: char| c.is_whitespace());
-                if trimmed.is_empty() {
-                    segs.remove(0);
-                    continue;
-                }
-                if trimmed.len() != s.len() {
-                    *s = trimmed.to_string();
-                }
-                break;
-            }
-            Seg::Src(_, _) => break,
-        }
-    }
-}
-
 /// Reorder-safe pre-pass for [`emit_segmented_overwrite`], which requires
 /// `Seg::Src` ranges to appear in ascending source order (a MagicString can
 /// only overwrite left-to-right). When a later segment references an earlier

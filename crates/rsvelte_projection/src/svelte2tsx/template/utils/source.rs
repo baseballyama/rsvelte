@@ -3,31 +3,6 @@
 use crate::ast::template::Attribute;
 use crate::svelte2tsx::template::attributes::attribute_end;
 
-/// Count the number of whitespace characters between the tag name and the
-/// first attribute in the opening tag source. This preserves whitespace
-/// that the JS svelte2tsx would keep via MagicString in-place editing.
-///
-/// For `<Test b="6" />`, returns 1 (the space between `Test` and `b`).
-/// For `<div class="foo">`, returns 1.
-/// For `<Component\n  prop>`, returns 3 (newline + 2 spaces).
-pub(crate) fn count_tag_to_attr_spaces(tag_name: &str, el_start: u32, source: &str) -> usize {
-    let name_end = el_start as usize + 1 + tag_name.len(); // +1 for '<'
-    let bytes = source.as_bytes();
-    let mut count = 0;
-    let mut i = name_end;
-    let end = source.len();
-    while i < end {
-        let ch = bytes[i];
-        if ch == b' ' || ch == b'\t' || ch == b'\n' || ch == b'\r' {
-            count += 1;
-            i += 1;
-        } else {
-            break;
-        }
-    }
-    count
-}
-
 /// Find the end of the opening tag (position after the closing `>`).
 ///
 /// Scans from the last retained attribute (or the tag name when there are no
