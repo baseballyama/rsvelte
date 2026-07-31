@@ -1547,6 +1547,19 @@ pub(super) fn extract_legacy_destructure_var_names(pattern: &str) -> Vec<String>
     names
 }
 
+/// Dev-mode `$.tag(<source>, '<name>')` label for a legacy state source.
+///
+/// Only declarations reaching this emitter are tagged: `legacy_reactive`
+/// sources (`$: x = …`) are built as AST elsewhere and upstream leaves those
+/// untagged even though they print the same `$.mutable_source()` call.
+fn tag_legacy_source(call: String, name: &str, dev: bool) -> String {
+    if dev {
+        format!("$.tag({}, '{}')", call, name)
+    } else {
+        call
+    }
+}
+
 /// Transform legacy state declarations to $.mutable_source() calls.
 ///
 /// In legacy (non-runes) mode, variables that are promoted to State kind
@@ -1561,6 +1574,7 @@ pub(super) fn transform_legacy_state_declarations(
     line: &str,
     legacy_state_vars: &[(String, Option<String>, DeclarationKind)],
     immutable: bool,
+    dev: bool,
 ) -> String {
     if legacy_state_vars.is_empty() {
         return line.to_string();
@@ -1575,7 +1589,7 @@ pub(super) fn transform_legacy_state_declarations(
     if !is_destructure_expansion && let Some(split_lines) = split_multi_declarator(line) {
         let transformed_lines: Vec<String> = split_lines
             .iter()
-            .map(|l| transform_legacy_state_declarations(l, legacy_state_vars, immutable))
+            .map(|l| transform_legacy_state_declarations(l, legacy_state_vars, immutable, dev))
             .collect();
         return transformed_lines.join("\n");
     }
@@ -1643,11 +1657,17 @@ pub(super) fn transform_legacy_state_declarations(
                     let expr = after[..expr_end].trim().trim_end_matches(';').trim();
 
                     // Build the replacement
-                    let replacement = if immutable {
-                        format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
+                    let call = if immutable {
+                        format!("$.mutable_source({}, true)", expr)
                     } else {
-                        format!("{} {} = $.mutable_source({})", keyword, var, expr)
+                        format!("$.mutable_source({})", expr)
                     };
+                    let replacement = format!(
+                        "{} {} = {}",
+                        keyword,
+                        var,
+                        tag_legacy_source(call, var, dev)
+                    );
 
                     // Replace the declaration
                     result = format!(
@@ -1707,11 +1727,17 @@ pub(super) fn transform_legacy_state_declarations(
                         let after = &after_raw[ws..];
                         let expr_end = find_statement_end_client(after);
                         let expr = after[..expr_end].trim().trim_end_matches(';').trim();
-                        let replacement = if immutable {
-                            format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
+                        let call = if immutable {
+                            format!("$.mutable_source({}, true)", expr)
                         } else {
-                            format!("{} {} = $.mutable_source({})", keyword, var, expr)
+                            format!("$.mutable_source({})", expr)
                         };
+                        let replacement = format!(
+                            "{} {} = {}",
+                            keyword,
+                            var,
+                            tag_legacy_source(call, var, dev)
+                        );
                         result = format!(
                             "{}{}{}",
                             &result[..pos],
@@ -1744,11 +1770,17 @@ pub(super) fn transform_legacy_state_declarations(
 
                     // Build the replacement - no initial value, so pass nothing to $.mutable_source()
                     // (upstream emits `void 0`, not the `undefined` identifier).
-                    let replacement = if immutable {
-                        format!("{} {} = $.mutable_source(void 0, true);", keyword, var)
+                    let call = if immutable {
+                        "$.mutable_source(void 0, true)".to_string()
                     } else {
-                        format!("{} {} = $.mutable_source();", keyword, var)
+                        "$.mutable_source()".to_string()
                     };
+                    let replacement = format!(
+                        "{} {} = {};",
+                        keyword,
+                        var,
+                        tag_legacy_source(call, var, dev)
+                    );
 
                     // Replace the declaration
                     result = format!(
@@ -1813,11 +1845,17 @@ pub(super) fn transform_legacy_state_declarations(
                         let after = &result[after_eq..];
                         let expr_end = find_statement_end_client(after);
                         let expr = after[..expr_end].trim().trim_end_matches(';').trim();
-                        let replacement = if immutable {
-                            format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
+                        let call = if immutable {
+                            format!("$.mutable_source({}, true)", expr)
                         } else {
-                            format!("{} {} = $.mutable_source({})", keyword, var, expr)
+                            format!("$.mutable_source({})", expr)
                         };
+                        let replacement = format!(
+                            "{} {} = {}",
+                            keyword,
+                            var,
+                            tag_legacy_source(call, var, dev)
+                        );
                         result = format!(
                             "{}{}{}",
                             &result[..pos],
@@ -1861,7 +1899,7 @@ mod non_ascii_tests {
         // `let x: Café = 0` — the `=` sits past a multi-byte char in the type
         // annotation; slicing must use byte offsets (no panic).
         let vars = vec![("x".to_string(), None, DeclarationKind::Let)];
-        let out = transform_legacy_state_declarations("let x: Café = 0", &vars, false);
+        let out = transform_legacy_state_declarations("let x: Café = 0", &vars, false, false);
         assert!(out.contains("$.mutable_source(0)"), "got: {out}");
     }
 }

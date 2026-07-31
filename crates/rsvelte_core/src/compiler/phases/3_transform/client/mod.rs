@@ -5594,7 +5594,12 @@ fn transform_instance_script_for_visitors(
         //   `let a = $.mutable_source();\nlet b = $.mutable_source();`
         // and then wrap_state_vars_in_expr correctly skips them since each starts with `let `.
         let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
-            transform_legacy_state_declarations(&transformed, legacy_state_vars, analysis.immutable)
+            transform_legacy_state_declarations(
+                &transformed,
+                legacy_state_vars,
+                analysis.immutable,
+                dev,
+            )
         } else {
             transformed
         };
