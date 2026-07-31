@@ -7,6 +7,9 @@
  *   compatibility/expected-s2t/<id>/index.tsx   (official svelte2tsx)
  *   compatibility/actual-s2t/<id>/index.tsx     (rsvelte svelte2tsx)
  *
+ * The returned source map is written alongside as `map.json` on both sides —
+ * see svelte2tsx-verify.mjs for the gate.
+ *
  * svelte2tsx only processes Svelte *components*, so `.svelte.(js|ts)` module
  * entries (kind === 'module') are skipped. Files the official tool rejects are
  * error cases: rsvelte must reject them too (error parity), tracked via
@@ -26,6 +29,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { utf16LineLengths } from './sourcemap.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -107,7 +111,8 @@ if (args.includes('--worker')) {
 	function convertOne(impl, source, id, ts) {
 		const options = { filename: id, isTsFile: ts, mode: 'ts', namespace: 'html', version: '5' };
 		try {
-			return { code: impl(source, options).code ?? '' };
+			const result = impl(source, options);
+			return { code: result.code ?? '', mappings: result.map?.mappings ?? null };
 		} catch (e) {
 			return { error: errorInfo(e) };
 		}
@@ -118,9 +123,18 @@ if (args.includes('--worker')) {
 		fs.mkdirSync(dir, { recursive: true });
 		if (result.error) {
 			fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(result.error, null, '\t') + '\n');
-		} else {
-			fs.writeFileSync(path.join(dir, 'index.tsx'), result.code);
+			return;
 		}
+		fs.writeFileSync(path.join(dir, 'index.tsx'), result.code);
+		if (result.mappings === null) return;
+		// Only `mappings` is kept from the v3 map — every other field is fixed by
+		// the options both sides receive. The generated line lengths are stored
+		// with it because verify's oxfmt pass rewrites index.tsx in place, so the
+		// map gate cannot read the text back off disk on a re-run.
+		fs.writeFileSync(
+			path.join(dir, 'map.json'),
+			JSON.stringify({ mappings: result.mappings, generatedLines: utf16LineLengths(result.code) }) + '\n'
+		);
 	}
 
 	for (let i = start; i < end; i++) {

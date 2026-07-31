@@ -271,12 +271,33 @@ Pipeline stages (mirroring the compiler ones):
 
 1. `svelte2tsx-compile.mjs` — converts every component into
    `compatibility/{expected-s2t,actual-s2t}/<id>/index.tsx` (or `error.json`
-   on rejection). Worker-sharded; an rsvelte panic is recorded as an error for
-   that entry instead of killing the run.
+   on rejection), plus the returned source map as `map.json`. Worker-sharded; an
+   rsvelte panic is recorded as an error for that entry instead of killing the
+   run.
 2. `svelte2tsx-verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes
    `report-s2t.json`, and ratchets against
    `compatibility/svelte2tsx-known-failures.json` (checked in; may only shrink).
 3. `svelte2tsx-cluster.mjs` — groups failures by diff signature for burn-down.
+
+The same verify run applies a **second, independent gate on the source map**,
+ratcheted shrink-only through `compatibility/svelte2tsx-map-known-failures.json`.
+The TSX gate cannot see the map, which is how rsvelte shipped `mappings` whose
+generated columns were all zero (issue #2066) while the TSX stayed byte-perfect.
+
+The two maps are *not* diffed against each other. magic-string segments its
+output differently (extra chunk-boundary segments, no trailing empty generated
+lines), so the maps disagree entry-for-entry — byte parity holds for 0 of the
+13,464 corpus components where both tools return a map, decoded-set parity for 0
+of the same 13,464, and even `originalPositionFor` agreement at every generated
+position for 0 of a 245-component sample.
+
+The gate therefore asserts something weaker but checkable: that **rsvelte's own
+map is structurally well-formed** against the text it describes, per the
+invariants in `sourcemap.mjs`. Official's map is used only to *calibrate* those
+invariants — a rule magic-string itself violates is too strict and does not
+belong there, and an entry where official *does* violate one is skipped as
+`map-oracle-invalid` rather than blamed on rsvelte. An entry where official emits
+a map but rsvelte emits none fails as `map-missing`.
 
 ```bash
 # build the official svelte2tsx oracle once (after corpus:sync)

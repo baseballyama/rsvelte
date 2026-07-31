@@ -62,7 +62,11 @@ may only shrink, and each remaining failure is justified in `compatibility/known
 same directory holds three sibling shrink-only ratchets, each with per-entry justification in a paired
 `.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`), the
 svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), and the lint output-parity gate
-(`lint-known-failures.json`). See
+(`lint-known-failures.json`). svelte2tsx additionally gates its **source map** (ratchet
+`svelte2tsx-map-known-failures.json`), because the TSX-text gate cannot see the map at all. The two
+maps are segmented too differently to diff (byte, decoded-set and lookup-equality parity all hold for
+~0% of the corpus), so the gate asserts that rsvelte's map is **structurally well-formed** rather
+than equal to official's — using official only to calibrate the invariants. See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md).
 
 The svelte-check diagnostic-parity gate is the odd one out: its unit is a **type-checked project**,

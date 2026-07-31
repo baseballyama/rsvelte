@@ -9,8 +9,8 @@ name: Corpus Compat
 # (CSR with `dev: true`) targets, normalizes both output trees with oxfmt, and
 # requires the results to be byte-identical.
 # The same corpus also drives a svelte2tsx TSX output-parity check (official
-# svelte2tsx from submodules/language-tools vs rsvelte's port). See
-# scripts/compat-corpus/README.md.
+# svelte2tsx from submodules/language-tools vs rsvelte's port) plus a structural
+# gate on the source map both tools return. See scripts/compat-corpus/README.md.
 #
 # Expected outputs are regenerated from the pinned upstreams on every run, so
 # bumping any submodule (auto-update-svelte.yml for the compiler,
@@ -230,7 +230,9 @@ jobs:
       - name: Convert corpus to TSX (official svelte2tsx + rsvelte)
         run: node scripts/compat-corpus/svelte2tsx-compile.mjs
 
-      - name: Verify svelte2tsx (oxfmt-normalized TSX must be identical)
+      # One invocation, two ratchets: TSX text parity against official
+      # svelte2tsx, and structural validity of the source map each side returns.
+      - name: Verify svelte2tsx (oxfmt-normalized TSX + source maps)
         run: node scripts/compat-corpus/svelte2tsx-verify.mjs
 
       # Synthetic combinatorial sweep of unused-CSS pruning — catches
