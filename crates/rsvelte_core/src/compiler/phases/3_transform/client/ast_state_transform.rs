@@ -1952,6 +1952,69 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// Dev-mode rewrite of `await X` to `(await $.track_reactivity_loss(X))()`,
+    /// mirroring the official compiler's `AwaitExpression` visitor: values read
+    /// inside a reactive expression are noted but not tracked across the await
+    /// boundary. Suppressed by a leading `svelte-ignore await_reactivity_loss`.
+    /// Returns `true` when the expression was rewritten.
+    fn try_rewrite_await_reactivity_loss(&mut self, expr: &AwaitExpression<'_>) -> bool {
+        if !self.dev || self.is_await_reactivity_loss_ignored(expr.span.start) {
+            return false;
+        }
+
+        // Walk the argument so inner state-var refs (and nested awaits)
+        // register their replacements, then drain them into the argument text.
+        self.visit_expression(&expr.argument);
+        let arg_span = expr.argument.span();
+        let arg_text = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+
+        self.add_replacement(
+            expr.span.start,
+            expr.span.end,
+            format!("(await $.track_reactivity_loss({}))()", arg_text.trim()),
+        );
+        true
+    }
+
+    /// True when the statement enclosing `offset` is preceded by a
+    /// `svelte-ignore` comment naming `await_reactivity_loss`. Upstream reads
+    /// this off the analysis-phase ignore stack; this pass rewrites source
+    /// spans, so it reads the same comment back out of the source text.
+    fn is_await_reactivity_loss_ignored(&self, offset: u32) -> bool {
+        // Start from the top of the await's own line: the statement text to its
+        // left is not a comment and would end the scan immediately.
+        let offset = self.source[..offset as usize]
+            .rfind('\n')
+            .map_or(0, |nl| nl + 1);
+        let before = &self.source[..offset];
+        for line in before.lines().rev() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let Some(comment) = line
+                .strip_prefix("//")
+                .or_else(|| line.strip_prefix("/*").map(|c| c.trim_end_matches("*/")))
+            else {
+                // The first non-comment line above is the start of the
+                // statement itself; anything earlier cannot annotate it.
+                return false;
+            };
+            // A run of comments can carry several `svelte-ignore` lines, so keep
+            // looking when this one names other codes.
+            if crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
+                comment,
+                self.is_runes,
+            )
+            .iter()
+            .any(|c| c == "await_reactivity_loss")
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Walk every argument of a `CallExpression` so inner state-var refs
     /// get `$.get(...)` wrapping, then drain the inner replacements and
     /// return the comma-joined transformed text — the contents that
@@ -2269,6 +2332,14 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // walk to avoid double-visiting the operands.
         if !self.try_rewrite_strict_equals_binary(expr) {
             walk::walk_binary_expression(self, expr);
+        }
+    }
+
+    fn visit_await_expression(&mut self, expr: &AwaitExpression<'ast>) {
+        // Same contract as the binary hook: the helper walks and drains the
+        // argument itself when it matches.
+        if !self.try_rewrite_await_reactivity_loss(expr) {
+            walk::walk_await_expression(self, expr);
         }
     }
 
@@ -3875,6 +3946,8 @@ fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> b
     // every BinaryExpression so we only need a byte probe to know
     // whether to enter the AST pass at all.
     let has_strict_equals = config.dev && super::strict_equals_ast::source_has_equality_op(script);
+    // Dev-mode `await X` → `(await $.track_reactivity_loss(X))()` rewrite.
+    let has_await = config.dev && memchr::memmem::find(script.as_bytes(), b"await").is_some();
 
     if !has_state
         && !has_props
@@ -3887,6 +3960,7 @@ fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> b
         && !has_props_calls
         && !has_host_calls
         && !has_strict_equals
+        && !has_await
     {
         return false;
     }
@@ -3943,6 +4017,9 @@ fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> b
         || (has_props_calls && script_ids.contains("$props"))
         || (has_host_calls && script_ids.contains("$host"))
         || has_strict_equals
+        // `await` is a keyword, not an identifier, so it can only be carried by
+        // its own probe here.
+        || has_await
 }
 
 fn state_assignment_needs_semantic(program: &Program<'_>, state_vars: &FxHashSet<&str>) -> bool {

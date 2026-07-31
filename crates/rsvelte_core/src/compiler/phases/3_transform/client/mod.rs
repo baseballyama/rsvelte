@@ -5987,6 +5987,8 @@ fn transform_instance_script_for_visitors(
         // Dev-mode equality rewrite is now part of the AST pass
         // (replaces `transform_strict_equals` from rune_transforms.rs).
         let has_strict_equals = dev && strict_equals_ast::source_has_equality_op(&result);
+        // Dev-mode `await X` → `(await $.track_reactivity_loss(X))()` rewrite.
+        let has_await = dev && memmem::find(result.as_bytes(), b"await").is_some();
         let has_transforms = !state_vars.is_empty()
             || !prop_assignment_transform_vars.is_empty()
             || !store_sub_vars.is_empty()
@@ -5997,7 +5999,8 @@ fn transform_instance_script_for_visitors(
             || has_derived_calls
             || has_props_calls
             || has_host_calls
-            || has_strict_equals;
+            || has_strict_equals
+            || has_await;
 
         if has_transforms {
             // Collect $derived / $derived.by binding names so AST assignment transforms

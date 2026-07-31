@@ -1576,3 +1576,49 @@ fn template_factory_matches_through_the_dev_add_locations_wrapper() {
         &JsStatement::Raw("var x = $.derived(() => 1);".into())
     ));
 }
+
+/// `svelte-ignore await_reactivity_loss` has no corpus coverage, so pin both
+/// directions here. The suppression also has to survive an unrelated
+/// `svelte-ignore` line sitting between it and the statement.
+///
+/// Runes mode throughout: the instrumentation rides the runes-only AST pass, so
+/// a legacy instance script is not instrumented at all (a known gap).
+#[test]
+fn await_reactivity_loss_is_wrapped_unless_ignored() {
+    let compile = |body: &str| {
+        crate::compiler::compile(
+            &format!("<script>\nlet n = $state(0);\n{body}\n</script>\n<p>{{n}}</p>\n"),
+            crate::compiler::CompileOptions {
+                generate: crate::compiler::GenerateMode::Client,
+                dev: true,
+                filename: Some("await/index.svelte".to_string()),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .js
+        .code
+    };
+
+    let wrapped = compile("async function f() {\n\tconst a = await load();\n}");
+    assert!(
+        wrapped.contains("(await $.track_reactivity_loss(load()))()"),
+        "expected the await to be wrapped:\n{wrapped}"
+    );
+
+    let ignored = compile(
+        "async function f() {\n\t// svelte-ignore await_reactivity_loss\n\tconst a = await load();\n}",
+    );
+    assert!(
+        !ignored.contains("track_reactivity_loss") && ignored.contains("await load()"),
+        "expected the await to stay bare:\n{ignored}"
+    );
+
+    let stacked = compile(
+        "async function f() {\n\t// svelte-ignore await_reactivity_loss\n\t// svelte-ignore state_referenced_locally\n\tconst a = await load();\n}",
+    );
+    assert!(
+        !stacked.contains("track_reactivity_loss"),
+        "an unrelated svelte-ignore line must not end the scan:\n{stacked}"
+    );
+}
