@@ -80,6 +80,16 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
   `.svelte.tsx` shadow and has to carry the same types. Both arms cover a
   component, a generic component and two `.svelte.ts` rune modules (one with a
   default export), imported from a plain `.ts` barrel and from a `.svelte` file.
+- **`ts-aliased-rune-module-nodenext`** — #1942, the intersection the two
+  scenarios above each miss by one axis: the rune modules of
+  `ts-relative-import-nodenext` reached through the `paths` aliases of
+  `ts-aliased-import`. #1916's `.d.svelte.ts` bridge is reachable only via
+  `rootDirs`, which TypeScript applies to *relative* specifiers alone, and
+  #1888's exact-`paths` overrides enumerated real `.svelte` components alone —
+  so `$lib/state.svelte` still fell through to the ambient wildcard. Covers both
+  alias kinds (in-workspace `$lib/*` and an aliased sibling package `$libs/*`),
+  both importer kinds, and a `.svelte` component whose `.svelte.ts` companion
+  must not steal the specifier from it.
 - **`kit-hooks-fn-ts`**, **`kit-hooks-arrow-ts`**, **`kit-hooks-satisfies-ts`**,
   **`kit-hooks-js`** — one matrix covering every `handle`/`handleError`/
   `handleFetch`/`reroute` declaration shape:

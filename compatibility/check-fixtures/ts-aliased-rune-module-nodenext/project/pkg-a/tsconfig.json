@@ -1,0 +1,28 @@
+{
+	"compilerOptions": {
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"target": "es2022",
+		"lib": [
+			"es2022",
+			"dom"
+		],
+		"strict": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
+		"paths": {
+			"$lib/*": [
+				"./src/lib/*"
+			],
+			"$libs/*": [
+				"../pkg-libs/*"
+			]
+		}
+	},
+	"include": [
+		"src",
+		"../pkg-libs/**/*.svelte"
+	]
+}

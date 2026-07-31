@@ -286,6 +286,7 @@ pub fn materialize_overlay_with(
         .iter()
         .map(|pkg| (pkg.real_dir.clone(), pkg.mirror_dir.clone()))
         .collect();
+    let mut module_bridges: Vec<(PathBuf, PathBuf)> = Vec::new();
     for pkg in &external {
         emit_external_shadows(
             pkg,
@@ -294,9 +295,13 @@ pub fn materialize_overlay_with(
             svelte_resolver.as_ref(),
             &ext_root_dir_pairs,
         )?;
-        emit_svelte_module_bridges(&pkg.real_dir, &pkg.mirror_dir, &[])?;
+        module_bridges.extend(emit_svelte_module_bridges(
+            &pkg.real_dir,
+            &pkg.mirror_dir,
+            &[],
+        )?);
     }
-    emit_svelte_module_bridges(workspace, &emit_dir, ignore)?;
+    module_bridges.extend(emit_svelte_module_bridges(workspace, &emit_dir, ignore)?);
 
     let mut entries = Vec::with_capacity(files.len());
     let mut augments: Vec<CompanionAugment> = Vec::new();
@@ -466,11 +471,13 @@ pub fn materialize_overlay_with(
     // `.tsx` — TS prefers an exact `paths` match over a wildcard pattern, and
     // since the resolved target no longer ends in `.svelte`, the ambient
     // wildcard is never consulted at all, applying regardless of which kind
-    // of file does the importing.
+    // of file does the importing. `module_bridges` gets the same entry for
+    // each rune module, whose `.d.svelte.ts` twin `rootDirs` alone cannot
+    // reach through a non-relative specifier (#1942).
     let alias_path_overrides = tsconfig_path
         .map(|tsconfig| {
             let alias_prefixes = resolve_paths_alias_prefixes(tsconfig);
-            compute_alias_path_overrides(&entries, &external, &alias_prefixes)
+            compute_alias_path_overrides(&entries, &external, &module_bridges, &alias_prefixes)
         })
         .unwrap_or_default();
 
@@ -1319,6 +1326,13 @@ fn rebase_spec(spec: &str, base_dir: &Path, cache_dir: &Path) -> String {
     }
 }
 
+/// Resolve symlinks where the path exists, and leave it untouched where it
+/// does not — so two paths that name the same file compare equal even when one
+/// side reached it through a symlinked temp dir.
+fn canonicalized(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
 /// Make `path` absolute by anchoring relative paths on the current working
 /// directory, then normalise `.`/`..` lexically. No filesystem access
 /// beyond reading the CWD, so it works for not-yet-created paths.
@@ -1630,40 +1644,50 @@ fn resolve_paths_alias_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
 /// entry redirects the specifier straight to a file that doesn't end in
 /// `.svelte`, so the wildcard is never consulted, regardless of which kind of
 /// file does the importing.
+///
+/// `module_bridges` extends the same treatment to `<base>.svelte.ts` rune
+/// modules, whose specifier is likewise `<base>.svelte`: their
+/// [`write_esm_bridge`] twin is only reachable through `rootDirs`, and
+/// TypeScript applies `rootDirs` to RELATIVE specifiers alone, so an aliased
+/// rune module fell through to the same ambient wildcard even after #1941
+/// (#1942).
 fn compute_alias_path_overrides(
     entries: &[OverlayEntry],
     external: &[ExternalPackage],
+    module_bridges: &[(PathBuf, PathBuf)],
     alias_prefixes: &[(String, PathBuf)],
 ) -> Vec<(String, PathBuf)> {
     if alias_prefixes.is_empty() {
         return Vec::new();
     }
-    // (real source path, shadow .tsx path) for every discovered .svelte file.
-    let mut candidates: Vec<(&Path, PathBuf)> = entries
+    // (path the specifier names, overlay file it must resolve to), the former
+    // pre-canonicalized to compare against a canonicalized alias target dir.
+    let mut candidates: Vec<(PathBuf, PathBuf)> = entries
         .iter()
-        .map(|e| (e.source_path.as_path(), e.tsx_path.clone()))
+        .map(|e| (canonicalized(&e.source_path), e.tsx_path.clone()))
         .collect();
     for pkg in external {
         for abs_source in &pkg.svelte_files {
             let rel = safe_relative(abs_source, &pkg.real_dir);
             let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ".tsx"));
-            candidates.push((abs_source.as_path(), tsx_path));
+            candidates.push((canonicalized(abs_source), tsx_path));
         }
+    }
+    // A rune module's specifier is its path minus the `.ts`/`.js`. Emission
+    // already dropped every module a sibling `.svelte` component shadows, so
+    // these can never outrank a component entry above.
+    for (module, bridge) in module_bridges {
+        candidates.push((canonicalized(module).with_extension(""), bridge.clone()));
     }
 
     let mut out = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for (real_source, tsx_path) in &candidates {
-        let real_canon = real_source
-            .canonicalize()
-            .unwrap_or_else(|_| real_source.to_path_buf());
+    for (real_canon, tsx_path) in &candidates {
         // Longest target-dir prefix wins when aliases nest.
         let best = alias_prefixes
             .iter()
             .filter_map(|(prefix, target_dir)| {
-                let target_canon = target_dir
-                    .canonicalize()
-                    .unwrap_or_else(|_| target_dir.clone());
+                let target_canon = canonicalized(target_dir);
                 real_canon
                     .strip_prefix(&target_canon)
                     .ok()
@@ -1770,11 +1794,16 @@ fn write_esm_bridge(path: &Path, content: &str, only_if_missing: bool) -> io::Re
 ///
 /// These bridges have no manifest entry to prune them by, so the mirror is also
 /// swept for ones whose source module has since been deleted or renamed.
+///
+/// Returns the `(rune module, bridge)` pairs it kept, for
+/// [`compute_alias_path_overrides`] to turn into exact `paths` entries — the
+/// skip and `.ts`-over-`.js` rules above are exactly the ones an alias
+/// specifier has to follow too (#1942).
 fn emit_svelte_module_bridges(
     root: &Path,
     mirror_dir: &Path,
     ignore: &[String],
-) -> Result<(), OverlayError> {
+) -> Result<Vec<(PathBuf, PathBuf)>, OverlayError> {
     let mut modules = super::walker::find_svelte_suffixed_modules(root, ignore);
     // `x.svelte.ts` and `x.svelte.js` share one bridge path; TypeScript probes
     // `.ts` first, so let it win.
@@ -1783,6 +1812,7 @@ fn emit_svelte_module_bridges(
         (is_js, p.clone())
     });
     let mut written: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    let mut kept: Vec<(PathBuf, PathBuf)> = Vec::new();
     for module in &modules {
         if module.with_extension("").is_file() {
             continue;
@@ -1814,9 +1844,10 @@ fn emit_svelte_module_bridges(
             let _ = writeln!(content, "export {{ default }} from \"{spec}\";");
         }
         fs::write(&bridge, content)?;
+        kept.push((module.clone(), bridge));
     }
     prune_orphaned_module_bridges(mirror_dir, &written);
-    Ok(())
+    Ok(kept)
 }
 
 /// Drop `.d.svelte.ts` files under `mirror_dir` that this run did not write and
@@ -3654,6 +3685,71 @@ mod tests {
         assert!(
             target.ends_with("Button.svelte.tsx"),
             "override does not point at the shadow: {target}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_adds_exact_paths_override_for_an_aliased_rune_module() {
+        // #1942: #1941's `.d.svelte.ts` bridge is reachable only through
+        // `rootDirs`, which TypeScript applies to relative specifiers alone, so
+        // `$lib/state.svelte` needs an exact `paths` entry of its own.
+        let tmp = std::env::temp_dir().join(format!("svc_alias_rune_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$lib/*\":[\"./src/lib/*\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/state.svelte.ts"),
+            "export const shared = 1;\nexport default {};\n",
+        )
+        .unwrap();
+        // A rune module OUTSIDE every alias target contributes no entry.
+        fs::write(tmp.join("src/loose.svelte.ts"), "export const loose = 1;\n").unwrap();
+        // A component shadows its own companion, so the specifier must keep
+        // resolving to the component — the companion has no bridge to claim it.
+        fs::write(tmp.join("src/lib/Pair.svelte"), "<div></div>").unwrap();
+        fs::write(
+            tmp.join("src/lib/Pair.svelte.ts"),
+            "export const pair = 1;\n",
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/lib/Pair.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+
+        let target = paths["$lib/state.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for $lib/state.svelte:\n{paths}"));
+        assert!(
+            target.ends_with("state.d.svelte.ts"),
+            "override does not point at the ESM bridge: {target}"
+        );
+        assert!(
+            Path::new(target).is_file(),
+            "override points at a file that was never emitted: {target}"
+        );
+
+        let pair = paths["$lib/Pair.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for $lib/Pair.svelte:\n{paths}"));
+        assert!(
+            pair.ends_with("Pair.svelte.tsx"),
+            "the companion outranked its own component: {pair}"
+        );
+
+        assert!(
+            paths.get("$lib/loose.svelte").is_none(),
+            "a module outside the alias target got an entry:\n{paths}"
         );
 
         let _ = fs::remove_dir_all(&tmp);

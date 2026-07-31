@@ -1,0 +1,8 @@
+{
+	"description": "Rune modules (`x.svelte.ts`) imported through a tsconfig `paths` alias (`$lib/x.svelte`) under ESM-mode resolution (`moduleResolution: nodenext` in a `\"type\": \"module\"` package), from both a plain .ts file and a .svelte file, in-workspace and across an aliased sibling package. Covers #1942: #1941's `.d.svelte.ts` bridge is only reachable through `rootDirs`, which TypeScript applies to relative specifiers only, and the exact-`paths` overrides of #1888 enumerate real `.svelte` components alone — so an aliased rune module still fell through to the ambient `*.svelte` wildcard.",
+	"workspace": "pkg-a",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		1942
+	]
+}
