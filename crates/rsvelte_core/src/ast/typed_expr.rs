@@ -800,6 +800,9 @@ macro_rules! ser_comments {
     };
 }
 
+// The `serialize_map` length is serde_json's `Map::with_capacity` argument, so
+// each arm passes its unconditional entry count — without it every node's map
+// starts at capacity 0 and rehashes its way up.
 impl Serialize for JsNode {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
@@ -811,7 +814,7 @@ impl Serialize for JsNode {
                 optional,
                 type_annotation,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "Identifier")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -832,7 +835,7 @@ impl Serialize for JsNode {
                 loc,
                 name,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "PrivateIdentifier")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -849,7 +852,7 @@ impl Serialize for JsNode {
                 raw,
                 regex,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "Literal")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -876,7 +879,7 @@ impl Serialize for JsNode {
                 operator,
                 right,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "BinaryExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -895,7 +898,7 @@ impl Serialize for JsNode {
                 operator,
                 right,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "LogicalExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -914,7 +917,7 @@ impl Serialize for JsNode {
                 prefix,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "UnaryExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -933,7 +936,7 @@ impl Serialize for JsNode {
                 consequent,
                 alternate,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "ConditionalExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -952,7 +955,7 @@ impl Serialize for JsNode {
                 arguments,
                 optional,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "CallExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -972,7 +975,7 @@ impl Serialize for JsNode {
                 computed,
                 optional,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(7))?;
                 map.serialize_entry("type", "MemberExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -991,7 +994,7 @@ impl Serialize for JsNode {
                 callee,
                 arguments,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "NewExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1014,7 +1017,7 @@ impl Serialize for JsNode {
                 type_parameters,
                 type_parameters_after_body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "FunctionExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1046,7 +1049,7 @@ impl Serialize for JsNode {
                 super_class,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ClassExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1069,7 +1072,7 @@ impl Serialize for JsNode {
                 r#async,
                 type_parameters,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(7))?;
                 map.serialize_entry("type", "ArrowFunctionExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1095,7 +1098,7 @@ impl Serialize for JsNode {
                 left,
                 right,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "AssignmentExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1114,7 +1117,7 @@ impl Serialize for JsNode {
                 prefix,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "UpdateExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1131,7 +1134,7 @@ impl Serialize for JsNode {
                 loc,
                 expressions,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "SequenceExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1146,7 +1149,7 @@ impl Serialize for JsNode {
                 loc,
                 elements,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ArrayExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1162,7 +1165,7 @@ impl Serialize for JsNode {
                 loc,
                 properties,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ObjectExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1178,7 +1181,7 @@ impl Serialize for JsNode {
                 quasis,
                 expressions,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "TemplateLiteral")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1195,7 +1198,7 @@ impl Serialize for JsNode {
                 tag,
                 quasi,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "TaggedTemplateExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1212,7 +1215,7 @@ impl Serialize for JsNode {
                 tail,
                 value,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "TemplateElement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1232,7 +1235,7 @@ impl Serialize for JsNode {
                 map.end()
             }
             JsNode::ThisExpression { start, end, loc } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ThisExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1241,7 +1244,7 @@ impl Serialize for JsNode {
                 map.end()
             }
             JsNode::Super { start, end, loc } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "Super")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1255,7 +1258,7 @@ impl Serialize for JsNode {
                 loc,
                 source,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "ImportExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1271,7 +1274,7 @@ impl Serialize for JsNode {
                 loc,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "AwaitExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1287,7 +1290,7 @@ impl Serialize for JsNode {
                 delegate,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "YieldExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1303,7 +1306,7 @@ impl Serialize for JsNode {
                 loc,
                 expression,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ChainExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1319,7 +1322,7 @@ impl Serialize for JsNode {
                 meta,
                 property,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "MetaProperty")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1335,7 +1338,7 @@ impl Serialize for JsNode {
                 loc,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "SpreadElement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1351,7 +1354,7 @@ impl Serialize for JsNode {
                 properties,
                 type_annotation,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ObjectPattern")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1370,7 +1373,7 @@ impl Serialize for JsNode {
                 elements,
                 type_annotation,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ArrayPattern")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1389,7 +1392,7 @@ impl Serialize for JsNode {
                 left,
                 right,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "AssignmentPattern")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1405,7 +1408,7 @@ impl Serialize for JsNode {
                 loc,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "RestElement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1425,7 +1428,7 @@ impl Serialize for JsNode {
                 shorthand,
                 computed,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(9))?;
                 map.serialize_entry("type", "Property")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1450,7 +1453,7 @@ impl Serialize for JsNode {
                 // Internal analyze-only metadata; never part of the ESTree output.
                 ignore_comment_map: _,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "Program")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1471,7 +1474,7 @@ impl Serialize for JsNode {
                 loc,
                 expression,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ExpressionStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1486,7 +1489,7 @@ impl Serialize for JsNode {
                 loc,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "BlockStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1503,7 +1506,7 @@ impl Serialize for JsNode {
                 kind,
                 declare,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "VariableDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1523,7 +1526,7 @@ impl Serialize for JsNode {
                 id,
                 init,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "VariableDeclarator")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1545,7 +1548,7 @@ impl Serialize for JsNode {
                 expression,
                 type_parameters,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "FunctionDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1574,7 +1577,7 @@ impl Serialize for JsNode {
                 implements,
                 decorators,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ClassDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1603,7 +1606,7 @@ impl Serialize for JsNode {
                 loc,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ReturnStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1618,7 +1621,7 @@ impl Serialize for JsNode {
                 loc,
                 argument,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ThrowStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1635,7 +1638,7 @@ impl Serialize for JsNode {
                 consequent,
                 alternate,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "IfStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1655,7 +1658,7 @@ impl Serialize for JsNode {
                 update,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ForStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1676,7 +1679,7 @@ impl Serialize for JsNode {
                 right,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(7))?;
                 map.serialize_entry("type", "ForOfStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1696,7 +1699,7 @@ impl Serialize for JsNode {
                 right,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "ForInStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1714,7 +1717,7 @@ impl Serialize for JsNode {
                 test,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "WhileStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1731,7 +1734,7 @@ impl Serialize for JsNode {
                 test,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "DoWhileStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1749,7 +1752,7 @@ impl Serialize for JsNode {
                 handler,
                 finalizer,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "TryStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1767,7 +1770,7 @@ impl Serialize for JsNode {
                 param,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "CatchClause")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1784,7 +1787,7 @@ impl Serialize for JsNode {
                 discriminant,
                 cases,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "SwitchStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1801,7 +1804,7 @@ impl Serialize for JsNode {
                 test,
                 consequent,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "SwitchCase")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1818,7 +1821,7 @@ impl Serialize for JsNode {
                 label,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "LabeledStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1834,7 +1837,7 @@ impl Serialize for JsNode {
                 loc,
                 label,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "BreakStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1849,7 +1852,7 @@ impl Serialize for JsNode {
                 loc,
                 label,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ContinueStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1859,7 +1862,7 @@ impl Serialize for JsNode {
                 map.end()
             }
             JsNode::EmptyStatement { start, end, loc } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "EmptyStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1868,7 +1871,7 @@ impl Serialize for JsNode {
                 map.end()
             }
             JsNode::DebuggerStatement { start, end, loc } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "DebuggerStatement")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1885,7 +1888,7 @@ impl Serialize for JsNode {
                 import_kind,
                 attributes,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ImportDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1907,7 +1910,7 @@ impl Serialize for JsNode {
                 local,
                 import_kind,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "ImportSpecifier")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1926,7 +1929,7 @@ impl Serialize for JsNode {
                 loc,
                 local,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ImportDefaultSpecifier")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1941,7 +1944,7 @@ impl Serialize for JsNode {
                 loc,
                 local,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ImportNamespaceSpecifier")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1960,7 +1963,7 @@ impl Serialize for JsNode {
                 export_kind,
                 attributes,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ExportNamedDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1981,7 +1984,7 @@ impl Serialize for JsNode {
                 loc,
                 declaration,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ExportDefaultDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -1998,7 +2001,7 @@ impl Serialize for JsNode {
                 exported,
                 export_kind,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "ExportSpecifier")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2017,7 +2020,7 @@ impl Serialize for JsNode {
                 loc,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ClassBody")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2036,7 +2039,7 @@ impl Serialize for JsNode {
                 r#static,
                 computed,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(8))?;
                 map.serialize_entry("type", "MethodDefinition")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2059,7 +2062,7 @@ impl Serialize for JsNode {
                 computed,
                 accessor,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(7))?;
                 map.serialize_entry("type", "PropertyDefinition")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2078,7 +2081,7 @@ impl Serialize for JsNode {
                 loc,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "StaticBlock")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2088,7 +2091,7 @@ impl Serialize for JsNode {
                 map.end()
             }
             JsNode::Decorator { start, end, loc } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "Decorator")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2102,7 +2105,7 @@ impl Serialize for JsNode {
                 loc,
                 type_annotation,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "TSTypeAnnotation")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2112,7 +2115,7 @@ impl Serialize for JsNode {
                 map.end()
             }
             JsNode::TSParameterProperty { start, end, loc } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "TSParameterProperty")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2121,7 +2124,7 @@ impl Serialize for JsNode {
                 map.end()
             }
             JsNode::TSEnumDeclaration { start, end, loc } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "TSEnumDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2135,7 +2138,7 @@ impl Serialize for JsNode {
                 loc,
                 body,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "TSModuleDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2153,7 +2156,7 @@ impl Serialize for JsNode {
                 expression,
                 type_annotation,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "TSAsExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2170,7 +2173,7 @@ impl Serialize for JsNode {
                 expression,
                 type_annotation,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "TSSatisfiesExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2186,7 +2189,7 @@ impl Serialize for JsNode {
                 loc,
                 expression,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "TSNonNullExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2202,7 +2205,7 @@ impl Serialize for JsNode {
                 expression,
                 type_annotation,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "TSTypeAssertion")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2220,7 +2223,7 @@ impl Serialize for JsNode {
                 expression,
                 type_arguments,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "TSInstantiationExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
@@ -2236,7 +2239,7 @@ impl Serialize for JsNode {
                 comment_type,
                 value,
             } => {
-                let mut map = serializer.serialize_map(None)?;
+                let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", comment_type.as_str())?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
