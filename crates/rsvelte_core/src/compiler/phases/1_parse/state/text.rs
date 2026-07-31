@@ -53,9 +53,13 @@ impl<'a> Parser<'a> {
         let start = self.index as u32;
         let start_pos = self.index;
 
+        // Upstream parses `template.trimEnd()`, so whitespace after the last
+        // non-whitespace byte is outside the template, not part of this node.
+        let content_end = self.content_end;
+
         // One SIMD pass finds the node end and answers "any entity?" at once:
         // hitting `<`/`{` first proves there is no `&` before it.
-        let remaining = &self.source.as_bytes()[self.index..];
+        let remaining = &self.source.as_bytes()[self.index..content_end];
         let has_entity = match memchr3(b'<', b'{', b'&', remaining) {
             Some(pos) if remaining[pos] == b'&' => {
                 self.index += memchr2(b'<', b'{', &remaining[pos..])
@@ -68,7 +72,7 @@ impl<'a> Parser<'a> {
                 false
             }
             None => {
-                self.index = self.source.len();
+                self.index = content_end;
                 false
             }
         };

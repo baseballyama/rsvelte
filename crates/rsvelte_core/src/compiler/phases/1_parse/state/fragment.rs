@@ -251,26 +251,9 @@ impl<'a> Parser<'a> {
     /// Check if the remaining content from current position to EOF is only whitespace.
     #[inline]
     pub fn remaining_is_whitespace_only(&self) -> bool {
-        // Every `true` answer implies the rest of the source is whitespace under
-        // `char::is_whitespace`, so anything before `content_end` is a `false`
-        // no scan can change.
-        if self.index < self.content_end {
-            return false;
-        }
-        // Fast path: scan bytes for ASCII whitespace
-        let bytes = &self.bytes[self.index..];
-        for &b in bytes {
-            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                continue;
-            }
-            if b < 0x80 {
-                // ASCII non-whitespace
-                return false;
-            }
-            // Non-ASCII: fall back to char-based check for entire remaining string
-            return self.source[self.index..].chars().all(|c| c.is_whitespace());
-        }
-        true
+        // `content_end` is one past the last non-whitespace byte, so everything
+        // at or after it is whitespace and everything before it is not.
+        self.index >= self.content_end
     }
 
     /// Parse a fragment (sequence of nodes).
@@ -478,14 +461,7 @@ impl<'a> Parser<'a> {
             }
 
             // Skip trailing whitespace at EOF - don't parse it as a Text node
-            // Only check if the first byte looks like whitespace (fast path)
-            if (first_byte == b' '
-                || first_byte == b'\t'
-                || first_byte == b'\n'
-                || first_byte == b'\r'
-                || first_byte >= 0x80)
-                && self.remaining_is_whitespace_only()
-            {
+            if self.remaining_is_whitespace_only() {
                 break;
             }
 

@@ -56,6 +56,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2001-derived-computed-key.svelte` | [#2001](https://github.com/baseballyama/rsvelte/issues/2001) | Computed / quoted keys in a destructured `$derived` need bracket member access |
 | `2002-state-destructure-default.svelte` | [#2002](https://github.com/baseballyama/rsvelte/issues/2002) | Default values in a destructured `$state(...)` become `$.fallback(...)` |
 | `2004-derived-array-rest-props.svelte` | [#2004](https://github.com/baseballyama/rsvelte/issues/2004) | Array-destructured `$derived(props)` passes the **rest-prop binding** to `$.to_array`, not `$$props` |
+| `2006-form-feed-text.svelte` | [#2006](https://github.com/baseballyama/rsvelte/issues/2006) | A form-feed (`&#12;`) text node is **content**, not whitespace — `regex_not_whitespace = /[^ \t\r\n]/` excludes `\f` |
 | `2007-derived-default-comma.svelte` | [#2007](https://github.com/baseballyama/rsvelte/issues/2007) | A comma **inside a string default** must not split the destructuring property |
 | `2012-state-destructure-rest.svelte` | [#2012](https://github.com/baseballyama/rsvelte/issues/2012) | Object rest in a destructured `$state(...)` becomes `$.exclude_from_object` |
 | `2013-state-destructure-quoted-key.svelte` | [#2013](https://github.com/baseballyama/rsvelte/issues/2013) | Quoted key in a destructured `$state(...)` needs bracket member access |
@@ -154,6 +155,25 @@ Two / three adjacent comments × nesting depth 0 / 1 / 2 × surrounding context
 | `comment-between-inline-text.svelte` | run between text nodes inside a `<p>` |
 | `comment-in-head.svelte` | run inside `<svelte:head>` |
 | `comment-in-snippet.svelte` | run inside a `{#snippet}` |
+
+### `form-feed/` — form feed as text content (around #2006)
+
+Position of the `&#12;` run (sole child / leading / trailing / between siblings)
+× container (element, fragment root, `{#if}`, `{#each}`, SVG `<text>`) × neighbour
+(element, expression tag). Written as the character reference so the file is a
+formatter fixed point while the parsed `data` is still a bare `\f`.
+
+| File | Point on the axis |
+|---|---|
+| `only-child.svelte` | the element's only child is a form-feed text node |
+| `leading-in-element.svelte` | form feed opens the first text node (trim-start must keep it) |
+| `trailing-in-element.svelte` | form feed closes the last text node (trim-end must keep it) |
+| `root-siblings.svelte` | form-feed run between two root-level elements, newlines around it |
+| `around-expression-tag.svelte` | form feed between two `{expression}` tags |
+| `nested-deep.svelte` | form feed two elements deep |
+| `in-if-block.svelte` | form-feed run inside an `{#if}` block |
+| `in-each-block.svelte` | form-feed run inside an `{#each}` block |
+| `svg-text.svelte` | form feed inside an SVG `<text>` element |
 
 ## Adding a file
 

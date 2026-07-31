@@ -138,35 +138,23 @@ pub(crate) fn replace_trailing_whitespace(s: &str, replacement: &str) -> String 
     result
 }
 
-/// Check if a string consists entirely of HTML-whitespace characters.
-///
-/// Svelte defines whitespace as: space, tab, carriage return, newline, and form feed.
-/// This deliberately excludes non-breaking space (\u{00A0} from `&nbsp;`), which
-/// is treated as content, not whitespace. This matches the official Svelte compiler's
-/// `regex_not_whitespace = /[^ \t\r\n]/` pattern.
+/// Check if a string consists entirely of whitespace, per
+/// `regex_not_whitespace = /[^ \t\r\n]/`. Form feed and non-breaking space
+/// (`&nbsp;`) are content, not whitespace.
 pub fn is_svelte_whitespace_only(s: &str) -> bool {
-    s.chars()
-        .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C'))
+    !has_non_whitespace(s)
 }
 
-/// Trim Svelte whitespace from the start of a string.
+/// Trim Svelte whitespace from the start of a string,
+/// per `regex_starts_with_whitespaces = /^[ \t\r\n]+/`.
 pub fn svelte_trim_start(s: &str) -> &str {
-    let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C');
-    let start = s
-        .char_indices()
-        .find(|(_, c)| !is_ws(*c))
-        .map_or(s.len(), |(i, _)| i);
-    &s[start..]
+    trim_leading_whitespace(s)
 }
 
-/// Trim Svelte whitespace from the end of a string.
+/// Trim Svelte whitespace from the end of a string,
+/// per `regex_ends_with_whitespaces = /[ \t\r\n]+$/`.
 pub fn svelte_trim_end(s: &str) -> &str {
-    let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C');
-    let end = s
-        .char_indices()
-        .rfind(|(_, c)| !is_ws(*c))
-        .map_or(0, |(i, c)| i + c.len_utf8());
-    &s[..end]
+    trim_trailing_whitespace(s)
 }
 
 /// Sort ConstTag nodes in topological order based on their dependencies.
