@@ -54,12 +54,18 @@ impl<'a> Parser<'a> {
         let start_pos = self.index;
 
         // Upstream parses `template.trimEnd()`, so whitespace after the last
-        // non-whitespace byte is outside the template, not part of this node.
-        let content_end = self.content_end;
+        // non-whitespace byte is outside the template. Loose parsing keeps it:
+        // an editor document is mid-edit, and its nodes have to span what the
+        // user has typed so far for structure providers to see it.
+        let template_end = if self.options.loose {
+            self.source.len()
+        } else {
+            self.content_end
+        };
 
         // One SIMD pass finds the node end and answers "any entity?" at once:
         // hitting `<`/`{` first proves there is no `&` before it.
-        let remaining = &self.source.as_bytes()[self.index..content_end];
+        let remaining = &self.source.as_bytes()[self.index..template_end];
         let has_entity = match memchr3(b'<', b'{', b'&', remaining) {
             Some(pos) if remaining[pos] == b'&' => {
                 self.index += memchr2(b'<', b'{', &remaining[pos..])
@@ -72,7 +78,7 @@ impl<'a> Parser<'a> {
                 false
             }
             None => {
-                self.index = content_end;
+                self.index = template_end;
                 false
             }
         };
