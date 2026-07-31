@@ -37,7 +37,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 4106 entries)
+## Client dev (`known-failures.client-dev.json`, 3647 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -61,8 +61,8 @@ The #2005 fix added three more (`pattern/issues/2005-derived-call-default.svelte
 and the `array-` / `nested-call-default.svelte` points of
 `pattern/matrix/destructure-default-thunk/`): a destructured `$derived` is
 declared with `$.tag(...)` in dev (CD2), so *any* faithful repro of that shape
-lands here until CD2 is ported. The
-remaining five files of that matrix were written on `$state` destructuring, which
+lands here until CD2 is ported. The remaining five files of that matrix were
+written on `$state` destructuring, which
 is dev-clean, so the axis costs three entries rather than eight. That leaves 13
 `pattern/` entries in this list.
 
@@ -77,7 +77,6 @@ surfaces first.
 |---|---|---|---|---|
 | CD1 | 1186 | `$.add_locations(...)` template location metadata + the `Comp[$.FILENAME]` it references | `transform-template/index.js` | #2020 |
 | CD2 | 628 | `$.tag()` / `$.tag_proxy()` labelling of reactive sources | `visitors/VariableDeclaration.js`, `visitors/ConstTag.js` | #2021 |
-| CD3 | 583 | `$.check_target(new.target)` instantiation guard | `transform-client.js` | #2022 |
 | CD4 | 582 | `...$.legacy_api()` spread on legacy-mode components | `transform-client.js` | #2023 |
 | CD6 | 327 | `$.strict_equals` / `$.equals` instrumented comparisons | `visitors/BinaryExpression.js` | #2025 |
 | CD7 | 241 | `$.track_reactivity_loss(...)` around awaited expressions | `visitors/AwaitExpression.js`, `visitors/ForOfStatement.js` | #2026 |
@@ -93,6 +92,17 @@ its 532 entries went green outright, and the rest are now counted under whicheve
 cluster surfaces first in them, so they moved into the residue below rather than
 disappearing.
 
+**CD3 is gone, and it was never a missing feature.** rsvelte emitted
+`$.check_target(new.target)` in every one of these entries, at the same count as
+upstream — it just emitted it after the `$$slots` / `$$sanitized_props` /
+`$$restProps` preamble instead of ahead of it, because upstream builds that run
+of statements with `unshift` and rsvelte pushes them in emission order. #2022
+moved it, taking 459 of the 583 entries green; the remaining ~124 co-occur with
+another cluster and moved into the residue. The lesson generalises: these counts
+are attributed by first differing line, so a pure statement **reordering**
+reports as the helper on the expected side being "missing". Confirm presence
+before reading a row as an unported feature.
+
 Three of these are correctness bugs rather than unported features, so they are
 tracked apart: CD11 and CD12 emit the right call with the wrong source position,
 and **CD13 emits code that does not run** — `$inspect` is not a runtime binding,
@@ -100,7 +110,7 @@ so a dev build of any component using it throws `ReferenceError`. CD13 is the
 highest-severity entry in this table despite being the smallest. CD11 only
 becomes observable once CD1 lands.
 
-The remaining 336 entries not in the table above are residue of the same root causes
+The remaining 460 entries not in the table above are residue of the same root causes
 rather than separate ones, so they are expected to clear with their parents.
 Two things spread them out. The statement reshaping CD6/CD7/CD9 perform
 (`const x = (await …)()`, multi-line `console.*`) relocates the divergence
