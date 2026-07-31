@@ -146,7 +146,7 @@ export function svelte2tsx(source, options = {}) {
 	if (parsed.success === false) {
 		throw new Error(parsed.error || 'svelte2tsx failed');
 	}
-	// `map` crosses the wasm boundary as a JSON string (or null in `dts` mode).
+	// `map` crosses the wasm boundary as a JSON string.
 	let map = null;
 	if (parsed.map != null) {
 		map = new SourceMap(typeof parsed.map === 'string' ? JSON.parse(parsed.map) : parsed.map);

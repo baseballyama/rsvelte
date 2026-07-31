@@ -936,9 +936,22 @@ pub fn napi_svelte2tsx(source: String, options: Value) -> napi::Result<Value> {
                 .map(|n: &&str| Value::String(n.to_string()))
                 .collect();
 
+            // The v3 map is built as JSON text; hand it to JS as an object so the
+            // shape matches official svelte2tsx's `generateMap` return value.
+            // Unparseable JSON means the map builder is broken, so it must surface
+            // rather than silently reach the caller as `null` (issue #2066).
+            let map = match result.map.as_deref() {
+                Some(json) => serde_json::from_str(json).map_err(|e| {
+                    napi::Error::from_reason(format!(
+                        "svelte2tsx produced an invalid source map: {e}"
+                    ))
+                })?,
+                None => Value::Null,
+            };
+
             let output = serde_json::json!({
                 "code": result.code,
-                "map": Value::Null,
+                "map": map,
                 "exportedNames": {
                     "props": props,
                     "all": all,
