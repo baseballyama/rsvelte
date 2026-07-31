@@ -4,7 +4,10 @@
 
 use super::arena::JsArena;
 use super::nodes::*;
+use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::fmt::Write;
+use std::rc::Rc;
 
 /// A raw source span recorded during codegen: (output_byte_offset, source_start, source_end).
 /// output_byte_offset is the position in the generated output string.
@@ -88,9 +91,33 @@ pub fn generate_expr(expr: &super::nodes::JsExpr, arena: &JsArena) -> String {
         raw_spans: Vec::new(),
         source_code: None,
         arena,
+        measuring: false,
+        measures: Rc::new(MeasureCache::default()),
     };
     codegen.emit_expression(expr);
     codegen.output
+}
+
+/// Rendered size of a node. `len` is only meaningful when `!multiline`, since a
+/// multiline render embeds indentation that depends on where it was measured.
+#[derive(Clone, Copy)]
+struct Measure {
+    len: usize,
+    multiline: bool,
+}
+
+/// Memoized wrapping measurements, shared with every temporary codegen: wrapping
+/// decisions never look at the indent level, so one measurement is valid at any
+/// depth, and without memoization each level re-renders its whole subtree.
+/// Invariant: node addresses only identify a node within a single `generate` /
+/// `generate_expr` call (`take_expr` refills a slot, roots can be stack values),
+/// so a cache must never be shared across calls.
+#[derive(Default)]
+struct MeasureCache {
+    exprs: RefCell<FxHashMap<usize, Measure>>,
+    members: RefCell<FxHashMap<usize, Measure>>,
+    /// Statements record esrap's blank-line test (>1 newline), not `Measure`'s.
+    stmts: RefCell<FxHashMap<usize, bool>>,
 }
 
 /// JavaScript code generator.
@@ -106,6 +133,9 @@ struct JsCodegen<'a> {
     source_code: Option<&'a str>,
     /// Arena containing all expressions and statements
     arena: &'a JsArena,
+    /// Whether this codegen is a throwaway pre-render feeding `measures`
+    measuring: bool,
+    measures: Rc<MeasureCache>,
 }
 
 impl<'a> JsCodegen<'a> {
@@ -118,6 +148,8 @@ impl<'a> JsCodegen<'a> {
             raw_spans: Vec::new(),
             source_code: None,
             arena,
+            measuring: false,
+            measures: Rc::new(MeasureCache::default()),
         }
     }
 
@@ -269,6 +301,7 @@ impl<'a> JsCodegen<'a> {
 
     #[inline]
     fn emit_statement(&mut self, stmt: &JsStatement) {
+        let start = self.output.len();
         self.indent();
         self.emit_statement_inner(stmt);
         if self.needs_semicolon {
@@ -276,6 +309,13 @@ impl<'a> JsCodegen<'a> {
             self.needs_semicolon = false;
         }
         self.newline();
+        if self.measuring {
+            let m = has_multiple_newlines(&self.output.as_bytes()[start..]);
+            self.measures
+                .stmts
+                .borrow_mut()
+                .insert(std::ptr::from_ref(stmt) as usize, m);
+        }
     }
 
     fn emit_statement_inner(&mut self, stmt: &JsStatement) {
@@ -793,6 +833,20 @@ impl<'a> JsCodegen<'a> {
 
     #[inline]
     fn emit_expression(&mut self, expr: &JsExpr) {
+        if !self.measuring {
+            self.emit_expression_inner(expr);
+            return;
+        }
+        let start = self.output.len();
+        self.emit_expression_inner(expr);
+        let m = measure_of(&self.output.as_bytes()[start..]);
+        self.measures
+            .exprs
+            .borrow_mut()
+            .insert(std::ptr::from_ref(expr) as usize, m);
+    }
+
+    fn emit_expression_inner(&mut self, expr: &JsExpr) {
         match expr {
             JsExpr::Identifier(name) => self.output.push_str(name),
             JsExpr::OpaqueIdentifier(name) => self.output.push_str(name),
@@ -1020,28 +1074,21 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            // Small, simple objects: use a single tmp codegen to measure length
-            // and detect multiline, avoiding per-member String allocations.
-            let mut tmp = self.tmp_codegen();
-            let mut offsets: smallvec::SmallVec<[(usize, usize); 4]> =
-                smallvec::SmallVec::with_capacity(obj.properties.len());
-            for m in &obj.properties {
-                let start = tmp.output.len();
-                tmp.emit_object_member(m);
-                offsets.push((start, tmp.output.len()));
-            }
+            // The heuristic found nothing complex, so fall back to exact widths.
+            let measures: smallvec::SmallVec<[Measure; 4]> = obj
+                .properties
+                .iter()
+                .map(|m| self.measure_member(m))
+                .collect();
 
-            let total_len: usize = offsets.iter().map(|(s, e)| e - s).sum::<usize>()
-                + if offsets.len() > 1 {
-                    (offsets.len() - 1) * 2
+            let total_len: usize = measures.iter().map(|m| m.len).sum::<usize>()
+                + if measures.len() > 1 {
+                    (measures.len() - 1) * 2
                 } else {
                     0
                 };
 
-            let tmp_bytes = tmp.output.as_bytes();
-            let any_multiline = offsets
-                .iter()
-                .any(|(s, e)| memchr::memchr(b'\n', &tmp_bytes[*s..*e]).is_some());
+            let any_multiline = measures.iter().any(|m| m.multiline);
             let multiline = any_multiline || total_len > 60;
 
             if multiline {
@@ -1086,7 +1133,22 @@ impl<'a> JsCodegen<'a> {
         self.output.push('}');
     }
 
+    #[inline]
     fn emit_object_member(&mut self, member: &JsObjectMember) {
+        if !self.measuring {
+            self.emit_object_member_inner(member);
+            return;
+        }
+        let start = self.output.len();
+        self.emit_object_member_inner(member);
+        let m = measure_of(&self.output.as_bytes()[start..]);
+        self.measures
+            .members
+            .borrow_mut()
+            .insert(std::ptr::from_ref(member) as usize, m);
+    }
+
+    fn emit_object_member_inner(&mut self, member: &JsObjectMember) {
         match member {
             JsObjectMember::Property(prop) => {
                 // Auto-detect shorthand: Init property where key identifier
@@ -1838,7 +1900,33 @@ impl<'a> JsCodegen<'a> {
             raw_spans: Vec::new(),
             source_code: None,
             arena: self.arena,
+            measuring: true,
+            measures: Rc::clone(&self.measures),
         }
+    }
+
+    /// Measure how an expression renders, pre-rendering it once and memoizing the result.
+    fn measure_expr(&self, expr: &JsExpr) -> Measure {
+        let key = std::ptr::from_ref(expr) as usize;
+        let hit = self.measures.exprs.borrow().get(&key).copied();
+        if let Some(m) = hit {
+            return m;
+        }
+        let mut tmp = self.tmp_codegen();
+        tmp.emit_expression(expr);
+        measure_of(tmp.output.as_bytes())
+    }
+
+    /// Measure how an object member renders, pre-rendering it once and memoizing the result.
+    fn measure_member(&self, member: &JsObjectMember) -> Measure {
+        let key = std::ptr::from_ref(member) as usize;
+        let hit = self.measures.members.borrow().get(&key).copied();
+        if let Some(m) = hit {
+            return m;
+        }
+        let mut tmp = self.tmp_codegen();
+        tmp.emit_object_member(member);
+        measure_of(tmp.output.as_bytes())
     }
 
     /// Pre-render a statement and check if it's multiline.
@@ -1852,6 +1940,11 @@ impl<'a> JsCodegen<'a> {
         // pre-render to check. This handles cases like expression statements
         // or variable declarations with complex initializers (e.g. calls with
         // arrays whose total length exceeds 60 chars).
+        let key = std::ptr::from_ref(stmt) as usize;
+        let hit = self.measures.stmts.borrow().get(&key).copied();
+        if let Some(m) = hit {
+            return m;
+        }
         let mut tmp = self.tmp_codegen();
         tmp.emit_statement(stmt);
         has_multiple_newlines(tmp.output.as_bytes())
@@ -1925,10 +2018,10 @@ impl<'a> JsCodegen<'a> {
         // AND items contain complex expressions (functions, block arrows, etc.).
         // Simple arrays of literals/small sub-arrays should always be pre-rendered
         // to check actual width, matching esrap behavior.
-        let has_complex_items = items
-            .iter()
-            .any(|item| item.is_some_and(|expr| self.is_expr_likely_multiline(expr)));
-        let likely_multiline = items.len() > 3 && has_complex_items;
+        let likely_multiline = items.len() > 3
+            && items
+                .iter()
+                .any(|item| item.is_some_and(|expr| self.is_expr_likely_multiline(expr)));
 
         if likely_multiline {
             // Render directly in multiline mode without pre-rendering.
@@ -1980,31 +2073,26 @@ impl<'a> JsCodegen<'a> {
             self.indent_level -= 1;
             self.indent();
         } else {
-            // Small, simple items: use a single tmp codegen to measure total length
-            // and detect multiline, avoiding per-item String allocations.
-            let mut tmp = self.tmp_codegen();
-            // Record (start_offset, end_offset) for each rendered item in the tmp buffer.
-            let mut offsets: smallvec::SmallVec<[(usize, usize); 8]> =
-                smallvec::SmallVec::with_capacity(items.len());
-            for item in items.iter() {
-                let start = tmp.output.len();
-                if let Some(expr) = item {
-                    tmp.emit_expression(expr);
-                }
-                offsets.push((start, tmp.output.len()));
-            }
+            // The heuristic found nothing complex, so fall back to exact widths.
+            let measures: smallvec::SmallVec<[Measure; 8]> = items
+                .iter()
+                .map(|item| match item {
+                    Some(expr) => self.measure_expr(expr),
+                    None => Measure {
+                        len: 0,
+                        multiline: false,
+                    },
+                })
+                .collect();
 
-            let total_len: usize = offsets.iter().map(|(s, e)| e - s).sum::<usize>()
-                + if offsets.len() > 1 {
-                    (offsets.len() - 1) * 2
+            let total_len: usize = measures.iter().map(|m| m.len).sum::<usize>()
+                + if measures.len() > 1 {
+                    (measures.len() - 1) * 2
                 } else {
                     0
                 };
 
-            let tmp_bytes = tmp.output.as_bytes();
-            let any_multiline = offsets
-                .iter()
-                .any(|(s, e)| memchr::memchr(b'\n', &tmp_bytes[*s..*e]).is_some());
+            let any_multiline = measures.iter().any(|m| m.multiline);
             let multiline = any_multiline || total_len > 60;
 
             if multiline {
@@ -2022,17 +2110,13 @@ impl<'a> JsCodegen<'a> {
                         self.output.push(',');
                     }
 
-                    if i < items.len() - 1 {
-                        let (cs, ce) = offsets[i];
-                        let (ns, ne) = offsets[i + 1];
-                        let tmp_bytes = tmp.output.as_bytes();
-                        if memchr::memchr(b'\n', &tmp_bytes[cs..ce]).is_some()
-                            && memchr::memchr(b'\n', &tmp_bytes[ns..ne]).is_some()
-                            && !has_object_or_array_value(item)
-                            && !has_object_or_array_value(&items[i + 1])
-                        {
-                            self.newline(); // margin
-                        }
+                    if i < items.len() - 1
+                        && measures[i].multiline
+                        && measures[i + 1].multiline
+                        && !has_object_or_array_value(item)
+                        && !has_object_or_array_value(&items[i + 1])
+                    {
+                        self.newline(); // margin
                     }
 
                     self.newline();
@@ -2077,20 +2161,8 @@ impl<'a> JsCodegen<'a> {
         // Only pre-render if the heuristic didn't find anything (to catch edge cases
         // where simple-looking expressions render as multiline due to width)
         // If heuristic found multiline, we can skip pre-rendering entirely.
-        let non_final_multiline = if any_likely_multiline {
-            true
-        } else if non_final.is_empty() {
-            false
-        } else {
-            // Pre-render non-final arguments in a single tmp codegen to check actual
-            // multiline status. Reuses one buffer instead of allocating per-argument.
-            let mut tmp = self.tmp_codegen();
-            non_final.iter().any(|arg| {
-                let start = tmp.output.len();
-                tmp.emit_expression(arg);
-                memchr::memchr(b'\n', &tmp.output.as_bytes()[start..]).is_some()
-            })
-        };
+        let non_final_multiline =
+            any_likely_multiline || non_final.iter().any(|arg| self.measure_expr(arg).multiline);
 
         if non_final_multiline {
             self.indent_level += 1;
@@ -2115,6 +2187,14 @@ impl<'a> JsCodegen<'a> {
                 self.emit_expression(arg);
             }
         }
+    }
+}
+
+#[inline]
+fn measure_of(rendered: &[u8]) -> Measure {
+    Measure {
+        len: rendered.len(),
+        multiline: memchr::memchr(b'\n', rendered).is_some(),
     }
 }
 
