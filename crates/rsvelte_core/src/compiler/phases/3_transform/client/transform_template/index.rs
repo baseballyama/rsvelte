@@ -161,16 +161,21 @@ pub fn transform_template<'a>(
         } else {
             let source = state.analysis.source.clone();
             auto_locator = Box::new(move |offset: u32| {
-                let offset = offset as usize;
-                let bytes = source.as_bytes();
+                // Columns count UTF-16 code units, matching `locate-character`,
+                // which indexes the source as a JS string. Counting bytes puts
+                // every non-ASCII character earlier on the line into the column.
+                let mut end = (offset as usize).min(source.len());
+                while end > 0 && !source.is_char_boundary(end) {
+                    end -= 1;
+                }
                 let mut line = 1usize;
                 let mut col = 0usize;
-                for &byte in bytes.iter().take(offset.min(bytes.len())) {
-                    if byte == b'\n' {
+                for c in source[..end].chars() {
+                    if c == '\n' {
                         line += 1;
                         col = 0;
                     } else {
-                        col += 1;
+                        col += c.len_utf16();
                     }
                 }
                 Location { line, column: col }
