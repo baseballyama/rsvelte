@@ -182,23 +182,21 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
     for (name, binding_idx) in transform_bindings {
         if let Some(binding) = context.state.scope_root.bindings.get(binding_idx) {
             match binding.kind {
-                BindingKind::StoreSub => {
-                    if !context.state.transform.contains_key(&name) {
-                        context.state.transform.insert(
-                            name,
-                            IdentifierTransform {
-                                read: Some(store_sub_read),
-                                read_source: None,
-                                assign: Some(store_sub_assign),
-                                mutate: Some(store_sub_mutate),
-                                update: Some(store_sub_update),
-                                skip_proxy: false,
-                                is_defined: false,
-                                is_reactive: true,
-                                replacement_id: None,
-                            },
-                        );
-                    }
+                BindingKind::StoreSub if !context.state.transform.contains_key(&name) => {
+                    context.state.transform.insert(
+                        name,
+                        IdentifierTransform {
+                            read: Some(store_sub_read),
+                            read_source: None,
+                            assign: Some(store_sub_assign),
+                            mutate: Some(store_sub_mutate),
+                            update: Some(store_sub_update),
+                            skip_proxy: false,
+                            is_defined: false,
+                            is_reactive: true,
+                            replacement_id: None,
+                        },
+                    );
                 }
                 BindingKind::Prop | BindingKind::BindableProp => {
                     if is_prop_source_binding(binding, &context.state) {

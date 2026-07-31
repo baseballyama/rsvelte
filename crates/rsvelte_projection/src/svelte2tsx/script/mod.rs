@@ -251,8 +251,8 @@ pub fn process_instance_script(
                         }
                     }
                 }
-                oxc::Statement::ClassDeclaration(class) => {
-                    // Detect rune calls nested inside class method bodies.
+                // Detect rune calls nested inside class method bodies.
+                oxc::Statement::ClassDeclaration(class)
                     if class.body.body.iter().any(|member| match member {
                         oxc::ClassElement::MethodDefinition(method) => {
                             method.value.body.as_ref().is_some_and(|body| {
@@ -264,9 +264,9 @@ pub fn process_instance_script(
                             .as_ref()
                             .is_some_and(|e| detect_rune_in_expr(e, &declared_names)),
                         _ => false,
-                    }) {
-                        exported_names.set_uses_runes(true);
-                    }
+                    }) =>
+                {
+                    exported_names.set_uses_runes(true);
                 }
                 oxc::Statement::ExportNamedDeclaration(export) => {
                     // Also check exports for declared names
@@ -324,11 +324,11 @@ pub fn process_instance_script(
                                     }
                                 }
                             }
-                            oxc::Declaration::ClassDeclaration(class) => {
-                                // `export class C { x = $state(0) }` → runes mode.
-                                if detect_rune_in_class_body(class, &declared_names) {
-                                    exported_names.set_uses_runes(true);
-                                }
+                            // `export class C { x = $state(0) }` → runes mode.
+                            oxc::Declaration::ClassDeclaration(class)
+                                if detect_rune_in_class_body(class, &declared_names) =>
+                            {
+                                exported_names.set_uses_runes(true);
                             }
                             // `export type X = ...` / `export interface X { ... }`.
                             //
