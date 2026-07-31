@@ -455,7 +455,7 @@ pub fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
 
 /// Check if an expression has side effects.
 /// Matches `has_side_effects` in events.js.
-fn expression_has_side_effects(expr: &crate::ast::js::Expression) -> bool {
+pub(super) fn expression_has_side_effects(expr: &crate::ast::js::Expression) -> bool {
     match expr.node_type() {
         Some("CallExpression" | "NewExpression" | "AssignmentExpression" | "UpdateExpression") => {
             true
@@ -488,7 +488,7 @@ fn json_has_side_effects(value: &serde_json::Value) -> bool {
 
 /// Check if expression is a call with no arguments to an identifier (for remove_parens).
 /// Matches the `remove_parens` check in events.js.
-fn expression_is_removable_call(
+pub(super) fn expression_is_removable_call(
     expr: &crate::ast::js::Expression,
     arena: &crate::ast::arena::ParseArena,
 ) -> bool {
