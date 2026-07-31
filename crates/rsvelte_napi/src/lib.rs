@@ -51,7 +51,8 @@ use serde_json::Value;
 
 use rsvelte_core::compiler::{
     CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
-    compile as rust_compile, compile_module as rust_compile_module,
+    compile as rust_compile, compile_both as rust_compile_both,
+    compile_module as rust_compile_module,
     compile_with_external_sourcemap_content as rust_compile_with_external_sourcemap_content,
 };
 use rsvelte_projection::svelte2tsx::{
@@ -231,6 +232,27 @@ pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi
 
     match rust_compile(&source, opts) {
         Ok(result) => Ok(compile_result_to_json(result)),
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+/// Compile a single component to both client and server output, sharing one
+/// parse + analyze pass (see `compile_both` in rsvelte_core::compiler): a
+/// dual-output build otherwise pays for that shared work twice by calling
+/// `compile` once per target. `options.generate` is ignored; the result is
+/// `{ client, server }`, each shaped like the `compile` return value.
+#[napi(js_name = "compileBoth")]
+pub fn napi_compile_both(
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> napi::Result<Value> {
+    let opts = options_to_compile(options)?;
+
+    match rust_compile_both(&source, opts) {
+        Ok((client, server)) => Ok(serde_json::json!({
+            "client": compile_result_to_json(client),
+            "server": compile_result_to_json(server),
+        })),
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
 }
