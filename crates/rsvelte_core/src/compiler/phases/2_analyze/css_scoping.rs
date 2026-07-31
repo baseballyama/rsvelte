@@ -190,7 +190,8 @@ fn get_possible_attr_values(
         let inspected = matches!(
             node_type,
             "Literal" | "ConditionalExpression" | "LogicalExpression" | "TemplateLiteral"
-        ) || (is_class && matches!(node_type, "ArrayExpression" | "ObjectExpression"));
+        ) || (is_class
+            && matches!(node_type, "ArrayExpression" | "ObjectExpression"));
         if !inspected {
             return None;
         }
