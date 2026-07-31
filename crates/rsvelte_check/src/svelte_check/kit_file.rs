@@ -398,6 +398,17 @@ pub fn apply_added_code(source: &str, adds: &[AddedCode]) -> String {
     out
 }
 
+/// Unwraps a single level of `(expr)` around a `const` initializer before matching
+/// it against `ArrowFunctionExpression` / `FunctionExpression`. Mirrors `findExports`'
+/// `ts.isParenthesizedExpression` unwrap in the JS reference, which is why
+/// `export const GET = (async ({ url }) => {...});` still gets augmented there.
+fn unwrap_parens<'a>(expr: &'a oxc::Expression<'a>) -> &'a oxc::Expression<'a> {
+    match expr {
+        oxc::Expression::ParenthesizedExpression(inner) => &inner.expression,
+        other => other,
+    }
+}
+
 fn visit_route_statement(
     stmt: &oxc::Statement,
     source: &str,
@@ -472,7 +483,7 @@ fn visit_route_statement(
                             continue;
                         }
                         let Some(init) = &d.init else { continue };
-                        match init {
+                        match unwrap_parens(init) {
                             oxc::Expression::ArrowFunctionExpression(af) => {
                                 let arrow_pos = find_arrow_token(
                                     source,
@@ -504,7 +515,7 @@ fn visit_route_statement(
                     "GET" | "PUT" | "POST" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD"
                     | "fallback" => {
                         let Some(init) = &d.init else { continue };
-                        match init {
+                        match unwrap_parens(init) {
                             oxc::Expression::ArrowFunctionExpression(af) => {
                                 let arrow_pos = find_arrow_token(
                                     source,
@@ -631,24 +642,28 @@ fn add_api_method_types_to_function_like(
     }
     let param = &params.items[0];
     if is_ts {
-        if param.type_annotation.is_none() {
-            let pos = param.pattern.span().end;
-            if needs_parens {
-                adds.push(AddedCode {
-                    original_pos: param.pattern.span().start,
-                    inserted: "(".into(),
-                });
-            }
+        // Official gates both the param and the return-type insertion on a single
+        // `!fn.hasTypeDefinition` (a manually-typed param means "leave this function
+        // alone entirely" — see `addTypeToFunction` in the JS reference).
+        if param.type_annotation.is_some() {
+            return;
+        }
+        let pos = param.pattern.span().end;
+        if needs_parens {
+            adds.push(AddedCode {
+                original_pos: param.pattern.span().start,
+                inserted: "(".into(),
+            });
+        }
+        adds.push(AddedCode {
+            original_pos: pos,
+            inserted: ": import('./$types.js').RequestEvent".into(),
+        });
+        if needs_parens {
             adds.push(AddedCode {
                 original_pos: pos,
-                inserted: ": import('./$types.js').RequestEvent".into(),
+                inserted: ")".into(),
             });
-            if needs_parens {
-                adds.push(AddedCode {
-                    original_pos: pos,
-                    inserted: ")".into(),
-                });
-            }
         }
         if !has_return_type && let Some(pos) = return_insert_pos {
             let ret_ty = if is_async {
@@ -751,7 +766,7 @@ fn visit_param_statement(
                 return;
             }
             let Some(init) = &d.init else { return };
-            match init {
+            match unwrap_parens(init) {
                 oxc::Expression::ArrowFunctionExpression(af) => {
                     let arrow_pos =
                         find_arrow_token(source, af.params.span.end, af.body.span.start);
@@ -803,24 +818,27 @@ fn add_match_type_to_function_like(
     }
     let param = &params.items[0];
     if is_ts {
-        if param.type_annotation.is_none() {
-            let pos = param.pattern.span().end;
-            if needs_parens {
-                adds.push(AddedCode {
-                    original_pos: param.pattern.span().start,
-                    inserted: "(".into(),
-                });
-            }
+        // Single gate for both insertions — see the identical comment in
+        // `add_api_method_types_to_function_like`.
+        if param.type_annotation.is_some() {
+            return;
+        }
+        let pos = param.pattern.span().end;
+        if needs_parens {
+            adds.push(AddedCode {
+                original_pos: param.pattern.span().start,
+                inserted: "(".into(),
+            });
+        }
+        adds.push(AddedCode {
+            original_pos: pos,
+            inserted: ": string".into(),
+        });
+        if needs_parens {
             adds.push(AddedCode {
                 original_pos: pos,
-                inserted: ": string".into(),
+                inserted: ")".into(),
             });
-            if needs_parens {
-                adds.push(AddedCode {
-                    original_pos: pos,
-                    inserted: ")".into(),
-                });
-            }
         }
         if !has_return_type && let Some(pos) = return_insert_pos {
             adds.push(AddedCode {
@@ -950,7 +968,7 @@ fn add_hooks_type(
                 return;
             }
             let Some(init) = &d.init else { return };
-            match init {
+            match unwrap_parens(init) {
                 oxc::Expression::ArrowFunctionExpression(af) => {
                     // Official anchors an arrow's return type on the `=>`
                     // token (`equalsGreaterThanToken.getStart()`), not on the
@@ -1020,27 +1038,30 @@ fn add_hooks_type_to_function_like(
     }
     let param = &params.items[0];
     if is_ts {
-        if param.type_annotation.is_none() {
-            let pos = param.pattern.span().end;
-            // Insertions anchored at the same offset keep their push order
-            // (`sort_by_key` is stable), so the closing paren has to go after
-            // the annotation it wraps.
-            if needs_parens {
-                adds.push(AddedCode {
-                    original_pos: param.pattern.span().start,
-                    inserted: "(".into(),
-                });
-            }
+        // Single gate for both insertions — see the identical comment in
+        // `add_api_method_types_to_function_like`.
+        if param.type_annotation.is_some() {
+            return;
+        }
+        let pos = param.pattern.span().end;
+        // Insertions anchored at the same offset keep their push order
+        // (`sort_by_key` is stable), so the closing paren has to go after
+        // the annotation it wraps.
+        if needs_parens {
+            adds.push(AddedCode {
+                original_pos: param.pattern.span().start,
+                inserted: "(".into(),
+            });
+        }
+        adds.push(AddedCode {
+            original_pos: pos,
+            inserted: format!(": Parameters<{ty}>[0]"),
+        });
+        if needs_parens {
             adds.push(AddedCode {
                 original_pos: pos,
-                inserted: format!(": Parameters<{ty}>[0]"),
+                inserted: ")".into(),
             });
-            if needs_parens {
-                adds.push(AddedCode {
-                    original_pos: pos,
-                    inserted: ")".into(),
-                });
-            }
         }
         if !has_return_type && let Some(pos) = return_insert_pos {
             adds.push(AddedCode {
@@ -1209,6 +1230,94 @@ mod tests {
         assert!(
             adds.is_none_or(|a| a.is_empty()),
             "an explicitly-typed const hook shouldn't be re-annotated"
+        );
+    }
+
+    // #1944 (1): a manually-typed param means "leave this function alone
+    // entirely" in the JS reference (`addTypeToFunction`'s single
+    // `!fn.hasTypeDefinition` gate) — a return-type annotation must not be
+    // injected just because *it* happens to be missing.
+
+    #[test]
+    fn api_get_typed_param_gets_no_return_type_injected() {
+        let path = PathBuf::from("src/routes/api/+server.ts");
+        let source = "export const GET = (event: import('./$types.js').RequestEvent) => {\n  return new Response();\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "a manually-typed param must suppress the return-type injection too"
+        );
+    }
+
+    #[test]
+    fn match_typed_param_gets_no_return_type_injected() {
+        let path = PathBuf::from("src/params/slug.ts");
+        let source = "export function match(param: string) {\n  return param.length > 0;\n}\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "a manually-typed param must suppress the return-type injection too"
+        );
+    }
+
+    #[test]
+    fn hooks_handle_fetch_typed_param_gets_no_return_type_injected() {
+        let path = PathBuf::from("src/hooks.server.ts");
+        let source = "export const handleFetch = (arg: Parameters<import('@sveltejs/kit').HandleFetch>[0]) => {\n  return arg.fetch(arg.request);\n};\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default());
+        assert!(
+            adds.is_none_or(|a| a.is_empty()),
+            "a manually-typed param must suppress the return-type injection too"
+        );
+    }
+
+    // #1944 (2): `findExports` unwraps a single level of `(expr)` around a
+    // `const` initializer before matching Arrow/FunctionExpression shapes,
+    // so a parenthesized function-like initializer must still be augmented
+    // instead of falling into the no-op wildcard arm.
+
+    #[test]
+    fn api_get_parenthesized_arrow_const_form_gets_augmented() {
+        let path = PathBuf::from("src/routes/api/+server.ts");
+        let source = "export const GET = (async ({ url }) => {\n  return new Response(url);\n});\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("parenthesized arrow-const GET should still be augmented");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "({{ url }}{IGNORE_START_COMMENT}: import('./$types.js').RequestEvent{IGNORE_END_COMMENT}) {IGNORE_START_COMMENT}: Promise<Response> {IGNORE_END_COMMENT}=>"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn match_parenthesized_arrow_const_form_gets_augmented() {
+        let path = PathBuf::from("src/params/slug.ts");
+        let source = "export const match = (param => param.length > 0);\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("parenthesized arrow-const match should still be augmented");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "= ({IGNORE_START_COMMENT}({IGNORE_END_COMMENT}param{IGNORE_START_COMMENT}: string{IGNORE_END_COMMENT}{IGNORE_START_COMMENT}){IGNORE_END_COMMENT} {IGNORE_START_COMMENT}: boolean {IGNORE_END_COMMENT}=>"
+            )),
+            "augmented = {augmented:?}"
+        );
+    }
+
+    #[test]
+    fn hooks_handle_parenthesized_arrow_const_form_gets_augmented() {
+        let path = PathBuf::from("src/hooks.server.ts");
+        let source = "export const handle = (async ({ event, resolve }) => resolve(event));\n";
+        let adds = build_added_code(&path, source, &KitFilesSettings::default())
+            .expect("parenthesized arrow-const handle should still be augmented");
+        let augmented = apply_added_code(source, &adds);
+        assert!(
+            augmented.contains(&format!(
+                "({{ event, resolve }}{IGNORE_START_COMMENT}: Parameters<import('@sveltejs/kit').Handle>[0]{IGNORE_END_COMMENT}) {IGNORE_START_COMMENT}: ReturnType<import('@sveltejs/kit').Handle> {IGNORE_END_COMMENT}=>"
+            )),
+            "augmented = {augmented:?}"
         );
     }
 
