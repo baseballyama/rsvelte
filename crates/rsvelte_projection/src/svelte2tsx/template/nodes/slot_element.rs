@@ -206,9 +206,10 @@ pub(crate) fn dollar_slot_name(attributes: &[Attribute]) -> String {
     slot_name
 }
 
-/// Source range of the `<slot name=…>` value that the start transformation
-/// keeps (`surroundWith(str, [slotName.start, slotName.end], '"', '"')`); `None`
-/// when the name defaults, which official emits as a literal.
+/// Source range of the `<slot name=…>` value's first value part (official's
+/// `value[0]`), verbatim-sliced by both `get_slot_name` (the emitted
+/// `__sveltets_createSlot` key) and `opener_spacing` (whitespace accounting);
+/// `None` when the name defaults, which official emits as a literal.
 fn get_slot_name_range(attributes: &[Attribute]) -> Option<(u32, u32)> {
     attributes.iter().find_map(|attr| match attr {
         Attribute::Attribute(node) if node.name == "name" => match &node.value {
@@ -224,49 +225,16 @@ fn get_slot_name_range(attributes: &[Attribute]) -> Option<(u32, u32)> {
 }
 
 pub(crate) fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
-    for attr in attributes {
-        if let Attribute::Attribute(node) = attr
-            && node.name == "name"
-        {
-            match &node.value {
-                AttributeValue::Sequence(parts) => {
-                    // name="header" → parts is a single Text
-                    let mut name = String::new();
-                    for part in parts {
-                        if let AttributeValuePart::Text(text) = part {
-                            name.push_str(&text.raw);
-                        }
-                    }
-                    if !name.is_empty() {
-                        return name;
-                    }
-                    // Quoted mustache value, e.g. `name='{foo}'`: official uses
-                    // the raw source text of the value verbatim as the slot-name
-                    // string (`__sveltets_createSlot("{foo}", …)`). Slice from the
-                    // first to the last value part.
-                    if let (Some(first), Some(last)) = (parts.first(), parts.last()) {
-                        let start = match first {
-                            AttributeValuePart::Text(t) => t.start,
-                            AttributeValuePart::ExpressionTag(e) => e.start,
-                        } as usize;
-                        let end = match last {
-                            AttributeValuePart::Text(t) => t.end,
-                            AttributeValuePart::ExpressionTag(e) => e.end,
-                        } as usize;
-                        if start < end && end <= source.len() {
-                            return source[start..end].to_string();
-                        }
-                    }
-                }
-                AttributeValue::Expression(expr) => {
-                    // name={expr} - use the expression text
-                    return get_expression_text(&expr.expression, source).to_string();
-                }
-                _ => {}
-            }
-        }
-    }
-    "default".to_string()
+    // Official only ever looks at `value[0]` (`nodes/Element.ts`'s `slotName`),
+    // then slices its verbatim source range — including the braces of an
+    // ExpressionTag and any inner whitespace — rather than re-serializing an
+    // expression or concatenating multiple value parts.
+    get_slot_name_range(attributes)
+        .and_then(|(start, end)| {
+            let (start, end) = (start as usize, end as usize);
+            (start < end && end <= source.len()).then(|| source[start..end].to_string())
+        })
+        .unwrap_or_else(|| "default".to_string())
 }
 
 /// Get the `bind:this` expression text from a slot element's attributes.
