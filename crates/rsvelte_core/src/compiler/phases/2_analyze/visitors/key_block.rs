@@ -69,8 +69,15 @@ pub fn visit<'a, 'b: 'a>(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::KeyBlock);
 
-    // Visit the fragment
+    // The fragment has its own scope in the scope builder, so the visitor has to
+    // enter it too — otherwise a lexical lookup from inside the block never
+    // reaches a binding declared there.
+    let old_scope = context.scope;
+    if let Some(&key_scope) = context.analysis.root.template_scope_map.get(&block.start) {
+        context.scope = key_scope;
+    }
     fragment::analyze(&mut block.fragment, context)?;
+    context.scope = old_scope;
 
     // Pop fragment owner type
     context.fragment_owner_stack.pop();

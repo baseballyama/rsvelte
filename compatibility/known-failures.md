@@ -13,39 +13,31 @@ baseline — the lists may only shrink, never grow. Each accepted entry must be
 justified in this file.
 
 The five skeleton seeds from #1924 are gone (#2017): #1973 (fixed by #1996),
-#1974 (fixed by #1988), #1975 (fixed by #1993). Of the three divergences the
-checked-in pattern corpus (#2019) surfaced, the two SSR destructuring ones
-(#2033, #2034) are gone too (fixed by #2036); the remaining entry is #2031.
+#1974 (fixed by #1988), #1975 (fixed by #1993). All three divergences the
+checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
+destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
+snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 1 entry)
+## Client (`known-failures.client.json`, 0 entries)
 
-### C1 — block-local snippet rendered through the dynamic path (1) (#2031)
+Empty. The one entry this list ever held — #2031, a `{#snippet}` declared inside
+an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
+through the dynamic path (`$.comment()` anchor + `$.snippet(...)`) instead of
+being called directly — was fixed by #2057: the scope builder gives each branch
+its own scope, but the analysis visitor never entered it, so the render tag's
+lexical lookup started above the branch and missed the snippet binding.
 
-`pattern/matrix/snippet-hoist/attach-component-scope-in-if.svelte`. A
-`{#snippet}` declared inside an `{#if}` block and `{@render}`ed as a sibling in
-that same block is lowered as a *dynamic* render tag: the client allocates a
-comment anchor (`var fragment_1 = $.comment()`) where upstream resolves the
-snippet statically and calls it directly (`row($$anchor)`). Sibling patterns in
-the same matrix directory pass — the same snippet at the fragment root
-(hoistable and non-hoistable) and inside `<svelte:boundary>` — so the trigger is
-the snippet binding living in a *block* fragment, most likely in the
-non-hoisted-snippet path added by #1990. Fix belongs in rsvelte's `{@render}`
-visitor (resolve block-local snippet bindings statically, as upstream does).
+## Server (`known-failures.server.json`, 0 entries)
 
-## Server (`known-failures.server.json`, 1 entry)
-
-### S1 — block-local snippet rendered through the dynamic path (1) (#2031)
-
-`pattern/matrix/snippet-hoist/attach-component-scope-in-if.svelte`, the SSR half
-of C1 above: rsvelte pushes the dynamic form's extra `<!---->` where upstream
-emits the `{#if}` alternate directly. Same fix.
+Empty. Its one entry was the SSR half of the same #2031 divergence (the extra
+`<!---->` the dynamic form pushes), fixed by the same change.
 
 The two SSR destructuring seeds this corpus also surfaced — #2033 (computed /
 quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 4566 entries)
+## Client dev (`known-failures.client-dev.json`, 4565 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -55,13 +47,13 @@ divergence is invisible to the two `dev: false` targets — #1981
 reason. CSS is compared for this target too.
 
 This baseline is the **enrolment seed**: it is what the corpus measured the
-first time it ever compiled with `dev: true`, not a set of regressions. Apart
-from the four `pattern/` entries that are also listed under C1 / S1–S3 above,
-every entry diverges *only* on `client-dev`. The CSS comparison is already clean
+first time it ever compiled with `dev: true`, not a set of regressions. Now that
+the client and server lists are empty, every entry diverges *only* on
+`client-dev`. The CSS comparison is already clean
 — 0 css-mismatches, so the dev empty-rule branch of the CSS transform matches
 upstream exactly.
 
-The checked-in pattern corpus (#2019) contributed 11 of these entries. All 11
+The checked-in pattern corpus (#2019) contributed 10 of these entries. All 10
 land in clusters that the real-world sources had already established, so the
 matrices confirmed the clusters rather than adding root causes.
 
@@ -103,7 +95,7 @@ so a dev build of any component using it throws `ReferenceError`. CD13 is the
 highest-severity entry in this table despite being the smallest. CD11 only
 becomes observable once CD1 lands.
 
-The remaining 261 entries not in the table above are residue of the same root causes
+The remaining 260 entries not in the table above are residue of the same root causes
 rather than separate ones, so they are expected to clear with their parents.
 Two things spread them out. The statement reshaping CD6/CD7/CD9 perform
 (`const x = (await …)()`, multi-line `console.*`) relocates the divergence

@@ -1903,7 +1903,6 @@
 	"pattern/matrix/destructure-default-thunk/array-call-default.svelte",
 	"pattern/matrix/destructure-default-thunk/nested-call-default.svelte",
 	"pattern/matrix/member-component/bind-with-spread.svelte",
-	"pattern/matrix/snippet-hoist/attach-component-scope-in-if.svelte",
 	"pattern/matrix/snippet-hoist/spread-props-snippet.svelte",
 	"pattern/matrix/ts-declarations/definite-assignment-bind-value-legacy.svelte",
 	"pattern/matrix/ts-declarations/non-null-member-access.svelte",

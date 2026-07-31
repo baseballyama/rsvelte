@@ -81,12 +81,25 @@ pub fn visit<'a, 'b: 'a>(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::IfBlock);
 
-    // Analyze the consequent
+    // Each branch has its own scope in the scope builder, so the visitor has to
+    // enter it too — otherwise a lexical lookup from inside the branch (a
+    // `{@render}` resolving a sibling `{#snippet}`, say) never reaches a binding
+    // declared there and falls back to the dynamic lowering.
+    let old_scope = context.scope;
+    if let Some(&consequent_scope) = context.analysis.root.template_scope_map.get(&block.start) {
+        context.scope = consequent_scope;
+    }
     fragment::analyze(&mut block.consequent, context)?;
+    context.scope = old_scope;
 
     // Analyze the alternate if present
     if let Some(ref mut alternate) = block.alternate {
+        let old_scope = context.scope;
+        if let Some(&alternate_scope) = context.analysis.root.template_scope_map.get(&block.end) {
+            context.scope = alternate_scope;
+        }
         fragment::analyze(alternate, context)?;
+        context.scope = old_scope;
     }
 
     // Pop fragment owner type
