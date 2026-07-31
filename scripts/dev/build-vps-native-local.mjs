@@ -37,12 +37,15 @@ if (platform === 'darwin' && arch === 'arm64') {
 }
 
 console.log(`[build-vps-native] building NAPI cdylib for ${triple}…`);
-execSync('cargo build --release -p rsvelte_napi --lib', {
+// `dist-napi`, not `release`: the cdylib's `catch_unwind` exports only
+// isolate a per-call panic when the binary unwinds — plain `release` sets
+// `panic = "abort"` (see `crates/rsvelte_napi/src/lib.rs`).
+execSync('cargo build --profile dist-napi -p rsvelte_napi --lib', {
 	cwd: repoRoot,
 	stdio: 'inherit',
 });
 
-const src = resolve(repoRoot, 'target/release', dylib);
+const src = resolve(repoRoot, 'target/dist-napi', dylib);
 const destDir = resolve(repoRoot, `apps/npm/vite-plugin-svelte-native-${triple}`);
 const dest = resolve(destDir, 'rsvelte.node');
 if (!existsSync(src)) {

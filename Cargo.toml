@@ -64,6 +64,19 @@ panic = "unwind"
 inherits = "dist"
 panic = "unwind"
 
+# Distribution profile for the NAPI `.node` addon (`crates/rsvelte_napi`).
+# Every `#[napi(...)]` export isolates a per-call compiler panic via the
+# napi-derive `catch_unwind` attribute (see `crates/rsvelte_napi/src/lib.rs`),
+# which only holds when the binary UNWINDS — the shared `release`/`dist`
+# profiles set `panic = "abort"`, turning that isolation into an immediate
+# `SIGABRT` that kills the whole Node process (a Vite dev server, a build,
+# svelte-check's compiler calls, ...) instead of surfacing a JS exception for
+# the one call. Same reasoning as `dist-lint`/`dist-lsp` above. Build with
+# `--profile dist-napi`.
+[profile.dist-napi]
+inherits = "dist"
+panic = "unwind"
+
 [profile.profiling]
 inherits = "release"
 lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM

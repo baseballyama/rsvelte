@@ -2,6 +2,16 @@
 //!
 //! This module provides Node.js native addon bindings via napi-rs,
 //! allowing the Rust Svelte compiler to be used from JavaScript/TypeScript.
+//!
+//! `catch_unwind` on every `#[napi]` export is load-bearing, not decorative:
+//! napi-rs only wraps a function body in `std::panic::catch_unwind` when this
+//! flag is present (see `napi-derive-backend`'s `codegen/fn.rs`). Without it a
+//! panic unwinds straight across the generated `extern "C"` boundary — which,
+//! under the `dist-napi` profile's `panic = "unwind"`, aborts the entire Node
+//! process (a Vite dev server, a build, a svelte-check run, ...) rather than
+//! surfacing as a per-call error. With it, a panic in `compile()` or any other
+//! entry point becomes a thrown JS error the caller can handle, so one
+//! pathological `.svelte` file cannot take down the whole process.
 
 // napi 3 moved the legacy `JsBuffer` / `JsObject` / `Env::execute_tokio_future`
 // / `Env::create_buffer_with_borrowed_data` surface behind the `compat-mode`
@@ -143,7 +153,7 @@ impl NapiParseOptions {
 ///
 /// For the fastest path skip JSON entirely: see [`napi_parse_envelope`]
 /// and the matching `decodeParseEnvelope` JS decoder.
-#[napi(js_name = "parse")]
+#[napi(js_name = "parse", catch_unwind)]
 pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Result<String> {
     use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
 
@@ -188,7 +198,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
 /// (`napi_raw_parse`). Pair with the matching JS decoder in
 /// `@rsvelte/vite-plugin-svelte-native/parse-envelope.js` to skip
 /// `JSON.parse`'s tokenization cost on the JS side.
-#[napi(js_name = "parseEnvelope")]
+#[napi(js_name = "parseEnvelope", catch_unwind)]
 pub fn napi_parse_envelope(
     source: String,
     options: Option<NapiParseOptions>,
@@ -226,7 +236,7 @@ pub fn napi_parse_envelope(
 ///
 /// Takes source code and an options object, returns a result object
 /// matching the official `svelte/compiler` output shape.
-#[napi(js_name = "compile")]
+#[napi(js_name = "compile", catch_unwind)]
 pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi::Result<Value> {
     let opts = options_to_compile(options)?;
 
@@ -290,7 +300,7 @@ fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Valu
 /// which the bridge awaits with `block_on`. Callers that don't pass a
 /// `cssHash` function keep using the sync `compile` path — this entry
 /// adds no overhead there.
-#[napi(js_name = "compileWithCssHash")]
+#[napi(js_name = "compileWithCssHash", catch_unwind)]
 pub async fn napi_compile_with_css_hash(
     source: String,
     options: Option<NapiCompileOptions>,
@@ -917,7 +927,7 @@ fn options_to_module_compile(
 }
 
 /// Compile a Svelte module (.svelte.js/.svelte.ts).
-#[napi(js_name = "compileModule")]
+#[napi(js_name = "compileModule", catch_unwind)]
 pub fn napi_compile_module(
     source: String,
     options: Option<NapiModuleCompileOptions>,
@@ -953,7 +963,7 @@ pub fn napi_compile_module(
 ///
 /// This is the NAPI binding for `svelte2tsx`, used by the Svelte language server
 /// and other tooling to get TypeScript representations of Svelte components.
-#[napi(js_name = "svelte2tsx")]
+#[napi(js_name = "svelte2tsx", catch_unwind)]
 pub fn napi_svelte2tsx(source: String, options: Value) -> napi::Result<Value> {
     let opts = parse_svelte2tsx_options(&options);
 
@@ -1060,7 +1070,7 @@ use rsvelte_bindings_support::vps::{
 /// moduleChanged }` so the JS shim can decide between Vite's hot-update
 /// patch and a full reload. Mirrors the JS reference's
 /// `vite-plugin-svelte/src/plugins/hot-update.js`.
-#[napi(js_name = "hmrDiff")]
+#[napi(js_name = "hmrDiff", catch_unwind)]
 pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
     let diff = rust_hmr_diff(&prev, &curr);
     let kind = match diff.change {
@@ -1078,7 +1088,7 @@ pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
 /// Resolve a relative module specifier from an importer's directory.
 /// Returns `null` for bare specifiers — the JS shim falls back to
 /// Vite's main resolver in that case.
-#[napi(js_name = "resolveId")]
+#[napi(js_name = "resolveId", catch_unwind)]
 pub fn napi_resolve_id(importer: Option<String>, specifier: String) -> napi::Result<Value> {
     let importer_path = importer.as_ref().map(std::path::Path::new);
     let res = rust_resolve_id(ResolveOptions {
@@ -1110,7 +1120,7 @@ pub struct PreprocessOptions {
 /// heavy lifting (tag extraction, source-map chaining) stays in Rust.
 ///
 /// Shape mirrors `svelte/preprocess`: `{ code, map, dependencies }`.
-#[napi(js_name = "preprocess")]
+#[napi(js_name = "preprocess", catch_unwind)]
 pub fn napi_preprocess(
     env: Env,
     source: String,
@@ -1564,7 +1574,7 @@ pub struct CompileBuffersResult {
 /// performs a single ArrayBuffer wrap per payload instead of a UTF-16
 /// string copy. Warnings stay as a structured `#[napi(object)]` since
 /// they're small and the JS side reads them eagerly.
-#[napi(js_name = "compileBuffers")]
+#[napi(js_name = "compileBuffers", catch_unwind)]
 pub fn napi_compile_buffers(
     source: String,
     options: Option<NapiCompileOptions>,
@@ -1589,7 +1599,7 @@ pub fn napi_compile_buffers(
 }
 
 /// `compileModule()` variant matching `compileBuffers`'s output shape.
-#[napi(js_name = "compileModuleBuffers")]
+#[napi(js_name = "compileModuleBuffers", catch_unwind)]
 pub fn napi_compile_module_buffers(
     source: String,
     options: Option<NapiModuleCompileOptions>,
@@ -1662,7 +1672,7 @@ fn ensure_envelope_size(size: usize) -> napi::Result<()> {
 
 /// `compile()` returning a single packed envelope buffer.
 /// See `rsvelte_bindings_support::napi_raw` for the byte-level format.
-#[napi(js_name = "compileEnvelope")]
+#[napi(js_name = "compileEnvelope", catch_unwind)]
 pub fn napi_compile_envelope(
     source: String,
     options: Option<NapiCompileOptions>,
@@ -1671,7 +1681,7 @@ pub fn napi_compile_envelope(
     compile_envelope(&source, opts, false)
 }
 
-#[napi(js_name = "compileEnvelopeExternalSources")]
+#[napi(js_name = "compileEnvelopeExternalSources", catch_unwind)]
 pub fn napi_compile_envelope_external_sources(
     source: String,
     options: Option<NapiCompileOptions>,
@@ -1798,7 +1808,7 @@ fn create_zero_copy_envelope(
 /// envelope bytes inside a `bumpalo::Bump`, hands V8 a Buffer view
 /// over the arena, and drops the arena from a finalizer when V8
 /// finalises the Buffer.
-#[napi(js_name = "compileEnvelopeZeroCopy")]
+#[napi(js_name = "compileEnvelopeZeroCopy", catch_unwind)]
 pub fn napi_compile_envelope_zero_copy(
     env: Env,
     source: String,
@@ -1813,7 +1823,7 @@ pub fn napi_compile_envelope_zero_copy(
 }
 
 /// `compileModule` counterpart of `compileEnvelopeZeroCopy`.
-#[napi(js_name = "compileModuleEnvelopeZeroCopy")]
+#[napi(js_name = "compileModuleEnvelopeZeroCopy", catch_unwind)]
 pub fn napi_compile_module_envelope_zero_copy(
     env: Env,
     source: String,
@@ -1837,7 +1847,7 @@ pub fn napi_compile_module_envelope_zero_copy(
 /// `compileModule()` returning the same packed envelope. The envelope
 /// uses the empty-CSS / empty-warnings encoding, so the JS decoder is
 /// identical for both entry points.
-#[napi(js_name = "compileModuleEnvelope")]
+#[napi(js_name = "compileModuleEnvelope", catch_unwind)]
 pub fn napi_compile_module_envelope(
     source: String,
     options: Option<NapiModuleCompileOptions>,
@@ -1892,12 +1902,12 @@ pub struct CompileBatchInput {
 /// the results into one batch envelope. See
 /// `crates/rsvelte_bindings_support/src/napi_raw.rs` for the
 /// byte format.
-#[napi(js_name = "compileBatch")]
+#[napi(js_name = "compileBatch", catch_unwind)]
 pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
     compile_batch_envelope(inputs, false)
 }
 
-#[napi(js_name = "compileBatchExternalSources")]
+#[napi(js_name = "compileBatchExternalSources", catch_unwind)]
 pub fn napi_compile_batch_external_sources(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
     compile_batch_envelope(inputs, true)
 }
@@ -2012,7 +2022,7 @@ impl Task for CompileEnvelopeTask {
 /// Async variant of `compileEnvelope` — returns `Promise<Buffer>` to
 /// the JS caller, frees the JS event loop while rayon / the worker
 /// thread runs the compile.
-#[napi(js_name = "compileEnvelopeAsync")]
+#[napi(js_name = "compileEnvelopeAsync", catch_unwind)]
 pub fn napi_compile_envelope_async(
     source: String,
     options: Option<NapiCompileOptions>,
@@ -2024,7 +2034,7 @@ pub fn napi_compile_envelope_async(
     }))
 }
 
-#[napi(js_name = "compileEnvelopeExternalSourcesAsync")]
+#[napi(js_name = "compileEnvelopeExternalSourcesAsync", catch_unwind)]
 pub fn napi_compile_envelope_external_sources_async(
     source: String,
     options: Option<NapiCompileOptions>,
@@ -2088,14 +2098,14 @@ impl Task for CompileBatchTask {
     }
 }
 
-#[napi(js_name = "compileBatchAsync")]
+#[napi(js_name = "compileBatchAsync", catch_unwind)]
 pub fn napi_compile_batch_async(
     inputs: Vec<CompileBatchInput>,
 ) -> napi::Result<AsyncTask<CompileBatchTask>> {
     compile_batch_async_task(inputs, false)
 }
 
-#[napi(js_name = "compileBatchExternalSourcesAsync")]
+#[napi(js_name = "compileBatchExternalSourcesAsync", catch_unwind)]
 pub fn napi_compile_batch_external_sources_async(
     inputs: Vec<CompileBatchInput>,
 ) -> napi::Result<AsyncTask<CompileBatchTask>> {

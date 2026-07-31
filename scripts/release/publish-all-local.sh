@@ -208,21 +208,23 @@ log "═════════════════════════
 
 # Build command selector — native cargo for darwin (we're on macOS),
 # `cargo zigbuild` for Linux (uses Zig as the cross linker, no Docker),
-# `cargo xwin` for Windows MSVC.
+# `cargo xwin` for Windows MSVC. `profile` defaults to `release`; the napi
+# cdylib passes `dist-napi` instead (see the Phase 3 call site below).
 build_for_target() {
   local triple="$1"   # e.g. "darwin-arm64"
   local target="$2"   # e.g. "aarch64-apple-darwin"
-  local crate_args=("${@:3}")  # remaining args: -p rsvelte_check --bin svelte_check OR --lib -p rsvelte_napi
+  local profile="$3"  # e.g. "release" or "dist-napi"
+  local crate_args=("${@:4}")  # remaining args: -p rsvelte_check --bin svelte_check OR --lib -p rsvelte_napi
 
   case "$target" in
     *-apple-darwin)
-      cargo build --release --target="$target" "${crate_args[@]}"
+      cargo build --profile="$profile" --target="$target" "${crate_args[@]}"
       ;;
     x86_64-pc-windows-msvc)
-      cargo xwin build --release --target="$target" "${crate_args[@]}"
+      cargo xwin build --profile="$profile" --target="$target" "${crate_args[@]}"
       ;;
     *-unknown-linux-gnu)
-      cargo zigbuild --release --target="$target" "${crate_args[@]}"
+      cargo zigbuild --profile="$profile" --target="$target" "${crate_args[@]}"
       ;;
     *)
       die "unsupported cross target: $target"
@@ -291,7 +293,7 @@ for entry in "${TRIPLES[@]}"; do
     log "  ↻ @rsvelte/svelte-check-$triple already published; skipping svelte_check build"
   else
     step "  svelte_check ($triple)" \
-      build_for_target "$triple" "$target" -p rsvelte_check --bin svelte_check
+      build_for_target "$triple" "$target" release -p rsvelte_check --bin svelte_check
     sc_src="$(sc_src_for "$target")"
     sc_dest_name="$(sc_dest_for "$target")"
     sc_dest="$sc_dir/$sc_dest_name"
@@ -306,11 +308,14 @@ for entry in "${TRIPLES[@]}"; do
   if is_published "$vps_dir"; then
     log "  ↻ @rsvelte/vite-plugin-svelte-native-$triple already published; skipping napi build"
   else
+    # `dist-napi`, not `release`: the cdylib's `#[napi(..., catch_unwind)]`
+    # exports only isolate a per-call panic when the binary unwinds (see
+    # `crates/rsvelte_napi/src/lib.rs`); plain `release` sets `panic = "abort"`.
     step "  napi cdylib ($triple)" \
-      build_for_target "$triple" "$target" --lib -p rsvelte_napi
+      build_for_target "$triple" "$target" dist-napi --lib -p rsvelte_napi
     vps_dylib="$(dylib_for "$target")"
     vps_dest="$vps_dir/rsvelte.node"
-    cp "target/$target/release/$vps_dylib" "$vps_dest"
+    cp "target/$target/dist-napi/$vps_dylib" "$vps_dest"
     log "  staged $vps_dest ($(stat -f %z "$vps_dest" 2>/dev/null || stat -c %s "$vps_dest") bytes)"
   fi
 done

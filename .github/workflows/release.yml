@@ -197,13 +197,13 @@ jobs:
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
           CC_aarch64_unknown_linux_gnu: ${{ matrix.linker }}
-        run: cargo build --profile dist -p rsvelte_napi --lib --target ${{ matrix.target }}
+        run: cargo build --profile dist-napi -p rsvelte_napi --lib --target ${{ matrix.target }}
 
       - name: Stage .node binary
         shell: bash
         run: |
           mkdir -p stage
-          cp "target/${{ matrix.target }}/dist/${{ matrix.dylib }}" stage/rsvelte.node
+          cp "target/${{ matrix.target }}/dist-napi/${{ matrix.dylib }}" stage/rsvelte.node
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
