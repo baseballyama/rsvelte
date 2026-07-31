@@ -124,10 +124,18 @@ fn with_ast_transform_allocator<F, R>(f: F) -> R
 where
     F: FnOnce(&Allocator) -> R,
 {
+    // `reset` keeps the chunks it already owns, so one outsized component would
+    // otherwise pin its peak arena on this thread for the rest of the process.
+    const MAX_RETAINED_BYTES: usize = 16 * 1024 * 1024;
+
     AST_TRANSFORM_ALLOCATOR.with(|cell| {
         let mut alloc = cell.borrow_mut();
         alloc.reset();
-        f(&alloc)
+        let out = f(&alloc);
+        if alloc.capacity() > MAX_RETAINED_BYTES {
+            *alloc = Allocator::default();
+        }
+        out
     })
 }
 
