@@ -1519,3 +1519,60 @@ fn test_wrap_state_derived_with_tag_comma_separated() {
         result
     );
 }
+
+/// The `rest_excludes` hoist is placed relative to the template factory, and in
+/// dev the factory sits inside `$.add_locations(...)`. Matching only the bare
+/// factory silently moved the hoist below `var root` for every dev component
+/// (#2020), so pin both shapes.
+#[test]
+fn template_factory_matches_through_the_dev_add_locations_wrapper() {
+    use super::super::js_ast::JsArena;
+    use super::super::js_ast::builders as b;
+
+    let arena = JsArena::new();
+    let factory = || {
+        b::call(
+            &arena,
+            b::member_path(&arena, "$.from_html"),
+            vec![b::string("<p></p>")],
+        )
+    };
+
+    let prod = b::var_decl(&arena, "root", Some(factory()));
+    assert!(is_client_template_factory(&arena, &prod));
+
+    let dev = b::var_decl(
+        &arena,
+        "root",
+        Some(b::call(
+            &arena,
+            b::member_path(&arena, "$.add_locations"),
+            vec![
+                factory(),
+                b::member_path(&arena, "Root.$.FILENAME"),
+                b::array(vec![b::array(vec![b::number(1.0), b::number(0.0)])]),
+            ],
+        )),
+    );
+    assert!(is_client_template_factory(&arena, &dev));
+
+    let unrelated = b::var_decl(
+        &arena,
+        "x",
+        Some(b::call(&arena, b::member_path(&arena, "$.derived"), vec![])),
+    );
+    assert!(!is_client_template_factory(&arena, &unrelated));
+
+    // The text-statement path carries the same shapes.
+    assert!(is_client_template_factory(
+        &arena,
+        &JsStatement::Raw(
+            "var root = $.add_locations($.from_html(`<p></p>`), Root[$.FILENAME], [[1, 0]]);"
+                .into()
+        )
+    ));
+    assert!(!is_client_template_factory(
+        &arena,
+        &JsStatement::Raw("var x = $.derived(() => 1);".into())
+    ));
+}
