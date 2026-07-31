@@ -6404,50 +6404,97 @@ fn find_matching_paren_bytes(bytes: &[u8], open_pos: usize) -> Option<usize> {
 /// `$.update()` transforms only within that scope.
 fn transform_shadowed_local_state_vars(script: &str, shadowed_vars: &[String]) -> String {
     let mut result = script.to_string();
+    // Every top-level rune binding lands in `shadowed_vars`, so probing the
+    // twelve declaration shapes with a `find` per variable ran
+    // O(shadowed_count × script_len) and dominated transform time on rune-heavy
+    // components. One indexing pass yields the same first-match offsets;
+    // it is refreshed whenever a transform rewrites `result`.
+    let mut decls = index_shadowed_decls(&result);
 
     for var in shadowed_vars {
-        // Find `let VAR = $.state(` or `let VAR = $.derived(` patterns
-        // in the already-transformed output
-        let state_patterns = [
-            format!("let {} = $.state(", var),
-            format!("let {} = $.derived(", var),
-            format!("var {} = $.state(", var),
-            format!("var {} = $.derived(", var),
-            format!("const {} = $.state(", var),
-            format!("const {} = $.derived(", var),
-            format!("let {} = $.state.raw(", var),
-            format!("let {} = $.derived.by(", var),
-            format!("var {} = $.state.raw(", var),
-            format!("var {} = $.derived.by(", var),
-            format!("const {} = $.state.raw(", var),
-            format!("const {} = $.derived.by(", var),
-        ];
+        // Shapes are probed in order and each one searches the *current*
+        // `result`, so the index is refreshed as soon as a rewrite lands.
+        for shape in 0..SHADOWED_DECL_SHAPE_COUNT {
+            let Some(decl_pos) = decls.get(var.as_str()).and_then(|found| found[shape]) else {
+                continue;
+            };
+            // Find the enclosing function body
+            let Some((func_start, func_end)) =
+                find_enclosing_function_body(&result, decl_pos as usize)
+            else {
+                continue;
+            };
+            let func_body = &result[func_start..func_end];
+            let is_state = shape % 2 == 0;
+            let transformed_body = apply_local_state_transforms(func_body, var, is_state);
 
-        for pattern in &state_patterns {
-            if let Some(decl_pos) = result.find(pattern.as_str()) {
-                // Find the enclosing function body
-                if let Some((func_start, func_end)) =
-                    find_enclosing_function_body(&result, decl_pos)
-                {
-                    let func_body = &result[func_start..func_end];
-                    let is_state = memmem::find(pattern.as_bytes(), b"$.state(").is_some()
-                        || memmem::find(pattern.as_bytes(), b"$.state.raw(").is_some();
-                    let transformed_body = apply_local_state_transforms(func_body, var, is_state);
-
-                    if transformed_body != func_body {
-                        result = format!(
-                            "{}{}{}",
-                            &result[..func_start],
-                            transformed_body,
-                            &result[func_end..]
-                        );
-                    }
-                }
+            if transformed_body != func_body {
+                result = format!(
+                    "{}{}{}",
+                    &result[..func_start],
+                    transformed_body,
+                    &result[func_end..]
+                );
+                decls = index_shadowed_decls(&result);
             }
         }
     }
 
     result
+}
+
+/// The `$.…(` markers whose declarations [`transform_shadowed_local_state_vars`]
+/// rewrites, crossed with [`SHADOWED_DECL_KEYWORDS`] to form the twelve shapes.
+const SHADOWED_DECL_MARKERS: [&str; 4] = [
+    " = $.state(",
+    " = $.derived(",
+    " = $.state.raw(",
+    " = $.derived.by(",
+];
+
+const SHADOWED_DECL_KEYWORDS: [&str; 3] = ["let ", "var ", "const "];
+
+const SHADOWED_DECL_SHAPE_COUNT: usize = SHADOWED_DECL_MARKERS.len() * SHADOWED_DECL_KEYWORDS.len();
+
+/// First offset of each `<kw> N = $.…(` declaration shape, keyed by `N`.
+///
+/// The twelve shapes are `let` / `var` / `const` crossed with
+/// [`SHADOWED_DECL_MARKERS`], indexed in the order the original per-variable
+/// `format!` probes used. `N` is the space-delimited token before the marker and
+/// the keyword is matched as a raw substring (no left word boundary), so each
+/// entry is exactly what `result.find(<kw> N = $.…()` would have returned.
+fn index_shadowed_decls(
+    script: &str,
+) -> rustc_hash::FxHashMap<String, [Option<u32>; SHADOWED_DECL_SHAPE_COUNT]> {
+    let mut map: rustc_hash::FxHashMap<String, [Option<u32>; SHADOWED_DECL_SHAPE_COUNT]> =
+        rustc_hash::FxHashMap::default();
+    for (marker_idx, marker) in SHADOWED_DECL_MARKERS.iter().enumerate() {
+        for pos in memmem::find_iter(script.as_bytes(), marker.as_bytes()) {
+            let Some(space) = script[..pos].rfind(' ') else {
+                continue;
+            };
+            let name_start = space + 1;
+            if name_start == pos {
+                continue;
+            }
+            let head = &script[..name_start];
+            let Some(keyword) = SHADOWED_DECL_KEYWORDS
+                .iter()
+                .position(|kw| head.ends_with(kw))
+            else {
+                continue;
+            };
+            let shape = keyword * 2 + marker_idx % 2 + if marker_idx >= 2 { 6 } else { 0 };
+            let pattern_start = (name_start - SHADOWED_DECL_KEYWORDS[keyword].len()) as u32;
+            let entry = map
+                .entry(script[name_start..pos].to_string())
+                .or_insert([None; SHADOWED_DECL_SHAPE_COUNT]);
+            if entry[shape].is_none_or(|first| pattern_start < first) {
+                entry[shape] = Some(pattern_start);
+            }
+        }
+    }
+    map
 }
 
 /// Find the enclosing function body (from `{` to matching `}`) that contains `pos`.
