@@ -42,6 +42,7 @@ use super::nodes::*;
 use oxc_allocator::{ArenaBox, ArenaVec, GetAllocator, ReplaceWith};
 use oxc_ast::ast::*;
 use oxc_ast::builder::AstBuilder;
+use oxc_ast_visit::VisitMut;
 use oxc_span::{GetSpanMut, SPAN, Span};
 use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
@@ -130,6 +131,18 @@ fn convert_once<'a>(
         loc_map: synth.loc_map.clone(),
     };
     Some((converted, synth))
+}
+
+/// Moves a chunk's parsed spans into the chunk's region of the unified buffer.
+/// `visit_span` is the one hook every generated walker routes each node's span
+/// through, so overriding it covers the whole subtree.
+struct ShiftSpans(u32);
+
+impl<'a> VisitMut<'a> for ShiftSpans {
+    fn visit_span(&mut self, span: &mut Span) {
+        span.start += self.0;
+        span.end += self.0;
+    }
 }
 
 /// The unified comment coordinate space for a reassembled program.
@@ -1180,9 +1193,15 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             return Some(ret.program.body.into_iter().collect());
         }
 
+        // `base` is at least `loc_base` (>= 2): this path only runs once
+        // placement is enabled, and `Synth::new` seeded `source` with the pad.
         let base = self.synth.borrow().cursor();
-        let mut padded = String::with_capacity(base as usize + text.len());
-        padded.extend(std::iter::repeat_n(' ', base as usize - 1));
+        // One byte of pad reproduces the lexical context the chunk has in the
+        // unified buffer — its region always starts right after a newline — and
+        // the spans are moved into that region below. Padding with `base` real
+        // spaces instead would make every chunk re-lex the whole buffer before
+        // it, which is quadratic in the generated code size.
+        let mut padded = String::with_capacity(1 + text.len());
         padded.push('\n');
         padded.push_str(text);
         let owned = self.ab.allocator().alloc_str(&padded);
@@ -1191,13 +1210,27 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         if !ret.diagnostics.is_empty() {
             return None;
         }
+        let shift = base - 1;
+        let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+        let mut shifter = ShiftSpans(shift);
+        for stmt in &mut stmts {
+            shifter.visit_statement(stmt);
+        }
         let mut synth = self.synth.borrow_mut();
         synth.source.push_str(text);
         synth.source.push('\n');
-        synth.comments.extend(ret.program.comments.iter().cloned());
+        synth
+            .comments
+            .extend(ret.program.comments.iter().map(|comment| {
+                let mut comment = *comment;
+                comment.span.start += shift;
+                comment.span.end += shift;
+                comment.attached_to += shift;
+                comment
+            }));
         synth.pending_region = Some((base, base + text.len() as u32));
         drop(synth);
-        Some(ret.program.body.into_iter().collect())
+        Some(stmts)
     }
 
     /// Expand one IR statement into its oxc statements — a `Raw`/`RawMapped`
