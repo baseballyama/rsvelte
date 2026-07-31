@@ -42,6 +42,23 @@ thread_local! {
 /// Recursively collect every `BindingIdentifier` name reachable inside a
 /// `BindingPattern`. Used by the props-destructure handler to emit the
 /// `/* $$async_noop:name1,name2 */` async-mode placeholder.
+/// Label the leaf declarators of a destructured `$derived` with their own
+/// binding names. The `$$array` temps are already labelled by pattern kind at
+/// their emit site, and the `$$d` source temp upstream leaves bare, so both are
+/// skipped here.
+fn tag_derived_leaves(declarations: &mut [String]) {
+    for decl in declarations.iter_mut() {
+        let Some((name, init)) = decl.split_once(" = ") else {
+            continue;
+        };
+        if name.starts_with("$$array") || name.starts_with("$$d") || !init.starts_with("$.derived(")
+        {
+            continue;
+        }
+        *decl = format!("{} = $.tag({}, '{}')", name, init, name);
+    }
+}
+
 fn collect_binding_identifier_names(pattern: &BindingPattern<'_>, out: &mut Vec<String>) {
     match pattern {
         BindingPattern::BindingIdentifier(id) => out.push(id.name.to_string()),
@@ -1094,10 +1111,18 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         } else {
             format!("$.to_array({}, {})", tmp_name, element_count)
         };
-        declarations.push(format!(
-            "{} = $.derived(() => {})",
-            array_var, to_array_args
-        ));
+        // The temp holding the iterable is labelled by pattern kind, not by a
+        // binding name — it has none. `collect_state_array_pattern` only ever
+        // runs for a top-level array pattern, so the kind is fixed.
+        let array_init = if self.dev {
+            format!(
+                "$.tag($.derived(() => {}), '[$state iterable]')",
+                to_array_args
+            )
+        } else {
+            format!("$.derived(() => {})", to_array_args)
+        };
+        declarations.push(format!("{} = {}", array_var, array_init));
 
         for (index, elem_opt) in arr.elements.iter().enumerate() {
             let Some(elem) = elem_opt else { continue };
@@ -1294,6 +1319,16 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             base_expr.clone()
         };
 
+        // Upstream labels the `$$array` temps by the *top-level* declarator's
+        // pattern kind, so `let { a: [x] } = $derived(o)` says "object" even for
+        // the inner array (`VariableDeclaration.js:176-186`).
+        let insert_label = self.dev.then(|| {
+            if pattern_text.trim_start().starts_with('[') {
+                "[$derived iterable]"
+            } else {
+                "[$derived object]"
+            }
+        });
         let mut array_counter: usize = 0;
         if process_derived_destructuring_pattern(
             &pattern_text,
@@ -1301,6 +1336,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             &member_base,
             &mut declarations,
             &mut array_counter,
+            insert_label,
         )
         .is_none()
         {
@@ -1308,6 +1344,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         }
         if declarations.is_empty() {
             return false;
+        }
+        if self.dev {
+            tag_derived_leaves(&mut declarations);
         }
 
         // Replacement covers [pattern_start, init_end] so the keyword and
@@ -1377,6 +1416,16 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let mut declarations: Vec<String> =
             vec![format!("{} = $.derived({})", d_name, wrapped_source)];
         let base_expr = format!("$.get({})", d_name);
+        // Upstream labels the `$$array` temps by the *top-level* declarator's
+        // pattern kind, so `let { a: [x] } = $derived(o)` says "object" even for
+        // the inner array (`VariableDeclaration.js:176-186`).
+        let insert_label = self.dev.then(|| {
+            if pattern_text.trim_start().starts_with('[') {
+                "[$derived iterable]"
+            } else {
+                "[$derived object]"
+            }
+        });
         let mut array_counter: usize = 0;
         if process_derived_destructuring_pattern(
             &pattern_text,
@@ -1384,6 +1433,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             &base_expr,
             &mut declarations,
             &mut array_counter,
+            insert_label,
         )
         .is_none()
         {
@@ -1391,6 +1441,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         }
         if declarations.is_empty() {
             return false;
+        }
+        if self.dev {
+            tag_derived_leaves(&mut declarations);
         }
 
         let replacement = declarations.join(",\n\t");

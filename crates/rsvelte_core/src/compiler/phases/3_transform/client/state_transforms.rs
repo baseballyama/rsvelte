@@ -1270,6 +1270,7 @@ pub(super) fn transform_legacy_destructure_declarations(
     statement: &str,
     legacy_state_var_names: &[String],
     immutable: bool,
+    dev: bool,
 ) -> String {
     // Only look at the first line to determine if this is a destructuring declaration
     let first_line = statement.lines().next().unwrap_or("");
@@ -1399,8 +1400,13 @@ pub(super) fn transform_legacy_destructure_declarations(
                 let member = format!("{}.{}", tmp_name, key);
                 if is_state {
                     parts.push(format!(
-                        "{} = $.mutable_source({}{})",
-                        var_name, member, immutable_arg
+                        "{} = {}",
+                        var_name,
+                        tag_legacy_source(
+                            format!("$.mutable_source({}{})", member, immutable_arg),
+                            var_name,
+                            dev
+                        )
                     ));
                 } else {
                     parts.push(format!("{} = {}", var_name, member));
@@ -1416,8 +1422,13 @@ pub(super) fn transform_legacy_destructure_declarations(
                 let member = format!("{}.{}", tmp_name, var_name);
                 if is_state {
                     parts.push(format!(
-                        "{} = $.mutable_source({}{})",
-                        var_name, member, immutable_arg
+                        "{} = {}",
+                        var_name,
+                        tag_legacy_source(
+                            format!("$.mutable_source({}{})", member, immutable_arg),
+                            var_name,
+                            dev
+                        )
                     ));
                 } else {
                     parts.push(format!("{} = {}", var_name, member));
@@ -1470,8 +1481,13 @@ pub(super) fn transform_legacy_destructure_declarations(
                 let is_state = legacy_state_var_names.contains(&rest_name.to_string());
                 if is_state {
                     parts.push(format!(
-                        "{} = $.mutable_source({}{})",
-                        rest_name, access, immutable_arg
+                        "{} = {}",
+                        rest_name,
+                        tag_legacy_source(
+                            format!("$.mutable_source({}{})", access, immutable_arg),
+                            rest_name,
+                            dev
+                        )
                     ));
                 } else {
                     parts.push(format!("{} = {}", rest_name, access));
@@ -1483,8 +1499,13 @@ pub(super) fn transform_legacy_destructure_declarations(
             let is_state = legacy_state_var_names.contains(&element.to_string());
             if is_state {
                 parts.push(format!(
-                    "{} = $.mutable_source({}{})",
-                    element, access, immutable_arg
+                    "{} = {}",
+                    element,
+                    tag_legacy_source(
+                        format!("$.mutable_source({}{})", access, immutable_arg),
+                        element,
+                        dev
+                    )
                 ));
             } else {
                 parts.push(format!("{} = {}", element, access));

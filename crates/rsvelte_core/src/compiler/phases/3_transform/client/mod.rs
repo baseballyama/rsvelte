@@ -5581,6 +5581,7 @@ fn transform_instance_script_for_visitors(
                 &transformed,
                 &state_var_names,
                 analysis.immutable,
+                dev,
             )
         } else {
             transformed

@@ -713,6 +713,17 @@ pub(super) fn wrap_state_value(member_access: &str, is_raw: bool, is_skip: bool)
     }
 }
 
+/// Dev-mode `$.tag(<derived>, '<label>')` label for a destructured `$derived`
+/// declarator. `label` is `None` outside dev; the `$$array` temps carry the
+/// declarator-wide `[$derived iterable|object]` kind (they have no name of their
+/// own) while every leaf carries its own binding name.
+fn tag_derived(init: String, label: Option<&str>) -> String {
+    match label {
+        Some(label) => format!("$.tag({}, '{}')", init, label),
+        None => init,
+    }
+}
+
 /// `member_base` is the base expression used for **member reads** (`base.key`),
 /// while `base_expr` is used for the top-level rest's `$.exclude_from_object`.
 /// They differ only when destructuring `$derived(<rest-prop-binding>)`: a
@@ -728,14 +739,29 @@ pub(super) fn process_derived_destructuring_pattern(
     member_base: &str,
     declarations: &mut Vec<String>,
     array_counter: &mut usize,
+    insert_label: Option<&str>,
 ) -> Option<()> {
     let pattern = pattern.trim();
     if pattern.starts_with('{') && pattern.ends_with('}') {
         let inner = &pattern[1..pattern.len() - 1];
-        process_derived_object_pattern(inner, base_expr, member_base, declarations, array_counter)
+        process_derived_object_pattern(
+            inner,
+            base_expr,
+            member_base,
+            declarations,
+            array_counter,
+            insert_label,
+        )
     } else if pattern.starts_with('[') && pattern.ends_with(']') {
         let inner = &pattern[1..pattern.len() - 1];
-        process_derived_array_pattern(inner, base_expr, member_base, declarations, array_counter)
+        process_derived_array_pattern(
+            inner,
+            base_expr,
+            member_base,
+            declarations,
+            array_counter,
+            insert_label,
+        )
     } else {
         None
     }
@@ -830,6 +856,7 @@ pub(super) fn process_derived_object_pattern(
     member_base: &str,
     declarations: &mut Vec<String>,
     array_counter: &mut usize,
+    insert_label: Option<&str>,
 ) -> Option<()> {
     let properties = split_derived_object_properties(inner);
 
@@ -846,7 +873,12 @@ pub(super) fn process_derived_object_pattern(
             let prop_access = derived_prop_access(base_expr, member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
                 let (nested_pattern, _default_val) = split_nested_pattern_default(value_pattern);
-                collect_array_helpers_only(nested_pattern, &prop_access, declarations)?;
+                collect_array_helpers_only(
+                    nested_pattern,
+                    &prop_access,
+                    declarations,
+                    insert_label,
+                )?;
             }
         }
     }
@@ -971,6 +1003,7 @@ pub(super) fn collect_array_helpers_only(
     pattern: &str,
     base_expr: &str,
     declarations: &mut Vec<String>,
+    insert_label: Option<&str>,
 ) -> Option<()> {
     let pattern = pattern.trim();
     if pattern.starts_with('[') && pattern.ends_with(']') {
@@ -991,9 +1024,12 @@ pub(super) fn collect_array_helpers_only(
         };
 
         declarations.push(format!(
-            "{} = $.derived(() => {})",
+            "{} = {}",
             array_var,
-            to_array_call(base_expr, &elements)
+            tag_derived(
+                format!("$.derived(() => {})", to_array_call(base_expr, &elements)),
+                insert_label
+            )
         ));
 
         // Recursively collect array helpers from nested patterns
@@ -1004,7 +1040,7 @@ pub(super) fn collect_array_helpers_only(
             }
             let element_access = format!("$.get({})[{}]", array_var, index);
             if element.starts_with('[') || element.starts_with('{') {
-                collect_array_helpers_only(element, &element_access, declarations)?;
+                collect_array_helpers_only(element, &element_access, declarations, insert_label)?;
             }
         }
     } else if pattern.starts_with('{') && pattern.ends_with('}') {
@@ -1022,7 +1058,12 @@ pub(super) fn collect_array_helpers_only(
                 let value_pattern = prop[colon_pos + 1..].trim();
                 let prop_access = derived_prop_access(base_expr, base_expr, key);
                 if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
-                    collect_array_helpers_only(value_pattern, &prop_access, declarations)?;
+                    collect_array_helpers_only(
+                        value_pattern,
+                        &prop_access,
+                        declarations,
+                        insert_label,
+                    )?;
                 }
             }
         }
@@ -1229,6 +1270,7 @@ pub(super) fn process_derived_array_pattern(
     _member_base: &str,
     declarations: &mut Vec<String>,
     _array_counter: &mut usize,
+    insert_label: Option<&str>,
 ) -> Option<()> {
     let elements = split_derived_array_elements(inner);
 
@@ -1247,9 +1289,12 @@ pub(super) fn process_derived_array_pattern(
     };
 
     declarations.push(format!(
-        "{} = $.derived(() => {})",
+        "{} = {}",
         array_var,
-        to_array_call(base_expr, &elements)
+        tag_derived(
+            format!("$.derived(() => {})", to_array_call(base_expr, &elements)),
+            insert_label
+        )
     ));
     for (index, element) in elements.iter().enumerate() {
         let element = element.trim();
@@ -1274,6 +1319,7 @@ pub(super) fn process_derived_array_pattern(
                 &element_access,
                 declarations,
                 &mut nested_counter,
+                insert_label,
             )?;
         } else if let Some(eq_pos) = find_default_equals(element) {
             let name = element[..eq_pos].trim();
