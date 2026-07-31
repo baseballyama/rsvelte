@@ -2446,8 +2446,12 @@ fn extract_rest_excludes_hoists(code: &mut String) -> Vec<(String, String)> {
             break;
         };
         let array_close = array_open + 1 + array_close_rel;
-        // The array must be the sole second argument: the char after ']' is ')'.
-        if code.as_bytes().get(array_close + 1).copied() != Some(b')') {
+        // The array must be the whole second argument: what follows `]` is either
+        // the end of the call or the comma before the dev-only name argument.
+        if !matches!(
+            code.as_bytes().get(array_close + 1).copied(),
+            Some(b')') | Some(b',')
+        ) {
             search_start = array_close + 1;
             continue;
         }
@@ -2468,7 +2472,7 @@ fn extract_rest_excludes_hoists(code: &mut String) -> Vec<(String, String)> {
 
         hoists.push((id.clone(), format!("new Set({})", array_text)));
         replacements.push((array_open, array_close + 1, id));
-        search_start = array_close + 2; // skip past `])`
+        search_start = array_close + 1; // skip past `]`
     }
 
     // Apply replacements right-to-left to preserve byte offsets.

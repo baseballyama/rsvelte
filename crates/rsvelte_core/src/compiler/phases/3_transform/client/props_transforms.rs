@@ -2471,11 +2471,19 @@ pub(super) fn transform_props_destructuring(
         }
 
         // Always generate $.rest_props() for identifier pattern (no is_prop_source check)
+        // In dev the binding's own name is passed along so unknown-prop warnings
+        // can name it.
+        let dev_name = if dev {
+            format!(", '{}'", var_name)
+        } else {
+            String::new()
+        };
         return Some(format!(
-            "{} {} = $.rest_props($$props, [{}]);\n",
+            "{} {} = $.rest_props($$props, [{}]{});\n",
             decl_keyword,
             var_name,
-            seen.join(", ")
+            seen.join(", "),
+            dev_name
         ));
     }
 
@@ -2550,10 +2558,16 @@ pub(super) fn transform_props_destructuring(
             let rest_name = rest_name.trim();
             // Generate: rest_name = $.rest_props($$props, ['$$slots', '$$events', '$$legacy', ...seen_props])
             let seen_literals: Vec<String> = seen.iter().map(|s| format!("'{}'", s)).collect();
+            let dev_name = if dev {
+                format!(", '{}'", rest_name)
+            } else {
+                String::new()
+            };
             declarators.push(format!(
-                "{} = $.rest_props($$props, [{}])",
+                "{} = $.rest_props($$props, [{}]{})",
                 rest_name,
-                seen_literals.join(", ")
+                seen_literals.join(", "),
+                dev_name
             ));
             continue;
         }
