@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_core"
-version = "0.9.8"
+version = "0.10.0"
 edition = "2024"
 rust-version = "1.95"
 description = "Low-level compiler implementation for the rsvelte Svelte toolchain"

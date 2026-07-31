@@ -1,5 +1,7 @@
 # @rsvelte/svelte-check-linux-x64-gnu
 
+## 0.5.6
+
 ## 0.5.5
 
 ## 0.5.4
