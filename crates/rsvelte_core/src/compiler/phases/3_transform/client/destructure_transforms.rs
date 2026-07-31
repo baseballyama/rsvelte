@@ -1223,13 +1223,18 @@ fn expression_is_simple(expr: &Expression<'_>) -> bool {
 /// Build a `$.fallback(expression, default)` string, applying async thunk wrapping
 /// when the default value contains `await`.
 ///
-/// Mirrors the official Svelte compiler's `build_fallback()` from `utils/ast.js`:
-/// 1. Simple expression (no await): `$.fallback(access, default)`
-/// 2. Simple `await simple_expr`: `await $.fallback(access, simple_expr)` (unwrap await)
-/// 3. Non-simple with await: `await $.fallback(access, async () => default, true)`
-/// 4. Non-simple, no await: `$.fallback(access, () => default, true)`
+/// Mirrors the shapes the official compiler's `build_fallback()` (`utils/ast.js`)
+/// ends up printing for a client `$derived` destructuring default:
+/// 1. Simple expression, no await: `$.fallback(access, default)`
+/// 2. `await <simple>`: `await $.fallback(access, simple)`
+/// 3. `await <non-simple, no further await>`: upstream hoists the leading `await`
+///    out to the call and the thunk stays sync — `b = await f()` prints
+///    `await $.fallback(access, f, true)`, `b = await x.y()` prints
+///    `await $.fallback(access, () => x.y(), true)`
+/// 4. Any other await-bearing default: `await $.fallback(access, async () => default, true)`
+/// 5. Non-simple, no await: `$.fallback(access, () => default, true)`
 ///
-/// The sync thunks go through `unthunk_string` because upstream builds them with
+/// Sync thunks go through `unthunk_string` because upstream builds them with
 /// `b.thunk()`, which collapses `() => f()` to `f`; the async thunk keeps its
 /// arrow, since upstream's `unthunk()` bails on `async`.
 pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
@@ -1248,10 +1253,10 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
         }
     }
 
-    // Case 3: Expression contains await -> async thunk
+    // Cases 3 and 4: the default contains `await`
     if string_expr_has_await(trimmed) {
-        // A lone top-level `await` moves out to the `$.fallback(...)` call, so
-        // what is left for the thunk is synchronous.
+        // Case 3: only a leading `await`, which upstream hoists out to the
+        // `$.fallback(...)` call, leaving the thunk synchronous.
         if let Some(inner) = trimmed.strip_prefix("await ") {
             let inner = inner.trim();
             if !string_expr_has_await(inner) {
@@ -1262,6 +1267,7 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
                 );
             }
         }
+        // Case 4: the await is nested, so the thunk has to stay async.
         return format!(
             "await $.fallback({}, async () => {}, true)",
             access,
@@ -1269,7 +1275,7 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
         );
     }
 
-    // Case 4: Non-simple, no await -> sync thunk
+    // Case 5: Non-simple, no await -> sync thunk
     format!(
         "$.fallback({}, {}, true)",
         access,
