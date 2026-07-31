@@ -1599,14 +1599,19 @@ fn transform_client_with_visitors(
                 ),
             ));
         } else if options.dev {
-            exports_members.push(b::spread(
-                &context.arena,
-                b::call(
+            // Upstream `unshift`s this one (transform-client.js:345) while the
+            // componentApi: 4 members above are pushed, so it leads the object.
+            exports_members.insert(
+                0,
+                b::spread(
                     &context.arena,
-                    b::member_path(&context.arena, "$.legacy_api"),
-                    vec![],
+                    b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.legacy_api"),
+                        vec![],
+                    ),
                 ),
-            ));
+            );
         }
 
         if !exports_members.is_empty() {
