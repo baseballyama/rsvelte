@@ -180,11 +180,12 @@ fn walk_expression_for_classes<'a>(
 }
 
 fn handle_class<'a>(class: &Class<'a>, source: &str, replacements: &mut Vec<(u32, u32, String)>) {
+    // Upstream's fallback for a class with no id (`ClassBody.js:82`).
     let class_name = class
         .id
         .as_ref()
         .map(|i| i.name.as_str())
-        .unwrap_or("Unknown");
+        .unwrap_or("[class]");
 
     let originally_public = compute_originally_public(class, source);
 
@@ -592,11 +593,10 @@ mod tests {
     }
 
     #[test]
-    fn anonymous_class_uses_unknown() {
-        // Class expression with no id — label uses "Unknown".
+    fn anonymous_class_uses_the_upstream_placeholder() {
         let src = "let C = class { #x = $.state(0); };";
         let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
-        assert!(out.contains("'Unknown.#x'"));
+        assert!(out.contains("'[class].#x'"), "got: {out}");
     }
 
     #[test]
