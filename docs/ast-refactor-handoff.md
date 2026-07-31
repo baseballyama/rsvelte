@@ -84,6 +84,33 @@ shorthand / shadow の各ガード）は**そのまま再利用でき、再導�
 3. 全パスが `&mut Program` になった時点で、初めて「1 回パース → 全パス適用 → 1 回印字」に配管を繋ぐ。
    **この最後の 1 手だけが不可分**
 
+#### client の `*_ast.rs` 台帳（37 本 / 13,010 行、2026-08-01 時点）
+
+**呼び出し元でクラスタ化される** — 各クラスタは独立に `&mut Program` 化できる。行数の大きい順:
+
+| クラスタ（呼び出し元） | パス | 合計行 |
+|---|---|---|
+| **class_transforms.rs**（private class field 系） | private_class_assign 753 / private_field_assign 414 / private_member_read_wrap 369 / private_v_suffix 368 / private_read_wrap 349 / private_member_mutate_root 266 / effect_rune 224 | 2,743 |
+| **mod.rs 直下**（instance script 本体） | state_reads 656 / state_pipeline 615 / read_only_props 482 / console_dev 389 / strict_equals 290 / derived_by 159 / local_assign 207 / strip_rune_generics 194 / module_state_runes 117 | 3,109 |
+| **store_transforms.rs** | store_assign 436 / store_member_mutate 381 / store_update 272 | 1,089 |
+| **state_transforms.rs** | prop_assign 331 / prop_member_mutate 497 / store_unsub_wrap 300 | 1,128 |
+| **reactive_transforms.rs** | state_set_reactive 280 / reactive_update 303 / state_member_mutate 328 | 911 |
+| **rune_transforms.rs** | tag_declarator 354 / tag_class_field 641 | 995 |
+| **props_transforms.rs** | prop_source_reads 641 / rest_prop_member_access 262 | 903 |
+| **module_state_runes_ast.rs** | state_call 300 / state_raw_frozen 290 / state_snapshot 176 | 766 |
+| その他 | destructure_transforms 経由 legacy_state_member_mutate 443 / module_dev_tail 179 / ast_state_transform 経由 inspect_rune 194 / 未使用 class_body 59 | 875 |
+
+`transform_instance_script_for_visitors` 本体から直接呼ばれる順序（テキストの逐次適用が現在暗黙に決めている順）:
+`state_assigns_combined` → `state_pipeline` → `prop_source_reads` → `read_only_props` → `console_dev` →
+`strict_equals` → `inspect_rune`。**移行時はこの順序を明示的に固定すること**（§4 の冪等性問題は順序に依存する）。
+
+移行の着手順（独立性が高い＝安全な順）:
+1. **module_state_runes クラスタ**（766 行 / 呼び出し元 1 つ / module script 専用でコンポーネント経路に影響しない）
+2. **class_transforms クラスタ**（2,743 行 / private field は他と名前空間が重ならない）
+3. store / props / reactive / state の各クラスタ
+4. 最後に **mod.rs 直下の 9 本**（`state_reads` を含む＝§4 の本丸）
+
+
 
 撤退条件を暦日でなく**作業セッション数**で数えるのは、この作業がエージェントのセッション単位で進み、
 実時間の経過が進捗と対応しないため。1 セッション = oracle 差分を 1 回以上測って記録した単位とする。
