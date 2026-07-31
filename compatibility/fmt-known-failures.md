@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 29 entries**, concentrated in real-world corpus repos
+**Current baseline: 20 entries**, concentrated in real-world corpus repos
 (skeleton, layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail).
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every
@@ -227,28 +227,52 @@ a root fix would need oxfmt's standalone path to preserve multi-line
 function-value interiors verbatim (high blast radius upstream). This is the
 one entry in the baseline that is pure CSS formatting, not HTML/JS layout.
 
-## Cluster 9 — overflowing block-header expression: oracle breaks then re-joins (9) (#1976)
-
-New with the skeleton enrolment (#1924) and the single largest cluster in the
-baseline. When a block header's expression does not fit the print width, the
-oracle's prettier-plugin-svelte layer lets the expression's own group break and
-then prints the header on **one** line anyway, so the broken call-argument list
-survives as interior spaces:
-
-```svelte
-{#each datePicker().getMonthsGrid( { columns: 4, format: "short" } ) as months, id (id)}   <!-- oracle -->
-{#each datePicker().getMonthsGrid({ columns: 4, format: "short" }) as months, id (id)}      <!-- rsvelte -->
-```
-
-Confirmed width-triggered by minimal repro: the identical header nested shallow
-enough to fit prints hugged (`f({ … })`) on **both** sides, and only the
-overflowing form diverges. rsvelte prints the flat/hugged expression regardless.
-All 9 ids are the same `{#each …getMonthsGrid({ columns, format }) …}` header
-duplicated across skeleton's date-picker examples and playground page. Fix
-belongs in rsvelte — reproduce the oracle's break-then-flatten layout for
-block-header expressions (rather than only ever printing them flat).
-
 ## Resolved
+
+- **Overflowing block header: grouped call arguments keep their expanded
+  spacing (former Cluster 9, 9 ids, #1976).** When a `{#if}` / `{#each}` /
+  `{#key}` / `{#await}` header line does not fit the print width, the oracle
+  still prints it on one line, but renders every call in it from the layout oxc
+  would have broken out — `callee( a, b )`, one space inside each delimiter,
+  arguments flat, no trailing comma:
+
+  ```svelte
+  {#each datePicker().getMonthsGrid( { columns: 4, format: "short" } ) as months, id (id)}
+  ```
+
+  The trigger was measured to be the **whole header line** (indent + `{#each ` +
+  expression + the `as …}` suffix) exceeding the print width — exactly, by
+  sweeping the width one column at a time: a header whose flat form is 69 wide
+  stays flat at `printWidth: 69` and expands at 68. It applies to every call in
+  the expression tree at any depth (inside logical operands, ternary arms,
+  optional chains, object property values, array elements, curried callees, the
+  each-block key) and to `new` expressions, not just a top-level call.
+
+  An `{#each}` header carries **two** expressions, and the oracle settles them
+  left to right: the iterable is judged first, against the not-yet-settled key at
+  its widest, and the key is then judged against whatever the iterable actually
+  ended up at — two columns per grouped call. So with a flat header of 78 columns
+  holding three grouped calls, the split between the two expressions moves the
+  boundary. One call in the iterable and two in the key: the iterable measures
+  78 + 4 and expands from `printWidth: 81` down, the key measures 78 + 2 (the
+  iterable having expanded) and joins it at 79. The same counts reversed: the
+  iterable measures 78 + 2 and only expands at 79, and the key — with the
+  iterable still flat above that — measures a bare 78, so **nothing** expands at
+  80. Measuring each expression against the other *unconditionally* expanded gets
+  that second shape wrong, adding spacing the oracle does not. All boundaries
+  were confirmed by width sweep across both directions.
+
+  Which calls get the spacing turned out to be exactly oxc's own
+  `arguments_grouped_layout` predicate (last-argument or first-argument
+  grouping), confirmed against ~60 shapes: a non-empty object/array last
+  argument expands, but an empty one does not; a same-shaped penultimate
+  argument (`f({…}, {…})`) suppresses it; a numeric-only array last argument
+  alongside another argument is printed concisely and so does not expand; an
+  arrow last argument expands only when its body is a block, object, array,
+  call, conditional or nested arrow — never a bare binary expression. That
+  predicate lives in a private oxc module, so `expression/call_args.rs` mirrors
+  it, under-approximating (leaving the header flat) for shapes a block header
+  cannot realistically hold rather than guessing.
 
 - **Cluster 10 — `prettier-ignore` subtree only partially preserved (2 ids,
   #1977).** A `<!-- prettier-ignore -->` comment must leave the whole next

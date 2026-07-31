@@ -1,5 +1,7 @@
 use rsvelte_core::ast::template::{Fragment, TemplateNode};
+use unicode_width::UnicodeWidthStr;
 
+use super::call_args;
 use super::declaration::format_pattern_source;
 use super::splice::{
     find_each_key_delimiter, normalize_block_opener_ws, normalize_leading_ws_before_expr,
@@ -11,6 +13,30 @@ use super::splice::{
 use super::width::format_inline_expression;
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+
+/// The each-key source between its delimiter parens, or `None` when the block
+/// has no key. Used to measure how much the key widens the header line.
+fn each_key_source<'a>(
+    source: &'a str,
+    blk: &rsvelte_core::ast::template::EachBlock,
+) -> Option<&'a str> {
+    let key = blk.key.as_ref()?;
+    let (start, end) = (key.start()?, key.end()?);
+    let (open, close_excl) = find_each_key_delimiter(source, start, end)?;
+    source
+        .get(open as usize + 1..close_excl as usize - 1)
+        .map(str::trim)
+        .filter(|inner| !inner.is_empty())
+}
+
+/// The each-iterable source, used to measure how much it widens the header line.
+fn each_iterable_source<'a>(
+    source: &'a str,
+    blk: &rsvelte_core::ast::template::EachBlock,
+) -> Option<&'a str> {
+    let (start, end) = (blk.expression.start()?, blk.expression.end()?);
+    source.get(start as usize..end as usize).map(str::trim)
+}
 
 /// Walk a `Fragment` recursively, appending `(start, end, replacement)`
 /// edits for every JS expression we can safely format.
@@ -173,8 +199,15 @@ fn collect_node_edits(
                 } else {
                     "{:else if ".len()
                 };
-                let effective_end =
-                    push_bare_expression(source, &current.test, options, depth, prefix_len, edits)?;
+                let effective_end = push_bare_expression(
+                    source,
+                    &current.test,
+                    options,
+                    depth,
+                    prefix_len,
+                    0,
+                    edits,
+                )?;
                 // Trim trailing whitespace before the header `}` — e.g.
                 // `{#if cond }` → `{#if cond}`.
                 trim_trailing_ws_before_close_brace(source, effective_end, edits);
@@ -208,12 +241,17 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
+            // The iterable is settled first, so the key that follows it on the
+            // header line is still at its widest when the iterable's fit is judged.
+            let key_expansion = each_key_source(source, blk)
+                .map_or(0, |key| call_args::grouped_call_expansion(key, options));
             push_bare_expression(
                 source,
                 &blk.expression,
                 options,
                 depth,
                 "{#each ".len(),
+                key_expansion,
                 edits,
             )?;
             if let Some(ctx) = &blk.context {
@@ -264,6 +302,47 @@ fn collect_node_edits(
                             let formatted =
                                 reindent_header_method_chain(&formatted, depth, options)
                                     .unwrap_or(formatted);
+                            // A key that stays on one line still gains the expanded
+                            // spacing on its grouped calls once the header overflows,
+                            // exactly as the iterable does. The trigger is the whole
+                            // header line, so measure the source from the block opener
+                            // up to the delimiter `(` and add the formatted key plus
+                            // the closing `)}` — the same source-side approximation
+                            // `compute_header_suffix_len` makes for the iterable.
+                            let prefix = source
+                                .get(blk.start as usize..delim_open as usize)
+                                .filter(|prefix| !prefix.contains('\n'));
+                            let formatted = match prefix {
+                                Some(prefix) if !formatted.contains('\n') => {
+                                    let full_width = options.js.line_width.value() as usize;
+                                    let flat_width = depth
+                                        * options.js.indent_width.value() as usize
+                                        + UnicodeWidthStr::width(prefix)
+                                        + "(".len()
+                                        + UnicodeWidthStr::width(formatted.as_str())
+                                        + ")}".len();
+                                    // The oracle settles the header's groups left to
+                                    // right, so the key is measured against whatever
+                                    // the iterable actually chose — adding the
+                                    // iterable's expansion unconditionally would
+                                    // expand a key whose header still fits.
+                                    let measured = if flat_width + key_expansion > full_width {
+                                        flat_width
+                                            + each_iterable_source(source, blk).map_or(0, |src| {
+                                                call_args::grouped_call_expansion(src, options)
+                                            })
+                                    } else {
+                                        flat_width
+                                    };
+                                    if measured > full_width {
+                                        call_args::expand_grouped_call_parens(&formatted, options)
+                                            .unwrap_or(formatted)
+                                    } else {
+                                        formatted
+                                    }
+                                }
+                                _ => formatted,
+                            };
                             // Normalize the horizontal whitespace before the
                             // delimiter to a single space — prettier-plugin-svelte
                             // always emits `… (key)` regardless of the preceding
@@ -376,6 +455,7 @@ fn collect_node_edits(
                     options,
                     depth,
                     "{#await ".len(),
+                    0,
                     edits,
                 )?;
                 // `blk.value` is the binding from `{#await expr then binding}` (header
@@ -465,6 +545,7 @@ fn collect_node_edits(
                 options,
                 depth,
                 "{#key ".len(),
+                0,
                 edits,
             )?;
             // Trim `{#key expr }` → `{#key expr}`.
@@ -484,6 +565,7 @@ fn collect_node_edits(
                     options,
                     depth,
                     "{#snippet ".len(),
+                    0,
                     edits,
                 )?;
             } else {

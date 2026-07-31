@@ -6,6 +6,7 @@ use rsvelte_core::ast::template::ExpressionTag;
 use rsvelte_core::ast::typed_expr::JsNode;
 use unicode_width::UnicodeWidthStr;
 
+use super::call_args;
 use super::declaration::{
     format_const_declaration, format_declaration_tag_body, format_snippet_header_source,
 };
@@ -413,6 +414,7 @@ pub(super) fn push_bare_expression(
     options: &FormatOptions,
     depth: usize,
     prefix_len: usize,
+    sibling_expansion: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<u32, FormatError> {
     let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
@@ -452,12 +454,17 @@ pub(super) fn push_bare_expression(
         formatted
     };
     let expression_width = UnicodeWidthStr::width(formatted.as_str());
-    let header_width = depth * indent_width + prefix_len + expression_width + suffix_len;
+    // `sibling_expansion` is the width a not-yet-settled expression later on the
+    // header line gains from its own grouped calls — the `{#each}` key, measured
+    // at its widest while the iterable ahead of it is being judged.
+    let header_width =
+        depth * indent_width + prefix_len + expression_width + suffix_len + sibling_expansion;
+    let header_overflows = header_width > full_width;
     // The oracle accounts for the full header around call expressions, but keeps
     // a fitting plain member chain inline even when its `as` suffix overflows.
     let should_break = expression_width > full_width
-        || (header_width > full_width && is_top_level_call_expression(slice, options));
-    let formatted = if !formatted.contains('\n')
+        || (header_overflows && is_top_level_call_expression(slice, options));
+    let broken = if !formatted.contains('\n')
             && should_break
             // prettier-plugin-svelte never breaks array or object literals in
             // block headers even when they are far wider than the print width —
@@ -478,7 +485,7 @@ pub(super) fn push_bare_expression(
         // which prettier's removeLines keeps); OXC's soft argument-wrap breaks are
         // collapsed back to one line by the oracle.
         if let Some(reindented) = reindent_header_method_chain(&multi, depth, options) {
-            reindented
+            Some(reindented)
         } else if multi.contains('\n')
             && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
         {
@@ -491,18 +498,24 @@ pub(super) fn push_bare_expression(
             // Detect: OXC's joined-lines form ends with `, )` (trailing comma inside the
             // outermost call). If so, insert a space after the matching opening `(` to
             // match the oracle's expanded-arg-collapsed form.
-            if let Some(collapsed) = collapse_expanded_arg_form(&multi) {
-                collapsed
-            } else {
-                formatted
-            }
+            collapse_expanded_arg_form(&multi)
         } else {
             // OXC kept it on one line, broke at a logical operator, or couldn't
             // determine an expanded-arg form — keep the inline version.
-            formatted
+            None
         }
     } else {
-        formatted
+        None
+    };
+    let formatted = match broken {
+        Some(broken) => broken,
+        // The oracle keeps an overflowing header on one line but renders every
+        // call in it whose arguments oxc lays out grouped from that expanded
+        // layout: `callee( a, b )`. Calls it lays out ungrouped stay `callee(a, b)`.
+        None if header_overflows && !formatted.contains('\n') => {
+            call_args::expand_grouped_call_parens(&formatted, options).unwrap_or(formatted)
+        }
+        None => formatted,
     };
 
     // A top-level assignment in a block header (`{#if a = 0}` → `{#if (a = 0)}`)

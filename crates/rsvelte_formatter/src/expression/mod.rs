@@ -1,5 +1,6 @@
 use oxc_parser::ParseOptions as OxcParseOptions;
 
+mod call_args;
 mod collect;
 mod declaration;
 mod directive;
