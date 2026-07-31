@@ -5,6 +5,7 @@
 //! were each checked against the official compiler; the expectations are its
 //! real output.
 
+use rsvelte_core::compiler::phases::phase2_analyze::types::strip_typescript;
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_ts(body: &str, generate: GenerateMode) -> String {
@@ -127,6 +128,55 @@ fn for_of_and_for_in_non_declaration_targets() {
         &["for (obj.x in arr)"],
         &["obj!.x"],
     );
+}
+
+/// The four node kinds below are deliberately *not* walked. Erasing them is not
+/// worth attempting, because the official compiler does not erase them either —
+/// a class index signature makes it throw, and `import … = require(…)` /
+/// `export =` / `export as namespace` are passed through verbatim.
+///
+/// The generic walk reaches everything by default, so leaving them alone now
+/// takes an explicit no-op override. Dropping the `TSIndexSignature` one turns
+/// `class A { [key: string]: unknown; }` into `class A { [key]; }` — a bogus
+/// field the bundler happily accepts — which is what these tests guard. The
+/// other three currently hold no annotation for the walk to delete, so their
+/// overrides are guards rather than live fixes; the tests pin the pass-through
+/// either way.
+///
+/// Each case pairs the construct with an ordinary annotated declaration, so a
+/// pass also proves the collector really walked the program rather than bailing
+/// out (`strip_typescript` returns its input unchanged on a parse failure).
+fn assert_left_alone(construct: &str) {
+    let source = format!("{construct}\nconst n: number = 1;\n");
+    let out = strip_typescript(&source);
+    assert!(
+        out.contains(construct),
+        "`{construct}` was rewritten:\n{out}"
+    );
+    assert!(
+        out.contains("const n = 1;"),
+        "the collector never reached the rest of the program:\n{out}"
+    );
+}
+
+#[test]
+fn class_index_signature_is_left_alone() {
+    assert_left_alone("class A { [key: string]: unknown; }");
+}
+
+#[test]
+fn import_equals_require_is_left_alone() {
+    assert_left_alone("import Foo = require('./foo.js');");
+}
+
+#[test]
+fn export_assignment_is_left_alone() {
+    assert_left_alone("export = foo;");
+}
+
+#[test]
+fn namespace_export_declaration_is_left_alone() {
+    assert_left_alone("export as namespace Foo;");
 }
 
 /// The official compiler rejects `with` outright (module code is strict), so

@@ -871,7 +871,6 @@ fn collect_ts_removals_from_program(
 /// skipped. Driving this collector from `oxc_ast_visit::Visit` reproduces that
 /// property: the default walk reaches every child, and an override is needed
 /// only where a source span must be removed or a subtree must be cut off.
-/// (issue #1999)
 mod ts_removals {
     use oxc_ast::ast::*;
     use oxc_ast_visit::{Visit, walk};
