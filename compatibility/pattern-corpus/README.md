@@ -56,6 +56,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2001-derived-computed-key.svelte` | [#2001](https://github.com/baseballyama/rsvelte/issues/2001) | Computed / quoted keys in a destructured `$derived` need bracket member access |
 | `2002-state-destructure-default.svelte` | [#2002](https://github.com/baseballyama/rsvelte/issues/2002) | Default values in a destructured `$state(...)` become `$.fallback(...)` |
 | `2004-derived-array-rest-props.svelte` | [#2004](https://github.com/baseballyama/rsvelte/issues/2004) | Array-destructured `$derived(props)` passes the **rest-prop binding** to `$.to_array`, not `$$props` |
+| `2005-derived-call-default.svelte` | [#2005](https://github.com/baseballyama/rsvelte/issues/2005) | A **call-expression** destructuring default is unthunked — `$.fallback(…, f, true)`, not `() => f()` |
 | `2006-form-feed-text.svelte` | [#2006](https://github.com/baseballyama/rsvelte/issues/2006) | A form-feed (`&#12;`) text node is **content**, not whitespace — `regex_not_whitespace = /[^ \t\r\n]/` excludes `\f` |
 | `2007-derived-default-comma.svelte` | [#2007](https://github.com/baseballyama/rsvelte/issues/2007) | A comma **inside a string default** must not split the destructuring property |
 | `2012-state-destructure-rest.svelte` | [#2012](https://github.com/baseballyama/rsvelte/issues/2012) | Object rest in a destructured `$state(...)` becomes `$.exclude_from_object` |
@@ -139,6 +140,23 @@ consumer of the same memoizer.
 | `render-arg-object.svelte` | object-literal argument |
 | `render-arg-multiple.svelte` | two arguments, one a template literal |
 | `component-prop-memo.svelte` | memoized **component prop** in the same legacy mode |
+
+### `destructure-default-thunk/` — destructuring-default thunks (around #2005)
+
+The default's expression shape decides whether the lazy `$.fallback` thunk is
+unthunked (`() => f()` → `f`), left as an arrow, or parenthesised. Two files walk
+the destructuring forms that share the fallback builder; the rest walk the
+expression shapes, which behave the same in every form.
+
+| File | Point on the axis |
+|---|---|
+| `state-call-default.svelte` | call default in a destructured `$state(...)` |
+| `array-call-default.svelte` | call default on an **array** pattern element of a `$derived` |
+| `nested-call-default.svelte` | call default inside a **nested** object pattern of a `$derived` |
+| `member-call-default.svelte` | `obj.m()` default — a member callee is **not** unthunked |
+| `call-with-arguments-default.svelte` | `f(1)` — arguments block the unthunk |
+| `object-literal-default.svelte` | object-literal default — the arrow body needs parens |
+| `new-expression-default.svelte` | `new Thing()` — a `new` expression is not a call |
 
 ### `whitespace-comments/` — whitespace around removed comments (around #1975)
 

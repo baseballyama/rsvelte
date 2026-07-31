@@ -45,7 +45,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 4563 entries)
+## Client dev (`known-failures.client-dev.json`, 4566 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -64,6 +64,14 @@ upstream exactly.
 The checked-in pattern corpus (#2019) contributed 11 of these entries. All 11
 land in clusters that the real-world sources had already established, so the
 matrices confirmed the clusters rather than adding root causes.
+
+The #2005 fix added three more (`pattern/issues/2005-derived-call-default.svelte`
+and the `array-` / `nested-call-default.svelte` points of
+`pattern/matrix/destructure-default-thunk/`): a destructured `$derived` is
+declared with `$.tag(...)` in dev (CD2), and the repro's `$props()` also trips
+CD5, so *any* faithful repro of that shape lands here until CD2 is ported. The
+remaining five files of that matrix were written on `$state` destructuring, which
+is dev-clean, so the axis costs three entries rather than eight.
 
 The entries are not independent bugs. Most are dev-only instrumentation helpers
 that rsvelte's client codegen does not emit **at all** — each such cluster is a

@@ -1228,6 +1228,10 @@ fn expression_is_simple(expr: &Expression<'_>) -> bool {
 /// 2. Simple `await simple_expr`: `await $.fallback(access, simple_expr)` (unwrap await)
 /// 3. Non-simple with await: `await $.fallback(access, async () => default, true)`
 /// 4. Non-simple, no await: `$.fallback(access, () => default, true)`
+///
+/// The sync thunks go through `unthunk_string` because upstream builds them with
+/// `b.thunk()`, which collapses `() => f()` to `f`; the async thunk keeps its
+/// arrow, since upstream's `unthunk()` bails on `async`.
 pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
     let trimmed = default_val.trim();
 
@@ -1244,19 +1248,17 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
         }
     }
 
-    // Case 3: Expression contains await -> async thunk (with unthunk optimization)
+    // Case 3: Expression contains await -> async thunk
     if string_expr_has_await(trimmed) {
-        // Unthunk optimization: `async () => await expr` → `() => expr`
-        // when expr itself has no nested await.
-        // This mirrors the official compiler's `unthunk()` function.
+        // A lone top-level `await` moves out to the `$.fallback(...)` call, so
+        // what is left for the thunk is synchronous.
         if let Some(inner) = trimmed.strip_prefix("await ") {
             let inner = inner.trim();
             if !string_expr_has_await(inner) {
-                // Optimized: sync thunk wrapping the non-await inner expression
                 return format!(
-                    "await $.fallback({}, () => {}, true)",
+                    "await $.fallback({}, {}, true)",
                     access,
-                    wrap_arrow_body(inner)
+                    unthunk_string(inner)
                 );
             }
         }
@@ -1269,9 +1271,9 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
 
     // Case 4: Non-simple, no await -> sync thunk
     format!(
-        "$.fallback({}, () => {}, true)",
+        "$.fallback({}, {}, true)",
         access,
-        wrap_arrow_body(default_val)
+        unthunk_string(default_val)
     )
 }
 
