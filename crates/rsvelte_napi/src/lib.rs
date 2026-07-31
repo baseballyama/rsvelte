@@ -583,6 +583,21 @@ fn coerce_string(keypath: &str, v: &LenientScalar) -> napi::Result<String> {
     }
 }
 
+// Upstream's `validate-options.js` defaults `rootDir` to `process.cwd()`
+// evaluated once at module load, not per compile call; caching it here
+// matches that and turns a getcwd syscall on every absolute-filename compile
+// into a one-time cost. A mid-process `chdir()` would go unnoticed, but the
+// NAPI addon is loaded once per long-lived process (Node/Vite), same as upstream.
+fn cached_current_dir() -> Option<String> {
+    static CWD: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    CWD.get_or_init(|| {
+        std::env::current_dir()
+            .ok()
+            .map(|cwd| cwd.to_string_lossy().to_string())
+    })
+    .clone()
+}
+
 // `runes` mirrors upstream's `parametric` validator, which never rejects a
 // value. Only a real `false` becomes `Some(false)`: `Option<bool>` can't encode
 // the other falsy values (`0`/`""`/`NaN`, none of which upstream compares
@@ -751,9 +766,9 @@ impl NapiCompileOptions {
             .filename
             .as_deref()
             .is_some_and(|filename| std::path::Path::new(filename).is_absolute())
-            && let Ok(cwd) = std::env::current_dir()
+            && let Some(cwd) = cached_current_dir()
         {
-            opts.root_dir = Some(cwd.to_string_lossy().to_string());
+            opts.root_dir = Some(cwd);
         }
         if let Some(v) = &self.name {
             opts.name = Some(coerce_string("name", v)?);
