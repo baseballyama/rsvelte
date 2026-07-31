@@ -36,6 +36,20 @@ pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "parallel")]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse, parse_parallel};
 pub use compiler::print::{PrintError, PrintOptions, PrintResult, print};
+
+/// `(pass, runs, mismatches)` from the `RSVELTE_AST_DUAL_RUN` equivalence
+/// harness, for the migration of the Phase-3 rewrite passes off text splicing.
+/// Exposed so a corpus driver can report the tally; not part of the public API.
+#[doc(hidden)]
+pub fn ast_rewrite_dual_run_tally() -> Vec<(&'static str, u32, u32)> {
+    compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::tally()
+}
+
+/// How many times a Phase-3 rewrite pass re-parsed an intermediate script.
+#[doc(hidden)]
+pub fn ast_rewrite_dual_run_parses() -> u32 {
+    compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::parses()
+}
 #[cfg(feature = "parallel")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,

@@ -47,6 +47,7 @@ pub fn with_program<R>(
     parse_options: ParseOptions,
     f: impl FnOnce(&Program<'_>) -> Option<R>,
 ) -> Option<R> {
+    dual_run::count_parse();
     arena.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parsed = Parser::new(&allocator, source, source_type)
@@ -110,6 +111,7 @@ pub fn splice_with_deferred(
     for (start, end, replacement) in &edits {
         out.replace_range(*start as usize..*end as usize, replacement);
     }
+    dual_run::check_normalize_idempotent("splice", &out);
     Some((out, deferred))
 }
 
@@ -303,5 +305,111 @@ mod tests {
         });
         assert_eq!(out, None);
         assert_eq!(calls, 1);
+    }
+}
+
+/// Equivalence checking for the migration of these passes off text splicing.
+///
+/// A pass is being rewritten from "collect edits, splice the source" to
+/// "mutate the shared `Program` in place". The two cannot be compared by their
+/// raw output — the splice version returns the original text with holes
+/// replaced, the in-place version is printed by esrap, and esrap normalises.
+/// So equivalence is judged after putting BOTH sides through esrap exactly
+/// once: `normalize(spliced) == print(mutated)`. That is the property the
+/// final pipeline actually needs, because it prints the mutated program with
+/// esrap too.
+///
+/// That basis is only sound if esrap normalisation is idempotent — otherwise
+/// `normalize` would keep moving and comparing across it would be meaningless.
+/// [`check_normalize_idempotent`] asserts that on every real pass output when
+/// `RSVELTE_AST_DUAL_RUN=1`, so the assumption is measured on the corpus
+/// before any pass depends on it.
+pub mod dual_run {
+    use super::*;
+    use std::cell::RefCell as StdRefCell;
+    use std::sync::LazyLock;
+
+    static ENABLED: LazyLock<bool> =
+        LazyLock::new(|| std::env::var_os("RSVELTE_AST_DUAL_RUN").is_some());
+
+    thread_local! {
+        static TALLY: StdRefCell<Vec<(&'static str, u32, u32)>> =
+            const { StdRefCell::new(Vec::new()) };
+    }
+
+    #[inline]
+    pub fn enabled() -> bool {
+        *ENABLED
+    }
+
+    thread_local! {
+        static PARSES: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    }
+
+    /// One `with_program` entry — i.e. one re-parse of an intermediate script.
+    #[inline]
+    pub fn count_parse() {
+        if enabled() {
+            PARSES.with(|c| c.set(c.get() + 1));
+        }
+    }
+
+    pub fn parses() -> u32 {
+        PARSES.with(std::cell::Cell::get)
+    }
+
+    thread_local! {
+        static NORMALIZE_ARENA: RefCell<Allocator> = RefCell::new(Allocator::default());
+    }
+
+    /// `esrap(parse(source))` — the single normalisation both sides of a
+    /// comparison pass through. `None` when `source` does not parse, which is
+    /// not a verdict: an intermediate that no longer parses is the splice
+    /// pipeline's own business, not evidence about the pass.
+    pub fn normalize(source: &str) -> Option<String> {
+        with_program(
+            &NORMALIZE_ARENA,
+            source,
+            SourceType::mjs(),
+            ParseOptions::default(),
+            |program| Some(rsvelte_esrap::print(program, source)),
+        )
+    }
+
+    /// Record whether esrap normalisation is a fixed point for `output`.
+    ///
+    /// Counts one run for `pass`, and one mismatch if normalising twice differs
+    /// from normalising once.
+    pub fn check_normalize_idempotent(pass: &'static str, output: &str) {
+        if !enabled() {
+            return;
+        }
+        let Some(once) = normalize(output) else {
+            return;
+        };
+        let stable = normalize(&once).is_some_and(|twice| twice == once);
+        TALLY.with(|t| {
+            let mut t = t.borrow_mut();
+            match t.iter_mut().find(|(name, ..)| *name == pass) {
+                Some(entry) => {
+                    entry.1 += 1;
+                    entry.2 += u32::from(!stable);
+                }
+                None => t.push((pass, 1, u32::from(!stable))),
+            }
+        });
+    }
+
+    /// `(pass, runs, mismatches)` for this thread, sorted by run count.
+    pub fn tally() -> Vec<(&'static str, u32, u32)> {
+        TALLY.with(|t| {
+            let mut v = t.borrow().clone();
+            v.sort_by_key(|&(_, runs, _)| std::cmp::Reverse(runs));
+            v
+        })
+    }
+
+    pub fn reset() {
+        TALLY.with(|t| t.borrow_mut().clear());
     }
 }
