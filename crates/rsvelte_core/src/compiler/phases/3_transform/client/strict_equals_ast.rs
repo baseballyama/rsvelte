@@ -1,5 +1,7 @@
-//! AST-based `===` / `!==` → `$.strict_equals(...)` rewrite for module
-//! scripts (`.svelte.js` / `.svelte.ts`) in dev mode.
+//! AST-based equality instrumentation for module scripts (`.svelte.js` /
+//! `.svelte.ts`) in dev mode: `===` / `!==` become `$.strict_equals(...)`
+//! and `==` / `!=` become `$.equals(...)`, the negated forms carrying a
+//! trailing `false` argument.
 //!
 //! Mirrors the rewrite performed inside the component instance script
 //! visitor (`ast_state_transform::try_rewrite_strict_equals_binary`).
@@ -23,9 +25,45 @@ use oxc_syntax::operator::BinaryOperator;
 
 use super::ast_rewrite::Edit;
 
-fn contains_strict_op(s: &str) -> bool {
-    memchr::memmem::find(s.as_bytes(), b"===").is_some()
-        || memchr::memmem::find(s.as_bytes(), b"!==").is_some()
+/// Cheap byte probe gating entry into the AST pass. Every one of `===`, `!==`,
+/// `==` and `!=` contains `==` or `!=`, while `<=` / `>=` / `=>` contain
+/// neither, so this is a tight superset of what the rewrite can act on.
+pub(super) fn source_has_equality_op(s: &str) -> bool {
+    memchr::memmem::find(s.as_bytes(), b"==").is_some()
+        || memchr::memmem::find(s.as_bytes(), b"!=").is_some()
+}
+
+/// The instrumented helper and whether the operator is the negated form,
+/// for the four equality operators the dev rewrite covers.
+fn equality_helper(op: BinaryOperator) -> Option<(&'static str, bool)> {
+    match op {
+        BinaryOperator::StrictEquality => Some(("$.strict_equals", false)),
+        BinaryOperator::StrictInequality => Some(("$.strict_equals", true)),
+        BinaryOperator::Equality => Some(("$.equals", false)),
+        BinaryOperator::Inequality => Some(("$.equals", true)),
+        _ => None,
+    }
+}
+
+/// True when the subtree still holds an equality expression this pass would
+/// rewrite. Deciding this on the AST rather than by scanning the operand text
+/// keeps `==` from matching inside `===` (and `!=` inside `!==`, `<=`, `=>`).
+fn contains_equality_expr<'a>(expr: &Expression<'a>) -> bool {
+    struct Finder {
+        found: bool,
+    }
+    impl<'a> Visit<'a> for Finder {
+        fn visit_binary_expression(&mut self, expr: &BinaryExpression<'a>) {
+            if equality_helper(expr.operator).is_some() {
+                self.found = true;
+                return;
+            }
+            walk::walk_binary_expression(self, expr);
+        }
+    }
+    let mut finder = Finder { found: false };
+    finder.visit_expression(expr);
+    finder.found
 }
 
 /// Collect leaf strict-equals rewrites (`===` / `!==` whose operands
@@ -57,37 +95,29 @@ impl<'a, 'src> Visit<'a> for StrictEqualsCollector<'src> {
         // the tree get a chance to record themselves.
         walk::walk_binary_expression(self, expr);
 
-        let is_neq = match expr.operator {
-            BinaryOperator::StrictEquality => false,
-            BinaryOperator::StrictInequality => true,
-            _ => return,
+        let Some((helper, negated)) = equality_helper(expr.operator) else {
+            return;
         };
+
+        // Defer: if either operand still has an equality operator, leave this
+        // node for the next fixed-point pass to pick up after the inner
+        // rewrites have landed — the replacement copies operand text verbatim.
+        if contains_equality_expr(&expr.left) || contains_equality_expr(&expr.right) {
+            return;
+        }
 
         let left_span = expr.left.span();
         let right_span = expr.right.span();
         let left_text = &self.source[left_span.start as usize..left_span.end as usize];
         let right_text = &self.source[right_span.start as usize..right_span.end as usize];
 
-        // Defer: if either operand still has a strict-equals
-        // operator, leave this node for the next fixed-point pass to
-        // pick up after the inner rewrites have landed.
-        if contains_strict_op(left_text) || contains_strict_op(right_text) {
-            return;
-        }
-
-        let rewrite = if is_neq {
-            format!(
-                "!$.strict_equals({}, {})",
-                left_text.trim(),
-                right_text.trim()
-            )
-        } else {
-            format!(
-                "$.strict_equals({}, {})",
-                left_text.trim(),
-                right_text.trim()
-            )
-        };
+        let rewrite = format!(
+            "{}({}, {}{})",
+            helper,
+            left_text.trim(),
+            right_text.trim(),
+            if negated { ", false" } else { "" }
+        );
 
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
@@ -115,7 +145,7 @@ mod tests {
     /// to this pass. Each iteration rewrites only leaf binaries; the loop
     /// re-parses so an outer `(a === b) === c` sees its rewritten operands.
     fn transform_strict_equals_module_ast(source: &str, is_ts: bool) -> Option<String> {
-        if !contains_strict_op(source) {
+        if !source_has_equality_op(source) {
             return None;
         }
         let source_type = if is_ts {
@@ -126,7 +156,7 @@ mod tests {
         let mut current: Option<String> = None;
         loop {
             let src = current.as_deref().unwrap_or(source);
-            if !contains_strict_op(src) {
+            if !source_has_equality_op(src) {
                 break;
             }
             match ast_rewrite::rewrite_once(
@@ -153,14 +183,27 @@ mod tests {
     #[test]
     fn rewrites_strict_inequality() {
         let out = transform_strict_equals_module_ast("a !== b", false).unwrap();
-        assert_eq!(out, "!$.strict_equals(a, b)");
+        assert_eq!(out, "$.strict_equals(a, b, false)");
     }
 
     #[test]
-    fn leaves_loose_equality_alone() {
-        // == and != are handled elsewhere (AST expression converter)
-        assert!(transform_strict_equals_module_ast("a == b", false).is_none());
-        assert!(transform_strict_equals_module_ast("a != b", false).is_none());
+    fn rewrites_loose_equality() {
+        let out = transform_strict_equals_module_ast("a == b", false).unwrap();
+        assert_eq!(out, "$.equals(a, b)");
+    }
+
+    #[test]
+    fn rewrites_loose_inequality() {
+        let out = transform_strict_equals_module_ast("a != b", false).unwrap();
+        assert_eq!(out, "$.equals(a, b, false)");
+    }
+
+    #[test]
+    fn leaves_relational_operators_alone() {
+        // `<=` / `>=` contain neither `==` nor `!=`, so they never enter the pass.
+        assert!(transform_strict_equals_module_ast("a <= b", false).is_none());
+        assert!(transform_strict_equals_module_ast("a >= b", false).is_none());
+        assert!(transform_strict_equals_module_ast("(x) => x", false).is_none());
     }
 
     #[test]
@@ -192,6 +235,16 @@ mod tests {
         assert_eq!(
             out,
             "$.strict_equals(($.strict_equals(a, b)), ($.strict_equals(c, d)))"
+        );
+    }
+
+    #[test]
+    fn nested_mixed_equality_both_rewritten() {
+        let src = "(a === b) != (c == d)";
+        let out = transform_strict_equals_module_ast(src, false).unwrap();
+        assert_eq!(
+            out,
+            "$.equals(($.strict_equals(a, b)), ($.equals(c, d)), false)"
         );
     }
 

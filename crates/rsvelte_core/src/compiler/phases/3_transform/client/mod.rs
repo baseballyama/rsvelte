@@ -5978,11 +5978,9 @@ fn transform_instance_script_for_visitors(
             && memmem::find(result.as_bytes(), b"$props").is_some();
         let has_host_calls = !store_sub_vars.iter().any(|v| v == "$host")
             && memmem::find(result.as_bytes(), b"$host").is_some();
-        // Dev-mode `===` / `!==` rewrite is now part of the AST pass
+        // Dev-mode equality rewrite is now part of the AST pass
         // (replaces `transform_strict_equals` from rune_transforms.rs).
-        let has_strict_equals = dev
-            && (memmem::find(result.as_bytes(), b"===").is_some()
-                || memmem::find(result.as_bytes(), b"!==").is_some());
+        let has_strict_equals = dev && strict_equals_ast::source_has_equality_op(&result);
         let has_transforms = !state_vars.is_empty()
             || !prop_assignment_transform_vars.is_empty()
             || !store_sub_vars.is_empty()

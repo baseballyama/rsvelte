@@ -1859,25 +1859,28 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
-    /// Dev-mode rewrite of `a === b` / `a !== b` BinaryExpressions to
-    /// `$.strict_equals(a, b)` / `!$.strict_equals(a, b)`. Mirrors the
-    /// official Svelte compiler's `BinaryExpression` visitor — runtime
-    /// hook that surfaces signal-vs-proxy comparison footguns to the user.
-    /// Replaces the text-based pass formerly in
+    /// Dev-mode rewrite of the four equality BinaryExpressions into their
+    /// instrumented calls — `$.strict_equals` for `===` / `!==`, `$.equals`
+    /// for `==` / `!=`, with a trailing `false` argument marking the negated
+    /// forms. Mirrors the official Svelte compiler's `BinaryExpression`
+    /// visitor — runtime hook that surfaces signal-vs-proxy comparison
+    /// footguns to the user. Replaces the text-based pass formerly in
     /// `rune_transforms::transform_strict_equals` for component instance
     /// scripts. Returns `true` when the expression was rewritten.
     fn try_rewrite_strict_equals_binary(&mut self, expr: &BinaryExpression<'_>) -> bool {
         if !self.dev {
             return false;
         }
-        let is_neq = match expr.operator {
-            BinaryOperator::StrictEquality => false,
-            BinaryOperator::StrictInequality => true,
+        let (helper, negated) = match expr.operator {
+            BinaryOperator::StrictEquality => ("$.strict_equals", false),
+            BinaryOperator::StrictInequality => ("$.strict_equals", true),
+            BinaryOperator::Equality => ("$.equals", false),
+            BinaryOperator::Inequality => ("$.equals", true),
             _ => return false,
         };
 
         // Walk both operands so inner state-var refs (and nested
-        // `===` / `!==` rewrites) register their replacements, then
+        // equality rewrites) register their replacements, then
         // drain those into the operand-local text. Each drain yields
         // the fully-transformed operand substring that the outer
         // replacement carries verbatim.
@@ -1889,19 +1892,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let left_text = self.apply_and_drain_inner_replacements(left_span.start, left_span.end);
         let right_text = self.apply_and_drain_inner_replacements(right_span.start, right_span.end);
 
-        let replacement = if is_neq {
-            format!(
-                "!$.strict_equals({}, {})",
-                left_text.trim(),
-                right_text.trim()
-            )
-        } else {
-            format!(
-                "$.strict_equals({}, {})",
-                left_text.trim(),
-                right_text.trim()
-            )
-        };
+        let replacement = format!(
+            "{}({}, {}{})",
+            helper,
+            left_text.trim(),
+            right_text.trim(),
+            if negated { ", false" } else { "" }
+        );
 
         self.add_replacement(expr.span.start, expr.span.end, replacement);
         true
@@ -3825,13 +3822,11 @@ fn has_state_transform_candidate(script: &str, config: &AstTransformConfig) -> b
     let has_host_calls = is_runes
         && !store_sub_vars.iter().any(|v| v == "$host")
         && memchr::memmem::find(script.as_bytes(), b"$host").is_some();
-    // Dev-mode `===` / `!==` → `$.strict_equals(...)` rewrite (formerly
-    // `rune_transforms::transform_strict_equals`). The visitor walks
+    // Dev-mode equality → `$.strict_equals(...)` / `$.equals(...)` rewrite
+    // (formerly `rune_transforms::transform_strict_equals`). The visitor walks
     // every BinaryExpression so we only need a byte probe to know
     // whether to enter the AST pass at all.
-    let has_strict_equals = config.dev
-        && (memchr::memmem::find(script.as_bytes(), b"===").is_some()
-            || memchr::memmem::find(script.as_bytes(), b"!==").is_some());
+    let has_strict_equals = config.dev && super::strict_equals_ast::source_has_equality_op(script);
 
     if !has_state
         && !has_props
