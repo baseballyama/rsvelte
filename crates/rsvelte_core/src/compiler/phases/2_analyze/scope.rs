@@ -379,6 +379,11 @@ pub struct Binding {
     /// `exclude_props = ["foo"]`, meaning `others.foo` should NOT become `$$props.foo`
     /// but `others.bar` should become `$$props.bar`.
     pub exclude_props: Vec<String>,
+    /// Memoized `serde_json::from_str` of [`Binding::initial`] and
+    /// [`Binding::init_expr_json`]. Both strings are written during analysis and
+    /// only read during transform, so the parse result cannot go stale.
+    initial_json: std::cell::OnceCell<Option<Box<serde_json::Value>>>,
+    init_expr_json_parsed: std::cell::OnceCell<Option<Box<serde_json::Value>>>,
 }
 
 /// A blocker expression representing `$$promises[n]`.
@@ -411,6 +416,12 @@ pub struct BindingReference {
     pub is_export_specifier: bool,
 }
 
+fn parse_json_field(s: Option<&str>) -> Option<Box<serde_json::Value>> {
+    serde_json::from_str::<serde_json::Value>(s?)
+        .ok()
+        .map(Box::new)
+}
+
 impl Binding {
     /// Create a new binding.
     pub fn new(name: String, kind: BindingKind, scope_index: usize) -> Self {
@@ -440,6 +451,8 @@ impl Binding {
             import_source: None,
             is_default_import: false,
             exclude_props: Vec::new(),
+            initial_json: std::cell::OnceCell::new(),
+            init_expr_json_parsed: std::cell::OnceCell::new(),
         }
     }
 
@@ -476,7 +489,24 @@ impl Binding {
             import_source: None,
             is_default_import: false,
             exclude_props: Vec::new(),
+            initial_json: std::cell::OnceCell::new(),
+            init_expr_json_parsed: std::cell::OnceCell::new(),
         }
+    }
+
+    /// [`Binding::initial`] parsed as JSON, or `None` when it is absent or is
+    /// raw source text rather than an AST node. Parsed at most once per binding.
+    pub fn initial_json(&self) -> Option<&serde_json::Value> {
+        self.initial_json
+            .get_or_init(|| parse_json_field(self.initial.as_deref()))
+            .as_deref()
+    }
+
+    /// [`Binding::init_expr_json`] parsed as JSON. Parsed at most once per binding.
+    pub fn init_expr_json_parsed(&self) -> Option<&serde_json::Value> {
+        self.init_expr_json_parsed
+            .get_or_init(|| parse_json_field(self.init_expr_json.as_deref()))
+            .as_deref()
     }
 
     /// Returns true if this binding has been updated (reassigned or mutated)

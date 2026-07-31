@@ -5,7 +5,7 @@
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase2_analyze::scope::{Binding, BindingKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -3529,7 +3529,7 @@ fn get_literal_value_json(
                         // stored as `{"type":"Literal",...,"value":"nested","raw":"'nested'"}`).
                         // Mirrors upstream `scope.evaluate()` returning the literal value.
                         if init.contains("\"type\":\"Literal\"")
-                            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(init)
+                            && let Some(parsed) = binding.initial_json()
                             && parsed.get("type").and_then(|t| t.as_str()) == Some("Literal")
                         {
                             // Regex literal: value is null but "regex" field is present.
@@ -3572,11 +3572,9 @@ fn get_literal_value_json(
                         {
                             // Extract the cooked value from the quasis
                             // Format: {"type":"TemplateLiteral",...,"quasis":[{"value":{"cooked":"..."}}]}
-                            let quasis = serde_json::from_str::<serde_json::Value>(init)
-                                .ok()
-                                .and_then(|parsed| {
-                                    parsed.get("quasis").and_then(|q| q.as_array().cloned())
-                                });
+                            let quasis = binding.initial_json().and_then(|parsed| {
+                                parsed.get("quasis").and_then(|q| q.as_array().cloned())
+                            });
 
                             if let Some(quasis) = quasis {
                                 // Collect all cooked values from quasis
@@ -4595,11 +4593,8 @@ thread_local! {
 /// template literal) contains NO reactive state — i.e. its value is compile-time
 /// "known" (approximates `scope.evaluate(node).is_known`, letting
 /// `const url = `…${KNOWN}…`` be treated as non-reactive). Depth-guarded.
-fn initial_is_non_reactive(init_expr_json: &Option<String>, context: &ComponentContext) -> bool {
-    let Some(s) = init_expr_json else {
-        return false;
-    };
-    let Ok(json) = serde_json::from_str::<serde_json::Value>(s) else {
+fn initial_is_non_reactive(binding: &Binding, context: &ComponentContext) -> bool {
+    let Some(json) = binding.init_expr_json_parsed() else {
         return false;
     };
     REACTIVE_INIT_DEPTH.with(|d| {
@@ -4610,7 +4605,7 @@ fn initial_is_non_reactive(init_expr_json: &Option<String>, context: &ComponentC
         // `is_expression_known_json` is the proper compile-time-known check: it
         // returns false for calls / awaits / reactive reads, so a template with
         // an impure or reactive interpolation stays reactive (memoized).
-        let known = is_expression_known_json(&json, context);
+        let known = is_expression_known_json(json, context);
         d.set(d.get() - 1);
         known
     })
@@ -4710,11 +4705,8 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                             if binding.is_function() {
                                 return false;
                             }
-                            if let Some(ref initial_str) = binding.initial
-                                && let Ok(initial_json) =
-                                    serde_json::from_str::<serde_json::Value>(initial_str)
-                            {
-                                return !is_expression_known_json(&initial_json, context);
+                            if let Some(initial_json) = binding.initial_json() {
+                                return !is_expression_known_json(initial_json, context);
                             }
                             // No initial stored → conservatively treat as reactive
                             return true;
@@ -4773,13 +4765,10 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         // If the binding has a stored initial expression (the $derived argument),
                         // parse it as JSON and check if it can be evaluated at compile time.
                         // This approximates scope.evaluate().is_known from the official compiler.
-                        if let Some(ref initial_str) = binding.initial
-                            && let Ok(initial_json) =
-                                serde_json::from_str::<serde_json::Value>(initial_str)
-                        {
+                        if let Some(initial_json) = binding.initial_json() {
                             // Check if the expression is "known" (compile-time evaluable)
                             // If known, the derived value is effectively constant → not reactive
-                            return !is_expression_known_json(&initial_json, context);
+                            return !is_expression_known_json(initial_json, context);
                         }
                         // If no initial or couldn't parse, conservatively treat as reactive
                         return true;
@@ -4798,11 +4787,8 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         if binding.is_function() {
                             return false;
                         }
-                        if let Some(ref initial_str) = binding.initial
-                            && let Ok(initial_json) =
-                                serde_json::from_str::<serde_json::Value>(initial_str)
-                        {
-                            return !is_expression_known_json(&initial_json, context);
+                        if let Some(initial_json) = binding.initial_json() {
+                            return !is_expression_known_json(initial_json, context);
                         }
                         // If no initial or couldn't parse, conservatively treat as reactive
                         return true;
@@ -4868,7 +4854,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                                 // interpolated-template-literal initializer whose
                                 // interpolations are themselves non-reactive
                                 // (e.g. `const url = `…${KNOWN_CONST}…``). Depth-guarded.
-                                || initial_is_non_reactive(&binding.init_expr_json, context));
+                                || initial_is_non_reactive(binding, context));
 
                         // has_state is true when the value is NOT known at compile time
                         return !is_known;
@@ -5894,22 +5880,16 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
 
                     // For Derived bindings, recursively check the initial
                     if matches!(binding.kind, BindingKind::Derived) {
-                        if let Some(ref initial_str) = binding.initial
-                            && let Ok(initial_json) =
-                                serde_json::from_str::<serde_json::Value>(initial_str)
-                        {
-                            return is_expression_known_json(&initial_json, context);
+                        if let Some(initial_json) = binding.initial_json() {
+                            return is_expression_known_json(initial_json, context);
                         }
                         return false;
                     }
 
                     // For Template bindings (@const), recursively check the initial
                     if matches!(binding.kind, BindingKind::Template) {
-                        if let Some(ref initial_str) = binding.initial
-                            && let Ok(initial_json) =
-                                serde_json::from_str::<serde_json::Value>(initial_str)
-                        {
-                            return is_expression_known_json(&initial_json, context);
+                        if let Some(initial_json) = binding.initial_json() {
+                            return is_expression_known_json(initial_json, context);
                         }
                         return false;
                     }
