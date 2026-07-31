@@ -51,9 +51,7 @@ pub fn transform_module_dev_tail_ast(source: &str, dev: bool, is_ts: bool) -> Op
     // never match — none of the passes introduce another's marker — so
     // probing the original source is sound across fixed-point iterations.
     let has_effect = memchr::memmem::find(bytes, b"$effect").is_some();
-    let has_strict = dev
-        && (memchr::memmem::find(bytes, b"===").is_some()
-            || memchr::memmem::find(bytes, b"!==").is_some());
+    let has_strict = dev && super::strict_equals_ast::source_has_equality_op(source);
     let has_console = dev && memchr::memmem::find(bytes, b"console.").is_some();
     let has_tag = dev
         && (memchr::memmem::find(bytes, b"$.state").is_some()
@@ -111,6 +109,18 @@ mod tests {
     fn effect_runs_without_dev() {
         let out = transform_module_dev_tail_ast("$effect(() => {});", false, false).unwrap();
         assert_eq!(out, "$.user_effect(() => {});");
+    }
+
+    /// Through the production entry point, not the per-pass test loops: a
+    /// module whose only comparison is loose has no `===` / `!==` bytes, so a
+    /// probe written for the strict pair alone would skip the whole batch.
+    #[test]
+    fn loose_equality_alone_still_enters_the_batch() {
+        let out = transform_module_dev_tail_ast("a == b;", true, false).unwrap();
+        assert_eq!(out, "$.equals(a, b);");
+
+        let out = transform_module_dev_tail_ast("a != b;", true, false).unwrap();
+        assert_eq!(out, "$.equals(a, b, false);");
     }
 
     #[test]

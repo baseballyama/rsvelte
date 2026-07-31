@@ -8,8 +8,7 @@
 //! That visitor needs heavy infrastructure (drain inner replacements,
 //! interact with state-var rewrites) which module scripts don't —
 //! they have no `$state`, no per-binding tracking. So we get a much
-//! smaller standalone walker here that just does the strict-equals
-//! rewrite.
+//! smaller standalone walker here that just does the equality rewrite.
 //!
 //! Replaces the legacy text-based `rune_transforms::transform_strict_equals`
 //! whose heuristics for "skip if inside a string" (counting quotes)
@@ -66,10 +65,10 @@ fn contains_equality_expr<'a>(expr: &Expression<'a>) -> bool {
     finder.found
 }
 
-/// Collect leaf strict-equals rewrites (`===` / `!==` whose operands
-/// don't themselves contain a strict operator) from a single parse.
-/// Nested cases resolve across fixed-point iterations — the batched
-/// module dev-tail driver drives that loop.
+/// Collect leaf equality rewrites (those whose operands don't themselves
+/// contain an equality operator) from a single parse. Nested cases resolve
+/// across fixed-point iterations — the batched module dev-tail driver drives
+/// that loop.
 pub(super) fn collect_strict_equals_edits(program: &Program<'_>, source: &str) -> Vec<Edit> {
     let mut collector = StrictEqualsCollector {
         source,
@@ -80,10 +79,9 @@ pub(super) fn collect_strict_equals_edits(program: &Program<'_>, source: &str) -
 }
 
 /// Per-call AST visitor: collects `(start, end, replacement_string)`
-/// triples for every BinaryExpression with operator `===` or `!==`
-/// *whose operands are leaf* (don't themselves contain another
-/// `===` / `!==`). Nested cases are handled by the fixed-point
-/// iteration in the caller.
+/// triples for every equality BinaryExpression *whose operands are leaf*
+/// (don't themselves contain another equality operator). Nested cases are
+/// handled by the fixed-point iteration in the caller.
 struct StrictEqualsCollector<'src> {
     source: &'src str,
     replacements: Vec<Edit>,
@@ -207,6 +205,18 @@ mod tests {
     }
 
     #[test]
+    fn relational_operators_survive_a_run_of_the_pass() {
+        // The probe only decides whether to enter; once inside, the visitor has
+        // to leave the non-equality operators untouched.
+        let src = "let f = (x) => x >= 1; let ok = a <= b && c === d;";
+        let out = transform_strict_equals_module_ast(src, false).unwrap();
+        assert_eq!(
+            out,
+            "let f = (x) => x >= 1; let ok = a <= b && $.strict_equals(c, d);"
+        );
+    }
+
+    #[test]
     fn does_not_rewrite_inside_string_literal() {
         // The text-based version had to count quotes; the AST never
         // descends into string literal "contents" so this is safe.
@@ -242,6 +252,9 @@ mod tests {
     fn nested_mixed_equality_both_rewritten() {
         let src = "(a === b) != (c == d)";
         let out = transform_strict_equals_module_ast(src, false).unwrap();
+        // Known divergence: replacements copy operand text, so the source's
+        // parens survive. The official compiler reprints from the AST and emits
+        // `$.equals($.strict_equals(a, b), $.equals(c, d), false)`.
         assert_eq!(
             out,
             "$.equals(($.strict_equals(a, b)), ($.equals(c, d)), false)"

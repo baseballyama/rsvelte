@@ -1,21 +1,19 @@
-//! Regression test for `transform_strict_equals` mangling `X.member !== Y`
+//! Regression test for the dev equality rewrite mangling `X.member !== Y`
 //! when `X` is wrapped in a call expression like `$.get(items)` (which the
 //! dev-mode `$state` lowering produces). (baseballyama/rsvelte#166)
 //!
-//! Bug: `extract_operand_backward` walked the LHS backward looking for the
-//! start of the operand. When it hit a `)`, it parsed the call expression
-//! correctly — but it only did that when the operand *ends* with `)`. For a
-//! member access on a call (`$.get(items).length`), the operand ends with
-//! `h`, not `)`, so the fallback "scan identifier chars" path took over —
-//! and that path stopped at the `)` of `$.get(items)` because `)` is not
-//! an identifier char. The result was `left_expr = ".length"` and the
-//! replacement landed in the middle of the chain:
+//! The original text scanner walked the left operand backward and stopped at
+//! the `)` of `$.get(items)`, because `)` is not an identifier character. It
+//! captured `.length` as the whole operand and spliced the call into the
+//! middle of the chain:
 //!
 //!     $.get(items).length !== 0   →   $.get(items)!$.strict_equals(.length, 0)
 //!
-//! Now the extractor walks the entire chain — peeling off identifier runs
-//! and matched `(...)` / `[...]` groups in turn — so `$.get(items).length`
-//! is returned as a single operand.
+//! Operands now come off the AST, so an operand can no longer be split. These
+//! cases stay as a guard against regressing to a text-based extractor.
+//!
+//! Note the negated form: `!==` emits `$.strict_equals(l, r, false)`, matching
+//! the official compiler, rather than negating the call from outside.
 
 use rsvelte_core::GenerateMode;
 use rsvelte_core::compile_module;
@@ -42,20 +40,20 @@ fn neq_after_member_on_tagged_state_call_chain() {
   if (items.length !== 0) items[0];
 };"#;
     let out = compile_mod_client_dev(src);
-    // The arrow body should test the full member chain — `!$.strict_equals($.get(items).length, 0)`.
+    // The arrow body should test the full member chain.
     assert!(
-        out.contains("!$.strict_equals($.get(items).length, 0)"),
-        "expected `!$.strict_equals($.get(items).length, 0)`. Got:\n{out}"
+        out.contains("$.strict_equals($.get(items).length, 0, false)"),
+        "expected `$.strict_equals($.get(items).length, 0, false)`. Got:\n{out}"
     );
-    // No mangled `!$.strict_equals(.length, ...)` floating around.
+    // No mangled `$.strict_equals(.length, ...)` floating around.
     assert!(
         !out.contains("$.strict_equals(.length"),
         "found mangled `$.strict_equals(.length, …)` — operand was split:\n{out}"
     );
-    // And the `$.get(items)` shouldn't be stranded with a bare `!` either.
+    // Nor a fragment of the chain stranded outside the call.
     assert!(
-        !out.contains("$.get(items)!"),
-        "found stranded `$.get(items)!`:\n{out}"
+        !out.contains("$.get(items).length !==") && !out.contains(").length, 0)$"),
+        "found part of the chain left outside the call:\n{out}"
     );
 }
 
@@ -69,8 +67,8 @@ fn eq_after_member_on_tagged_state_call_chain() {
     let out = compile_mod_client_dev(src);
     assert!(
         out.contains("$.strict_equals($.get(items).length, 0)")
-            && !out.contains("!$.strict_equals($.get(items).length"),
-        "expected `$.strict_equals($.get(items).length, 0)` (no `!`). Got:\n{out}"
+            && !out.contains("$.strict_equals($.get(items).length, 0, false)"),
+        "expected `$.strict_equals($.get(items).length, 0)` (no negation argument). Got:\n{out}"
     );
 }
 
@@ -83,9 +81,9 @@ fn neq_after_bracket_index_chain() {
 };"#;
     let out = compile_mod_client_dev(src);
     assert!(
-        out.contains("!$.strict_equals($.get(arr)[0].length, 0)")
-            || out.contains("!$.strict_equals(($.get(arr))[0].length, 0)"),
-        "expected `!$.strict_equals($.get(arr)[0].length, 0)`. Got:\n{out}"
+        out.contains("$.strict_equals($.get(arr)[0].length, 0, false)")
+            || out.contains("$.strict_equals(($.get(arr))[0].length, 0, false)"),
+        "expected `$.strict_equals($.get(arr)[0].length, 0, false)`. Got:\n{out}"
     );
 }
 
@@ -98,8 +96,8 @@ fn plain_identifier_neq_still_works() {
 };"#;
     let out = compile_mod_client_dev(src);
     assert!(
-        out.contains("!$.strict_equals(a, b)"),
-        "expected `!$.strict_equals(a, b)`. Got:\n{out}"
+        out.contains("$.strict_equals(a, b, false)"),
+        "expected `$.strict_equals(a, b, false)`. Got:\n{out}"
     );
 }
 
@@ -112,7 +110,7 @@ fn call_left_operand_still_works() {
 };"#;
     let out = compile_mod_client_dev(src);
     assert!(
-        out.contains("!$.strict_equals(Math.abs(a), 0)"),
-        "expected `!$.strict_equals(Math.abs(a), 0)`. Got:\n{out}"
+        out.contains("$.strict_equals(Math.abs(a), 0, false)"),
+        "expected `$.strict_equals(Math.abs(a), 0, false)`. Got:\n{out}"
     );
 }
