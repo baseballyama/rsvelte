@@ -117,7 +117,7 @@ pub(crate) fn handle_regular_element(
         Some(opener_content_start),
     );
 
-    let spacing = opener_spacing(
+    let mut spacing = opener_spacing(
         source,
         el.start,
         &el.name,
@@ -132,6 +132,13 @@ pub(crate) fn handle_regular_element(
             is_slot_tag: false,
         },
     );
+    // A default-slot-let element (`<div let:x>`) has its leading gap folded
+    // into the `$$slot_def.default` destructure emitted by
+    // `process_component_children_with_slots` instead — see
+    // `suppress_default_slot_let_indent`'s doc comment.
+    if std::mem::take(&mut counter.suppress_default_slot_let_indent) {
+        spacing.before_block = 0;
+    }
     if spacing.in_attr_object > 0 {
         let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
         padded.push(Seg::Lit(" ".repeat(spacing.in_attr_object)));

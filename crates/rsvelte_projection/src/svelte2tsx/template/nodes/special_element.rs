@@ -55,7 +55,7 @@ pub(crate) fn handle_svelte_special_element(
 
     // The special `svelte:…` elements name themselves with a literal in the start
     // transformation, so it contributes no source range.
-    let spacing = opener_spacing(
+    let mut spacing = opener_spacing(
         source,
         el.start,
         &el.name,
@@ -70,6 +70,13 @@ pub(crate) fn handle_svelte_special_element(
             is_slot_tag: false,
         },
     );
+    // A default-slot-let `<svelte:fragment let:x>` has its leading gap folded
+    // into the `$$slot_def.default` destructure emitted by
+    // `process_component_children_with_slots` instead — see
+    // `suppress_default_slot_let_indent`'s doc comment.
+    if std::mem::take(&mut counter.suppress_default_slot_let_indent) {
+        spacing.before_block = 0;
+    }
     if spacing.in_attr_object > 0 {
         let mut padded = " ".repeat(spacing.in_attr_object);
         padded.push_str(&attrs_str);

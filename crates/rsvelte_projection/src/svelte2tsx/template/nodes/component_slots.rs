@@ -358,7 +358,19 @@ pub(crate) fn process_component_children_with_slots(
                     "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
                     destructure, inst_var
                 );
-                str.append_left(node.start(), &block);
+                // Official's `Element.performTransformation` runs the slot-let
+                // destructure through the SAME `transform()` call as the
+                // element/fragment's own opening-tag rewrite, so the leading gap
+                // ahead of `<div`/`<svelte:fragment` is folded into this
+                // block-open instead of the wrapped node's own indent. Compute
+                // that gap here (mirroring the wrapped node's own opener_spacing
+                // call) and tell the handler to suppress it.
+                let before_block = default_slot_let_before_block(node, source, counter);
+                str.append_left_fmt(
+                    node.start(),
+                    format_args!("{}{}", " ".repeat(before_block), block),
+                );
+                counter.suppress_default_slot_let_indent = true;
                 true
             } else {
                 false
@@ -393,6 +405,58 @@ pub(crate) fn process_component_children_with_slots(
         }
     }
     false
+}
+
+/// The leading gap `handle_regular_element` / `handle_svelte_special_element`
+/// would themselves attribute to the wrapped node's own indent, replayed here
+/// so it can be moved ahead of the default-slot-let block-open instead (see
+/// the call site in `process_component_children_with_slots`). Only
+/// `RegularElement` and `SvelteFragment` reach here — the two node kinds
+/// `has_let_directives` is checked against above.
+fn default_slot_let_before_block(node: &TemplateNode, source: &str, counter: &Counter) -> usize {
+    match node {
+        TemplateNode::RegularElement(el) => {
+            let opening_tag_end =
+                find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
+            opener_spacing(
+                source,
+                el.start,
+                &el.name,
+                opening_tag_end,
+                Some((el.start + 1, el.start + 1 + el.name.len() as u32)),
+                &el.attributes,
+                &counter.element_opener_comments,
+                OpenerCtx {
+                    is_element: true,
+                    in_component_slot: true,
+                    tag_name: &el.name,
+                    is_slot_tag: false,
+                },
+            )
+            .before_block
+        }
+        TemplateNode::SvelteFragment(el) => {
+            let opening_tag_end =
+                find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
+            opener_spacing(
+                source,
+                el.start,
+                &el.name,
+                opening_tag_end,
+                None,
+                &el.attributes,
+                &counter.element_opener_comments,
+                OpenerCtx {
+                    is_element: true,
+                    in_component_slot: true,
+                    tag_name: &el.name,
+                    is_slot_tag: false,
+                },
+            )
+            .before_block
+        }
+        _ => 0,
+    }
 }
 
 /// Handle a regular element child with `slot="name"` attribute inside a component.

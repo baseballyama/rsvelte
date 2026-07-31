@@ -103,6 +103,17 @@ pub(super) struct Counter {
     /// so `handle_component` must NOT re-emit them as the component's own
     /// default-slot let block. Consumed once at the top of `handle_component`.
     pub(super) suppress_component_lets: bool,
+    /// Set just before `process_component_children_with_slots` processes a
+    /// default-slot child that carries its OWN `let:` directives (`<div
+    /// let:x>` / `<svelte:fragment let:x>`): official's `Element.
+    /// performTransformation` emits the `$$slot_def.default` destructure as
+    /// part of the SAME `transform()` call as the element's own opening-tag
+    /// rewrite, so the element's leading gap is folded into that destructure's
+    /// block-open rather than the element's own indent. The element/fragment
+    /// handler must therefore force its own computed `before_block` to 0.
+    /// Consumed once at the top of `handle_regular_element` /
+    /// `handle_svelte_special_element`.
+    pub(super) suppress_default_slot_let_indent: bool,
 }
 
 impl Counter {
@@ -113,6 +124,7 @@ impl Counter {
             slot_inst: None,
             named_slot_component_close: false,
             suppress_component_lets: false,
+            suppress_default_slot_let_indent: false,
         }
     }
     pub(super) fn next_slot(&mut self) -> u32 {

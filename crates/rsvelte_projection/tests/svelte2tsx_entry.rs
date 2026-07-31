@@ -815,3 +815,51 @@ fn test_async_only_in_inner_function_is_not_top_level() {
         "await inside inner async function must NOT emit $$$render; got:\n{code}"
     );
 }
+
+/// A default-slot child that carries its OWN `let:` directives (`<div
+/// let:x>`, `<svelte:fragment let:x>`) has its `$$slot_def.default`
+/// destructure emitted through the SAME `transform()` call as its own
+/// opening-tag rewrite in the official `Element.performTransformation` — so
+/// the element's leading gap is folded into that destructure's block-open
+/// instead of the element's own indent. Every expectation below is the
+/// byte-exact output of the official svelte2tsx (issue #2049).
+#[test]
+fn default_slot_let_forwarding_matches_the_official_gap_collapsing() {
+    for (source, expected) in [
+        (
+            "<Foo><div let:x>{x}</div></Foo>",
+            "}}); {const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,x,} = $$_ooF0.$$slot_def.default;$$_$$;{ svelteHTML.createElement(\"div\", { });x; }} Foo}",
+        ),
+        (
+            "<Foo><div let:x /></Foo>",
+            "}});  {const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,x,} = $$_ooF0.$$slot_def.default;$$_$$;{ svelteHTML.createElement(\"div\", { });}} Foo}",
+        ),
+        (
+            "<Foo><span let:x>{x}</span></Foo>",
+            "}}); {const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,x,} = $$_ooF0.$$slot_def.default;$$_$$;{ svelteHTML.createElement(\"span\", { });x; }} Foo}",
+        ),
+        (
+            "<Foo let:y><div let:x>{x}</div></Foo>",
+            "}});{const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,y,} = $$_ooF0.$$slot_def.default;$$_$$; {const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,x,} = $$_ooF0.$$slot_def.default;$$_$$;{ svelteHTML.createElement(\"div\", { });x; }} }Foo}",
+        ),
+        (
+            "<Foo><svelte:fragment let:x>{x}</svelte:fragment></Foo>",
+            "}}); {const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,x,} = $$_ooF0.$$slot_def.default;$$_$$;{ svelteHTML.createElement(\"svelte:fragment\", { });x; }} Foo}",
+        ),
+        (
+            "<Foo><div let:a let:b>{a}{b}</div></Foo>",
+            "}}); {const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,a,b,} = $$_ooF0.$$slot_def.default;$$_$$;{ svelteHTML.createElement(\"div\", {  });a;b; }} Foo}",
+        ),
+        (
+            "<Foo><Bar><div let:x>{x}</div></Bar></Foo>",
+            "props: {children:() => { return __sveltets_2_any(0); },}}); {const {/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,x,} = $$_raB1.$$slot_def.default;$$_$$;{ svelteHTML.createElement(\"div\", { });x; }} Bar} Foo}",
+        ),
+    ] {
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        assert!(
+            result.code.contains(expected),
+            "{source:?}\n  expected to contain {expected:?}\n  got:\n{}",
+            result.code
+        );
+    }
+}
