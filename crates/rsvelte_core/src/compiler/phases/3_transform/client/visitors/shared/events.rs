@@ -192,23 +192,21 @@ pub fn build_event_handler(
         //   if (!dev && binding?.declaration_kind !== 'import') return handler;
         //
         // i.e. attach the handler directly when (a) it's a function
-        // declaration / hoisted function, or (b) it's any locally-declared
-        // const/let/var binding (the value won't change between mounts), or
-        // (c) it isn't in scope at all (assume a global like `window.alert`
-        // or an untracked helper). Only imports get wrapped in
-        // `function (...$$args) { handler?.apply(this, $$args); }`, which
-        // copes with hot-reload swapping the imported binding.
+        // declaration / hoisted function, or (b) outside dev, any binding that
+        // is not an import — a locally-declared const/let/var whose value will
+        // not change between mounts, or a name that is not in scope at all
+        // (assume a global like `window.alert`). An import gets wrapped so it
+        // copes with hot-reload swapping the binding, and dev wraps everything
+        // else too so a throwing handler can still be reported.
         use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
-        match context.state.get_binding(name) {
-            Some(binding) if binding.is_function() => return handler,
-            None => return handler,
-            Some(binding) => {
-                let is_import = matches!(binding.declaration_kind, DeclarationKind::Import);
-                if !context.state.options.dev && !is_import {
-                    return handler;
-                }
-                // Falls through to the wrapping path below.
-            }
+        let binding = context.state.get_binding(name);
+        if binding.is_some_and(|b| b.is_function()) {
+            return handler;
+        }
+        if !context.state.options.dev
+            && binding.is_none_or(|b| b.declaration_kind != DeclarationKind::Import)
+        {
+            return handler;
         }
     }
 

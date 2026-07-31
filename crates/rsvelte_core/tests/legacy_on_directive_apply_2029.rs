@@ -87,3 +87,18 @@ fn inline_and_declared_handlers_are_not_wrapped() {
         assert!(!out.contains("$.apply("), "handler was wrapped in:\n{out}");
     }
 }
+
+/// An identifier that resolves to no binding is a global. Outside dev it is used
+/// as-is, but dev still wraps it — upstream only short-circuits on `!dev`, so the
+/// unbound case must not return early on its own.
+#[test]
+fn unbound_global_handler_is_wrapped_in_dev_only() {
+    let src = "<button on:click={someGlobal}>go</button>";
+    let dev = compile_client(src, true);
+    assert!(
+        dev.contains("$.apply(() => someGlobal, this, $$args, Comp, [1, 18])"),
+        "in:\n{dev}"
+    );
+    let prod = compile_client(src, false);
+    assert!(!prod.contains("$.apply("), "in:\n{prod}");
+}
