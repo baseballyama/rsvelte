@@ -958,6 +958,39 @@ fn transform_client_with_visitors(
     // Pre-allocate for typical component body size
     let mut component_body: Vec<JsStatement> = Vec::new();
 
+    // Add the componentApi: 4 new.target check / the dev `$.check_target` guard.
+    // Reference: transform-client.js lines 559-574. Upstream unshifts this AFTER
+    // the `$$slots` / `$$sanitized_props` / `$$restProps` unshifts, so it lands
+    // ahead of all of them — only `props_id` (unshifted last) precedes it.
+    if options.compatibility.component_api == crate::compiler::ComponentApi::V4 {
+        // if (new.target) return $$_createClassComponent({ component: ComponentName, ...$$anchor });
+        component_body.push(JsStatement::If(super::js_ast::nodes::JsIfStatement {
+            test: context.arena.alloc_expr(b::id("new.target")),
+            consequent: context.arena.alloc_stmt(JsStatement::Return(
+                super::js_ast::nodes::JsReturnStatement {
+                    argument: Some(context.arena.alloc_expr(b::call(
+                        &context.arena,
+                        b::id("$$_createClassComponent"),
+                        vec![b::object(vec![
+                            b::prop(&context.arena, "component", b::id(&analysis.name)),
+                            b::spread(&context.arena, b::id("$$anchor")),
+                        ])],
+                    ))),
+                },
+            )),
+            alternate: None,
+        }));
+    } else if options.dev {
+        component_body.push(b::stmt(
+            &context.arena,
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.check_target"),
+                vec![b::id("new.target")],
+            ),
+        ));
+    }
+
     // Add legacy $$sanitized_props / $$restProps / $$slots declarations at the top.
     // These must come BEFORE $.push().
     // Reference: transform-client.js lines 458-497. Upstream `unshift`s in the
@@ -1031,37 +1064,6 @@ fn transform_client_with_visitors(
         }
     }
 
-    // Add componentApi: 4 new.target check at the very start
-    // Reference: transform-client.js lines 569-582
-    if options.compatibility.component_api == crate::compiler::ComponentApi::V4 {
-        // if (new.target) return $$_createClassComponent({ component: ComponentName, ...$$anchor });
-        component_body.push(JsStatement::If(super::js_ast::nodes::JsIfStatement {
-            test: context.arena.alloc_expr(b::id("new.target")),
-            consequent: context.arena.alloc_stmt(JsStatement::Return(
-                super::js_ast::nodes::JsReturnStatement {
-                    argument: Some(context.arena.alloc_expr(b::call(
-                        &context.arena,
-                        b::id("$$_createClassComponent"),
-                        vec![b::object(vec![
-                            b::prop(&context.arena, "component", b::id(&analysis.name)),
-                            b::spread(&context.arena, b::id("$$anchor")),
-                        ])],
-                    ))),
-                },
-            )),
-            alternate: None,
-        }));
-    } else if options.dev {
-        component_body.push(b::stmt(
-            &context.arena,
-            b::call(
-                &context.arena,
-                b::member_path(&context.arena, "$.check_target"),
-                vec![b::id("new.target")],
-            ),
-        ));
-    }
-
     // Add $.push at the start if injecting context
     if should_inject_context {
         let mut push_args = vec![
@@ -1080,6 +1082,10 @@ fn transform_client_with_visitors(
             ),
         ));
     }
+
+    // Everything unshifted upstream lands above this point, so it anchors the
+    // `$$ownership_validator` insertion below without restating those conditions.
+    let preamble_end = component_body.len();
 
     // Add store setup (getters and setup_stores) right after $.push
     // Reference: transform-client.js line 379
@@ -1651,17 +1657,9 @@ fn transform_client_with_visitors(
                 vec![b::id("$$props")],
             )),
         );
-        // Insert after $.push (and $.check_target if present)
-        // In the official compiler, this is unshifted before push is unshifted,
-        // so it ends up right after push
-        let mut insert_pos = 0;
-        if options.dev && options.compatibility.component_api != crate::compiler::ComponentApi::V4 {
-            insert_pos += 1; // skip $.check_target(new.target)
-        }
-        if should_inject_context {
-            insert_pos += 1; // skip $.push(...)
-        }
-        component_body.insert(insert_pos, ownership_decl);
+        // Upstream unshifts this before `$.push` is unshifted, so it ends up
+        // directly after the preamble.
+        component_body.insert(preamble_end, ownership_decl);
     }
 
     // Bind static exports to props so that people can access them with bind:x
