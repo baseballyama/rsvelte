@@ -179,6 +179,10 @@ struct StateVarCollector<'a, 's> {
     var_state_vars: Vec<String>,
     /// Collected replacements.
     replacements: Vec<Replacement>,
+    /// Whether `replacements` is still ordered by ascending `start`. Holds for
+    /// every source-order walk; when a handler pushes out of order,
+    /// `take_inner_replacements` falls back to a full scan.
+    replacements_sorted: bool,
     /// Stack of scoped variable sets for shadowing detection.
     /// Each scope level tracks variables declared in that scope
     /// (function params, let/const/var declarations, catch params, for-loop vars).
@@ -310,6 +314,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             filename,
             var_state_vars,
             replacements: Vec::new(),
+            replacements_sorted: true,
             scoped_vars: vec![FxHashSet::default()],
             in_shorthand_property: false,
             prop_source_vars: prop_source_set,
@@ -634,6 +639,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
     /// Add a replacement.
     fn add_replacement(&mut self, start: u32, end: u32, text: String) {
+        if self
+            .replacements
+            .last()
+            .is_some_and(|last| last.start > start)
+        {
+            self.replacements_sorted = false;
+        }
         self.replacements.push(Replacement { start, end, text });
     }
 
@@ -1937,13 +1949,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// This is used when an outer replacement (e.g., assignment) needs the
     /// already-transformed text of an inner region (e.g., the RHS expression).
     fn apply_and_drain_inner_replacements(&mut self, range_start: u32, range_end: u32) -> String {
-        // Partition: collect inner replacements, keep the rest
-        let (inner, outer): (Vec<Replacement>, Vec<Replacement>) = self
-            .replacements
-            .drain(..)
-            .partition(|r| r.start >= range_start && r.end <= range_end);
-
-        self.replacements = outer;
+        let inner = self.take_inner_replacements(range_start, range_end);
 
         if inner.is_empty() {
             return self.source[range_start as usize..range_end as usize].to_string();
@@ -1961,6 +1967,38 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         }
 
         result
+    }
+
+    /// Remove every pending replacement contained in `[range_start, range_end]`
+    /// and return them, preserving the relative order of both the removed and
+    /// the retained entries.
+    ///
+    /// Walking in source order keeps `replacements` sorted by `start`, so the
+    /// contained entries are one contiguous window that binary search locates
+    /// without touching the entries before it. Rescanning the whole list on
+    /// every call is quadratic in a component's rune declaration count.
+    fn take_inner_replacements(&mut self, range_start: u32, range_end: u32) -> Vec<Replacement> {
+        let contained = |r: &Replacement| r.start >= range_start && r.end <= range_end;
+
+        if !self.replacements_sorted {
+            let (inner, outer): (Vec<Replacement>, Vec<Replacement>) =
+                self.replacements.drain(..).partition(contained);
+            self.replacements = outer;
+            self.replacements_sorted = self.replacements.is_sorted_by_key(|r| r.start);
+            return inner;
+        }
+
+        let lo = self.replacements.partition_point(|r| r.start < range_start);
+        let hi = lo + self.replacements[lo..].partition_point(|r| r.start <= range_end);
+        if lo == hi {
+            return Vec::new();
+        }
+        let (inner, kept): (Vec<Replacement>, Vec<Replacement>) =
+            self.replacements.drain(lo..hi).partition(contained);
+        if !kept.is_empty() {
+            self.replacements.splice(lo..lo, kept);
+        }
+        inner
     }
 
     /// Collect all binding identifiers from a BindingPattern into the current scope.
