@@ -1368,7 +1368,7 @@ pub fn compile_batch(
 ) -> Vec<Result<CompileResult, CompileError>> {
     inputs
         .par_iter()
-        .map(|(source, options)| compile(source, options.clone()))
+        .map(|(source, options)| catch_compile_panic(|| compile(source, options.clone())))
         .collect()
 }
 
@@ -1379,8 +1379,33 @@ pub fn compile_batch_with_external_sourcemap_content(
 ) -> Vec<Result<CompileResult, CompileError>> {
     inputs
         .par_iter()
-        .map(|(source, options)| compile_with_external_sourcemap_content(source, options.clone()))
+        .map(|(source, options)| {
+            catch_compile_panic(|| compile_with_external_sourcemap_content(source, options.clone()))
+        })
         .collect()
+}
+
+/// Run one batch item's `compile()` call behind `catch_unwind`. Rayon
+/// re-raises a worker panic in the caller only after the whole `par_iter`
+/// finishes, discarding every other item's result — catching per item here
+/// keeps one pathological input from sinking the rest of the batch.
+///
+/// `AssertUnwindSafe`: a caught panic here always turns into an `Err` for
+/// this one item and nothing borrowed by `f` (the item's `&str` source /
+/// `CompileOptions`, including its optional `css_hash` callback `Arc`) is
+/// read again afterward, so a torn intermediate state can't leak out.
+#[cfg(feature = "parallel")]
+fn catch_compile_panic(
+    f: impl FnOnce() -> Result<CompileResult, CompileError>,
+) -> Result<CompileResult, CompileError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|payload| {
+        let msg = payload
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "unknown panic payload".to_string());
+        Err(CompileError::Panic(msg))
+    })
 }
 
 /// Error type for compilation failures.
@@ -1392,6 +1417,13 @@ pub enum CompileError {
     Analysis(AnalysisError),
     /// Transform error.
     Transform(TransformError),
+    /// A single item's `compile()` panicked inside [`compile_batch`] /
+    /// [`compile_batch_with_external_sourcemap_content`]'s rayon closure.
+    /// Rayon otherwise re-raises a worker panic in the caller once the whole
+    /// `par_iter` finishes, which would discard every other item's result —
+    /// catching it per item keeps one pathological input from sinking the
+    /// rest of the batch.
+    Panic(String),
 }
 
 impl From<crate::error::ParseError> for CompileError {
@@ -1418,6 +1450,7 @@ impl std::fmt::Display for CompileError {
             CompileError::Parse(e) => write!(f, "Parse error: {:?}", e),
             CompileError::Analysis(e) => write!(f, "Analysis error: {}", e),
             CompileError::Transform(e) => write!(f, "Transform error: {}", e),
+            CompileError::Panic(msg) => write!(f, "Internal panic: {}", msg),
         }
     }
 }
@@ -1443,6 +1476,40 @@ mod tests {
         // Past-the-end offset clamps to the string length.
         let end = warning_position(&table, 999);
         assert_eq!(end.character, 3);
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn test_catch_compile_panic_isolates_one_item() {
+        // Suppress the panic hook's stderr dump for this expected panic.
+        let prev_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let result = catch_compile_panic(|| panic!("boom"));
+        std::panic::set_hook(prev_hook);
+        match result {
+            Err(CompileError::Panic(msg)) => assert_eq!(msg, "boom"),
+            other => panic!("expected CompileError::Panic, got {other:?}"),
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn test_compile_batch_survives_one_panicking_item() {
+        // A source that panics deep in the pipeline would exercise the real
+        // path, but rune-free HTML never hits one; the isolation itself is
+        // covered directly by `test_catch_compile_panic_isolates_one_item`.
+        // This asserts the surrounding contract: batch results stay aligned
+        // with their inputs and unrelated items are unaffected by an error.
+        let inputs = vec![
+            ("<h1>ok</h1>", CompileOptions::default()),
+            ("<h1>{unterminated", CompileOptions::default()),
+            ("<p>also ok</p>", CompileOptions::default()),
+        ];
+        let results = compile_batch(&inputs);
+        assert_eq!(results.len(), 3);
+        assert!(results[0].is_ok());
+        assert!(results[1].is_err());
+        assert!(results[2].is_ok());
     }
 
     #[test]

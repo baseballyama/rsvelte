@@ -86,6 +86,7 @@ impl CompileFailure {
                 (code, None)
             }
             CoreCompileError::Transform(_) => ("transform_error".to_string(), None),
+            CoreCompileError::Panic(_) => ("internal_panic".to_string(), None),
         };
         Self {
             diagnostic: Diagnostic {
