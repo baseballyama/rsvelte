@@ -48,7 +48,7 @@ pub fn with_program<R>(
     parse_options: ParseOptions,
     f: impl FnOnce(&Program<'_>) -> Option<R>,
 ) -> Option<R> {
-    dual_run::count_parse(dual_run::pass_of(std::panic::Location::caller().file()));
+    dual_run::count_parse(dual_run::current_or(std::panic::Location::caller().file()));
     arena.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parsed = Parser::new(&allocator, source, source_type)
@@ -89,7 +89,7 @@ pub fn splice_with_deferred(
     mut edits: Vec<Edit>,
     innermost_only: bool,
 ) -> Option<(String, bool)> {
-    let pass = dual_run::pass_of(std::panic::Location::caller().file());
+    let pass = dual_run::current_or(std::panic::Location::caller().file());
     if edits.is_empty() {
         return None;
     }
@@ -130,6 +130,8 @@ pub fn rewrite_once(
     innermost_only: bool,
     collect: impl FnOnce(&Program<'_>) -> Vec<Edit>,
 ) -> Option<String> {
+    let _pass =
+        dual_run::PassGuard::enter(dual_run::pass_of(std::panic::Location::caller().file()));
     with_program(arena, source, source_type, parse_options, |program| {
         splice(source, collect(program), innermost_only)
     })
@@ -356,6 +358,35 @@ pub mod dual_run {
     /// The pass a call came from, named by its source file (`state_reads_ast`).
     /// `#[track_caller]` on the driver entry points makes this the pass file
     /// rather than this module, with no signature churn across 37 call sites.
+    thread_local! {
+        static CURRENT: std::cell::Cell<Option<&'static str>> =
+            const { std::cell::Cell::new(None) };
+    }
+
+    /// Pin `pass` as the originating pass for the duration of the guard, so a
+    /// driver helper calling another driver helper does not re-attribute the
+    /// work to `ast_rewrite` itself.
+    pub struct PassGuard(Option<&'static str>);
+
+    impl PassGuard {
+        pub fn enter(pass: &'static str) -> Self {
+            PassGuard(CURRENT.with(|c| c.replace(Some(pass))))
+        }
+    }
+
+    impl Drop for PassGuard {
+        fn drop(&mut self) {
+            CURRENT.with(|c| c.set(self.0));
+        }
+    }
+
+    /// The pinned pass, falling back to `file`'s own name.
+    pub fn current_or(file: &'static str) -> &'static str {
+        CURRENT
+            .with(std::cell::Cell::get)
+            .unwrap_or_else(|| pass_of(file))
+    }
+
     pub fn pass_of(file: &'static str) -> &'static str {
         file.rsplit('/')
             .next()
