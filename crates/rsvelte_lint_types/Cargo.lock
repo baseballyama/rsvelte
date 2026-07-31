@@ -1121,8 +1121,10 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_esrap"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
+ "compact_str 0.10.0",
+ "memchr",
  "oxc_allocator",
  "oxc_ast",
  "oxc_span",
