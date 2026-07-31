@@ -43,6 +43,26 @@ pub struct Location {
     pub column: usize,
 }
 
+/// Line/column of a byte offset, columns in UTF-16 code units to match
+/// `locate-character`, which indexes the source as a JS string.
+fn locate(source: &str, offset: u32) -> Location {
+    let mut end = (offset as usize).min(source.len());
+    while end > 0 && !source.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut line = 1usize;
+    let mut column = 0usize;
+    for c in source[..end].chars() {
+        if c == '\n' {
+            line += 1;
+            column = 0;
+        } else {
+            column += c.len_utf16();
+        }
+    }
+    Location { line, column }
+}
+
 /// Build location metadata for template nodes.
 fn build_locations(nodes: &[Node], locator: &Locator) -> JsExpr {
     let mut array_elements = Vec::new();
@@ -160,26 +180,7 @@ pub fn transform_template<'a>(
             loc
         } else {
             let source = state.analysis.source.clone();
-            auto_locator = Box::new(move |offset: u32| {
-                // Columns count UTF-16 code units, matching `locate-character`,
-                // which indexes the source as a JS string. Counting bytes puts
-                // every non-ASCII character earlier on the line into the column.
-                let mut end = (offset as usize).min(source.len());
-                while end > 0 && !source.is_char_boundary(end) {
-                    end -= 1;
-                }
-                let mut line = 1usize;
-                let mut col = 0usize;
-                for c in source[..end].chars() {
-                    if c == '\n' {
-                        line += 1;
-                        col = 0;
-                    } else {
-                        col += c.len_utf16();
-                    }
-                }
-                Location { line, column: col }
-            });
+            auto_locator = Box::new(move |offset: u32| locate(&source, offset));
             &auto_locator
         };
         let locations = build_locations(&state.template.nodes, loc_ref);
@@ -236,5 +237,26 @@ mod tests {
         assert_eq!(Namespace::Html.as_str(), "html");
         assert_eq!(Namespace::Svg.as_str(), "svg");
         assert_eq!(Namespace::Mathml.as_str(), "mathml");
+    }
+
+    /// Column of the `<p>` in each source, i.e. how much of the line precedes it.
+    fn column_of_p(source: &str) -> usize {
+        locate(source, source.find("<p>").unwrap() as u32).column
+    }
+
+    #[test]
+    fn columns_count_utf16_code_units() {
+        assert_eq!(column_of_p("ab<p>"), 2, "ascii");
+        assert_eq!(column_of_p("aé<p>"), 2, "2-byte char is one unit");
+        assert_eq!(column_of_p("a’<p>"), 2, "3-byte char is one unit");
+        // The discriminating case: a surrogate pair is one code point but two
+        // UTF-16 units, so a code-point count would report 2 here.
+        assert_eq!(column_of_p("a🎉<p>"), 3, "surrogate pair is two units");
+    }
+
+    #[test]
+    fn newlines_reset_the_column() {
+        let loc = locate("a🎉\nbc<p>", "a🎉\nbc<p>".find("<p>").unwrap() as u32);
+        assert_eq!((loc.line, loc.column), (2, 2));
     }
 }
