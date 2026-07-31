@@ -697,7 +697,35 @@ fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpr
     if !ret.diagnostics.is_empty() {
         return None;
     }
-    for stmt in ret.program.body {
+    // Type-only syntax that is not an expression wrapper — parameter annotations
+    // on an inline arrow (`{@const f = (d: T) => …}`), call type arguments, a
+    // `type` alias in an arrow's block body — survives the wrapper collapse below
+    // and would reach the output as TypeScript. Erase it textually with the same
+    // positional stripper the analyzer uses, then re-parse the result as plain JS.
+    // `strip_typescript_from_program` returns its input unchanged when there is
+    // nothing to remove, so the common (non-TS) slice pays no second parse.
+    let erased = crate::compiler::phases::phase2_analyze::types::strip_typescript_from_program(
+        owned,
+        &ret.program,
+    );
+    if erased != owned {
+        let reowned = allocator.alloc_str(&erased);
+        let reparsed =
+            oxc_parser::Parser::new(allocator, reowned, oxc_span::SourceType::mjs()).parse();
+        if reparsed.diagnostics.is_empty() {
+            return first_expression(reparsed.program.body, allocator);
+        }
+    }
+    first_expression(ret.program.body, allocator)
+}
+
+/// Pull the single `ExpressionStatement` out of a re-parsed program body,
+/// unwrapping the synthetic parens and collapsing any TS expression wrappers.
+fn first_expression<'a>(
+    body: oxc_allocator::Vec<'a, Statement<'a>>,
+    allocator: &'a Allocator,
+) -> Option<OxcExpression<'a>> {
+    for stmt in body {
         if let Statement::ExpressionStatement(es) = stmt {
             let mut expr = unwrap_parenthesized(es.unbox().expression);
             strip_ts_expression_wrappers(&mut expr, allocator);

@@ -93,8 +93,55 @@ fn type_annotations_in_const_and_snippet_are_erased() {
 	<td>{label}</td><td>{value}</td>
 {/snippet}
 
-{@const doubled: number = n * 2}
-<table><tr>{@render row('n', doubled)}</tr></table>
+{#if n}
+	{@const doubled: number = n * 2}
+	<table><tbody><tr>{@render row('n', doubled)}</tr></tbody></table>
+{/if}
+"#,
+    );
+}
+
+/// `{@const}` is the one visitor that always decomposes by SOURCE SLICE rather
+/// than by the (already TS-stripped) typed AST, so its initializer is the path
+/// where non-wrapper TypeScript actually reaches the output. Real-world
+/// regressions: layerchart's `Dodge/duration-bars-dense-lanes.svelte` and
+/// `Waffle/Waffle.svelte`.
+#[test]
+fn const_tag_initializer_erases_non_wrapper_typescript() {
+    assert_ssr_is_plain_js(
+        r#"<script lang="ts">
+	let { n, xs }: { n: number; xs: number[] } = $props();
+</script>
+
+{#if n}
+	{@const startX = (d: { at: Date }) => d.at.getTime()}
+	{@const scale = <T,>(x: T): T => x}
+	{@const onEnter = (e: PointerEvent) => { const t = e.target as HTMLElement; return t; }}
+	{@const inner = (() => { type Row = number; const r: Row = n; return r; })()}
+	{@const arr = xs.map<number>((v) => v)}
+	<span>{startX({ at: new Date() })}{scale(n)}{onEnter}{inner}{arr.length}</span>
+{/if}
+"#,
+    );
+}
+
+/// The same source-slice decomposition drives `{#each}` context patterns and
+/// `{#await}` value bindings.
+#[test]
+fn each_and_await_bindings_erase_typescript() {
+    assert_ssr_is_plain_js(
+        r#"<script lang="ts">
+	let { xs, p }: { xs: number[]; p: Promise<number[]> } = $props();
+</script>
+
+{#each xs as x, i}
+	{@const label = ((v: number) => `${v}`)(x)}
+	<span>{label}{i}</span>
+{/each}
+
+{#await p then values}
+	{#each values as v}<span>{((n: number) => n + 1)(v)}</span>{/each}
+{/await}
 "#,
     );
 }
