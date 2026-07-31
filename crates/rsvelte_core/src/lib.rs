@@ -50,6 +50,12 @@ pub fn ast_rewrite_dual_run_tally() -> Vec<(&'static str, u32, u32)> {
 pub fn ast_rewrite_dual_run_parses() -> u32 {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::parses()
 }
+
+/// `(pass, re-parses)` — which Phase-3 rewrite passes actually run.
+#[doc(hidden)]
+pub fn ast_rewrite_dual_run_parses_by_pass() -> Vec<(&'static str, u32)> {
+    compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::parses_by_pass()
+}
 #[cfg(feature = "parallel")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,

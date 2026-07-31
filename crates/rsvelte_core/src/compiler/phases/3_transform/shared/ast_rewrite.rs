@@ -40,6 +40,7 @@ pub const MAX_FIXED_POINT_ITERS: usize = 16;
 ///
 /// `f` receives only `&Program`, which is enough to build an
 /// [`oxc_semantic::Semantic`] in-closure when a pass needs scope information.
+#[track_caller]
 pub fn with_program<R>(
     arena: &'static LocalKey<RefCell<Allocator>>,
     source: &str,
@@ -47,7 +48,7 @@ pub fn with_program<R>(
     parse_options: ParseOptions,
     f: impl FnOnce(&Program<'_>) -> Option<R>,
 ) -> Option<R> {
-    dual_run::count_parse();
+    dual_run::count_parse(dual_run::pass_of(std::panic::Location::caller().file()));
     arena.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parsed = Parser::new(&allocator, source, source_type)
@@ -72,6 +73,7 @@ pub fn with_program<R>(
 /// is what makes nested rewrites such as `a = b = 1` resolve correctly without
 /// the collector having to reason about overlap. Passes whose edits provably
 /// never nest pass `false` and skip the O(n²) containment check.
+#[track_caller]
 pub fn splice(source: &str, edits: Vec<Edit>, innermost_only: bool) -> Option<String> {
     splice_with_deferred(source, edits, innermost_only).map(|(rewritten, _)| rewritten)
 }
@@ -81,11 +83,13 @@ pub fn splice(source: &str, edits: Vec<Edit>, innermost_only: bool) -> Option<St
 /// A caller whose collector finds every target in the current AST, and whose
 /// replacements cannot create fresh targets, may stop after this pass when the
 /// returned flag is `false` instead of re-parsing only to confirm a no-op.
+#[track_caller]
 pub fn splice_with_deferred(
     source: &str,
     mut edits: Vec<Edit>,
     innermost_only: bool,
 ) -> Option<(String, bool)> {
+    let pass = dual_run::pass_of(std::panic::Location::caller().file());
     if edits.is_empty() {
         return None;
     }
@@ -111,12 +115,13 @@ pub fn splice_with_deferred(
     for (start, end, replacement) in &edits {
         out.replace_range(*start as usize..*end as usize, replacement);
     }
-    dual_run::check_normalize_idempotent("splice", &out);
+    dual_run::check_normalize_idempotent(pass, &out);
     Some((out, deferred))
 }
 
 /// Convenience: [`with_program`] + collect + [`splice`] in one pass. The
 /// collector closure returns the edits for this parse; the rest is wiring.
+#[track_caller]
 pub fn rewrite_once(
     arena: &'static LocalKey<RefCell<Allocator>>,
     source: &str,
@@ -344,14 +349,43 @@ pub mod dual_run {
 
     thread_local! {
         static PARSES: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+        static PARSE_BY_PASS: StdRefCell<Vec<(&'static str, u32)>> =
+            const { StdRefCell::new(Vec::new()) };
+    }
+
+    /// The pass a call came from, named by its source file (`state_reads_ast`).
+    /// `#[track_caller]` on the driver entry points makes this the pass file
+    /// rather than this module, with no signature churn across 37 call sites.
+    pub fn pass_of(file: &'static str) -> &'static str {
+        file.rsplit('/')
+            .next()
+            .and_then(|f| f.strip_suffix(".rs"))
+            .unwrap_or(file)
     }
 
     /// One `with_program` entry — i.e. one re-parse of an intermediate script.
     #[inline]
-    pub fn count_parse() {
-        if enabled() {
-            PARSES.with(|c| c.set(c.get() + 1));
+    pub fn count_parse(pass: &'static str) {
+        if !enabled() {
+            return;
         }
+        PARSES.with(|c| c.set(c.get() + 1));
+        PARSE_BY_PASS.with(|t| {
+            let mut t = t.borrow_mut();
+            match t.iter_mut().find(|(name, _)| *name == pass) {
+                Some(entry) => entry.1 += 1,
+                None => t.push((pass, 1)),
+            }
+        });
+    }
+
+    /// `(pass, re-parses)` for this thread, most-run first.
+    pub fn parses_by_pass() -> Vec<(&'static str, u32)> {
+        PARSE_BY_PASS.with(|t| {
+            let mut v = t.borrow().clone();
+            v.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+            v
+        })
     }
 
     pub fn parses() -> u32 {
