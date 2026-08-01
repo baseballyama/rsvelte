@@ -417,11 +417,10 @@ fn norm_blocks(s: &str) -> String {
 /// - **effect-statement elision** (`transition-each-4`): `$effect(…)` /
 ///   `$effect.pre(…)` statements inside a template IIFE arrow body are dropped.
 ///
-/// `component-let-directive` is NOT yet matched: it needs per-slot
-/// `scope.evaluate` scope tracking (the AST `eval_ctx` `current_scope_index` is
-/// `None`) so a `<Counter let:count>` named slot folds the component-level
-/// `count` const while the default slot keeps the `let:count` param read — an
-/// orthogonal evaluate-machinery gap.
+/// - **per-slot scope** (`component-let-directive`): `eval_ctx`'s
+///   `current_scope_index` now tracks the render position, so a
+///   `<Counter let:count>` named slot folds the component-level `count` while
+///   the default slot keeps the `let:count` parameter read.
 #[test]
 fn ast_matches_oracle_snippet_dynamic_component_cluster() {
     let fixtures: &[(&str, &str)] = &[

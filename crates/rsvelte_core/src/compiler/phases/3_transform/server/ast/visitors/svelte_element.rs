@@ -131,7 +131,9 @@ pub fn visit_svelte_element<'a>(
 
     // -- children -----------------------------------------------------------
     // SvelteElement children are NOT an `is_text_first` parent.
+    let saved_scope = state.enter_template_scope(node.start);
     let children_body = build_fragment_body(&node.fragment.nodes, false, false, state);
+    state.restore_scope(saved_scope);
     let b = state.b;
     let children_thunk = if children_body.is_empty() {
         None

@@ -9,11 +9,12 @@
 //! `$.stringify(...)`.
 //!
 //! Differences from upstream, by necessity of the text-based architecture:
-//! - Identifier resolution goes through `analysis.root.bindings` (all scopes).
-//!   Because the rsvelte scope tree is not threaded through the server
-//!   visitors, a name is only resolved when EVERY binding with that name
-//!   agrees on the same known value — same-name bindings in different scopes
-//!   (shadowing) therefore safely degrade to "unknown".
+//! - Identifier resolution goes through `analysis.root.bindings` rather than a
+//!   `Scope` object, filtered by the render position's scope chain
+//!   (`EvalCtx::current_scope_index`, threaded by the server visitors) so a
+//!   sibling fragment's `{@const}` is invisible and the nearest declaration
+//!   wins. Without a known render position, a name resolves only when EVERY
+//!   binding with that name agrees on the same known value.
 //! - `binding.initial` is a string: raw source text for literal initials
 //!   (`'world'`, `12`, `true`) or an estree-JSON dump for `$derived` / `@const`
 //!   initials. Both forms are handled.
@@ -757,33 +758,55 @@ impl<'a> EvalCtx<'a> {
     }
 
     /// Whether a template-scope binding declared in `scope_index` is lexically
-    /// reachable from the fragment this generator is emitting.
+    /// reachable from the fragment this generator is emitting — i.e. whether
+    /// `scope_index` is on the scope chain of the render position, mirroring
+    /// upstream's `scope.get(name)` walking `Scope#parent`.
     ///
-    /// Snippet bodies become separate functions in the generated output, so a
-    /// template declaration (`{@const}` / `{const}` / `{let}`) made inside one
-    /// snippet must NOT be substituted into a sibling snippet or the enclosing
-    /// fragment — upstream resolves these through `scope.evaluate`, where the
-    /// binding is simply not on the scope chain. Non-snippet template scopes
-    /// (element / each / component / boundary fragments) keep the historical
-    /// behaviour (the server generator does not track those descents; the
-    /// same-name agreement rule in `evaluate_identifier` covers shadowing).
+    /// A template declaration (`{@const}` / `{const}` / `{let}` / `let:` / each
+    /// item) belongs to exactly one fragment, so a sibling fragment must never
+    /// substitute it: `{#if a}…{:else}{@const x = 1}…{/if}{#key k}{@const x = 2}…{/key}`
+    /// has two unrelated `x` bindings, and each branch must fold its own.
+    ///
+    /// With no known render position (`current_scope_index == None`) the caller
+    /// has no chain to walk, so every template scope stays a candidate and the
+    /// same-name agreement rule in [`Self::evaluate_identifier`] decides.
     fn template_binding_is_reachable(&self, scope_index: usize) -> bool {
         let Some(analysis) = self.analysis else {
             return true;
         };
-        if !analysis.root.snippet_scope_indices.contains(&scope_index) {
-            // Not a snippet-body scope: keep historical (non-tracked) behaviour.
+        let Some(mut current) = self.current_scope_index else {
             return true;
-        }
-        // Walk the scope chain from the current fragment's scope upward.
-        let mut current = self.current_scope_index;
-        while let Some(idx) = current {
-            if idx == scope_index {
+        };
+        loop {
+            if current == scope_index {
                 return true;
             }
-            current = analysis.root.all_scopes.get(idx).and_then(|s| s.parent);
+            match analysis.root.all_scopes.get(current).and_then(|s| s.parent) {
+                Some(parent) => current = parent,
+                None => return false,
+            }
         }
-        false
+    }
+
+    /// Depth of `scope_index` on the render position's scope chain (0 = the
+    /// render position's own scope). `None` when it is not on the chain.
+    /// Used to pick the INNERMOST of several same-named reachable bindings,
+    /// mirroring `scope.get(name)` returning the nearest declaration.
+    fn scope_chain_depth(&self, scope_index: usize) -> Option<u32> {
+        let analysis = self.analysis?;
+        let mut current = self.current_scope_index?;
+        let mut depth = 0u32;
+        loop {
+            if current == scope_index {
+                return Some(depth);
+            }
+            current = analysis
+                .root
+                .all_scopes
+                .get(current)
+                .and_then(|s| s.parent)?;
+            depth += 1;
+        }
     }
 
     /// Resolve an identifier, mirroring upstream's `Identifier` branch.
@@ -886,6 +909,20 @@ impl<'a> EvalCtx<'a> {
             if by_scope.len() < bindings.len() {
                 bindings = by_scope.into_values().collect();
             }
+        }
+
+        // With a known render position the scope chain disambiguates shadowing
+        // exactly like upstream `scope.get(name)`: the NEAREST declaration wins
+        // and the outer ones are invisible. Without one, every candidate stays
+        // and the agreement rule below merges their value sets.
+        if bindings.len() > 1
+            && self.current_scope_index.is_some()
+            && let Some(min_depth) = bindings
+                .iter()
+                .filter_map(|b| self.scope_chain_depth(b.scope_index))
+                .min()
+        {
+            bindings.retain(|b| self.scope_chain_depth(b.scope_index) == Some(min_depth));
         }
 
         if !bindings.is_empty() {

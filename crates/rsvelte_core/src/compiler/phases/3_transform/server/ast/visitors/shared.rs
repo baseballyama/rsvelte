@@ -105,6 +105,24 @@ pub fn process_children_inner<'a, N: AsRef<TemplateNode<'a>>>(
     is_block_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) {
+    // An element's children live in the element's OWN scope (it holds the
+    // `let:` bindings and any `{@const}` declared among the children), mirroring
+    // upstream `RegularElement.js`'s `scope: scopes.get(node.fragment)`. The
+    // attributes are built by the caller, in the enclosing scope.
+    let saved_scope = parent.map(|el| state.enter_template_scope(el.start));
+    process_children_scoped(nodes, parent, namespace, is_block_parent, state);
+    if let Some(saved) = saved_scope {
+        state.restore_scope(saved);
+    }
+}
+
+fn process_children_scoped<'a, N: AsRef<TemplateNode<'a>>>(
+    nodes: &[N],
+    parent: Option<&RegularElement<'_>>,
+    namespace: &str,
+    is_block_parent: bool,
+    state: &mut ServerTransformState<'a>,
+) {
     // 写经 upstream `RegularElement` `preserve_whitespace: state.preserve_whitespace
     // || name === 'pre' || name === 'textarea'`: STICKY — once an ancestor `<pre>`
     // / `<textarea>` turned it on (recorded in `state.preserve_whitespace`), every

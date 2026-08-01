@@ -175,7 +175,9 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
         state.slot_let_shadows.push(each_shadow);
     }
     // EachBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
+    let saved_scope = state.enter_template_scope(node.start);
     each_body.extend(build_fragment_body(&node.body.nodes, true, false, state));
+    state.restore_scope(saved_scope);
     if pushed_shadow {
         state.slot_let_shadows.pop();
         state.shadowed_names.pop();
@@ -205,7 +207,11 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
         // EachBlock node, so it IS an `is_text_first` parent (upstream
         // `clean_nodes`: `parent.type === 'EachBlock'`) — a text-first fallback
         // gets a leading `<!---->` anchor, same as the loop body.
+        // rsvelte's scope builder visits the fallback inside the each block's
+        // scope, so enter it here too (the item bindings are shadow-vetoed above).
+        let saved_scope = state.enter_template_scope(node.start);
         let mut fallback_body = build_fragment_body(&fallback.nodes, true, false, state);
+        state.restore_scope(saved_scope);
         let b = state.b;
         let open_else_push = b.stmt(b.call("$$renderer.push", vec![b.string(BLOCK_OPEN_ELSE)]));
         fallback_body.insert(0, open_else_push);

@@ -86,7 +86,9 @@ pub fn visit_node<'a>(node: &TemplateNode<'a>, state: &mut ServerTransformState<
             // Port of upstream server `SvelteFragment` — push the visited child
             // fragment as a `{ ... }` block statement.
             // SvelteFragment is NOT an `is_text_first` parent.
+            let saved_scope = state.enter_template_scope(node.start);
             let block = shared::build_fragment_block(&node.fragment, false, state);
+            state.restore_scope(saved_scope);
             state.template.push(TemplateEntry::Stmt(block));
         }
         // `<svelte:window>` / `<svelte:document>` have no upstream server visitor

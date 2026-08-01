@@ -171,8 +171,11 @@ fn build_if_chain<'a>(
     let b = state.b;
     let test = build_test(node, state);
 
-    // Consequent block, with its branch marker unshifted to the front.
+    // Consequent block, with its branch marker unshifted to the front. Its
+    // `{@const}` declarations live in the consequent's own scope.
+    let saved = state.enter_template_scope(node.start);
     let consequent = build_branch_block(&node.consequent, consequent_marker_index, state);
+    state.restore_scope(saved);
 
     // Resolve the alternate.
     let alternate = build_alternate(node, consequent_marker_index + 1, state);
@@ -210,17 +213,22 @@ fn build_alternate<'a>(
     let b = state.b;
 
     if let Some(frag) = node.alternate.as_ref() {
+        // The alternate fragment owns its own scope (an if-block owns two).
+        let saved = state.enter_if_alternate_scope(node.start);
         // A single FLATTENABLE `{:else if}` recurses inline as `else if`.
-        if let Some(nested) = single_elseif(frag)
+        let out = if let Some(nested) = single_elseif(frag)
             && flattens_into(nested, node, state)
         {
-            return build_if_chain(nested, next_marker_index, state);
-        }
-        // Otherwise a terminal `else { <!--[-1--> ... }` — either a real
-        // `{:else}` body, or a NON-flattening else-if (await / new blockers)
-        // living in the fragment as a nested IfBlock that `build_fragment_body`
-        // re-visits, producing its OWN `create_child_block` wrap + `<!--]-->`.
-        return build_branch_block(frag, -1, state);
+            build_if_chain(nested, next_marker_index, state)
+        } else {
+            // Otherwise a terminal `else { <!--[-1--> ... }` — either a real
+            // `{:else}` body, or a NON-flattening else-if (await / new blockers)
+            // living in the fragment as a nested IfBlock that `build_fragment_body`
+            // re-visits, producing its OWN `create_child_block` wrap + `<!--]-->`.
+            build_branch_block(frag, -1, state)
+        };
+        state.restore_scope(saved);
+        return out;
     }
 
     // No alternate at all — upstream still emits `else { $$renderer.push('<!--[-1-->'); }`.

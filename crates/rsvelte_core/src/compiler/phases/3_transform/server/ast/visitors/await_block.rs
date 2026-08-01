@@ -86,7 +86,12 @@ pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformS
 
     // Pending callback: `() => { <pending body> }` (thunk of a block).
     let pending_block = match &node.pending {
-        Some(frag) => build_fragment_block(frag, false, state),
+        Some(frag) => {
+            let saved = state.enter_template_scope(node.start);
+            let block = build_fragment_block(frag, false, state);
+            state.restore_scope(saved);
+            block
+        }
         None => state.b.block(vec![]),
     };
     let pending_thunk = state
@@ -107,8 +112,15 @@ pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformS
         super::snippet_block::collect_param_pattern_names(v, &mut shadow);
     }
     state.shadowed_names.push(shadow);
+    // The `then` fragment's scope is recorded under `block.start + 1` (an await
+    // block owns three fragment scopes under one start offset).
     let then_block = match &node.then {
-        Some(frag) => build_fragment_block(frag, false, state),
+        Some(frag) => {
+            let saved = state.enter_template_scope(node.start + 1);
+            let block = build_fragment_block(frag, false, state);
+            state.restore_scope(saved);
+            block
+        }
         None => state.b.block(vec![]),
     };
     state.shadowed_names.pop();

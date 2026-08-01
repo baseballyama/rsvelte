@@ -117,8 +117,11 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
     //   visit(snippet.body), block_close])`). The real children are skipped.
     // - otherwise → `[push('<!--[-->'), <children block>, push('<!--]-->')]`.
     // SvelteBoundary slot / snippet body IS an `is_text_first` parent.
+    let saved_scope = state.enter_template_scope(node.start);
     let children_body: Vec<Statement<'a>> = if let Some(pending) = pending_snippet {
+        let saved_pending = state.enter_template_scope(pending.start);
         let pending_block = build_fragment_block(&pending.body, true, state);
+        state.restore_scope(saved_pending);
         let b = state.b;
         vec![
             b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_OPEN_ELSE)])),
@@ -134,6 +137,7 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
             b.stmt(b.call("$$renderer.push", vec![marker(state, BLOCK_CLOSE)])),
         ]
     };
+    state.restore_scope(saved_scope);
 
     // No `failed` branch → skip the boundary wrapper, push children_body inline.
     if failed_snippet.is_none() && failed_attribute.is_none() {
@@ -245,7 +249,9 @@ fn build_boundary_snippet<'a>(
     }
     let params = b.params(patterns, None);
     // SnippetBlock body IS an `is_text_first` parent.
+    let saved_scope = state.enter_template_scope(snippet.start);
     let body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
+    state.restore_scope(saved_scope);
     let fn_body = state.b.body(body_block);
     state.b.function_declaration(name, params, fn_body, false)
 }

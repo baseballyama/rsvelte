@@ -35,9 +35,12 @@ pub fn visit_key_block<'a>(node: &KeyBlock<'a>, state: &mut ServerTransformState
         .template
         .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));
 
-    // The body fragment rendered as a `{ ... }` block statement.
+    // The body fragment rendered as a `{ ... }` block statement, in the key
+    // block's own scope (its `{@const}`s must not leak to siblings).
     // KeyBlock body is NOT an `is_text_first` parent.
+    let saved = state.enter_template_scope(node.start);
     let block = build_fragment_block(&node.fragment, false, state);
+    state.restore_scope(saved);
     state.template.push(TemplateEntry::Stmt(block));
 
     // `<!---->` anchor after the body.

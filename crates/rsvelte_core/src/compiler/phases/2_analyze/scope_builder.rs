@@ -350,6 +350,21 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Push a new porous (block-level) child scope and return the old scope index.
     /// Porous scopes inherit the parent's function_depth.
+    /// Record the scope a template node's fragment children live in. The key
+    /// must be UNIQUE per fragment — two fragments sharing a key silently
+    /// overwrite each other and Phase 3 then folds a sibling's `{@const}`
+    /// (issue #2059). Nodes owning several fragments key the extra ones off
+    /// offsets that cannot start a node (`{#await}`'s `+1` / `+2`) or a
+    /// dedicated map (`{#if}`'s alternate).
+    fn register_template_scope(&mut self, key: u32) {
+        let scope = self.current_scope;
+        let previous = self.template_scope_map.insert(key, scope);
+        debug_assert!(
+            previous.is_none(),
+            "template scope key {key} registered twice (scopes {previous:?} and {scope})"
+        );
+    }
+
     fn push_scope(&mut self) -> usize {
         let parent_depth = self.scopes[self.current_scope].function_depth;
         let new_scope = Scope::new_with_depth(Some(self.current_scope), parent_depth);
@@ -2461,8 +2476,7 @@ impl<'a> ScopeBuilder<'a> {
                 self.process_attributes(&component.attributes);
                 // Create a new scope for component children
                 let old_scope = self.push_scope();
-                self.template_scope_map
-                    .insert(component.start, self.current_scope);
+                self.register_template_scope(component.start);
                 // Declare let: directive bindings in the child scope
                 self.declare_let_directive_bindings(&component.attributes);
                 // Visit component children
@@ -2476,8 +2490,7 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteBoundary(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
-                self.template_scope_map
-                    .insert(elem.start, self.current_scope);
+                self.register_template_scope(elem.start);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
@@ -2495,8 +2508,7 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteFragment(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
-                self.template_scope_map
-                    .insert(elem.start, self.current_scope);
+                self.register_template_scope(elem.start);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
@@ -2504,8 +2516,7 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteSelf(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
-                self.template_scope_map
-                    .insert(elem.start, self.current_scope);
+                self.register_template_scope(elem.start);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
@@ -2513,8 +2524,7 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteComponent(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
-                self.template_scope_map
-                    .insert(elem.start, self.current_scope);
+                self.register_template_scope(elem.start);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
@@ -2522,8 +2532,7 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SvelteElement(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
-                self.template_scope_map
-                    .insert(elem.start, self.current_scope);
+                self.register_template_scope(elem.start);
                 self.declare_let_directive_bindings(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
@@ -2535,8 +2544,7 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::SlotElement(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
-                self.template_scope_map
-                    .insert(elem.start, self.current_scope);
+                self.register_template_scope(elem.start);
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
@@ -2552,8 +2560,7 @@ impl<'a> ScopeBuilder<'a> {
 
         // Create a new scope for element children
         let old_scope = self.push_scope();
-        self.template_scope_map
-            .insert(element.start, self.current_scope);
+        self.register_template_scope(element.start);
         // Declare let: directive bindings in the child scope
         self.declare_let_directive_bindings(&element.attributes);
         self.visit_fragment(&element.fragment);
@@ -3209,8 +3216,7 @@ impl<'a> ScopeBuilder<'a> {
 
         // Map the each block's start position to its scope index
         // This allows Phase 2 visitors to set context.scope when entering the each block body
-        self.template_scope_map
-            .insert(block.start, self.current_scope);
+        self.register_template_scope(block.start);
 
         // Declare the item binding(s) - handle destructuring patterns
         if let Some(context) = block.context.as_ref() {
@@ -3388,8 +3394,7 @@ impl<'a> ScopeBuilder<'a> {
         let old_scope = self.push_scope();
         // Register this scope in template_scope_map so that declaration-tag
         // bindings inside the consequent are visible to the server evaluator.
-        self.template_scope_map
-            .insert(block.start, self.current_scope);
+        self.register_template_scope(block.start);
         self.visit_fragment(&block.consequent);
         self.pop_scope(old_scope);
 
@@ -3412,8 +3417,7 @@ impl<'a> ScopeBuilder<'a> {
         if let Some(ref pending) = block.pending {
             let old_scope = self.push_scope();
             // Map block.start to the pending scope so Phase 2 analysis can switch to it
-            self.template_scope_map
-                .insert(block.start, self.current_scope);
+            self.register_template_scope(block.start);
             self.visit_fragment(pending);
             self.pop_scope(old_scope);
         }
@@ -3424,8 +3428,7 @@ impl<'a> ScopeBuilder<'a> {
 
             // Map the await block's start to the then scope for Phase 2 scope lookup
             // We use the then fragment's node positions if available
-            self.template_scope_map
-                .insert(block.start + 1, self.current_scope); // +1 to differentiate from pending
+            self.register_template_scope(block.start + 1); // +1 to differentiate from pending
 
             // Declare the then value binding(s) - handle destructuring patterns
             if let Some(ref value) = block.value {
@@ -3442,8 +3445,7 @@ impl<'a> ScopeBuilder<'a> {
             let old_scope = self.push_scope();
 
             // Map the await block's start to the catch scope
-            self.template_scope_map
-                .insert(block.start + 2, self.current_scope); // +2 to differentiate from then
+            self.register_template_scope(block.start + 2); // +2 to differentiate from then
 
             // Declare the error binding(s) - handle destructuring patterns
             if let Some(ref error) = block.error {
@@ -3465,8 +3467,7 @@ impl<'a> ScopeBuilder<'a> {
         let old_scope = self.push_scope();
         // Register this scope so declaration-tag bindings inside {#key} blocks
         // are visible to the server evaluator's template-scope lookup.
-        self.template_scope_map
-            .insert(block.start, self.current_scope);
+        self.register_template_scope(block.start);
         self.visit_fragment(&block.fragment);
         self.pop_scope(old_scope);
     }
@@ -3495,8 +3496,7 @@ impl<'a> ScopeBuilder<'a> {
         let old_scope = self.push_scope();
 
         // Map the snippet block's start position to its scope index
-        self.template_scope_map
-            .insert(block.start, self.current_scope);
+        self.register_template_scope(block.start);
         // Record that this scope is a snippet-body scope: template declarations
         // made inside it must not be constant-folded from sibling scopes.
         self.snippet_scope_indices.insert(self.current_scope);

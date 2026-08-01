@@ -204,6 +204,13 @@ pub struct ServerTransformState<'a> {
     /// binding's value, whereas a snippet-param read still folds. Pushed by the
     /// component slot-body builder, popped after.
     pub slot_let_shadows: Vec<rustc_hash::FxHashSet<String>>,
+    /// Index into `analysis.root.all_scopes` of the scope the nodes currently
+    /// being emitted live in — the AST mirror of upstream's `state.scope`
+    /// (`set_scope` in `phases/scope.js`). Every scope-creating template node
+    /// swaps this around its fragment children via [`Self::enter_template_scope`],
+    /// so `scope.evaluate` resolves an identifier through the real lexical chain
+    /// instead of a flat "every template scope" union.
+    pub current_scope_index: usize,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -277,7 +284,36 @@ impl<'a> ServerTransformState<'a> {
             attr_optimiser: None,
             shadowed_names: Vec::new(),
             slot_let_shadows: Vec::new(),
+            current_scope_index: analysis.root.instance_scope_index,
         }
+    }
+
+    /// Enter the scope the scope-builder created for the fragment children of
+    /// the template node starting at `node_start`, returning the previous scope
+    /// index to hand back to [`Self::restore_scope`]. Nodes that own no scope
+    /// (or whose scope was not recorded) leave the current one in place, exactly
+    /// like upstream's `set_scope` (`scopes.get(node) ?? state.scope`).
+    pub fn enter_template_scope(&mut self, node_start: u32) -> usize {
+        let saved = self.current_scope_index;
+        if let Some(&idx) = self.analysis.root.template_scope_map.get(&node_start) {
+            self.current_scope_index = idx;
+        }
+        saved
+    }
+
+    /// Enter an `{#if}`'s `{:else}` scope (an if-block owns two fragment scopes,
+    /// so its alternate lives in its own map under the block's start).
+    pub fn enter_if_alternate_scope(&mut self, node_start: u32) -> usize {
+        let saved = self.current_scope_index;
+        if let Some(&idx) = self.analysis.root.if_alternate_scope_map.get(&node_start) {
+            self.current_scope_index = idx;
+        }
+        saved
+    }
+
+    /// Restore the scope saved by [`Self::enter_template_scope`].
+    pub fn restore_scope(&mut self, saved: usize) {
+        self.current_scope_index = saved;
     }
 
     /// Collect all the names currently shadowed by enclosing snippet / slot
@@ -361,10 +397,7 @@ impl<'a> ServerTransformState<'a> {
 
     /// Build the [`EvalCtx`](server::evaluate::EvalCtx) for the SSR
     /// constant-folding port, borrowing this state's analysis / source and the
-    /// precomputed [`EvalInputs`]. The `current_scope_index` is left `None` here
-    /// (snippet-scope tracking is not yet threaded through the AST visitors); a
-    /// `None` simply keeps the historical non-tracked behaviour in
-    /// `template_binding_is_reachable`.
+    /// precomputed [`EvalInputs`].
     pub(crate) fn eval_ctx(
         &self,
     ) -> crate::compiler::phases::phase3_transform::server::evaluate::EvalCtx<'_> {
@@ -374,7 +407,7 @@ impl<'a> ServerTransformState<'a> {
             source: self.source,
             use_async: self.eval_inputs.use_async,
             top_level_blocker_map: &self.eval_inputs.top_level_blocker_map,
-            current_scope_index: None,
+            current_scope_index: Some(self.current_scope_index),
             template_scopes_cache: &self.eval_inputs.template_scopes_cache,
         }
     }

@@ -117,7 +117,9 @@ pub fn visit_slot_element<'a>(node: &SlotElement<'a>, state: &mut ServerTransfor
         // SnippetBlock / EachBlock / SvelteComponent / SvelteBoundary / Component /
         // SvelteSelf only), so leading text does NOT get a `<!---->` anchor.
         // `b.thunk(BlockStatement)` → `() => { <body> }`.
+        let saved_scope = state.enter_template_scope(node.start);
         let body = build_fragment_body(&node.fragment.nodes, false, true, state);
+        state.restore_scope(saved_scope);
         let params = state.b.params(vec![], None);
         state.b.arrow(params, state.b.body(body), false, false)
     };

@@ -42,9 +42,8 @@
 //! - LetDirective / scoped slots ARE emitted: a slot whose tag (or, for the
 //!   default slot, the component / a `<svelte:fragment>` child) carries
 //!   `let:x={pattern}` gets a second destructured `{ x: <pattern>, … }` slot-fn
-//!   parameter (`build_component_children` / `lets_to_pattern`). Per-slot scope
-//!   binding (`node.metadata.scopes`) for read-rewriting the slot body is the
-//!   remaining gap — the body renders in the surrounding `state` scope.
+//!   parameter (`build_component_children` / `lets_to_pattern`), and the slot
+//!   body renders in the COMPONENT's scope (写经 `node.metadata.scopes`).
 //! - AttachTag (`@attach`) blocker bookkeeping is skipped.
 //! - custom-CSS `--*` props (`$.css_props`) are skipped.
 //! - async blocker wrapping (`optimiser.render_block`).
@@ -113,6 +112,7 @@ pub fn visit_component<'a>(
         },
         dynamic,
         name_src,
+        node.start,
         state,
     );
 }
@@ -131,6 +131,7 @@ pub fn visit_svelte_component<'a>(
         |s| s.visit_expr(&node.expression),
         true,
         this_src,
+        node.start,
         state,
     );
 }
@@ -149,6 +150,7 @@ pub fn visit_svelte_self<'a>(
         false,
         // `<svelte:self>` is excluded from the name-blocker check upstream.
         None,
+        node.start,
         state,
     );
 }
@@ -169,6 +171,9 @@ fn build_inline_component<'a, 'b>(
     // component name itself reads (`<X/>` / `<svelte:component this={X}/>` where
     // `X` is `$derived(await …)`). `None` for `<svelte:self>` (never blocked).
     name_expr_source: Option<String>,
+    // Start offset of the component node — the `template_scope_map` key of the
+    // scope its child fragment (and `let:` bindings) live in.
+    scope_start: u32,
     state: &mut ServerTransformState<'a>,
 ) {
     let expression = make_expression(state);
@@ -270,6 +275,9 @@ fn build_inline_component<'a, 'b>(
     // Children / slots / snippet props (upstream `shared/component.js` lines
     // 162-295). Returns any hoisted snippet-function declarations that must wrap
     // the component call in a `{ ... }` block.
+    // The child fragment lives in the component's own scope (it holds the
+    // `let:` bindings), so slot bodies resolve identifiers there.
+    let saved_scope = state.enter_template_scope(scope_start);
     let snippet_declarations = build_component_children(
         fragment,
         has_children_prop,
@@ -277,6 +285,7 @@ fn build_inline_component<'a, 'b>(
         &mut groups,
         state,
     );
+    state.restore_scope(saved_scope);
 
     let props_expression = build_props_expression(groups, state);
 
@@ -376,9 +385,6 @@ fn build_inline_component<'a, 'b>(
 /// call in a hoisting block.
 ///
 /// 写经 gaps (KNOWN GAP):
-/// - Per-slot `node.metadata.scopes` are not tracked on the AST pipeline, so the
-///   default-slot body is rendered in the surrounding `state` rather than the
-///   component scope. This only matters for read-rewriting of slot bodies.
 /// - The `$.invalid_default_snippet` error path (a `children` attribute *and* a
 ///   default-slot body) is not emitted; the default body is simply dropped when
 ///   `has_children_prop` is set, matching the common "render tag already used"
@@ -708,7 +714,9 @@ fn build_snippet_declaration<'a>(
     }
     state.shadowed_names.push(shadow);
     // SnippetBlock body IS an `is_text_first` parent.
+    let saved_scope = state.enter_template_scope(snippet.start);
     let body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
+    state.restore_scope(saved_scope);
     state.shadowed_names.pop();
     let fn_body = state.b.body(body_block);
     state.b.function_declaration(name, params, fn_body, false)
