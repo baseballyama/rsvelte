@@ -36,7 +36,7 @@ pub fn validate_special_element_placement(
             if context.block_depth == 0 && context.component_depth == 0 => {
                 return Err(AnalysisError::validation(
                     "svelte_self_invalid_placement",
-                    "`<svelte:self>` components can only exist inside {#if}, {#each}, {#snippet} blocks or component `children` snippets",
+                    "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, `{#snippet}` blocks or slots passed to components\nhttps://svelte.dev/e/svelte_self_invalid_placement",
                 ));
             }
         _ => {}
