@@ -242,6 +242,7 @@ impl<'a> Parser<'a> {
             },
             instance: self.instance_script.take().map(Box::new),
             module: self.module_script.take().map(Box::new),
+            skip_expression_loc: self.options.skip_expression_loc,
             parse_warnings: std::mem::take(&mut self.parse_warnings),
             source: None,
             arena: std::mem::take(&mut self.arena),

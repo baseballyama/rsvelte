@@ -72,7 +72,10 @@ pub fn analyze_component(
     // Ensure deferred script parsing is completed before analysis.
     // During parse(), script content is stored as raw text for performance.
     // Here we invoke OXC to produce the full AST into the Root's arena.
-    let line_offsets = crate::compiler::phases::phase1_parse::compute_line_offsets(source, false);
+    let line_offsets = crate::compiler::phases::phase1_parse::compute_line_offsets(
+        source,
+        ast.skip_expression_loc,
+    );
     // Resolve deferred lazy expressions in template AST
     // If any expression has a parse error, return it immediately
     if let Some(parse_err) =

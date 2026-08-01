@@ -62,6 +62,11 @@ pub struct Root<'a> {
     /// Arena for JsNode instances. Stores all expression sub-nodes contiguously.
     #[serde(skip)]
     pub arena: crate::ast::arena::ParseArena,
+    /// `ParseOptions::skip_expression_loc` as it was when this tree was parsed.
+    /// Analysis finishes the deferred script/expression parses, so it has to
+    /// make the same `loc` decision the parser did rather than a fresh one.
+    #[serde(skip)]
+    pub skip_expression_loc: bool,
 }
 
 /// A JavaScript-style comment captured during parsing.
