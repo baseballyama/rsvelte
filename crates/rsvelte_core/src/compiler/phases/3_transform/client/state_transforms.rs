@@ -3,11 +3,13 @@
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 
+use super::destructure_transforms::build_fallback_string;
 use super::expression_utils::{
     byte_pos_to_char_index, find_statement_end_client, is_shadowed_by_for_loop_var,
 };
 use super::rune_transforms::{
-    find_derived_property_colon, split_derived_array_elements, split_derived_object_properties,
+    derived_prop_access, exclude_key_literal, find_default_equals, find_derived_property_colon,
+    split_derived_array_elements, split_derived_object_properties,
 };
 use super::{SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, get_or_compile_regex};
 use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
@@ -1375,6 +1377,26 @@ pub(super) fn transform_legacy_destructure_declarations(
         let props = split_derived_object_properties(inner);
         let mut parts = vec![format!("{} = {}", tmp_name, expr)];
 
+        let has_rest = props.iter().any(|prop| prop.trim().starts_with("..."));
+        let excluded_keys: Vec<String> = props
+            .iter()
+            .filter(|_| has_rest)
+            .filter_map(|prop| {
+                let prop = prop.trim();
+                if prop.is_empty() || prop.starts_with("...") {
+                    return None;
+                }
+                let key = if let Some(colon_pos) = find_derived_property_colon(prop) {
+                    prop[..colon_pos].trim()
+                } else if let Some(eq_pos) = find_default_equals(prop) {
+                    prop[..eq_pos].trim()
+                } else {
+                    prop
+                };
+                Some(exclude_key_literal(key))
+            })
+            .collect();
+
         for prop in &props {
             let prop = prop.trim();
             if prop.is_empty() {
@@ -1383,56 +1405,57 @@ pub(super) fn transform_legacy_destructure_declarations(
 
             if let Some(rest_name) = prop.strip_prefix("...") {
                 let rest_name = rest_name.trim();
-                parts.push(format!("{} = {}.{}", rest_name, tmp_name, rest_name));
+                let access = format!(
+                    "$.exclude_from_object({}, [{}])",
+                    tmp_name,
+                    excluded_keys.join(", ")
+                );
+                if legacy_state_var_names.contains(&rest_name.to_string()) {
+                    parts.push(format!(
+                        "{} = {}",
+                        rest_name,
+                        tag_legacy_source(
+                            format!("$.mutable_source({}{})", access, immutable_arg),
+                            rest_name,
+                            dev
+                        )
+                    ));
+                } else {
+                    parts.push(format!("{} = {}", rest_name, access));
+                }
                 continue;
             }
 
-            if let Some(colon_pos) = find_derived_property_colon(prop) {
-                let key = prop[..colon_pos].trim();
-                let value_part = prop[colon_pos + 1..].trim();
-                let var_name = if let Some(eq_pos) = value_part.find('=') {
-                    value_part[..eq_pos].trim()
-                } else {
-                    value_part
-                };
+            let (explicit_key, value_part) = match find_derived_property_colon(prop) {
+                Some(colon_pos) => (Some(prop[..colon_pos].trim()), prop[colon_pos + 1..].trim()),
+                None => (None, prop),
+            };
+            let (var_name, default_val) = match find_default_equals(value_part) {
+                Some(eq_pos) => (
+                    value_part[..eq_pos].trim(),
+                    Some(value_part[eq_pos + 1..].trim()),
+                ),
+                None => (value_part, None),
+            };
+            let key = explicit_key.unwrap_or(var_name);
 
-                let is_state = legacy_state_var_names.contains(&var_name.to_string());
-                let member = format!("{}.{}", tmp_name, key);
-                if is_state {
-                    parts.push(format!(
-                        "{} = {}",
+            let member = derived_prop_access(tmp_name.as_str(), tmp_name.as_str(), key);
+            let access = match default_val {
+                Some(default_val) => build_fallback_string(&member, default_val),
+                None => member,
+            };
+            if legacy_state_var_names.contains(&var_name.to_string()) {
+                parts.push(format!(
+                    "{} = {}",
+                    var_name,
+                    tag_legacy_source(
+                        format!("$.mutable_source({}{})", access, immutable_arg),
                         var_name,
-                        tag_legacy_source(
-                            format!("$.mutable_source({}{})", member, immutable_arg),
-                            var_name,
-                            dev
-                        )
-                    ));
-                } else {
-                    parts.push(format!("{} = {}", var_name, member));
-                }
+                        dev
+                    )
+                ));
             } else {
-                let var_name = if let Some(eq_pos) = prop.find('=') {
-                    prop[..eq_pos].trim()
-                } else {
-                    prop
-                };
-
-                let is_state = legacy_state_var_names.contains(&var_name.to_string());
-                let member = format!("{}.{}", tmp_name, var_name);
-                if is_state {
-                    parts.push(format!(
-                        "{} = {}",
-                        var_name,
-                        tag_legacy_source(
-                            format!("$.mutable_source({}{})", member, immutable_arg),
-                            var_name,
-                            dev
-                        )
-                    ));
-                } else {
-                    parts.push(format!("{} = {}", var_name, member));
-                }
+                parts.push(format!("{} = {}", var_name, access));
             }
         }
 
@@ -1495,20 +1518,27 @@ pub(super) fn transform_legacy_destructure_declarations(
                 continue;
             }
 
-            let access = format!("$.get({})[{}]", array_var, i);
-            let is_state = legacy_state_var_names.contains(&element.to_string());
-            if is_state {
+            let (var_name, default_val) = match find_default_equals(element) {
+                Some(eq_pos) => (element[..eq_pos].trim(), Some(element[eq_pos + 1..].trim())),
+                None => (element, None),
+            };
+            let member = format!("$.get({})[{}]", array_var, i);
+            let access = match default_val {
+                Some(default_val) => build_fallback_string(&member, default_val),
+                None => member,
+            };
+            if legacy_state_var_names.contains(&var_name.to_string()) {
                 parts.push(format!(
                     "{} = {}",
-                    element,
+                    var_name,
                     tag_legacy_source(
                         format!("$.mutable_source({}{})", access, immutable_arg),
-                        element,
+                        var_name,
                         dev
                     )
                 ));
             } else {
-                parts.push(format!("{} = {}", element, access));
+                parts.push(format!("{} = {}", var_name, access));
             }
         }
 
@@ -1532,19 +1562,14 @@ pub(super) fn extract_legacy_destructure_var_names(pattern: &str) -> Vec<String>
             }
             if let Some(rest_name) = prop.strip_prefix("...") {
                 names.push(rest_name.trim().to_string());
-            } else if let Some(colon_pos) = find_derived_property_colon(prop) {
-                let value_part = prop[colon_pos + 1..].trim();
-                let var_name = if let Some(eq_pos) = value_part.find('=') {
-                    value_part[..eq_pos].trim()
-                } else {
-                    value_part
-                };
-                names.push(var_name.to_string());
             } else {
-                let var_name = if let Some(eq_pos) = prop.find('=') {
-                    prop[..eq_pos].trim()
-                } else {
-                    prop
+                let value_part = match find_derived_property_colon(prop) {
+                    Some(colon_pos) => prop[colon_pos + 1..].trim(),
+                    None => prop,
+                };
+                let var_name = match find_default_equals(value_part) {
+                    Some(eq_pos) => value_part[..eq_pos].trim(),
+                    None => value_part,
                 };
                 names.push(var_name.to_string());
             }
@@ -1560,12 +1585,35 @@ pub(super) fn extract_legacy_destructure_var_names(pattern: &str) -> Vec<String>
             if let Some(rest_name) = el.strip_prefix("...") {
                 names.push(rest_name.trim().to_string());
             } else {
-                names.push(el.to_string());
+                let var_name = match find_default_equals(el) {
+                    Some(eq_pos) => el[..eq_pos].trim(),
+                    None => el,
+                };
+                names.push(var_name.to_string());
             }
         }
     }
 
     names
+}
+
+/// Whether a statement is the chained `<keyword> tmp = expr, … ` expansion built
+/// by `transform_legacy_destructure_declarations`; those must not be split into
+/// one declaration per declarator, because the later ones read the `tmp` /
+/// `$$array` helpers declared alongside them.
+fn is_legacy_destructure_expansion(line: &str) -> bool {
+    if memmem::find(line.as_bytes(), b"$.mutable_source(").is_none() {
+        return false;
+    }
+    let trimmed = line.trim_start();
+    let after_keyword = ["let ", "const ", "var "]
+        .iter()
+        .find_map(|kw| trimmed.strip_prefix(kw));
+    let Some(rest) = after_keyword.and_then(|rest| rest.trim_start().strip_prefix("tmp")) else {
+        return false;
+    };
+    let rest = rest.trim_start_matches(|c: char| c == '_' || c.is_ascii_digit());
+    rest.trim_start().starts_with('=')
 }
 
 /// Dev-mode `$.tag(<source>, '<name>')` label for a legacy state source.
@@ -1605,9 +1653,9 @@ pub(super) fn transform_legacy_state_declarations(
     // Split into individual declarations first to handle each one separately.
     // BUT skip declarations produced by transform_legacy_destructure_declarations
     // (which chain `tmp = expr, foo = $.mutable_source(tmp.foo), ...` and must stay chained).
-    let is_destructure_expansion = memmem::find(line.as_bytes(), b"$.mutable_source(tmp").is_some()
-        || memmem::find(line.as_bytes(), b"$.mutable_source(tmp_").is_some();
-    if !is_destructure_expansion && let Some(split_lines) = split_multi_declarator(line) {
+    if !is_legacy_destructure_expansion(line)
+        && let Some(split_lines) = split_multi_declarator(line)
+    {
         let transformed_lines: Vec<String> = split_lines
             .iter()
             .map(|l| transform_legacy_state_declarations(l, legacy_state_vars, immutable, dev))
