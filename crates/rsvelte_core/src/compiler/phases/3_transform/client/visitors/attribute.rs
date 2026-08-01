@@ -280,8 +280,12 @@ pub fn build_event_handler(
 
     // Check if it's an identifier
     if let JsExpr::Identifier(name) = &js_expr {
-        // Check if this identifier refers to a function in the scope
-        let binding = context.state.get_binding(name);
+        // Check if this identifier refers to a function in the scope.
+        // `resolve_shadowing_snippet_binding` (not a plain `get_binding`) so a
+        // block-local `{#snippet}` that shadows a same-named outer function
+        // correctly resolves to the snippet — see its doc comment for why
+        // `get_binding` alone can't be trusted here.
+        let binding = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::resolve_shadowing_snippet_binding(name, context);
 
         if let Some(binding) = &binding {
             // If the binding's initial value is a function, use it as-is

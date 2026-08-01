@@ -4611,6 +4611,55 @@ fn initial_is_non_reactive(binding: &Binding, context: &ComponentContext) -> boo
     })
 }
 
+/// Resolve the binding a template identifier read actually refers to,
+/// correcting for `get_binding`'s root-scope pollution (see its own doc
+/// comment) when a block-local `{#snippet}` shadows a same-named outer
+/// binding that is NOT a prop — a plain script-level `function` / `let`, or a
+/// `$derived`. `shadow_snippet_declarations` (`client::utils`) already
+/// records every such shadowed name in `shadowed_prop_names` (despite the
+/// name, it covers ANY outer binding a fragment's snippets shadow, not just
+/// props) and strips it from `transform`, so a shadowed prop/store still
+/// resolves correctly here via the "always reactive" `BindingKind` branch
+/// below. A shadowed plain function does not: `get_binding` returns the
+/// outer function's binding, whose `is_function()` is `true`, so the read
+/// wrongly skips the `$.template_effect` wrap that the local snippet (whose
+/// `is_function()` is always `false`, matching upstream's
+/// `Binding#is_function`) requires.
+///
+/// `ScopeRoot::binding_at_reference` (added for #2060/#2143) covers this same
+/// class of bug more precisely, by replaying Phase 2's scope-correct
+/// resolution for the exact reference position — prefer it wherever a source
+/// position is available (see `has_reactive_state_json` /
+/// `is_expression_known_json`). This name-based fallback remains the only
+/// option for `build_event_handler` (`shared/events.rs`, `attribute.rs`),
+/// which resolve an already-converted `JsExpr::Identifier` that carries no
+/// source position.
+pub fn resolve_shadowing_snippet_binding<'a>(
+    name: &str,
+    context: &'a ComponentContext,
+) -> Option<&'a Binding> {
+    let direct = context.state.get_binding(name);
+    let is_snippet_binding = |b: &Binding| {
+        matches!(b.kind, BindingKind::Normal)
+            && b.initial_node_type.as_deref() == Some("SnippetBlock")
+    };
+    if direct.is_some_and(is_snippet_binding) || !context.state.shadowed_prop_names.contains(name) {
+        return direct;
+    }
+    context
+        .state
+        .scope_root
+        .bindings_by_name
+        .get(name)
+        .and_then(|idxs| {
+            idxs.iter().rev().find_map(|&i| {
+                let b = context.state.scope_root.bindings.get(i as usize)?;
+                is_snippet_binding(b).then_some(b)
+            })
+        })
+        .or(direct)
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// This eliminates expensive cloning and deserialization in recursive calls.
 fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
@@ -5846,7 +5895,22 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                 if name == "undefined" {
                     return true;
                 }
-                if let Some(binding) = context.state.get_binding(name) {
+                // Prefer `binding_at_reference` (the exact binding Phase 2 resolved
+                // this reference to — see its doc comment) over a plain
+                // `get_binding`, which walks the root-scope-polluted map and can
+                // return an outer binding shadowed by a template declaration
+                // (`{@const}`, `{#snippet}`, ...).
+                if let Some(binding) = obj
+                    .get("start")
+                    .and_then(|v| v.as_u64())
+                    .and_then(|start| {
+                        context
+                            .state
+                            .scope_root
+                            .binding_at_reference(name, start as u32)
+                    })
+                    .or_else(|| context.state.get_binding(name))
+                {
                     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
                     // Props are never known (external values)

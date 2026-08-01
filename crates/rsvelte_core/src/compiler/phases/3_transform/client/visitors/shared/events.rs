@@ -199,7 +199,11 @@ pub fn build_event_handler(
         // copes with hot-reload swapping the binding, and dev wraps everything
         // else too so a throwing handler can still be reported.
         use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
-        let binding = context.state.get_binding(name);
+        // `resolve_shadowing_snippet_binding` (not a plain `get_binding`) so a
+        // block-local `{#snippet}` that shadows a same-named outer function
+        // correctly resolves to the snippet — see its doc comment for why
+        // `get_binding` alone can't be trusted here.
+        let binding = super::utils::resolve_shadowing_snippet_binding(name, context);
         if binding.is_some_and(|b| b.is_function()) {
             return handler;
         }

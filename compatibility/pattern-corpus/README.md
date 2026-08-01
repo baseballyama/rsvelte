@@ -63,6 +63,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2013-state-destructure-quoted-key.svelte` | [#2013](https://github.com/baseballyama/rsvelte/issues/2013) | Quoted key in a destructured `$state(...)` needs bracket member access |
 | `2014-derived-array-rest-arity.svelte` | [#2014](https://github.com/baseballyama/rsvelte/issues/2014) | An array pattern ending in a rest element passes **no length** to `$.to_array` |
 | `2060-const-shadow-textcontent.svelte` | [#2060](https://github.com/baseballyama/rsvelte/issues/2060) | A `{@const}` **shadowing** a component-scope binding must resolve to the `{@const}`, so the read stays a static `textContent` assignment |
+| `2141-snippet-shadow-is-function.svelte` | [#2141](https://github.com/baseballyama/rsvelte/issues/2141) | A block-local `{#snippet}` shadowing a same-named outer `function` still reads as reactive (`is_function()` must resolve to the snippet, not the outer function) |
 
 ## `matrix/` — the axes around those repros
 
