@@ -1417,8 +1417,8 @@ pub enum CompileError {
     Analysis(AnalysisError),
     /// Transform error.
     Transform(TransformError),
-    /// A single item's `compile()` panicked inside [`compile_batch`] /
-    /// [`compile_batch_with_external_sourcemap_content`]'s rayon closure.
+    /// A single item's `compile()` panicked inside `compile_batch` /
+    /// `compile_batch_with_external_sourcemap_content`'s rayon closure.
     /// Rayon otherwise re-raises a worker panic in the caller once the whole
     /// `par_iter` finishes, which would discard every other item's result —
     /// catching it per item keeps one pathological input from sinking the
