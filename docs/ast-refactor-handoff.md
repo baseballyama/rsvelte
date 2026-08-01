@@ -55,7 +55,62 @@ esrap 印字は corpus 25.1µs/file、svelte-rs の `oxc_codegen` は 8.1µs/fil
 
 **M0 を飛ばして M1 に入ることは禁止**（§5 の「220 件回帰 ×2」を再演するため）。
 
-### ★ M1 は保留中（2026-08-01 決定）— 再開する前にここを読むこと ★
+### ★ M1 再開（2026-08-02、ユーザー指示）— 保留は解除された ★
+
+以下の「保留中」節は**歴史的経緯**として残す。現状は再開済みで、判断が 3 つ変わっている。
+
+**1. `innermost_only` のネスト解決は設計項目ごと消滅した。** 保留時に「M1 で唯一設計が固まって
+いない、200〜400 行の新規設計が要る」と書いたが、これは**編集収集モデルを維持したまま
+`&mut Program` に載せる**前提での見積りだった。実際の置換は
+
+```rust
+let outer_text = &self.source[expr.span.start as usize..expr.span.end as usize];
+let mutate = format!("$.mutate({}, {})", root_name, outer_text);
+```
+
+= **現在のノードのテキストを丸ごと埋め込む wrap**。だから内側が先に確定している必要があり、
+`innermost_only` + fixed-point で順序を作っていた。in-place では「部分木を move する」だけなので、
+**子を訪問してから親を書き換える（post-order）と合成が自動成立する**。load-bearing 12 本のうち
+legacy_state_member_mutate / prop_assign / state_set_reactive / store_assign / reactive_update の
+5 本で置換の形を実地確認済み。
+
+**2. `skip_assignment_spans` も同じくテキストモデルの副産物。** 既存版は
+`$.mutate(var, <assign>)` の形を検出して内側の代入をスキップすることで、fixed-point の再走査に
+対する冪等性を確保していた。in-place では**この走査で作った wrap を再訪しない**ため、
+**入力に元から存在する wrap の検出だけ**が残る（他パスが先に `$.mutate` を出している場合）。
+
+**3. 置換は常に部分木から作れるとは限らない。** `legacy_state_member_mutate` の
+`invalidate_bodies` は呼び出し元が渡す `FxHashMap<String, String>` の**任意 JS テキスト**で、
+現在のプログラムの部分木ではない。**同じ arena にパースしてから move する**必要がある
+（既存パターン: `js_ast/to_oxc.rs:1176` の `allocator.alloc_str(text)` → `Parser::new(allocator, …)`）。
+このため `with_program_mut` は `&Allocator` も渡す。
+
+#### 移植の形（(2) フェーズ中は本番を切り替えない）
+
+各パスは移植後も **production ではテキスト経路の結果を返す**。`&mut Program` 経路は
+`RSVELTE_AST_DUAL_RUN` 下でのみ走り、`dual_run::compare_pass` が両者を突き合わせる。
+理由: splice 出力は**触っていない領域の元の整形を保つ**のに対し esrap 印字は全体を再整形するため、
+1 本だけ本番切り替えすると中間テキストが変わり下流の `parse_chunk` に波及する。
+**最終フリップだけが不可分**という既存の設計判断と一致する。
+
+`compare_pass` は両側を `normalize`（= `esrap(parse(x))`）に 1 回ずつ通す。esrap の整形が相殺され、
+パスの挙動差だけが残る。**2 経路は適用順序が違う**（collect-then-splice vs post-order in-place）ので、
+順序依存のパスを検出するのがこの比較の役目。**ミスマッチを「順序差だから正当」と説明してはいけない。**
+
+#### 進捗
+
+| | 状態 |
+|---|---|
+| ドライバ `with_program_mut` + `dual_run::compare_pass` | 完了（`fcf59761`） |
+| 1/12 `legacy_state_member_mutate`（443 行・splice 26） | 移植完了（`890dd622`）、dual-run 検証中 |
+| 残り 11 本 | 純 wrap から順に。`state_pipeline`（read-wrap 同時収集）と `state_assigns_combined`（最多 splice 152）は最後 |
+
+着手順は**公式フィクスチャの踏み方**に合わせる。`prop_source_reads` は splice 0 の parse-only なので
+load-bearing 12 本に入らない（flowbite 基準の module_state_runes 先行案も公式で 0 回なので棄却済み）。
+
+---
+
+### （歴史）M1 は保留中（2026-08-01 決定）
 
 **決定**: client の pure-AST 化（M1〜M3）は**保留**。先に esrap 最適化（M4 相当）と analyze の走査融合を
 取り、残ギャップを確定させてから (3) の規模を再交渉する。**中止ではない** — (3) は 1.0x 到達の
