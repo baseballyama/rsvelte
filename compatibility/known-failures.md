@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 896 entries)
+## Client dev (`known-failures.client-dev.json`, 639 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -56,8 +56,9 @@ divergence is invisible to the two `dev: false` targets — #1981
 reason. CSS is compared for this target too, and is clean: 0 css-mismatches.
 
 The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
-#2029, #2030, #2039, #2040, and the #2021 series) took it to 896 with no
-regression on `client` or `server`, both of which are empty.
+#2029, #2030, #2039, #2040, and the #2021 series) took it to 896, and #2116
+(legacy instance-script instrumentation) to 639 — all with no regression on
+`client` or `server`, both of which are empty.
 
 ### How the counts below are derived
 
@@ -73,35 +74,39 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| equality instrumentation | 311 | 0 | `visitors/BinaryExpression.js` | #2025 |
-| `$.track_reactivity_loss(...)` | 261 | 2 | `visitors/AwaitExpression.js` | #2026 |
+| `$.track_reactivity_loss(...)` | 215 | 3 | `visitors/AwaitExpression.js` | #2090 |
 | ownership mutation validation | 106 | 2 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
 | `console.*` wrapping | 68 | 73 | `visitors/CallExpression.js` | #2028 |
 | `$.tag()` / `$.tag_proxy()` | 26 | 0 | `visitors/VariableDeclaration.js` | #2021 |
+| equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
 
-732 entries are attributed to a cluster; the remaining **164** show no
+459 entries are attributed to a cluster; the remaining **180** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (JSDoc dropped, the legacy `bind:` `function get()/set()` shape,
 `$.assign`, `$$css`).
 
-### The equality and await rows are not the bugs their issues describe
+### What is left of the equality and await rows
 
-#2025 and #2026 are both **merged**, so their clusters were expected to
-disappear here. They did not, and splitting the remainder by component mode
-says why:
+Both rewrites ride the instance-script AST pass, which sat under
+`if analysis.runes` — so a legacy (non-runes) component was never instrumented
+at all. #2116 gave the legacy path its own entry point into the same two
+AST collectors (`instance_dev_tail_ast`), which cleared 257 entries and left:
 
-| | legacy component | runes component | module script |
-|---|---:|---:|---:|
-| equality under-emits | **309** | 2 | 0 |
-| `track_reactivity_loss` under-emits | **146** | 97 | 18 |
+| | legacy component | runes component | `<script module>` | module script |
+|---|---:|---:|---:|---:|
+| equality under-emits | 2 | 1 | 1 | 0 |
+| `track_reactivity_loss` under-emits | 0 | 0 | **197** | **18** |
 
-Both fixes ride the instance-script AST pass, and that pass sits under
-`if analysis.runes` — so a **legacy (non-runes) component is never
-instrumented at all**, for any of these helpers. Upstream instruments legacy
-components exactly like runes ones. This single gate, not the per-helper logic,
-is now the largest remaining cause on this target; it was recorded as a known
-residual on #2084 and is worth its own issue rather than being re-litigated
-per helper.
+Instance scripts are now clean in both modes. Every remaining
+`track_reactivity_loss` under-emit is **module-side** — a component's
+`<script module>` or a `.svelte.(js|ts)` file — which is #2090: those go
+through `module_dev_tail_ast`, whose batch has no `AwaitExpression`
+collector.
+
+The four equality residuals are not instrumentation gaps: three are template
+expressions rsvelte constant-folds (`{1 === 1}` → `"true"`), and one is a
+`$props()` destructuring default that the runes AST pass emits as generated
+`$.fallback(...)` text and never re-visits. Both are #2064 long-tail.
 
 The `console.*` row is the one place where rsvelte also emits **more** than
 upstream. Both directions come from the same root: upstream decides with

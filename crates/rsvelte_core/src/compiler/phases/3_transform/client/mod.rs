@@ -18,6 +18,7 @@ mod effect_rune_ast;
 mod expression_utils;
 mod formatting;
 mod inspect_rune_ast;
+mod instance_dev_tail_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
 mod module_dev_tail_ast;
@@ -6186,6 +6187,18 @@ fn transform_instance_script_for_visitors(
     // This must run regardless of runes mode.
     if !shadowed_local_reactive_vars.is_empty() {
         result = transform_shadowed_local_state_vars(&result, &shadowed_local_reactive_vars);
+    }
+
+    // Dev-mode equality / `await` instrumentation for legacy components. Upstream
+    // runs one visitor map over both modes; here the runes half rides inside the
+    // `analysis.runes` AST pass above, so legacy needs its own entry point. It goes
+    // last so the operands it copies are the settled, already-wrapped ones.
+    if dev
+        && !analysis.runes
+        && let Some(instrumented) =
+            instance_dev_tail_ast::transform_legacy_instance_dev_tail_ast(&result)
+    {
+        result = instrumented;
     }
 
     result

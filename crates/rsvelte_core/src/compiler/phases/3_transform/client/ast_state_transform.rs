@@ -1996,43 +1996,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
-    /// True when the statement enclosing `offset` is preceded by a
-    /// `svelte-ignore` comment naming `await_reactivity_loss`. Upstream reads
-    /// this off the analysis-phase ignore stack; this pass rewrites source
-    /// spans, so it reads the same comment back out of the source text.
     fn is_await_reactivity_loss_ignored(&self, offset: u32) -> bool {
-        // Start from the top of the await's own line: the statement text to its
-        // left is not a comment and would end the scan immediately.
-        let offset = self.source[..offset as usize]
-            .rfind('\n')
-            .map_or(0, |nl| nl + 1);
-        let before = &self.source[..offset];
-        for line in before.lines().rev() {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            let Some(comment) = line
-                .strip_prefix("//")
-                .or_else(|| line.strip_prefix("/*").map(|c| c.trim_end_matches("*/")))
-            else {
-                // The first non-comment line above is the start of the
-                // statement itself; anything earlier cannot annotate it.
-                return false;
-            };
-            // A run of comments can carry several `svelte-ignore` lines, so keep
-            // looking when this one names other codes.
-            if crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
-                comment,
-                self.is_runes,
-            )
-            .iter()
-            .any(|c| c == "await_reactivity_loss")
-            {
-                return true;
-            }
-        }
-        false
+        super::instance_dev_tail_ast::await_reactivity_loss_ignored(
+            self.source,
+            offset,
+            self.is_runes,
+        )
     }
 
     /// Walk every argument of a `CallExpression` so inner state-var refs
