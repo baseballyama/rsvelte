@@ -1,0 +1,7 @@
+{
+	"description": "A plain `.ts` file whose relative `./lib/widget.svelte` is hijacked by a sibling `widget.svelte.ts` companion, checked alongside an unrelated type error and `noUnusedLocals`. The overlay re-resolves that import from a blanked mirror probe (#2061), so this pins the probe's scope: the companion TS2614 is reported once, the unrelated TS2322 is reported once (not doubled by the probe), and the probe's own elided body provokes no `declared but never read`.",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2061
+	]
+}

@@ -1,5 +1,5 @@
 {
-	"description": "The ESM-mode arm of `js-rune-module-without-allow-js`. Known-divergent: `moduleResolution: nodenext` substitutes no extension, so `./lib/counter.svelte` cannot reach `counter.svelte.js` at all and rsvelte reports TS2307 where official reports TS7016 — official's `resolveModuleNames` hook forces the pre-ESM algorithm for `.svelte` specifiers, which a stock compiler over an on-disk overlay cannot do (#2061). The wrong-but-plausible TS2614 this used to be is gone either way.",
+	"description": "The ESM-mode arm of `js-rune-module-without-allow-js`. `moduleResolution: nodenext` substitutes no extension, so `./lib/counter.svelte` cannot reach `counter.svelte.js` at all — and the overlay deliberately withholds the module's bridge, since a bridge forwards no names and would turn official's TS7016 into a wrong TS2614. Having withheld it, the overlay replays what official's `resolveModuleNames` hook reports for it (#2061).",
 	"tsconfig": "tsconfig.json",
 	"issues": [
 		2061

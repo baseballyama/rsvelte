@@ -1,0 +1,7 @@
+{
+	"description": "`js-rune-module-without-allow-js-nodenext` with `noImplicitAny` off. The `.svelte.js` rune module is still left out of the program, and official svelte-check — which resolves the specifier onto it — reports nothing at all rather than TS7016. Pins the other half of the replay the overlay owes for a module it deliberately withholds (#2061).",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2061
+	]
+}

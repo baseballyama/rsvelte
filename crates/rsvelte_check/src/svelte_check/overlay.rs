@@ -265,6 +265,20 @@ pub struct KitOverlayEntry {
     pub added_code: Vec<AddedCode>,
 }
 
+/// One plain `.ts` / `.js` source mirrored into the overlay with everything
+/// but its hijacked `.svelte` import declarations blanked out (see
+/// [`emit_import_probes`]). Positions are preserved byte for byte, so a
+/// diagnostic on the probe is reported at the source's own line and column.
+#[derive(Debug, Clone)]
+pub struct ImportProbeEntry {
+    pub source_path: PathBuf,
+    pub out_path: PathBuf,
+    /// Byte ranges of the kept import declarations, in the source's own
+    /// coordinates. The probe owns exactly these ranges: the source's own
+    /// diagnostics inside them are dropped in favour of the probe's.
+    pub spans: Vec<(usize, usize)>,
+}
+
 #[derive(Debug, Clone)]
 pub struct OverlayLayout {
     pub workspace: PathBuf,
@@ -273,6 +287,13 @@ pub struct OverlayLayout {
     pub overlay_tsconfig: PathBuf,
     pub entries: Vec<OverlayEntry>,
     pub kit_entries: Vec<KitOverlayEntry>,
+    pub import_probes: Vec<ImportProbeEntry>,
+    /// `<base>.svelte.js` rune modules deliberately left without a
+    /// `.d.svelte.ts` bridge (see [`emit_svelte_module_bridges`]).
+    pub withheld_js_modules: Vec<PathBuf>,
+    /// Whether the project type-checks with `noImplicitAny`, which decides
+    /// what official reports for those withheld modules.
+    pub no_implicit_any: bool,
 }
 
 #[derive(Debug)]
@@ -330,6 +351,19 @@ pub fn materialize_overlay_with_kit(
         materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental, ignore)?;
     layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
     materialize_kit_types(workspace, &layout.emit_dir, kit_files)?;
+    // A kit file already has a mirror copy at its own path, which resolves its
+    // `.svelte` imports from inside the mirror exactly as a probe would — a
+    // second copy of the same import would only report it twice.
+    layout.import_probes.retain(|probe| {
+        let mirrored = layout
+            .kit_entries
+            .iter()
+            .any(|kit| kit.source_path == probe.source_path);
+        if mirrored {
+            let _ = fs::remove_file(&probe.out_path);
+        }
+        !mirrored
+    });
     Ok(layout)
 }
 
@@ -402,6 +436,7 @@ pub fn materialize_overlay_with(
         .collect();
     let allow_js = resolve_allow_js(tsconfig_path);
     let mut module_bridges: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let mut withheld_js_modules: Vec<PathBuf> = Vec::new();
     for pkg in &external {
         emit_external_shadows(
             pkg,
@@ -416,10 +451,15 @@ pub fn materialize_overlay_with(
             &pkg.mirror_dir,
             &[],
             allow_js,
+            &mut withheld_js_modules,
         )?);
     }
     module_bridges.extend(emit_svelte_module_bridges(
-        workspace, &emit_dir, ignore, allow_js,
+        workspace,
+        &emit_dir,
+        ignore,
+        allow_js,
+        &mut withheld_js_modules,
     )?);
 
     let mut entries = Vec::with_capacity(files.len());
@@ -558,6 +598,13 @@ pub fn materialize_overlay_with(
     }
     let has_augments = write_companion_augmentation(&cache_dir, &augments)?;
 
+    let import_probes = emit_import_probes(
+        workspace,
+        &emit_dir,
+        ignore,
+        &components_hijacked_by_a_companion(&abs_files),
+    )?;
+
     // Materialise the selected svelte2tsx shims into the cache dir so the
     // overlay tsconfig can reference them by a stable relative path — a
     // standalone rsvelte install has no `node_modules/svelte2tsx` to read.
@@ -619,6 +666,9 @@ pub fn materialize_overlay_with(
         overlay_tsconfig,
         entries,
         kit_entries: Vec::new(),
+        import_probes,
+        withheld_js_modules,
+        no_implicit_any: resolve_no_implicit_any(tsconfig_path),
     })
 }
 
@@ -1662,6 +1712,25 @@ fn resolve_allow_js(tsconfig_path: Option<&Path>) -> bool {
         .unwrap_or(false)
 }
 
+/// Nearest-definition-wins `compilerOptions.noImplicitAny`, falling back to
+/// `strict` and then to TypeScript's `false` default. Each option is resolved
+/// on its own chain, since an explicit `noImplicitAny` in a child overrides a
+/// `strict` in the base.
+fn resolve_no_implicit_any(tsconfig_path: Option<&Path>) -> bool {
+    let Some(path) = tsconfig_path else {
+        return false;
+    };
+    let chain = extends_chain(path);
+    let read = |key: &str| {
+        chain
+            .iter()
+            .find_map(|(_, parsed)| parsed.get("compilerOptions")?.get(key)?.as_bool())
+    };
+    read("noImplicitAny")
+        .or_else(|| read("strict"))
+        .unwrap_or(false)
+}
+
 /// The `target` the overlay tsconfig should force, or `None` to leave the inherited value alone (already ES2015+, so the `extends` chain provides it).
 fn resolve_forced_target(original: Option<&Path>) -> Option<&'static str> {
     match resolve_effective_target(original)
@@ -2251,7 +2320,10 @@ fn write_esm_bridge(path: &Path, content: &str, only_if_missing: bool) -> io::Re
 /// of the program at all, so official svelte-check resolves the specifier to it
 /// and reports TS7016 ("could not find a declaration file"). A bridge only
 /// replaces that with a wrong error — `export *` of an untyped module forwards
-/// no names, so every named import fails with TS2614 instead (#2061).
+/// no names, so every named import fails with TS2614 instead (#2061). Those
+/// skips are collected into `withheld` so
+/// [`replay_withheld_js_module_diagnostics`] can restate what official says
+/// about them.
 ///
 /// These bridges have no manifest entry to prune them by, so the mirror is also
 /// swept for ones whose source module has since been deleted or renamed.
@@ -2265,6 +2337,7 @@ fn emit_svelte_module_bridges(
     mirror_dir: &Path,
     ignore: &[String],
     allow_js: bool,
+    withheld: &mut Vec<PathBuf>,
 ) -> Result<Vec<(PathBuf, PathBuf)>, OverlayError> {
     let mut modules = super::walker::find_svelte_suffixed_modules(root, ignore);
     // `x.svelte.ts` and `x.svelte.js` share one bridge path; TypeScript probes
@@ -2283,6 +2356,7 @@ fn emit_svelte_module_bridges(
             && module.extension().and_then(|e| e.to_str()) == Some("js")
             && !module.with_extension("d.ts").is_file()
         {
+            withheld.push(module.clone());
             continue;
         }
         let rel = safe_relative(module, root);
@@ -2343,6 +2417,241 @@ fn prune_orphaned_module_bridges(mirror_dir: &Path, written: &std::collections::
         }
         let _ = fs::remove_file(&bridge);
     }
+}
+
+/// Infix marking a file under the mirror as an [`emit_import_probes`] probe.
+/// It has to differ from the source's own basename: a probe is a *blanked*
+/// copy, so a mirror file resolving `./relative` to it instead of the real
+/// module would see none of its exports.
+pub(super) const IMPORT_PROBE_INFIX: &str = ".rsvelte-import-probe";
+
+/// Components whose own `.svelte` specifier TypeScript hands to a same-named
+/// companion module instead, where official svelte-check hands it to the
+/// component.
+///
+/// Resolving `./Foo.svelte` from the importer's own directory, TypeScript
+/// probes `Foo.d.svelte.ts` (the `allowArbitraryExtensions` form) and then
+/// `Foo.svelte.ts` / `.tsx` / `.js`, so a real companion wins. Official's
+/// `svelteSys.fileExists` answers the first probe with "yes" whenever
+/// `Foo.svelte` exists — unless a real declaration (`Foo.svelte.d.ts` or
+/// `Foo.d.svelte.ts`) sits there, which it lets take precedence (#2061).
+fn components_hijacked_by_a_companion(abs_files: &[PathBuf]) -> std::collections::HashSet<PathBuf> {
+    let sibling = |component: &Path, suffix: &str| -> PathBuf {
+        let mut p = component.as_os_str().to_os_string();
+        p.push(suffix);
+        PathBuf::from(p)
+    };
+    let real_declaration = |component: &Path| -> bool {
+        let Some(stem) = component.file_stem().and_then(|s| s.to_str()) else {
+            return false;
+        };
+        sibling(component, ".d.ts").is_file()
+            || component
+                .with_file_name(format!("{stem}.d.svelte.ts"))
+                .is_file()
+    };
+    let mut out = std::collections::HashSet::new();
+    for component in abs_files {
+        if real_declaration(component) {
+            continue;
+        }
+        if [".ts", ".tsx", ".js", ".jsx"]
+            .iter()
+            .any(|ext| sibling(component, ext).is_file())
+        {
+            out.insert(normalize_abs(component));
+        }
+    }
+    out
+}
+
+/// Mirror every plain `.ts` / `.js` source whose relative `.svelte` specifier
+/// is hijacked by a companion module (see [`components_hijacked_by_a_companion`])
+/// into `<emit_dir>`, with everything but those import declarations blanked out.
+///
+/// A `.svelte` importer can be steered by rewriting the specifier as the shadow
+/// is generated, and a non-relative one by an exact `paths` entry, but a
+/// relative specifier in a file we do not own is beyond both: `paths` never
+/// applies to it and `rootDirs` only offers the mirror *after* the importer's
+/// own directory came up empty, which it does not. Re-resolving the same import
+/// from inside the mirror — where the component's `.d.svelte.ts` bridge is the
+/// only candidate — is what makes the compiler agree with official's
+/// `resolveModuleNames` hook. Blanking the rest keeps the probe answerable for
+/// nothing but the import it exists to test, and preserves every byte position
+/// so its diagnostics are reported where the user wrote them.
+fn emit_import_probes(
+    workspace: &Path,
+    emit_dir: &Path,
+    ignore: &[String],
+    hijacked: &std::collections::HashSet<PathBuf>,
+) -> Result<Vec<ImportProbeEntry>, OverlayError> {
+    let mut written: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    let mut out: Vec<ImportProbeEntry> = Vec::new();
+    if !hijacked.is_empty() {
+        for source in super::walker::find_probeable_modules(workspace, ignore) {
+            let Ok(text) = fs::read_to_string(&source) else {
+                continue;
+            };
+            if !text.contains(".svelte") {
+                continue;
+            }
+            let spans = hijacked_import_spans(&text, &source, hijacked);
+            if spans.is_empty() {
+                continue;
+            }
+            let rel = safe_relative(&source, workspace);
+            let Some(probe) = import_probe_path(&emit_dir.join(&rel)) else {
+                continue;
+            };
+            if let Some(parent) = probe.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&probe, blank_outside(&text, &spans))?;
+            written.insert(probe.clone());
+            out.push(ImportProbeEntry {
+                source_path: source,
+                out_path: probe,
+                spans,
+            });
+        }
+    }
+    prune_orphaned_import_probes(emit_dir, &written);
+    Ok(out)
+}
+
+/// `<dir>/<stem>.<ext>` → `<dir>/<stem>.rsvelte-import-probe.<ext>`.
+fn import_probe_path(mirrored: &Path) -> Option<PathBuf> {
+    let name = mirrored.file_name()?.to_str()?;
+    let (stem, ext) = name.rsplit_once('.')?;
+    Some(mirrored.with_file_name(format!("{stem}{IMPORT_PROBE_INFIX}.{ext}")))
+}
+
+/// Byte ranges of `text`'s top-level `import` / `export … from` declarations
+/// whose specifier is a relative `.svelte` path landing on a `hijacked`
+/// component.
+fn hijacked_import_spans(
+    text: &str,
+    source: &Path,
+    hijacked: &std::collections::HashSet<PathBuf>,
+) -> Vec<(usize, usize)> {
+    let Some(source_dir) = source.parent().map(absolutize) else {
+        return Vec::new();
+    };
+    let source_type = SourceType::from_path(source).unwrap_or_default();
+    let allocator = Allocator::default();
+    let parsed = OxcParser::new(&allocator, text, source_type).parse();
+    let mut spans: Vec<(usize, usize)> = Vec::new();
+    let mut take = |specifier: &str, span: oxc_span::Span| {
+        if !specifier.starts_with('.') || !specifier.ends_with(".svelte") {
+            return;
+        }
+        if hijacked.contains(&normalize_abs(&source_dir.join(specifier))) {
+            spans.push((span.start as usize, span.end as usize));
+        }
+    };
+    for stmt in &parsed.program.body {
+        match stmt {
+            oxc::Statement::ImportDeclaration(decl) => take(&decl.source.value, decl.span),
+            oxc::Statement::ExportNamedDeclaration(decl) => {
+                if let Some(src) = &decl.source {
+                    take(&src.value, decl.span);
+                }
+            }
+            oxc::Statement::ExportAllDeclaration(decl) => take(&decl.source.value, decl.span),
+            _ => {}
+        }
+    }
+    spans
+}
+
+/// Replace every byte outside `spans` with a space, newlines excepted, so the
+/// result parses as just those declarations while every retained byte keeps its
+/// original line and column.
+fn blank_outside(text: &str, spans: &[(usize, usize)]) -> String {
+    let mut out = String::with_capacity(text.len());
+    for (offset, ch) in text.char_indices() {
+        let kept =
+            ch == '\n' || ch == '\r' || spans.iter().any(|(s, e)| offset >= *s && offset < *e);
+        if kept {
+            out.push(ch);
+        } else {
+            out.extend(std::iter::repeat_n(' ', ch.len_utf8()));
+        }
+    }
+    out
+}
+
+/// Drop probes under `emit_dir` this run did not write — their source has
+/// since lost the import (or the companion) that called for one.
+fn prune_orphaned_import_probes(emit_dir: &Path, written: &std::collections::HashSet<PathBuf>) {
+    for probe in super::walker::find_import_probes(emit_dir) {
+        if !written.contains(&probe) {
+            let _ = fs::remove_file(&probe);
+        }
+    }
+}
+
+/// Restate what official svelte-check reports for a `.svelte` specifier that
+/// lands on a `.svelte.js` rune module the overlay deliberately left without a
+/// bridge (see [`emit_svelte_module_bridges`]).
+///
+/// Under ESM-mode resolution the specifier reaches nothing at all, so the
+/// compiler says TS2307. Official forces the pre-ESM algorithm for `.svelte`
+/// specifiers, finds the untyped `.js`, and says TS7016 — or, without
+/// `noImplicitAny`, says nothing. Having withheld the file, the overlay owes
+/// the user that answer (#2061).
+pub(crate) fn replay_withheld_js_module_diagnostics(
+    diagnostics: &mut Vec<Diagnostic>,
+    withheld: &[PathBuf],
+    no_implicit_any: bool,
+) {
+    if withheld.is_empty() {
+        return;
+    }
+    let withheld: std::collections::HashSet<PathBuf> =
+        withheld.iter().map(|p| normalize_abs(p)).collect();
+    diagnostics.retain_mut(|diag| {
+        if diag.code.as_deref() != Some("TS2307") {
+            return true;
+        }
+        let Some(specifier) = quoted_module_name(&diag.message) else {
+            return true;
+        };
+        if !specifier.starts_with('.') || !specifier.ends_with(".svelte") {
+            return true;
+        }
+        let Some(dir) = diag.file.parent().map(absolutize) else {
+            return true;
+        };
+        let base = normalize_abs(&dir.join(specifier));
+        let Some(module) = [".js", ".jsx"]
+            .iter()
+            .map(|ext| {
+                let mut p = base.as_os_str().to_os_string();
+                p.push(ext);
+                PathBuf::from(p)
+            })
+            .find(|p| withheld.contains(p))
+        else {
+            return true;
+        };
+        if !no_implicit_any {
+            return false;
+        }
+        diag.code = Some("TS7016".into());
+        diag.message = format!(
+            "Could not find a declaration file for module '{specifier}'. '{}' implicitly has an 'any' type.",
+            module.display()
+        );
+        true
+    });
+}
+
+/// The first single-quoted run in a TypeScript diagnostic message — the module
+/// name in `Cannot find module 'X' or its corresponding type declarations.`
+fn quoted_module_name(message: &str) -> Option<&str> {
+    let rest = message.split_once('\'')?.1;
+    rest.split_once('\'').map(|(name, _)| name)
 }
 
 fn module_has_default(path: &Path) -> bool {
@@ -4587,6 +4896,144 @@ mod tests {
         assert!(bridge.is_file(), "allowJs must restore the bridge");
 
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_companion_hijacked_relative_import_gets_a_blanked_probe() {
+        // #2061: TypeScript resolves `./widget.svelte` in the importer's own
+        // directory, where the real companion wins; official hands the same
+        // specifier to the component. Re-resolving it from the mirror, where
+        // only the component's bridge exists, is what makes the two agree.
+        let tmp = std::env::temp_dir().join(format!("svc_probe_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(tmp.join("src/lib/widget.svelte"), "<p>hi</p>\n").unwrap();
+        fs::write(
+            tmp.join("src/lib/widget.svelte.ts"),
+            "export const helper = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/relative.ts"),
+            "import { helper } from './lib/widget.svelte';\nexport const m = helper;\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("src/unrelated.ts"), "export const k = 1;\n").unwrap();
+        fs::write(tmp.join("tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+
+        let files = vec![tmp.join("src/lib/widget.svelte")];
+        let layout =
+            materialize_overlay_with(&tmp, &files, Some(&tmp.join("tsconfig.json")), false, &[])
+                .unwrap();
+
+        assert_eq!(layout.import_probes.len(), 1, "only the hijacked importer");
+        let probe = &layout.import_probes[0];
+        assert_eq!(probe.source_path, tmp.join("src/relative.ts"));
+        let text = fs::read_to_string(&probe.out_path).unwrap();
+        assert_eq!(
+            text, "import { helper } from './lib/widget.svelte';\n                        \n",
+            "everything but the hijacked declaration is blanked in place"
+        );
+
+        // Lose the companion and the specifier is no longer hijacked, so the
+        // probe has to disappear with it.
+        fs::remove_file(tmp.join("src/lib/widget.svelte.ts")).unwrap();
+        let layout =
+            materialize_overlay_with(&tmp, &files, Some(&tmp.join("tsconfig.json")), false, &[])
+                .unwrap();
+        assert!(layout.import_probes.is_empty());
+        assert!(!probe.out_path.exists(), "stale probe must be swept");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_real_declaration_keeps_the_specifier_on_the_companion() {
+        // Official's `svelteSys` lets a hand-written `Foo.svelte.d.ts` take
+        // precedence over the component, so there is nothing to re-resolve.
+        let tmp = std::env::temp_dir().join(format!("svc_probe_dts_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/widget.svelte"), "<p>hi</p>\n").unwrap();
+        fs::write(
+            tmp.join("src/widget.svelte.ts"),
+            "export const helper = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/widget.svelte.d.ts"),
+            "export declare const helper: number;\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/relative.ts"),
+            "import { helper } from './widget.svelte';\nexport const m = helper;\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+
+        let layout = materialize_overlay_with(
+            &tmp,
+            &[tmp.join("src/widget.svelte")],
+            Some(&tmp.join("tsconfig.json")),
+            false,
+            &[],
+        )
+        .unwrap();
+        assert!(layout.import_probes.is_empty());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_withheld_js_module_replays_official_answer() {
+        // #2061: TS2307 is what an ESM-mode specifier gets when the bridge is
+        // withheld; official resolves it onto the untyped `.js` instead.
+        let diag = |file: &str, code: &str, message: &str| Diagnostic {
+            file: PathBuf::from(file),
+            severity: DiagnosticSeverity::Error,
+            code: Some(code.into()),
+            message: message.into(),
+            range: None,
+            source: "ts",
+        };
+        let withheld = vec![PathBuf::from("/ws/src/lib/counter.svelte.js")];
+        let cannot_find = |spec: &str| {
+            format!("Cannot find module '{spec}' or its corresponding type declarations.")
+        };
+
+        let mut diagnostics = vec![
+            diag(
+                "/ws/src/plain.ts",
+                "TS2307",
+                &cannot_find("./lib/counter.svelte"),
+            ),
+            diag(
+                "/ws/src/plain.ts",
+                "TS2307",
+                &cannot_find("./lib/gone.svelte"),
+            ),
+            diag("/ws/src/plain.ts", "TS2322", "unrelated"),
+        ];
+        replay_withheld_js_module_diagnostics(&mut diagnostics, &withheld, true);
+        assert_eq!(diagnostics.len(), 3);
+        assert_eq!(diagnostics[0].code.as_deref(), Some("TS7016"));
+        assert_eq!(
+            diagnostics[0].message,
+            "Could not find a declaration file for module './lib/counter.svelte'. \
+             '/ws/src/lib/counter.svelte.js' implicitly has an 'any' type."
+        );
+        assert_eq!(diagnostics[1].code.as_deref(), Some("TS2307"));
+        assert_eq!(diagnostics[2].code.as_deref(), Some("TS2322"));
+
+        // Without `noImplicitAny` official says nothing at all.
+        let mut diagnostics = vec![diag(
+            "/ws/src/plain.ts",
+            "TS2307",
+            &cannot_find("./lib/counter.svelte"),
+        )];
+        replay_withheld_js_module_diagnostics(&mut diagnostics, &withheld, false);
+        assert!(diagnostics.is_empty());
     }
 
     #[test]

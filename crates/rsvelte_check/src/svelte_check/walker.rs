@@ -55,6 +55,56 @@ pub fn find_svelte_suffixed_modules(root: &Path, filter_paths: &[String]) -> Vec
     out
 }
 
+/// Extensions a plain TypeScript / JavaScript module can carry.
+const JS_TS_EXTENSIONS: [&str; 8] = ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"];
+
+/// Find every plain `.ts` / `.js` module under `root` that could carry a
+/// relative `.svelte` import the overlay has to re-resolve — i.e. everything
+/// except the `<name>.svelte.<ext>` rune modules, which reach their component
+/// through their own bridge instead. Same pruning as [`find_svelte_files`].
+pub fn find_probeable_modules(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    for entry in pruned_walk(root, filter_paths).flatten() {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.contains(".svelte.") || name.ends_with(".d.ts") {
+            continue;
+        }
+        if entry
+            .path()
+            .extension()
+            .is_some_and(|e| JS_TS_EXTENSIONS.iter().any(|k| e == *k))
+        {
+            out.push(entry.into_path());
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Find every import probe the overlay has previously written under `mirror`.
+pub fn find_import_probes(mirror: &Path) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    for entry in WalkDir::new(mirror)
+        .follow_links(false)
+        .into_iter()
+        .flatten()
+    {
+        if entry.file_type().is_file()
+            && entry
+                .file_name()
+                .to_string_lossy()
+                .contains(super::overlay::IMPORT_PROBE_INFIX)
+        {
+            out.push(entry.into_path());
+        }
+    }
+    out.sort();
+    out
+}
+
 /// The shared traversal both finders use: skip `node_modules`, hidden
 /// directories and any user-supplied ignore fragment.
 fn pruned_walk(

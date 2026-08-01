@@ -38,47 +38,34 @@ found, split the ratchet then (a `.tsgo.json` sibling, same shrink-only +
 per-entry-justification convention) rather than papering over it in the shared
 file.
 
-## Current baseline: 3 entries — the two resolution-hook cases of #2061
+## Current baseline: 0 entries — full parity
 
-```
-js-rune-module-without-allow-js-nodenext|+ERROR src/plain.ts:1 2307
-js-rune-module-without-allow-js-nodenext|-ERROR src/plain.ts:1 7016
-ts-companion-named-import-bundler|-ERROR src/relative.ts:1 2614
-```
+Every scenario agrees with official `svelte-check` diagnostic-for-diagnostic, so
+this is a **hard gate**: any divergence at all fails CI. The sections below
+document what each scenario is guarding, since a green scenario only earns its
+keep by turning red when the thing it covers regresses.
 
-Both scenarios pin the same architectural boundary, and neither is burnable
-without crossing it. Official svelte-check resolves `.svelte` specifiers inside
-its own `resolveModuleNames` hook (`module-loader.ts`); rsvelte-check drives a
-stock `tsc`/`tsgo` over an on-disk overlay and has no hook to install, so where
-TypeScript's own resolution disagrees with upstream's, the overlay can only
-supply files and `paths`/`rootDirs` entries — never override a lookup that
-already succeeded.
+The last three entries were the two resolution-hook cases of #2061, closed by
+giving the overlay two ways to answer for a specifier TypeScript's own
+resolution routes elsewhere:
 
 - **`ts-companion-named-import-bundler`** — a relative `./widget.svelte` from a
-  plain `.ts` file under node10/bundler resolution. TypeScript substitutes
-  extensions in the *importer's own* directory, so it finds the user's real
-  `widget.svelte.ts` companion before `rootDirs` (consulted only after a failed
-  lookup) or `paths` (never applied to relative specifiers) can offer the
-  component shadow. The companion genuinely exports `helper`, so no file we emit
-  can make the import fail. From a `.svelte` importer and through an alias — the
-  two shapes the overlay *can* reach — the TS2614 now matches official, which is
-  what `ts-companion-named-import` covers.
+  plain `.ts` file under node10/bundler resolution. TypeScript probes the
+  importer's own directory first and finds the user's real `widget.svelte.ts`
+  companion there, where official's `svelteSys` answers the very first probe
+  (`widget.d.svelte.ts`) with "yes, the component". `paths` never applies to a
+  relative specifier and `rootDirs` only offers the mirror after the importer's
+  own directory came up empty, so the overlay instead mirrors the importer as a
+  blanked *import probe* (`<stem>.rsvelte-import-probe.ts`, everything but the
+  hijacked import declarations blanked in place) and re-resolves the import from
+  there.
 - **`js-rune-module-without-allow-js-nodenext`** — `./lib/counter.svelte` for a
-  `counter.svelte.js` with `allowJs` off. ESM-mode resolution substitutes no
-  extension, so the `.js` is unreachable and rsvelte reports TS2307 where
-  official's hook forces the pre-ESM algorithm and reports TS7016. The node10 /
-  bundler arm (`js-rune-module-without-allow-js`) matches exactly.
-
-Burning either down means giving rsvelte-check a resolution hook — i.e. driving
-the compiler through an API rather than a directory — which is a different
-product decision, not a bug fix. Until then these two are the honest record of
-where the on-disk overlay ends.
-
-Every other scenario agrees with official `svelte-check` diagnostic-for-
-diagnostic, so this stays a **hard gate**: any divergence outside the three
-entries above fails CI. The sections below document what each scenario is
-guarding, since a green scenario only earns its keep by turning red when the
-thing it covers regresses.
+  `counter.svelte.js` with `allowJs` off. The overlay deliberately withholds that
+  module's `.d.svelte.ts` bridge (a bridge would forward no names and turn
+  official's TS7016 into a wrong TS2614), and ESM-mode resolution substitutes no
+  extension, so the specifier reached nothing and TypeScript said TS2307. Having
+  withheld the file, the overlay now restates what official reports for it:
+  TS7016, or nothing at all when `noImplicitAny` is off.
 
 ## Previously: 0 entries / 0 surplus diagnostics — full parity
 
@@ -173,9 +160,18 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
   spec uses it too, with an orphan `.ts` file (nothing imports it) as the
   canary: it enters the program through that `include` alone.
 
-  The two known-divergent arms of this cluster are
-  `ts-companion-named-import-bundler` and
-  `js-rune-module-without-allow-js-nodenext` — see the baseline section above.
+  The two arms this cluster used to be divergent on —
+  `ts-companion-named-import-bundler` (a *relative* companion-hijacked specifier
+  from a plain `.ts` file, answered by the import probe) and
+  `js-rune-module-without-allow-js-nodenext` (an ESM-mode specifier landing on a
+  withheld `.svelte.js` module, answered by replaying official's TS7016) — are
+  described in the baseline section above. Two more scenarios pin the edges
+  those two fixes introduce:
+  **`ts-companion-named-import-probe-scope`** checks that the probe answers for
+  its import declarations and nothing else (the file's unrelated `TS2322` is
+  reported once, not twice, and the elided body provokes no `noUnusedLocals`
+  complaint), and **`js-rune-module-without-allow-js-loose`** that the replay
+  reports *nothing* when `noImplicitAny` is off, which is what official does.
 - **`sibling-symlink`** — both cross-package shapes: `src/barrel.svelte` through
   the package `exports` barrel (#782/#805) and `src/deep.svelte` through a bare
   deep specifier (#1900).
@@ -206,4 +202,4 @@ existing scenario means rsvelte-check now disagrees with the official checker
 somewhere it previously did not, which is the exact failure mode this gate
 exists to catch. The only admissible addition is a *new* scenario that documents
 a divergence the product already had and cannot fix at its current architecture
-— with the reason written down above, as the two #2061 entries are.
+— with the reason written down above.

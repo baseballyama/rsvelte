@@ -10,7 +10,7 @@ use sourcemap::SourceMap;
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::AddedCode;
-use super::overlay::{KitOverlayEntry, OverlayEntry, OverlayLayout};
+use super::overlay::{ImportProbeEntry, KitOverlayEntry, OverlayEntry, OverlayLayout};
 use super::tsgo::RawTsDiagnostic;
 
 /// Precomputed lookup for one overlay entry: parsed source map plus
@@ -61,6 +61,28 @@ pub fn is_syntactic_ts_code(code: &str) -> bool {
         .and_then(|n| n.parse::<u32>().ok())
         .map(|n| (1000..2000).contains(&n) && !SEMANTIC_TS_1XXX_CODES.contains(&n))
         .unwrap_or(false)
+}
+
+/// The numeric part of a `TS1234` diagnostic code.
+fn ts_error_number(code: &str) -> Option<u32> {
+    code.strip_prefix("TS").and_then(|n| n.parse::<u32>().ok())
+}
+
+/// The three spellings a raw diagnostic can name `path` by: absolute,
+/// canonicalised, and relative to the compiler's cwd (= the workspace).
+fn path_keys(path: &Path, workspace: &Path) -> Vec<PathBuf> {
+    let mut keys = vec![path.to_path_buf()];
+    if let Ok(canon) = path.canonicalize() {
+        keys.push(canon);
+    }
+    if let Ok(rel) = path.strip_prefix(workspace) {
+        keys.push(rel.to_path_buf());
+    }
+    keys
+}
+
+fn in_any_span(spans: &[(usize, usize)], offset: usize) -> bool {
+    spans.iter().any(|(s, e)| offset >= *s && offset < *e)
 }
 
 /// svelte2tsx wraps the synthesised helper code it emits for type-checking
@@ -198,6 +220,24 @@ pub fn map_tsgo_diagnostics(
         kit_source_paths.insert(canon);
         kit_source_paths.insert(entry.source_path.clone());
     }
+    // Import probes (`<stem>.rsvelte-import-probe.<ext>`) re-resolve a plain
+    // module's hijacked `.svelte` imports from inside the mirror. The probe owns
+    // exactly the declarations it kept: its diagnostics there are reported at
+    // the source's own (identical) position, and the source's own inside the
+    // same ranges are dropped as the resolution the overlay exists to correct.
+    let mut by_probe: HashMap<PathBuf, &ImportProbeEntry> = HashMap::new();
+    let mut probe_spans: HashMap<PathBuf, &[(usize, usize)]> = HashMap::new();
+    for entry in &overlay.import_probes {
+        for key in path_keys(&entry.out_path, workspace) {
+            by_probe.insert(key, entry);
+        }
+        for key in path_keys(&entry.source_path, workspace) {
+            probe_spans.insert(key, &entry.spans);
+        }
+    }
+    // Source text per probed file, read on demand to turn a diagnostic's
+    // line/column into the byte offset the spans are recorded in.
+    let mut probe_texts: HashMap<PathBuf, String> = HashMap::new();
     // Shadows for imported external packages live under `<cache>/ext/<n>/`.
     // Diagnostics landing on those files are library *internals* — official
     // svelte-check never type-checks a node_modules `.svelte` as a reported
@@ -244,6 +284,44 @@ pub fn map_tsgo_diagnostics(
         // injected kit mirror is the authoritative version (see above).
         if kit_source_paths.contains(&canon) || kit_source_paths.contains(&absolute) {
             continue;
+        }
+        let probe_match = by_probe
+            .get(&canon)
+            .copied()
+            .or_else(|| by_probe.get(&absolute).copied())
+            .or_else(|| by_probe.get(&diag.file).copied());
+        if let Some(entry) = probe_match {
+            let text = probe_texts
+                .entry(entry.source_path.clone())
+                .or_insert_with(|| std::fs::read_to_string(&entry.source_path).unwrap_or_default());
+            let off = line_col_to_byte_offset(text, diag.line as usize, diag.column as usize);
+            // 6xxx are the "declared but never read" family, which the elided
+            // body provokes by construction — the source is where that is
+            // decided, and it is checked in full.
+            let unused = matches!(ts_error_number(&diag.code), Some(6000..=6999));
+            if unused || !in_any_span(&entry.spans, off) {
+                continue;
+            }
+            out.push(passthrough(diag, &entry.source_path, workspace));
+            continue;
+        }
+        if let Some(spans) = probe_spans
+            .get(&canon)
+            .or_else(|| probe_spans.get(&absolute))
+            .or_else(|| probe_spans.get(&diag.file))
+        {
+            let path = if absolute.is_file() {
+                &absolute
+            } else {
+                &canon
+            };
+            let text = probe_texts
+                .entry(path.clone())
+                .or_insert_with(|| std::fs::read_to_string(path).unwrap_or_default());
+            let off = line_col_to_byte_offset(text, diag.line as usize, diag.column as usize);
+            if in_any_span(spans, off) {
+                continue;
+            }
         }
         let kit_match = by_kit
             .get(&canon)
@@ -594,6 +672,9 @@ mod tests {
             overlay_tsconfig: workspace.join(".svelte-check").join("tsconfig.json"),
             entries: Vec::new(),
             kit_entries: Vec::new(),
+            import_probes: Vec::new(),
+            withheld_js_modules: Vec::new(),
+            no_implicit_any: false,
         }
     }
 

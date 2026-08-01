@@ -1,5 +1,5 @@
 {
-	"description": "The companion split of `ts-companion-named-import` under node10/bundler resolution, reached by a RELATIVE specifier from a plain `.ts` file. Known-divergent: TypeScript substitutes extensions in the importer's own directory, so `./widget.svelte` lands on the real `widget.svelte.ts` before `rootDirs` or `paths` can offer the component shadow. Official svelte-check resolves `.svelte` specifiers in its own `resolveModuleNames` hook and reports TS2614; a stock compiler driven over an on-disk overlay has no such hook (#2061).",
+	"description": "The companion split of `ts-companion-named-import` under node10/bundler resolution, reached by a RELATIVE specifier from a plain `.ts` file — the one shape neither a `paths` override nor a shadow-side specifier rewrite can reach, since TypeScript probes the importer's own directory first and lands on the real `widget.svelte.ts`. The overlay answers it by re-resolving the import from a blanked mirror probe, which is where official's `resolveModuleNames` hook gets its TS2614 (#2061).",
 	"tsconfig": "tsconfig.json",
 	"issues": [
 		2061

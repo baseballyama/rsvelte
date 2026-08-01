@@ -387,7 +387,12 @@ fn run_type_check_phase(
     };
     match run_tsgo(&binary, &layout.overlay_tsconfig, workspace) {
         Ok(raw) => {
-            let mapped = map_tsgo_diagnostics(&raw, layout, workspace);
+            let mut mapped = map_tsgo_diagnostics(&raw, layout, workspace);
+            overlay::replay_withheld_js_module_diagnostics(
+                &mut mapped.diagnostics,
+                &layout.withheld_js_modules,
+                layout.no_implicit_any,
+            );
             // Before merging tsgo's output, guard against the silent
             // false-negative in #728: a syntactically-invalid generated
             // overlay makes TypeScript suppress every SEMANTIC diagnostic
