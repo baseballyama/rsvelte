@@ -12,6 +12,15 @@ The ratchet (`corpus-compat.yml`) fails only on an `(id, target)` pair not in th
 baseline — the lists may only shrink, never grow. Each accepted entry must be
 justified in this file.
 
+The JSON files are CI-enforced this way, but the header counts and (for
+client-dev) the cluster-table residue below are hand-maintained prose and were
+not checked anywhere, so a burn-down PR could update the JSON without keeping
+this file's numbers in sync (#2062, drift from #2048). `corpus-compat.yml` now
+runs `scripts/compat-corpus/known-failures-md-check.mjs` first, which fails
+the job if a header count (or the client-dev "attributed to a cluster" /
+"remaining" reconciliation, when that sentence is present) stops matching the
+JSON array length.
+
 The five skeleton seeds from #1924 are gone (#2017): #1973 (fixed by #1996),
 #1974 (fixed by #1988), #1975 (fixed by #1993). All three divergences the
 checked-in pattern corpus (#2019) surfaced are gone too: the two SSR

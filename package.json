@@ -57,6 +57,7 @@
 		"corpus:collect": "node scripts/compat-corpus/collect.mjs",
 		"corpus:compile": "node scripts/compat-corpus/compile.mjs",
 		"corpus:verify": "node scripts/compat-corpus/verify.mjs",
+		"corpus:known-failures-check": "node scripts/compat-corpus/known-failures-md-check.mjs",
 		"corpus:compile:dev": "node scripts/compat-corpus/compile.mjs --targets client-dev",
 		"corpus:verify:dev": "node scripts/compat-corpus/verify.mjs --targets client-dev",
 		"corpus:fmt": "node scripts/compat-corpus/fmt.mjs",
