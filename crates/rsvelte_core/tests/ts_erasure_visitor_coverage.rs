@@ -179,14 +179,43 @@ fn namespace_export_declaration_is_left_alone() {
     assert_left_alone("export as namespace Foo;");
 }
 
-/// The official compiler rejects `with` outright (module code is strict), so
-/// there is no upstream output to match here — this only pins that the body is
-/// reached by the walk rather than passed through verbatim.
+/// The official compiler rejects `with` outright: component scripts are ESM
+/// and therefore always strict, and acorn's `sourceType: 'module'` parse
+/// throws `js_parse_error('with' in strict mode)` at the `with` keyword
+/// before TS erasure ever runs (see issue #2054). There is no erased-output
+/// shape to pin here — this asserts the same code/message/span as upstream
+/// instead.
 #[test]
 fn with_statement_body() {
-    assert_erased(
-        "const o = { x: 1 };\n\tconst y: any = 2;\n\tlet x;\n\twith (o) { x = y as any; }\n\tconsole.log(x);",
-        &["x = y"],
-        &["as any"],
+    let body = "const o = { x: 1 };\n\tconst y: any = 2;\n\tlet x;\n\twith (o) { x = y as any; }\n\tconsole.log(x);";
+    let src = format!("<script lang=\"ts\">\n\t{body}\n</script>\n\n<p>ok</p>\n");
+    let with_pos = src.find("with (o)").expect("`with` keyword in source");
+
+    let err = compile(
+        &src,
+        CompileOptions {
+            filename: Some("Erasure.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: false,
+            css: CssMode::External,
+            ..Default::default()
+        },
+    )
+    .expect_err("`with` must be rejected, matching the official compiler");
+
+    let rsvelte_core::compiler::CompileError::Parse(rsvelte_core::error::ParseError::SvelteError {
+        code,
+        message,
+        span,
+    }) = err
+    else {
+        panic!("expected a SvelteError, got: {err:?}");
+    };
+
+    assert_eq!(code, "js_parse_error");
+    assert_eq!(
+        message,
+        "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error"
     );
+    assert_eq!(span, (with_pos, with_pos));
 }

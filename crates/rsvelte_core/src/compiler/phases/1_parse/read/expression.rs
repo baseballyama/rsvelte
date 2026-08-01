@@ -6718,29 +6718,75 @@ fn convert_parsed_program<'ast>(
             )
         });
 
-        // OXC accepts Stage-3 `@decorator` syntax even in plain JS; upstream's
-        // acorn (no decorator plugin) raises js_parse_error at the `@` token.
-        // A bare `@` is never legal JS outside decorators, so flag the first
-        // decorator's position. Gated on a cheap byte scan first.
-        if parse_error.is_none() && !is_typescript && content.contains('@') {
+        // OXC has no strict-mode syntax-restriction pass at all, unlike acorn,
+        // which applies one uniformly because every script is parsed with
+        // `sourceType: 'module'` (component scripts are ESM and therefore
+        // always strict — see acorn.js's shared `parse`/`parse_expression_at`/
+        // `parse_statement_at`). Scan for constructs OXC accepts but acorn
+        // would reject, and report whichever occurs first in the source:
+        // acorn is a single-pass, non-recovering parser, so it throws on the
+        // first one it reaches and never sees any that would follow.
+        //
+        // - `@decorator` (Stage-3 syntax OXC accepts even in plain JS; a bare
+        //   `@` is never legal JS outside decorators). TS scripts legitimately
+        //   support decorators, so this one is JS-only.
+        // - `with (...) { ... }` (always a strict-mode violation; TS scripts
+        //   are strict too, so this applies regardless of `is_typescript`).
+        if parse_error.is_none() {
             use oxc_ast_visit::Visit;
-            struct FindDecorator(Option<u32>);
-            impl<'a> Visit<'a> for FindDecorator {
+            struct StrictModeScan {
+                check_decorator: bool,
+                decorator_at: Option<u32>,
+                with_at: Option<u32>,
+            }
+            impl<'a> Visit<'a> for StrictModeScan {
                 fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
-                    if self.0.is_none() {
-                        self.0 = Some(dec.span.start);
+                    if self.check_decorator && self.decorator_at.is_none() {
+                        self.decorator_at = Some(dec.span.start);
                     }
                 }
+                fn visit_with_statement(&mut self, stmt: &oxc_ast::ast::WithStatement<'a>) {
+                    if self.with_at.is_none() {
+                        self.with_at = Some(stmt.span.start);
+                    }
+                    oxc_ast_visit::walk::walk_with_statement(self, stmt);
+                }
             }
-            let mut finder = FindDecorator(None);
-            finder.visit_program(program);
-            if let Some(at) = finder.0 {
-                let pos = at as usize + offset;
-                parse_error = Some(crate::error::ParseError::svelte(
-                    "js_parse_error",
-                    "Unexpected character '@'".to_string(),
-                    (pos, pos),
-                ));
+
+            let check_decorator = !is_typescript && content.contains('@');
+            let check_with = content.contains("with");
+            if check_decorator || check_with {
+                let mut finder = StrictModeScan {
+                    check_decorator,
+                    decorator_at: None,
+                    with_at: None,
+                };
+                finder.visit_program(program);
+
+                let earliest = [
+                    finder
+                        .decorator_at
+                        .map(|at| (at, "Unexpected character '@'".to_string())),
+                    finder.with_at.map(|at| {
+                        (
+                            at,
+                            "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error"
+                                .to_string(),
+                        )
+                    }),
+                ]
+                .into_iter()
+                .flatten()
+                .min_by_key(|(at, _)| *at);
+
+                if let Some((at, message)) = earliest {
+                    let pos = at as usize + offset;
+                    parse_error = Some(crate::error::ParseError::svelte(
+                        "js_parse_error",
+                        message,
+                        (pos, pos),
+                    ));
+                }
             }
         }
 
