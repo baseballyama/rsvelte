@@ -370,7 +370,9 @@ pub(crate) fn handle_component(
     if has_lets || children_have_named_slots || children_have_default_slot_lets {
         // Process children with slot scoping
         deferred_slot_close = process_component_children_with_slots(
-            comp,
+            &comp.attributes,
+            &comp.fragment,
+            comp.end,
             &inst_var,
             has_lets,
             source,
@@ -680,14 +682,38 @@ pub(crate) fn handle_svelte_component(
     str.overwrite(comp.start, opening_tag_end, &opener);
 
     // Children of svelte:component are at depth+1 (this component is now an
-    // ancestor). Mark the slot context so `slot="x"` children (incl. those
-    // nested in control-flow blocks) lower to `inst.$$slot_def["x"]`.
-    let prev_slot = counter.slot_inst.replace(inst_var.clone());
-    process_fragment_inplace(&comp.fragment, source, options, str, counter, depth + 1);
-    counter.slot_inst = prev_slot;
+    // ancestor). Slot-bearing children take the same lowering as a named
+    // component's (`$$slot_def.default` / `$$slot_def["x"]` blocks); the
+    // component's OWN `let:` block is already in `opener` above, so the helper
+    // is told not to emit it again.
+    let deferred_slot_close = if children_have_named_slots || children_have_default_slot_lets {
+        process_component_children_with_slots(
+            &comp.attributes,
+            &comp.fragment,
+            comp.end,
+            &inst_var,
+            false,
+            source,
+            options,
+            str,
+            counter,
+            depth + 1,
+        )
+    } else {
+        // Mark the slot context so `slot="x"` children nested in control-flow
+        // blocks still lower to `inst.$$slot_def["x"]`.
+        let prev_slot = counter.slot_inst.replace(inst_var.clone());
+        process_fragment_inplace(&comp.fragment, source, options, str, counter, depth + 1);
+        counter.slot_inst = prev_slot;
+        false
+    };
 
     let closing_tag_start = find_closing_tag_start(source, comp.end);
-    let closing_text = if has_lets_scomp { "}}" } else { "}" };
+    let closing_text = if has_lets_scomp || deferred_slot_close {
+        "}}"
+    } else {
+        "}"
+    };
     if closing_tag_start < comp.end {
         // `svelte:component` keeps no name mapping on its closing tag, so its
         // collapsed gaps are all that precede the closers.

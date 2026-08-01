@@ -228,9 +228,14 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool
 ///
 /// Returns whether the default-slot block is still open at the closing tag and
 /// so must be closed by the caller's closing-tag overwrite.
+///
+/// Takes the owning node's parts rather than a `&Component` so `<svelte:component>`
+/// (a `SvelteComponentElement`) can share the exact same slot lowering.
 #[must_use]
 pub(crate) fn process_component_children_with_slots(
-    comp: &Component,
+    attributes: &[Attribute],
+    fragment: &Fragment,
+    node_end: u32,
     inst_var: &str,
     has_lets: bool,
     source: &str,
@@ -241,7 +246,7 @@ pub(crate) fn process_component_children_with_slots(
 ) -> bool {
     // Build the default slot destructuring if needed
     let let_destructure = if has_lets {
-        build_let_destructure_string(&comp.attributes, source)
+        build_let_destructure_string(attributes, source)
     } else {
         String::new()
     };
@@ -272,7 +277,7 @@ pub(crate) fn process_component_children_with_slots(
         );
 
         // Find where to insert the block open
-        if let Some(first_node) = comp.fragment.nodes.first() {
+        if let Some(first_node) = fragment.nodes.first() {
             let first_start = first_node.start();
             // Insert the block opening before the first child
             str.append_left(first_start, &block_open);
@@ -280,7 +285,7 @@ pub(crate) fn process_component_children_with_slots(
         default_slot_opened = true;
     }
 
-    for node in &comp.fragment.nodes {
+    for node in &fragment.nodes {
         let is_named_slot = match node {
             TemplateNode::RegularElement(el) => {
                 get_slot_attr_value(&el.attributes, source).is_some()
@@ -395,8 +400,8 @@ pub(crate) fn process_component_children_with_slots(
     if default_slot_opened && has_lets {
         // Find the position to close: after the last node, before the closing tag
         if let Some(end) = prev_end {
-            let closing_tag_start = find_closing_tag_start(source, comp.end);
-            if closing_tag_start < comp.end {
+            let closing_tag_start = find_closing_tag_start(source, node_end);
+            if closing_tag_start < node_end {
                 // The closing tag's own collapsed gaps come first, so the caller
                 // emits this `}` as part of that overwrite.
                 return true;
