@@ -24,7 +24,10 @@ fn compile_dev(src: &str) -> String {
 fn position_follows_the_element_on_its_own_line() {
     let out = compile_dev("{#if depth > 1}\n\t<svelte:self depth={depth - 1}/>\n{/if}");
     assert!(out.contains("'component', Comp, 2, 1,"), "in:\n{out}");
-    assert!(!out.contains("Comp, 1, 0,"), "placeholder position in:\n{out}");
+    assert!(
+        !out.contains("Comp, 1, 0,"),
+        "placeholder position in:\n{out}"
+    );
 }
 
 #[test]
