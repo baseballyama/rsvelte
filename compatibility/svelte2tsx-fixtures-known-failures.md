@@ -25,7 +25,7 @@ UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 `STRICT_S2TSX_FIXTURES=1` ignores the baseline entirely (every failure fails),
 which is how you check whether an entry is still needed.
 
-## Current baseline: 14 of 254 (pass rate 94.5%)
+## Current baseline: 12 of 254 (pass rate 95.3%)
 
 ### #2145 note
 
@@ -36,7 +36,7 @@ ever compared the returned `props`/`slots`/`events` reflection again. That's how
 rsvelte/official divergence — `$$slot_def["b"]` vs official's `$$slot_def['b']` — passed
 `component-slot-let-forward-named-slot` despite differing. `return_statement_matches`
 (same file) now independently re-verifies just the return statement through the same
-relaxations, on top of the existing chain. The 9 entries below are pre-existing
+relaxations, on top of the existing chain. The entries below are pre-existing
 divergences this newly surfaced — none are new regressions, and none are related to the
 quoting bug itself (which is fixed in `collect/mod.rs`'s `push_let_reflection_scope`).
 
@@ -83,16 +83,6 @@ quoting bug itself (which is fixed in `collect/mod.rs`'s `push_let_reflection_sc
 - **`ts-await-generics.v5`.** One space after `type $$ComponentProps = { prop?: T };`
   — the fixture has two, rsvelte emits one. Cosmetic in effect, but the gate is
   byte-exact so it is tracked like any other divergence.
-
-### `$$Slots` interface/type override not respected — 2
-
-- **`component-slot-$$slot-interface`**, **`component-slot-$$slot-type`.** When the
-  instance script declares an explicit `interface $$Slots { … }` (or `type $$Slots
-  = { … }`), official's `slots:` reflection becomes `{} as unknown as $$Slots`,
-  deferring entirely to the user's own type instead of the computed shape. rsvelte
-  doesn't detect the declaration and always emits the literal computed slot object
-  (`{'default': {a:b}, 'foo': {b:b}}`). A real, self-contained feature gap — out of
-  scope for #2145 (slot **quoting**, not slot **typing**).
 
 ### `let:`-forwarding slot-let resolution gaps — 3
 

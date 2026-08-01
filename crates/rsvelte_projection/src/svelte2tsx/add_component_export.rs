@@ -85,7 +85,7 @@ pub(crate) fn add_component_export(
     let component_doc = extract_component_documentation(&ast.fragment);
 
     // Build slots string from template info
-    let slots_str = build_slots_str(template_info);
+    let slots_str = build_slots_str(template_info, exported_names.has_slots_type);
 
     // Scan the component for `dispatch("name", …)` call sites of any untyped
     // `createEventDispatcher()` so they surface in the events return. Template

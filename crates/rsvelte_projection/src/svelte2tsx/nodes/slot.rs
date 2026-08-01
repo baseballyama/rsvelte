@@ -6,8 +6,16 @@ use std::fmt::Write as _;
 use super::super::template;
 
 /// Build the `slots` object literal for the component export from template info.
-pub(crate) fn build_slots_str(template_info: &template::TemplateInfo<'_>) -> String {
-    if template_info.slots.is_empty() {
+///
+/// An instance-script `interface`/`type $$Slots` declaration replaces the
+/// computed shape entirely so the user's own type is what gets checked.
+pub(crate) fn build_slots_str(
+    template_info: &template::TemplateInfo<'_>,
+    has_slots_type: bool,
+) -> String {
+    if has_slots_type {
+        "{} as unknown as $$Slots".to_string()
+    } else if template_info.slots.is_empty() {
         "{}".to_string()
     } else {
         let mut slot_parts = Vec::new();

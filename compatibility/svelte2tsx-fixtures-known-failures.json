@@ -1,7 +1,5 @@
 [
 	"attributes-foreign-ns",
-	"component-slot-$$slot-interface",
-	"component-slot-$$slot-type",
 	"component-slot-inside-await",
 	"component-slot-let-forward",
 	"component-slot-object-key",
