@@ -541,8 +541,7 @@ pub(crate) fn prepare_and_analyze<'source>(
     ),
     CompileError,
 > {
-    let line_offsets =
-        phases::phase1_parse::compute_line_offsets(source, ast.skip_expression_loc);
+    let line_offsets = phases::phase1_parse::compute_line_offsets(source, ast.skip_expression_loc);
 
     // Resolve lazy expressions (deferred template expressions). If any
     // expression has a parse error, return it immediately.
