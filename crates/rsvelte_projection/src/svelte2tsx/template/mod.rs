@@ -257,15 +257,17 @@ mod tests {
 <slot name={dynamic} />
 <slot name="pre{dynamic}post" />"#;
         with_collected_info(source, true, |info| {
+            // `name="pre{dynamic}post"` keys on `value[0].raw` (`pre`), and the
+            // `$$slots` declaration is built from the very same map.
+            let names = vec!["named", "default", "undefined", "pre"];
             assert_eq!(
                 info.slots.keys().map(String::as_str).collect::<Vec<_>>(),
-                vec!["named", "default", "undefined"]
+                names
             );
-            let dollar_names = IndexSet::from([
-                "named".to_string(),
-                "default".to_string(),
-                "post".to_string(),
-            ]);
+            let dollar_names: IndexSet<String> = names
+                .into_iter()
+                .map(str::to_string)
+                .collect::<IndexSet<_>>();
             assert_eq!(info.dollar_slot_names.as_deref(), Some(&dollar_names));
             let named = info.slots.get("named").expect("named slot");
             assert_eq!(named.len(), 1);

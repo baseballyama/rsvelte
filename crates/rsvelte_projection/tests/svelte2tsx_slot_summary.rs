@@ -13,8 +13,10 @@ fn dollar_slots_uses_collected_static_dynamic_and_duplicate_name_order() {
 <slot name="pre{dynamic}post" />"#;
     let result = svelte2tsx(source, Svelte2TsxOptions::default()).expect("project");
 
+    // `$$slots` shares official's `slots` map, whose key is `value[0].raw` — so
+    // `name="pre{dynamic}post"` contributes `pre`, not `post` (#2100).
     assert!(result.code.contains(
-        "let $$slots = __sveltets_2_slotsType({'named': '', 'default': '', 'post': ''});"
+        "let $$slots = __sveltets_2_slotsType({'named': '', 'default': '', 'undefined': '', 'pre': ''});"
     ));
     let named = result
         .code

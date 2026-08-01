@@ -24,7 +24,7 @@ use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_op
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
 
 use super::inline_component::handle_component;
-use super::slot_element::get_slot_attr_value;
+use super::slot_element::slot_attr_static_name;
 use crate::svelte2tsx::template::attributes::action::format_use_directive;
 
 /// True if `attributes` contains a `slot` attribute whose value is anything
@@ -136,38 +136,28 @@ pub(crate) fn has_default_slot_let_children(fragment: &Fragment, _source: &str) 
 }
 
 /// Check if any children have `slot="name"` attributes (named slots).
-pub(crate) fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
+pub(crate) fn has_named_slot_children(fragment: &Fragment) -> bool {
     for node in &fragment.nodes {
         match node {
-            TemplateNode::RegularElement(el)
-                if get_slot_attr_value(&el.attributes, source).is_some() =>
-            {
+            TemplateNode::RegularElement(el) if slot_attr_static_name(&el.attributes).is_some() => {
                 return true;
             }
-            TemplateNode::Component(comp)
-                if get_slot_attr_value(&comp.attributes, source).is_some() =>
-            {
+            TemplateNode::Component(comp) if slot_attr_static_name(&comp.attributes).is_some() => {
                 return true;
             }
             // `<svelte:fragment slot="name" let:foo>` is the Svelte 4 idiom
             // for distributing children into a named slot — it shows up here
             // as `SvelteFragment`. Treat it like the others.
-            TemplateNode::SvelteFragment(el)
-                if get_slot_attr_value(&el.attributes, source).is_some() =>
-            {
+            TemplateNode::SvelteFragment(el) if slot_attr_static_name(&el.attributes).is_some() => {
                 return true;
             }
             // `<slot slot="name">` forwards a `<slot>` into the parent
             // component's named slot.
-            TemplateNode::SlotElement(el)
-                if get_slot_attr_value(&el.attributes, source).is_some() =>
-            {
+            TemplateNode::SlotElement(el) if slot_attr_static_name(&el.attributes).is_some() => {
                 return true;
             }
             // `<svelte:element this={tag} slot="name">` targets a named slot.
-            TemplateNode::SvelteElement(el)
-                if get_slot_attr_value(&el.attributes, source).is_some() =>
-            {
+            TemplateNode::SvelteElement(el) if slot_attr_static_name(&el.attributes).is_some() => {
                 return true;
             }
             // Control-flow blocks are transparent to slot distribution: a
@@ -178,20 +168,20 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool
             // nested elements/components (which own their own slot scope) or
             // `{#snippet}` bodies (snippet props, not slots).
             TemplateNode::IfBlock(block)
-                if has_named_slot_children(&block.consequent, source)
+                if has_named_slot_children(&block.consequent)
                     || block
                         .alternate
                         .as_ref()
-                        .is_some_and(|alt| has_named_slot_children(alt, source)) =>
+                        .is_some_and(|alt| has_named_slot_children(alt)) =>
             {
                 return true;
             }
             TemplateNode::EachBlock(block)
-                if has_named_slot_children(&block.body, source)
+                if has_named_slot_children(&block.body)
                     || block
                         .fallback
                         .as_ref()
-                        .is_some_and(|fb| has_named_slot_children(fb, source)) =>
+                        .is_some_and(|fb| has_named_slot_children(fb)) =>
             {
                 return true;
             }
@@ -199,19 +189,19 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool
                 if block
                     .pending
                     .as_ref()
-                    .is_some_and(|p| has_named_slot_children(p, source))
+                    .is_some_and(|p| has_named_slot_children(p))
                     || block
                         .then
                         .as_ref()
-                        .is_some_and(|t| has_named_slot_children(t, source))
+                        .is_some_and(|t| has_named_slot_children(t))
                     || block
                         .catch
                         .as_ref()
-                        .is_some_and(|c| has_named_slot_children(c, source)) =>
+                        .is_some_and(|c| has_named_slot_children(c)) =>
             {
                 return true;
             }
-            TemplateNode::KeyBlock(block) if has_named_slot_children(&block.fragment, source) => {
+            TemplateNode::KeyBlock(block) if has_named_slot_children(&block.fragment) => {
                 return true;
             }
             _ => {}
@@ -282,15 +272,11 @@ pub(crate) fn process_component_children_with_slots(
 
     for node in &comp.fragment.nodes {
         let is_named_slot = match node {
-            TemplateNode::RegularElement(el) => {
-                get_slot_attr_value(&el.attributes, source).is_some()
-            }
+            TemplateNode::RegularElement(el) => slot_attr_static_name(&el.attributes).is_some(),
             TemplateNode::Component(child_comp) => {
-                get_slot_attr_value(&child_comp.attributes, source).is_some()
+                slot_attr_static_name(&child_comp.attributes).is_some()
             }
-            TemplateNode::SvelteFragment(el) => {
-                get_slot_attr_value(&el.attributes, source).is_some()
-            }
+            TemplateNode::SvelteFragment(el) => slot_attr_static_name(&el.attributes).is_some(),
             _ => false,
         };
 
@@ -471,7 +457,7 @@ pub(crate) fn handle_named_slot_element(
     counter: &mut Counter,
     depth: u32,
 ) {
-    let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
+    let slot_name = slot_attr_static_name(&el.attributes).unwrap_or_default();
     let let_destructure = build_let_destructure_string(&el.attributes, source);
 
     // Build the slot def block opener
@@ -564,7 +550,7 @@ pub(crate) fn handle_named_slot_svelte_fragment(
     counter: &mut Counter,
     depth: u32,
 ) {
-    let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
+    let slot_name = slot_attr_static_name(&el.attributes).unwrap_or_default();
     let let_destructure = build_let_destructure_string(&el.attributes, source);
 
     // Leading ` ` matches the JS reference, which produces
@@ -632,7 +618,7 @@ pub(crate) fn handle_named_slot_component(
     counter: &mut Counter,
     depth: u32,
 ) {
-    let slot_name = get_slot_attr_value(&comp.attributes, source).unwrap_or_default();
+    let slot_name = slot_attr_static_name(&comp.attributes).unwrap_or_default();
     let let_destructure = build_let_destructure_string(&comp.attributes, source);
 
     // Build the slot def block opener

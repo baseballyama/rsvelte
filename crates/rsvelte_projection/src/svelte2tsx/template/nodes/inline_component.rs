@@ -38,7 +38,7 @@ use super::component_slots::{
     handle_named_slot_component, has_component_slot_children, has_default_slot_let_children,
     has_named_slot_children, process_component_children_with_slots,
 };
-use super::slot_element::get_slot_attr_value;
+use super::slot_element::slot_attr_static_name;
 use super::snippet_block::handle_snippet_block_as_component_prop;
 
 /// The `</Component>` → `Component}` mapping upstream keeps for the closing tag.
@@ -92,7 +92,7 @@ pub(crate) fn handle_component(
     // already the routed inner `handle_component` call.
     if !counter.named_slot_component_close
         && let Some(ref inst) = saved_outer_slot
-        && get_slot_attr_value(&comp.attributes, source).is_some()
+        && slot_attr_static_name(&comp.attributes).is_some()
     {
         let inst = inst.clone();
         handle_named_slot_component(comp, &inst, source, options, str, counter, depth);
@@ -132,7 +132,7 @@ pub(crate) fn handle_component(
     let has_children = has_component_slot_children(&comp.fragment, source);
 
     // Check if any children have named slots with let: directives
-    let children_have_named_slots = has_named_slot_children(&comp.fragment, source);
+    let children_have_named_slots = has_named_slot_children(&comp.fragment);
 
     // A default-slot child carrying `let:` directives (e.g.
     // `<svelte:fragment let:a={x}>…`) destructures from
@@ -630,7 +630,7 @@ pub(crate) fn handle_svelte_component(
     // Need an instance variable when there are `on:` events, `let:` directives,
     // `bind:` directives, or children that reference the instance's slot defs
     // (named-slot children anywhere in blocks, or default-slot `let:` receivers).
-    let children_have_named_slots = has_named_slot_children(&comp.fragment, source);
+    let children_have_named_slots = has_named_slot_children(&comp.fragment);
     let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment, source);
     let needs_inst = has_events
         || has_lets_scomp

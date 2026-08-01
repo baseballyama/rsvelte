@@ -7,7 +7,7 @@ use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Fragme
 use pattern::{collect_pattern_bindings, expand_object_shorthands};
 
 use super::attributes::let_::iter_let_directives;
-use super::nodes::slot_element::{dollar_slot_name, get_slot_attr_value, slot_name_for_type};
+use super::nodes::slot_element::{slot_consumer_name, slot_name_for_type};
 use super::utils::expr::get_expression_text;
 use super::{ForwardedEvent, ForwardedEventMapper, ForwardedEventSource, TemplateInfo};
 use crate::ast::arena::ParseArena;
@@ -81,14 +81,15 @@ fn collect_info_from_node<'a>(
     detector.observe(node, source, arena);
     match node {
         TemplateNode::SlotElement(el) => {
-            if let Some(names) = &mut info.dollar_slot_names {
-                let name = dollar_slot_name(&el.attributes);
-                names.insert(name);
-            }
             // Collect slot name and props. The `slots` *type* key uses
             // `undefined` for a dynamic name (`<slot name="{foo}">`), unlike the
             // `__sveltets_createSlot("{foo}", …)` call which keeps the raw text.
+            // Official derives the legacy `$$slots` declaration from the very
+            // same map, so both must use `slot_name_for_type`.
             let slot_name = slot_name_for_type(&el.attributes);
+            if let Some(names) = &mut info.dollar_slot_names {
+                names.insert(slot_name.clone());
+            }
             let slot_props = collect_slot_prop_entries(&el.attributes, source, scope);
             // Official `SlotHandler.handleSlot` does `this.slots.set(name, …)`:
             // a later `<slot name=X>` REPLACES the earlier def for X (it does not
@@ -502,12 +503,15 @@ fn push_component_slot_consumer_lets(
 ) -> usize {
     // Default-slot lets: `let:` directly on the component tag.
     let mut pushed = push_let_reflection_scope(own_attributes, comp_type, "default", source, scope);
-    // Named-slot lets: each direct child with a static `slot="x"` attribute.
+    // Named-slot lets: each direct child whose `slot=` value STARTS with text.
+    // Official reads `value[0].raw` here (`getSlotName`), a laxer rule than the
+    // JSX lowering's — `slot="a{b}c"` types its `let:` against slot `a` while
+    // the same child's JSX block stays on the default slot.
     for child in children {
         if let Some(child_attrs) = node_slot_consumer_attributes(child)
-            && let Some(slot_name) = get_slot_attr_value(child_attrs, source)
+            && let Some(slot_name) = slot_consumer_name(child_attrs)
         {
-            pushed += push_let_reflection_scope(child_attrs, comp_type, &slot_name, source, scope);
+            pushed += push_let_reflection_scope(child_attrs, comp_type, slot_name, source, scope);
         }
     }
     pushed

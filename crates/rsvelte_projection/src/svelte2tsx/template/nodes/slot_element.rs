@@ -38,9 +38,10 @@ pub(crate) fn handle_slot_element(
     // referencing the enclosing component instance. Take the context so the
     // slot's own fallback children don't inherit it; restore it for siblings.
     let saved_slot = counter.slot_inst.take();
-    let named_slot: Option<(String, String)> = saved_slot.as_ref().and_then(|inst| {
-        get_slot_attr_value(&el.attributes, source).map(|name| (inst.clone(), name))
-    });
+    let named_slot: Option<(&str, &str)> = saved_slot
+        .as_ref()
+        .zip(slot_attr_static_name(&el.attributes))
+        .map(|(inst, name)| (inst.as_str(), name));
     let named_slot_block = named_slot.as_ref().map(|(inst, target_slot)| {
         let let_destructure = build_let_destructure_string(&el.attributes, source);
         format!(
@@ -59,7 +60,7 @@ pub(crate) fn handle_slot_element(
     let bind_this_expr = get_bind_this_expr(&el.attributes, source);
 
     // Build slot props string (excluding the `name` attribute and `bind:this`).
-    let slot_props = build_slot_props_string(&el.attributes, source);
+    let slot_props = build_slot_props_string(&el.attributes, source, named_slot.is_some());
     // `__sveltets_createSlot("name"` keeps the source range of a static slot
     // name; a defaulted (absent) name is a literal and keeps none.
     let name_range = get_slot_name_range(&el.attributes);
@@ -150,60 +151,67 @@ pub(crate) fn handle_slot_element(
     counter.slot_inst = saved_slot;
 }
 
-/// Extract the slot name from a `<slot>` element's attributes.
-/// Returns "default" if no `name` attribute is present.
-/// Slot name used as the **type** key in the component's `slots: { … }` return.
-/// A static `name="header"` yields `header`; a missing name yields `default`; a
-/// dynamic `name="{foo}"` (or `name={foo}`) yields the literal `undefined`
-/// (official emits `slots: { undefined: {} }` for a non-static slot name).
-pub(crate) fn slot_name_for_type(attributes: &[Attribute]) -> String {
-    for attr in attributes {
-        if let Attribute::Attribute(node) = attr
-            && node.name == "name"
-        {
-            match &node.value {
-                AttributeValue::Sequence(parts) => {
-                    // Dynamic if any part is an expression tag.
-                    if parts
-                        .iter()
-                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
-                    {
-                        return "undefined".to_string();
-                    }
-                    let mut name = String::new();
-                    for part in parts {
-                        if let AttributeValuePart::Text(text) = part {
-                            name.push_str(&text.raw);
-                        }
-                    }
-                    if !name.is_empty() {
-                        return name;
-                    }
-                }
-                AttributeValue::Expression(_) => return "undefined".to_string(),
-                _ => {}
-            }
-        }
-    }
-    "default".to_string()
+/// Official's `value[0]`: the FIRST part of an attribute value. Every official
+/// slot-name path reads only this part and ignores the rest — `slot.ts`'s
+/// `nameAttr.value[0].raw`, `Element.ts`'s `slotName`, `svelteAst.ts`'s
+/// `getSlotName` and `Attribute.ts`'s `attributeValueIsOfType(value, 'Text')` —
+/// so `name="a{b}c"` is the slot `a`, never the concatenation `ac`.
+enum FirstValuePart<'a> {
+    /// `value[0].type === 'Text'`; carries `value[0].raw`.
+    Text(&'a str),
+    /// `value[0]` is an expression, whose `.raw` is `undefined` in official.
+    Expression,
 }
 
-pub(crate) fn dollar_slot_name(attributes: &[Attribute]) -> String {
-    // The legacy declaration uses the last static text part, unlike the slot type key.
-    let mut slot_name = "default".to_string();
-    for attr in attributes {
-        if let Attribute::Attribute(node) = attr
-            && node.name == "name"
-            && let AttributeValue::Sequence(parts) = &node.value
-        {
-            for part in parts {
-                if let AttributeValuePart::Text(text) = part {
-                    slot_name = text.raw.to_string();
-                }
-            }
-        }
+/// `value[0]` of the attribute named `name`, or `None` when the attribute is
+/// absent or boolean (`<slot name>` — official reads `undefined` there and
+/// throws while dereferencing `.raw`; rsvelte degrades to the default instead).
+fn first_value_part<'a>(attributes: &'a [Attribute], name: &str) -> Option<FirstValuePart<'a>> {
+    attributes.iter().find_map(|attr| match attr {
+        Attribute::Attribute(node) if node.name == name => match &node.value {
+            AttributeValue::Sequence(parts) => parts.first().map(|part| match part {
+                AttributeValuePart::Text(text) => FirstValuePart::Text(&text.raw),
+                AttributeValuePart::ExpressionTag(_) => FirstValuePart::Expression,
+            }),
+            AttributeValue::Expression(_) => Some(FirstValuePart::Expression),
+            AttributeValue::True(_) => None,
+        },
+        _ => None,
+    })
+}
+
+/// Slot name used as the **type** key in the component's `slots: { … }` return
+/// and in the legacy `$$slots` declaration — official `SlotHandler.handleSlot`'s
+/// `nameAttr ? nameAttr.value[0].raw : 'default'`.
+///
+/// A static `name="header"` yields `header`, `name="a{b}c"` yields `a` (only
+/// `value[0]` counts), a missing name yields `default`, and a `value[0]` that is
+/// an expression yields the literal `undefined` (official stringifies its
+/// `undefined` `.raw` into the key). An empty name keeps rsvelte's `default`
+/// fallback: official's `''` key pairs with a syntactically broken
+/// `__sveltets_createSlot(, …)` call, and `get_slot_name` already declines to
+/// reproduce that.
+pub(crate) fn slot_name_for_type(attributes: &[Attribute]) -> String {
+    match first_value_part(attributes, "name") {
+        Some(FirstValuePart::Text(raw)) if !raw.is_empty() => raw.to_string(),
+        Some(FirstValuePart::Expression) => "undefined".to_string(),
+        _ => "default".to_string(),
     }
-    slot_name
+}
+
+/// Target slot of a component child's `slot=` attribute for the **scope**
+/// resolution that types `let:` bindings (official `utils/svelteAst.ts`'s
+/// `getSlotName`, read by `SlotHandler.getSlotConsumerOfComponent`).
+///
+/// This is `value[0].raw`, so `slot="a{b}c"` resolves `let:` against slot `a`
+/// even though the JSX lowering keeps the same child in the *default* slot —
+/// official really does apply two different rules here, see
+/// [`slot_attr_static_name`].
+pub(crate) fn slot_consumer_name<'a>(attributes: &'a [Attribute]) -> Option<&'a str> {
+    match first_value_part(attributes, "slot") {
+        Some(FirstValuePart::Text(raw)) => Some(raw),
+        _ => None,
+    }
 }
 
 /// Source range of the `<slot name=…>` value's first value part (official's
@@ -254,19 +262,25 @@ pub(crate) fn get_bind_this_expr<'a>(
 
 /// Build the props string for a `<slot>` element.
 ///
-/// Excludes the `name` attribute and `bind:this` directive.
+/// Excludes the `name` attribute and `bind:this` directive. `drop_slot_attr`
+/// additionally drops `slot=`, which happens only when the attribute was
+/// consumed by an enclosing `$$slot_def["x"]` wrapper — official's
+/// `handleAttribute` returns early for `slot=` under exactly that condition, so
+/// an unforwarded `slot=` (dynamic, interpolated, or outside a component) stays
+/// an ordinary slot prop.
 /// Format matches `__sveltets_createSlot("name", { props })`.
-pub(crate) fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
+pub(crate) fn build_slot_props_string(
+    attributes: &[Attribute],
+    source: &str,
+    drop_slot_attr: bool,
+) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     for attr in attributes {
         match attr {
             Attribute::Attribute(node) => {
                 // Skip the `name` attribute - it determines the slot name, not a prop.
-                // Skip `slot` too — on a `<slot slot="x">` forward it targets the
-                // enclosing component's named slot (consumed by the
-                // `$$slot_def["x"]` wrapper), it is not a slot prop.
-                if node.name == "name" || node.name == "slot" {
+                if node.name == "name" || (node.name == "slot" && drop_slot_attr) {
                     continue;
                 }
                 // Slot props are neither DOM-element props nor component props;
@@ -296,37 +310,24 @@ pub(crate) fn build_slot_props_string(attributes: &[Attribute], source: &str) ->
     parts.join("")
 }
 
-/// Get the static `slot="name"` attribute value from an element's attributes.
-/// Returns None if no `slot` attribute is present, or if its value is a dynamic
-/// expression (`slot={foo}`).
+/// Target slot of an element's `slot=` attribute for the **JSX** lowering, or
+/// `None` when the attribute is absent or not a named-slot marker.
 ///
-/// Official svelte2tsx only treats a `slot` attribute as a named-slot marker
-/// when its value is static `Text` (`attributeValueIsOfType(attr.value, 'Text')`
-/// in `htmlxtojsx_v2/nodes/Attribute.ts`). A dynamic `slot={foo}` is emitted as
-/// an ordinary attribute (`{ slot: foo }`) and does NOT trigger the
-/// `$$slot_def[...]` lowering or the component-instance const.
-pub(crate) fn get_slot_attr_value(attributes: &[Attribute], _source: &str) -> Option<String> {
-    for attr in attributes {
-        if let Attribute::Attribute(node) = attr
-            && node.name == "slot"
-        {
-            match &node.value {
-                AttributeValue::Sequence(parts) => {
-                    let mut name = String::new();
-                    for part in parts {
-                        if let AttributeValuePart::Text(text) = part {
-                            name.push_str(&text.raw);
-                        }
-                    }
-                    if !name.is_empty() {
-                        return Some(name);
-                    }
-                }
-                // Dynamic `slot={foo}` is a regular attribute, not a named slot.
-                AttributeValue::Expression(_) => {}
-                _ => {}
-            }
-        }
-    }
-    None
+/// Official svelte2tsx only treats `slot=` as a marker when the whole value is a
+/// single `Text` part (`attributeValueIsOfType(attr.value, 'Text')` in
+/// `htmlxtojsx_v2/nodes/Attribute.ts`). A dynamic `slot={foo}` *and* an
+/// interpolated `slot="a{b}c"` are both emitted as ordinary attributes and do
+/// NOT trigger the `$$slot_def[...]` lowering or the component-instance const —
+/// unlike [`slot_consumer_name`], which reads `value[0]` for the same attribute.
+pub(crate) fn slot_attr_static_name<'a>(attributes: &'a [Attribute]) -> Option<&'a str> {
+    attributes.iter().find_map(|attr| match attr {
+        Attribute::Attribute(node) if node.name == "slot" => match &node.value {
+            AttributeValue::Sequence(parts) => match parts.as_slice() {
+                [AttributeValuePart::Text(text)] => Some(text.raw.as_ref()),
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    })
 }

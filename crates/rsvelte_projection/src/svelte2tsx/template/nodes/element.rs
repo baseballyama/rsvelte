@@ -22,7 +22,7 @@ use crate::svelte2tsx::template::utils::source::{
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
 use super::component_slots::handle_named_slot_element;
-use super::slot_element::{get_slot_attr_value, handle_slot_element};
+use super::slot_element::{handle_slot_element, slot_attr_static_name};
 use super::snippet_block::hoist_snippet_blocks;
 
 /// Handle a regular HTML element.
@@ -85,7 +85,7 @@ pub(crate) fn handle_regular_element(
     // restore it afterwards for the following siblings.
     let saved_slot = counter.slot_inst.take();
     if let Some(ref inst) = saved_slot
-        && get_slot_attr_value(&el.attributes, source).is_some()
+        && slot_attr_static_name(&el.attributes).is_some()
     {
         handle_named_slot_element(el, inst, source, options, str, counter, depth);
         counter.slot_inst = saved_slot;

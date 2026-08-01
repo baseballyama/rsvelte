@@ -22,7 +22,7 @@ use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_op
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
 use super::component_slots::build_named_slot_element_attrs;
-use super::slot_element::get_slot_attr_value;
+use super::slot_element::slot_attr_static_name;
 
 /// Handle `<svelte:element this={tag}>`.
 pub(crate) fn handle_svelte_dynamic_element(
@@ -43,9 +43,10 @@ pub(crate) fn handle_svelte_dynamic_element(
     // attribute. Take the context so the element's own children don't inherit
     // it; restore it for following siblings.
     let saved_slot = counter.slot_inst.take();
-    let named_slot: Option<(String, String)> = saved_slot.as_ref().and_then(|inst| {
-        get_slot_attr_value(&el.attributes, source).map(|name| (inst.clone(), name))
-    });
+    let named_slot: Option<(&str, &str)> = saved_slot
+        .as_ref()
+        .zip(slot_attr_static_name(&el.attributes))
+        .map(|(inst, name)| (inst.as_str(), name));
     let named_slot_block = named_slot.as_ref().map(|(inst, target_slot)| {
         let let_destructure = build_let_destructure_string(&el.attributes, source);
         format!(
