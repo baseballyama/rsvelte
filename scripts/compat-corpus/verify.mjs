@@ -11,6 +11,8 @@
  *   - error-parity    official compiler rejected; rsvelte rejected too
  *   - js-mismatch / css-mismatch / error-mismatch (rsvelte errs where official
  *     compiles, or vice versa)
+ *   - js-unparseable  one side's output does not parse, so there is no
+ *     comparison to make (see compatibility/ast-equivalence.md)
  *
  * Writes compatibility/report.json.
  *
@@ -38,7 +40,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { flattenTemplateHoles, stripBlankLines, astEquivalent, readIf, firstDiffLine } from './normalize.mjs';
+import { flattenTemplateHoles, stripBlankLines, readIf, firstDiffLine } from './normalize.mjs';
 import { TARGET_KEYS as ALL_TARGET_KEYS, selectTargets } from './targets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -165,8 +167,62 @@ if (!NO_FMT) {
 
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
 
-const counts = { match: 0, 'error-parity': 0, 'js-mismatch': 0, 'css-mismatch': 0, 'error-mismatch': 0 };
+const counts = {
+	match: 0,
+	'error-parity': 0,
+	'js-mismatch': 0,
+	'js-unparseable': 0,
+	'css-mismatch': 0,
+	'error-mismatch': 0,
+};
 const failures = [];
+
+// ---- AST equivalence -------------------------------------------------------
+//
+// Byte comparison first (cheap). Where the bytes differ, the verdict comes from
+// the shared Rust comparator (crates/rsvelte_ast_equiv) rather than a second
+// definition of "equivalent" written here: same question, one answer. Output
+// that does not parse is its own verdict — never quietly demoted to a text
+// diff.
+
+const AST_EQUIV_BIN = path.join(ROOT, 'target/release/ast_equiv_batch');
+const jsKey = (id, target) => `${id} ${target}`;
+const jsByteEqual = new Map();
+const astCandidates = new Map();
+
+for (const { id } of manifest) {
+	for (const targetDef of TARGETS) {
+		const target = targetDef.key;
+		const left = path.join(EXPECTED, id, `${target}.js`);
+		const right = path.join(ACTUAL, id, `${target}.js`);
+		const expJs = stripBlankLines(readIf(left) ?? '');
+		const actJs = stripBlankLines(readIf(right) ?? '');
+		const key = jsKey(id, target);
+		if (expJs === actJs) {
+			jsByteEqual.set(key, true);
+		} else {
+			jsByteEqual.set(key, false);
+			astCandidates.set(key, { left, right, expJs, actJs });
+		}
+	}
+}
+
+const astVerdicts = (() => {
+	if (astCandidates.size === 0) return new Map();
+	if (!fs.existsSync(AST_EQUIV_BIN)) {
+		console.error(`[verify] missing ${AST_EQUIV_BIN} — build it first:`);
+		console.error('  cargo build --release --bin ast_equiv_batch');
+		process.exit(2);
+	}
+	console.log(`[verify] AST comparison for ${astCandidates.size} byte-different output(s)…`);
+	const pairs = [...astCandidates].map(([key, { left, right }]) => ({ id: key, left, right }));
+	const out = execFileSync(AST_EQUIV_BIN, [], {
+		input: JSON.stringify(pairs),
+		encoding: 'utf8',
+		maxBuffer: 1024 * 1024 * 256,
+	});
+	return new Map(JSON.parse(out).map((v) => [v.id, v]));
+})();
 
 for (const { id } of manifest) {
 	const expDir = path.join(EXPECTED, id);
@@ -200,18 +256,22 @@ for (const { id } of manifest) {
 			});
 			continue;
 		}
-		const expRaw = readIf(path.join(expDir, `${target}.js`)) ?? '';
-		const actRaw = readIf(path.join(actDir, `${target}.js`)) ?? '';
-		const expJs = stripBlankLines(expRaw);
-		const actJs = stripBlankLines(actRaw);
-		// Byte comparison first (cheap). If it differs, fall back to AST
-		// structural equivalence (acorn, not regex): the same code differing
-		// only in comment placement / line-wrapping / redundant parens is
-		// accepted, while genuinely-different code — and output acorn can't
-		// parse — still fails.
-		if (expJs !== actJs && !astEquivalent(expRaw, actRaw)) {
-			verdict = 'js-mismatch';
-			details.push({ target, kind: 'js', ...firstDiffLine(expJs, actJs) });
+		const key = jsKey(id, target);
+		if (!jsByteEqual.get(key)) {
+			const ast = astVerdicts.get(key);
+			const { expJs, actJs } = astCandidates.get(key);
+			if (ast.verdict === 'unparseable') {
+				verdict = 'js-unparseable';
+				details.push({
+					target,
+					kind: 'js-unparseable',
+					expected: 'parses',
+					actual: `${ast.side} side: ${ast.message}`,
+				});
+			} else if (ast.verdict !== 'equivalent') {
+				verdict = 'js-mismatch';
+				details.push({ target, kind: 'js', reason: ast.verdict, ...firstDiffLine(expJs, actJs) });
+			}
 		}
 		if (targetDef.css) {
 			const expCss = readIf(path.join(expDir, `${target}.css`));

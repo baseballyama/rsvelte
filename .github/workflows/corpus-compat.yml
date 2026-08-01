@@ -220,9 +220,10 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build rsvelte NAPI binding
+      - name: Build rsvelte NAPI binding + AST comparator
         run: |
           cargo build --release -p rsvelte_napi --lib
+          cargo build --release --bin ast_equiv_batch
           mkdir -p .corpus-cache
           cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node
 
