@@ -5,10 +5,6 @@
 
 #![allow(dead_code)]
 
-use oxc_allocator::Allocator;
-use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
-use oxc_parser::Parser;
-use oxc_span::SourceType;
 use rsvelte_core::CompileError;
 use rsvelte_core::compiler::AnalysisError;
 use rsvelte_core::error::ParseError;
@@ -431,43 +427,32 @@ pub fn runtime_skip_names(category: &str) -> &'static [&'static str] {
 // Normalization utilities
 // ============================================================================
 
-/// Canonicalize JavaScript code using OXC parse→codegen for comparison.
+/// Canonicalize JavaScript code for comparison — see [`rsvelte_ast_equiv`] for
+/// what counts as formatting and what counts as a difference.
 ///
-/// Both expected (svelte) and actual (rsvelte) outputs are parsed into OXC AST
-/// and then serialized with identical codegen options. This normalizes ONLY
-/// formatting (whitespace, semicolons, quotes, parentheses) while preserving
-/// all semantic differences.
+/// Comments are excluded. The comparator's default is to compare the ones a
+/// downstream tool acts on, and turning that on here fails 14 fixtures: rsvelte
+/// drops the user's JSDoc / `@ts-expect-error` / `svelte-ignore` comments on the
+/// server path, and keeps one on the client path that the official compiler
+/// drops. That is a real gap, tracked separately in
+/// `compatibility/ast-equivalence.md`, not something this suite can absorb one
+/// fixture at a time.
 ///
-/// Any difference in the canonicalized output represents a real code difference
-/// (not just formatting) that should be investigated and fixed.
+/// # Panics
+/// If the code does not parse. A compiler output that OXC cannot read is a bug
+/// in its own right, and canonicalizing it as raw text would let the comparison
+/// pass on a formatting coincidence.
 pub fn canonicalize_js(code: &str) -> String {
-    let allocator = Allocator::new();
-    let source_type = SourceType::mjs();
-    let parsed = Parser::new(&allocator, code, source_type).parse();
-
-    if parsed.panicked {
-        eprintln!(
-            "WARNING: OXC parse panicked during canonicalization, using raw code (first 100 chars: {:?})",
-            &code[..code.len().min(100)]
-        );
-        return code.to_string();
-    }
-
-    let options = CodegenOptions {
-        single_quote: true,
-        comments: CommentOptions {
-            normal: false,
-            jsdoc: false,
-            annotation: true,
-            legal: LegalComment::None,
-        },
-        ..Default::default()
-    };
-    let result = Codegen::new()
-        .with_options(options)
-        .build(&parsed.program)
-        .code;
-    result.trim().to_string()
+    let options = rsvelte_ast_equiv::Options::default()
+        .with_comments(rsvelte_ast_equiv::CommentPolicy::Ignore);
+    rsvelte_ast_equiv::canonicalize_with(code, options)
+        .unwrap_or_else(|failure| {
+            panic!(
+                "OXC could not parse the code being canonicalized: {failure}\nfirst 200 chars: {:?}",
+                &code[..code.len().min(200)]
+            )
+        })
+        .code
 }
 
 // ============================================================================
@@ -1252,200 +1237,5 @@ pub fn test_thread_pool() -> rayon::ThreadPool {
         .expect("Failed to build test thread pool")
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // ============================================================================
-    // canonicalize_js — semantic-preservation tests
-    // ============================================================================
-    //
-    // `compare_js` is the only JS comparator the active test suites use. It calls
-    // `canonicalize_js` (OXC parse → OXC codegen) on both sides and compares the
-    // result. Anything that survives codegen counts as a real semantic difference
-    // — the regex-based `normalize_*` helpers that used to live here have been
-    // retired. These tests assert the canonicalizer's contract: formatting
-    // differences (whitespace, trailing semicolons, single vs double quotes,
-    // optional parens around literals/identifiers) collapse, but everything that
-    // would actually run differently at runtime stays distinct.
-
-    #[test]
-    fn test_canonicalize_js_numeric_literals() {
-        // Different number literals that compute to the same value normalise the
-        // same — these are pure formatting / radix differences.
-        assert_eq!(
-            canonicalize_js("let x = .5;"),
-            canonicalize_js("let x = 0.5;")
-        );
-        assert_eq!(
-            canonicalize_js("let x = 1e3;"),
-            canonicalize_js("let x = 1000;")
-        );
-        assert_eq!(
-            canonicalize_js("let x = 1.5e2;"),
-            canonicalize_js("let x = 150;")
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_new_class_parens() {
-        // Optional outer parens around the class expression in a `new` are pure
-        // formatting.
-        assert_eq!(
-            canonicalize_js("let x = new (class Foo { constructor() {} })();"),
-            canonicalize_js("let x = new class Foo { constructor() {} }();"),
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_var_let_const() {
-        // var / let / const have different scoping and rebinding semantics — the
-        // canonicalizer must preserve them.
-        assert_ne!(canonicalize_js("var x = 1;"), canonicalize_js("let x = 1;"));
-        assert_ne!(
-            canonicalize_js("let x = 1;"),
-            canonicalize_js("const x = 1;")
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_void_0_undefined() {
-        // `void 0` evaluates to `undefined` but the literal text differs and so
-        // does the AST shape; downstream consumers (e.g. minifiers, DOM matchers)
-        // can tell them apart, so we must too.
-        assert_ne!(
-            canonicalize_js("let x = void 0;"),
-            canonicalize_js("let x = undefined;"),
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_comments() {
-        // Plain `//` and `/* */` comments are stripped (formatting-only). This is
-        // the one explicit lossy normalisation `canonicalize_js` performs and is
-        // documented above the function. It does NOT extend to annotation
-        // comments like `/* @__PURE__ */`, which OXC keeps.
-        assert_eq!(
-            canonicalize_js("let x = 1; // comment\nlet y = 2;"),
-            canonicalize_js("let x = 1;\nlet y = 2;")
-        );
-        assert_eq!(
-            canonicalize_js("/* block */ let x = 1;"),
-            canonicalize_js("let x = 1;")
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_identifier_renames_are_real_diffs() {
-        // The dead `normalize_generated_var_names` regex used to collapse
-        // `node_1` → `node`. That would silently mask real bugs (e.g. a generator
-        // that points at the wrong DOM node). Verify the canonicalizer keeps
-        // these distinct.
-        assert_ne!(
-            canonicalize_js("var node_1 = $.first_child(fragment);"),
-            canonicalize_js("var node = $.first_child(fragment);")
-        );
-        assert_ne!(
-            canonicalize_js("$.set_text(text_1, x);"),
-            canonicalize_js("$.set_text(text, x);")
-        );
-        assert_ne!(
-            canonicalize_js("$.set($$index_1, 0);"),
-            canonicalize_js("$.set($$index, 0);")
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_html_template_whitespace_is_a_real_diff() {
-        // The dead `normalize_html_whitespace` regex used to strip whitespace
-        // between HTML tags inside `$.from_html(...)` template literals. That is
-        // a real DOM difference — `<div> hello</div>` renders with a leading
-        // space, `<div>hello</div>` does not — so the canonicalizer must keep
-        // these distinct.
-        assert_ne!(
-            canonicalize_js("var root = $.from_html(`<div> hello</div>`);"),
-            canonicalize_js("var root = $.from_html(`<div>hello</div>`);"),
-        );
-        assert_ne!(
-            canonicalize_js("var root = $.from_html(`<p> </p>`);"),
-            canonicalize_js("var root = $.from_html(`<p></p>`);"),
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_string_content_is_a_real_diff() {
-        // String literal contents, including spacing inside class names, must
-        // stay distinct.
-        assert_ne!(
-            canonicalize_js("$.set_class(div, 'svelte-abc');"),
-            canonicalize_js("$.set_class(div, 'svelte-xyz');"),
-        );
-        assert_ne!(
-            canonicalize_js("$.set_text(text, 'hello world');"),
-            canonicalize_js("$.set_text(text, 'helloworld');"),
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_argument_order_is_a_real_diff() {
-        // Argument re-ordering changes runtime behaviour — keep distinct.
-        assert_ne!(canonicalize_js("foo(a, b);"), canonicalize_js("foo(b, a);"));
-        assert_ne!(
-            canonicalize_js("$.set_attribute(el, 'x', 'y');"),
-            canonicalize_js("$.set_attribute(el, 'y', 'x');"),
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_call_targets_are_real_diffs() {
-        // Different callees → different runtime behaviour.
-        assert_ne!(
-            canonicalize_js("$.event(...args);"),
-            canonicalize_js("$.delegated(...args);")
-        );
-        assert_ne!(
-            canonicalize_js("$.set(x, 1);"),
-            canonicalize_js("$.update(x);")
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_strict_vs_loose_equality_is_real_diff() {
-        assert_ne!(canonicalize_js("a === b"), canonicalize_js("a == b"));
-        assert_ne!(canonicalize_js("a !== b"), canonicalize_js("a != b"));
-    }
-
-    #[test]
-    fn test_canonicalize_js_extra_or_missing_statements_are_real_diffs() {
-        // A missing line of generated code is a real bug — keep distinct.
-        assert_ne!(
-            canonicalize_js("$.push(); $.pop();"),
-            canonicalize_js("$.push();"),
-        );
-        assert_ne!(
-            canonicalize_js("$.delegate(['click']);"),
-            canonicalize_js(""),
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_object_member_order_is_real_diff() {
-        // Object literal property order is observable by `Object.keys` and by
-        // any consumer that iterates via `for...in`.
-        assert_ne!(
-            canonicalize_js("let o = { a: 1, b: 2 };"),
-            canonicalize_js("let o = { b: 2, a: 1 };"),
-        );
-    }
-
-    #[test]
-    fn test_canonicalize_js_quote_and_semicolon_are_formatting() {
-        // Pure formatting — quotes / trailing semicolons / extra parens around
-        // simple literals collapse.
-        assert_eq!(
-            canonicalize_js(r#"let x = "hi";"#),
-            canonicalize_js("let x = 'hi'"),
-        );
-        assert_eq!(canonicalize_js("(null)?.foo"), canonicalize_js("null?.foo"));
-    }
-}
+// The canonicalizer's contract — which differences are formatting and which are
+// real — is tested once, next to the implementation, in `rsvelte_ast_equiv`.

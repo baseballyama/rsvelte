@@ -93,6 +93,7 @@ oxc_ast_visit = "0.142"
 
 [dev-dependencies]
 # Testing
+rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }
 insta = { version = "1.42", features = ["json", "glob"] }
 pretty_assertions = "1.4"
 chrono = "0.4"

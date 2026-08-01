@@ -63,26 +63,25 @@ function findSvelteFiles(dir, depth = 0) {
   return out;
 }
 
-// Canonicalize via OXC parse → codegen if the canonicalize_js binary exists.
+// Canonicalize via OXC parse → codegen. A regex approximation would answer a
+// different question while looking like an answer to this one, so a missing
+// binary or an output that does not parse is reported, never worked around.
 const CANON = path.join(ROOT, 'target/release/canonicalize_js');
-const hasCanon = fs.existsSync(CANON);
+if (!fs.existsSync(CANON)) {
+  console.error(`[compare-app] missing ${CANON} — build it first:`);
+  console.error('  cargo build --release --bin canonicalize_js');
+  process.exit(2);
+}
 
 function canonicalize(code) {
-  if (hasCanon) {
-    try {
-      return execFileSync(CANON, [], { input: code, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-    } catch {
-      /* fall through */
-    }
+  try {
+    return {
+      ok: true,
+      text: execFileSync(CANON, [], { input: code, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }),
+    };
+  } catch (e) {
+    return { ok: false, error: String(e?.stderr || e?.message || e).slice(0, 400) };
   }
-  // Naive fallback: strip comments + collapse whitespace outside string literals.
-  return code
-    .replace(/\/\/[^\n]*/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .split(/(`[^`]*`|'[^']*'|"[^"]*")/g)
-    .map((part, i) => (i % 2 === 1 ? part : part.replace(/\s+/g, ' ')))
-    .join('')
-    .trim();
 }
 
 const MODES = ['client', 'server'];
@@ -93,6 +92,7 @@ const summary = {
   bothCompiled: 0,
   semanticEqual: 0,
   semanticDiff: 0,
+  canonicalizeError: 0,
   rsvelteError: 0,
   officialError: 0,
   bothError: 0,
@@ -127,7 +127,18 @@ for (const file of files) {
     summary.bothCompiled++;
     const jsCanon = canonicalize(jsResult.js.code);
     const rsCanon = canonicalize(rsResult.js.code);
-    if (jsCanon === rsCanon) {
+    if (!jsCanon.ok || !rsCanon.ok) {
+      summary.canonicalizeError++;
+      summary.details.push({
+        file: rel,
+        mode,
+        category: 'canonicalize-error',
+        side: jsCanon.ok ? 'rsvelte' : 'official',
+        message: (jsCanon.ok ? rsCanon : jsCanon).error,
+      });
+      continue;
+    }
+    if (jsCanon.text === rsCanon.text) {
       summary.semanticEqual++;
     } else {
       summary.semanticDiff++;
@@ -135,8 +146,8 @@ for (const file of files) {
         file: rel,
         mode,
         category: 'semantic-diff',
-        jsLen: jsCanon.length,
-        rsLen: rsCanon.length,
+        jsLen: jsCanon.text.length,
+        rsLen: rsCanon.text.length,
       });
     }
   }
@@ -146,7 +157,8 @@ fs.mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
 fs.writeFileSync(outputPath, JSON.stringify(summary, null, 2));
 
 console.log(
-  `[compare-app] files=${summary.totalFiles} bothCompiled=${summary.bothCompiled} semEq=${summary.semanticEqual} semDiff=${summary.semanticDiff} rsErr=${summary.rsvelteError} jsErr=${summary.officialError} bothErr=${summary.bothError}`,
+  `[compare-app] files=${summary.totalFiles} bothCompiled=${summary.bothCompiled} semEq=${summary.semanticEqual} semDiff=${summary.semanticDiff} canonErr=${summary.canonicalizeError} rsErr=${summary.rsvelteError} jsErr=${summary.officialError} bothErr=${summary.bothError}`,
 );
 
-if (summary.semanticDiff > 0 || summary.rsvelteError > 0) process.exit(2);
+if (summary.semanticDiff > 0 || summary.rsvelteError > 0 || summary.canonicalizeError > 0)
+  process.exit(2);

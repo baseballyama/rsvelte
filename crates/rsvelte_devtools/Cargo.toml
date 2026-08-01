@@ -21,6 +21,7 @@ mimalloc-alloc = ["dep:mimalloc"]
 pprof = ["dep:pprof"]
 
 [dependencies]
+rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
 rsvelte_esrap = { path = "../rsvelte_esrap" }
 rsvelte_projection = { path = "../rsvelte_projection" }

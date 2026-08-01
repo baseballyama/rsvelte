@@ -12,41 +12,20 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-use oxc_allocator::Allocator;
-use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
-use oxc_parser::Parser;
-use oxc_span::SourceType;
+use rsvelte_ast_equiv::{CommentPolicy, Options, ParseFailure};
 use std::env;
 use std::fs;
 
-fn try_canonicalize(code: &str) -> Option<String> {
+/// Unlike the shared comparator this triage tool layers lossy text
+/// normalizations on top, so comments are dropped rather than compared.
+fn try_canonicalize(code: &str) -> Result<String, ParseFailure> {
     // Pre-process: collapse whitespace inside template-literal `${...}`
     // expressions so OXC codegen of the parsed input emits the same form
     // regardless of the pretty-printing used by the upstream compiler.
     let code = collapse_ws_in_template_interpolations(code);
 
-    let allocator = Allocator::new();
-    let source_type = SourceType::mjs();
-    let parsed = Parser::new(&allocator, &code, source_type).parse();
-    if parsed.panicked || !parsed.diagnostics.is_empty() {
-        return None;
-    }
-    let options = CodegenOptions {
-        single_quote: true,
-        comments: CommentOptions {
-            normal: false,
-            jsdoc: false,
-            annotation: false,
-            legal: LegalComment::None,
-        },
-        ..Default::default()
-    };
-    let out = Codegen::new()
-        .with_options(options)
-        .build(&parsed.program)
-        .code
-        .trim()
-        .to_string();
+    let options = Options::default().with_comments(CommentPolicy::Ignore);
+    let out = rsvelte_ast_equiv::canonicalize_with(&code, options)?.code;
     let out = normalize_import_quotes(&out);
     let out = normalize_template_literal_whitespace(&out);
     // Normalize leading/trailing whitespace inside template literals used
@@ -92,7 +71,7 @@ fn try_canonicalize(code: &str) -> Option<String> {
     // This handles differences where the RS compiler adds spaces around = in template text
     let out = out.replace("family = $", "family=$");
     let out = out.replace("api_name = )", "api_name=)");
-    Some(out)
+    Ok(out)
 }
 
 /// Scan source code and, for every template-literal `${...}` interpolation,
@@ -307,83 +286,6 @@ fn collapse_ws_in_template_interpolations(code: &str) -> String {
     out
 }
 
-/// On parse-failure fallback: normalize whitespace (collapse runs, unify
-/// indentation) and import quote style so that two superficially-different
-/// inputs that only differ in formatting can still compare equal.
-fn normalize_whitespace_and_quotes(code: &str) -> String {
-    let mut out = String::with_capacity(code.len());
-    let mut in_string: Option<char> = None;
-    let mut in_line_comment = false;
-    let mut in_block_comment = false;
-    let mut prev_ws = true; // treat start-of-file as preceded by whitespace
-    let chars: Vec<char> = code.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        if in_line_comment {
-            if c == '\n' {
-                in_line_comment = false;
-            }
-            i += 1;
-            continue;
-        }
-        if in_block_comment {
-            if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
-                in_block_comment = false;
-                i += 2;
-            } else {
-                i += 1;
-            }
-            continue;
-        }
-        if let Some(quote) = in_string {
-            out.push(c);
-            if c == '\\' && i + 1 < chars.len() {
-                out.push(chars[i + 1]);
-                i += 2;
-                continue;
-            }
-            if c == quote {
-                in_string = None;
-            }
-            i += 1;
-            prev_ws = false;
-            continue;
-        }
-        if c == '/' && i + 1 < chars.len() {
-            if chars[i + 1] == '/' {
-                in_line_comment = true;
-                i += 2;
-                continue;
-            }
-            if chars[i + 1] == '*' {
-                in_block_comment = true;
-                i += 2;
-                continue;
-            }
-        }
-        if c == '"' || c == '\'' || c == '`' {
-            in_string = Some(c);
-            out.push(c);
-            i += 1;
-            prev_ws = false;
-            continue;
-        }
-        if c.is_whitespace() {
-            if !prev_ws {
-                out.push(' ');
-                prev_ws = true;
-            }
-            i += 1;
-            continue;
-        }
-        out.push(c);
-        prev_ws = false;
-        i += 1;
-    }
-    normalize_import_quotes(&out)
-}
-
 /// Normalize `import ... from "..."` to `import ... from '...'` and similar for
 /// bare `import "..."` and re-exports `export ... from "..."`. Does a simple
 /// line-based scan, only touching import/export-from lines, and only if the
@@ -454,16 +356,19 @@ fn main() {
     }
     let f1 = fs::read_to_string(&args[1]).unwrap_or_default();
     let f2 = fs::read_to_string(&args[2]).unwrap_or_default();
-    // Try proper AST canonicalization for both. If EITHER fails to parse,
-    // fall back to whitespace-normalized comparison for BOTH so that the
-    // comparison remains meaningful.
-    let (c1, c2) = match (try_canonicalize(&f1), try_canonicalize(&f2)) {
-        (Some(a), Some(b)) => (a, b),
-        _ => (
-            normalize_whitespace_and_quotes(&f1),
-            normalize_whitespace_and_quotes(&f2),
-        ),
+    // A file that does not parse has no canonical form, so there is no
+    // comparison to report — degrading to a text diff would answer a different
+    // question while looking like an answer to this one.
+    let canonicalize_or_exit = |label: &str, code: &str| match try_canonicalize(code) {
+        Ok(canonical) => canonical,
+        Err(failure) => {
+            println!("PARSE_ERROR");
+            println!("{label}: {failure}");
+            std::process::exit(2);
+        }
     };
+    let c1 = canonicalize_or_exit(&args[1], &f1);
+    let c2 = canonicalize_or_exit(&args[2], &f2);
     if args.len() >= 4 {
         match args[3].as_str() {
             "--dump1" => {
