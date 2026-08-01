@@ -93,21 +93,32 @@ pub(super) fn collect_pattern_bindings(src: &str) -> Vec<String> {
     out
 }
 
-/// Expand object-literal property shorthands in a slot-prop expression, e.g.
-/// `{ scale: $scale, setScale }` → `{ scale: $scale, setScale:setScale }`.
+/// Resolve a slot-prop expression through the template scope, mirroring official
+/// `SlotHandler.resolveExpression` (svelte2tsx `nodes/slot.ts`).
 ///
-/// Official `SlotHandler.resolveExpression` (svelte2tsx `nodes/slot.ts`) walks
-/// the expression and, for every object-value shorthand identifier, does
-/// `appendLeft(end, ':' + value)` so the generated `$$slot_def` type carries a
-/// real `key: value` entry. In the svelte2tsx parse path the per-expression
-/// arena yields no children (`expr.as_json()` is empty), so — like
-/// `get_set_binding_ranges` — this is done by a string scan instead of an AST
-/// walk. The scan only ever inserts inside object literals (an expression with
-/// no `{ … }` is returned untouched), so non-object slot props are unaffected.
-pub(super) fn expand_object_shorthands(text: &str) -> String {
+/// Official walks the expression AST and overwrites every `Identifier` with its
+/// scope resolution — an `{#each}` context becomes `__sveltets_2_unwrapArr(coll)`,
+/// a `let:`-forwarded name becomes `__sveltets_2_instanceOf(C).$$slot_def[…]` —
+/// except for three positions it deliberately leaves alone: a member-access
+/// property (`isMember`), an object-literal KEY (`isObjectKey`) and the value of
+/// an object shorthand (`isObjectValueShortHand`), which instead gets
+/// `appendLeft(end, ':' + value)` so `{ x }` becomes `{ x:<resolved> }`.
+///
+/// In the svelte2tsx parse path the per-expression arena yields no children
+/// (`expr.as_json()` is empty), so — like `get_set_binding_ranges` — this is a
+/// string scan instead of an AST walk. Tracking the object-literal context is
+/// what keeps a key out of the substitution set; string and template literals are
+/// copied verbatim for the same reason.
+pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) -> String {
     let chars: Vec<char> = text.chars().collect();
     let is_ident_start = |c: char| c.is_alphabetic() || c == '_' || c == '$';
     let is_ident = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
+    let resolve = |name: &str| -> String {
+        match scope.iter().rev().find(|(bound, _)| bound == name) {
+            Some((_, expr)) => expr.clone(),
+            None => name.to_string(),
+        }
+    };
     let mut out = String::with_capacity(text.len());
     // Context stack: `true` = object literal (property keys expected after
     // `{` / `,`), `false` = array / call / block / group.
@@ -199,25 +210,34 @@ pub(super) fn expand_object_shorthands(text: &str) -> String {
                 out.push(c);
                 i += 1;
             }
-            c if expect_prop && is_ident_start(c) => {
-                // Read the candidate property key identifier.
+            // Start of an identifier token — not a member-access tail (`.prop`)
+            // and not the continuation of a longer identifier.
+            c if is_ident_start(c)
+                && (i == 0 || (!is_ident(chars[i - 1]) && chars[i - 1] != '.')) =>
+            {
                 let mut j = i + 1;
                 while j < n && is_ident(chars[j]) {
                     j += 1;
                 }
                 let ident: String = chars[i..j].iter().collect();
-                // Look ahead, skipping whitespace, to the next meaningful char.
-                let mut k = j;
-                while k < n && chars[k].is_whitespace() {
-                    k += 1;
-                }
-                let next = chars.get(k).copied().unwrap_or('\0');
-                out.push_str(&ident);
-                // A bare identifier followed by `,` or `}` is a true shorthand
-                // (`{ foo }`). `key: …`, method `foo() {}`, etc. are not.
-                if next == ',' || next == '}' || next == '\0' {
-                    out.push(':');
+                if expect_prop {
+                    // Look ahead, skipping whitespace, to the next meaningful char.
+                    let mut k = j;
+                    while k < n && chars[k].is_whitespace() {
+                        k += 1;
+                    }
+                    let next = chars.get(k).copied().unwrap_or('\0');
+                    // The key itself is never substituted. A bare identifier
+                    // followed by `,` or `}` is a true shorthand (`{ foo }`) and
+                    // gains the resolved value; `key: …`, method `foo() {}`, etc.
+                    // are keys only.
                     out.push_str(&ident);
+                    if next == ',' || next == '}' || next == '\0' {
+                        out.push(':');
+                        out.push_str(&resolve(&ident));
+                    }
+                } else {
+                    out.push_str(&resolve(&ident));
                 }
                 expect_prop = false;
                 prev2 = prev;

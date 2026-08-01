@@ -42,6 +42,14 @@ pub(crate) fn handle_await_block(
     let has_then = block.then.is_some();
     let has_catch = block.catch.is_some();
 
+    // Official `handleAwait` re-assembles the whole block at `{/await}` and
+    // leaves every collapsed source gap behind as exactly ONE space, so the
+    // opener padding is a gap COUNT, not a constant: the opener and the trailer
+    // are always one gap each, and every `then` / `catch` clause adds the gap of
+    // its own marker. (A pending block contributes none — it sits flush against
+    // the promise expression.)
+    let open_pad = " ".repeat(2 + usize::from(has_then) + usize::from(has_catch));
+
     let value_text = block
         .value
         .as_ref()
@@ -87,7 +95,7 @@ pub(crate) fn handle_await_block(
             // travels with the expression.
             if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
                 str.move_range(expr_start, expr_end, prev_end);
-                str.overwrite(block.start, expr_start, "   { ");
+                str.overwrite_fmt(block.start, expr_start, format_args!("{}{{ ", open_pad));
                 if expr_end < pending_start {
                     str.overwrite(expr_end, pending_start, "");
                 }
@@ -124,7 +132,7 @@ pub(crate) fn handle_await_block(
             } else {
                 // Parser couldn't span the expression — fall back to
                 // the original monolithic bake.
-                str.overwrite(block.start, pending_start, "   { ");
+                str.overwrite_fmt(block.start, pending_start, format_args!("{}{{ ", open_pad));
                 process_fragment_inplace(pending, source, options, str, counter, depth);
                 // `try { ` wrapper when a catch/error is present (see above).
                 let try_prefix = if has_catch { "try { " } else { "" };
@@ -223,7 +231,7 @@ pub(crate) fn handle_await_block(
 
             // Opening `{ ` — consume the `{#await PROMISE}` opener (PROMISE is
             // re-emitted as `await(...)` after the pending body).
-            str.overwrite(block.start, pending_start, "   { ");
+            str.overwrite_fmt(block.start, pending_start, format_args!("{}{{ ", open_pad));
             process_fragment_inplace(pending, source, options, str, counter, depth);
 
             if let Some(ref catch) = block.catch {
@@ -285,36 +293,24 @@ pub(crate) fn handle_await_block(
         // elements provide their own block). `value_close` is the matching `}`
         // for the value scope, emitted by the close logic below.
         let value_close = if value_text.is_empty() { "" } else { "}" };
-        let (header_prefix, header_suffix) = if has_catch {
-            (
-                if value_text.is_empty() {
-                    "   { try { await ("
-                } else {
-                    "   { try { const $$_value = await ("
-                },
-                if !value_text.is_empty() {
-                    format!(");{{ const {} = $$_value; ", value_text)
-                } else {
-                    ");".to_string()
-                },
-            )
+        let header_prefix = format!(
+            "{}{{ {}{}await (",
+            open_pad,
+            if has_catch { "try { " } else { "" },
+            if value_text.is_empty() {
+                ""
+            } else {
+                "const $$_value = "
+            },
+        );
+        let header_suffix = if value_text.is_empty() {
+            ");".to_string()
         } else {
-            (
-                if value_text.is_empty() {
-                    "   { await ("
-                } else {
-                    "   { const $$_value = await ("
-                },
-                if !value_text.is_empty() {
-                    format!(");{{ const {} = $$_value; ", value_text)
-                } else {
-                    ");".to_string()
-                },
-            )
+            format!(");{{ const {} = $$_value; ", value_text)
         };
 
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
-            str.overwrite(block.start, expr_start, header_prefix);
+            str.overwrite(block.start, expr_start, &header_prefix);
             if expr_end < then_start {
                 str.overwrite(expr_end, then_start, &header_suffix);
             } else {
@@ -397,38 +393,27 @@ pub(crate) fn handle_await_block(
             block.end
         };
 
-        let (header_prefix, header_suffix) = (
-            "   { try { await (",
-            if !error_text.is_empty() {
-                format!(
-                    ");}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                    error_text
-                )
-            } else {
-                ");} catch($$_e) { ".to_string()
-            },
-        );
+        let header_prefix = format!("{}{{ try {{ await (", open_pad);
+        let header_suffix = if !error_text.is_empty() {
+            format!(
+                ");}} catch($$_e) {{ const {} = __sveltets_2_any();",
+                error_text
+            )
+        } else {
+            ");} catch($$_e) { ".to_string()
+        };
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
-            str.overwrite(block.start, expr_start, header_prefix);
+            str.overwrite(block.start, expr_start, &header_prefix);
             if expr_end < catch_start {
                 str.overwrite(expr_end, catch_start, &header_suffix);
             } else {
                 str.append_left(expr_end, &header_suffix);
             }
-        } else if !error_text.is_empty() {
-            str.overwrite_fmt(
-                block.start,
-                catch_start,
-                format_args!(
-                    "   {{ try {{ await ({});}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                    expr_text, error_text
-                ),
-            );
         } else {
             str.overwrite_fmt(
                 block.start,
                 catch_start,
-                format_args!("   {{ try {{ await ({});}} catch($$_e) {{ ", expr_text),
+                format_args!("{}{}{}", header_prefix, expr_text, header_suffix),
             );
         }
 
@@ -449,7 +434,11 @@ pub(crate) fn handle_await_block(
         // always awaited, so the `await` keyword must be present (it was
         // previously dropped, emitting `{EXPR;}`).
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
-            str.overwrite(block.start, expr_start, "{ await (");
+            str.overwrite_fmt(
+                block.start,
+                expr_start,
+                format_args!("{}{{ await (", open_pad),
+            );
             if expr_end < block.end {
                 str.overwrite(expr_end, block.end, ");}");
             } else {
@@ -459,7 +448,7 @@ pub(crate) fn handle_await_block(
             str.overwrite_fmt(
                 block.start,
                 block.end,
-                format_args!("{{ await ({});}}", expr_text),
+                format_args!("{}{{ await ({});}}", open_pad, expr_text),
             );
         }
     }

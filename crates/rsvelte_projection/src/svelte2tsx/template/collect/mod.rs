@@ -4,7 +4,7 @@
 mod pattern;
 
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Fragment, TemplateNode};
-use pattern::{collect_pattern_bindings, expand_object_shorthands};
+use pattern::{collect_pattern_bindings, resolve_slot_expression};
 
 use super::attributes::let_::iter_let_directives;
 use super::nodes::slot_element::{slot_consumer_name, slot_name_for_type};
@@ -310,31 +310,22 @@ fn collect_info_from_node<'a>(
             // The collection is resolved in the PARENT scope (the each context is
             // not yet bound) — mirrors official EachBlock →
             // `resolveExpression(initExpression, scope.parent)`. A simple
-            // identifier context binds to `__sveltets_2_unwrapArr(coll)`; a
-            // destructuring context (`{ value, id }` / `[a, b]`) binds each leaf
-            // identifier to `((<pattern>) => name)(__sveltets_2_unwrapArr(coll))`,
-            // mirroring `SlotHandler.resolveDestructuringAssignment`. (The fallback
-            // is outside the each scope.)
-            let pushed = if let Some(ctx) = block.context.as_ref() {
-                let coll = resolve_in_scope(get_expression_text(&block.expression, source), scope);
-                let unwrapped = format!("__sveltets_2_unwrapArr({})", coll);
-                if let Some(name) = expression_simple_identifier(ctx, source) {
-                    scope.push((name, unwrapped));
-                    1usize
-                } else {
-                    let pattern = get_expression_text(ctx, source);
-                    let mut count = 0usize;
-                    for name in collect_pattern_bindings(pattern) {
-                        scope.push((
-                            name.clone(),
-                            format!("(({}) => {})({})", pattern, name, unwrapped),
-                        ));
-                        count += 1;
-                    }
-                    count
+            // identifier context binds to `__sveltets_2_unwrapArr(coll)`.
+            // (The fallback is outside the each scope.)
+            let pushed = match block.context.as_ref() {
+                Some(ctx) => {
+                    let coll = resolve_slot_expression(
+                        get_expression_text(&block.expression, source),
+                        scope,
+                    );
+                    push_context_binding(
+                        ctx,
+                        source,
+                        &format!("__sveltets_2_unwrapArr({})", coll),
+                        scope,
+                    )
                 }
-            } else {
-                0usize
+                None => 0,
             };
             collect_info_from_fragment(
                 &block.body,
@@ -364,22 +355,39 @@ fn collect_info_from_node<'a>(
                 // `{#await promise then value}` binds `value` to
                 // `__sveltets_2_unwrapPromiseLike(promise)` for slot props in the
                 // then-branch (mirrors official slot scope resolution).
-                let pushed = block
-                    .value
-                    .as_ref()
-                    .and_then(|v| expression_simple_identifier(v, source))
-                    .map(|name| {
-                        let promise = get_expression_text(&block.expression, source);
-                        scope.push((name, format!("__sveltets_2_unwrapPromiseLike({})", promise)));
-                    })
-                    .is_some();
+                let pushed = match block.value.as_ref() {
+                    Some(value) => {
+                        let promise = resolve_slot_expression(
+                            get_expression_text(&block.expression, source),
+                            scope,
+                        );
+                        push_context_binding(
+                            value,
+                            source,
+                            &format!("__sveltets_2_unwrapPromiseLike({})", promise),
+                            scope,
+                        )
+                    }
+                    None => 0,
+                };
                 collect_info_from_fragment(then, source, info, scope, enclosing, detector, arena);
-                if pushed {
+                for _ in 0..pushed {
                     scope.pop();
                 }
             }
             if let Some(ref catch) = block.catch {
+                // Official `getResolveExpressionStr` types a `{:catch e}` binding
+                // as `__sveltets_2_any({})` — the error is untyped.
+                let pushed = match block.error.as_ref() {
+                    Some(error) => {
+                        push_context_binding(error, source, "__sveltets_2_any({})", scope)
+                    }
+                    None => 0,
+                };
                 collect_info_from_fragment(catch, source, info, scope, enclosing, detector, arena);
+                for _ in 0..pushed {
+                    scope.pop();
+                }
             }
         }
         TemplateNode::KeyBlock(block) => {
@@ -459,19 +467,22 @@ fn push_let_reflection_scope(
 ) -> usize {
     let mut pushed = 0;
     for ld in iter_let_directives(attributes) {
-        // The locally bound name: `let:name={n}` binds `n`; shorthand `let:name`
-        // binds `name`. The reflected property is always the directive name.
-        let binding = ld
-            .expression
-            .as_ref()
-            .and_then(|e| expression_simple_identifier(e, source))
-            .unwrap_or_else(|| ld.name.to_string());
+        // The reflected property is always the directive name.
         let value = format!(
             "__sveltets_2_instanceOf({}).$$slot_def['{}'].{}",
             component, slot_name, ld.name
         );
-        scope.push((binding, value));
-        pushed += 1;
+        // The locally bound name: `let:name={n}` binds `n`; shorthand `let:name`
+        // binds `name`. A destructuring value (`let:whatever={{ bla }}` /
+        // `let:x={[a, b]}`) instead binds each leaf identifier through the
+        // pattern, mirroring official `resolveDestructuringAssignmentForLet`.
+        match ld.expression.as_ref() {
+            None => {
+                scope.push((ld.name.to_string(), value));
+                pushed += 1;
+            }
+            Some(expr) => pushed += push_context_binding(expr, source, &value, scope),
+        }
     }
     pushed
 }
@@ -485,7 +496,7 @@ fn push_let_reflection_scope(
 /// scope: the component's own `let:` directives bind its DEFAULT slot, and every
 /// direct child carrying a static `slot="x"` contributes its `let:` directives
 /// keyed to slot `x`. They are pushed in document order (default first), so for a
-/// name bound by several slots the LAST binding wins (`resolve_in_scope` searches
+/// name bound by several slots the LAST binding wins (`resolve_slot_expression` searches
 /// from the end), exactly like `TemplateScope.inits.set(name, …)` overwriting.
 /// The scope spans the WHOLE component subtree (popped by the caller on leave),
 /// so a `let:`-bound name is resolvable from any nested slot/element, not only the
@@ -542,45 +553,32 @@ fn node_slot_consumer_attributes<'a>(node: &'a TemplateNode<'a>) -> Option<&'a [
     }
 }
 
-/// Resolve a value expression through the template scope: each `{#each}`
-/// context variable (and `let:`-forwarded slot binding) is substituted (as a
-/// whole identifier token) with its resolved form — e.g. an each context
-/// becomes `__sveltets_2_unwrapArr(<collection>)` and a `let:`-forwarded name
-/// becomes `__sveltets_2_instanceOf(<Comp>).$$slot_def[...]` — so the slot
-/// type reflects the array element / forwarded type, both for a bare value
-/// (`{item}`) and inside an expression (`item={process(data)}`). Mirrors
-/// official `SlotHandler.resolveExpression`'s identifier overwrite pass.
-fn resolve_in_scope(value: &str, scope: &[(String, String)]) -> String {
-    if scope.is_empty() {
-        return value.to_string();
+/// Bind a block context (`{#each … as CTX}`, `{#await … then CTX}`, `{:catch
+/// CTX}`) in the slot-reflection scope, where `resolved` is the context's typed
+/// form. A simple identifier binds to `resolved` directly; a destructuring
+/// context (`{ value, id }` / `[a, b]`) binds each leaf identifier to
+/// `((<pattern>) => name)(<resolved>)`, mirroring official
+/// `SlotHandler.resolveDestructuringAssignment`. Returns the number pushed.
+fn push_context_binding(
+    context: &crate::ast::js::Expression,
+    source: &str,
+    resolved: &str,
+    scope: &mut Vec<(String, String)>,
+) -> usize {
+    if let Some(name) = expression_simple_identifier(context, source) {
+        scope.push((name, resolved.to_string()));
+        return 1;
     }
-    let chars: Vec<char> = value.chars().collect();
-    let is_ident = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
-    let mut out = String::with_capacity(value.len());
-    let mut i = 0usize;
-    while i < chars.len() {
-        let c = chars[i];
-        // Start of an identifier token (not a member-access tail or a
-        // continuation of a longer identifier)?
-        let starts_ident = (c.is_alphabetic() || c == '_' || c == '$')
-            && (i == 0 || (!is_ident(chars[i - 1]) && chars[i - 1] != '.'));
-        if starts_ident {
-            let mut j = i + 1;
-            while j < chars.len() && is_ident(chars[j]) {
-                j += 1;
-            }
-            let token: String = chars[i..j].iter().collect();
-            match scope.iter().rev().find(|(name, _)| name == &token) {
-                Some((_, expr)) => out.push_str(expr),
-                None => out.push_str(&token),
-            }
-            i = j;
-        } else {
-            out.push(c);
-            i += 1;
-        }
+    let pattern = get_expression_text(context, source);
+    let mut count = 0usize;
+    for name in collect_pattern_bindings(pattern) {
+        scope.push((
+            name.clone(),
+            format!("(({}) => {})({})", pattern, name, resolved),
+        ));
+        count += 1;
     }
-    out
+    count
 }
 
 /// Collect slot prop entries from a <slot> element's attributes.
@@ -590,11 +588,7 @@ fn collect_slot_prop_entries(
     source: &str,
     scope: &[(String, String)],
 ) -> Vec<String> {
-    // Expand object-literal shorthands first (mirrors official
-    // `resolveExpression`'s objectShortHands pass), then substitute in-scope
-    // identifiers. A non-object expression is returned unchanged by the expander.
-    let resolve =
-        |value: &str| -> String { resolve_in_scope(&expand_object_shorthands(value), scope) };
+    let resolve = |value: &str| -> String { resolve_slot_expression(value, scope) };
     let mut props = Vec::new();
     for attr in attributes {
         // `<slot {...slotProps}>` spreads the props object into the slot type:
@@ -608,7 +602,7 @@ fn collect_slot_prop_entries(
         // (`{...obj.data}`) has `name === undefined` and emits `...undefined`.
         if let Attribute::SpreadAttribute(spread) = attr {
             let name = match expression_simple_identifier(&spread.expression, source) {
-                Some(id) => resolve_in_scope(&id, scope),
+                Some(id) => resolve_slot_expression(&id, scope),
                 None => "undefined".to_string(),
             };
             props.push(format!("...{}", name));

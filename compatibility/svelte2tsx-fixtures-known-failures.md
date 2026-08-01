@@ -25,7 +25,7 @@ UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 `STRICT_S2TSX_FIXTURES=1` ignores the baseline entirely (every failure fails),
 which is how you check whether an entry is still needed.
 
-## Current baseline: 8 of 254 (pass rate 96.9%)
+## Current baseline: 5 of 254 (pass rate 98.0%)
 
 ### #2145 note
 
@@ -84,16 +84,13 @@ quoting bug itself (which is fixed in `collect/mod.rs`'s `push_let_reflection_sc
   — the fixture has two, rsvelte emits one. Cosmetic in effect, but the gate is
   byte-exact so it is tracked like any other divergence.
 
-### `let:`-forwarding slot-let resolution gaps — 3
+### Removed by #2161
 
-- **`component-slot-inside-await`**, **`component-slot-let-forward`**,
-  **`component-slot-object-key`.** Three different `let:`/slot-forwarding
-  destructuring shapes rsvelte resolves incompletely: a `let:whatever={{ bla }}`
-  nested-destructure binding on a forwarded component slot; an `{#await …then
-  value}` binding threaded into a nested named slot; and an `{#each}` binding used
-  as both an object *key* and *value* inside a forwarded slot prop (rsvelte
-  incorrectly substitutes the resolved expression into the key position too,
-  e.g. `{item:...}` becomes `{__sveltets_2_unwrapArr(items):...}`). All three sit
-  squarely in the `let:`-forwarding resolution logic (`push_let_reflection_scope`
-  neighbourhood / `TemplateScope.resolveLet` equivalent) that issue #2105 owns —
-  left untouched here per that PR's explicit scope boundary.
+`component-slot-inside-await`, `component-slot-let-forward` and
+`component-slot-object-key` were the three slots-reflection resolver gaps; all
+three now pass. `resolve_slot_expression` (`collect/pattern.rs`) folds the
+shorthand expansion and the scope substitution into one object-aware scan so an
+object *key* is never substituted, `push_context_binding` (`collect/mod.rs`)
+resolves destructuring `let:`/`then`/`catch` contexts through
+`((<pattern>) => name)(<resolved>)`, and the `{#await}` opener padding is derived
+from official `transform`'s gap count instead of a constant.
