@@ -461,6 +461,16 @@ jobs:
         env:
           RUST_MIN_STACK: '33554432'
 
+      # `parallel` is off by default, so the run above compiles neither
+      # `compile_batch`'s rayon path nor the tests that pin its per-item panic
+      # isolation — the shipped `.node` is the only build that enables it.
+      # `rsvelte_core --lib` alone keeps the extra feature-variant rebuild small.
+      - name: Run rsvelte_core unit tests with the parallel feature
+        run: cargo nextest run --profile ci -p rsvelte_core --lib --features parallel
+        timeout-minutes: 15
+        env:
+          RUST_MIN_STACK: '33554432'
+
   # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
   # every .svelte file + markdown code block from svelte.dev and diff against an
   # oxfmt oracle) are the bulk job's other long pole. Isolate them the same way:
