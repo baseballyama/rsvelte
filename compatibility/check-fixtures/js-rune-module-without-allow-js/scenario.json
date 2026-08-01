@@ -1,0 +1,7 @@
+{
+	"description": "A `.svelte.js` rune module in a project without `allowJs`, plus a `.svelte` specifier that resolves to nothing. Official svelte-check reports TS7016 for the former and TS2307 for the latter; rsvelte used to answer both from svelte's ambient `declare module '*.svelte'` wildcard — which official strips out of the package's declarations as it reads them — and reported a wrong TS2614 instead (#2061).",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2061
+	]
+}

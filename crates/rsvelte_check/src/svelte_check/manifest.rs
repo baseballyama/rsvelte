@@ -22,8 +22,11 @@ use serde::{Deserialize, Serialize};
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Range};
 
-/// On-disk schema version. Bump on any breaking change.
-pub const MANIFEST_VERSION: u32 = 1;
+/// On-disk schema version. Bump on any breaking change — including one to the
+/// *content* an entry stands for, which `(mtime, size)` cannot detect: a cache
+/// written before v2 holds shadows that still carry svelte's ambient `*.svelte`
+/// wildcard into the program through their type reference (#2061).
+pub const MANIFEST_VERSION: u32 = 2;
 
 /// Sidecar cache of per-file `Diagnostic`s, persisted alongside the
 /// overlay manifest at `<cacheDir>/warnings.json`. On the next

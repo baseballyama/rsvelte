@@ -10,9 +10,10 @@
 //! companion's named exports (`{ y }`) are invisible — TS reports a spurious
 //! `TS2614: has no exported member 'y'`.
 //!
-//! The fix folds the companion's named exports into the component shadow via an
-//! appended `export * from "<companion>.js"`, so the one resolvable module
-//! carries both the component default export and the companion's named exports.
+//! The fix re-points the companion specifier at the real module, so the shadow
+//! stays the component and nothing else. Folding the companion's exports into
+//! the shadow instead would leak them into every `.svelte` specifier resolving
+//! through it, where official svelte-check reports TS2614 (#2061).
 
 use rsvelte_check::overlay::materialize_overlay;
 use std::fs;
@@ -30,7 +31,7 @@ fn read_tsx(ws: &std::path::Path, name: &str) -> String {
 }
 
 #[test]
-fn component_shadow_reexports_sibling_ts_companion() {
+fn component_shadow_keeps_the_sibling_ts_companion_out() {
     let ws = workspace("ts");
     fs::write(
         ws.join("Tip.svelte.ts"),
@@ -52,61 +53,106 @@ fn component_shadow_reexports_sibling_ts_companion() {
         tsx.contains("export default Tip__SvelteComponent_;"),
         "component default export missing:\n{tsx}"
     );
-    // … and the companion's named exports are folded in via re-export.
+    // … and the companion stays out of it, so a `.svelte` specifier resolving
+    // through this shadow sees the component alone.
     assert!(
-        tsx.contains("export * from \"../../Tip.svelte.js\";"),
-        "companion re-export missing:\n{tsx}"
+        !tsx.contains("Tip.svelte.js"),
+        "companion folded into the component shadow:\n{tsx}"
+    );
+}
+
+/// #751: the companion specifier itself (`./Tip.svelte.js`) resolves from the
+/// shadow's own directory, where the component shadow answers it first. It is
+/// rewritten to the real module so both halves stay reachable.
+#[test]
+fn companion_specifier_is_repointed_at_the_real_module() {
+    let ws = workspace("spec");
+    fs::write(ws.join("Tip.svelte.ts"), "export const tip = 1;\n").unwrap();
+    fs::write(ws.join("Tip.svelte"), "<p>hi</p>\n").unwrap();
+    fs::write(
+        ws.join("User.svelte"),
+        "<script lang=\"ts\">import { tip } from './Tip.svelte.js';</script>\n<p>{tip}</p>\n",
+    )
+    .unwrap();
+
+    let files = vec![ws.join("Tip.svelte"), ws.join("User.svelte")];
+    materialize_overlay(&ws, &files, None).expect("overlay");
+
+    let tsx = read_tsx(&ws, "User.svelte.tsx");
+    assert!(
+        tsx.contains("'../../Tip.svelte.js'"),
+        "companion specifier not repointed at the real module:\n{tsx}"
     );
 }
 
 #[test]
-fn component_shadow_reexports_sibling_js_companion() {
+fn a_js_companion_specifier_is_repointed_too() {
     let ws = workspace("js");
     fs::write(ws.join("Tip.svelte.js"), "export const tip = 1;\n").unwrap();
     fs::write(ws.join("Tip.svelte"), "<p>hi</p>\n").unwrap();
+    fs::write(
+        ws.join("User.svelte"),
+        "<script lang=\"ts\">import { tip } from './Tip.svelte.js';</script>\n<p>{tip}</p>\n",
+    )
+    .unwrap();
 
-    let files = vec![ws.join("Tip.svelte")];
+    let files = vec![ws.join("Tip.svelte"), ws.join("User.svelte")];
     materialize_overlay(&ws, &files, None).expect("overlay");
 
-    let tsx = read_tsx(&ws, "Tip.svelte.tsx");
+    let tsx = read_tsx(&ws, "User.svelte.tsx");
     assert!(
-        tsx.contains("export * from \"../../Tip.svelte.js\";"),
-        "js companion re-export missing:\n{tsx}"
+        tsx.contains("'../../Tip.svelte.js'"),
+        "js companion specifier not repointed:\n{tsx}"
     );
 }
 
+/// With no component beside it, a `.svelte.ts` module keeps resolving through
+/// `rootDirs` and must be left alone.
 #[test]
-fn no_companion_means_no_reexport() {
+fn a_rune_module_specifier_is_left_alone() {
     let ws = workspace("none");
-    fs::write(ws.join("Tip.svelte"), "<p>hi</p>\n").unwrap();
+    fs::write(ws.join("state.svelte.ts"), "export const n = 1;\n").unwrap();
+    fs::write(
+        ws.join("User.svelte"),
+        "<script lang=\"ts\">import { n } from './state.svelte.js';</script>\n<p>{n}</p>\n",
+    )
+    .unwrap();
 
-    let files = vec![ws.join("Tip.svelte")];
+    let files = vec![ws.join("User.svelte")];
     materialize_overlay(&ws, &files, None).expect("overlay");
 
-    let tsx = read_tsx(&ws, "Tip.svelte.tsx");
+    let tsx = read_tsx(&ws, "User.svelte.tsx");
     assert!(
-        !tsx.contains("export * from \"../../Tip.svelte.js\";"),
-        "unexpected companion re-export with no companion present:\n{tsx}"
+        tsx.contains("'./state.svelte.js'"),
+        "a companion-less rune module specifier was rewritten:\n{tsx}"
     );
 }
 
 #[test]
-fn nested_component_reexport_path_is_correct() {
+fn nested_companion_specifier_path_is_correct() {
     let ws = workspace("nested");
     fs::create_dir_all(ws.join("src/lib")).unwrap();
     fs::write(ws.join("src/lib/Tip.svelte.ts"), "export const tip = 2;\n").unwrap();
     fs::write(ws.join("src/lib/Tip.svelte"), "<p>hi</p>\n").unwrap();
+    fs::write(
+        ws.join("src/lib/User.svelte"),
+        "<script lang=\"ts\">import { tip } from './Tip.svelte.js';</script>\n<p>{tip}</p>\n",
+    )
+    .unwrap();
 
-    let files = vec![ws.join("src/lib/Tip.svelte")];
+    let files = vec![
+        ws.join("src/lib/Tip.svelte"),
+        ws.join("src/lib/User.svelte"),
+    ];
     materialize_overlay(&ws, &files, None).expect("overlay");
 
-    // Shadow lives at <emit>/src/lib/Tip.svelte.tsx; the real companion is at
+    // Shadow lives at <emit>/src/lib/User.svelte.tsx; the real companion is at
     // <ws>/src/lib/Tip.svelte.ts → up out of `.svelte-check/svelte` (2 levels)
     // then back down the mirrored subpath.
-    let tsx = fs::read_to_string(ws.join(".svelte-check/svelte/src/lib/Tip.svelte.tsx")).unwrap();
+    let tsx = fs::read_to_string(ws.join(".svelte-check/svelte/src/lib/User.svelte.tsx")).unwrap();
     assert!(
-        tsx.contains("export * from \"../../../../src/lib/Tip.svelte.js\";"),
-        "nested companion re-export path wrong:\n{tsx}"
+        tsx.contains("'../../../../src/lib/Tip.svelte.js'"),
+        "nested companion specifier path wrong:\n{tsx}"
     );
 }
 

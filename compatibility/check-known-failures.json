@@ -1,1 +1,5 @@
-[]
+[
+	"js-rune-module-without-allow-js-nodenext|+ERROR src/plain.ts:1 2307",
+	"js-rune-module-without-allow-js-nodenext|-ERROR src/plain.ts:1 7016",
+	"ts-companion-named-import-bundler|-ERROR src/relative.ts:1 2614"
+]

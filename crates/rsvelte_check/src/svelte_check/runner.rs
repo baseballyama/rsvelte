@@ -20,7 +20,7 @@ use super::manifest::{
     self, CachedDiagnostics, SerializableDiagnostic, WarningCache, current_stats,
 };
 use super::mapper::{is_syntactic_ts_code, map_tsgo_diagnostics};
-use super::overlay::{OverlayLayout, materialize_overlay_with_kit};
+use super::overlay::{self, OverlayLayout, materialize_overlay_with_kit};
 use super::tsgo::{TsgoError, find_compiler, run_tsgo};
 use super::walker::find_relevant_files;
 
@@ -224,6 +224,15 @@ pub fn run(options: &RunOptions) -> RunResult {
         ) {
             Ok(layout) => {
                 if options.type_check {
+                    // The overlay restates the project's `paths` with absolute
+                    // targets, which denies the compiler its own validation of
+                    // them; replay the one check that survives into user-visible
+                    // behaviour (#2061).
+                    if let Some(tsconfig) = options.tsconfig.as_deref() {
+                        result
+                            .diagnostics
+                            .extend(overlay::paths_option_diagnostics(tsconfig));
+                    }
                     run_type_check_phase(
                         &layout,
                         &options.workspace,
