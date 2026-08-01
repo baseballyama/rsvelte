@@ -83,7 +83,7 @@ pub fn transform_legacy_state_member_mutate_ast(
             invalidate_bodies,
         );
         ast_rewrite::dual_run::compare_pass(
-            "legacy_state_member_mutate_ast",
+            "legacy_state_member_mutate_ast:inplace",
             source,
             spliced.as_deref(),
             in_place.as_deref(),

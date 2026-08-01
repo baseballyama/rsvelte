@@ -51,6 +51,7 @@ use oxc_parser::ParseOptions;
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_syntax::operator::AssignmentOperator;
+use oxc_syntax::operator::BinaryOperator;
 
 use oxc_semantic::{Semantic, SemanticBuilder};
 
@@ -65,6 +66,20 @@ thread_local! {
 /// the bindings in `prop_vars`. Returns `None` when there's
 /// nothing to rewrite or the source fails to parse.
 pub fn transform_prop_assign_ast(source: &str, prop_vars: &[String]) -> Option<String> {
+    let spliced = transform_prop_assign_spliced(source, prop_vars);
+    if ast_rewrite::dual_run::enabled() {
+        let in_place = transform_prop_assign_in_place(source, prop_vars);
+        ast_rewrite::dual_run::compare_pass(
+            "prop_assign_ast:inplace",
+            source,
+            spliced.as_deref(),
+            in_place.as_deref(),
+        );
+    }
+    spliced
+}
+
+fn transform_prop_assign_spliced(source: &str, prop_vars: &[String]) -> Option<String> {
     if prop_vars.is_empty() {
         return None;
     }
@@ -327,5 +342,156 @@ mod tests {
         // version's allowlist either.
         assert!(transform_prop_assign_ast("x <<= 2;", &ssv(&["x"])).is_none());
         assert!(transform_prop_assign_ast("x &= 7;", &ssv(&["x"])).is_none());
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_PROP_ASSIGN_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_prop_assign_ast`].
+///
+/// Two traversals over one parse rather than one: `is_locally_shadowed` needs a
+/// [`Semantic`], which borrows the program immutably, so the eligible
+/// assignments are identified first and rewritten second. Their spans stay
+/// valid across the rewrite — replacing a child leaves its ancestors' spans
+/// alone — and the rewrite is still post-order, so an inner assignment is
+/// wrapped before the one enclosing it.
+pub(crate) fn transform_prop_assign_in_place(source: &str, prop_vars: &[String]) -> Option<String> {
+    if prop_vars.is_empty() {
+        return None;
+    }
+    if !prop_vars
+        .iter()
+        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
+    {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &MODULE_PROP_ASSIGN_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let targets = {
+                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+                let mut finder = PropAssignFinder {
+                    prop_vars,
+                    semantic: &semantic_ret.semantic,
+                    targets: Vec::new(),
+                };
+                finder.visit_program(program);
+                finder.targets
+            };
+            if targets.is_empty() {
+                return false;
+            }
+            let mut rewriter = PropAssignRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                targets,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+/// The operators the text path rewrites. Bitwise and shift compound
+/// assignments are deliberately absent from both paths.
+fn prop_assign_operator(op: AssignmentOperator) -> Option<Option<BinaryOperator>> {
+    Some(match op {
+        AssignmentOperator::Assign => None,
+        AssignmentOperator::Addition => Some(BinaryOperator::Addition),
+        AssignmentOperator::Subtraction => Some(BinaryOperator::Subtraction),
+        AssignmentOperator::Multiplication => Some(BinaryOperator::Multiplication),
+        AssignmentOperator::Division => Some(BinaryOperator::Division),
+        AssignmentOperator::Remainder => Some(BinaryOperator::Remainder),
+        AssignmentOperator::Exponential => Some(BinaryOperator::Exponential),
+        _ => return None,
+    })
+}
+
+struct PropAssignFinder<'a, 'sem> {
+    prop_vars: &'a [String],
+    semantic: &'sem Semantic<'sem>,
+    /// `(span, prop name)` of each assignment to rewrite.
+    targets: Vec<(oxc_span::Span, String)>,
+}
+
+impl<'a, 'sem, 'ast> Visit<'ast> for PropAssignFinder<'a, 'sem> {
+    fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
+        walk::walk_assignment_expression(self, expr);
+
+        let AssignmentTarget::AssignmentTargetIdentifier(id) = &expr.left else {
+            return;
+        };
+        let name = id.name.as_str();
+        if !self.prop_vars.iter().any(|p| p == name) {
+            return;
+        }
+        if is_locally_shadowed(self.semantic, id) {
+            return;
+        }
+        // Logical compound assignments (`&&=`, `||=`, `??=`) are in the text
+        // path's allowlist but have no `BinaryOperator`; they are handled by
+        // the splice path until the logical form is ported.
+        if prop_assign_operator(expr.operator).is_none() {
+            return;
+        }
+        self.targets.push((expr.span, name.to_string()));
+    }
+}
+
+struct PropAssignRewriter<'a> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    targets: Vec<(oxc_span::Span, String)>,
+    changed: bool,
+}
+
+impl<'a> oxc_ast_visit::VisitMut<'a> for PropAssignRewriter<'a> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Expression::AssignmentExpression(assign) = &*expr else {
+            return;
+        };
+        let Some((_, name)) = self
+            .targets
+            .iter()
+            .find(|(span, _)| *span == assign.span)
+            .cloned()
+        else {
+            return;
+        };
+        let Some(op) = prop_assign_operator(assign.operator) else {
+            return;
+        };
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        let Expression::AssignmentExpression(assign) = taken else {
+            unreachable!("checked above")
+        };
+        let rhs = assign.unbox().right;
+        let arg =
+            match op {
+                None => rhs,
+                // The text path parenthesises the right operand verbatim; keep the
+                // node so the printed form matches rather than relying on the
+                // printer's own precedence rules.
+                Some(op) => {
+                    let parens = Expression::ParenthesizedExpression(
+                        ParenthesizedExpression::boxed(oxc_span::SPAN, rhs, &self.b.ab()),
+                    );
+                    self.b
+                        .binary(op, self.b.call(name.as_str(), vec![]), parens)
+                }
+            };
+        *expr = self.b.call(name.as_str(), vec![arg]);
+        self.changed = true;
     }
 }

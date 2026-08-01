@@ -524,6 +524,11 @@ pub mod dual_run {
         if !enabled() {
             return;
         }
+        // Both sides declining to rewrite says nothing about whether the port
+        // is faithful, and counting those would bury the runs that do.
+        if spliced.is_none() && ast.is_none() {
+            return;
+        }
         let left = spliced.map_or_else(|| normalize(source), normalize);
         let right = ast.map_or_else(|| normalize(source), normalize);
         let agreed = match (left, right) {
