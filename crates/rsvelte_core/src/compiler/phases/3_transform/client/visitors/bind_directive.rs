@@ -1890,7 +1890,10 @@ fn build_getter_setter_with_primitive(
                         let start_pos = original_expr.start().map(|v| v as usize);
                         if let Some(start) = start_pos {
                             let source = &context.state.analysis.source;
-                            let (line, col) = offset_to_line_col(source, start);
+                            let (line, col) =
+                                crate::compiler::phases::phase3_transform::utils::locate_in_source(
+                                    source, start,
+                                );
                             args.push(b::number(line as f64));
                             args.push(b::number(col as f64));
                         }
@@ -2680,9 +2683,7 @@ pub fn emit_validate_binding(
 
     // Get line/column for the binding
     let (line, col) =
-        crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source(
-            source, start,
-        );
+        crate::compiler::phases::phase3_transform::utils::locate_in_source(source, start);
 
     // If inside a store-backed each block, wrap with $.mark_store_binding()
     // Reference: validate_binding() in shared/utils.js - `state.store_to_invalidate`
@@ -2736,24 +2737,6 @@ fn extract_root_name_from_json(val: &serde_json::Value) -> Option<String> {
         "MemberExpression" => extract_root_name_from_json(obj.get("object")?),
         _ => None,
     }
-}
-
-/// Convert a byte offset to 1-based line and 0-based column.
-fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1;
-    let mut col = 0;
-    for (i, ch) in source.char_indices() {
-        if i >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            col = 0;
-        } else {
-            col += 1;
-        }
-    }
-    (line, col)
 }
 
 /// Get the root identifier name from an AST Expression (JSON-based).

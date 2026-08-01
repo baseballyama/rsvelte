@@ -4501,7 +4501,8 @@ fn check_ownership_validation(
     let source_loc = get_root_start_position(left_val).and_then(|start| {
         let source = &context.state.analysis.source;
         if !source.is_empty() {
-            Some(super::attribute::locate_in_source(source, start as usize))
+            use crate::compiler::phases::phase3_transform::utils::locate_in_source;
+            Some(locate_in_source(source, start as usize))
         } else {
             None
         }
@@ -4924,9 +4925,7 @@ fn try_coercive_assignment_transform(
     let source = &context.state.analysis.source;
     let filename = &context.state.analysis.filename;
     let (line, col) =
-        crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source(
-            source, start,
-        );
+        crate::compiler::phases::phase3_transform::utils::locate_in_source(source, start);
     let location = format!("{}:{line}:{col}", filename.replace('/', "/\u{200b}"));
 
     Some(b::call(

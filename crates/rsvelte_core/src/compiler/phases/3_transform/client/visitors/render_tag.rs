@@ -200,7 +200,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     let mut statements: Vec<JsStatement> = derived_decls;
     // In dev mode, wrap with $.add_svelte_meta() for render tags
     if context.state.dev {
-        use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+        use crate::compiler::phases::phase3_transform::utils::locate_in_source;
         let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
         statements.push(super::shared::utils::add_svelte_meta_dev(
             &context.arena,

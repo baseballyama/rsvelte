@@ -669,7 +669,7 @@ impl<'a> ComponentContext<'a> {
 
         // Dev mode: add location [line, column] as the last argument
         if self.state.dev {
-            use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+            use crate::compiler::phases::phase3_transform::utils::locate_in_source;
             let (line, col) = locate_in_source(&self.state.analysis.source, elem.start as usize);
             // Ensure we have enough arguments before the location
             // The function signature is: element(node, get_tag, is_svg_or_mathml, callback?, namespace?, location?)

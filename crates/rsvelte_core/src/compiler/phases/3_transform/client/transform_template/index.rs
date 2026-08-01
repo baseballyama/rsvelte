@@ -43,23 +43,9 @@ pub struct Location {
     pub column: usize,
 }
 
-/// Line/column of a byte offset, columns in UTF-16 code units to match
-/// `locate-character`, which indexes the source as a JS string.
 fn locate(source: &str, offset: u32) -> Location {
-    let mut end = (offset as usize).min(source.len());
-    while end > 0 && !source.is_char_boundary(end) {
-        end -= 1;
-    }
-    let mut line = 1usize;
-    let mut column = 0usize;
-    for c in source[..end].chars() {
-        if c == '\n' {
-            line += 1;
-            column = 0;
-        } else {
-            column += c.len_utf16();
-        }
-    }
+    let (line, column) =
+        crate::compiler::phases::phase3_transform::utils::locate_in_source(source, offset as usize);
     Location { line, column }
 }
 

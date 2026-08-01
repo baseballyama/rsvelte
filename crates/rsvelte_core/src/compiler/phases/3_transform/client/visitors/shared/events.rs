@@ -238,7 +238,7 @@ pub fn build_event_handler(
         // Dev routes the call through `$.apply` so a handler that throws can be
         // reported with the component and the source position of the attribute.
         let (line, column) = match expression.start() {
-            Some(start) => super::super::attribute::locate_in_source(
+            Some(start) => crate::compiler::phases::phase3_transform::utils::locate_in_source(
                 &context.state.analysis.source,
                 start as usize,
             ),

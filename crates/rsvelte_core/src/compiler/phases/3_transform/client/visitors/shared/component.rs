@@ -3098,7 +3098,8 @@ fn build_component_meta_stmt(
         ComponentNode::SvelteSelf(comp) => (comp.start, "svelte:self".to_string()),
     };
 
-    let (line, col) = super::super::attribute::locate_in_source(source, start as usize);
+    let (line, col) =
+        crate::compiler::phases::phase3_transform::utils::locate_in_source(source, start as usize);
 
     super::utils::add_svelte_meta_dev(
         arena,

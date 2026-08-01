@@ -1270,9 +1270,58 @@ pub(crate) fn canonicalize_props_call(s: &str) -> Cow<'_, str> {
     REGEX_PROPS_ASSIGN.replace_all(s, "= $$props()")
 }
 
+/// 1-based line and 0-based column for a UTF-8 byte offset into `source`.
+///
+/// The single locator every dev-mode instrumentation site shares
+/// (`$.add_locations`, `$.push_element`, `$.apply`, `$.add_svelte_meta`,
+/// `$$ownership_validator.mutation`). Columns are counted in **UTF-16 code
+/// units** because official runs `getLocator(source, { offsetLine: 1 })` from
+/// `locate-character`, which indexes the source as a JS string — so an astral
+/// character (emoji, surrogate pair) advances the column by 2, not 1.
+pub fn locate_in_source(source: &str, byte_offset: usize) -> (usize, usize) {
+    let mut end = byte_offset.min(source.len());
+    while end > 0 && !source.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut line = 1usize;
+    let mut column = 0usize;
+    for c in source[..end].chars() {
+        if c == '\n' {
+            line += 1;
+            column = 0;
+        } else {
+            column += c.len_utf16();
+        }
+    }
+    (line, column)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn locate_counts_columns_in_utf16_code_units() {
+        // "🎉" is one code point but two UTF-16 code units, so the `<b>` that
+        // follows it sits at column 2, not column 1.
+        let source = "🎉<b>";
+        let offset = source.find("<b>").unwrap();
+        assert_eq!(locate_in_source(source, offset), (1, 2));
+
+        // BMP multi-byte characters still count as a single column.
+        let source = "あい<b>";
+        let offset = source.find("<b>").unwrap();
+        assert_eq!(locate_in_source(source, offset), (1, 2));
+    }
+
+    #[test]
+    fn locate_resets_column_per_line_and_clamps() {
+        let source = "a🎉\nb🎉c";
+        assert_eq!(locate_in_source(source, source.find('b').unwrap()), (2, 0));
+        assert_eq!(locate_in_source(source, source.find('c').unwrap()), (2, 3));
+        assert_eq!(locate_in_source(source, usize::MAX), (2, 4));
+        assert_eq!(locate_in_source(source, 0), (1, 0));
+    }
 
     #[test]
     fn canonicalize_props_call_collapses_whitespace() {

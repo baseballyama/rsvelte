@@ -3322,21 +3322,7 @@ pub(super) fn find_prop_mutation_location(source: &str, var_name: &str) -> (usiz
         } else {
             relative_offset
         };
-        // Compute line/column from byte offset
-        let mut line = 1usize;
-        let mut col = 0usize;
-        for (i, ch) in source.char_indices() {
-            if i >= offset {
-                break;
-            }
-            if ch == '\n' {
-                line += 1;
-                col = 0;
-            } else {
-                col += 1;
-            }
-        }
-        (line, col)
+        crate::compiler::phases::phase3_transform::utils::locate_in_source(source, offset)
     } else {
         (0, 0)
     }
@@ -3578,6 +3564,32 @@ pub(super) fn split_top_level_args(s: &str) -> Vec<String> {
     }
 
     parts
+}
+
+#[cfg(test)]
+mod prop_mutation_location_tests {
+    use super::{find_prop_mutation_location, wrap_prop_mutation_validation};
+
+    /// Issue #2099: the location reported to `$$ownership_validator.mutation`
+    /// counts columns in UTF-16 code units, so an emoji before the mutation
+    /// shifts it by 2 rather than 1.
+    #[test]
+    fn location_columns_are_utf16_code_units() {
+        let astral = "<script>\nlet { item } = $props();\nfunction go() { /*🎉*/ item.name = 1; }\n</script>";
+        let bmp = astral.replace('🎉', "あ");
+        assert_eq!(find_prop_mutation_location(astral, "item"), (3, 23));
+        assert_eq!(find_prop_mutation_location(&bmp, "item"), (3, 22));
+    }
+
+    #[test]
+    fn mutation_wrapper_carries_the_utf16_column() {
+        let source = "<script>\nlet { item } = $props();\nfunction go() { /*🎉*/ item.name = 1; }\n</script>";
+        let prop_vars = vec![("item".to_string(), "item".to_string())];
+        assert_eq!(
+            wrap_prop_mutation_validation("item().name = 1", &prop_vars, source),
+            "$$ownership_validator.mutation('item', ['item', 'name'], item().name = 1, 3, 23)"
+        );
+    }
 }
 
 #[cfg(test)]

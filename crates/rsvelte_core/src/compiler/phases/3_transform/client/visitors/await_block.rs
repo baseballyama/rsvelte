@@ -141,7 +141,7 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
 
     // Add svelte metadata
     let stmt = if context.state.dev {
-        use crate::compiler::phases::phase3_transform::client::visitors::attribute::locate_in_source;
+        use crate::compiler::phases::phase3_transform::utils::locate_in_source;
         let (line, col) = locate_in_source(&context.state.analysis.source, node.start as usize);
         super::shared::utils::add_svelte_meta_dev(
             &context.arena,

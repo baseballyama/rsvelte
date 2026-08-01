@@ -1632,27 +1632,6 @@ impl<'a> PromiseOptimiser<'a> {
     }
 }
 
-/// Compute 1-based line number and 0-based column for a byte offset in source.
-/// (Relocated from the deleted text `server/visitors/element.rs` — used by the
-/// dev-mode `$.push_element($$renderer, '<name>', <line>, <col>)` instrumentation.)
-pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
-    let offset = offset.min(source.len());
-    let mut line = 1usize;
-    let mut col = 0usize;
-    for (i, ch) in source.char_indices() {
-        if i >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            col = 0;
-        } else {
-            col += 1;
-        }
-    }
-    (line, col)
-}
-
 /// Infer a fragment's namespace from its children (owned-slice variant). If every
 /// direct `RegularElement` child is SVG (or every one MathML) the fragment adopts
 /// that namespace, so whitespace-only text between them is removable. (Relocated

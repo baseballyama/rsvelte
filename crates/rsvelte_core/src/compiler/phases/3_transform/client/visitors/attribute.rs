@@ -9,6 +9,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::events:
     build_event, convert_arrow_to_named_function,
 };
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::utils::locate_in_source;
 #[cfg(test)]
 use crate::compiler::utils::can_delegate_event;
 
@@ -430,27 +431,6 @@ pub fn is_passive_event(name: &str) -> Option<bool> {
     } else {
         None
     }
-}
-
-/// Compute 1-based line and 0-based column from a byte offset in source code.
-/// This matches the behavior of the `locator` function in the official Svelte compiler,
-/// which uses `getLocator(source, { offsetLine: 1 })` from `locate-character`.
-pub fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
-    let offset = offset.min(source.len());
-    let mut line = 1usize; // 1-based lines (offsetLine: 1)
-    let mut col = 0usize;
-    for (i, ch) in source.char_indices() {
-        if i >= offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            col = 0;
-        } else {
-            col += 1;
-        }
-    }
-    (line, col)
 }
 
 /// Check if an expression has side effects.
