@@ -1250,15 +1250,30 @@ impl<'a> ScopeBuilder<'a> {
         // Store the ImportDeclaration as a JSON string on binding.initial,
         // matching the official Svelte compiler where binding.initial is the
         // ImportDeclaration AST node.
-        let import_json = serde_json::json!({
-            "type": "ImportDeclaration",
-            "source": { "value": source_val },
-            "specifiers": [{
-                "type": specifier_type,
-                "local": { "name": name }
-            }]
-        });
-        self.bindings[binding_idx].initial = Some(import_json.to_string());
+        //
+        // Written out rather than built with `json!`: the shape is fixed and
+        // only the string ends up being read, so going through a `Value` would
+        // allocate three maps and hash six constant keys per specifier just to
+        // serialize them straight back. `to_string` on the two dynamic values
+        // applies serde_json's own escaping, and `preserve_order` means `json!`
+        // would emit the keys in this same written order.
+        let source_json = serde_json::to_string(source_val).unwrap_or_default();
+        let name_json = serde_json::to_string(&name).unwrap_or_default();
+        let mut import_json = String::with_capacity(
+            r#"{"type":"ImportDeclaration","source":{"value":},"specifiers":[{"type":"","local":{"name":}}]}"#
+                .len()
+                + source_json.len()
+                + specifier_type.len()
+                + name_json.len(),
+        );
+        import_json.push_str(r#"{"type":"ImportDeclaration","source":{"value":"#);
+        import_json.push_str(&source_json);
+        import_json.push_str(r#"},"specifiers":[{"type":""#);
+        import_json.push_str(specifier_type);
+        import_json.push_str(r#"","local":{"name":"#);
+        import_json.push_str(&name_json);
+        import_json.push_str(r#"}}]}"#);
+        self.bindings[binding_idx].initial = Some(import_json);
         self.bindings[binding_idx].initial_node_type = Some("ImportDeclaration".to_string());
         self.bindings[binding_idx].import_source = Some(source_val.to_string());
     }
