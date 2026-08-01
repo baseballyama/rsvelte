@@ -3095,7 +3095,7 @@ fn build_component_meta_stmt(
     let (start, tag_name) = match node {
         ComponentNode::Component(comp) => (comp.start, comp.name.to_string()),
         ComponentNode::SvelteComponent(comp) => (comp.start, "svelte:component".to_string()),
-        ComponentNode::SvelteSelf(_) => (0, "svelte:self".to_string()),
+        ComponentNode::SvelteSelf(comp) => (comp.start, "svelte:self".to_string()),
     };
 
     let (line, col) = super::super::attribute::locate_in_source(source, start as usize);
