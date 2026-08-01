@@ -41,7 +41,7 @@ use ast_utils::{
     binding_pattern_simple_name, collect_top_level_declared_names, declarator_has_boolean_init,
     extract_all_names_from_binding_pattern,
 };
-use component_events::detect_create_event_dispatcher;
+use component_events::collect_event_dispatcher_facts;
 use export_decl::{handle_export_named_decl, leading_jsdoc_comment};
 use exported_names::PossibleExport;
 use hoistable_types::{
@@ -116,6 +116,11 @@ pub fn process_instance_script(
     let mut instance_imports = Vec::new();
     with_parsed_script(parsed, |program, raw_content| {
         let script_facts = ScriptFacts::collect(program, offset, raw_content, true, store_scan);
+        // Official refuses to recognise a dispatcher without an import binding
+        // `createEventDispatcher`, so its absence rules out every event fact.
+        if contains_word(raw_content.as_bytes(), b"createEventDispatcher") {
+            collect_event_dispatcher_facts(program, raw_content, _events, offset);
+        }
         let mut import_collector = contains_word(raw_content.as_bytes(), b"import")
             .then(|| InstanceImportCollector::new(raw_content, &program.comments));
 
@@ -149,8 +154,6 @@ pub fn process_instance_script(
                     for declarator in var_decl.declarations.iter() {
                         detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
-                        // Detect createEventDispatcher<Type>() calls
-                        detect_create_event_dispatcher(declarator, raw_content, _events, offset);
                         // Collect $props() info for typedef generation (one per
                         // `$props()` destructure).
                         if let Some(info) = collect_props_rune_info(

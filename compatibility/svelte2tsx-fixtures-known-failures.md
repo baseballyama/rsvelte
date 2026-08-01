@@ -25,7 +25,7 @@ UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 `STRICT_S2TSX_FIXTURES=1` ignores the baseline entirely (every failure fails),
 which is how you check whether an entry is still needed.
 
-## Current baseline: 12 of 254 (pass rate 95.3%)
+## Current baseline: 8 of 254 (pass rate 96.9%)
 
 ### #2145 note
 
@@ -97,20 +97,3 @@ quoting bug itself (which is fixed in `collect/mod.rs`'s `push_let_reflection_sc
   squarely in the `let:`-forwarding resolution logic (`push_let_reflection_scope`
   neighbourhood / `TemplateScope.resolveLet` equivalent) that issue #2105 owns —
   left untouched here per that PR's explicit scope boundary.
-
-### `createEventDispatcher` event-name/type inference gaps — 4
-
-- **`event-dispatcher-events`**, **`event-dispatcher-events-alias`.** `dispatch(bla,
-  false)` where `bla` is a local `const bla = 'bye'` — official statically resolves
-  the dispatched event name through the `const` binding to add `'bye'` to the
-  `events:` reflection; rsvelte only recognizes a string literal passed directly as
-  `dispatch()`'s first argument, not one flowing through a traced local constant.
-  (`-alias` is the same gap through an aliased `import { createEventDispatcher as
-  foo }`.)
-
-- **`ts-event-dispatchers`**, **`ts-event-dispatchers-same-event`.** Multiple
-  `createEventDispatcher<T>()` calls in one component (`dispatch1`/`dispatch2`/
-  `dispatch3`, each with its own generic event-type parameter) — official unions
-  every one via a separate `...__sveltets_2_toEventTypings<T>()` spread per
-  dispatcher; rsvelte only emits one. A distinct, self-contained event-typing
-  feature gap, unrelated to #2145.

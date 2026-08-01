@@ -209,12 +209,10 @@ fn build_events_str_with_observer(
         let mut event_parts = Vec::new();
         // Official `toDefString` order: typed-dispatcher event typings FIRST,
         // then bubbled/forwarded events, then untyped-dispatch customEvents.
-        // Add generic event typing from createEventDispatcher<Type>() first.
-        if let Some(ref generic_type) = events.dispatcher_generic_type {
-            event_parts.push(format!(
-                "...__sveltets_2_toEventTypings<{}>()",
-                generic_type
-            ));
+        // Add generic event typing from createEventDispatcher<Type>() first —
+        // one spread per typed dispatcher, in declaration order.
+        for generic_type in &events.dispatcher_generic_types {
+            event_parts.push(format!("...__sveltets_2_toEventTypings<{generic_type}>()"));
         }
         // Add element events (forwarded), reducing them exactly like the
         // official `EventHandler` bubbled-events `Map` (event-handler.ts):

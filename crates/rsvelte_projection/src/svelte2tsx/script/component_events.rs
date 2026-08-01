@@ -3,10 +3,13 @@
 use std::collections::HashMap;
 
 use oxc_ast::ast as oxc;
+use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rustc_hash::FxHashMap;
 
-use super::ast_utils::binding_pattern_simple_name;
+use super::ast_utils::{
+    binding_pattern_simple_name, module_export_name_to_string, property_key_to_string,
+};
 
 /// Tracks events declared by a component.
 ///
@@ -20,9 +23,10 @@ pub struct ComponentEvents {
     events: HashMap<String, EventInfo>,
     /// Whether the component forwards all events (uses `$$restProps` with event handlers).
     pub forwards_all_events: bool,
-    /// Generic type text from `createEventDispatcher<Type>()`, if any.
-    /// Used to generate `{...__sveltets_2_toEventTypings<Type>()}` in the events return.
-    pub dispatcher_generic_type: Option<String>,
+    /// Generic type text of every TYPED `createEventDispatcher<Type>()`, in
+    /// declaration order. Official emits one
+    /// `...__sveltets_2_toEventTypings<Type>()` spread per typed dispatcher.
+    pub dispatcher_generic_types: Vec<String>,
     /// Locally-created, *untyped* event dispatchers
     /// (`const dispatch = createEventDispatcher()`) as `(name, decl_pos)` where
     /// `decl_pos` is the dispatcher declarator's absolute position in `source`.
@@ -32,11 +36,9 @@ pub struct ComponentEvents {
     /// dispatcher was already registered during its in-order AST walk — i.e.
     /// the call appears AFTER the declaration — so `decl_pos` is the order gate.
     pub dispatcher_decls: Vec<(String, u32)>,
-    /// Dispatched event names in official insertion order: template
-    /// `dispatch(...)` calls first (collected as `EventHandler` callees during
-    /// the template walk, surfaced when the dispatcher declaration is reached),
-    /// then instance-script `dispatch(...)` calls that appear after the
-    /// declaration. Preserved (not sorted) for the `events:` return.
+    /// Event names that reach the `events:` return as
+    /// `'name': __sveltets_2_customEvent`, in official insertion order — see
+    /// `collect_dispatched_events` for how that order is reconstructed.
     dispatched_order: Vec<String>,
     /// Absolute source positions (end of the `createEventDispatcher` callee, just
     /// before its `(`) of every UNTYPED `createEventDispatcher()` call. When a
@@ -44,6 +46,44 @@ pub struct ComponentEvents {
     /// prepends `<__sveltets_2_CustomEvents<$$Events>>` here so the untyped
     /// dispatcher picks up the declared event typings.
     pub dispatcher_typing_inject_pos: Vec<u32>,
+    /// Local name `createEventDispatcher` is imported under. Official refuses to
+    /// treat any call as a dispatcher factory until an `import … from 'svelte'`
+    /// binds it, so an alias counts and a same-named local does not.
+    event_dispatcher_import: Option<String>,
+    /// `const x = 'literal'` bindings (any nesting level) in walk order, so a
+    /// `dispatch(x)` whose first argument is a traced constant resolves.
+    string_vars: Vec<StringVar>,
+    /// Event additions recorded during the script walk, replayed in source order
+    /// together with the scanned `dispatch(...)` call sites.
+    pending: Vec<PendingEvent>,
+}
+
+/// A `const x = 'literal'` binding, keyed by its absolute declaration position:
+/// official only resolves `dispatch(x)` against declarations its walk already
+/// passed.
+#[derive(Debug, Clone)]
+struct StringVar {
+    name: String,
+    value: String,
+    pos: u32,
+}
+
+#[derive(Debug, Clone)]
+struct PendingEvent {
+    /// Absolute source position the addition happens at in official's walk.
+    pos: u32,
+    name: String,
+    kind: PendingKind,
+}
+
+#[derive(Debug, Clone)]
+enum PendingKind {
+    /// A member of a typed dispatcher's `<{…}>` literal — contributes typing
+    /// only; it reaches the `events:` customEvent list solely by colliding with
+    /// an already-registered name.
+    TypedMember(Option<String>),
+    /// A `dispatch('name', …)` call site.
+    Dispatched,
 }
 
 /// Metadata about a single component event.
@@ -56,19 +96,34 @@ pub struct EventInfo {
 impl ComponentEvents {
     /// Create a new empty `ComponentEvents`.
     pub fn new() -> Self {
-        Self {
-            events: HashMap::new(),
-            forwards_all_events: false,
-            dispatcher_generic_type: None,
-            dispatcher_decls: Vec::new(),
-            dispatched_order: Vec::new(),
-            dispatcher_typing_inject_pos: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Add an event declaration.
     pub fn add(&mut self, name: String, detail_type: Option<String>) {
         self.events.insert(name, EventInfo { detail_type });
+    }
+
+    /// Official `ComponentEventsFromEventsMap.addToEvents`: a repeated name
+    /// falls back to `CustomEvent<any>` AND joins the dispatched set, which is
+    /// what makes two typed dispatchers declaring the same event also emit a
+    /// `'name': __sveltets_2_customEvent` entry.
+    fn add_to_events(&mut self, name: &str, detail_type: Option<String>) {
+        if self.events.contains_key(name) {
+            self.events
+                .insert(name.to_owned(), EventInfo { detail_type: None });
+            self.push_dispatched(name);
+        } else {
+            self.events
+                .insert(name.to_owned(), EventInfo { detail_type });
+        }
+    }
+
+    /// Mirrors the official `dispatchedEvents` `Set`: insertion-ordered, unique.
+    fn push_dispatched(&mut self, name: &str) {
+        if !self.dispatched_order.iter().any(|known| known == name) {
+            self.dispatched_order.push(name.to_owned());
+        }
     }
 
     /// Get all event names.
@@ -84,19 +139,21 @@ impl ComponentEvents {
     }
 
     /// Scan `source` for `<dispatcher>("eventName", …)` call sites of every
-    /// recorded untyped dispatcher and add each event name in official insertion
-    /// order. Mirrors `ComponentEventsFromEventsMap`:
+    /// recorded untyped dispatcher and replay every event addition in official
+    /// insertion order. Mirrors `ComponentEventsFromEventsMap`:
     ///
     /// * **Template** `dispatch(...)` calls (those OUTSIDE the instance/module
     ///   `<script>` regions) are collected as `EventHandler` callees during the
-    ///   template walk and surfaced (regardless of source order) when the
-    ///   dispatcher declaration is reached — so they come FIRST, in template
-    ///   source order.
+    ///   template walk and surfaced (regardless of their own source order) when
+    ///   the dispatcher declaration is reached, so they order by that
+    ///   declaration's position.
     /// * **Instance-script** `dispatch(...)` calls are only counted when they
     ///   appear AFTER the dispatcher declaration in the in-order AST walk
     ///   (`checkIfCallExpressionIsDispatch` requires the dispatcher to already
     ///   be registered) — so each call's position must exceed its dispatcher's
-    ///   `decl_pos`. These come after the template events, in script order.
+    ///   `decl_pos`.
+    /// * **Typed** dispatcher members recorded by the script walk are replayed
+    ///   at their declaration's position, interleaved with the above.
     ///
     /// `inst_range` / `mod_range` are the `[content_start, end)` byte spans of
     /// the instance and module `<script>` elements (module dispatch calls are
@@ -107,15 +164,46 @@ impl ComponentEvents {
         inst_range: Option<(u32, u32)>,
         mod_range: Option<(u32, u32)>,
     ) {
-        if self.dispatcher_decls.is_empty() {
+        let mut pending = std::mem::take(&mut self.pending);
+        if !self.dispatcher_decls.is_empty() {
+            let (template_events, script_events) = scan_dispatch_calls(
+                source,
+                &self.dispatcher_decls,
+                &self.string_vars,
+                inst_range,
+                mod_range,
+            );
+            // A template call surfaces at the declaration that claims it, so it
+            // orders against the script by the declaration's position.
+            for (name, dispatcher_index) in template_events {
+                pending.push(PendingEvent {
+                    pos: self.dispatcher_decls[dispatcher_index].1,
+                    name: name.to_owned(),
+                    kind: PendingKind::Dispatched,
+                });
+            }
+            for (name, pos) in script_events {
+                pending.push(PendingEvent {
+                    pos,
+                    name: name.to_owned(),
+                    kind: PendingKind::Dispatched,
+                });
+            }
+        }
+        if pending.is_empty() {
             return;
         }
-        let (template_events, script_events) =
-            scan_dispatch_calls(source, &self.dispatcher_decls, inst_range, mod_range);
-        for evt in template_events.into_iter().chain(script_events) {
-            if !self.events.contains_key(evt) {
-                self.dispatched_order.push(evt.to_string());
-                self.add(evt.to_string(), None);
+
+        pending.sort_by_key(|entry| entry.pos);
+        for entry in pending {
+            match entry.kind {
+                PendingKind::TypedMember(detail_type) => {
+                    self.add_to_events(&entry.name, detail_type)
+                }
+                PendingKind::Dispatched => {
+                    self.add_to_events(&entry.name, None);
+                    self.push_dispatched(&entry.name);
+                }
             }
         }
     }
@@ -149,22 +237,38 @@ impl ComponentEvents {
     }
 }
 
+/// Template hits carry the index of the dispatcher declaration that claims them;
+/// script hits carry the call's own absolute position.
+type DispatchScan<'source> = (Vec<(&'source str, usize)>, Vec<(&'source str, u32)>);
+
 fn scan_dispatch_calls<'source>(
     source: &'source str,
     decls: &[(String, u32)],
+    string_vars: &'source [StringVar],
     inst_range: Option<(u32, u32)>,
     mod_range: Option<(u32, u32)>,
-) -> (Vec<&'source str>, Vec<&'source str>) {
-    scan_dispatch_calls_with_observer(source, decls, inst_range, mod_range, || {})
+) -> DispatchScan<'source> {
+    scan_dispatch_calls_with_observer(source, decls, string_vars, inst_range, mod_range, || {})
+}
+
+/// The value of `name` as official's `stringVars` map would hold it when the
+/// walk reaches `before` — the newest declaration the walk already passed.
+fn lookup_string_var<'a>(string_vars: &'a [StringVar], name: &str, before: u32) -> Option<&'a str> {
+    string_vars
+        .iter()
+        .rev()
+        .find(|var| var.pos < before && var.name == name)
+        .map(|var| var.value.as_str())
 }
 
 fn scan_dispatch_calls_with_observer<'source>(
     source: &'source str,
     decls: &[(String, u32)],
+    string_vars: &'source [StringVar],
     inst_range: Option<(u32, u32)>,
     mod_range: Option<(u32, u32)>,
     mut observe_identifier: impl FnMut(),
-) -> (Vec<&'source str>, Vec<&'source str>) {
+) -> DispatchScan<'source> {
     let mut dispatcher_indices: FxHashMap<&str, (usize, usize)> =
         FxHashMap::with_capacity_and_hasher(decls.len(), Default::default());
     let mut next_dispatcher = vec![usize::MAX; decls.len()];
@@ -218,28 +322,56 @@ fn scan_dispatch_calls_with_observer<'source>(
         while p < bytes.len() && bytes[p].is_ascii_whitespace() {
             p += 1;
         }
-        if p >= bytes.len() || (bytes[p] != b'"' && bytes[p] != b'\'' && bytes[p] != b'`') {
+        if p >= bytes.len() || in_range(start, mod_range) {
             continue;
         }
+        let in_instance_script = in_range(start, inst_range);
 
-        let quote = bytes[p];
-        p += 1;
-        let name_start = p;
-        while p < bytes.len() && bytes[p] != quote {
+        let event = if bytes[p] == b'"' || bytes[p] == b'\'' || bytes[p] == b'`' {
+            let quote = bytes[p];
             p += 1;
-        }
-        if p >= bytes.len() || p == name_start || in_range(start, mod_range) {
+            let name_start = p;
+            while p < bytes.len() && bytes[p] != quote {
+                p += 1;
+            }
+            if p >= bytes.len() || p == name_start {
+                continue;
+            }
+            &source[name_start..p]
+        } else if in_instance_script
+            && (bytes[p].is_ascii_alphabetic() || bytes[p] == b'_' || bytes[p] == b'$')
+        {
+            // `dispatch(bla, …)` where `bla` is a traced string constant. Only in
+            // the instance script: the template collects callee arguments through
+            // `EventHandler`, which reads a literal `.value` and never resolves
+            // identifiers.
+            let ident_start = p;
+            while p < bytes.len() && is_ident(bytes[p]) {
+                p += 1;
+            }
+            let identifier = &source[ident_start..p];
+            while p < bytes.len() && bytes[p].is_ascii_whitespace() {
+                p += 1;
+            }
+            // Official requires the WHOLE first argument to be the identifier.
+            if p >= bytes.len() || (bytes[p] != b',' && bytes[p] != b')') {
+                continue;
+            }
+            match lookup_string_var(string_vars, identifier, start as u32) {
+                Some(value) => value,
+                None => continue,
+            }
+        } else {
             continue;
-        }
-        let event = &source[name_start..p];
+        };
 
         loop {
-            if in_range(start, inst_range) {
+            if in_instance_script {
                 if start as u32 > decls[dispatcher_index].1 {
-                    script_events.push(event);
+                    script_events.push((event, start as u32));
                 }
             } else {
-                template_events.push(event);
+                template_events.push((event, dispatcher_index));
             }
             dispatcher_index = next_dispatcher[dispatcher_index];
             if dispatcher_index == usize::MAX {
@@ -251,45 +383,138 @@ fn scan_dispatch_calls_with_observer<'source>(
     (template_events, script_events)
 }
 
-/// Detect `createEventDispatcher<Type>()` calls and extract the generic type.
-///
-/// Records the type text (e.g. `{a: A}`) in the events struct for use
-/// in the return statement's events field.
-pub(super) fn detect_create_event_dispatcher(
-    declarator: &oxc::VariableDeclarator,
+/// Walk the instance script in source order to collect everything official's
+/// `ComponentEvents` learns while walking it: which local name
+/// `createEventDispatcher` is imported under, the dispatchers instantiated from
+/// it (typed and untyped, at any nesting level) and the string constants a
+/// `dispatch(x)` can resolve through.
+pub(super) fn collect_event_dispatcher_facts<'a>(
+    program: &oxc::Program<'a>,
     raw_content: &str,
     events: &mut ComponentEvents,
     content_offset: u32,
 ) {
-    if let Some(ref init) = declarator.init
-        && let oxc::Expression::CallExpression(call) = init
-        && let oxc::Expression::Identifier(ref callee) = call.callee
-        && callee.name == "createEventDispatcher"
-    {
-        // Check for type arguments: createEventDispatcher<Type>()
-        if let Some(ref type_args) = call.type_arguments
-            && let Some(first_param) = type_args.params.first()
+    EventDispatcherCollector {
+        events,
+        raw_content,
+        content_offset,
+    }
+    .visit_program(program);
+}
+
+struct EventDispatcherCollector<'e, 'r> {
+    events: &'e mut ComponentEvents,
+    raw_content: &'r str,
+    content_offset: u32,
+}
+
+impl EventDispatcherCollector<'_, '_> {
+    /// Source text of `span`, mirroring upstream's `node.getText()`.
+    fn text(&self, span: oxc_span::Span) -> Option<String> {
+        let (start, end) = (span.start as usize, span.end as usize);
+        (start < end && end <= self.raw_content.len())
+            .then(|| self.raw_content[start..end].to_owned())
+    }
+
+    /// Official `checkIfIsStringLiteralDeclaration`.
+    fn note_string_literal_declaration(&mut self, declarator: &oxc::VariableDeclarator<'_>) {
+        if let Some(name) = binding_pattern_simple_name(&declarator.id)
+            && let Some(oxc::Expression::StringLiteral(literal)) = declarator.init.as_ref()
         {
-            let start = first_param.span().start as usize;
-            let end = first_param.span().end as usize;
-            if start < end && end <= raw_content.len() {
-                let type_text = raw_content[start..end].to_string();
-                events.dispatcher_generic_type = Some(type_text);
-            }
-        } else if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-            // Untyped dispatcher: record its name + absolute declaration position
-            // (`content_offset + declarator.span.start`) so `dispatch("name")`
-            // call sites can be scanned — and order-gated against this position —
-            // to populate the events return.
-            let decl_pos = content_offset + declarator.span.start;
-            events.dispatcher_decls.push((name.to_owned(), decl_pos));
-            // Record the callee end (before `(`) so a `$$Events` interface can
-            // inject `<__sveltets_2_CustomEvents<$$Events>>` onto the untyped call.
-            events
-                .dispatcher_typing_inject_pos
-                .push(content_offset + callee.span.end);
+            self.events.string_vars.push(StringVar {
+                name: name.to_owned(),
+                value: literal.value.to_string(),
+                pos: self.content_offset + declarator.span.start,
+            });
         }
     }
+
+    /// Official `checkIfDeclarationInstantiatedEventDispatcher`.
+    fn note_dispatcher_declaration(&mut self, declarator: &oxc::VariableDeclarator<'_>) {
+        let Some(name) = binding_pattern_simple_name(&declarator.id) else {
+            return;
+        };
+        let Some(oxc::Expression::CallExpression(call)) = declarator.init.as_ref() else {
+            return;
+        };
+        let oxc::Expression::Identifier(callee) = &call.callee else {
+            return;
+        };
+        if self.events.event_dispatcher_import.as_deref() != Some(callee.name.as_str()) {
+            return;
+        }
+
+        let decl_pos = self.content_offset + declarator.span.start;
+        let typing = call
+            .type_arguments
+            .as_ref()
+            .and_then(|arguments| arguments.params.first());
+        let Some(typing) = typing else {
+            // Untyped dispatcher: record its name + declaration position so
+            // `dispatch("name")` call sites can be scanned and order-gated
+            // against it, plus the callee end (before `(`) so a `$$Events`
+            // interface can inject `<__sveltets_2_CustomEvents<$$Events>>`.
+            self.events
+                .dispatcher_decls
+                .push((name.to_owned(), decl_pos));
+            self.events
+                .dispatcher_typing_inject_pos
+                .push(self.content_offset + callee.span.end);
+            return;
+        };
+
+        if let Some(typing_text) = self.text(typing.span()) {
+            self.events.dispatcher_generic_types.push(typing_text);
+        }
+        // Only an inline type literal exposes its event names; a named type is
+        // spread verbatim and stays opaque to the event map.
+        if let oxc::TSType::TSTypeLiteral(literal) = typing {
+            for member in literal.members.iter() {
+                if let oxc::TSSignature::TSPropertySignature(signature) = member
+                    && let Some(event_name) = property_key_to_string(&signature.key)
+                {
+                    let detail = signature
+                        .type_annotation
+                        .as_ref()
+                        .and_then(|annotation| self.text(annotation.type_annotation.span()));
+                    self.events.pending.push(PendingEvent {
+                        pos: decl_pos,
+                        name: event_name,
+                        kind: PendingKind::TypedMember(detail),
+                    });
+                }
+            }
+        }
+    }
+}
+
+impl<'a> Visit<'a> for EventDispatcherCollector<'_, '_> {
+    fn visit_import_declaration(&mut self, it: &oxc::ImportDeclaration<'a>) {
+        if self.events.event_dispatcher_import.is_none() {
+            self.events.event_dispatcher_import = event_dispatcher_import_local(it);
+        }
+    }
+
+    fn visit_variable_declarator(&mut self, it: &oxc::VariableDeclarator<'a>) {
+        self.note_string_literal_declaration(it);
+        self.note_dispatcher_declaration(it);
+        oxc_ast_visit::walk::walk_variable_declarator(self, it);
+    }
+}
+
+/// Official `checkIfImportIsEventDispatcher`: the local name a named
+/// `import … from 'svelte'` binds `createEventDispatcher` to, alias included.
+fn event_dispatcher_import_local(node: &oxc::ImportDeclaration<'_>) -> Option<String> {
+    if node.source.value != "svelte" {
+        return None;
+    }
+    node.specifiers.as_ref()?.iter().find_map(|specifier| {
+        let oxc::ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
+            return None;
+        };
+        (module_export_name_to_string(&specifier.imported) == "createEventDispatcher")
+            .then(|| specifier.local.name.to_string())
+    })
 }
 
 #[cfg(test)]
@@ -395,9 +620,15 @@ mod tests {
         ];
 
         let (_, script_events) =
-            scan_dispatch_calls(source, &decls, Some((0, source.len() as u32)), None);
+            scan_dispatch_calls(source, &decls, &[], Some((0, source.len() as u32)), None);
 
-        assert_eq!(script_events, vec!["first", "second", "third", "third"]);
+        assert_eq!(
+            script_events
+                .iter()
+                .map(|(name, _)| *name)
+                .collect::<Vec<_>>(),
+            vec!["first", "second", "third", "third"]
+        );
     }
 
     #[test]
@@ -413,16 +644,16 @@ mod tests {
                 .collect();
             let mut identifiers_visited = 0;
             let (template_events, script_events) =
-                scan_dispatch_calls_with_observer(&source, &decls, None, None, || {
+                scan_dispatch_calls_with_observer(&source, &decls, &[], None, None, || {
                     identifiers_visited += 1;
                 });
 
             assert_eq!(template_events.len(), dispatcher_count);
             assert!(script_events.is_empty());
             assert_eq!(identifiers_visited, 16_384 + 128 * 2);
-            assert_eq!(template_events[0], "event0");
+            assert_eq!(template_events[0].0, "event0");
             assert_eq!(
-                template_events[dispatcher_count - 1],
+                template_events[dispatcher_count - 1].0,
                 format!("event{}", dispatcher_count - 1)
             );
         }
