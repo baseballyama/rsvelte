@@ -1,5 +1,13 @@
 # @rsvelte/fmt
 
+## 0.7.5
+
+### Patch Changes
+
+- 173a735: fix(fmt): keep the expanded spacing on grouped call arguments in an overflowing block header. When a `{#if}` / `{#each}` / `{#key}` / `{#await}` header line does not fit the print width, prettier still prints it on one line but renders each call from the layout it would otherwise have broken out — `callee( a, b )`, one space inside each delimiter, arguments flat, no trailing comma — whereas rsvelte-fmt kept the hugged `callee({ a })` form. The trigger is the width of the whole header line (indent, opener, expression and the `as …}` suffix), and it applies to every call in the expression at any depth, including inside logical operands, ternary arms, optional chains and `new` expressions. Which calls qualify now mirrors oxc's own grouped-call-argument layout rule, so an empty object argument, a same-shaped penultimate argument, a concisely printable numeric array or an arrow with a bare expression body correctly stay flat.
+- 469df7a: fix(fmt): the collapse pass no longer touches an element ignored by `<!-- prettier-ignore -->` — 7 of its recursive sweeps (and the prose-run filler) were missing the ignore guard, so a nested element (e.g. an `<a>` inside an ignored `<p>`) could still have its open tag re-broken by a later pass
+- ae3062d: fix(fmt): re-indent multi-line attribute values correctly under `useTabs`. A multi-line attribute value (an arrow handler, a `bind:` getter/setter pair, an object literal) is formatted at column 0 and re-indented to the attribute column afterwards, but the re-indent treated every line starting with a tab as verbatim raw HTML text. That holds only while the embedded JS is space-indented — with `useTabs: true` the formatted JS is tab-indented too, so the value's continuation lines were left at column 0 and the closing `}}` lost the element's nesting depth entirely. The raw-text boundary is now the value's `{…}` brace depth instead of a leading tab, which also stops a tab-indented template literal from being mistaken for raw text.
+
 ## 0.7.4
 
 ### Patch Changes

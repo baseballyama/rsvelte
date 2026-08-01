@@ -2366,7 +2366,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rsvelte"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "rsvelte_core",
  "rsvelte_projection",
@@ -2397,7 +2397,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_check"
-version = "0.5.6"
+version = "0.5.7"
 dependencies = [
  "clap",
  "notify",
@@ -2419,7 +2419,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2509,7 +2509,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -2577,7 +2577,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2643,7 +2643,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "indexmap",
  "memchr",

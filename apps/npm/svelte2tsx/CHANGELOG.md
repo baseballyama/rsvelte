@@ -1,5 +1,66 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.8
+
+### Patch Changes
+
+- 6139059: fix(svelte2tsx): move a default-slot `let:` element's leading gap space ahead
+  of its `$$slot_def.default` destructure. Upstream's `Element.
+performTransformation` runs the destructure through the SAME `transform()`
+  call as the element's own opening-tag rewrite, so the element's leading gap
+  lands before the destructure instead of before the element itself. rsvelte
+  inserted the destructure with no leading space and left the gap on the
+  element, so `<Foo><div let:x>{x}</div></Foo>` produced
+  `;{const {…,x,} = …$$slot_def.default;$$_$$; { svelteHTML.createElement(…`
+  (extra space before the element) instead of upstream's
+  `; {const {…,x,} = …$$slot_def.default;$$_$$;{ svelteHTML.createElement(…`.
+- 128b5af: fix(svelte2tsx): source-map segments now advance the generated column (previously every segment claimed column 0, collapsing position lookups onto the line's last segment); the NAPI `svelte2tsx` binding now returns the actual `map` instead of `null`
+- fa12319: fix(svelte2tsx): key `<slot name={expr}>`'s `__sveltets_createSlot(...)` call
+  with the verbatim source text of the `name` attribute's value node, braces and
+  inner whitespace included, instead of re-serializing the expression. Upstream's
+  `surroundWith` wraps the raw `[start, end]` source slice in quotes rather than
+  printing the parsed expression, so `name={n}` must produce `"{n}"`, not `"n"`.
+  Also stop concatenating multi-part attribute values (`name="a{b}c"`) — upstream
+  only ever reads `value[0]`.
+- 7d635d5: fix(svelte2tsx): reproduce upstream's opening- and closing-tag whitespace
+  accounting. Upstream lowers a tag by moving every kept source range to the end
+  of the transformed range, collapsing each run of characters between two kept
+  ranges to a single space; those spaces are observable in the output. rsvelte
+  emitted a fixed single space instead, so `<div {...attributes}>` produced
+  `{ ...attributes,}` where upstream produces `{...attributes,}`. Also rewrite
+  `{:else}` character-by-character (`}else{`, no inserted spaces) and stop
+  treating `{:else}{#if …}` as an `{:else if}`.
+- Updated dependencies [f56f20c]
+- Updated dependencies [6139059]
+- Updated dependencies [0217431]
+- Updated dependencies [d20a108]
+- Updated dependencies [3708e1e]
+- Updated dependencies [d1dda6d]
+- Updated dependencies [6d47676]
+- Updated dependencies [7dcf27e]
+- Updated dependencies [9693a47]
+- Updated dependencies [8e68266]
+- Updated dependencies [43026aa]
+- Updated dependencies [c4456ac]
+- Updated dependencies [78cc4db]
+- Updated dependencies [81fc9d3]
+- Updated dependencies [473e700]
+- Updated dependencies [d895a2c]
+- Updated dependencies [b91c03d]
+- Updated dependencies [bcac30b]
+- Updated dependencies [128b5af]
+- Updated dependencies [f9fb130]
+- Updated dependencies [9ac4a08]
+- Updated dependencies [f3d012e]
+- Updated dependencies [9a68214]
+- Updated dependencies [e3d98dc]
+- Updated dependencies [47e220a]
+- Updated dependencies [ecead47]
+- Updated dependencies [fa12319]
+- Updated dependencies [7d635d5]
+- Updated dependencies [a099fe6]
+  - @rsvelte/compiler@0.10.1
+
 ## 0.2.7
 
 ### Patch Changes

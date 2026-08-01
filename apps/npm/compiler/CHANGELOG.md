@@ -1,5 +1,64 @@
 # @rsvelte/compiler
 
+## 0.10.1
+
+### Patch Changes
+
+- f56f20c: Release the AST-transform thread-local arena once it grows past 16MB instead of only `reset`-ing it between components. Previously, one outsized component would pin its peak arena size on that thread for the rest of the process — this matters for long-lived Vite/Node dev-server workers. Mirrors the cap svelte-rs applies when returning an arena to its pool. No output change.
+- 6139059: fix(svelte2tsx): move a default-slot `let:` element's leading gap space ahead
+  of its `$$slot_def.default` destructure. Upstream's `Element.
+performTransformation` runs the destructure through the SAME `transform()`
+  call as the element's own opening-tag rewrite, so the element's leading gap
+  lands before the destructure instead of before the element itself. rsvelte
+  inserted the destructure with no leading space and left the gap on the
+  element, so `<Foo><div let:x>{x}</div></Foo>` produced
+  `;{const {…,x,} = …$$slot_def.default;$$_$$; { svelteHTML.createElement(…`
+  (extra space before the element) instead of upstream's
+  `; {const {…,x,} = …$$slot_def.default;$$_$$;{ svelteHTML.createElement(…`.
+- 0217431: fix(compiler): count `$.add_locations` columns in UTF-16 code units instead of bytes, so a non-ASCII character earlier on the line no longer shifts the reported position
+- d20a108: fix(compiler): label a state field of an anonymous class `[class].name` in dev, matching upstream, instead of `Unknown.name`
+- 3708e1e: fix(compiler): resolve a `{@render}` against a `{#snippet}` declared in the same `{#if}` branch or `{#key}` block, so it compiles to a direct call instead of the dynamic comment-anchor form (and the matching extra `<!---->` on the server)
+- d1dda6d: fix(compiler): emit the dev-mode `$.check_target(new.target)` guard (and the `componentApi: 4` `new.target` early return) ahead of the `$$slots` / `$$sanitized_props` / `$$restProps` preamble, matching the official compiler's statement order
+- 6d47676: fix(compiler): label destructured `$derived` / `$state` declarations in dev — leaf bindings by name, the `$$array` temps by pattern kind (`[$derived object]` and friends), and legacy destructured state sources by name
+- 7dcf27e: fix(compiler): instrument `==` / `!=` as `$.equals(...)` in dev, and mark the negated comparisons with the trailing `false` argument the official compiler emits instead of an outer `!`
+- 9693a47: fix(compiler): memoize wrapping measurements in the handwritten client printer so deeply nested elements no longer compile in exponential time in dev mode (a 12-level nesting dropped from ~9.5s to ~80µs), with byte-identical output
+- 8e68266: fix(compiler): unthunk a call-expression destructuring default so `let { b = f() } = $derived(props)` emits `$.fallback($$props.b, f, true)` instead of an extra `() => f()` arrow, matching upstream's `b.thunk()`
+- 43026aa: fix(compiler): treat a form feed as text content rather than whitespace, matching upstream's `[ \t\r\n]` whitespace patterns, and drop trailing whitespace at EOF in the parser the way `template.trimEnd()` does
+- c4456ac: fix(compiler): lower the `$inspect` rune in dev when it is the only rune in a component, and in `.svelte.js` module scripts — both previously emitted `$inspect(...)` verbatim, which throws `ReferenceError` at runtime
+- 78cc4db: fix(compiler): put the dev-mode `...$.legacy_api()` spread first in a legacy component's `$$exports` object instead of last, matching the official compiler
+- 81fc9d3: fix(compiler): label legacy state sources with `$.tag($.mutable_source(…), 'name')` in dev, so `$inspect.trace()` and devtools can name them
+- 473e700: fix(compiler): route a legacy `on:` event handler through `$.apply` in dev, like the modern `onclick={…}` path already did, so a throwing handler is reported with its component and source position
+- d895a2c: fix(compiler): keep the hoisted `rest_excludes` set ahead of the template factory in dev, where the factory is wrapped in `$.add_locations(...)`
+- b91c03d: fix(compiler): pass the rest binding's name as the dev-only third argument of `$.rest_props`, so unknown-prop warnings can name it
+- bcac30b: fix(compiler): give `<svelte:self>` its real source position in the dev `$.add_svelte_meta` call instead of a `1, 0` placeholder
+- 128b5af: fix(svelte2tsx): source-map segments now advance the generated column (previously every segment claimed column 0, collapsing position lookups onto the line's last segment); the NAPI `svelte2tsx` binding now returns the actual `map` instead of `null`
+- f9fb130: fix(compiler): wrap awaited expressions in a component's instance script with `$.track_reactivity_loss(...)` in dev, honouring `svelte-ignore await_reactivity_loss`
+- 9ac4a08: fix(compiler): drive the TypeScript erasure pass from a generic AST visitor so type syntax can no longer survive in node kinds the hand-written walker forgot — tagged-template expressions, `import(…)`, destructuring assignment targets, `extends` expressions, computed class-member keys, `for` initializers, non-declaration `for…of` / `for…in` targets and `with` bodies
+- f3d012e: Isolate a panic during `compile()` (or any other NAPI export) as a thrown JS error instead of aborting the whole Node process. Every `#[napi]` export now sets `catch_unwind`, and the shipped `.node` builds with a new `dist-napi` profile (`panic = "unwind"`) instead of the shared `dist` profile's `panic = "abort"` — mirroring the isolation `@rsvelte/lint` and the language server already have. Measured overhead from the unwind tables + wrapper is small: roughly +2-4% per `compile()` call (~33.6-34.5us -> ~35.0-35.3us), a worthwhile tradeoff for not losing the whole process to one bad input.
+- 9a68214: Add a `compileBoth` NAPI export that returns `{ client, server }` from a single parse + analyze pass, for callers that need both compile targets for the same source (e.g. a dual-output SSR build) — verified byte-identical to two separate `compile()` calls, ~15-19% less user CPU per pair on a 20KB real-world component.
+
+  Also: cache `current_dir()` for the default `rootDir` lookup (matches upstream's `validate-options.js`, which evaluates `process.cwd()` once per module load rather than per compile) and skip JSON materialization for CSS class-value expressions whose node type can never be statically resolved. Output is unchanged in both cases.
+
+- e3d98dc: Index shadowed-rune declarations once per client transform instead of running twelve full-script substring searches per reactive binding. Rune-heavy components were paying O(binding count × script length) here: a component with 40 `$derived` declarations now compiles 50% faster, real-world Svelte files up to 23% faster, and the flowbite-svelte corpus 6.9% faster overall.
+- 47e220a: Give `JsNode`'s serde map serializer a capacity hint instead of starting every node's map at 0 and growing it by rehashing. Output is unchanged (capacity is only a hint, and `serde_json`'s writer serializer ignores it). Hygiene change: 21 interleaved A/B pairs over a real-world corpus show a modest ~1.9% reduction in user CPU, but it's not a headline win on its own.
+- ecead47: Drop the whole-output TypeScript strip from SSR codegen and erase type-only syntax in the template source-slice reparse instead. Fixes `{@const}` initializers with TypeScript-annotated arrow parameters (e.g. `{@const f = (d: T) => …}`) leaking TypeScript into the generated server output.
+- fa12319: fix(svelte2tsx): key `<slot name={expr}>`'s `__sveltets_createSlot(...)` call
+  with the verbatim source text of the `name` attribute's value node, braces and
+  inner whitespace included, instead of re-serializing the expression. Upstream's
+  `surroundWith` wraps the raw `[start, end]` source slice in quotes rather than
+  printing the parsed expression, so `name={n}` must produce `"{n}"`, not `"n"`.
+  Also stop concatenating multi-part attribute values (`name="a{b}c"`) — upstream
+  only ever reads `value[0]`.
+- 7d635d5: fix(svelte2tsx): reproduce upstream's opening- and closing-tag whitespace
+  accounting. Upstream lowers a tag by moving every kept source range to the end
+  of the transformed range, collapsing each run of characters between two kept
+  ranges to a single space; those spaces are observable in the output. rsvelte
+  emitted a fixed single space instead, so `<div {...attributes}>` produced
+  `{ ...attributes,}` where upstream produces `{...attributes,}`. Also rewrite
+  `{:else}` character-by-character (`}else{`, no inserted spaces) and stop
+  treating `{:else}{#if …}` as an `{:else if}`.
+- a099fe6: Stop re-lexing the whole comment buffer for every comment-bearing chunk during client codegen. The buffer cursor grows with each chunk, so re-parsing `base`-long padding plus the chunk's own text made this step quadratic in generated code size. Parse behind a fixed one-byte pad instead and shift the resulting spans into place afterwards. Synthetic components with heavy comment usage see 2.6-7.9% less compile time; the real-world corpus (comments are comparatively rare there) is neutral.
+
 ## 0.10.0
 
 ### Minor Changes

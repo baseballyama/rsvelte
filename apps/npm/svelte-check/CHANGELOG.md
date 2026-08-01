@@ -1,5 +1,39 @@
 # @rsvelte/svelte-check
 
+## 0.5.7
+
+### Patch Changes
+
+- db787d8: fix(svelte-check): resolve a rune module imported through a `paths` alias (`$lib/state.svelte` for a real `state.svelte.ts`). Its `.d.svelte.ts` ESM bridge was reachable only through `rootDirs`, which TypeScript applies to relative specifiers alone, so under `moduleResolution: nodenext` the specifier fell through to the ambient `declare module '*.svelte'` and every named import errored with TS2614. The bridge now also gets an exact `compilerOptions.paths` override, with a sibling `.svelte` component still winning the specifier.
+- 6139059: fix(svelte2tsx): move a default-slot `let:` element's leading gap space ahead
+  of its `$$slot_def.default` destructure. Upstream's `Element.
+performTransformation` runs the destructure through the SAME `transform()`
+  call as the element's own opening-tag rewrite, so the element's leading gap
+  lands before the destructure instead of before the element itself. rsvelte
+  inserted the destructure with no leading space and left the gap on the
+  element, so `<Foo><div let:x>{x}</div></Foo>` produced
+  `;{const {…,x,} = …$$slot_def.default;$$_$$; { svelteHTML.createElement(…`
+  (extra space before the element) instead of upstream's
+  `; {const {…,x,} = …$$slot_def.default;$$_$$;{ svelteHTML.createElement(…`.
+- 6dd15f0: fix(svelte-check): mirror `addTypeToFunction`'s single `hasTypeDefinition` gate for SvelteKit route/hooks/params-matcher handlers, so a manually-typed parameter also suppresses the return-type injection, and unwrap a single level of `(expr)` around a `const` initializer before matching it against an arrow/function expression, so `export const GET = (async (event) => {...});` is still augmented
+- 538d2be: fix(svelte-check): fix four SvelteKit `load`-augmentation divergences from `upsertKitFile`. A return-typed `function load(...)` declaration no longer skips its parameter injection (`hasTypedParameter` only ever looks at the parameter). A `const load = (...) => ...` whose initializer is itself function-like now gets its parameter typed directly instead of always being wrapped in `satisfies` — `findExports` only reaches for `satisfies` when the initializer _isn't_ function-like, and unconditionally wrapping one that is can reject an otherwise-valid return value the official checker accepts. The JSDoc `@type`/`@param`/`@satisfies` gate that already suppressed re-annotation on `.ts` files now also applies on `.js` files across every route/hooks/params-matcher export, not just the ones #1944 covered. A multi-declarator `export const a = ..., b = ...;` is left untouched entirely, mirroring `findExports`' single-declarator requirement.
+- c6f363f: fix(svelte-check): stop the overlay from resolving `.svelte` specifiers official svelte-check refuses to. Svelte's own declarations carry `declare module '*.svelte'`, which official blanks out as it reads them — with it in the program, a specifier that resolves to nothing (or to a `.js` rune module a project without `allowJs` excludes) silently typed as a default-only component instead of erroring with TS2307 / TS7016. The overlay now emits a blanked copy of the package's declarations and redirects every module it declares onto it. A `Foo.svelte.ts` companion's exports are no longer folded into the component shadow either, so a named import through the `.svelte` specifier errors the way it does upstream; the companion's own `./Foo.svelte.js` specifier is re-pointed at the real module instead. Finally, the overlay restates the project's `paths` with absolute targets and so denied TypeScript its own validation of them: a non-relative substitution without `baseUrl` warns with TS5090 again, positioned in the user's config, while a `${configDir}` template is expanded first — against the user's project directory rather than the overlay's cache dir, which also fixes `paths`, `baseUrl`, `rootDirs` and `include` entries that use it.
+- fa12319: fix(svelte2tsx): key `<slot name={expr}>`'s `__sveltets_createSlot(...)` call
+  with the verbatim source text of the `name` attribute's value node, braces and
+  inner whitespace included, instead of re-serializing the expression. Upstream's
+  `surroundWith` wraps the raw `[start, end]` source slice in quotes rather than
+  printing the parsed expression, so `name={n}` must produce `"{n}"`, not `"n"`.
+  Also stop concatenating multi-part attribute values (`name="a{b}c"`) — upstream
+  only ever reads `value[0]`.
+- 7d635d5: fix(svelte2tsx): reproduce upstream's opening- and closing-tag whitespace
+  accounting. Upstream lowers a tag by moving every kept source range to the end
+  of the transformed range, collapsing each run of characters between two kept
+  ranges to a single space; those spaces are observable in the output. rsvelte
+  emitted a fixed single space instead, so `<div {...attributes}>` produced
+  `{ ...attributes,}` where upstream produces `{...attributes,}`. Also rewrite
+  `{:else}` character-by-character (`}else{`, no inserted spaces) and stop
+  treating `{:else}{#if …}` as an `{:else if}`.
+
 ## 0.5.6
 
 ### Patch Changes

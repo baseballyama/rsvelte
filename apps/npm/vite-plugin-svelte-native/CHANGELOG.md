@@ -1,5 +1,14 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.3
+
+### Patch Changes
+
+- f3d012e: Isolate a panic during `compile()` (or any other NAPI export) as a thrown JS error instead of aborting the whole Node process. Every `#[napi]` export now sets `catch_unwind`, and the shipped `.node` builds with a new `dist-napi` profile (`panic = "unwind"`) instead of the shared `dist` profile's `panic = "abort"` — mirroring the isolation `@rsvelte/lint` and the language server already have. Measured overhead from the unwind tables + wrapper is small: roughly +2-4% per `compile()` call (~33.6-34.5us -> ~35.0-35.3us), a worthwhile tradeoff for not losing the whole process to one bad input.
+- 9a68214: Add a `compileBoth` NAPI export that returns `{ client, server }` from a single parse + analyze pass, for callers that need both compile targets for the same source (e.g. a dual-output SSR build) — verified byte-identical to two separate `compile()` calls, ~15-19% less user CPU per pair on a 20KB real-world component.
+
+  Also: cache `current_dir()` for the default `rootDir` lookup (matches upstream's `validate-options.js`, which evaluates `process.cwd()` once per module load rather than per compile) and skip JSON materialization for CSS class-value expressions whose node type can never be statically resolved. Output is unchanged in both cases.
+
 ## 0.3.2
 
 ### Patch Changes
