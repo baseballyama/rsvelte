@@ -894,7 +894,16 @@ pub(crate) fn handle_svelte_self(
         )
     };
 
-    let needs_inst_var = has_on_directives || has_lets;
+    // `<svelte:self>` is an `InlineComponent` upstream, so its children are slot
+    // consumers of THIS node: named-slot children (anywhere inside control-flow
+    // blocks) and default-slot `let:` receivers destructure from its
+    // `$$slot_def`, which forces the `const $$_svelteselfN = …` form.
+    let children_have_named_slots = has_named_slot_children(&el.fragment);
+    let children_have_default_slot_lets = has_default_slot_let_children(&el.fragment);
+    let needs_inst_var = has_on_directives
+        || has_lets
+        || children_have_named_slots
+        || children_have_default_slot_lets;
     // Use depth as the instance variable index, mirroring official InlineComponent.ts
     // `this._name = '$$_svelteself' + this.computeDepth()`.
     let var_name = if needs_inst_var {
@@ -965,9 +974,40 @@ pub(crate) fn handle_svelte_self(
     }
 
     str.overwrite(el.start, opening_tag_end, &opener);
-    // svelte:self is a component → children at depth+1.
-    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
-    let trailing = if has_lets { "}}" } else { "}" };
+    // svelte:self is a component → children at depth+1. Slot-bearing children
+    // take the same lowering as a named component's (`$$slot_def.default` /
+    // `$$slot_def["x"]` blocks); this node's OWN `let:` block is already in
+    // `opener` above, so the helper is told not to emit it again.
+    let deferred_slot_close = if children_have_named_slots || children_have_default_slot_lets {
+        let inst_var = var_name
+            .as_deref()
+            .expect("slot-consuming children require an instance variable name");
+        process_component_children_with_slots(
+            &el.attributes,
+            &el.fragment,
+            el.end,
+            inst_var,
+            false,
+            source,
+            options,
+            str,
+            counter,
+            depth + 1,
+        )
+    } else {
+        // Still publish the slot context (as `handle_svelte_component` does) so
+        // a descendant that reaches for `$$slot_def` without being detected
+        // above cannot fall back to the *enclosing* component's instance.
+        counter.slot_inst = var_name.clone();
+        process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
+        counter.slot_inst = None;
+        false
+    };
+    let trailing = if has_lets || deferred_slot_close {
+        "}}"
+    } else {
+        "}"
+    };
     // `svelte:self` keeps no name mapping on its closing tag, so its collapsed
     // gaps are all that precede the closers.
     let spaces = " ".repeat(closing_tag_spacing(closing_tag_start, el.end, None));
