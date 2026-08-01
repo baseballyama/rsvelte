@@ -1,0 +1,18 @@
+[package]
+name = "rsvelte_ast_equiv"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Semantic-equivalence comparison for generated JavaScript (OXC parse → canonical print)"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+publish = false
+
+[dependencies]
+oxc_allocator = "0.142"
+oxc_codegen = "0.142"
+oxc_parser = "0.142"
+oxc_span = "0.142"
+
+[lints]
+workspace = true

@@ -2374,6 +2374,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_ast_equiv"
+version = "0.0.0"
+dependencies = [
+ "oxc_allocator",
+ "oxc_codegen",
+ "oxc_parser",
+ "oxc_span",
+]
+
+[[package]]
 name = "rsvelte_bindings_support"
 version = "0.1.0"
 dependencies = [

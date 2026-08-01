@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/rsvelte",
+    "crates/rsvelte_ast_equiv",
     "crates/rsvelte_capi",
     "crates/rsvelte_bindings_support",
     "crates/rsvelte_check",
