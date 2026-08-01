@@ -1161,18 +1161,11 @@ fn transform_client_with_visitors(
     // of assembly — see below. Upstream unshifts it last so it becomes the
     // first line of the component, before `$.push`.)
 
-    // Add CSS styles injection if needed
-    if analysis.css.has_css && analysis.inject_styles {
-        // $.append_styles($$anchor, $$css)
-        component_body.push(b::stmt(
-            &context.arena,
-            b::call(
-                &context.arena,
-                b::member_path(&context.arena, "$.append_styles"),
-                vec![b::id("$$anchor"), b::id("$$css")],
-            ),
-        ));
-    }
+    // `$.append_styles` is unshifted upstream (transform-client.js lines
+    // 412-421) *after* the `$$ownership_validator` unshift (lines 379-383),
+    // so it lands closer to the front. See the insertion below, anchored at
+    // `preamble_end` alongside `$$ownership_validator`, which reproduces
+    // that call order instead of pushing here out of position.
 
     // Add instance-level snippets
     component_body.extend(instance_level_snippets);
@@ -1689,6 +1682,27 @@ fn transform_client_with_visitors(
         // Upstream unshifts this before `$.push` is unshifted, so it ends up
         // directly after the preamble.
         component_body.insert(preamble_end, ownership_decl);
+    }
+
+    // Add $.append_styles($$anchor, $$css) if needed
+    // Reference: transform-client.js lines 412-421
+    // Upstream unshifts this at the *same* front position as
+    // `$$ownership_validator` above, but its unshift call happens after
+    // (line 412 vs line 379), so it ends up ahead of `$$ownership_validator`
+    // once both land at `preamble_end` — inserting here, after the
+    // ownership-validator insert, reproduces that call order exactly.
+    if analysis.css.has_css && analysis.inject_styles {
+        component_body.insert(
+            preamble_end,
+            b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.append_styles"),
+                    vec![b::id("$$anchor"), b::id("$$css")],
+                ),
+            ),
+        );
     }
 
     // Bind static exports to props so that people can access them with bind:x

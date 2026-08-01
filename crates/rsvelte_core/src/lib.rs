@@ -38,13 +38,13 @@ pub use compiler::phases::phase1_parse::{ParseOptions, parse, parse_parallel};
 pub use compiler::print::{PrintError, PrintOptions, PrintResult, print};
 #[cfg(feature = "parallel")]
 pub use compiler::{
-    CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
+    CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,
     ModuleCompileOptions, Warning, WarningFilterFn, compile, compile_batch, compile_both,
     compile_module,
 };
 #[cfg(not(feature = "parallel"))]
 pub use compiler::{
-    CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
+    CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,
     ModuleCompileOptions, Warning, WarningFilterFn, compile, compile_both, compile_module,
 };
 #[doc(hidden)]

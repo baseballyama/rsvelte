@@ -13,7 +13,7 @@
 //!
 //! The corpus gates compile with `dev: false`, so nothing else covers this.
 
-use rsvelte_core::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, CssMode, GenerateMode, compile};
 
 fn compile_client_dev(src: &str) -> String {
     let result = compile(
@@ -103,4 +103,58 @@ fn multiple_bindings_keep_attribute_order_inside_component_callback() {
          in attribute order, got:\n{out}"
     );
     assert_opens_arrow_body(&out, open);
+}
+
+/// Regression test for baseballyama/rsvelte#2073.
+///
+/// When `css: 'injected'` and dev-mode mutation validation are both active,
+/// upstream unshifts `$$ownership_validator` (transform-client.js:379-383)
+/// *before* it unshifts `$.append_styles` (transform-client.js:412-421), so
+/// the later unshift call lands closer to the front: the final preamble
+/// reads `$.push(...)`, `$.append_styles(...)`, `$$ownership_validator = …`.
+/// rsvelte used to build `$.append_styles` at an unrelated point in the
+/// component body (after the binding-group declarations), so it ended up
+/// *after* `$$ownership_validator` instead of before it. No corpus entry
+/// exercised this combination, so nothing caught the divergence.
+///
+/// Reuses the `<Popover.Root bind:open />` shape from the tests above (a
+/// verified `needs_mutation_validation` trigger) plus a `<style>` block to
+/// also set `analysis.inject_styles`.
+#[test]
+fn append_styles_precedes_ownership_validator_when_both_present() {
+    let src = r#"<script>
+	import * as Popover from './popover.js';
+	let { open = $bindable(false) } = $props();
+</script>
+
+<Popover.Root bind:open />
+
+<style>
+	button { color: red; }
+</style>"#;
+    let result = compile(
+        src,
+        CompileOptions {
+            filename: Some("Comp.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: true,
+            css: CssMode::Injected,
+            ..Default::default()
+        },
+    )
+    .expect("compile");
+    let out = result.js.code;
+
+    let push = index_of(&out, "$.push(");
+    let append_styles = index_of(&out, "$.append_styles(");
+    let ownership_validator = index_of(
+        &out,
+        "$$ownership_validator = $.create_ownership_validator(",
+    );
+
+    assert!(
+        push < append_styles && append_styles < ownership_validator,
+        "expected `$.push`, then `$.append_styles`, then `$$ownership_validator` \
+         (matching upstream's unshift call order), got:\n{out}"
+    );
 }
