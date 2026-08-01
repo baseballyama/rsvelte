@@ -850,6 +850,29 @@ fn quote_exclude_key(value: &str) -> String {
     format!("'{}'", escape_js_string(value))
 }
 
+/// The `$.exclude_from_object(base, [<keys>])` key list of an object pattern's
+/// non-rest properties, shared by the legacy declaration and assignment
+/// destructuring expansions so both subtract exactly the keys upstream does.
+pub(super) fn exclude_from_object_keys<S: AsRef<str>>(props: &[S]) -> Vec<String> {
+    props
+        .iter()
+        .filter_map(|prop| {
+            let prop = prop.as_ref().trim();
+            if prop.is_empty() || prop.starts_with("...") {
+                return None;
+            }
+            let key = if let Some(colon_pos) = find_derived_property_colon(prop) {
+                prop[..colon_pos].trim()
+            } else if let Some(eq_pos) = find_default_equals(prop) {
+                prop[..eq_pos].trim()
+            } else {
+                prop
+            };
+            Some(exclude_key_literal(key))
+        })
+        .collect()
+}
+
 pub(super) fn process_derived_object_pattern(
     inner: &str,
     base_expr: &str,

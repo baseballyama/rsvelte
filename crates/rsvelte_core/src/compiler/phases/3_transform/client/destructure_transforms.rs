@@ -1,6 +1,7 @@
 //! Destructuring assignment transformations and IIFE generation.
 
 use super::SCRIPT_ARRAY_COUNTER;
+use super::rune_transforms::{derived_prop_access, exclude_from_object_keys};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
 use oxc_parser::{ParseOptions, Parser};
@@ -766,21 +767,6 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
     end
 }
 
-/// Generate a member access expression for a destructuring key.
-/// For computed keys like `[expr]`, generates `obj[expr]` (bracket notation).
-/// For static keys like `prop`, generates `obj.prop` (dot notation).
-pub(super) fn member_access(obj: &str, key: &str) -> String {
-    if key.starts_with('[') && key.ends_with(']') {
-        // Computed property key: obj[expr]
-        // Strip the outer brackets to get the expression
-        let expr = &key[1..key.len() - 1];
-        format!("{}[{}]", obj, expr)
-    } else {
-        // Static property key: obj.prop
-        format!("{}.{}", obj, key)
-    }
-}
-
 /// Check if a generated code string contains `await` as a keyword (not inside string literals).
 ///
 /// This is used to determine if a destructuring IIFE needs to be async.
@@ -1463,9 +1449,11 @@ pub(super) fn generate_destructure_iife(
                 if p.is_empty() {
                     return true;
                 }
-                // No rest elements
-                if p.starts_with("...") {
-                    return false;
+                // A rest element is an ordinary path upstream — `$.exclude_from_object`
+                // needs no `$$value` — so only a nested rest target forces the IIFE.
+                if let Some(rest_target) = p.strip_prefix("...") {
+                    let rest_target = rest_target.trim();
+                    return !rest_target.starts_with('[') && !rest_target.starts_with('{');
                 }
                 // If key-value, target must be simple identifier (no nested patterns)
                 if let Some(colon_pos) = find_top_level_colon(p) {
@@ -1514,47 +1502,55 @@ pub(super) fn generate_destructure_iife(
                 if part.is_empty() {
                     continue;
                 }
-                let (key, target_with_default) = if let Some(colon_pos) = find_top_level_colon(part)
-                {
+
+                let (target, access) = if let Some(rest_target) = part.strip_prefix("...") {
                     (
-                        part[..colon_pos].trim().to_string(),
-                        part[colon_pos + 1..].trim().to_string(),
+                        rest_target.trim().to_string(),
+                        format!(
+                            "$.exclude_from_object({}, [{}])",
+                            rhs_str,
+                            exclude_from_object_keys(&parts).join(", ")
+                        ),
                     )
                 } else {
-                    // Shorthand: {x} or {x = default} means key=x
-                    let name = if let Some(eq_pos) = find_top_level_equals(part) {
-                        part[..eq_pos].trim().to_string()
-                    } else {
-                        part.to_string()
+                    let (key, target_with_default) =
+                        if let Some(colon_pos) = find_top_level_colon(part) {
+                            (
+                                part[..colon_pos].trim().to_string(),
+                                part[colon_pos + 1..].trim().to_string(),
+                            )
+                        } else {
+                            // Shorthand: {x} or {x = default} means key=x
+                            let name = if let Some(eq_pos) = find_top_level_equals(part) {
+                                part[..eq_pos].trim().to_string()
+                            } else {
+                                part.to_string()
+                            };
+                            (name.clone(), part.to_string())
+                        };
+
+                    // Split target from default value
+                    let (target, default_val) =
+                        if let Some(eq_pos) = find_top_level_equals(&target_with_default) {
+                            (
+                                target_with_default[..eq_pos].trim().to_string(),
+                                Some(target_with_default[eq_pos + 1..].trim().to_string()),
+                            )
+                        } else {
+                            (target_with_default.clone(), None)
+                        };
+
+                    let member = derived_prop_access(rhs_str, rhs_str, &key);
+                    let access = match &default_val {
+                        Some(default_val) => build_fallback_string(&member, default_val),
+                        None => member,
                     };
-                    (name.clone(), part.to_string())
+                    (target, access)
                 };
-
-                // Split target from default value
-                let (target, default_val) =
-                    if let Some(eq_pos) = find_top_level_equals(&target_with_default) {
-                        (
-                            target_with_default[..eq_pos].trim().to_string(),
-                            Some(target_with_default[eq_pos + 1..].trim().to_string()),
-                        )
-                    } else {
-                        (target_with_default.clone(), None)
-                    };
-
-                let access = format!("{}.{}", rhs_str, key);
 
                 // Check if the target is a store subscription variable ($storeName)
                 if store_sub_vars.contains(&target) && target.starts_with('$') {
-                    let store_name = &target[1..]; // Remove the $ prefix
-                    if let Some(default_val) = &default_val {
-                        let fallback = build_fallback_string(&access, default_val);
-                        assignments.push(format!("$.store_set({}, {})", store_name, fallback));
-                    } else {
-                        assignments.push(format!("$.store_set({}, {})", store_name, access));
-                    }
-                } else if let Some(default_val) = &default_val {
-                    let fallback = build_fallback_string(&access, default_val);
-                    assignments.push(format!("{} = {}", target, fallback));
+                    assignments.push(format!("$.store_set({}, {})", &target[1..], access));
                 } else {
                     assignments.push(format!("{} = {}", target, access));
                 }
@@ -1587,31 +1583,10 @@ pub(super) fn generate_destructure_iife(
 
             if let Some(rest_target) = part.strip_prefix("...") {
                 // Rest element: ...rest = $.exclude_from_object($$value, [keys...])
-                let rest_target = rest_target.trim();
-                let keys: Vec<String> = parts
-                    .iter()
-                    .filter(|p| !p.trim().starts_with("..."))
-                    .map(|p| {
-                        let p = p.trim();
-                        // Extract the key name
-                        if let Some(colon_pos) = find_top_level_colon(p) {
-                            let key = p[..colon_pos].trim();
-                            format!("'{}'", key)
-                        } else {
-                            // Shorthand or just identifier with possible default
-                            let name = if let Some(eq_pos) = find_top_level_equals(p) {
-                                p[..eq_pos].trim()
-                            } else {
-                                p
-                            };
-                            format!("'{}'", name)
-                        }
-                    })
-                    .collect();
                 body_lines.push(format!(
                     "\t{} = $.exclude_from_object($$value, [{}]);",
-                    rest_target,
-                    keys.join(", ")
+                    rest_target.trim(),
+                    exclude_from_object_keys(&parts).join(", ")
                 ));
             } else if let Some(colon_pos) = find_top_level_colon(part) {
                 // Key-value pair: key: target
@@ -1619,8 +1594,10 @@ pub(super) fn generate_destructure_iife(
                 let target = part[colon_pos + 1..].trim();
 
                 // Handle default value
-                // Use member_access to handle computed property keys like [expr]
-                let value_access = member_access("$$value", key);
+                // `derived_prop_access` keeps bracket notation for computed and
+                // literal keys, like upstream's `b.member(…, prop.computed ||
+                // prop.key.type !== 'Identifier')`.
+                let value_access = derived_prop_access("$$value", "$$value", key);
                 if let Some(eq_pos) = find_top_level_equals(target) {
                     let actual_target = target[..eq_pos].trim();
                     let default_val = target[eq_pos + 1..].trim();

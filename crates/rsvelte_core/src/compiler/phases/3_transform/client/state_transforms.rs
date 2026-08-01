@@ -8,8 +8,8 @@ use super::expression_utils::{
     byte_pos_to_char_index, find_statement_end_client, is_shadowed_by_for_loop_var,
 };
 use super::rune_transforms::{
-    derived_prop_access, exclude_key_literal, find_default_equals, find_derived_property_colon,
-    split_derived_array_elements, split_derived_object_properties,
+    derived_prop_access, exclude_from_object_keys, find_default_equals,
+    find_derived_property_colon, split_derived_array_elements, split_derived_object_properties,
 };
 use super::{SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, get_or_compile_regex};
 use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
@@ -1378,24 +1378,11 @@ pub(super) fn transform_legacy_destructure_declarations(
         let mut parts = vec![format!("{} = {}", tmp_name, expr)];
 
         let has_rest = props.iter().any(|prop| prop.trim().starts_with("..."));
-        let excluded_keys: Vec<String> = props
-            .iter()
-            .filter(|_| has_rest)
-            .filter_map(|prop| {
-                let prop = prop.trim();
-                if prop.is_empty() || prop.starts_with("...") {
-                    return None;
-                }
-                let key = if let Some(colon_pos) = find_derived_property_colon(prop) {
-                    prop[..colon_pos].trim()
-                } else if let Some(eq_pos) = find_default_equals(prop) {
-                    prop[..eq_pos].trim()
-                } else {
-                    prop
-                };
-                Some(exclude_key_literal(key))
-            })
-            .collect();
+        let excluded_keys: Vec<String> = if has_rest {
+            exclude_from_object_keys(&props)
+        } else {
+            Vec::new()
+        };
 
         for prop in &props {
             let prop = prop.trim();
