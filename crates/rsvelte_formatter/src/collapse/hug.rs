@@ -190,8 +190,9 @@ pub(super) fn try_hug_block_inline_body(
     end: u32,
     body: &Fragment,
     line_width: usize,
-    tw: usize,
+    options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
     // Only a block that currently renders entirely on one line.
@@ -222,7 +223,8 @@ pub(super) fn try_hug_block_inline_body(
         return None; // fits on one line
     }
     let prefix = out.get(s..elem_start)?; // block open tag (+ no leading ws)
-    let hug = format!("{prefix}{open_nb}>{content}</{tag}\n{indent}  >{close}");
+    let (indent_unit, _) = indent_config(options);
+    let hug = format!("{prefix}{open_nb}>{content}</{tag}\n{indent}{indent_unit}>{close}");
     (hug != whole).then_some((start, end, hug))
 }
 

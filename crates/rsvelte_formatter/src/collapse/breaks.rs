@@ -37,9 +37,10 @@ pub(super) fn collect_break_block_non_ws_prefix(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
-    tw: usize,
+    options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
+    let tw = tab_width(options);
     for (node_idx, node) in fragment.nodes.iter().enumerate() {
         // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
         if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, node_idx) {
@@ -81,7 +82,8 @@ pub(super) fn collect_break_block_non_ws_prefix(
                             let close = out.get(last_end..end).unwrap_or("");
                             let content = out.get(first_start..last_end).unwrap_or("");
                             if open.ends_with('>') && !content.is_empty() {
-                                let inner_indent = format!("{ws_indent}  ");
+                                let (indent_unit, _) = indent_config(options);
+                                let inner_indent = format!("{ws_indent}{indent_unit}");
                                 let broken =
                                     format!("{open}\n{inner_indent}{content}\n{ws_indent}{close}");
                                 if broken != whole {
@@ -92,11 +94,11 @@ pub(super) fn collect_break_block_non_ws_prefix(
                         }
                     }
                 }
-                collect_break_block_non_ws_prefix(out, &e.fragment, line_width, tw, edits);
+                collect_break_block_non_ws_prefix(out, &e.fragment, line_width, options, edits);
             }
             _ => {
                 for child in child_fragments(node) {
-                    collect_break_block_non_ws_prefix(out, child, line_width, tw, edits);
+                    collect_break_block_non_ws_prefix(out, child, line_width, options, edits);
                 }
             }
         }
@@ -196,6 +198,7 @@ pub(super) fn try_break_content_tag_block(
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
     let tw = tab_width(options);
+    let (indent_unit, _) = indent_config(options);
     if !is_block_display(tag) {
         return None;
     }
@@ -247,7 +250,7 @@ pub(super) fn try_break_content_tag_block(
         if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
             return None;
         }
-        let inner_indent = format!("{indent}  ");
+        let inner_indent = format!("{indent}{indent_unit}");
         // The last line of `open` ends with `>`, e.g. `    >`.
         // When the `>` is already on its own line (the last line of `open` is
         // purely whitespace + `>`), prettier's block-element behaviour always
@@ -298,7 +301,7 @@ pub(super) fn try_break_content_tag_block(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    let inner_indent = format!("{indent}  ");
+    let inner_indent = format!("{indent}{indent_unit}");
 
     let inner = span.get(kw_lead..span.len() - kw_trail)?.trim();
     let width = line_width.saturating_sub(inner_indent.visual_width(tw) + kw_lead + kw_trail);
@@ -334,8 +337,9 @@ pub(super) fn try_break_block_overflow(
     end: u32,
     fragment: &Fragment,
     line_width: usize,
-    tw: usize,
+    options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     if !is_block_display(tag) {
         return None;
     }
@@ -411,7 +415,8 @@ pub(super) fn try_break_block_overflow(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    let inner_indent = format!("{indent}  ");
+    let (indent_unit, _) = indent_config(options);
+    let inner_indent = format!("{indent}{indent_unit}");
 
     let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
@@ -441,10 +446,12 @@ pub(super) fn try_break_block_multiline_content(
     start: u32,
     end: u32,
     fragment: &Fragment,
+    options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
     if !is_block_display(tag) {
         return None;
     }
+    let (indent_unit, _) = indent_config(options);
 
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
@@ -510,7 +517,7 @@ pub(super) fn try_break_block_multiline_content(
         if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
             return None;
         }
-        let inner_indent = format!("{indent}  ");
+        let inner_indent = format!("{indent}{indent_unit}");
 
         let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
         return (broken != whole).then_some((start, end, broken));
@@ -537,7 +544,7 @@ pub(super) fn try_break_block_multiline_content(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    let inner_indent = format!("{indent}  ");
+    let inner_indent = format!("{indent}{indent_unit}");
 
     let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))

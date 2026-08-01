@@ -103,3 +103,65 @@ fn tab_indent_respects_the_print_width_boundary() {
         );
     }
 }
+
+/// #2151: when a collapse pass grows the indent by one level to break an
+/// overflowing block onto its own line, the new level must be the real
+/// `IndentUnit` (a tab), never a hardcoded literal two-space string — several
+/// `collapse/*.rs` block-break helpers built their `inner_indent` with
+/// `format!("{indent}  ")`, which mixed spaces into an otherwise all-tab
+/// document. General invariant: no line's leading indent may contain a space
+/// once the whole document is tab-indented.
+#[test]
+fn tab_indent_block_break_grows_by_a_tab_not_two_spaces() {
+    let src = "<div>\n\t{#if condition}<p>a very long paragraph of text that will overflow the line</p>{/if}\n</div>\n";
+    let out = format(src, &options(IndentStyle::Tab, 40, 4)).expect("format ok");
+    assert!(out.contains('\n'), "expected the block to break:\n{out}");
+    for line in out.lines() {
+        let indent_end = line
+            .find(|c: char| c != '\t' && c != ' ')
+            .unwrap_or(line.len());
+        let indent = &line[..indent_end];
+        assert!(
+            !indent.contains(' '),
+            "tab-indented output must never mix a literal space into its leading indent: {line:?}\n{out}"
+        );
+    }
+}
+
+/// #2151: `<pre>` content that mixes reformatted structure (a `{#if}` block) with
+/// element-direct markup must not leak literal spaces into an otherwise
+/// tab-indented document. Reduced from svelte.dev's `AstView.svelte`: an
+/// `<AstNode>` self-closing component nested inside a `<ul>` that is itself
+/// inside an `{#if}` consequent, all inside `<pre><code>`. Asserted against the
+/// exact oracle (oxfmt + prettier-plugin-svelte) output.
+#[test]
+fn tab_indent_pre_block_reformat_does_not_mix_spaces_into_tabs() {
+    let src = "<div class=\"ast-view\">\n\t<pre>\n\t\t<code>\n\t\t\t{#if typeof ast === \"object\"}\n\t\t\t\t<ul>\n\t\t\t\t\t<AstNode value={ast} />\n\t\t\t\t</ul>\n\t\t\t{:else}\n\t\t\t\t<p>No AST available</p>\n\t\t\t{/if}\n\t\t</code>\n\t</pre>\n</div>\n";
+
+    let out = format(src, &options(IndentStyle::Tab, 100, 4)).expect("format ok");
+    assert_eq!(
+        out, src,
+        "already-tab-indented, already-fitting <pre> content must round-trip verbatim"
+    );
+}
+
+/// #2151 companion: the same `<pre>`-with-block source, but the DOCUMENT's
+/// configured style is spaces (the common case) while the `<pre>` body itself
+/// was hand-indented with tabs. oxfmt preserves the `<pre>`'s own element-direct
+/// markup (`<code>`, `{#if}`, `<AstNode>`, the block's close tags) verbatim in
+/// tabs, but renders reformatted internals — the `{#if}` block body and wrapped
+/// attributes — in the document's configured (space) style. This is the inverse
+/// of the previous test and guards the `configured_tabs` branch in
+/// `reformat_pre_inner`, not just the `pre_uses_tabs` one.
+#[test]
+fn space_indent_pre_block_reformat_keeps_element_direct_tabs_and_configured_spaces() {
+    let src = "<div class=\"ast-view\">\n\t<pre>\n\t\t<code>\n\t\t\t{#if typeof ast === \"object\"}\n\t\t\t\t<ul>\n\t\t\t\t\t<AstNode value={ast} />\n\t\t\t\t</ul>\n\t\t\t{:else}\n\t\t\t\t<p>No AST available</p>\n\t\t\t{/if}\n\t\t</code>\n\t</pre>\n</div>\n";
+
+    let out = format(src, &options(IndentStyle::Space, 80, 2)).expect("format ok");
+    assert_eq!(
+        out,
+        "<div class=\"ast-view\">\n  <pre>\n\t\t<code>\n\t\t\t{#if typeof ast === \"object\"}\n        <ul>\n\t\t\t\t\t<AstNode value={ast} />\n\t\t\t\t</ul>\n      {:else}\n        <p>No AST available</p>\n      {/if}\n\t\t</code>\n\t</pre>\n</div>\n",
+        "element-direct <pre> lines stay in the source's own tabs; reformatted \
+         block-body lines follow the document's configured (space) style"
+    );
+}

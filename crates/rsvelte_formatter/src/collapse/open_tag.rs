@@ -16,14 +16,15 @@ use super::*;
 /// - The element's content starts with whitespace (`hug_start=false`).
 ///
 /// The broken form uses the line's leading-whitespace as `indent` and
-/// `indent + "  "` as `inner_indent` for attributes.
+/// `indent + `[`indent_config`]`'s unit` as `inner_indent` for attributes.
 pub(super) fn collect_break_inline_open_tag(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
-    tw: usize,
+    options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
+    let tw = tab_width(options);
     for (node_idx, node) in fragment.nodes.iter().enumerate() {
         // A `<!-- prettier-ignore -->`d node and its whole subtree stay verbatim.
         if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, node_idx) {
@@ -67,7 +68,7 @@ pub(super) fn collect_break_inline_open_tag(
                         e.end,
                         &e.fragment,
                         line_width,
-                        tw,
+                        options,
                     )
                 {
                     // A whole-element edit (`edit.1 == e.end`) rewrites the tag
@@ -83,7 +84,7 @@ pub(super) fn collect_break_inline_open_tag(
                         continue;
                     }
                 }
-                collect_break_inline_open_tag(out, &e.fragment, line_width, tw, edits);
+                collect_break_inline_open_tag(out, &e.fragment, line_width, options, edits);
             }
             TemplateNode::Component(c) => {
                 let mut whole_element = false;
@@ -95,18 +96,18 @@ pub(super) fn collect_break_inline_open_tag(
                     c.end,
                     &c.fragment,
                     line_width,
-                    tw,
+                    options,
                 ) {
                     whole_element = edit.1 == c.end;
                     edits.push(edit);
                 }
                 if !whole_element {
-                    collect_break_inline_open_tag(out, &c.fragment, line_width, tw, edits);
+                    collect_break_inline_open_tag(out, &c.fragment, line_width, options, edits);
                 }
             }
             _ => {
                 for child in child_fragments(node) {
-                    collect_break_inline_open_tag(out, child, line_width, tw, edits);
+                    collect_break_inline_open_tag(out, child, line_width, options, edits);
                 }
             }
         }
@@ -124,8 +125,9 @@ pub(super) fn try_break_inline_open_tag(
     elem_end: u32,
     fragment: &Fragment,
     line_width: usize,
-    tw: usize,
+    options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     // Must have attributes to break. Zero-attribute elements in hug_start=true
     // contexts can't be broken safely without tree-level indent information.
     if attrs.is_empty() {
@@ -170,7 +172,8 @@ pub(super) fn try_break_inline_open_tag(
         .find(|(_, c)| !c.is_whitespace())
         .map_or(before.len(), |(i, _)| i);
     let indent = &before[..ws_end];
-    let inner_indent = format!("{indent}  ");
+    let (indent_unit, _) = indent_config(options);
+    let inner_indent = format!("{indent}{indent_unit}");
 
     // Collect attribute texts; bail on any multi-line attribute.
     let mut attr_texts: Vec<&str> = Vec::with_capacity(attrs.len());

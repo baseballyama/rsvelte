@@ -254,7 +254,7 @@ pub(super) fn collect(
                     elem.end,
                     &elem.fragment,
                     line_width,
-                    tab_width(options),
+                    options,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_break_block_multiline_content(
@@ -263,6 +263,7 @@ pub(super) fn collect(
                     elem.start,
                     elem.end,
                     &elem.fragment,
+                    options,
                 ) {
                     edits.push(edit);
                 } else {
@@ -488,12 +489,7 @@ pub(super) fn collect(
             }
             TemplateNode::EachBlock(blk) => {
                 if let Some(edit) = try_hug_block_inline_body(
-                    out,
-                    blk.start,
-                    blk.end,
-                    &blk.body,
-                    line_width,
-                    tab_width(options),
+                    out, blk.start, blk.end, &blk.body, line_width, options,
                 ) {
                     edits.push(edit);
                 } else {
@@ -521,7 +517,7 @@ pub(super) fn collect(
                     blk.end,
                     &blk.fragment,
                     line_width,
-                    tab_width(options),
+                    options,
                 ) {
                     edits.push(edit);
                 } else {

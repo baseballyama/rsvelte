@@ -222,7 +222,7 @@ pub(crate) fn collapse_pure_text_elements(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
-        tw,
+        options,
         &mut edits1e,
     );
     if !edits1e.is_empty() {
@@ -245,7 +245,7 @@ pub(crate) fn collapse_pure_text_elements(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
-        tw,
+        options,
         &mut edits1f,
     );
     if !edits1f.is_empty() {

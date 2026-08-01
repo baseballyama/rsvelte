@@ -199,9 +199,11 @@ pub(super) fn collapse_text_only_spans(s: &str, narrowed_width: usize) -> String
 /// `content_depth` is the nesting depth of the element's children. The content is
 /// formatted standalone at a width narrowed by `content_depth` levels (so embedded
 /// JS / blocks break exactly as they would at their real column), then every line
-/// is re-indented out to its real depth — using TABS for whitespace that is the
-/// direct child of an element (oxfmt preserves it) and SPACES for block bodies and
-/// formatted internals (attributes, JS, wrapped open tags).
+/// is re-indented out to its real depth — using the `<pre>` source's own tab/space
+/// style for whitespace that is the direct child of an element (oxfmt preserves it
+/// verbatim), and the document's configured indent style for block bodies and
+/// formatted internals (attributes, JS, wrapped open tags), which are freshly
+/// generated rather than preserved.
 pub(super) fn reformat_pre_inner(
     out: &str,
     elem: &rsvelte_core::ast::template::RegularElement,
@@ -221,10 +223,9 @@ pub(super) fn reformat_pre_inner(
     let inner_end = elem.start as usize + close_rel;
     let raw_inner = out.get(inner_start..inner_end)?;
 
-    // Element-direct whitespace inside `<pre>` is preserved verbatim by oxfmt, so
-    // it only becomes tabs when the SOURCE indented with tabs. A `<pre>` whose
-    // body is space-indented keeps spaces throughout (block-tag lines included),
-    // so don't regenerate its element-direct lines as tabs.
+    // Whitespace inside `<pre>` is preserved verbatim by oxfmt, so the reformatted
+    // structure below only becomes tabs when the SOURCE indented with tabs. A
+    // `<pre>` whose body is space-indented keeps spaces throughout.
     let pre_uses_tabs = raw_inner.lines().any(|l| l.starts_with('\t'));
 
     let iw = options.js.indent_width.value() as usize;
@@ -232,7 +233,7 @@ pub(super) fn reformat_pre_inner(
     // Format the children standalone, but narrowed so a depth-0 layout matches the
     // breaks at the real `content_depth`.
     //
-    // Element-direct children of `<pre>` are re-indented with TABS (1 char each)
+    // Under `useTabs`, `<pre>` content is re-indented with TABS (1 char each)
     // rather than spaces (`iw` chars each).  The sub-format sees space indentation,
     // so a line at sub-depth D appears as `D*iw` chars, but in the final output the
     // tab-indented prefix uses only `D + content_depth` chars (one per tab level).
@@ -257,6 +258,17 @@ pub(super) fn reformat_pre_inner(
         .max(20);
     let mut sub_opts = options.clone();
     sub_opts.js.line_width = oxc_formatter_core::LineWidth::try_from(narrowed as u16).ok()?;
+    // The re-indent pass below (`spaces / iw`) only understands space-based
+    // indentation columns — it strips leading `' '` and measures depth by byte
+    // count, then re-emits either spaces or (for element-direct lines) tabs at
+    // the real depth. Under `useTabs` the sub-format would otherwise inherit the
+    // outer tab style and hand back tab-indented lines that `trim_start_matches(' ')`
+    // can't see through, leaving their original tab prefix embedded verbatim and
+    // getting a second, wrongly-computed indent prepended in front of it (mixed
+    // space+tab output, #2151). Force spaces for this internal working
+    // representation regardless of the caller's style; the final loop below is
+    // what decides tabs vs spaces in the real output.
+    sub_opts.js.indent_style = oxc_formatter_core::IndentStyle::Space;
     let formatted =
         with_pre_content(|| crate::format(raw_inner.trim_matches(['\n', '\r']), &sub_opts)).ok()?;
     let formatted = formatted.trim_end_matches('\n');
@@ -322,13 +334,21 @@ pub(super) fn reformat_pre_inner(
     };
 
     // Determine which line-starts in `formatted` are element-direct whitespace
-    // (→ tabs). Everything else stays spaces.
+    // (→ verbatim source style). Everything else is reformatted structure (block
+    // bodies, wrapped attributes, wrapped JS) and follows the document's
+    // configured indent style, not the `<pre>` source's own tab usage.
     let sub_root = parse_formatted(formatted)?;
     let mut tab_lines: HashSet<usize> = HashSet::new();
     collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
+    let configured_tabs = options.js.indent_style.is_tab();
 
-    // Re-indent every line: shift by `content_depth` levels; tab-marked lines use
-    // tabs, the rest use spaces.
+    // Re-indent every line: shift by `content_depth` levels. `formatted` is
+    // always space-indented (the sub-format was forced to `IndentStyle::Space`
+    // above) regardless of the caller's real style, so `spaces / iw` always
+    // yields the correct depth; only the final CHARACTER differs per line:
+    // element-direct lines are preserved verbatim (tabs only when the SOURCE
+    // used tabs), everything else follows the document's configured style
+    // (tabs only under `useTabs`) — matching oxfmt exactly (#2151).
     let mut result = String::new();
     let mut offset = 0usize;
     let mut first_line = true;
@@ -344,7 +364,12 @@ pub(super) fn reformat_pre_inner(
             if !trimmed.is_empty() {
                 let spaces = line.len() - trimmed.len();
                 let real_depth = spaces / iw + content_depth;
-                if pre_uses_tabs && tab_lines.contains(&offset) {
+                let use_tabs = if tab_lines.contains(&offset) {
+                    pre_uses_tabs
+                } else {
+                    configured_tabs
+                };
+                if use_tabs {
                     for _ in 0..real_depth {
                         result.push('\t');
                     }
@@ -395,9 +420,11 @@ pub(super) fn reformat_pre_inner(
 }
 
 /// Collect the line-start byte offsets in `formatted` whose indentation is
-/// element-direct whitespace (preserved as tabs by oxfmt inside `<pre>`): a node
-/// whose parent fragment belongs to a regular element, plus every element's own
-/// closing-tag line. Block bodies (parent is a block) keep spaces.
+/// element-direct whitespace (preserved verbatim by oxfmt inside `<pre>`, so it
+/// uses the `<pre>` source's own tab/space style): a node whose parent fragment
+/// belongs to a regular element, plus every element's own closing-tag line.
+/// Block bodies (parent is a block) and reformatted internals are NOT element-
+/// direct — the caller renders those in the document's configured indent style.
 pub(super) fn collect_pre_tab_lines(
     formatted: &str,
     fragment: &Fragment,
