@@ -732,13 +732,22 @@ pub fn process_instance_script(
 /// * `source` - The original source code
 /// * `str` - The MagicString for source manipulation
 /// * `exported_names` - Accumulator for exported names
+///
+/// # Errors
+///
+/// Mirrors official `processModuleScriptTag.ts`: a top-level `$$Props` /
+/// `$$Slots` / `$$Events` type/interface declaration is only meaningful in the
+/// instance script, so official throws when one is found in `<script
+/// context="module">`. Nested declarations are not checked here (out of
+/// scope — see #2166), matching the instance-script side's top-level-only
+/// `$$Slots`/`$$Props`/`$$Events` detection.
 pub fn process_module_script(
     script: &Script,
     parsed: &ParsedScript<'_>,
     store_scan: &mut StoreScanContext<'_>,
     str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
-) {
+) -> Result<(), super::utils::error::Svelte2TsxError> {
     // Module script exports are kept as-is (with the export keyword).
     // They are not component props and do not go into the return statement.
     //
@@ -834,28 +843,36 @@ pub fn process_module_script(
                                 }
                             }
                             oxc::Declaration::TSTypeAliasDeclaration(t) => {
-                                exported_names
-                                    .module_type_names
-                                    .insert(t.id.name.to_string());
+                                let name = t.id.name.to_string();
+                                if is_special_type_name(&name) {
+                                    return Err(sentinel_type_in_module_script_error(&name));
+                                }
+                                exported_names.module_type_names.insert(name);
                             }
                             oxc::Declaration::TSInterfaceDeclaration(iface) => {
-                                exported_names
-                                    .module_type_names
-                                    .insert(iface.id.name.to_string());
+                                let name = iface.id.name.to_string();
+                                if is_special_type_name(&name) {
+                                    return Err(sentinel_type_in_module_script_error(&name));
+                                }
+                                exported_names.module_type_names.insert(name);
                             }
                             _ => {}
                         }
                     }
                 }
                 oxc::Statement::TSTypeAliasDeclaration(t) => {
-                    exported_names
-                        .module_type_names
-                        .insert(t.id.name.to_string());
+                    let name = t.id.name.to_string();
+                    if is_special_type_name(&name) {
+                        return Err(sentinel_type_in_module_script_error(&name));
+                    }
+                    exported_names.module_type_names.insert(name);
                 }
                 oxc::Statement::TSInterfaceDeclaration(iface) => {
-                    exported_names
-                        .module_type_names
-                        .insert(iface.id.name.to_string());
+                    let name = iface.id.name.to_string();
+                    if is_special_type_name(&name) {
+                        return Err(sentinel_type_in_module_script_error(&name));
+                    }
+                    exported_names.module_type_names.insert(name);
                 }
                 // Module-level `namespace X { ... }` and `enum X { ... }`
                 // contribute both a value and a type binding, so an
@@ -880,7 +897,18 @@ pub fn process_module_script(
                 _ => {}
             }
         }
-    });
+        Ok(())
+    })
+}
+
+/// `$$Events`/`$$Slots`/`$$Props` can only be declared in the instance
+/// script — mirrors official `processModuleScriptTag.ts`'s
+/// `throw$$Error`, whose message doesn't distinguish `interface` from
+/// `type`.
+fn sentinel_type_in_module_script_error(name: &str) -> super::utils::error::Svelte2TsxError {
+    super::utils::error::Svelte2TsxError::Script(format!(
+        "{name} can only be declared in the instance script"
+    ))
 }
 
 #[cfg(test)]
@@ -945,6 +973,107 @@ mod tests {
         let source = "<script context=\"module\">\nexport let shared = 0;\n</script>";
         let result = run_svelte2tsx(source);
         assert!(!result.exported_names.has("shared"));
+    }
+
+    // -- $$Slots / $$Props / $$Events must throw in a module script (#2167) --
+    // Mirrors official `processModuleScriptTag.ts`'s `throw$$Error`.
+
+    #[test]
+    fn module_script_interface_dollar_slots_throws() {
+        let source =
+            "<script context=\"module\">\ninterface $$Slots {\n  default: {};\n}\n</script>";
+        let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Script error: $$Slots can only be declared in the instance script"
+        );
+    }
+
+    #[test]
+    fn module_script_type_dollar_slots_throws() {
+        let source = "<script context=\"module\">\ntype $$Slots = {\n  default: {};\n};\n</script>";
+        let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Script error: $$Slots can only be declared in the instance script"
+        );
+    }
+
+    #[test]
+    fn module_script_interface_dollar_props_throws() {
+        let source =
+            "<script context=\"module\">\ninterface $$Props {\n  name: string;\n}\n</script>";
+        let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Script error: $$Props can only be declared in the instance script"
+        );
+    }
+
+    #[test]
+    fn module_script_type_dollar_props_throws() {
+        let source =
+            "<script context=\"module\">\ntype $$Props = {\n  name: string;\n};\n</script>";
+        let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Script error: $$Props can only be declared in the instance script"
+        );
+    }
+
+    #[test]
+    fn module_script_interface_dollar_events_throws() {
+        let source = "<script context=\"module\">\ninterface $$Events {\n  change: CustomEvent;\n}\n</script>";
+        let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Script error: $$Events can only be declared in the instance script"
+        );
+    }
+
+    #[test]
+    fn module_script_type_dollar_events_throws() {
+        let source =
+            "<script context=\"module\">\ntype $$Events = {\n  change: CustomEvent;\n};\n</script>";
+        let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Script error: $$Events can only be declared in the instance script"
+        );
+    }
+
+    #[test]
+    fn module_script_exported_interface_dollar_props_throws() {
+        // `export interface $$Props` in a module script goes through the
+        // `ExportNamedDeclaration`-wrapped branch, not the bare-declaration one.
+        let source = "<script context=\"module\">\nexport interface $$Props {\n  name: string;\n}\n</script>";
+        let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Script error: $$Props can only be declared in the instance script"
+        );
+    }
+
+    #[test]
+    fn instance_script_dollar_slots_dollar_props_dollar_events_unaffected() {
+        // Same three sentinel declarations, but in the INSTANCE script — must
+        // continue to compile without error (pre-existing, non-regressed
+        // behavior; only the module-script side is new in #2167).
+        let source = "<script lang=\"ts\">\n\
+            interface $$Slots {\n  default: {};\n}\n\
+            interface $$Props {\n  name: string;\n}\n\
+            interface $$Events {\n  change: CustomEvent;\n}\n\
+            export let name: string;\n\
+            </script>";
+        let result = svelte2tsx(
+            source,
+            Svelte2TsxOptions {
+                filename: "Component.svelte".to_string(),
+                is_ts_file: true,
+                ..Default::default()
+            },
+        );
+        assert!(result.is_ok());
     }
 
     // -- Mixed instance and module scripts --

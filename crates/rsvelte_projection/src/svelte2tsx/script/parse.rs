@@ -46,9 +46,9 @@ impl<'source> ParsedScripts<'source> {
 }
 
 #[inline]
-pub(super) fn with_parsed_script<F>(script: &ParsedScript<'_>, f: F)
+pub(super) fn with_parsed_script<F, R>(script: &ParsedScript<'_>, f: F) -> R
 where
-    F: FnOnce(&oxc::Program, &str),
+    F: FnOnce(&oxc::Program, &str) -> R,
 {
-    f(script.program(), script.source());
+    f(script.program(), script.source())
 }

@@ -536,7 +536,7 @@ pub fn svelte2tsx(
             &mut store_scan,
             &mut str,
             &mut exported_names,
-        );
+        )?;
     }
 
     // Step 7: Process instance script (<script>)
