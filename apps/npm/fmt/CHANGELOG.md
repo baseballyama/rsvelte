@@ -1,5 +1,13 @@
 # @rsvelte/fmt
 
+## 0.7.6
+
+### Patch Changes
+
+- 06060e1: fix(fmt): honour every depth-0 boundary in an attribute value. `reindent_attr_with_raw_text` split a multi-line attribute value at the _first_ brace-depth-0 tab-led newline and emitted everything after it verbatim, so a value holding two independently wrapping interpolations separated by raw text left the second expression's continuation lines stranded at column 0. The scan now collects every depth-0 newline and re-indents each expression run, matching the oracle's model: a line that begins at depth 0 is literal attribute text (verbatim), a line that begins inside `{…}` is formatter output (gains the attribute indent). Two adjacent divergences fall out of the same model — a regular attribute now keeps the author's inter-interpolation whitespace (only a directive's `fill` text reflows it to the attribute column), and an attribute rendering with no `name=` separator (`{@attach x != null && …}`) is no longer split on a JS operator.
+- c010175: fix(fmt): route every collapse-pass indent grow through the real `IndentUnit` instead of a hardcoded two-space string. Several `collapse/*.rs` block-break helpers built their `inner_indent` with `format!("{indent}  ")`, which under `useTabs` mixed literal spaces into an otherwise all-tab document. A deeper related bug in `<pre>` block reformatting (`reformat_pre_inner`) let the internal sub-format inherit the outer tab style while its re-indent pass still measured depth by counting leading `' '` bytes, silently leaving the sub-format's own tab prefix embedded and prepending a second, wrongly-computed indent in front of it. Both are fixed: the sweep now always appends `indent_config(options)`'s unit, and the `<pre>` sub-format is forced to a space-based internal working representation so its re-indent math is always correct, with the final output choosing tabs vs spaces per line (verbatim source style for element-direct `<pre>` markup, the document's configured style for reformatted internals) exactly like oxfmt.
+- 7822767: fix(fmt): charge an indentation tab `tabWidth` columns when measuring print width. Prettier's `generateIndent` counts one indent tab as `tabWidth` columns, but every fit decision in the formatter measured it with `UnicodeWidthStr::width`, which returns 1 — so under `useTabs` a depth-`n` indent under-counted by `(tabWidth - 1) * n` columns and prose fills, open-tag breaks and `{expr}` splits all fired later than the oracle's. All ~60 width call sites now go through one shared `visual_width(s, tab_width)` helper (and the doc printer carries its indent unit's real column cost), which leaves space-indented output byte-identical.
+
 ## 0.7.5
 
 ### Patch Changes

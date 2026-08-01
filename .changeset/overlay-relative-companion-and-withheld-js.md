@@ -1,5 +1,0 @@
----
-"@rsvelte/svelte-check": patch
----
-
-Two `.svelte`-specifier resolutions the overlay could not previously answer the way official svelte-check does now match it. A **relative** `./Foo.svelte` written in a plain `.ts`/`.js` file that has a same-named `Foo.svelte.ts` companion next to it used to resolve to the companion — TypeScript probes the importer's own directory before `rootDirs` can offer the component shadow, and `paths` never applies to a relative specifier — so a named import of the companion's exports silently succeeded where official reports `TS2614`. Such an importer is now mirrored into the overlay as a blanked *import probe* (everything but the hijacked import declarations replaced with spaces, so every position survives) and the import is re-resolved from there. Separately, a `Foo.svelte.js` rune module in a project without `allowJs` is deliberately left without a bridge, which under `node16`/`nodenext` left its specifier resolving to nothing at all (`TS2307`); the overlay now restates what official reports for a module it withholds — `TS7016`, or nothing when `noImplicitAny` is off.

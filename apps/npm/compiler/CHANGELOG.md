@@ -1,5 +1,79 @@
 # @rsvelte/compiler
 
+## 0.10.2
+
+### Patch Changes
+
+- 843f64c: A `{@const}` that shadows a component-scope binding now resolves to the `{@const}` in the client transform. Previously the reactivity check looked the name up in the (root-scope-polluted) binding table and found the outer binding, so a compile-time-known `{@const}` read emitted an extra `$.template_effect` + `$.set_text` where the official compiler assigns `textContent` once, and a `{@const}` shadowing a **prop** was even rewritten to `$$props.<name>` — reading the wrong variable.
+- 485f999: Legacy (non-runes) destructuring _assignments_ (`({ a, ...rest } = obj)`) now lower like the official compiler: an object pattern with an identifier right-hand side stays a plain sequence instead of being wrapped in a `$$value` IIFE, literal and computed keys read `obj['b-c']` / `obj[3]` / `obj[key]` instead of the unparseable `obj.'b-c'`, and the `$.exclude_from_object` key list uses upstream's `b.literal(...)` / `String(<expr>)` form instead of re-quoting the source text (`''b-c''`, `'[key]'`). The invalid member reads used to make the downstream AST pass bail, dropping every `$.set` / prop call in the statement.
+- dfc15c3: Legacy (non-runes) destructured declarations now lower an object rest as `$.exclude_from_object(tmp, [keys])` like the official compiler, instead of reading a non-existent `tmp.rest` property — and a rest bound to state keeps its `$.mutable_source` wrapper (plus the dev `$.tag` label). The same expansion also stopped dropping pattern defaults (`{ a = 1 }` / `[a = 1]` now emit `$.fallback(...)`) and stopped emitting invalid member reads for literal and computed keys (`tmp['b-c']`, `tmp[3]`, `tmp[key]`).
+- 2c4fbf7: fix(compiler): keep class members that share a source line — `class Foo { n = $state(1); d = $derived(this.n * 2); }` used to drop the `$derived` backing field and its accessors from the emitted class
+- bbf2065: A client-side attribute expression, event handler, or `{@const}`/`$derived` compile-time-known check that reads a block-local `{#snippet}` shadowing a same-named outer binding (a plain script-level `function`, `let`, or `$derived` — not a prop) now resolves to the snippet instead of the outer binding. Upstream's `Binding#is_function()` always returns `false` for a snippet, so the read is treated as having state; rsvelte's `get_binding` walks a root scope that is intentionally polluted with every scope's declarations for backward compatibility and prefers whichever declaration was merged in first, which could resolve to the outer (non-snippet) binding and wrongly skip the `$.template_effect` wrap or the dev-mode `$.apply` event-handler wrap.
+- 3bb7853: SSR constant folding now resolves a `{@const}` / `{let}` / `let:` binding through the render position's lexical scope chain instead of a flat "every template scope" union, matching upstream's `scope.evaluate`. Two sibling fragments declaring the same name (e.g. `{#if a}…{:else}{@const x = 1}…{/if}{#key k}{@const x = 2}…{/key}`) previously made each read ambiguous, so the branch emitted `$.escape(x)` where the official compiler inlines the literal; the nearest declaration now wins and an out-of-scope read stops resolving at all.
+- ab86f67: fix(compiler): count every dev-mode source location in UTF-16 code units. `$.push_element`, `$.apply`, `$.add_svelte_meta` and `$$ownership_validator.mutation` each re-implemented the byte-offset → line/column conversion and counted one column per code point, so an emoji (surrogate pair) earlier on the line reported a column one short of official's `locate-character`. The four duplicates are now a single shared locator alongside the already-correct `$.add_locations` one.
+- 3ccf1be: fix(compiler): drop redundant parentheses from dev equality instrumentation operands in module scripts — `export const x = (a === b) != (c == d);` now emits `$.equals($.strict_equals(a, b), $.equals(c, d), false)` like the official compiler instead of `$.equals(($.strict_equals(a, b)), ($.equals(c, d)), false)`
+- c9362c1: `compileBatch` / `compileBatchExternalSources` (and their async variants) now isolate a panic to the one offending item instead of losing the whole batch's results. Rayon re-raises a worker panic in the caller only after the whole parallel pass finishes, which previously discarded every other file's already-computed output along with the panicking one; each batch item is now caught individually. `CompileError` gains a new `Panic(String)` variant for this case — a source-breaking change for any exhaustive match on `CompileError` outside this crate.
+- d3486cb: A `{#snippet}` declared inside a block now shadows a same-named outer binding for the whole fragment, matching upstream's scope rules. `{#each items as item}{#snippet row()}…{/snippet}{@render row()}{/each}` next to a `let { row } = $props()` emitted the prop read `$$props.row($$anchor)` on the client (a `TypeError` when the prop is not passed) and the derived read `row()($$renderer)` on the server; both now call the local snippet directly.
+- d66ed72: fix(svelte2tsx): forward a component's default-slot `let:` from every node kind
+  official models as an `Element`, and through control-flow blocks. The wrapping
+  only covered a direct `RegularElement` / `<svelte:fragment>` child, so
+  `<Foo><svelte:element let:x>`, `<Foo><slot let:x>` and any `{#if}` / `{#each}` /
+  `{#await}` / `{#key}`-nested `<div let:x>` dropped their `$$slot_def.default`
+  prologue and emitted a bogus `"let:x": true` attribute, leaving every `let:`
+  binding an undeclared identifier in the generated TSX. A component-direct
+  `<style let:x>` no longer leaves an orphaned `$$slot_def` block behind (official
+  deletes the whole `<style>` range, block included) nor steals one space from the
+  next sibling's indent. `<svelte:fragment>` / `<svelte:boundary>` also stop
+  leaking their enclosing component's slot scope into their own children, and a
+  block-nested one with a static `slot="name"` now gets the `$$slot_def["name"]`
+  wrapper instead of a plain `slot` attribute.
+- 2ff1134: fix(svelte2tsx): remove a re-export (`export { x } from './mod'`) from a
+  component's instance script instead of leaving it inside the generated
+  `$$render()` body. Upstream `ExportedNames.handleExportDeclaration` keys off
+  `ts.isNamedExports(exportClause)` alone and never inspects `moduleSpecifier`,
+  so every named export clause — with or without a `from` — is stripped and
+  recorded as an export. rsvelte skipped the clause whenever a module specifier
+  was present, emitting an `export … from` inside a function body: invalid TSX
+  (TS1233) that made svelte-check discard _all_ diagnostics for the file.
+- 462401a: fix(svelte2tsx): apply official's `value[0]` rule to every slot-name path.
+  Official svelte2tsx only ever reads the FIRST part of a slot-name attribute
+  value; rsvelte concatenated all `Text` parts (or kept the last one), so
+  `<slot name="a{b}c">` produced `slots: { undefined: {} }` instead of
+  `{ 'a': {} }`, `$$slots` keyed on `c` instead of `a`, and
+  `<Comp><div slot="a{b}c">` was lowered to a `$$slot_def["ac"]` wrapper that
+  official does not emit. The three sibling paths now mirror their own upstream
+  rule: `slots`/`$$slots` use `nameAttr.value[0].raw` (shared map),
+  `let:`-binding scope resolution uses `getSlotName`'s `value[0].raw`, and the
+  `$$slot_def[…]` lowering uses `attributeValueIsOfType(value, 'Text')` — so an
+  interpolated or dynamic `slot=` stays an ordinary attribute and is no longer
+  dropped from the generated props.
+- 1f97b68: fix(svelte2tsx): honor an instance-script `$$Slots` interface/type override.
+  Official `createRenderFunction.ts` builds the component export's `slots:`
+  reflection as `uses$$SlotsInterface ? '{} as unknown as $$Slots' : '{…computed…}'`,
+  so a component that declares its own `interface $$Slots` / `type $$Slots` is
+  type-checked against that declaration instead of the shape inferred from its
+  `<slot>` elements. rsvelte already threaded the flag into the
+  `__sveltets_2_createCreateSlot<$$Slots>()` binding but always emitted the
+  computed literal in the return statement, so consumers saw the inferred slot
+  props and any deliberate widening/narrowing in the declaration was lost.
+- 0fe1f6b: fix(svelte2tsx): wrap a `<svelte:component>` / `<svelte:self>` named-slot
+  child (`<svelte:component this={Inner} slot="a" />`) in the parent's
+  `$$slot_def["a"]` block. `has_named_slot_children` (and the parallel
+  `is_named_slot` check in `process_component_children_with_slots`) never
+  matched `SvelteComponent` / `SvelteSelf` nodes, so such a child fell through
+  to the plain fragment walk instead of the named-slot lowering — unlike
+  official svelte2tsx, which models both as `InlineComponent` and forwards them
+  exactly like a named `<Component slot="a">` child. Found while fixing #2103
+  (PR #2135).
+- 751f057: fix(svelte2tsx): route `<svelte:component>` children through the same slot
+  lowering a named component's children take. `handle_svelte_component` walked
+  its fragment with `process_fragment_inplace`, so a default-slot `let:` receiver
+  (`<div let:x>` / `<svelte:fragment let:x>`) never got its
+  `$$slot_def.default` destructuring prologue and every `let:` binding resolved
+  as an undeclared identifier in the generated TSX; a `<svelte:fragment
+slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
+- c854cfb: Fix the client preamble emitting `$$ownership_validator` before `$.append_styles` when `css: 'injected'` and dev-mode mutation validation are both active. Upstream unshifts `$$ownership_validator` before it unshifts `$.append_styles`, so the later unshift ends up closer to the front — the correct order is `$.push(...)`, `$.append_styles(...)`, then `$$ownership_validator = ...`. `$.append_styles` is now inserted at the same anchor point as `$$ownership_validator`, in the same call order as upstream's unshifts, instead of being built at an unrelated position in the component body.
+
 ## 0.10.1
 
 ### Patch Changes

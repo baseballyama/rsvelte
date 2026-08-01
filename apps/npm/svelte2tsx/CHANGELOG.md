@@ -1,5 +1,88 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.9
+
+### Patch Changes
+
+- 5b011d3: Imports hoisted out of a component's instance script now keep the source-map segments of their original span, so a diagnostic on an import in a `.svelte` file is reported on the import's own line instead of line 1. The hoisted text used to be re-synthesized above `$$render()` with the original range blanked out, which left those generated lines with no mapping at all; they are now relocated the way official svelte2tsx's `moveNode` does it. As a side effect the hoisted text is byte-identical to the source, which also fixes multi-line imports losing their continuation-line indentation and leading-comment imports dropping a line.
+- d66ed72: fix(svelte2tsx): forward a component's default-slot `let:` from every node kind
+  official models as an `Element`, and through control-flow blocks. The wrapping
+  only covered a direct `RegularElement` / `<svelte:fragment>` child, so
+  `<Foo><svelte:element let:x>`, `<Foo><slot let:x>` and any `{#if}` / `{#each}` /
+  `{#await}` / `{#key}`-nested `<div let:x>` dropped their `$$slot_def.default`
+  prologue and emitted a bogus `"let:x": true` attribute, leaving every `let:`
+  binding an undeclared identifier in the generated TSX. A component-direct
+  `<style let:x>` no longer leaves an orphaned `$$slot_def` block behind (official
+  deletes the whole `<style>` range, block included) nor steals one space from the
+  next sibling's indent. `<svelte:fragment>` / `<svelte:boundary>` also stop
+  leaking their enclosing component's slot scope into their own children, and a
+  block-nested one with a static `slot="name"` now gets the `$$slot_def["name"]`
+  wrapper instead of a plain `slot` attribute.
+- f9bd901: `createEventDispatcher` event names and typings now match official svelte2tsx. The dispatcher factory is recognised through the local name the `svelte` import binds it to, so `import { createEventDispatcher as foo }` works (and a same-named local that was never imported no longer counts); every typed `createEventDispatcher<T>()` in a component contributes its own `...__sveltets_2_toEventTypings<T>()` spread instead of only the last one, with a name declared by two of them degrading to `CustomEvent<any>` and gaining a `customEvent` entry; and `dispatch(name)` resolves `name` through a string constant declared earlier in the instance script. Dispatchers declared inside a function are tracked too, and the `events.getAll()` API surface now includes the events a typed dispatcher declares.
+- 2ff1134: fix(svelte2tsx): remove a re-export (`export { x } from './mod'`) from a
+  component's instance script instead of leaving it inside the generated
+  `$$render()` body. Upstream `ExportedNames.handleExportDeclaration` keys off
+  `ts.isNamedExports(exportClause)` alone and never inspects `moduleSpecifier`,
+  so every named export clause — with or without a `from` — is stripped and
+  recorded as an export. rsvelte skipped the clause whenever a module specifier
+  was present, emitting an `export … from` inside a function body: invalid TSX
+  (TS1233) that made svelte-check discard _all_ diagnostics for the file.
+- 462401a: fix(svelte2tsx): apply official's `value[0]` rule to every slot-name path.
+  Official svelte2tsx only ever reads the FIRST part of a slot-name attribute
+  value; rsvelte concatenated all `Text` parts (or kept the last one), so
+  `<slot name="a{b}c">` produced `slots: { undefined: {} }` instead of
+  `{ 'a': {} }`, `$$slots` keyed on `c` instead of `a`, and
+  `<Comp><div slot="a{b}c">` was lowered to a `$$slot_def["ac"]` wrapper that
+  official does not emit. The three sibling paths now mirror their own upstream
+  rule: `slots`/`$$slots` use `nameAttr.value[0].raw` (shared map),
+  `let:`-binding scope resolution uses `getSlotName`'s `value[0].raw`, and the
+  `$$slot_def[…]` lowering uses `attributeValueIsOfType(value, 'Text')` — so an
+  interpolated or dynamic `slot=` stays an ordinary attribute and is no longer
+  dropped from the generated props.
+- 1f97b68: fix(svelte2tsx): honor an instance-script `$$Slots` interface/type override.
+  Official `createRenderFunction.ts` builds the component export's `slots:`
+  reflection as `uses$$SlotsInterface ? '{} as unknown as $$Slots' : '{…computed…}'`,
+  so a component that declares its own `interface $$Slots` / `type $$Slots` is
+  type-checked against that declaration instead of the shape inferred from its
+  `<slot>` elements. rsvelte already threaded the flag into the
+  `__sveltets_2_createCreateSlot<$$Slots>()` binding but always emitted the
+  computed literal in the return statement, so consumers saw the inferred slot
+  props and any deliberate widening/narrowing in the declaration was lost.
+- 0fe1f6b: fix(svelte2tsx): wrap a `<svelte:component>` / `<svelte:self>` named-slot
+  child (`<svelte:component this={Inner} slot="a" />`) in the parent's
+  `$$slot_def["a"]` block. `has_named_slot_children` (and the parallel
+  `is_named_slot` check in `process_component_children_with_slots`) never
+  matched `SvelteComponent` / `SvelteSelf` nodes, so such a child fell through
+  to the plain fragment walk instead of the named-slot lowering — unlike
+  official svelte2tsx, which models both as `InlineComponent` and forwards them
+  exactly like a named `<Component slot="a">` child. Found while fixing #2103
+  (PR #2135).
+- 751f057: fix(svelte2tsx): route `<svelte:component>` children through the same slot
+  lowering a named component's children take. `handle_svelte_component` walked
+  its fragment with `process_fragment_inplace`, so a default-slot `let:` receiver
+  (`<div let:x>` / `<svelte:fragment let:x>`) never got its
+  `$$slot_def.default` destructuring prologue and every `let:` binding resolved
+  as an undeclared identifier in the generated TSX; a `<svelte:fragment
+slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
+- Updated dependencies [843f64c]
+- Updated dependencies [485f999]
+- Updated dependencies [dfc15c3]
+- Updated dependencies [2c4fbf7]
+- Updated dependencies [bbf2065]
+- Updated dependencies [3bb7853]
+- Updated dependencies [ab86f67]
+- Updated dependencies [3ccf1be]
+- Updated dependencies [c9362c1]
+- Updated dependencies [d3486cb]
+- Updated dependencies [d66ed72]
+- Updated dependencies [2ff1134]
+- Updated dependencies [462401a]
+- Updated dependencies [1f97b68]
+- Updated dependencies [0fe1f6b]
+- Updated dependencies [751f057]
+- Updated dependencies [c854cfb]
+  - @rsvelte/compiler@0.10.2
+
 ## 0.2.8
 
 ### Patch Changes

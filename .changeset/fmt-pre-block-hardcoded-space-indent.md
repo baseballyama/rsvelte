@@ -1,5 +1,0 @@
----
-"@rsvelte/fmt": patch
----
-
-fix(fmt): route every collapse-pass indent grow through the real `IndentUnit` instead of a hardcoded two-space string. Several `collapse/*.rs` block-break helpers built their `inner_indent` with `format!("{indent}  ")`, which under `useTabs` mixed literal spaces into an otherwise all-tab document. A deeper related bug in `<pre>` block reformatting (`reformat_pre_inner`) let the internal sub-format inherit the outer tab style while its re-indent pass still measured depth by counting leading `' '` bytes, silently leaving the sub-format's own tab prefix embedded and prepending a second, wrongly-computed indent in front of it. Both are fixed: the sweep now always appends `indent_config(options)`'s unit, and the `<pre>` sub-format is forced to a space-based internal working representation so its re-indent math is always correct, with the final output choosing tabs vs spaces per line (verbatim source style for element-direct `<pre>` markup, the document's configured style for reformatted internals) exactly like oxfmt.

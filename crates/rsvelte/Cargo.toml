@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte"
-version = "0.10.1"
+version = "0.10.2"
 edition = "2024"
 rust-version = "1.95"
 description = "Stable Rust facade for embedding the rsvelte Svelte compiler"
@@ -24,8 +24,8 @@ default = []
 projection = ["dep:rsvelte_projection"]
 
 [dependencies]
-rsvelte_core = { version = "=0.10.1", path = "../rsvelte_core", default-features = false }
-rsvelte_projection = { version = "=0.10.1", path = "../rsvelte_projection", optional = true }
+rsvelte_core = { version = "=0.10.2", path = "../rsvelte_core", default-features = false }
+rsvelte_projection = { version = "=0.10.2", path = "../rsvelte_projection", optional = true }
 
 [dev-dependencies]
 static_assertions = "1.1"
