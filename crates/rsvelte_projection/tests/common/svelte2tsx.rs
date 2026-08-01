@@ -108,7 +108,17 @@ fn build_options(sample_name: &str, sample_dir: &Path, svelte_filename: &str) ->
 // Relaxed comparison chain
 // =========================================================================
 
+/// #2145: the structural chain below (`relaxed_compare_structural`) can
+/// declare a match purely on the strength of the surrounding `$$render`
+/// body, even when the `return {…}` statement it discards along the way
+/// (`strip_return_statement`) genuinely diverges — see
+/// `return_statement_matches` for why and how that's independently
+/// re-checked here.
 fn relaxed_compare(actual: &str, expected: &str) -> bool {
+    relaxed_compare_structural(actual, expected) && return_statement_matches(actual, expected)
+}
+
+fn relaxed_compare_structural(actual: &str, expected: &str) -> bool {
     let expect_cut = expected
         .rfind("\n\nexport default class")
         .or_else(|| expected.rfind("\nexport const "))
@@ -473,6 +483,113 @@ fn strip_return_statement(text: &str) -> String {
     }
 }
 
+/// Slices out just the `return { … }` object literal, bounded by its own
+/// matching brace (`find_balanced_end`) rather than running to the end of
+/// `text` — a generics fixture has a trailing
+/// `class __sveltets_Render<T> { props() … }` wrapper after the return
+/// statement that must not be swept in. `None` when there's no `return {`,
+/// or its braces never balance.
+fn extract_return_statement(text: &str) -> Option<&str> {
+    let pos = text
+        .rfind("\nreturn {")
+        .map(|p| p + 1)
+        .or_else(|| text.rfind("return {"))?;
+    let brace_start = pos + "return ".len();
+    let end_offset = find_balanced_end(&text[brace_start..])?;
+    Some(&text[pos..brace_start + end_offset])
+}
+
+/// #2145 gate: `strip_return_statement` above (the last stage before the
+/// pure-whitespace fallbacks) discards the whole `return {…}` statement, so
+/// a real content divergence inside the returned `props`/`slots`/`events`
+/// reflection — e.g. rsvelte's `$$slot_def["b"]` vs official's
+/// `$$slot_def['b']` — can pass a fixture purely because everything ELSE in
+/// the `$$render` body matches. This independently re-verifies just the
+/// return statement on top of the (otherwise unmodified) chain above,
+/// applying the SAME relaxations that chain already applies — in the same
+/// one-sided way, e.g. `strip_as_type_assertion` only ever runs on the
+/// `expected` side there, matching a real syntax gap between a legacy
+/// `expectedv2.ts` fixture's TS `as X` casts and rsvelte's v5-shaped output
+/// — so an already-tolerated gap still passes, but a genuine mismatch now
+/// fails the fixture instead of being silently dropped.
+fn return_statement_matches(actual: &str, expected: &str) -> bool {
+    let (Some(actual_return), Some(expected_return)) = (
+        extract_return_statement(actual),
+        extract_return_statement(expected),
+    ) else {
+        // No return statement on (at least) one side — nothing to re-verify;
+        // the structural chain above is the sole verdict for this fixture.
+        return true;
+    };
+
+    macro_rules! try_eq {
+        ($a:expr, $e:expr) => {
+            if $a == $e {
+                return true;
+            }
+        };
+    }
+
+    let a = strip_v5_additions(actual_return);
+    let e = strip_v5_additions(expected_return);
+    try_eq!(a, e);
+
+    let e = strip_as_type_assertion(&e);
+    try_eq!(a, e);
+
+    let a = normalize_attr_whitespace(&a);
+    let e = normalize_attr_whitespace(&e);
+    try_eq!(a, e);
+
+    let a = collapse_spaces(&a);
+    let e = collapse_spaces(&e);
+    try_eq!(a, e);
+
+    let a = normalize_props_type(&a);
+    let e = normalize_props_type(&e);
+    try_eq!(a, e);
+
+    let a = normalize_template_literals(&a);
+    let e = normalize_template_literals(&e);
+    try_eq!(a, e);
+
+    let a = normalize_all_whitespace(&a);
+    let e = normalize_all_whitespace(&e);
+    try_eq!(a, e);
+
+    let a = expand_prop_shorthand(&a);
+    let e = expand_prop_shorthand(&e);
+    try_eq!(a, e);
+
+    let a = normalize_semicolons(&a);
+    let e = normalize_semicolons(&e);
+    try_eq!(a, e);
+
+    let a = strip_call_generics(&a);
+    let e = strip_call_generics(&e);
+    try_eq!(a, e);
+
+    let a = strip_ignore_markers(&a);
+    let e = strip_ignore_markers(&e);
+    try_eq!(a, e);
+
+    let a = strip_css_prop_wrappers(&a);
+    let e = strip_css_prop_wrappers(&e);
+    try_eq!(a, e);
+
+    // `strip_as_type_assertion` above is one-sided (`expected` only), mirroring
+    // the main chain's assumption that rsvelte's actual output favors JSDoc
+    // `@type` casts over TS `as X` ones. A TS-lang (`ts-*`) fixture's `props`
+    // reflection legitimately carries a real `as {…}` cast on BOTH sides,
+    // synthesized from each side's own inferred prop type shape (property
+    // order / optionality can differ innocuously) — so also try dropping it
+    // from `actual` before finally requiring a byte match.
+    let a = strip_as_type_assertion(&a);
+    try_eq!(a, e);
+
+    strip_all_whitespace(&a) == strip_all_whitespace(&e)
+}
+
 fn normalize_props_type(text: &str) -> String {
     use regex::Regex;
     let mut result = text.to_string();
@@ -570,6 +687,18 @@ fn find_balanced_end(text: &str) -> Option<usize> {
             if ch == string_char && (i == 0 || bytes[i - 1] != b'\\') {
                 in_string = false;
             }
+        } else if ch == '/' && bytes.get(i + 1) == Some(&b'*') {
+            // A `/** @type {…} */` JSDoc cast is common right where this is
+            // called from (`, exports: /** @type {{foo: number}} */ ({})`):
+            // its own `{…}` is brace-balanced on its own, so without this
+            // skip the scan below would stop at the comment's closing `}`
+            // instead of the value's, truncating mid-comment.
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            continue;
         } else {
             match ch {
                 '"' | '\'' | '`' => {

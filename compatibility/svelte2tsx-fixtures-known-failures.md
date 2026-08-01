@@ -25,7 +25,20 @@ UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 `STRICT_S2TSX_FIXTURES=1` ignores the baseline entirely (every failure fails),
 which is how you check whether an entry is still needed.
 
-## Current baseline: 5 of 254 (pass rate 98.0%)
+## Current baseline: 14 of 254 (pass rate 94.5%)
+
+### #2145 note
+
+Until this PR, `relaxed_compare`'s `strip_return_statement` stage deleted the whole
+`return {…}` statement outright (not just the differing trailing
+`class __sveltets_Render<T> { … }` wrapper it exists to bridge), so nothing downstream
+ever compared the returned `props`/`slots`/`events` reflection again. That's how a real
+rsvelte/official divergence — `$$slot_def["b"]` vs official's `$$slot_def['b']` — passed
+`component-slot-let-forward-named-slot` despite differing. `return_statement_matches`
+(same file) now independently re-verifies just the return statement through the same
+relaxations, on top of the existing chain. The 9 entries below are pre-existing
+divergences this newly surfaced — none are new regressions, and none are related to the
+quoting bug itself (which is fixed in `collect/mod.rs`'s `push_let_reflection_scope`).
 
 ### Harness gap — 1
 
@@ -70,3 +83,44 @@ which is how you check whether an entry is still needed.
 - **`ts-await-generics.v5`.** One space after `type $$ComponentProps = { prop?: T };`
   — the fixture has two, rsvelte emits one. Cosmetic in effect, but the gate is
   byte-exact so it is tracked like any other divergence.
+
+### `$$Slots` interface/type override not respected — 2
+
+- **`component-slot-$$slot-interface`**, **`component-slot-$$slot-type`.** When the
+  instance script declares an explicit `interface $$Slots { … }` (or `type $$Slots
+  = { … }`), official's `slots:` reflection becomes `{} as unknown as $$Slots`,
+  deferring entirely to the user's own type instead of the computed shape. rsvelte
+  doesn't detect the declaration and always emits the literal computed slot object
+  (`{'default': {a:b}, 'foo': {b:b}}`). A real, self-contained feature gap — out of
+  scope for #2145 (slot **quoting**, not slot **typing**).
+
+### `let:`-forwarding slot-let resolution gaps — 3
+
+- **`component-slot-inside-await`**, **`component-slot-let-forward`**,
+  **`component-slot-object-key`.** Three different `let:`/slot-forwarding
+  destructuring shapes rsvelte resolves incompletely: a `let:whatever={{ bla }}`
+  nested-destructure binding on a forwarded component slot; an `{#await …then
+  value}` binding threaded into a nested named slot; and an `{#each}` binding used
+  as both an object *key* and *value* inside a forwarded slot prop (rsvelte
+  incorrectly substitutes the resolved expression into the key position too,
+  e.g. `{item:...}` becomes `{__sveltets_2_unwrapArr(items):...}`). All three sit
+  squarely in the `let:`-forwarding resolution logic (`push_let_reflection_scope`
+  neighbourhood / `TemplateScope.resolveLet` equivalent) that issue #2105 owns —
+  left untouched here per that PR's explicit scope boundary.
+
+### `createEventDispatcher` event-name/type inference gaps — 4
+
+- **`event-dispatcher-events`**, **`event-dispatcher-events-alias`.** `dispatch(bla,
+  false)` where `bla` is a local `const bla = 'bye'` — official statically resolves
+  the dispatched event name through the `const` binding to add `'bye'` to the
+  `events:` reflection; rsvelte only recognizes a string literal passed directly as
+  `dispatch()`'s first argument, not one flowing through a traced local constant.
+  (`-alias` is the same gap through an aliased `import { createEventDispatcher as
+  foo }`.)
+
+- **`ts-event-dispatchers`**, **`ts-event-dispatchers-same-event`.** Multiple
+  `createEventDispatcher<T>()` calls in one component (`dispatch1`/`dispatch2`/
+  `dispatch3`, each with its own generic event-type parameter) — official unions
+  every one via a separate `...__sveltets_2_toEventTypings<T>()` spread per
+  dispatcher; rsvelte only emits one. A distinct, self-contained event-typing
+  feature gap, unrelated to #2145.

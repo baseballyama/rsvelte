@@ -153,16 +153,14 @@ fn interpolated_slot_attribute_keeps_lets_on_the_default_slot_block() {
 // --- `let:` scope resolution (official `getSlotName`'s `value[0].raw`) ---
 
 /// The laxer of the two `slot=` rules: the JSX block above stays on the default
-/// slot, yet the same child's `let:x` is typed against slot `a`. (Official spells
-/// the index with single quotes here; that quoting difference is tracked apart
-/// from this rule.)
+/// slot, yet the same child's `let:x` is typed against slot `a`.
 #[test]
 fn let_bindings_of_an_interpolated_slot_child_resolve_against_the_first_part() {
     let code = tsx(
         "<script>import Comp from './C.svelte'; let b='x';</script>\n<Comp><div slot=\"a{b}c\" let:x><slot name=\"s\" p={x} /></div></Comp>",
     );
     assert!(
-        code.contains("p:__sveltets_2_instanceOf(Comp).$$slot_def[\"a\"].x"),
+        code.contains("p:__sveltets_2_instanceOf(Comp).$$slot_def['a'].x"),
         "{code}"
     );
 }

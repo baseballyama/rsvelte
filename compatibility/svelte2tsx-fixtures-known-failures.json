@@ -1,7 +1,16 @@
 [
 	"attributes-foreign-ns",
+	"component-slot-$$slot-interface",
+	"component-slot-$$slot-type",
+	"component-slot-inside-await",
+	"component-slot-let-forward",
+	"component-slot-object-key",
+	"event-dispatcher-events",
+	"event-dispatcher-events-alias",
 	"module-snippet-component-instance-reference.v5",
 	"ts-await-generics.v5",
+	"ts-event-dispatchers",
+	"ts-event-dispatchers-same-event",
 	"ts-runes-hoistable-props-false-6.v5",
 	"ts-type-assertion"
 ]

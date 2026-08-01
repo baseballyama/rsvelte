@@ -447,7 +447,7 @@ fn collect_info_from_node<'a>(
 ///
 /// For a `let:x` directive associated with component `<C>`'s slot `slot_name`,
 /// any later reference to the bound name inside the slotted content resolves to
-/// `__sveltets_2_instanceOf(C).$$slot_def["<slot>"].x` instead of the bare name.
+/// `__sveltets_2_instanceOf(C).$$slot_def['<slot>'].x` instead of the bare name.
 /// Mirrors official `SlotHandler.resolveLet` / `getResolveExpressionStrForLet`.
 /// Returns how many entries were pushed (to pop afterwards).
 fn push_let_reflection_scope(
@@ -467,7 +467,7 @@ fn push_let_reflection_scope(
             .and_then(|e| expression_simple_identifier(e, source))
             .unwrap_or_else(|| ld.name.to_string());
         let value = format!(
-            "__sveltets_2_instanceOf({}).$$slot_def[\"{}\"].{}",
+            "__sveltets_2_instanceOf({}).$$slot_def['{}'].{}",
             component, slot_name, ld.name
         );
         scope.push((binding, value));
