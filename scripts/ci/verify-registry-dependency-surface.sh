@@ -14,7 +14,12 @@ copy_library_crate() {
   local target="$temp_root/crates/$crate"
 
   mkdir -p "$target"
-  cp "$source/Cargo.toml" "$source/README.md" "$source/LICENSE" "$target/"
+  cp "$source/Cargo.toml" "$target/"
+  for doc in README.md LICENSE; do
+    if [[ -f "$source/$doc" ]]; then
+      cp "$source/$doc" "$target/"
+    fi
+  done
   cp -R "$source/src" "$target/src"
   if [[ -f "$source/build.rs" ]]; then
     cp "$source/build.rs" "$target/build.rs"
@@ -25,6 +30,9 @@ copy_library_crate() {
 }
 
 copy_library_crate rsvelte_esrap
+# Not published (dev-dependency of rsvelte_core's test suite), but its manifest
+# must exist for cargo to load the workspace members that name it.
+copy_library_crate rsvelte_ast_equiv
 copy_library_crate rsvelte_core
 copy_library_crate rsvelte_projection
 copy_library_crate rsvelte
@@ -34,6 +42,7 @@ cat >"$temp_root/Cargo.toml" <<'EOF'
 resolver = "3"
 members = [
   "crates/rsvelte",
+  "crates/rsvelte_ast_equiv",
   "crates/rsvelte_core",
   "crates/rsvelte_esrap",
   "crates/rsvelte_projection",
