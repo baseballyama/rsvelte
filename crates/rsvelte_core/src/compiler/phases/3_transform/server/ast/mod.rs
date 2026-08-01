@@ -213,6 +213,17 @@ pub struct ServerTransformState<'a> {
     pub current_scope_index: usize,
 }
 
+/// The render position saved by [`ServerTransformState::enter_template_scope`],
+/// handed back to [`ServerTransformState::restore_scope`] on the way out.
+pub struct SavedScope {
+    /// The scope index in effect before the entered fragment.
+    scope: usize,
+    /// The entered scope, when the node owned one (`None` = nothing changed).
+    entered: Option<usize>,
+    /// `constant_vars` entries the entered scope redeclared, to put back.
+    shadowed_constants: Vec<(String, String)>,
+}
+
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
 /// `state.async_consts` (`DeclarationTag.js`). `name` is the `$$renderer.run`
 /// result variable (`promises`); `thunks` are the (source, has_await) thunk
@@ -289,31 +300,104 @@ impl<'a> ServerTransformState<'a> {
     }
 
     /// Enter the scope the scope-builder created for the fragment children of
-    /// the template node starting at `node_start`, returning the previous scope
-    /// index to hand back to [`Self::restore_scope`]. Nodes that own no scope
-    /// (or whose scope was not recorded) leave the current one in place, exactly
-    /// like upstream's `set_scope` (`scopes.get(node) ?? state.scope`).
-    pub fn enter_template_scope(&mut self, node_start: u32) -> usize {
-        let saved = self.current_scope_index;
-        if let Some(&idx) = self.analysis.root.template_scope_map.get(&node_start) {
-            self.current_scope_index = idx;
+    /// the template node starting at `node_start`, returning the state to hand
+    /// back to [`Self::restore_scope`]. Nodes that own no scope (or whose scope
+    /// was not recorded) leave the current one in place, exactly like upstream's
+    /// `set_scope` (`scopes.get(node) ?? state.scope`).
+    pub fn enter_template_scope(&mut self, node_start: u32) -> SavedScope {
+        match self
+            .analysis
+            .root
+            .template_scope_map
+            .get(&node_start)
+            .copied()
+        {
+            Some(idx) => self.enter_scope(idx),
+            None => SavedScope {
+                scope: self.current_scope_index,
+                entered: None,
+                shadowed_constants: Vec::new(),
+            },
         }
-        saved
     }
 
     /// Enter an `{#if}`'s `{:else}` scope (an if-block owns two fragment scopes,
     /// so its alternate lives in its own map under the block's start).
-    pub fn enter_if_alternate_scope(&mut self, node_start: u32) -> usize {
-        let saved = self.current_scope_index;
-        if let Some(&idx) = self.analysis.root.if_alternate_scope_map.get(&node_start) {
-            self.current_scope_index = idx;
+    pub fn enter_if_alternate_scope(&mut self, node_start: u32) -> SavedScope {
+        match self
+            .analysis
+            .root
+            .if_alternate_scope_map
+            .get(&node_start)
+            .copied()
+        {
+            Some(idx) => self.enter_scope(idx),
+            None => SavedScope {
+                scope: self.current_scope_index,
+                entered: None,
+                shadowed_constants: Vec::new(),
+            },
         }
-        saved
     }
 
-    /// Restore the scope saved by [`Self::enter_template_scope`].
-    pub fn restore_scope(&mut self, saved: usize) {
-        self.current_scope_index = saved;
+    /// Swap the render position to `idx` and hide every script-level
+    /// `constant_vars` entry the entered scope redeclares with a `{@const}` /
+    /// `{const}` — `constant_vars` is keyed by NAME alone, so a
+    /// `{@const doubled = …}` shadowing an instance `$derived doubled` would
+    /// otherwise keep folding template reads to the outer binding's value.
+    fn enter_scope(&mut self, idx: usize) -> SavedScope {
+        let scope = self.current_scope_index;
+        self.current_scope_index = idx;
+        let mut shadowed_constants = Vec::new();
+        if !self.eval_inputs.constant_vars.is_empty() {
+            for name in self.const_declaration_names(idx) {
+                if let Some(value) = self.eval_inputs.constant_vars.remove(name) {
+                    shadowed_constants.push((name.to_string(), value));
+                }
+            }
+        }
+        SavedScope {
+            scope,
+            entered: Some(idx),
+            shadowed_constants,
+        }
+    }
+
+    /// Restore the scope saved by [`Self::enter_template_scope`], dropping the
+    /// folds the exited scope registered and putting the hidden outer ones back.
+    pub fn restore_scope(&mut self, saved: SavedScope) {
+        self.current_scope_index = saved.scope;
+        if let Some(idx) = saved.entered {
+            for name in self.const_declaration_names(idx) {
+                self.eval_inputs.constant_vars.remove(name);
+            }
+        }
+        for (name, value) in saved.shadowed_constants {
+            self.eval_inputs.constant_vars.insert(name, value);
+        }
+    }
+
+    /// The names scope `idx` declares through a template `{@const}` / `{const}`
+    /// (`BindingKind::Template`). Slot `let:` / each-item / snippet parameters
+    /// are deliberately excluded: rsvelte's scope tree is coarser than
+    /// upstream's for those (one component scope covers every slot body), and
+    /// their fold veto already lives in `slot_let_shadows` / `shadowed_names`.
+    fn const_declaration_names(&self, idx: usize) -> Vec<&'a str> {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        let root = &self.analysis.root;
+        let Some(declared) = root.all_scopes.get(idx) else {
+            return Vec::new();
+        };
+        declared
+            .declarations
+            .iter()
+            .filter(|&(_, &binding)| {
+                root.bindings
+                    .get(binding)
+                    .is_some_and(|b| matches!(b.kind, BindingKind::Template))
+            })
+            .map(|(name, _)| name.as_str())
+            .collect()
     }
 
     /// Collect all the names currently shadowed by enclosing snippet / slot
@@ -492,7 +576,7 @@ impl<'a> ServerTransformState<'a> {
             &mut out,
             self.b,
             self.analysis,
-            self.analysis.root.instance_scope_index,
+            self.current_scope_index,
             self.collect_shadowed(),
             self.local_derived_names.clone(),
         );
@@ -508,15 +592,17 @@ impl<'a> ServerTransformState<'a> {
     }
 
     /// Run the read-wrapping pass over an already-built oxc expression in place,
-    /// resolving names against the instance scope. Mirrors `context.visit(...)`'s
-    /// read-rewriting for callers (e.g. `RenderTag`) that decompose a template
-    /// expression by source-slice + re-parse rather than `visit_expr`.
+    /// resolving names against the RENDER POSITION's scope chain (upstream
+    /// `context.state.scope`), so a `{@const}` shadowing an instance `$derived`
+    /// keeps its reads bare. Mirrors `context.visit(...)`'s read-rewriting for
+    /// callers (e.g. `RenderTag`) that decompose a template expression by
+    /// source-slice + re-parse rather than `visit_expr`.
     pub fn wrap_reads_in_place(&self, expr: &mut OxcExpression<'a>) {
         read_wrap::wrap_reads_with_shadows_and_local_derived(
             expr,
             self.b,
             self.analysis,
-            self.analysis.root.instance_scope_index,
+            self.current_scope_index,
             self.collect_shadowed(),
             self.local_derived_names.clone(),
         );
