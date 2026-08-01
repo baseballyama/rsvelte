@@ -9,6 +9,7 @@ pub(crate) use super::shared::ast_rewrite;
 use std::fmt::Write as _;
 mod ast;
 mod ast_state_transform;
+mod await_reactivity_loss_ast;
 mod class_body_ast;
 mod class_transforms;
 mod console_dev_ast;
@@ -4155,19 +4156,20 @@ pub(crate) fn transform_module_script_runes(
 
     // Lower the module script's `$effect` runes and, in dev mode, its
     // `===`/`!==` → `$.strict_equals(...)`, `console.METHOD(...)` →
-    // `...$.log_if_contains_state(...)` wraps, and `$.state`/`$.derived`/
-    // `$.proxy` declarator `$.tag(...)` wraps — all in a single batched
+    // `...$.log_if_contains_state(...)` wraps, `$.state`/`$.derived`/
+    // `$.proxy` declarator `$.tag(...)` wraps, and `await X` →
+    // `(await $.track_reactivity_loss(X))()` — all in a single batched
     // parse. These passes target lexically disjoint syntax (call callees /
-    // binary operators / console calls / declarator inits), so one parse
-    // feeds every collector instead of re-parsing the whole module script
-    // per pass. The AST visitors descend only into expression positions,
-    // so — unlike the text predecessors — none can be tripped by the same
-    // bytes inside a string / template / regex literal. `dev` gates the
-    // three dev-only collectors exactly as the sequential call sites did.
+    // binary operators / console calls / declarator inits / awaits), so one
+    // parse feeds every collector instead of re-parsing the whole module
+    // script per pass. The AST visitors descend only into expression
+    // positions, so — unlike the text predecessors — none can be tripped by
+    // the same bytes inside a string / template / regex literal. `dev` gates
+    // the dev-only collectors exactly as the sequential call sites did.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
         if let Some(rewritten) =
-            module_dev_tail_ast::transform_module_dev_tail_ast(&result, dev, is_ts)
+            module_dev_tail_ast::transform_module_dev_tail_ast(&result, dev, is_ts, analysis.runes)
         {
             result = rewritten;
         }

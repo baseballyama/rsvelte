@@ -18,116 +18,13 @@
 use std::cell::RefCell;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::*;
-use oxc_ast_visit::Visit;
-use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
-use oxc_span::GetSpan;
 use oxc_span::SourceType;
 
-use super::ast_rewrite::{self, Edit};
+use super::ast_rewrite;
 
 thread_local! {
     static INSTANCE_DEV_TAIL_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
-}
-
-/// Cheap byte probe: `await` is a keyword, so a script without those bytes
-/// cannot hold an `AwaitExpression`.
-fn source_has_await(source: &str) -> bool {
-    memchr::memmem::find(source.as_bytes(), b"await").is_some()
-}
-
-/// The dev wrapper upstream builds in `visitors/AwaitExpression.js`.
-fn track_reactivity_loss_wrap(argument_text: &str) -> String {
-    format!("(await $.track_reactivity_loss({argument_text}))()")
-}
-
-/// The wrapper keeps an `await` of its own, so the fixed-point loop would wrap
-/// it again on the next iteration; recognising the marker is what makes this
-/// pass idempotent.
-fn is_track_reactivity_loss_call(expr: &Expression<'_>) -> bool {
-    let Expression::CallExpression(call) = expr.without_parentheses() else {
-        return false;
-    };
-    let Expression::StaticMemberExpression(member) = &call.callee else {
-        return false;
-    };
-    member.property.name == "track_reactivity_loss"
-        && matches!(&member.object, Expression::Identifier(id) if id.name == "$")
-}
-
-/// True when the statement enclosing `offset` is preceded by a `svelte-ignore`
-/// comment naming `await_reactivity_loss`. Upstream reads this off the
-/// analysis-phase ignore stack; these passes rewrite source spans, so they read
-/// the same comment back out of the script text.
-pub(super) fn await_reactivity_loss_ignored(source: &str, offset: u32, is_runes: bool) -> bool {
-    // Start from the top of the await's own line: the statement text to its
-    // left is not a comment and would end the scan immediately.
-    let offset = source[..offset as usize].rfind('\n').map_or(0, |nl| nl + 1);
-    let before = &source[..offset];
-    for line in before.lines().rev() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        let Some(comment) = line
-            .strip_prefix("//")
-            .or_else(|| line.strip_prefix("/*").map(|c| c.trim_end_matches("*/")))
-        else {
-            // The first non-comment line above is the start of the
-            // statement itself; anything earlier cannot annotate it.
-            return false;
-        };
-        // A run of comments can carry several `svelte-ignore` lines, so keep
-        // looking when this one names other codes.
-        if crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(comment, is_runes)
-            .iter()
-            .any(|c| c == "await_reactivity_loss")
-        {
-            return true;
-        }
-    }
-    false
-}
-
-/// Collect the `await X` → `(await $.track_reactivity_loss(X))()` edits from a
-/// single parse. Nested awaits settle across fixed-point iterations: the outer
-/// edit's span strictly contains the inner one, so the innermost-first splice
-/// defers it and the next iteration re-collects it over the rewritten argument.
-fn collect_await_reactivity_loss_edits(program: &Program<'_>, source: &str) -> Vec<Edit> {
-    let mut collector = AwaitCollector {
-        source,
-        edits: Vec::new(),
-    };
-    collector.visit_program(program);
-    collector.edits
-}
-
-struct AwaitCollector<'src> {
-    source: &'src str,
-    edits: Vec<Edit>,
-}
-
-impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
-    fn visit_await_expression(&mut self, expr: &AwaitExpression<'a>) {
-        walk::walk_await_expression(self, expr);
-
-        // `false`: this collector only ever runs over a legacy script, where
-        // `extract_svelte_ignore` also accepts the hyphenated code spellings.
-        if is_track_reactivity_loss_call(&expr.argument)
-            || await_reactivity_loss_ignored(self.source, expr.span.start, false)
-        {
-            return;
-        }
-
-        let arg_span = expr.argument.span();
-        let arg_text = self.source[arg_span.start as usize..arg_span.end as usize].trim();
-        self.edits.push((
-            expr.span.start,
-            expr.span.end,
-            track_reactivity_loss_wrap(arg_text),
-        ));
-    }
 }
 
 /// Instrument a settled **legacy** instance script for dev mode. Returns `None`
@@ -139,7 +36,7 @@ pub(super) fn transform_legacy_instance_dev_tail_ast(source: &str) -> Option<Str
     // introduces the other's marker, so probing the original source stays sound
     // across fixed-point iterations.
     let has_equality = super::strict_equals_ast::source_has_equality_op(source);
-    let has_await = source_has_await(source);
+    let has_await = super::await_reactivity_loss_ast::source_has_await(source);
     if !has_equality && !has_await {
         return None;
     }
@@ -157,7 +54,14 @@ pub(super) fn transform_legacy_instance_dev_tail_ast(source: &str) -> Option<Str
                 ));
             }
             if has_await {
-                edits.extend(collect_await_reactivity_loss_edits(program, src));
+                // `false`: this entry point only ever runs over a legacy
+                // script, where `extract_svelte_ignore` also accepts the
+                // hyphenated code spellings.
+                edits.extend(
+                    super::await_reactivity_loss_ast::collect_await_reactivity_loss_edits(
+                        program, src, false,
+                    ),
+                );
             }
             edits
         },

@@ -1997,7 +1997,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     }
 
     fn is_await_reactivity_loss_ignored(&self, offset: u32) -> bool {
-        super::instance_dev_tail_ast::await_reactivity_loss_ignored(
+        super::await_reactivity_loss_ast::await_reactivity_loss_ignored(
             self.source,
             offset,
             self.is_runes,
