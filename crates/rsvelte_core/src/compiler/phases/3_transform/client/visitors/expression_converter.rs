@@ -945,8 +945,14 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             if left_is_pattern {
                 let left_val = left_node.to_value();
                 let right_val = right_node.to_value();
+                // Not standalone: any assignment reached through this generic,
+                // recursive `JsNode::AssignmentExpression` arm is, by
+                // construction, not the direct `expression` child of an
+                // `ExpressionStatement` — that case is intercepted earlier by
+                // `convert_expression_statement_child_typed`, which passes
+                // `true`. See that function for why this can't be ambient state.
                 if let Some(result) =
-                    try_destructure_assignment(&left_val, Some(&right_val), context)
+                    try_destructure_assignment(&left_val, Some(&right_val), context, false)
                 {
                     return result;
                 }
@@ -3637,6 +3643,36 @@ fn push_own_line_comment_raws(
     }
 }
 
+/// Convert the direct `expression` child of an `ExpressionStatement`.
+///
+/// This is the only place that can tell a destructuring assignment it IS the
+/// whole statement — matching upstream's `context.path.at(-1).type.endsWith
+/// ('Statement')` — because `try_destructure_assignment` otherwise has no way
+/// to distinguish `({ a } = item);` (standalone) from `out = ({ a } = item);`
+/// (the destructure is nested inside the outer assignment's right-hand side,
+/// so it is NOT standalone even though the outer assignment is). Passing
+/// `is_standalone` as a plain argument — rather than ambient state on
+/// `ComponentContext` — means it can never leak into an unrelated nested
+/// conversion the way a "set before, take on use" flag could (e.g. through a
+/// non-destructuring outer assignment's right-hand side).
+fn convert_expression_statement_child(expr_json: &Value, context: &mut ComponentContext) -> JsExpr {
+    if let Some(obj) = expr_json.as_object()
+        && obj.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
+        && let Some(left_val) = obj.get("left")
+        && matches!(
+            left_val
+                .as_object()
+                .and_then(|o| o.get("type"))
+                .and_then(|t| t.as_str()),
+            Some("ArrayPattern" | "ObjectPattern" | "RestElement")
+        )
+        && let Some(result) = try_destructure_assignment(left_val, obj.get("right"), context, true)
+    {
+        return result;
+    }
+    convert_json_value(expr_json, context)
+}
+
 /// Convert a statement node to JsStatement.
 fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsStatement> {
     let obj = stmt.as_object()?;
@@ -3646,7 +3682,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         "ExpressionStatement" => {
             let expr = obj
                 .get("expression")
-                .map(|e| convert_json_value(e, context))?;
+                .map(|e| convert_expression_statement_child(e, context))?;
             Some(JsStatement::Expression(JsExpressionStatement {
                 expression: context.arena.alloc_expr(expr),
             }))
@@ -4194,8 +4230,15 @@ fn convert_assignment_expression(
             .and_then(|t| t.as_str())
             .unwrap_or("");
 
+        // Not standalone: reached only through the generic, recursive dispatch
+        // (`"AssignmentExpression" => convert_assignment_expression(...)`), never
+        // as the direct `expression` child of an `ExpressionStatement` — that
+        // case is intercepted earlier by `convert_expression_statement_child`,
+        // which passes `true`. See that function for why this can't be ambient
+        // state.
         if matches!(left_type, "ArrayPattern" | "ObjectPattern" | "RestElement")
-            && let Some(result) = try_destructure_assignment(left_val, obj.get("right"), context)
+            && let Some(result) =
+                try_destructure_assignment(left_val, obj.get("right"), context, false)
         {
             return result;
         }
@@ -4965,15 +5008,40 @@ struct ArrayInsert {
 ///
 /// This corresponds to `visit_assignment_expression` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/shared/assignments.js`.
+///
+/// `is_standalone` mirrors upstream's `context.path.at(-1).type.endsWith
+/// ('Statement')`: `true` only when this assignment IS the whole
+/// `ExpressionStatement` (`({ a } = item);` alone in an event handler body),
+/// `false` whenever it's reached recursively as a sub-expression (an operand,
+/// a call argument, the right-hand side of an outer assignment such as
+/// `out = ({ a } = item)`, …). Callers pass this explicitly — see
+/// `convert_expression_statement_child` (and its typed-`JsNode` counterpart)
+/// for the one call site that passes `true`.
 fn try_destructure_assignment(
     left_json: &Value,
     right_json: Option<&Value>,
     context: &mut ComponentContext,
+    is_standalone: bool,
 ) -> Option<JsExpr> {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
-    // Convert the RHS expression
+    // Convert the RHS expression, then visit it the way upstream's
+    // `context.visit(node.right)` does: reactive reads (state, each-item,
+    // props, stores, …) only become `$.get(...)`-style calls in a later pass
+    // (`apply_transforms_to_expression`), not during this structural
+    // conversion. `should_cache` must be decided from that *visited* form —
+    // upstream's `should_cache = value.type !== 'Identifier'` inspects the
+    // visited node — otherwise an each-item RHS (`item` -> `$.get(item)`)
+    // looks like a plain identifier here and the destructure wrongly skips
+    // caching (baseballyama/rsvelte#2177).
+    //
+    // Applying the transform twice (once here, once when the caller walks
+    // the whole produced tree) is safe: `$.get`/`$.mutate`/… are classified
+    // as "SetLike" callees whose first argument is left untouched on a
+    // second pass, so re-visiting an already-wrapped call is a no-op.
     let rhs_converted = right_json.map(|r| convert_json_value(r, context))?;
+    let rhs_converted = apply_transforms_to_expression(&rhs_converted, context);
 
     // Determine if we need a cache variable ($$value)
     let should_cache = !matches!(&rhs_converted, JsExpr::Identifier(_));
@@ -5008,15 +5076,21 @@ fn try_destructure_assignment(
         return None;
     }
 
-    // Determine if the assignment is standalone (an ExpressionStatement)
-    // In the official compiler, this is checked via `context.path.at(-1).type.endsWith('Statement')`
-    // For our purposes, we assume it's standalone if we're in a statement position.
-    // We use a heuristic: if should_cache is true (non-identifier RHS) or has inserts,
-    // we always generate the IIFE form.
-
+    // Whether should_cache is true (non-identifier RHS) or has inserts, we always
+    // generate the IIFE form (matches upstream's `inserts.length > 0 || should_cache`).
     if !inserts.is_empty() || should_cache {
-        // Generate IIFE: (($$value) => { var $$array = ...; assignments; })(rhs)
-        // or (($$value) => { var $$array = ...; assignments; return $$value; })(rhs)
+        // Generate IIFE: ((<param>) => { var $$array = ...; assignments; })(rhs)
+        // or ((<param>) => { var $$array = ...; assignments; return <param>; })(rhs)
+        //
+        // Upstream reuses `rhs` itself as the IIFE parameter (`b.arrow([rhs], ...)`):
+        // `$$value` when should_cache is true, otherwise the RHS identifier node
+        // verbatim. `rhs_ref` is always an `Identifier` by construction (either
+        // `id("$$value")` or the already-Identifier `rhs_converted`), so its name is
+        // the parameter to use here too.
+        let param_name = match &rhs_ref {
+            JsExpr::Identifier(name) => name.clone(),
+            _ => "$$value".into(),
+        };
         let mut statements: Vec<JsStatement> = Vec::new();
 
         // Add array insert declarations
@@ -5038,15 +5112,14 @@ fn try_destructure_assignment(
             }));
         }
 
-        // The official compiler adds `return $$value` when the assignment is NOT standalone
-        // (i.e., used as part of a larger expression, not an ExpressionStatement).
-        // In the visitor-based path (template expressions), destructure assignments are
-        // always in expression context (event handlers, bind directives, etc.), so they
-        // are never standalone. We always add `return $$value;` here.
-        // Standalone cases (instance script) go through the text-based pipeline instead.
-        statements.push(JsStatement::Return(JsReturnStatement {
-            argument: Some(context.arena.alloc_expr(b::id("$$value"))),
-        }));
+        // The official compiler adds `return <param>` only when the assignment is
+        // NOT standalone (i.e. used as part of a larger expression, not the whole
+        // ExpressionStatement) — see `is_standalone` above.
+        if !is_standalone {
+            statements.push(JsStatement::Return(JsReturnStatement {
+                argument: Some(context.arena.alloc_expr(b::id(param_name.clone()))),
+            }));
+        }
 
         // Detect async: matches official `is_expression_async` (assignments.js:68-70).
         // If RHS or any assignment contains a non-nested `await`, the IIFE arrow must
@@ -5057,9 +5130,9 @@ fn try_destructure_assignment(
                 .any(|a| b::js_expr_has_await(&context.arena, a));
 
         let arrow = if is_async {
-            b::async_arrow_block(vec![JsPattern::Identifier("$$value".into())], statements)
+            b::async_arrow_block(vec![JsPattern::Identifier(param_name.clone())], statements)
         } else {
-            b::arrow_block(vec![JsPattern::Identifier("$$value".into())], statements)
+            b::arrow_block(vec![JsPattern::Identifier(param_name)], statements)
         };
         let call = b::call(&context.arena, arrow, vec![rhs_converted]);
         return Some(if is_async {
@@ -5070,7 +5143,18 @@ fn try_destructure_assignment(
     }
 
     // No inserts and no cache needed: generate sequence expression
-    // (assignment1, assignment2, ...)
+    // (assignment1, assignment2, ..., [rhs])
+    //
+    // Upstream ends the sequence with `rhs` when the assignment is NOT
+    // standalone, so the expression still evaluates to the destructured
+    // value (e.g. `out = ({ a } = plainVar)` needs `plainVar` as the
+    // sequence's last element). `rhs_ref` is `rhs_converted` here (should_cache
+    // is false in this branch), i.e. the same identifier already read by every
+    // `assignments` entry.
+    if !is_standalone {
+        assignments.push(rhs_ref);
+    }
+
     if assignments.len() == 1 {
         return Some(assignments.into_iter().next().unwrap());
     }
@@ -5757,6 +5841,34 @@ fn register_block_decl_names_jsnode(
     }
 }
 
+/// Typed-`JsNode` counterpart of `convert_expression_statement_child` — see
+/// that function for why `is_standalone` is threaded as a plain argument
+/// through `try_destructure_assignment` rather than ambient context state.
+fn convert_expression_statement_child_typed(
+    node: &JsNode,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    if let JsNode::AssignmentExpression { left, right, .. } = node {
+        let pa = context.state.parse_arena as *const ParseArena;
+        // SAFETY: see `convert_statement_from_jsnode` below — same reborrow.
+        let pa: &ParseArena = unsafe { &*pa };
+        let left_node = pa.get_js_node(*left);
+        if matches!(
+            left_node,
+            JsNode::ArrayPattern { .. } | JsNode::ObjectPattern { .. } | JsNode::RestElement { .. }
+        ) {
+            let left_val = left_node.to_value();
+            let right_val = pa.get_js_node(*right).to_value();
+            if let Some(result) =
+                try_destructure_assignment(&left_val, Some(&right_val), context, true)
+            {
+                return result;
+            }
+        }
+    }
+    convert_js_node(node, context)
+}
+
 /// Convert a single statement from a JsNode.
 /// Handles common statement types directly; falls back to JSON for uncommon ones.
 fn convert_statement_from_jsnode(
@@ -5770,7 +5882,8 @@ fn convert_statement_from_jsnode(
     let pa: &ParseArena = unsafe { &*pa };
     match node {
         JsNode::ExpressionStatement { expression, .. } => {
-            let expr = convert_js_node(pa.get_js_node(*expression), context);
+            let expr =
+                convert_expression_statement_child_typed(pa.get_js_node(*expression), context);
             Some(JsStatement::Expression(JsExpressionStatement {
                 expression: context.arena.alloc_expr(expr),
             }))

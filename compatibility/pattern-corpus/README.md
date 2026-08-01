@@ -66,6 +66,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2138-legacy-assignment-destructure-rest.svelte` | [#2138](https://github.com/baseballyama/rsvelte/issues/2138) | A legacy destructuring **assignment** with quoted / computed keys and a rest — bracket member reads, an `$.exclude_from_object` key list built like `b.literal(...)`, and no `$$value` IIFE for an identifier right-hand side |
 | `2141-snippet-shadow-is-function.svelte` | [#2141](https://github.com/baseballyama/rsvelte/issues/2141) | A block-local `{#snippet}` shadowing a same-named outer `function` still reads as reactive (`is_function()` must resolve to the snippet, not the outer function) |
 | `2162-single-target-destructure-paren.svelte` | [#2162](https://github.com/baseballyama/rsvelte/issues/2162) | A single-target destructuring **assignment** (`({ a } = obj)`, no rest) keeps its wrapping parens — upstream always lowers through a `SequenceExpression`, even with one element, and esrap always self-parenthesizes one |
+| `2177-each-item-destructure-cache.svelte` | [#2177](https://github.com/baseballyama/rsvelte/issues/2177) | A legacy destructuring **assignment** inside a template expression (event handler) whose right-hand side is an each-block item — `should_cache` must be decided from the *visited* RHS (`item` → `$.get(item)`), so it caches into a `$$value` IIFE like upstream instead of staying an uncached sequence / re-reading the item |
 
 ## `matrix/` — the axes around those repros
 
