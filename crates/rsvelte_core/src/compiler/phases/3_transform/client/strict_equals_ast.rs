@@ -65,6 +65,21 @@ fn contains_equality_expr<'a>(expr: &Expression<'a>) -> bool {
     finder.found
 }
 
+/// Source text of an operand as it should appear in the helper call's argument
+/// list. Official visits the operand and lets esrap reprint it, so parentheses
+/// written in the source never survive; a sequence expression is the only shape
+/// that needs them back, because a bare comma would split the argument list.
+fn operand_text(source: &str, expr: &Expression<'_>) -> String {
+    let inner = expr.without_parentheses();
+    let span = inner.span();
+    let text = source[span.start as usize..span.end as usize].trim();
+    if matches!(inner, Expression::SequenceExpression(_)) {
+        format!("({text})")
+    } else {
+        text.to_string()
+    }
+}
+
 /// Collect leaf equality rewrites (those whose operands don't themselves
 /// contain an equality operator) from a single parse. Nested cases resolve
 /// across fixed-point iterations — the batched module dev-tail driver drives
@@ -104,16 +119,11 @@ impl<'a, 'src> Visit<'a> for StrictEqualsCollector<'src> {
             return;
         }
 
-        let left_span = expr.left.span();
-        let right_span = expr.right.span();
-        let left_text = &self.source[left_span.start as usize..left_span.end as usize];
-        let right_text = &self.source[right_span.start as usize..right_span.end as usize];
-
         let rewrite = format!(
             "{}({}, {}{})",
             helper,
-            left_text.trim(),
-            right_text.trim(),
+            operand_text(self.source, &expr.left),
+            operand_text(self.source, &expr.right),
             if negated { ", false" } else { "" }
         );
 
@@ -244,7 +254,7 @@ mod tests {
         // Outer wraps the two inner rewrites
         assert_eq!(
             out,
-            "$.strict_equals(($.strict_equals(a, b)), ($.strict_equals(c, d)))"
+            "$.strict_equals($.strict_equals(a, b), $.strict_equals(c, d))"
         );
     }
 
@@ -252,13 +262,36 @@ mod tests {
     fn nested_mixed_equality_both_rewritten() {
         let src = "(a === b) != (c == d)";
         let out = transform_strict_equals_module_ast(src, false).unwrap();
-        // Known divergence: replacements copy operand text, so the source's
-        // parens survive. The official compiler reprints from the AST and emits
-        // `$.equals($.strict_equals(a, b), $.equals(c, d), false)`.
         assert_eq!(
             out,
-            "$.equals(($.strict_equals(a, b)), ($.equals(c, d)), false)"
+            "$.equals($.strict_equals(a, b), $.equals(c, d), false)"
         );
+    }
+
+    #[test]
+    fn operand_parens_are_dropped() {
+        // Official reprints the operand from the AST, so source parens vanish.
+        for (src, expected) in [
+            ("((a)) === b", "$.strict_equals(a, b)"),
+            ("(a + b) === (c * d)", "$.strict_equals(a + b, c * d)"),
+            ("(a = b) === c", "$.strict_equals(a = b, c)"),
+            ("(a ? b : c) === d", "$.strict_equals(a ? b : c, d)"),
+            ("(() => 1) === z", "$.strict_equals(() => 1, z)"),
+            ("({ a: 1 }) === z", "$.strict_equals({ a: 1 }, z)"),
+        ] {
+            let out = transform_strict_equals_module_ast(src, false).unwrap();
+            assert_eq!(out, expected, "source: {src}");
+        }
+    }
+
+    #[test]
+    fn sequence_operand_keeps_one_pair_of_parens() {
+        // A bare comma would split the helper's argument list.
+        let out = transform_strict_equals_module_ast("(a, b) === c", false).unwrap();
+        assert_eq!(out, "$.strict_equals((a, b), c)");
+
+        let out = transform_strict_equals_module_ast("a === ((b, c))", false).unwrap();
+        assert_eq!(out, "$.strict_equals(a, (b, c))");
     }
 
     #[test]
