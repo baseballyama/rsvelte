@@ -125,6 +125,15 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
   | `kit-hooks-satisfies-ts` | `satisfies` / explicit annotation / `sequence()` | green — nothing should be augmented; guards the #1886 fix against over-augmenting |
   | `kit-hooks-js` | plain JS under `checkJs`, function + arrow | green — arrow/function-expression forms fixed by #1892, plain `export function` form fixed by anchoring its JSDoc `@type` tag at the exported statement's start instead of the `function` keyword (TypeScript ignores the tag otherwise) |
   | `kit-routes-js` | `+page.js` `load`/`entries`, `+server.js` method handlers, `params/*.js` `match` under `checkJs` | green — regression guard for the same anchor bug across the other JSDoc-emitting paths in `kit_file.rs` |
+- **`kit-jsdoc-longtail-js`** — #2108, the two `kit_file.rs` long-tail divergences
+  that are observable as diagnostics. A `@type` sharing one line with `@typedef`:
+  TypeScript's JSDoc scanner delimits tags at any `@` following whitespace, so
+  several tags may share a line and official suppresses the augmentation where a
+  line-at-a-time reader injects one. And a rest parameter: it counts towards
+  official's `parameters.length` check, but oxc keeps it out of
+  `FormalParameters::items`, so `entries(...args)` used to be augmented as if it
+  took none (masking official's `TS7019`) and `load = (...args) => …` used to be
+  skipped (missing official's `TS2370`).
 - **`ts-paths-non-relative`**, **`ts-companion-named-import`**,
   **`js-rune-module-without-allow-js`** — #2061, three ways the overlay used to
   answer a specifier official svelte-check refuses to:
