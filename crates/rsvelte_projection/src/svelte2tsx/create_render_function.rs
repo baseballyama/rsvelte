@@ -63,7 +63,7 @@ pub(crate) fn create_render_function(
             let module_imports =
                 find_instance_imports(module, source, module_program.expect("module script"));
             let module_hoist_target = match module_imports.last() {
-                Some(&(_, _, last_end)) => mod_content_start + last_end,
+                Some(last) => mod_content_start + last.end,
                 None => mod_content_start,
             };
             // JS reference: `str.appendLeft(snippetHoistTargetForModule, '\n')`

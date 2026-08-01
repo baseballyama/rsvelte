@@ -10,7 +10,7 @@ use super::nodes::generics::{
     extract_generics_from_script_tag, split_generic_param_names, type_text_references_any,
     type_text_typeof_references_local_value,
 };
-use super::nodes::scripts::{detect_top_level_await, find_script_close_tag_start};
+use super::nodes::scripts::{LiftedImport, detect_top_level_await, find_script_close_tag_start};
 use super::script::ExportedNames;
 use super::svelte2tsx::slice_src;
 
@@ -36,7 +36,7 @@ pub(crate) fn process_instance_script_tag(
     has_module_script: bool,
     has_slot_elements: bool,
     hoistable_snippet_ranges: &[(u32, u32)],
-    imports: &[(u32, u32, u32)],
+    imports: &[LiftedImport],
 ) -> bool {
     let instance = ast.instance.as_ref().unwrap();
     let script_start = instance.start;
@@ -122,16 +122,9 @@ pub(crate) fn process_instance_script_tag(
     };
 
     let has_imports = !imports.is_empty();
-    // Lift imports above $$render(): each import is collected individually
-    // (without leading whitespace) and inserted into the <script> tag
-    // replacement, with the original positions blanked out.
-    let import_text = if has_imports {
-        collect_lifted_imports(imports, source, content_start, str)
-    } else {
-        String::new()
-    };
     // With imports the `\n` separating the type alias from what precedes it
-    // already comes from `import_text`; without them the alias has to carry it.
+    // already comes from the last hoisted import; without them the alias has to
+    // carry it.
     let type_decl_prefix = if has_imports { "" } else { "\n" };
 
     // Build $$ComponentProps type declaration for TS files
@@ -231,28 +224,19 @@ pub(crate) fn process_instance_script_tag(
     // (not part_a) so it lands AFTER any hoisted type/interface
     // declarations — `$$ComponentProps` may reference them, so it has
     // to appear after them in the output.
-    // `import_text` provides its own leading `\n` (or absorbs it
-    // into a leading-line-comment) — see the new-line accounting
-    // above. `part_a` only carries the `;` (which replaces the `<`)
-    // plus an extra `\n` when there is also a module script (mirrors
-    // `'\n' + (hasModuleScript ? '\n' : '')` in
-    // `handleFirstInstanceImport`).
+    // The hoisted imports are relocated chunks (see `lift_imports`), so
+    // `part_a` only carries the `;` that replaces the `<` of `<script>`.
     let mut part_a = String::from(";");
-    if has_imports {
-        if has_module_script {
-            part_a.push('\n');
-        }
-        part_a.push_str(&import_text);
-    }
     // When there are hoistable snippets and a $$ComponentProps typedef to
     // emit before $$render, the typedef must appear BEFORE the snippets in
-    // the output. Because snippets are moved to `sp` (after `part_a`) and
-    // `part_b` is placed after them, we append the typedef to `part_a` so
-    // it lands between the imports and the snippets. A `\n` separator is
-    // also added to match the blank line the JS reference produces.
+    // the output (snippets are moved to `sp`, and `part_b` follows them) but
+    // AFTER the hoisted imports — which are relocated chunks, so with imports
+    // present the typedef has to ride along in the last one's outro instead of
+    // sitting in `part_a`. A `\n` separator matches the blank line the JS
+    // reference produces.
     let ts_component_props_in_part_a =
         !hoistable_snippet_ranges.is_empty() && !ts_component_props_before_render.is_empty();
-    if ts_component_props_in_part_a {
+    if ts_component_props_in_part_a && !has_imports {
         part_a.push('\n');
         part_a.push_str(&ts_component_props_before_render);
     }
@@ -291,15 +275,13 @@ pub(crate) fn process_instance_script_tag(
         trailing_newline
     );
 
-    let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
-        || !exported_names.hoistable_type_ranges.is_empty()
-        || !exported_names.dollar_generic_referenced_ranges.is_empty()
-        || exported_names.props_type_arg_hoist.is_some();
     // Split position: right after the `<` of `<script>`. This matches
     // the JS reference's `scriptTag.start + 1`, so moved chunks land
     // between the `;` (from the `<` overwrite) and the function
-    // declaration that replaces the rest of the script tag.
-    let split_pos = if has_hoistable_chunks && content_start > script_start + 1 {
+    // declaration that replaces the rest of the script tag. The JS
+    // reference always splits there (`overwrite(start, start + 1, ';')`
+    // then `overwrite(start + 1, scriptTagEnd, …)`).
+    let split_pos = if content_start > script_start + 1 {
         Some(script_start + 1)
     } else {
         None
@@ -307,6 +289,17 @@ pub(crate) fn process_instance_script_tag(
     if let Some(sp) = split_pos {
         if script_start < sp {
             str.overwrite(script_start, sp, &part_a);
+        }
+        // Imports move first: the JS reference relocates them during the
+        // instance-script walk, before the type/interface hoists, and each
+        // `move` lands before the chunk that still starts at `sp` — so the
+        // relocation order is the output order.
+        lift_imports(imports, source, content_start, sp, has_module_script, str);
+        if ts_component_props_in_part_a && let Some(last) = imports.last() {
+            str.append_left_fmt(
+                content_start + last.end,
+                format_args!("\n{}", ts_component_props_before_render),
+            );
         }
         // Move hoistable type/interface declarations first so they
         // sit BEFORE the snippets in the chunk list, matching the JS
@@ -378,17 +371,20 @@ pub(crate) fn process_instance_script_tag(
             exported_names.props_type_text.as_ref(),
         )
     {
+        // `append_right`, not `append_left`: `preprendStr` attaches to the
+        // character AT `let_pos`, so the declaration must stay behind when the
+        // import that ends there is hoisted away.
         if force_inside_render {
-            str.append_left_fmt(
+            str.append_right(
                 let_pos,
-                format_args!(";type $$ComponentProps =  {};", type_text),
+                &format!(";type $$ComponentProps =  {};", type_text),
             );
         } else {
             // type_already_inserted (auto-generated SvelteKit / fallback type).
             // JS reference wraps in surroundWithIgnoreComments.
-            str.append_left_fmt(
+            str.append_right(
                 let_pos,
-                format_args!(
+                &format!(
                     "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
                     type_text
                 ),
@@ -435,142 +431,77 @@ pub(crate) fn process_instance_script_tag(
     has_top_level_await
 }
 
-/// Collect the instance script's top-level imports into the text that will be
-/// spliced above `$$render()`, blanking each original `[leading comments .. import]`
-/// span in `str`.
-fn collect_lifted_imports(
-    imports: &[(u32, u32, u32)],
+/// Hoist the instance script's top-level imports above `$$render()` by
+/// *relocating* their source ranges — mirrors `moveNode` +
+/// `handleFirstInstanceImport`. Moving (rather than copying the text and
+/// blanking the original) is what keeps a source-map segment on every hoisted
+/// character, so a diagnostic on an import resolves back to its real line.
+fn lift_imports(
+    imports: &[LiftedImport],
     source: &str,
     content_start: u32,
+    hoist_target: u32,
+    has_module_script: bool,
     str: &mut MagicString<'_>,
-) -> String {
-    let mut import_text = String::new();
-    for (i, &(comments_start, import_start_rel, import_end)) in imports.iter().enumerate() {
-        let abs_comments_start = comments_start + content_start;
-        let abs_import_start = import_start_rel + content_start;
-        let abs_end = import_end + content_start;
+) {
+    let (Some(first), Some(last)) = (imports.first(), imports.last()) else {
+        return;
+    };
 
-        // Split into the leading comment region and the import
-        // statement itself so they can be processed independently.
-        // The JS reference (`utils/tsAst.ts::moveNode`) moves each
-        // leading comment as its own chunk and drops the trivia
-        // between them; for the first import,
-        // `handleFirstInstanceImport` inserts an extra `\n` either
-        // before a leading multiline comment or before the `import`
-        // keyword.
-        let comments_raw = slice_src(
-            source,
-            abs_comments_start as usize,
-            abs_import_start as usize,
-        );
-        let import_raw = slice_src(source, abs_import_start as usize, abs_end as usize);
+    for import in imports {
+        let start = content_start + import.start;
+        let end = content_start + import.end;
 
-        // Collect leading comment lines while preserving block-comment
-        // interior indentation verbatim.  The JS reference (`moveNode`)
-        // uses `str.move()` which copies source text byte-for-byte, so
-        // `/* … */` inner lines must retain their original leading spaces.
-        // Only the opener line (`/*...`) is fully trimmed (leading indent
-        // is dropped; trailing spaces after `/*` are stripped); all other
-        // block-comment lines are preserved as-is.  Lines that are purely
-        // whitespace outside a block comment are filtered out.
-        let comment_lines: Vec<String> = {
-            let mut lines: Vec<String> = Vec::new();
-            let mut in_block = false;
-            for line in comments_raw.lines() {
-                if in_block {
-                    // Preserve interior indentation verbatim.
-                    if line.contains("*/") {
-                        in_block = false;
-                    }
-                    lines.push(line.to_string());
-                } else {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue; // skip whitespace-only lines
-                    }
-                    if trimmed.starts_with("/*") {
-                        // Block-comment opener: trim fully so the
-                        // leading indent and any trailing spaces after
-                        // `/*` are dropped (e.g. `  /*  ` → `/*`).
-                        in_block = !trimmed.contains("*/");
-                        lines.push(trimmed.to_string());
-                    } else {
-                        // Line comment (`//`) or other: fully trim.
-                        lines.push(trimmed.to_string());
-                    }
-                }
-            }
-            lines
-        };
-
-        // Was the last comment on the same line as the `import`
-        // keyword? True when `comments_raw`'s final line is not
-        // whitespace-only — e.g. `/*hi*/import X` keeps the comment
-        // and the import on a single line.
-        let last_comment_inline = !comments_raw.is_empty()
-            && comments_raw
-                .lines()
-                .last()
-                .is_some_and(|l| !l.trim().is_empty());
-
-        let import_text_clean: String = import_raw
-            .lines()
-            .map(|line| line.trim_start())
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        // Preserve gap when this import is part of a separate group
-        // (a blank line in the source between this import and the
-        // previous one).
-        if i > 0 {
-            let prev_end = imports[i - 1].2 + content_start;
-            let between = slice_src(source, prev_end as usize, abs_comments_start as usize);
-            let newline_count = between.chars().filter(|&c| c == '\n').count();
-            if newline_count >= 2 {
-                import_text.push('\n');
+        if import.new_group
+            && !import
+                .comments
+                .iter()
+                .any(|comment| comment.has_trailing_newline)
+        {
+            str.append_right(start, "\n");
+        }
+        for comment in &import.comments {
+            let comment_end = content_start + comment.end;
+            str.move_range(content_start + comment.start, comment_end, hoist_target);
+            if comment.has_trailing_newline {
+                append_newline_to_last_char(str, source, comment_end);
             }
         }
-
-        let first_comment_is_block = comment_lines.first().is_some_and(|c| c.starts_with("/*"));
-        let needs_leading_newline = i == 0 && (comment_lines.is_empty() || first_comment_is_block);
-
-        if needs_leading_newline {
-            import_text.push('\n');
-        }
-        for (idx, line) in comment_lines.iter().enumerate() {
-            import_text.push_str(line);
-            let is_last = idx + 1 == comment_lines.len();
-            if !(is_last && last_comment_inline) {
-                import_text.push('\n');
-            }
-        }
-        if i == 0 && !first_comment_is_block && !comment_lines.is_empty() {
-            // `appendRight(firstImport.getStart(), '\n')` —
-            // separating the trailing leading-line-comment from the
-            // import keyword with an explicit blank line.
-            import_text.push('\n');
-        }
-
-        import_text.push_str(&import_text_clean);
-
-        // Add semicolon to the last import if it doesn't have one
-        if i == imports.len() - 1 {
-            // `.last()` avoids a `len() - 1` underflow when the cleaned
-            // import text is empty (zero-length span edge case).
-            if import_text_clean.as_bytes().last() != Some(&b';') {
-                import_text.push_str(";\n");
-            } else {
-                import_text.push('\n');
-            }
-        } else {
-            import_text.push('\n');
-        }
-
-        // Blank out the original [leading comments .. import] span.
-        // The indentation before the comments stays because it's
-        // outside the captured span.
-        str.overwrite(abs_comments_start, abs_end, "");
+        str.move_range(start, end, hoist_target);
+        append_newline_to_last_char(str, source, end);
     }
 
-    import_text
+    // Separate the hoisted block from the `;` that replaced `<`, and from a
+    // preceding module script.
+    let anchor = match first.comments.first() {
+        Some(comment) if comment.block => comment.start,
+        _ => first.start,
+    };
+    str.append_right(
+        content_start + anchor,
+        if has_module_script { "\n\n" } else { "\n" },
+    );
+
+    // Terminate the last import so auto-imports and completions don't attach to
+    // the generated code that follows it.
+    let last_end = content_start + last.end;
+    let (last_char_start, last_char) = last_char_of(source, last_end);
+    if last_char != ";" {
+        str.overwrite_fmt(last_char_start, last_end, format_args!("{last_char};\n"));
+    }
+}
+
+/// `moveNode`'s `overwrite(end - 1, end, original[end - 1] + '\n')`: the
+/// newline has to sit inside the moved chunk so it travels with it.
+fn append_newline_to_last_char(str: &mut MagicString<'_>, source: &str, end: u32) {
+    let (last_char_start, last_char) = last_char_of(source, end);
+    str.overwrite_fmt(last_char_start, end, format_args!("{last_char}\n"));
+}
+
+fn last_char_of(source: &str, end: u32) -> (u32, &str) {
+    let mut start = end as usize - 1;
+    while !source.is_char_boundary(start) {
+        start -= 1;
+    }
+    (start as u32, &source[start..end as usize])
 }

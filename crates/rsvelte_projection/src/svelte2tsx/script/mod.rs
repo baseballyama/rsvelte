@@ -29,7 +29,7 @@ use oxc_span::GetSpan;
 use crate::ast::template::Script;
 
 use super::magic_string::MagicString;
-use super::nodes::scripts::InstanceImportCollector;
+use super::nodes::scripts::{InstanceImportCollector, LiftedImport};
 use super::svelte2tsx::slice_src;
 use super::utils::lexical::contains_word;
 
@@ -111,7 +111,7 @@ pub fn process_instance_script(
     emit_jsdoc: bool,
     is_dts_mode: bool,
     script_generic_names: &HashSet<String>,
-) -> Vec<(u32, u32, u32)> {
+) -> Vec<LiftedImport> {
     let offset = script.content_offset;
     let mut instance_imports = Vec::new();
     with_parsed_script(parsed, |program, raw_content| {

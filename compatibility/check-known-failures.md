@@ -159,11 +159,11 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
      `.svelte` specifier resolving to nothing (or to a `.js` module the program
      excludes) silently typed as a default-only component.
 
-  The named-import case is covered from plain `.ts` importers only: from a
-  `.svelte` file the diagnostic lands on the right file but on line 1, because
-  svelte2tsx emits no source-map segments for the imports it hoists to the top
-  of the shadow (official's emits one per character). That is a source-map
-  defect, not a resolution one.
+  The named-import case is covered from plain `.ts` importers here; the
+  `.svelte`-side importer lives in `svelte-import-diagnostic-line`, which pins
+  the source-map half of the same story — svelte2tsx used to emit no segments
+  at all for the imports it hoists to the top of the shadow, so every import
+  diagnostic in a component landed on line 1 (#2112).
 
   `ts-paths-non-relative` also pins TypeScript's `${configDir}` template
   (TS 5.5+), which is substituted *before* the check above runs: it must not
@@ -179,6 +179,12 @@ Green scenarios are load-bearing, not filler — a regression turns them red:
 - **`sibling-symlink`** — both cross-package shapes: `src/barrel.svelte` through
   the package `exports` barrel (#782/#805) and `src/deep.svelte` through a bare
   deep specifier (#1900).
+- **`svelte-import-diagnostic-line`** — #2112, the position half of the
+  named-import cluster: a failing import that is not on the instance script's
+  first line, once bare and once behind a leading comment and a blank-line
+  group. svelte2tsx hoists instance imports to the top of the shadow, so these
+  diagnostics only land on the right line while the hoisted text keeps the
+  source-map segments of its original span.
 - **`boundary-elements`** — #1889, fixed by #1906: the overlay follows
   `get_global_types` and prefers the installed svelte's `svelte-html.d.ts` over
   the vendored `svelte-jsx-v4.d.ts`, so element and attribute types track

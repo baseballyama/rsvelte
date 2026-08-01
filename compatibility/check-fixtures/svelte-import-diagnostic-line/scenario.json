@@ -1,0 +1,8 @@
+{
+	"description": "A `.svelte` component whose failing named import is NOT on the first line of the instance script. svelte2tsx hoists instance-script imports to the top of the shadow, so the diagnostic's position only survives if the hoisted text keeps its source-map segments — it used to be re-synthesized with the original span blanked out, which pinned every import diagnostic to line 1 (#2112). Two importers cover a bare import and one behind a leading comment plus a blank-line group.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2112
+	]
+}

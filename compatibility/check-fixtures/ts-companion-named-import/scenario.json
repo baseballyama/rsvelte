@@ -1,5 +1,5 @@
 {
-	"description": "A `widget.svelte` component with a same-name `widget.svelte.ts` companion. A `.svelte` specifier means the component and nothing else, so a named import of a companion export through it is TS2614 in official svelte-check — the overlay used to fold the companion's exports into the component shadow and resolve it happily, hiding the error (#2061). The companion's own specifier (`./widget.svelte.js`) must keep working (#751). The importers are plain `.ts` files: the same import from a `.svelte` file lands on the right file but the wrong line, because svelte2tsx emits no source-map segments for the imports it hoists to the top of the shadow.",
+	"description": "A `widget.svelte` component with a same-name `widget.svelte.ts` companion. A `.svelte` specifier means the component and nothing else, so a named import of a companion export through it is TS2614 in official svelte-check — the overlay used to fold the companion's exports into the component shadow and resolve it happily, hiding the error (#2061). The companion's own specifier (`./widget.svelte.js`) must keep working (#751). The importers are plain `.ts` files; `svelte-import-diagnostic-line` covers the `.svelte`-side importer, whose diagnostic position depends on the hoisted imports keeping their source-map segments (#2112).",
 	"tsconfig": "tsconfig.json",
 	"issues": [
 		2061,

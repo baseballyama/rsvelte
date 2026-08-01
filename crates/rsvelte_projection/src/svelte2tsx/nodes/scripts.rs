@@ -32,19 +32,39 @@ pub(crate) fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 
     script_end
 }
 
-/// Find top-level import declarations in an instance script.
-///
-/// Returns a sorted list of (start, end) positions relative to the script
-/// content (i.e., relative to `script.content_offset`).
-/// Returns `(comments_start, import_start, import_end)` for each top-level
-/// import in `script`. `comments_start <= import_start` — the leading comment
-/// span lets the caller hoist JSDoc / line comments alongside their import,
-/// matching the JS reference's `moveNode` per-comment moves.
+/// A leading comment that travels with its import when the import is hoisted.
+/// Positions are relative to the script content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LiftedComment {
+    pub(crate) start: u32,
+    pub(crate) end: u32,
+    /// `/* … */` rather than `// …` — upstream `handleFirstInstanceImport`
+    /// anchors its newline before a leading block comment but after a line one.
+    pub(crate) block: bool,
+    /// A line break follows the comment (TS `CommentRange.hasTrailingNewLine`).
+    pub(crate) has_trailing_newline: bool,
+}
+
+/// A top-level import declaration to hoist above `$$render()`, together with
+/// the leading comments `moveNode` relocates alongside it. All positions are
+/// relative to the script content (i.e. `Script::content_offset`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LiftedImport {
+    pub(crate) comments: Vec<LiftedComment>,
+    pub(crate) start: u32,
+    pub(crate) end: u32,
+    /// A blank line separates the import from the preceding token (upstream
+    /// `isNewGroup`), so `moveNode` prefixes the hoisted chunk with a newline.
+    pub(crate) new_group: bool,
+}
+
+/// Find top-level import declarations in an instance script, each with the
+/// leading comment ranges the JS reference's `moveNode` hoists alongside it.
 pub(crate) fn find_instance_imports(
     script: &crate::ast::template::Script,
     source: &str,
     program: &oxc_ast::ast::Program,
-) -> Vec<(u32, u32, u32)> {
+) -> Vec<LiftedImport> {
     let content_start = script.content_offset as usize;
     let script_source = slice_src(source, script.start as usize, script.end as usize);
     let close_tag_offset = script_source
@@ -72,7 +92,7 @@ pub(crate) struct InstanceImportCollector<'a> {
     bytes: &'a [u8],
     comments: &'a [oxc_ast::ast::Comment],
     comment_cursor: usize,
-    imports: Vec<(u32, u32, u32)>,
+    imports: Vec<LiftedImport>,
 }
 
 impl<'a> InstanceImportCollector<'a> {
@@ -106,32 +126,93 @@ impl<'a> InstanceImportCollector<'a> {
             self.comment_cursor += 1;
         }
 
-        let new_start = scan_back_leading_comments(
+        let (first_comment, trivia_start) = scan_back_leading_comments(
             self.bytes,
             start as usize,
             self.comments,
             self.comment_cursor,
         );
+        let comments: Vec<LiftedComment> = self.comments[first_comment..self.comment_cursor]
+            .iter()
+            .map(|comment| LiftedComment {
+                start: comment.span.start,
+                end: comment.span.end,
+                block: !matches!(comment.kind, oxc_ast::ast::CommentKind::Line),
+                has_trailing_newline: comment_has_trailing_newline(
+                    self.bytes,
+                    comment.span.end as usize,
+                ),
+            })
+            .collect();
+        let new_group = counts_as_new_group(self.bytes, trivia_start, start as usize, &comments);
 
-        self.imports.push((new_start, start, end));
+        self.imports.push(LiftedImport {
+            comments,
+            start,
+            end,
+            new_group,
+        });
     }
 
-    pub(crate) fn finish(self) -> Vec<(u32, u32, u32)> {
+    pub(crate) fn finish(self) -> Vec<LiftedImport> {
         self.imports
     }
 }
 
+/// TS `CommentRange.hasTrailingNewLine`: a line break follows the comment, with
+/// only spaces / tabs in between.
+fn comment_has_trailing_newline(bytes: &[u8], end: usize) -> bool {
+    bytes[end..]
+        .iter()
+        .find(|byte| !matches!(byte, b' ' | b'\t'))
+        .is_some_and(|byte| matches!(byte, b'\n' | b'\r'))
+}
+
+/// Upstream `isNewGroup`: two or more line breaks in the import's leading
+/// trivia. Line breaks *inside* a comment are part of the comment token and are
+/// not counted, mirroring the TS scanner's `NewLineTrivia`.
+fn counts_as_new_group(
+    bytes: &[u8],
+    trivia_start: usize,
+    import_start: usize,
+    comments: &[LiftedComment],
+) -> bool {
+    let mut line_breaks = 0usize;
+    let mut position = trivia_start;
+    while position < import_start {
+        if let Some(comment) = comments
+            .iter()
+            .find(|comment| comment.start as usize == position)
+        {
+            position = comment.end as usize;
+            continue;
+        }
+        if bytes[position] == b'\n'
+            || (bytes[position] == b'\r' && bytes.get(position + 1) != Some(&b'\n'))
+        {
+            line_breaks += 1;
+            if line_breaks >= 2 {
+                return true;
+            }
+        }
+        position += 1;
+    }
+    false
+}
+
 /// Walk backwards from `pos` over leading trivia (whitespace + comments),
-/// returning the start of the earliest reachable parser-discovered comment.
+/// returning the index of the earliest reachable parser-discovered comment and
+/// the start of the whole trivia region (TS `node.getFullStart()`).
 fn scan_back_leading_comments(
     bytes: &[u8],
     pos: usize,
     comments: &[oxc_ast::ast::Comment],
     comment_cursor: usize,
-) -> u32 {
+) -> (usize, usize) {
     let mut cstart = pos as u32;
     let mut comment_index = comment_cursor;
-    loop {
+    let mut first_comment = comment_cursor;
+    let trivia_start = loop {
         // Skip whitespace backward.
         let mut p = cstart as usize;
         while p > 0 && matches!(bytes[p - 1], b' ' | b'\t' | b'\n' | b'\r') {
@@ -144,15 +225,16 @@ fn scan_back_leading_comments(
         if comment_index > 0 && comments[comment_index - 1].span.end as usize == p {
             let cs = comments[comment_index - 1].span.start;
             if cs >= cstart {
-                break;
+                break p;
             }
             cstart = cs;
             comment_index -= 1;
+            first_comment = comment_index;
         } else {
-            break;
+            break p;
         }
-    }
-    cstart
+    };
+    (first_comment, trivia_start)
 }
 
 /// Detect whether a script content contains top-level `await` expressions.
@@ -342,8 +424,9 @@ mod tests {
         let import_start = source.find("import value").unwrap();
 
         assert_eq!(
-            scan_back_leading_comments(source.as_bytes(), import_start, &comments, comments.len()),
-            comments[0].span.start
+            scan_back_leading_comments(source.as_bytes(), import_start, &comments, comments.len())
+                .0,
+            0
         );
     }
 
@@ -378,8 +461,9 @@ mod tests {
                     import_start,
                     &comments,
                     comment_cursor,
-                ),
-                comments[index].span.start
+                )
+                .0,
+                index
             );
         }
     }
