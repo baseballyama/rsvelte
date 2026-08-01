@@ -68,10 +68,13 @@ pub(super) fn transform_destructure_assignments(
 /// Transform destructure assignments, with knowledge of prop variables.
 ///
 /// `prop_vars` are variable names that will be transformed to function calls
-/// (e.g., `numbers` → `numbers()` for prop getters). When the RHS of a
-/// destructuring is a prop variable, we must use the IIFE form (with `$$value`
-/// caching) because the official compiler visits the RHS first, transforming it
-/// to a CallExpression, and then checks `should_cache = value.type !== 'Identifier'`.
+/// (e.g., `numbers` → `numbers()` for prop getters). They matter twice: a prop
+/// *target* makes the destructure eligible for the expansion just like a state
+/// or store target (upstream routes every extracted path through the ordinary
+/// assignment lowering), and a prop on the *right-hand side* forces the IIFE
+/// form (with `$$value` caching) because the official compiler visits the RHS
+/// first, turning it into a CallExpression, and then checks
+/// `should_cache = value.type !== 'Identifier'`.
 pub(super) fn transform_destructure_assignments_with_props(
     statement: &str,
     state_vars: &[String],
@@ -99,15 +102,16 @@ pub(super) fn transform_destructure_assignments_with_props(
     let state_set: rustc_hash::FxHashSet<&str> = state_vars.iter().map(|s| s.as_str()).collect();
     let store_set: rustc_hash::FxHashSet<&str> =
         store_sub_vars.iter().map(|s| s.as_str()).collect();
+    let prop_set: rustc_hash::FxHashSet<&str> = prop_vars.iter().map(|s| s.as_str()).collect();
 
     // Process the statement, looking for destructure assignments.
     // We scan for patterns and replace them with IIFEs.
     while let Some(transformed) = find_and_transform_one_destructure(
         &result,
         store_sub_vars,
-        prop_vars,
         &state_set,
         &store_set,
+        &prop_set,
     ) {
         result = transformed;
     }
@@ -130,9 +134,9 @@ pub(super) fn transform_destructure_assignments_with_props(
 pub(super) fn find_and_transform_one_destructure(
     statement: &str,
     store_sub_vars: &[String],
-    prop_vars: &[String],
     state_set: &rustc_hash::FxHashSet<&str>,
     store_set: &rustc_hash::FxHashSet<&str>,
+    prop_set: &rustc_hash::FxHashSet<&str>,
 ) -> Option<String> {
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
@@ -258,10 +262,15 @@ pub(super) fn find_and_transform_one_destructure(
                     // Extract target identifiers from the pattern
                     let targets = extract_destructure_targets(pattern_str);
 
-                    // Check if any target is a reactive variable
-                    let has_reactive_target = targets
-                        .iter()
-                        .any(|t| state_set.contains(t.as_str()) || store_set.contains(t.as_str()));
+                    // Check if any target needs the lowered form. Upstream's
+                    // `visit_assignment_expression` routes every extracted path
+                    // through the normal assignment lowering, so a prop target
+                    // (`a = …` → `a(…)`) counts exactly like a state or store one.
+                    let has_reactive_target = targets.iter().any(|t| {
+                        state_set.contains(t.as_str())
+                            || store_set.contains(t.as_str())
+                            || prop_set.contains(t.as_str())
+                    });
 
                     if !has_reactive_target {
                         i = j + 1;
@@ -371,8 +380,7 @@ pub(super) fn find_and_transform_one_destructure(
 
     // Check if RHS will become a function call
     let rhs_trimmed = rhs_str.trim();
-    let rhs_will_be_call = prop_vars.iter().any(|p| p == rhs_trimmed)
-        || store_sub_vars.iter().any(|s| s == rhs_trimmed);
+    let rhs_will_be_call = prop_set.contains(rhs_trimmed) || store_set.contains(rhs_trimmed);
 
     // Generate the IIFE replacement
     let iife = generate_destructure_iife(

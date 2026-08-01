@@ -477,9 +477,11 @@ pub(super) fn transform_reactive_statement(
         } else if (lhs.starts_with('[') || lhs.starts_with('{')) && {
             // Check if the LHS contains reactive targets that need destructure expansion
             let targets = extract_destructure_targets(lhs);
-            targets
-                .iter()
-                .any(|t| state_vars.contains(t) || store_sub_vars.contains(t))
+            targets.iter().any(|t| {
+                state_vars.contains(t)
+                    || store_sub_vars.contains(t)
+                    || prop_assignment_transform_vars.contains(t)
+            })
         } {
             // Destructure assignment with reactive targets - expand to IIFE
             // Pass prop_assignment_transform_vars so that if the RHS is a prop variable

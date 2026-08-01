@@ -5479,11 +5479,19 @@ fn transform_instance_script_for_visitors(
         // because it decomposes destructure patterns into individual assignments that those
         // transforms can then process.
         // Corresponds to visit_assignment_expression in shared/assignments.js.
-        // Skip if no state vars or store sub vars to destructure against
-        let transformed = if state_vars.is_empty() && store_sub_vars.is_empty() {
+        // Skip if there is no reactive target (state / store / prop) to destructure against
+        let transformed = if state_vars.is_empty()
+            && store_sub_vars.is_empty()
+            && prop_assignment_transform_vars.is_empty()
+        {
             transformed
         } else {
-            transform_destructure_assignments(&transformed, state_vars, store_sub_vars)
+            transform_destructure_assignments_with_props(
+                &transformed,
+                state_vars,
+                store_sub_vars,
+                prop_assignment_transform_vars,
+            )
         };
 
         // Transform state variable assignments to $.set()
