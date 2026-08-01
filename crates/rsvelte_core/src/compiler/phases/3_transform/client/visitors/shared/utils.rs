@@ -4643,6 +4643,30 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     }
                 }
 
+                // Replay Phase 2's scope-correct resolution for this reference.
+                // A template declaration (`{@const}` / `{#await}`) that shadows a
+                // component-scope binding is invisible to the name-based lookups
+                // below, which would report the outer (reactive) binding and
+                // force an unnecessary template_effect. `let:` bindings are
+                // excluded: their reactivity is decided by whether the directive's
+                // transform is installed (see the `BindingKind::Let` arm below),
+                // not by the binding itself.
+                let by_position = obj
+                    .get("start")
+                    .and_then(|v| v.as_u64())
+                    .and_then(|start| {
+                        context
+                            .state
+                            .scope_root
+                            .binding_at_reference(name, start as u32)
+                    })
+                    .filter(|b| {
+                        !matches!(
+                            b.kind,
+                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Let
+                        )
+                    });
+
                 // Check if identifier has a transform registered (e.g., @const, snippet parameter)
                 // Identifiers with transforms are derived values that need reactive tracking,
                 // BUT only if the transform has is_reactive=true.
@@ -4659,32 +4683,8 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     // Resolve the binding this reference actually refers to. `get_binding`
                     // walks the root-scope-polluted map, which prefers an OUTER same-named
                     // binding; when an in-scope `{@const}` shadows it, that resolves to the
-                    // outer binding instead of the `{@const}`. `transform_deep_read` marks a
-                    // `{@const}` (Template) whose transform is currently active, so in that
-                    // case re-resolve to the shadowing Template binding to check its kind.
-                    let resolved = {
-                        let direct = context.state.get_binding(name);
-                        let is_shadowed_normal = direct
-                            .is_some_and(|b| matches!(b.kind, BindingKind::Normal))
-                            && context.state.transform_deep_read.contains_key(name);
-                        if is_shadowed_normal {
-                            context
-                                .state
-                                .scope_root
-                                .bindings_by_name
-                                .get(name)
-                                .and_then(|idxs| {
-                                    idxs.iter().rev().find_map(|&i| {
-                                        let b =
-                                            context.state.scope_root.bindings.get(i as usize)?;
-                                        matches!(b.kind, BindingKind::Template).then_some(b)
-                                    })
-                                })
-                                .or(direct)
-                        } else {
-                            direct
-                        }
-                    };
+                    // outer binding instead of the `{@const}`.
+                    let resolved = by_position.or_else(|| context.state.get_binding(name));
 
                     // Check if this is a Derived binding - if so, skip the early return
                     // and fall through to the detailed binding kind check below.
@@ -4716,7 +4716,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         return transform.is_reactive;
                     }
                 }
-                if let Some(binding) = context.state.get_binding(name) {
+                if let Some(binding) = by_position.or_else(|| context.state.get_binding(name)) {
                     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
                     // Match Svelte's logic from Identifier.js (lines 95-101):

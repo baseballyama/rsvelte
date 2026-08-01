@@ -343,6 +343,7 @@ impl<'a> ScopeBuilder<'a> {
                 snippet_scope_indices: self.snippet_scope_indices,
                 conflicts,
                 bindings_by_name: self.bindings_by_name,
+                reference_bindings: std::cell::OnceCell::new(),
             },
             self.validation_errors,
         )

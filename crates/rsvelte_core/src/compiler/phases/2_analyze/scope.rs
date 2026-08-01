@@ -62,6 +62,12 @@ pub struct ScopeRoot {
     /// O(bindings) linear scan (`bindings.iter().position/any(|b| b.name == ...)`)
     /// can instead go through this map and scan only same-named entries.
     pub bindings_by_name: FxHashMap<String, SmallVec<[u32; 1]>>,
+    /// Lazily built map from a reference's source start offset to the binding
+    /// index it resolved to during analysis. Phase 3 never switches its scope
+    /// for template blocks, so a name-based lookup there picks an outer binding
+    /// whenever a template declaration shadows one; this map replays the
+    /// scope-correct resolution Phase 2 already performed.
+    pub(crate) reference_bindings: std::cell::OnceCell<FxHashMap<u32, u32>>,
 }
 
 impl ScopeRoot {
@@ -79,7 +85,25 @@ impl ScopeRoot {
             snippet_scope_indices: FxHashSet::default(),
             conflicts: FxHashSet::default(),
             bindings_by_name: FxHashMap::default(),
+            reference_bindings: std::cell::OnceCell::new(),
         }
+    }
+
+    /// Resolve the binding that the reference starting at `start` was bound to
+    /// during analysis, verifying the name matches so a stale/synthesized span
+    /// falls back to the caller's name-based lookup.
+    pub fn binding_at_reference(&self, name: &str, start: u32) -> Option<&Binding> {
+        let map = self.reference_bindings.get_or_init(|| {
+            let mut map: FxHashMap<u32, u32> = FxHashMap::default();
+            for (idx, binding) in self.bindings.iter().enumerate() {
+                for reference in &binding.references {
+                    map.insert(reference.start, idx as u32);
+                }
+            }
+            map
+        });
+        let binding = self.bindings.get(*map.get(&start)? as usize)?;
+        (binding.name == name).then_some(binding)
     }
 
     /// Push a binding and record its index in `bindings_by_name`, keeping the

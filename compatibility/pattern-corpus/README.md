@@ -62,6 +62,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2012-state-destructure-rest.svelte` | [#2012](https://github.com/baseballyama/rsvelte/issues/2012) | Object rest in a destructured `$state(...)` becomes `$.exclude_from_object` |
 | `2013-state-destructure-quoted-key.svelte` | [#2013](https://github.com/baseballyama/rsvelte/issues/2013) | Quoted key in a destructured `$state(...)` needs bracket member access |
 | `2014-derived-array-rest-arity.svelte` | [#2014](https://github.com/baseballyama/rsvelte/issues/2014) | An array pattern ending in a rest element passes **no length** to `$.to_array` |
+| `2060-const-shadow-textcontent.svelte` | [#2060](https://github.com/baseballyama/rsvelte/issues/2060) | A `{@const}` **shadowing** a component-scope binding must resolve to the `{@const}`, so the read stays a static `textContent` assignment |
 
 ## `matrix/` — the axes around those repros
 
@@ -192,6 +193,25 @@ formatter fixed point while the parsed `data` is still a bare `\f`.
 | `in-if-block.svelte` | form-feed run inside an `{#if}` block |
 | `in-each-block.svelte` | form-feed run inside an `{#each}` block |
 | `svg-text.svelte` | form feed inside an SVG `<text>` element |
+
+### `const-shadow/` — `{@const}` shadowing an outer binding (around #2060)
+
+Declaring block (`{#if}` / `{:else}` / `{#each}` / `{#key}` / `{#await}` /
+`{#snippet}` / `<svelte:boundary>`) × declaration form (identifier /
+destructured) × shadowed binding kind (`$state` / prop). The shadowed name is
+read as an element's only child, so the resolution decides between a static
+`textContent` assignment and a `$.template_effect`.
+
+| File | Point on the axis |
+|---|---|
+| `if-both-branches.svelte` | a `{@const}` in each of `{#if}` and `{:else}` |
+| `each-body.svelte` | `{@const}` in an `{#each}` body, over the loop variable |
+| `key-block.svelte` | `{@const}` inside `{#key}`, keyed on the shadowed binding |
+| `await-then-body.svelte` | `{@const}` in an `{#await … then}` body |
+| `snippet-body.svelte` | `{@const}` inside a `{#snippet}` |
+| `boundary-children.svelte` | `{@const}` in `<svelte:boundary>` children |
+| `destructured-const.svelte` | destructuring `{@const { value } = …}` |
+| `shadows-prop.svelte` | the shadowed binding is a **prop** (the read must not become `$$props.x`) |
 
 ## Adding a file
 

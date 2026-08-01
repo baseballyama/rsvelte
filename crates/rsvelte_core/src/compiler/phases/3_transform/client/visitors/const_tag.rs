@@ -117,6 +117,11 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
             .transform_deep_read
             .insert(id_name.clone(), ());
 
+        // The `{@const}` shadows any outer same-named prop, so reads must go
+        // through the `$.get(name)` transform above instead of being rewritten
+        // to `$$props.name` (mirrors the `let:` / each-item shadowing).
+        context.state.shadowed_prop_names.insert(id_name.clone());
+
         // Extract referenced variable names from init expression for blocker detection
         let init_refs = extract_refs_from_json_expr(&parsed.init_expr);
 
@@ -295,6 +300,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 .state
                 .transform_deep_read
                 .insert(id_name.clone(), ());
+            context.state.shadowed_prop_names.insert(id_name.clone());
         }
     }
 }
