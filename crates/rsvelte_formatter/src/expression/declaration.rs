@@ -1,11 +1,11 @@
 use oxc_formatter::format_program;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
-use unicode_width::UnicodeWidthStr;
 
 use super::formatter_parse_options;
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 /// Format the body of a `{@const <decl>}` tag — the `<decl>` is the body of a
 /// `const` variable declaration (`<binding>[: Type] = <init>`).
@@ -81,7 +81,7 @@ pub(super) fn format_const_declaration(
     let formatted = format_at(full_width.saturating_sub(lead))?;
     // `{@const ` (8) + body + `}` (1) at column `lead`.
     let formatted = if !formatted.contains('\n')
-        && lead + 9 + UnicodeWidthStr::width(formatted.as_str()) > full_width
+        && lead + 9 + formatted.visual_width(tab_width(options)) > full_width
     {
         format_at(full_width.saturating_sub(lead + 2))?
     } else {

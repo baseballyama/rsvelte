@@ -146,6 +146,7 @@ pub(super) fn try_fill_run(
     allow_elem_expr_collapse: bool,
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     let (indent_unit, indent_width) = indent_config(options);
     // Trim whitespace-only edge text nodes — the surrounding layout owns them.
     let mut lo = 0;
@@ -274,7 +275,7 @@ pub(super) fn try_fill_run(
     if non_ws_prefix && !is_close_tag_prefix {
         return None;
     }
-    let indent_cols = indent.width();
+    let indent_cols = indent.visual_width(tw);
     // For close-tag prefixes, derive base_level from just the whitespace bytes
     // before the `>` or `> ` tail, not from indent_cols (which includes the tag
     // characters). This ensures continuation lines align with the parent element's
@@ -347,8 +348,14 @@ pub(super) fn try_fill_run(
         _ => content_doc,
     };
     // Flat width (a hardline forces multi-line).
-    let flat = crate::doc::print_flat(&content_doc, 1_000_000, indent_unit.as_str(), base_level, 0);
-    if !flat.contains('\n') && indent_cols + flat.width() <= line_width {
+    let flat = crate::doc::print_flat(
+        &content_doc,
+        1_000_000,
+        IndentUnit::new(indent_unit.as_str(), tw),
+        base_level,
+        0,
+    );
+    if !flat.contains('\n') && indent_cols + flat.visual_width(tw) <= line_width {
         // Fits on one line — collapse to the flat form. The input run may itself
         // be multi-line (e.g. root-level prose written one word per line), and
         // prettier reflows prose that fits onto a single line, so we must emit the
@@ -363,7 +370,7 @@ pub(super) fn try_fill_run(
     let printed_raw = crate::doc::print(
         &content_doc,
         line_width,
-        indent_unit.as_str(),
+        IndentUnit::new(indent_unit.as_str(), tw),
         base_level,
         indent_cols,
     );
@@ -392,7 +399,7 @@ pub(super) fn try_fill_run(
     // the collapse has no useful layout to offer; return None so the
     // element-level passes (try_collapse / try_hug_mixed) own the elements
     // individually.
-    if !printed.contains('\n') && indent_cols + printed.width() > line_width {
+    if !printed.contains('\n') && indent_cols + printed.visual_width(tw) > line_width {
         return None;
     }
     (printed != whole).then_some((s as u32, e as u32, printed))
@@ -400,13 +407,13 @@ pub(super) fn try_fill_run(
 
 /// Greedy word-wrap `text` into lines no wider than `width` (each line keeps at
 /// least one word). Mirrors prettier's fill for inline text content.
-pub(super) fn fill(text: &str, width: usize) -> Vec<String> {
+pub(super) fn fill(text: &str, width: usize, tw: usize) -> Vec<String> {
     let mut lines = Vec::new();
     let mut cur = String::new();
     for word in text.split(' ').filter(|w| !w.is_empty()) {
         if cur.is_empty() {
             cur.push_str(word);
-        } else if cur.width() + 1 + word.width() <= width {
+        } else if cur.visual_width(tw) + 1 + word.visual_width(tw) <= width {
             cur.push(' ');
             cur.push_str(word);
         } else {
@@ -438,6 +445,7 @@ pub(super) fn try_fill_mixed(
     line_width: usize,
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
     // Must be mixed (at least one non-text child) and entirely inline.
@@ -494,7 +502,7 @@ pub(super) fn try_fill_mixed(
             .take_while(|&b| b == b' ' || b == b'\t')
             .count()
     } else {
-        inner_indent.width() / indent_width
+        inner_indent.visual_width(tw) / indent_width
     };
 
     // Decide flat-vs-break from the element's *flat* width, not the laid-out
@@ -503,8 +511,14 @@ pub(super) fn try_fill_mixed(
     // content all-flat (a huge width) to measure: a `hardline` (a source blank
     // line) still forces a newline, so flat content with a `\n` is inherently
     // multi-line and must break.
-    let flat = crate::doc::print_flat(&content_doc, 1_000_000, indent_unit.as_str(), base_level, 0);
-    let column = current_column(out, start);
+    let flat = crate::doc::print_flat(
+        &content_doc,
+        1_000_000,
+        IndentUnit::new(indent_unit.as_str(), tw),
+        base_level,
+        0,
+    );
+    let column = current_column(out, start, tw);
 
     // A non-text child that is already multi-line in the output forces the content
     // to break: the fill cannot keep that child on one line, so its surrounding
@@ -537,7 +551,8 @@ pub(super) fn try_fill_mixed(
         // Multi-line source (boundary whitespace is newline + indent) is left alone —
         // the indent pass owns those elements.
         if is_block_display(tag) && (had_lead || had_trail) && !raw.contains('\n') {
-            let element_one_line = column + open.width() + flat.width() + close.width();
+            let element_one_line =
+                column + open.visual_width(tw) + flat.visual_width(tw) + close.visual_width(tw);
             if element_one_line <= line_width {
                 let one_line = format!("{open}{flat}{close}");
                 return (one_line != whole).then_some((start, end, one_line));
@@ -556,7 +571,8 @@ pub(super) fn try_fill_mixed(
                 |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
             )
             .count();
-        let element_one_line = column + open.width() + flat.width() + close.width();
+        let element_one_line =
+            column + open.visual_width(tw) + flat.visual_width(tw) + close.visual_width(tw);
         if is_block_display(tag) && non_ws_child_count > 1 && element_one_line > line_width {
             // Fall through to the doc-print break path below.
         } else {
@@ -565,7 +581,8 @@ pub(super) fn try_fill_mixed(
     }
 
     if !flat.contains('\n') && !has_multiline_child {
-        let element_one_line = column + open.width() + flat.width() + close.width();
+        let element_one_line =
+            column + open.visual_width(tw) + flat.visual_width(tw) + close.visual_width(tw);
         // A block element (or overflowing component with prose content) puts its
         // content on its own line; an inline HTML element would instead hug, so
         // leave those. Components with block-like (newline-bounded) content that
@@ -591,9 +608,9 @@ pub(super) fn try_fill_mixed(
     let mut printed = crate::doc::print(
         &content_doc,
         line_width,
-        indent_unit.as_str(),
+        IndentUnit::new(indent_unit.as_str(), tw),
         base_level,
-        inner_indent.width(),
+        inner_indent.visual_width(tw),
     );
 
     // Post-pass: a trailing content mustache `{call(...)}` that is glued to the
@@ -614,18 +631,21 @@ pub(super) fn try_fill_mixed(
             .and_then(|s| s.strip_suffix('}'))
             .map(str::trim)
             .unwrap_or("");
-        let mcol = inner_indent.width() + printed.width().saturating_sub(mspan.width());
+        let mcol = inner_indent.visual_width(tw)
+            + printed
+                .visual_width(tw)
+                .saturating_sub(mspan.visual_width(tw));
         // Only a call / member chain (not an object / array / arrow literal) wraps
         // by breaking its own internals; leave those to other paths.
         let wrappable =
             !inner.is_empty() && !inner.contains("=>") && !inner.starts_with(['{', '[']);
-        if glued_after_nonspace && wrappable && mcol + mspan.width() > line_width {
+        if glued_after_nonspace && wrappable && mcol + mspan.visual_width(tw) > line_width {
             let w = line_width.saturating_sub(mcol + 2); // `{` + `}`
             if let Ok(wrapped) = crate::expression::reformat_content_at_width(
                 inner,
                 options,
                 w,
-                inner_indent.width(),
+                inner_indent.visual_width(tw),
             ) && wrapped.contains('\n')
             {
                 let head = &printed[..printed.len() - mspan.len()];

@@ -10,8 +10,9 @@ use crate::expression::{
 use crate::options::FormatOptions;
 
 use super::attribute::minimal_break_extra;
-use super::util::{indent_str, visual_width};
+use super::util::indent_str;
 use super::value::{expression_tag_inner, is_shallow_value};
+use crate::width::{VisualWidth, tab_width};
 
 /// Build the Doc for one literal-text chunk of a REGULAR quoted attribute
 /// value, plus its flat visual width. prettier-plugin-svelte emits regular
@@ -21,8 +22,8 @@ use super::value::{expression_tag_inner, is_shallow_value};
 /// non-breaking `Text`; all breaking happens inside the interpolation groups.
 /// (Style-directive values differ — their text IS a `fill` — and are excluded
 /// from this path.)
-fn attr_text_chunk_doc(raw: &str) -> (Doc, usize) {
-    (Doc::Text(raw.to_string()), visual_width(raw))
+fn attr_text_chunk_doc(raw: &str, tw: usize) -> (Doc, usize) {
+    (Doc::Text(raw.to_string()), raw.visual_width(tw))
 }
 
 /// Whole-value Doc model for a REGULAR quoted attribute value: format the
@@ -53,6 +54,7 @@ fn render_value_sequence_doc(
     attr_depth: usize,
     name_prefix: usize,
 ) -> Result<Option<String>, FormatError> {
+    let tw = tab_width(options);
     let interp_count = parts
         .iter()
         .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
@@ -85,7 +87,7 @@ fn render_value_sequence_doc(
     for part in parts {
         match part {
             AttributeValuePart::Text(t) => {
-                let (doc, w) = attr_text_chunk_doc(t.raw.as_ref());
+                let (doc, w) = attr_text_chunk_doc(t.raw.as_ref(), tw);
                 docs.push(doc);
                 col += w;
             }
@@ -98,14 +100,14 @@ fn render_value_sequence_doc(
                 }
                 let flat_inner = format_attribute_value_expression_flat(inner, &opts_sq)?;
                 let flat = format!("{{{flat_inner}}}");
-                let flat_w = visual_width(&flat);
+                let flat_w = flat.visual_width(tw);
                 // The enclosing group decides *whether* this interpolation
                 // breaks (measuring its trailing tail); the `broken` form only
                 // supplies the *shape*. Force the break at the narrower of (a)
                 // the real width available at this column and (b) one column
                 // under the flat form (guarantees at least the top-level
                 // operator splits even when the overflow is trailing-caused).
-                let flat_inner_w = visual_width(&flat_inner);
+                let flat_inner_w = flat_inner.visual_width(tw);
                 let broken_width = line_width
                     .saturating_sub(col)
                     .min(flat_inner_w.saturating_sub(1))
@@ -176,7 +178,7 @@ fn render_value_sequence_doc(
     let out = doc_print(
         &propagate_breaks(Doc::Concat(docs)),
         width,
-        &unit,
+        crate::width::IndentUnit::new(&unit, crate::width::tab_width(options)),
         base_indent,
         start_col,
     );
@@ -192,6 +194,7 @@ pub(super) fn render_attribute_value_sequence(
     narrow_value: bool,
     regular_attr: bool,
 ) -> Result<String, FormatError> {
+    let tw = tab_width(options);
     // Whole-value Doc model, used only once the open tag is known to wrap (the
     // single-line pass renders flat anyway) and only for REGULAR attributes —
     // style/other directive values print their text as a prettier `fill` (a
@@ -251,9 +254,9 @@ pub(super) fn render_attribute_value_sequence(
                     // value the logical indent still applies.
                     let value_is_multiline = out.contains('\n');
                     let lead_cols = if value_is_multiline {
-                        visual_width(on_line)
+                        on_line.visual_width(tw)
                     } else {
-                        name_prefix + visual_width(on_line)
+                        name_prefix + on_line.visual_width(tw)
                     };
                     // `format_attribute_value_expression` narrows the print width by
                     // `attr_depth` indent levels. For a multi-line string value the
@@ -275,10 +278,10 @@ pub(super) fn render_attribute_value_sequence(
                             AttributeValuePart::Text(t) => {
                                 let raw = t.raw.as_ref();
                                 if let Some(nl) = raw.find('\n') {
-                                    trailing_cols += visual_width(&raw[..nl]);
+                                    trailing_cols += raw[..nl].visual_width(tw);
                                     break;
                                 }
-                                trailing_cols += visual_width(raw);
+                                trailing_cols += raw.visual_width(tw);
                             }
                             // A following interpolation continues the same line; its
                             // width is unknown here, so (as before) count it as 0.
@@ -347,7 +350,7 @@ pub(super) fn render_attribute_value_sequence(
                                         line_width_val.saturating_sub(effective_indent);
                                     let force_extra = minimal_break_extra(
                                         base_width,
-                                        visual_width(first_pass.as_str()),
+                                        first_pass.as_str().visual_width(tw),
                                     );
                                     let forced = format_attribute_value_expression(
                                         inner_src,
@@ -372,7 +375,7 @@ pub(super) fn render_attribute_value_sequence(
                             let total = effective_indent
                                 + lead_cols
                                 + 1
-                                + visual_width(first_pass.as_str())
+                                + first_pass.as_str().visual_width(tw)
                                 + 1
                                 + trailing_cols
                                 + 1;
@@ -413,7 +416,7 @@ pub(super) fn render_attribute_value_sequence(
                                         line_width_val.saturating_sub(effective_indent);
                                     let force_extra = minimal_break_extra(
                                         base_width,
-                                        visual_width(first_pass.as_str()),
+                                        first_pass.as_str().visual_width(tw),
                                     );
                                     let forced = format_attribute_value_expression(
                                         inner_src,

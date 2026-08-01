@@ -1,12 +1,12 @@
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_core::ast::js::Expression;
-use unicode_width::UnicodeWidthStr;
 
 use super::splice::split_leading_line_comments;
 use super::{format_attribute_value_expression, formatter_parse_options};
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 /// Format a directive value `{ EXPR }` by slicing the full brace interior
 /// from the source, where `value_end` is the offset just past the closing
@@ -200,6 +200,8 @@ pub(crate) fn format_function_binding(
 ) -> Result<Option<String>, FormatError> {
     use oxc_span::GetSpan;
 
+    let tw = tab_width(options);
+
     let Some(inner) = directive_brace_inner(source, expr, value_end) else {
         return Ok(None);
     };
@@ -287,7 +289,7 @@ pub(crate) fn format_function_binding(
     // extra `comment + 2` columns (2 for the parens) in the width check.
     let inline = members.join(", ");
     let comment_prefix_cols = leading_block_comment
-        .map(|(c, _)| UnicodeWidthStr::width(c) + 1 /* space */)
+        .map(|(c, _)| c.visual_width(tw) + 1 /* space */)
         .unwrap_or(0);
     // +2 for outer parens when there is a comment, +0 otherwise.
     let outer_parens_cols = if leading_block_comment.is_some() {
@@ -299,7 +301,7 @@ pub(crate) fn format_function_binding(
         + 1  // opening `{`
         + comment_prefix_cols
         + outer_parens_cols
-        + UnicodeWidthStr::width(inline.as_str())
+        + inline.visual_width(tw)
         + 1; // closing `}`
     if !any_multiline && inline_cols <= line_width {
         return Ok(Some(if let Some((comment, _)) = leading_block_comment {
@@ -322,7 +324,7 @@ pub(crate) fn format_function_binding(
     };
     let inner_indent_cols = (attr_depth + 1) * indent_width;
     let inline_on_one_line =
-        !any_multiline && inner_indent_cols + UnicodeWidthStr::width(inline.as_str()) <= line_width;
+        !any_multiline && inner_indent_cols + inline.visual_width(tw) <= line_width;
 
     // When there is a leading block comment, include it on the first line.
     let mut out = if let Some((comment, _)) = leading_block_comment {

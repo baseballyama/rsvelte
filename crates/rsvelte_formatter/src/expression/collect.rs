@@ -1,5 +1,4 @@
 use rsvelte_core::ast::template::{Fragment, TemplateNode};
-use unicode_width::UnicodeWidthStr;
 
 use super::call_args;
 use super::declaration::format_pattern_source;
@@ -13,6 +12,7 @@ use super::splice::{
 use super::width::format_inline_expression;
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 /// The each-key source between its delimiter parens, or `None` when the block
 /// has no key. Used to measure how much the key widens the header line.
@@ -68,6 +68,7 @@ fn collect_node_edits(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
+    let tw = tab_width(options);
     let child_depth = depth + 1;
     match node {
         TemplateNode::ExpressionTag(tag) => {
@@ -317,9 +318,9 @@ fn collect_node_edits(
                                     let full_width = options.js.line_width.value() as usize;
                                     let flat_width = depth
                                         * options.js.indent_width.value() as usize
-                                        + UnicodeWidthStr::width(prefix)
+                                        + prefix.visual_width(tw)
                                         + "(".len()
-                                        + UnicodeWidthStr::width(formatted.as_str())
+                                        + formatted.visual_width(tw)
                                         + ")}".len();
                                     // The oracle settles the header's groups left to
                                     // right, so the key is measured against whatever

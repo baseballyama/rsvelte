@@ -7,8 +7,8 @@ use super::directive::{
     format_expression_at, format_expression_at_extra, render_directive_value,
     render_directive_value_narrow, render_modifiers, render_spread,
 };
-use super::util::visual_width;
 use super::value::{render_attribute_node, render_attribute_value_for_directive};
+use crate::width::{VisualWidth, tab_width};
 
 // ─── attribute rendering ────────────────────────────────────────────────
 
@@ -19,6 +19,7 @@ pub(super) fn render_attribute(
     attr_depth: usize,
     narrow_value: bool,
 ) -> Result<String, FormatError> {
+    let tw = tab_width(options);
     match attr {
         Attribute::Attribute(node) => {
             render_attribute_node(node, source, options, attr_depth, narrow_value)
@@ -32,7 +33,7 @@ pub(super) fn render_attribute(
                 && !inner.contains('\n')
                 && attr_depth * options.js.indent_width.value() as usize
                     + ATTACH_PREFIX.len()
-                    + visual_width(&inner)
+                    + inner.visual_width(tw)
                     + 1
                     > options.js.line_width.value() as usize
             {
@@ -53,7 +54,7 @@ pub(super) fn render_attribute(
             // sequence expression) renders without outer parens and breaks its
             // braces onto their own lines when the members don't fit (#795b).
             let lead_cols = attr_depth * options.js.indent_width.value() as usize
-                + visual_width(&format!("bind:{}{modifiers}=", d.name));
+                + format!("bind:{}{modifiers}=", d.name).visual_width(tw);
             if let Some(value) = crate::expression::format_function_binding(
                 source,
                 &d.expression,
@@ -78,7 +79,7 @@ pub(super) fn render_attribute(
             // counted separately). Narrowing by this prefix once the open tag has
             // wrapped makes a long value break where prettier-plugin-svelte does
             // (#795) — matching `style:` / `on:` / `use:` etc.
-            let prefix = visual_width("class:") + visual_width(d.name.as_str()) + 1;
+            let prefix = "class:".visual_width(tw) + d.name.as_str().visual_width(tw) + 1;
             let inner = render_directive_value_narrow(
                 source,
                 &d.expression,
@@ -100,7 +101,7 @@ pub(super) fn render_attribute(
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
                 // prefix = "on:" + name + modifiers + "=" (the `{` is counted separately)
-                let prefix = 3 + visual_width(d.name.as_str()) + visual_width(&modifiers) + 1;
+                let prefix = 3 + d.name.as_str().visual_width(tw) + modifiers.visual_width(tw) + 1;
                 let inner = render_directive_value_narrow(
                     source,
                     expr,
@@ -125,10 +126,10 @@ pub(super) fn render_attribute(
             };
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let prefix = visual_width(pfx_kw)
+                let prefix = pfx_kw.visual_width(tw)
                     + 1
-                    + visual_width(d.name.as_str())
-                    + visual_width(&modifiers)
+                    + d.name.as_str().visual_width(tw)
+                    + modifiers.visual_width(tw)
                     + 1;
                 let inner = render_directive_value_narrow(
                     source,
@@ -147,7 +148,7 @@ pub(super) fn render_attribute(
         Attribute::AnimateDirective(d) => {
             if let Some(expr) = &d.expression {
                 // "animate:" + name + "="
-                let prefix = 8 + visual_width(d.name.as_str()) + 1;
+                let prefix = 8 + d.name.as_str().visual_width(tw) + 1;
                 let inner = render_directive_value_narrow(
                     source,
                     expr,
@@ -165,7 +166,7 @@ pub(super) fn render_attribute(
         Attribute::UseDirective(d) => {
             if let Some(expr) = &d.expression {
                 // "use:" + name + "="
-                let prefix = 4 + visual_width(d.name.as_str()) + 1;
+                let prefix = 4 + d.name.as_str().visual_width(tw) + 1;
                 let inner = render_directive_value_narrow(
                     source,
                     expr,
@@ -183,9 +184,9 @@ pub(super) fn render_attribute(
         Attribute::StyleDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
             // Columns before the value's `{`: `style:` + name + modifiers + `=`.
-            let prefix = visual_width("style:")
-                + visual_width(d.name.as_str())
-                + visual_width(&modifiers)
+            let prefix = "style:".visual_width(tw)
+                + d.name.as_str().visual_width(tw)
+                + modifiers.visual_width(tw)
                 + 1;
             let value = render_attribute_value_for_directive(
                 &d.value,

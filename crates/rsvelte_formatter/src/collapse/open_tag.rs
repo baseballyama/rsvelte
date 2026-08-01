@@ -21,6 +21,7 @@ pub(super) fn collect_break_inline_open_tag(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
+    tw: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     for (node_idx, node) in fragment.nodes.iter().enumerate() {
@@ -47,6 +48,7 @@ pub(super) fn collect_break_inline_open_tag(
                         e.start,
                         e.end,
                         line_width,
+                        tw,
                     )
                 {
                     edits.push(edit);
@@ -65,6 +67,7 @@ pub(super) fn collect_break_inline_open_tag(
                         e.end,
                         &e.fragment,
                         line_width,
+                        tw,
                     )
                 {
                     // A whole-element edit (`edit.1 == e.end`) rewrites the tag
@@ -80,7 +83,7 @@ pub(super) fn collect_break_inline_open_tag(
                         continue;
                     }
                 }
-                collect_break_inline_open_tag(out, &e.fragment, line_width, edits);
+                collect_break_inline_open_tag(out, &e.fragment, line_width, tw, edits);
             }
             TemplateNode::Component(c) => {
                 let mut whole_element = false;
@@ -92,17 +95,18 @@ pub(super) fn collect_break_inline_open_tag(
                     c.end,
                     &c.fragment,
                     line_width,
+                    tw,
                 ) {
                     whole_element = edit.1 == c.end;
                     edits.push(edit);
                 }
                 if !whole_element {
-                    collect_break_inline_open_tag(out, &c.fragment, line_width, edits);
+                    collect_break_inline_open_tag(out, &c.fragment, line_width, tw, edits);
                 }
             }
             _ => {
                 for child in child_fragments(node) {
-                    collect_break_inline_open_tag(out, child, line_width, edits);
+                    collect_break_inline_open_tag(out, child, line_width, tw, edits);
                 }
             }
         }
@@ -120,6 +124,7 @@ pub(super) fn try_break_inline_open_tag(
     elem_end: u32,
     fragment: &Fragment,
     line_width: usize,
+    tw: usize,
 ) -> Option<(u32, u32, String)> {
     // Must have attributes to break. Zero-attribute elements in hug_start=true
     // contexts can't be broken safely without tree-level indent information.
@@ -149,7 +154,7 @@ pub(super) fn try_break_inline_open_tag(
     let line = out.get(line_start..line_end)?;
 
     // Line must overflow.
-    if line.width() <= line_width {
+    if line.visual_width(tw) <= line_width {
         return None;
     }
 
@@ -254,7 +259,7 @@ pub(super) fn try_break_inline_open_tag(
         // Check if Option B fits: `{before}<tag attr1 attrN` (no `>`) ≤ line_width.
         // We use the open_tag minus the trailing `>` character.
         let open_tag_without_angle = open_tag.strip_suffix('>')?;
-        let option_b_prefix_len = before.width() + open_tag_without_angle.width();
+        let option_b_prefix_len = before.visual_width(tw) + open_tag_without_angle.visual_width(tw);
 
         let broken = if option_b_prefix_len <= line_width {
             // Option B: keep `<tag attrs` on the current line, break at `>`.
@@ -312,6 +317,7 @@ pub(super) fn try_break_empty_block_open_tag(
     elem_start: u32,
     elem_end: u32,
     line_width: usize,
+    tw: usize,
 ) -> Option<(u32, u32, String)> {
     let s = elem_start as usize;
 
@@ -332,7 +338,7 @@ pub(super) fn try_break_empty_block_open_tag(
     let line = out.get(line_start..line_end)?;
 
     // Line must overflow.
-    if line.width() <= line_width {
+    if line.visual_width(tw) <= line_width {
         return None;
     }
 
@@ -371,6 +377,7 @@ pub(super) fn collect_recollapse_open_tag(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
+    tw: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     for (node_idx, node) in fragment.nodes.iter().enumerate() {
@@ -390,10 +397,11 @@ pub(super) fn collect_recollapse_open_tag(
                     e.start,
                     &e.fragment,
                     line_width,
+                    tw,
                 ) {
                     edits.push(edit);
                 }
-                collect_recollapse_open_tag(out, &e.fragment, line_width, edits);
+                collect_recollapse_open_tag(out, &e.fragment, line_width, tw, edits);
             }
             TemplateNode::Component(c) => {
                 if let Some(edit) = try_recollapse_open_tag(
@@ -403,14 +411,15 @@ pub(super) fn collect_recollapse_open_tag(
                     c.start,
                     &c.fragment,
                     line_width,
+                    tw,
                 ) {
                     edits.push(edit);
                 }
-                collect_recollapse_open_tag(out, &c.fragment, line_width, edits);
+                collect_recollapse_open_tag(out, &c.fragment, line_width, tw, edits);
             }
             _ => {
                 for child in child_fragments(node) {
-                    collect_recollapse_open_tag(out, child, line_width, edits);
+                    collect_recollapse_open_tag(out, child, line_width, tw, edits);
                 }
             }
         }
@@ -424,6 +433,7 @@ pub(super) fn try_recollapse_open_tag(
     elem_start: u32,
     fragment: &Fragment,
     line_width: usize,
+    tw: usize,
 ) -> Option<(u32, u32, String)> {
     if attrs.is_empty() {
         return None;
@@ -478,8 +488,8 @@ pub(super) fn try_recollapse_open_tag(
     single_line.push('>');
 
     // Check if single-line form fits at the element's current column.
-    let col = before.width();
-    if col + single_line.width() > line_width {
+    let col = before.visual_width(tw);
+    if col + single_line.visual_width(tw) > line_width {
         return None;
     }
 

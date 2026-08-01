@@ -254,6 +254,7 @@ pub(super) fn collect(
                     elem.end,
                     &elem.fragment,
                     line_width,
+                    tab_width(options),
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_break_block_multiline_content(
@@ -486,9 +487,14 @@ pub(super) fn collect(
                 }
             }
             TemplateNode::EachBlock(blk) => {
-                if let Some(edit) =
-                    try_hug_block_inline_body(out, blk.start, blk.end, &blk.body, line_width)
-                {
+                if let Some(edit) = try_hug_block_inline_body(
+                    out,
+                    blk.start,
+                    blk.end,
+                    &blk.body,
+                    line_width,
+                    tab_width(options),
+                ) {
                     edits.push(edit);
                 } else {
                     collect(out, &blk.body, line_width, true, options, edits);
@@ -509,9 +515,14 @@ pub(super) fn collect(
                 }
             }
             TemplateNode::KeyBlock(blk) => {
-                if let Some(edit) =
-                    try_hug_block_inline_body(out, blk.start, blk.end, &blk.fragment, line_width)
-                {
+                if let Some(edit) = try_hug_block_inline_body(
+                    out,
+                    blk.start,
+                    blk.end,
+                    &blk.fragment,
+                    line_width,
+                    tab_width(options),
+                ) {
                     edits.push(edit);
                 } else {
                     collect(out, &blk.fragment, line_width, true, options, edits);
@@ -541,6 +552,7 @@ pub(super) fn try_collapse(
     options: &FormatOptions,
     node: Option<&TemplateNode>,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
     // Pure text: every child is a Text node.
@@ -646,8 +658,8 @@ pub(super) fn try_collapse(
     }
     one_line.push_str(close);
 
-    let column = current_column(out, start);
-    if !one_line.contains('\n') && column + one_line.width() <= line_width {
+    let column = current_column(out, start, tw);
+    if !one_line.contains('\n') && column + one_line.visual_width(tw) <= line_width {
         return (one_line != whole).then_some((start, end, one_line));
     }
 
@@ -743,7 +755,10 @@ pub(super) fn try_collapse(
                 }
                 return None;
             }
-            let last_line_width = last_open_line.width() + collapsed.width() + 2 + tag.width();
+            let last_line_width = last_open_line.visual_width(tw)
+                + collapsed.visual_width(tw)
+                + 2
+                + tag.visual_width(tw);
             if last_line_width <= line_width {
                 // Fits: keep the `>` glued to the last attribute line.
                 let result = format!("{open}{collapsed}</{tag}\n{close_indent}>");
@@ -762,7 +777,11 @@ pub(super) fn try_collapse(
             } else {
                 open_no_bracket
             };
-            let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
+            let hug_width = inner_indent.visual_width(tw)
+                + 1
+                + collapsed.visual_width(tw)
+                + 2
+                + tag.visual_width(tw);
             if hug_width <= line_width {
                 let hug = format!("{prefix}\n{inner_indent}>{collapsed}</{tag}\n{close_indent}>");
                 return (hug != whole).then_some((start, end, hug));
@@ -771,15 +790,21 @@ pub(super) fn try_collapse(
             // across multiple lines at the inner indent level.
             // First line: `  >word1 word2…` (1 char for `>` reduces avail)
             // Continuation lines: `  word3 word4…`
-            let first_avail = line_width.saturating_sub(inner_indent.width() + 1).max(1);
-            let cont_avail = line_width.saturating_sub(inner_indent.width()).max(1);
+            let first_avail = line_width
+                .saturating_sub(inner_indent.visual_width(tw) + 1)
+                .max(1);
+            let cont_avail = line_width
+                .saturating_sub(inner_indent.visual_width(tw))
+                .max(1);
             let mut fill_lines: Vec<String> = Vec::new();
             let mut cur = String::new();
             let avail_for = |n: usize| if n == 0 { first_avail } else { cont_avail };
             for word in collapsed.split_whitespace() {
                 if cur.is_empty() {
                     cur.push_str(word);
-                } else if cur.width() + 1 + word.width() <= avail_for(fill_lines.len()) {
+                } else if cur.visual_width(tw) + 1 + word.visual_width(tw)
+                    <= avail_for(fill_lines.len())
+                {
                     cur.push(' ');
                     cur.push_str(word);
                 } else {
@@ -832,15 +857,23 @@ pub(super) fn try_collapse(
         } else {
             0
         };
-        let same_line_width =
-            column + open.width() + collapsed.width() + 2 + tag.width() + trailing_edge_extra;
+        let same_line_width = column
+            + open.visual_width(tw)
+            + collapsed.visual_width(tw)
+            + 2
+            + tag.visual_width(tw)
+            + trailing_edge_extra;
         if same_line_width <= line_width {
             let result = format!("{open}{collapsed}</{tag}\n{indent}>");
             return (result != whole).then_some((start, end, result));
         }
         // Inner-indent hug: open tag wraps so `>` moves to the next indented line
         // and content glues directly to it: `<a\n  href="…"\n  >text</a\n>`.
-        let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
+        let hug_width = inner_indent.visual_width(tw)
+            + 1
+            + collapsed.visual_width(tw)
+            + 2
+            + tag.visual_width(tw);
         if hug_width > line_width {
             // Content is too long even for the hug path (no single line fits).
             // Use Doc IR to express prettier's `hugStart && hugEnd` with a `Fill`
@@ -894,12 +927,12 @@ pub(super) fn try_collapse(
                             .take_while(|&b| b == b' ' || b == b'\t')
                             .count()
                     } else {
-                        indent.width() / indent_width
+                        indent.visual_width(tw) / indent_width
                     };
                     let printed = crate::doc::print(
                         &elem_doc,
                         line_width,
-                        indent_unit.as_str(),
+                        IndentUnit::new(indent_unit.as_str(), tw),
                         base_level,
                         column,
                     );
@@ -936,11 +969,13 @@ pub(super) fn try_collapse(
     }
     let (indent_unit_tc, _) = indent_config(options);
     let inner_indent = format!("{indent}{indent_unit_tc}");
-    let avail = line_width.saturating_sub(inner_indent.width()).max(1);
+    let avail = line_width
+        .saturating_sub(inner_indent.visual_width(tw))
+        .max(1);
 
     let mut broken = String::with_capacity(whole.len() + 8);
     broken.push_str(open);
-    for line in fill(&collapsed, avail) {
+    for line in fill(&collapsed, avail, tw) {
         broken.push('\n');
         broken.push_str(&inner_indent);
         broken.push_str(&line);

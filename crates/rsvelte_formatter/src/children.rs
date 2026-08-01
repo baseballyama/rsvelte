@@ -674,6 +674,7 @@ fn compute_no_hug_separators(
 mod tests {
     use super::*;
     use crate::doc::{Doc, print, propagate_breaks};
+    use crate::width::IndentUnit;
 
     #[test]
     fn bracket_same_line_flag_is_restored_after_a_panic() {
@@ -688,13 +689,25 @@ mod tests {
 
     /// A single text node's `splitTextToDocs` output is its own `fill`.
     fn render_fill(docs: Vec<Doc>, width: usize) -> String {
-        print(&propagate_breaks(Doc::Fill(docs)), width, "  ", 0, 0)
+        print(
+            &propagate_breaks(Doc::Fill(docs)),
+            width,
+            IndentUnit::new("  ", 2),
+            0,
+            0,
+        )
     }
 
     /// `print_children` returns the parent element body — a concat the element's
     /// `group` wraps (NOT a fill); text children are fills inside it.
     fn render_children(docs: Vec<Doc>, width: usize) -> String {
-        print(&propagate_breaks(Doc::Group(docs)), width, "  ", 0, 0)
+        print(
+            &propagate_breaks(Doc::Group(docs)),
+            width,
+            IndentUnit::new("  ", 2),
+            0,
+            0,
+        )
     }
 
     #[test]
@@ -751,7 +764,13 @@ mod tests {
     }
 
     fn render_el(doc: Doc, width: usize) -> String {
-        print(&propagate_breaks(doc), width, "  ", 0, 0)
+        print(
+            &propagate_breaks(doc),
+            width,
+            IndentUnit::new("  ", 2),
+            0,
+            0,
+        )
     }
 
     fn el(name: &str, children: Vec<Child>, is_inline: bool) -> Doc {
@@ -903,7 +922,7 @@ mod tests {
             self_closing: false,
             omit_softline_allowed: false,
         });
-        let printed = print(&propagate_breaks(doc), 80, "  ", 1, 2);
+        let printed = print(&propagate_breaks(doc), 80, IndentUnit::new("  ", 2), 1, 2);
         let expected = "<div slot=\"noResults\">\n    This is a custom text that<br /> will be shown when there are<br /> no rows to\n    display\n  </div>";
         assert_eq!(printed, expected);
     }
@@ -931,7 +950,7 @@ mod tests {
             omit_softline_allowed: false,
         });
         // Nested one level (p at indent 2 → content indent 4).
-        let printed = print(&propagate_breaks(doc), 80, "  ", 1, 2);
+        let printed = print(&propagate_breaks(doc), 80, IndentUnit::new("  ", 2), 1, 2);
         let expected = "<p class=\"meta\">\n    <a href=\"#/item/{item.id}\">{comment_text()}</a> by {item.user}\n    {item.time_ago}\n  </p>";
         assert_eq!(printed, expected);
     }
@@ -969,7 +988,13 @@ mod tests {
             self_closing: false,
             omit_softline_allowed: false,
         });
-        let printed = print(&propagate_breaks(strong), 80, "  ", 1, 2);
+        let printed = print(
+            &propagate_breaks(strong),
+            80,
+            IndentUnit::new("  ", 2),
+            1,
+            2,
+        );
         let expected = "<strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  >";
         assert_eq!(printed, expected);
     }
@@ -1019,7 +1044,7 @@ mod tests {
             self_closing: false,
             omit_softline_allowed: false,
         });
-        let printed = print(&propagate_breaks(div), 80, "  ", 0, 0);
+        let printed = print(&propagate_breaks(div), 80, IndentUnit::new("  ", 2), 0, 0);
         let expected = "<div class=\"shadow-sm p-3 mb-3 rounded\">\n  <strong\n    >Notice for <a href=\"https://sapper.svelte.dev/\" target=\"_blank\">Sapper</a> user:</strong\n  > You may need to install the component as a devDependency:\n</div>";
         assert_eq!(printed, expected);
     }

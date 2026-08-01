@@ -6,8 +6,8 @@ use crate::expression::format_attribute_value_expression;
 use crate::options::FormatOptions;
 
 use super::attribute::minimal_break_extra;
-use super::util::visual_width;
 use super::value::is_shallow_value;
+use crate::width::{VisualWidth, tab_width};
 
 pub(super) fn render_spread(
     spread: &SpreadAttribute,
@@ -87,12 +87,13 @@ pub(super) fn render_directive_value_narrow(
     narrow_value: bool,
     prefix: usize,
 ) -> Result<String, FormatError> {
+    let tw = tab_width(options);
     let formatted = render_directive_value(source, expr, value_end, options, attr_depth)?;
     if narrow_value && !formatted.contains('\n') {
         let indent_cols = attr_depth * options.js.indent_width.value() as usize;
         let line_width = options.js.line_width.value() as usize;
         // `{` + formatted + `}` = 1 brace on each side
-        if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+        if indent_cols + prefix + 1 + formatted.visual_width(tw) + 1 > line_width {
             // For shallow (non-block) values use `prefix + 1` (the `{` counts
             // against the first-line budget and the value has no multi-line
             // continuation, so narrowing by the full prefix + brace is safe).
@@ -118,7 +119,7 @@ pub(super) fn render_directive_value_narrow(
                 prefix + 1
             } else if is_expr_arrow {
                 let base_width = line_width.saturating_sub(indent_cols);
-                minimal_break_extra(base_width, visual_width(&formatted))
+                minimal_break_extra(base_width, formatted.visual_width(tw))
             } else {
                 prefix.saturating_sub(indent_width)
             };

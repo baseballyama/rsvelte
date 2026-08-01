@@ -1,6 +1,6 @@
+use crate::width::VisualWidth;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::Attribute;
-use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
@@ -11,7 +11,6 @@ use super::elements::{is_block_element, is_html_block_display_element, is_void_e
 use super::render_tag::{render_multi_line, render_one_line};
 use super::util::{
     attribute_span, find_open_tag_end, indent_str, indent_visual_width, is_self_closing_inner,
-    visual_width,
 };
 
 /// Push one edit covering the element's open tag span (from `<` to the
@@ -94,6 +93,7 @@ pub(super) fn push_open_tag(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<bool, FormatError> {
+    let tw = crate::width::tab_width(options);
     let Some(open_tag_end) = find_open_tag_end(source, element_start, attributes) else {
         return Ok(false);
     };
@@ -235,7 +235,7 @@ pub(super) fn push_open_tag(
                 .map_or(0, |i| i + 1);
             let source_col = source
                 .get(line_start..element_start as usize)
-                .map_or(0, |prefix| prefix.width());
+                .map_or(0, |prefix| prefix.visual_width(tw));
             std::cmp::max(depth_indent_width, source_col)
         } else {
             depth_indent_width
@@ -253,7 +253,7 @@ pub(super) fn push_open_tag(
     // A `//` line comment can't share a line with the closing `>` (it would
     // comment out the rest of the tag), so any line comment forces the
     // multi-line shape.
-    let open_one_line_width = leading_indent_width + visual_width(&one_liner);
+    let open_one_line_width = leading_indent_width + one_liner.visual_width(tw);
     // When the element hugs its content (an inline element whose first child
     // touches the `>`), the closing `>` of the open tag moves down to the hugged
     // content line (`<button …attrs`\n`  >text</button`\n`>`). So the attribute
@@ -369,7 +369,7 @@ pub(super) fn push_open_tag(
         let last_line = glued.rsplit('\n').next().unwrap_or("");
         let close_width = tag_name.len() + 3; // "</" + name + ">"
         // Keep gluing (hug_open = true) only when it fits; otherwise dangle.
-        visual_width(last_line) + close_width <= line_width
+        last_line.visual_width(tw) + close_width <= line_width
     } else {
         hug_open
     };

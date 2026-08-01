@@ -8,7 +8,7 @@
 //! between an inline hug and a fresh-line break depends on column-aware
 //! measurement of the surrounding content.
 
-use unicode_width::UnicodeWidthStr;
+use crate::width::{IndentUnit, VisualWidth};
 
 // Several variants below (`Literalline`, `ForcedGroup`, `Dedent`, `BreakParent`)
 // and `propagate_breaks` are the IR scaffolding for the prettier-plugin-svelte
@@ -71,7 +71,7 @@ enum Mode {
 pub(crate) fn print(
     doc: &Doc,
     width: usize,
-    unit: &str,
+    unit: IndentUnit,
     base_indent: usize,
     start_col: usize,
 ) -> String {
@@ -84,7 +84,7 @@ pub(crate) fn print(
 pub(crate) fn print_flat(
     doc: &Doc,
     width: usize,
-    unit: &str,
+    unit: IndentUnit,
     base_indent: usize,
     start_col: usize,
 ) -> String {
@@ -102,7 +102,7 @@ enum Cmd<'a> {
 fn print_inner(
     doc: &Doc,
     width: usize,
-    unit: &str,
+    unit: IndentUnit,
     base_indent: usize,
     start_col: usize,
     start_mode: Mode,
@@ -115,13 +115,13 @@ fn print_inner(
         let (ind, mode, d) = match cmd {
             Cmd::Doc(ind, mode, d) => (ind, mode, d),
             Cmd::Fill(ind, mode, ps) => {
-                print_fill(ind, mode, ps, width, pos, &mut cmds);
+                print_fill(ind, mode, ps, width, pos, unit, &mut cmds);
                 continue;
             }
         };
         match d {
             Doc::Text(s) => {
-                pos += text_width(s);
+                pos += s.visual_width(unit.tab_width());
                 out.push_str(s);
             }
             Doc::Concat(ps) => {
@@ -162,12 +162,12 @@ fn print_inner(
             }
             Doc::RawExpr { flat, broken } => {
                 if mode == Mode::Flat || broken.len() <= 1 {
-                    pos += text_width(flat);
+                    pos += flat.visual_width(unit.tab_width());
                     out.push_str(flat);
                 } else {
                     let mut lines = broken.iter();
                     if let Some(first) = lines.next() {
-                        pos += text_width(first);
+                        pos += first.visual_width(unit.tab_width());
                         out.push_str(first);
                     }
                     for line in lines {
@@ -175,13 +175,13 @@ fn print_inner(
                         out.push('\n');
                         let pad_width = push_indent(&mut out, unit, ind);
                         out.push_str(line);
-                        pos = pad_width + text_width(line);
+                        pos = pad_width + line.visual_width(unit.tab_width());
                     }
                 }
             }
             Doc::BreakParent => {} // consumed by propagate_breaks; prints nothing
             Doc::Group(ps) => {
-                let flat = fits(width as isize - pos as isize, &cmds, ps);
+                let flat = fits(width as isize - pos as isize, &cmds, ps, unit);
                 let m = if flat { Mode::Flat } else { Mode::Break };
                 for p in ps.iter().rev() {
                     cmds.push(Cmd::Doc(ind, m, p));
@@ -211,6 +211,7 @@ fn print_fill<'a>(
     ps: &'a [Doc],
     width: usize,
     pos: usize,
+    unit: IndentUnit,
     cmds: &mut Vec<Cmd<'a>>,
 ) {
     if ps.is_empty() {
@@ -221,7 +222,7 @@ fn print_fill<'a>(
     // (an element) would make every word "not fit" and break the prose one word
     // per line.
     let remaining = width as isize - pos as isize;
-    let content_fits = fits(remaining, &[], &ps[..1]);
+    let content_fits = fits(remaining, &[], &ps[..1], unit);
     if ps.len() <= 2 {
         let m = if content_fits {
             Mode::Flat
@@ -235,7 +236,7 @@ fn print_fill<'a>(
     }
     // The content–separator–content triple is contiguous, so it can be measured
     // in place.
-    let pair_fits = fits(remaining, &[], &ps[..3]);
+    let pair_fits = fits(remaining, &[], &ps[..3], unit);
     cmds.push(Cmd::Fill(ind, mode, &ps[2..]));
     let content = &ps[0];
     let ws = &ps[1];
@@ -256,7 +257,7 @@ fn print_fill<'a>(
 /// of prettier's `doc.js` `fits`: a soft `line` defers a pending space that is
 /// only charged when a following string is emitted (so a trailing `line` costs
 /// nothing), and a hard/break line ends the measurement successfully.
-fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc]) -> bool {
+fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit) -> bool {
     // Measurement never mutates the tree, so the whole walk borrows: cloning a
     // `Doc` here would deep-copy the entire measured subtree (and every entry
     // pulled off `rest_stack`) on every group, which dominated `print`.
@@ -295,7 +296,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc]) -> bool {
                         remaining -= 1;
                         has_pending_space = false;
                     }
-                    remaining -= text_width(s) as isize;
+                    remaining -= s.visual_width(unit.tab_width()) as isize;
                 }
             }
             // A pre-formatted interpolation. In `Flat` mode it is measured by
@@ -314,7 +315,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc]) -> bool {
                         if has_pending_space {
                             remaining -= 1;
                         }
-                        remaining -= text_width(head) as isize;
+                        remaining -= head.visual_width(unit.tab_width()) as isize;
                     }
                     return remaining >= 0;
                 }
@@ -323,7 +324,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc]) -> bool {
                         remaining -= 1;
                         has_pending_space = false;
                     }
-                    remaining -= text_width(flat) as isize;
+                    remaining -= flat.visual_width(unit.tab_width()) as isize;
                 }
             }
             Doc::Concat(ps)
@@ -365,25 +366,13 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc]) -> bool {
     }
 }
 
-/// Display width of `s`, with a fast path for the printable-ASCII case that
-/// dominates markup (where one byte is exactly one column). Anything outside
-/// `0x20..0x7f` — control characters, which [`UnicodeWidthStr::width`] counts as
-/// zero, and every non-ASCII scalar — falls back to the full computation.
-fn text_width(s: &str) -> usize {
-    if s.bytes().all(|b| (0x20..0x7f).contains(&b)) {
-        s.len()
-    } else {
-        s.width()
-    }
-}
-
 /// Append `level` copies of `unit` without materialising an intermediate
 /// `String` (this runs on every emitted line break).
-fn push_indent(out: &mut String, unit: &str, level: usize) -> usize {
+fn push_indent(out: &mut String, unit: IndentUnit, level: usize) -> usize {
     for _ in 0..level {
-        out.push_str(unit);
+        out.push_str(unit.as_str());
     }
-    text_width(unit) * level
+    unit.columns() * level
 }
 
 fn trim_trailing_blanks(out: &mut String) {
@@ -460,7 +449,7 @@ mod tests {
     use super::*;
 
     fn p(doc: Doc, width: usize) -> String {
-        print(&doc, width, "  ", 0, 0)
+        print(&doc, width, IndentUnit::new("  ", 2), 0, 0)
     }
 
     #[test]
@@ -506,7 +495,7 @@ mod tests {
         // width 20 forces the fill's Line to break before the wide RawExpr, then
         // the RawExpr itself prints broken with its continuation at indent 0.
         assert_eq!(
-            print(&doc, 20, "  ", 0, 0),
+            print(&doc, 20, IndentUnit::new("  ", 2), 0, 0),
             "lead\n{averylongidentifier +\n  anotherlongidentifier}"
         );
     }

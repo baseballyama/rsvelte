@@ -157,7 +157,7 @@ pub(super) fn compute_header_suffix_len(source: &str, expr_end: usize) -> usize 
                 '"' | '\'' | '`' => quote = Some(character),
                 '{' | '(' | '[' => depth += 1,
                 '}' if depth == 0 => {
-                    return UnicodeWidthStr::width(&tail[..scanned_bytes]);
+                    return crate::width::text_width(&tail[..scanned_bytes]);
                 }
                 '}' | ')' | ']' if depth > 0 => depth -= 1,
                 '\n' => return 0,
@@ -576,4 +576,3 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
         Some(result)
     }
 }
-use unicode_width::UnicodeWidthStr;

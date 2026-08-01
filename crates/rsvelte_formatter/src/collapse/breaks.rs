@@ -37,6 +37,7 @@ pub(super) fn collect_break_block_non_ws_prefix(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
+    tw: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     for (node_idx, node) in fragment.nodes.iter().enumerate() {
@@ -63,8 +64,8 @@ pub(super) fn collect_break_block_non_ws_prefix(
                     };
                     // Only act when the whole element is on one line and overflows.
                     let whole = out.get(s..end).unwrap_or("");
-                    let column = indent.width() + 1; // +1 for the `>` char
-                    if !whole.contains('\n') && column + whole.width() > line_width {
+                    let column = indent.visual_width(tw) + 1; // +1 for the `>` char
+                    if !whole.contains('\n') && column + whole.visual_width(tw) > line_width {
                         // Find first and last non-whitespace children.
                         if let (Some(first_child), Some(last_child)) = (
                             e.fragment.nodes.iter().find(
@@ -91,11 +92,11 @@ pub(super) fn collect_break_block_non_ws_prefix(
                         }
                     }
                 }
-                collect_break_block_non_ws_prefix(out, &e.fragment, line_width, edits);
+                collect_break_block_non_ws_prefix(out, &e.fragment, line_width, tw, edits);
             }
             _ => {
                 for child in child_fragments(node) {
-                    collect_break_block_non_ws_prefix(out, child, line_width, edits);
+                    collect_break_block_non_ws_prefix(out, child, line_width, tw, edits);
                 }
             }
         }
@@ -114,6 +115,7 @@ pub(super) fn try_break_inline_content_tag(
     line_width: usize,
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     let es = node_start(node) as usize;
     let ee = node_end(node) as usize;
     let span = out.get(es..ee)?; // `{expr}`
@@ -123,7 +125,7 @@ pub(super) fn try_break_inline_content_tag(
     let line_start = out[..es].rfind('\n').map_or(0, |i| i + 1);
     let line_end = out[ee..].find('\n').map_or(out.len(), |i| ee + i);
     let line = out.get(line_start..line_end)?;
-    if line.width() <= line_width {
+    if line.visual_width(tw) <= line_width {
         return None; // line fits — nothing to break
     }
     // Break only the RIGHTMOST mustache on the overflowing line: breaking it pulls
@@ -146,11 +148,11 @@ pub(super) fn try_break_inline_content_tag(
     {
         return None;
     }
-    let _start_col = current_column(out, es as u32);
+    let _start_col = current_column(out, es as u32, tw);
     // Continuation lands at the line's own indent + one level.
     let indent = &out[line_start..es];
     let lead_ws: String = indent.chars().take_while(|c| c.is_whitespace()).collect();
-    let cont_cols = lead_ws.width();
+    let cont_cols = lead_ws.visual_width(tw);
     let inner = span.get(1..span.len() - 1)?.trim();
     // Force OXC to break the expression at the MINIMUM narrowing: use
     // `width = single_line_len - 1` (one char narrower than the flat form).
@@ -163,7 +165,7 @@ pub(super) fn try_break_inline_content_tag(
     // as small as 13, causing `df.format(date.end.toDate(getLocalTimeZone()))`
     // to break all the way down to `toDate(\n  getLocalTimeZone(),\n)` instead
     // of the expected `df.format(\n  date.end.toDate(getLocalTimeZone()),\n)`.
-    let single_line_len = UnicodeWidthStr::width(inner);
+    let single_line_len = inner.visual_width(tw);
     let width = single_line_len.saturating_sub(1).max(1);
     let wrapped =
         crate::expression::reformat_content_at_width(inner, options, width, cont_cols).ok()?;
@@ -193,6 +195,7 @@ pub(super) fn try_break_content_tag_block(
     line_width: usize,
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     if !is_block_display(tag) {
         return None;
     }
@@ -255,7 +258,8 @@ pub(super) fn try_break_content_tag_block(
         let open_last_line = open.rsplit('\n').next().unwrap_or(open);
         let gt_on_own_line = open_last_line.trim_start_matches([' ', '\t']) == ">";
         if !gt_on_own_line {
-            let glued_width = open_last_line.width() + span.width() + close.width();
+            let glued_width =
+                open_last_line.visual_width(tw) + span.visual_width(tw) + close.visual_width(tw);
             if glued_width <= line_width {
                 return None; // fits on the attr+`>` line — leave as-is
             }
@@ -268,12 +272,12 @@ pub(super) fn try_break_content_tag_block(
         // attribute and the `>`.
         let open_without_gt = open[..open.len() - 1].trim_end();
         let inner = span.get(kw_lead..span.len() - kw_trail)?.trim();
-        let width = line_width.saturating_sub(inner_indent.width() + kw_lead + kw_trail);
+        let width = line_width.saturating_sub(inner_indent.visual_width(tw) + kw_lead + kw_trail);
         let wrapped = crate::expression::reformat_content_at_width(
             inner,
             options,
             width,
-            inner_indent.width(),
+            inner_indent.visual_width(tw),
         )
         .ok()?;
         let kw_prefix = &span[..kw_lead];
@@ -283,8 +287,9 @@ pub(super) fn try_break_content_tag_block(
         return (broken != whole).then_some((start, end, broken));
     }
 
-    let column = current_column(out, start);
-    if column + open.width() + span.width() + close.width() <= line_width {
+    let column = current_column(out, start, tw);
+    if column + open.visual_width(tw) + span.visual_width(tw) + close.visual_width(tw) <= line_width
+    {
         return None; // fits on one line
     }
 
@@ -296,10 +301,14 @@ pub(super) fn try_break_content_tag_block(
     let inner_indent = format!("{indent}  ");
 
     let inner = span.get(kw_lead..span.len() - kw_trail)?.trim();
-    let width = line_width.saturating_sub(inner_indent.width() + kw_lead + kw_trail);
-    let wrapped =
-        crate::expression::reformat_content_at_width(inner, options, width, inner_indent.width())
-            .ok()?;
+    let width = line_width.saturating_sub(inner_indent.visual_width(tw) + kw_lead + kw_trail);
+    let wrapped = crate::expression::reformat_content_at_width(
+        inner,
+        options,
+        width,
+        inner_indent.visual_width(tw),
+    )
+    .ok()?;
     let kw_prefix = &span[..kw_lead]; // `{@html ` / `{`
     let new_tag = format!("{kw_prefix}{wrapped}}}");
     let broken = format!("{open}\n{inner_indent}{new_tag}\n{indent}{close}");
@@ -325,6 +334,7 @@ pub(super) fn try_break_block_overflow(
     end: u32,
     fragment: &Fragment,
     line_width: usize,
+    tw: usize,
 ) -> Option<(u32, u32, String)> {
     if !is_block_display(tag) {
         return None;
@@ -357,8 +367,8 @@ pub(super) fn try_break_block_overflow(
 
     if !has_flow_block_child {
         // Must overflow.
-        let column = current_column(out, start);
-        if column + whole.width() <= line_width {
+        let column = current_column(out, start, tw);
+        if column + whole.visual_width(tw) <= line_width {
             return None;
         }
     }

@@ -11,10 +11,10 @@
 
 use rsvelte_core::ast::css::StyleSheet;
 use rsvelte_core::ast::template::{Fragment, TemplateNode};
-use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 /// Format the content of `<style>` elements that appear *inside* the markup
 /// (e.g. a nested `<div><style>…</style></div>` or a `<style>` in
@@ -255,7 +255,7 @@ fn indent_unit(options: &FormatOptions) -> String {
 /// gets a usable width.
 fn css_width(options: &FormatOptions, body_indent: &str) -> usize {
     let full = options.js.line_width.value() as usize;
-    full.saturating_sub(UnicodeWidthStr::width(body_indent))
+    full.saturating_sub(body_indent.visual_width(tab_width(options)))
         .max(20)
 }
 

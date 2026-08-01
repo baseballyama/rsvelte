@@ -1,8 +1,7 @@
-use unicode_width::UnicodeWidthStr;
-
 use super::format_core::format_expr_core;
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 // ─── Expression formatter ───────────────────────────────────────────────
 
@@ -165,8 +164,11 @@ pub(super) fn format_content_expression_with_prefix(
     // width so OXC breaks it the same way prettier-plugin-svelte does.
     // `overhead` = prefix_lead (e.g. `{@render ` = 9) + 1 (closing `}`).
     let overhead = prefix_lead + 1;
-    let first_line_width =
-        UnicodeWidthStr::width(formatted.lines().next().unwrap_or(formatted.as_str()));
+    let first_line_width = formatted
+        .lines()
+        .next()
+        .unwrap_or(formatted.as_str())
+        .visual_width(tab_width(options));
     let formatted = if lead + overhead + first_line_width > full_width {
         let narrowed2 = full_width.saturating_sub(lead + overhead);
         let lw2 = oxc_formatter_core::LineWidth::try_from(narrowed2.max(1) as u16)

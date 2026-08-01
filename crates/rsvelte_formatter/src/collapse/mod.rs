@@ -16,10 +16,10 @@
 
 use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
 use rsvelte_core::{ParseOptions, parse};
-use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{IndentUnit, VisualWidth, tab_width};
 
 mod breaks;
 mod children_port;
@@ -106,7 +106,7 @@ pub(crate) fn collapse_pure_text_elements(
         && !out.contains("<textarea")
         && !out
             .lines()
-            .any(|l| UnicodeWidthStr::width(l) > options.js.line_width.value() as usize)
+            .any(|l| l.visual_width(tab_width(options)) > options.js.line_width.value() as usize)
     {
         return Ok(out.to_string());
     }
@@ -143,6 +143,7 @@ pub(crate) fn collapse_pure_text_elements(
         return Ok(out.to_string());
     };
     let line_width = options.js.line_width.value() as usize;
+    let tw = tab_width(options);
 
     // `tree` always reflects `result`. Each pass re-parses ONLY after it actually
     // edits the text — a pass that makes no edits leaves the string (and thus its
@@ -221,6 +222,7 @@ pub(crate) fn collapse_pure_text_elements(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
+        tw,
         &mut edits1e,
     );
     if !edits1e.is_empty() {
@@ -243,6 +245,7 @@ pub(crate) fn collapse_pure_text_elements(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
+        tw,
         &mut edits1f,
     );
     if !edits1f.is_empty() {
@@ -262,6 +265,7 @@ pub(crate) fn collapse_pure_text_elements(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
+        tw,
         &mut edits1g,
     );
     if !edits1g.is_empty() {

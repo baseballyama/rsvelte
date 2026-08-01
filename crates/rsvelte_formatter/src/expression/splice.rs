@@ -4,7 +4,6 @@ use rsvelte_core::ast::arena::try_with_current_serialize_arena;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::ExpressionTag;
 use rsvelte_core::ast::typed_expr::JsNode;
-use unicode_width::UnicodeWidthStr;
 
 use super::call_args;
 use super::declaration::{
@@ -22,6 +21,7 @@ use super::width::{
 use super::{format_expression_source, format_pattern_source, formatter_parse_options};
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 // ─── Splice strategies ──────────────────────────────────────────────────
 
@@ -159,8 +159,10 @@ pub(super) fn push_expression_tag(
             let line_start = source[..tag.start as usize]
                 .rfind('\n')
                 .map_or(0, |index| index + 1);
-            let source_column =
-                UnicodeWidthStr::width(source.get(line_start..tag.start as usize).unwrap_or(""));
+            let source_column = source
+                .get(line_start..tag.start as usize)
+                .unwrap_or("")
+                .visual_width(tab_width(options));
             let indent = depth * options.js.indent_width.value() as usize;
             source_column.saturating_sub(indent) + 1
         } else {
@@ -453,7 +455,7 @@ pub(super) fn push_bare_expression(
     } else {
         formatted
     };
-    let expression_width = UnicodeWidthStr::width(formatted.as_str());
+    let expression_width = formatted.visual_width(tab_width(options));
     // `sibling_expansion` is the width a not-yet-settled expression later on the
     // header line gains from its own grouped calls — the `{#each}` key, measured
     // at its widest while the iterable ahead of it is being judged.

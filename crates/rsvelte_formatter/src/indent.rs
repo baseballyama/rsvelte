@@ -16,10 +16,10 @@
 
 use oxc_formatter::JsFormatOptions;
 use rsvelte_core::ast::template::{Fragment, IfBlock, TemplateNode};
-use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 /// `child_depth` is the indent level at which this fragment's children
 /// render. The root call uses `0`. Recursing into an element's
@@ -93,6 +93,7 @@ fn collect_indent_edits_inner(
 
     if has_block_children {
         let child_indent = indent_for_level(child_depth, &options.js);
+        let tw = tab_width(options);
         // The last whitespace returns to the *parent's* depth — one
         // less than the children's. The root has no enclosing parent,
         // so use an empty indent (just a newline).
@@ -122,7 +123,7 @@ fn collect_indent_edits_inner(
         let has_non_expression_block_child = fragment.nodes.iter().any(|n| {
             is_indent_provoking(n)
                 && !matches!(n, TemplateNode::ExpressionTag(_))
-                && !is_inline_level_node(n, source, child_indent.width(), options)
+                && !is_inline_level_node(n, source, child_indent.visual_width(tw), options)
         });
 
         // prettier-plugin-svelte's `forceBreakContent`: when any child is a
@@ -760,7 +761,8 @@ fn is_inline_level_node(
     // and breaks later.
     let flat = source.get(start as usize..end as usize).unwrap_or("");
     let line_width = options.js.line_width.value() as usize;
-    !flat.contains('\n') && indent_width + flat.width() <= line_width
+    let tw = tab_width(options);
+    !flat.contains('\n') && indent_width + flat.visual_width(tw) <= line_width
 }
 
 fn is_indent_provoking(node: &TemplateNode) -> bool {

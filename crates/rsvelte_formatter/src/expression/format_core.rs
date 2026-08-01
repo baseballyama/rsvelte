@@ -6,12 +6,12 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_formatter::{QuoteStyle, format_program};
 use oxc_parser::Parser;
 use oxc_span::{GetSpan, SourceType};
-use unicode_width::UnicodeWidthStr;
 
 use super::formatter_parse_options;
 use super::text::{strip_leading_paren_pair, strip_outer_parens};
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::{VisualWidth, tab_width};
 
 /// Format a single JS expression source at `line_width`. Wraps in parens to
 /// force expression context (so object literals like `{a:1}` aren't parsed as
@@ -407,7 +407,12 @@ pub(super) fn format_expr_core(
     // leaving oxc's form is the safe choice.
     let formatted = if !use_const_wrapper && program_has_as_or_satisfies_union(&parser_ret.program)
     {
-        reflow_flat_as_satisfies_unions(&formatted, line_width.value() as usize, source_type)
+        reflow_flat_as_satisfies_unions(
+            &formatted,
+            line_width.value() as usize,
+            tab_width(options),
+            source_type,
+        )
     } else {
         formatted
     };
@@ -524,6 +529,7 @@ fn is_multi_member_union(ty: &TSType<'_>) -> bool {
 fn reflow_flat_as_satisfies_unions(
     formatted: &str,
     budget: usize,
+    tw: usize,
     source_type: SourceType,
 ) -> String {
     let union_spans = as_satisfies_union_spans(formatted, source_type);
@@ -556,7 +562,7 @@ fn reflow_flat_as_satisfies_unions(
         };
         if anchored
             && let Some((flat_line, consumed)) =
-                try_flatten_union_block(&lines, &line_start, i + 1, budget, &covered_by_union)
+                try_flatten_union_block(tw, &lines, &line_start, i + 1, budget, &covered_by_union)
         {
             out.push(line.to_string());
             out.push(flat_line);
@@ -606,6 +612,7 @@ fn as_satisfies_union_spans(formatted: &str, source_type: SourceType) -> Vec<(us
 /// Try to read a leading-`|` union block starting at line `start`. On success
 /// returns the single flattened line and how many source lines it consumed.
 fn try_flatten_union_block(
+    tw: usize,
     lines: &[&str],
     line_start: &[usize],
     start: usize,
@@ -661,7 +668,7 @@ fn try_flatten_union_block(
 
     let flat_body = members.join(" | ");
     let flat_line = format!("{indent}{flat_body}");
-    if UnicodeWidthStr::width(flat_line.as_str()) > budget {
+    if flat_line.visual_width(tw) > budget {
         return None;
     }
     Some((flat_line, n))

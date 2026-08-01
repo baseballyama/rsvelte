@@ -192,6 +192,8 @@ pub(super) fn try_children_port(
     options: &FormatOptions,
 ) -> Option<Option<(u32, u32, String)>> {
     use crate::children::{Child, ElementLayout, build_element_doc};
+
+    let tw = tab_width(options);
     let (tag, attributes, fragment, start, end, is_inline, self_closing) = match node {
         TemplateNode::RegularElement(e) => (
             e.name.as_str(),
@@ -301,9 +303,9 @@ pub(super) fn try_children_port(
     let base_level = if options.js.indent_style.is_tab() {
         ws_len
     } else {
-        indent.width() / width
+        indent.visual_width(tw) / width
     };
-    let start_col = current_column(out, start);
+    let start_col = current_column(out, start, tw);
 
     // Build the ElementLayout from the AST, recursively converting each child via
     // the faithful port (`node_to_child` bails on any unsupported child).
@@ -324,7 +326,13 @@ pub(super) fn try_children_port(
         omit_softline_allowed: omit_softline_allowed(out, end),
     });
     let doc = crate::doc::propagate_breaks(doc);
-    let printed = crate::doc::print(&doc, line_width, unit.as_str(), base_level, start_col);
+    let printed = crate::doc::print(
+        &doc,
+        line_width,
+        IndentUnit::new(unit.as_str(), tw),
+        base_level,
+        start_col,
+    );
 
     // Corruption guard: the non-whitespace content must be byte-identical (the
     // port only ever changes whitespace/line breaks, never content). If it isn't,

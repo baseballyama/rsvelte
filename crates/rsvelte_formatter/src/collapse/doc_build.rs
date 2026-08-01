@@ -255,7 +255,8 @@ pub(super) fn content_tag_breakable_doc(
     // inner width, mirroring `try_break_inline_content_tag`); continuation lines
     // carry oxc's own relative indent measured from column 0, which the `RawExpr`
     // printer offsets by the current indent level.
-    let width = UnicodeWidthStr::width(flat_inner.as_str())
+    let width = flat_inner
+        .visual_width(tab_width(options))
         .saturating_sub(1)
         .max(1);
     let broken_inner =
@@ -643,7 +644,7 @@ pub(super) fn build_self_closing_component_doc(
         Doc::Text("/>".to_string()), // no leading space: the `dedent(line)` provides it
     ]);
     // Guard: the flat print must match the verbatim span (trimmed).
-    let flat = crate::doc::print(&doc, 999999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999999, IndentUnit::new("  ", 2), 0, 0);
     if flat.trim() != span.trim() {
         return None;
     }
@@ -699,7 +700,7 @@ pub(super) fn build_self_closing_regular_doc(
     // Guard: the flat form must equal the canonical single-line `<tag a b c />`
     // so this never changes bytes when the element already fits on one line.
     let expected = format!("<{tag} {flat_attrs} />");
-    let flat = crate::doc::print(&doc, 999_999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999_999, IndentUnit::new("  ", 2), 0, 0);
     if flat != expected {
         return None;
     }
@@ -753,7 +754,7 @@ pub(super) fn build_void_element_doc(
     } else {
         format!("<{tag} {flat_attrs} />")
     };
-    let flat = crate::doc::print(&doc, 999_999, "  ", 0, 0);
+    let flat = crate::doc::print(&doc, 999_999, IndentUnit::new("  ", 2), 0, 0);
     if flat != expected {
         return None;
     }
@@ -948,7 +949,8 @@ pub(super) fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::
                         // so leading/trailing space differences don't cause a spurious
                         // mismatch — the surrounding `>` / `</{tag}` wrappers are
                         // structural and don't vary.
-                        let flat_body = crate::doc::print(&body, 1_000_000, "  ", 0, 0);
+                        let flat_body =
+                            crate::doc::print(&body, 1_000_000, IndentUnit::new("  ", 2), 0, 0);
                         if flat_body.trim() == content.trim() {
                             // Re-inject leading/trailing whitespace that
                             // `build_children_doc_nodes` trims from the first/last
@@ -1022,7 +1024,7 @@ pub(super) fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::
             // 0-regression: only switch when the body prints flat-identically to
             // `content` (modulo boundary trimming by build_children_doc_nodes).
             let inner_body_doc = build_children_doc(out, &e.fragment).and_then(|body| {
-                let flat_body = crate::doc::print(&body, 1_000_000, "  ", 0, 0);
+                let flat_body = crate::doc::print(&body, 1_000_000, IndentUnit::new("  ", 2), 0, 0);
                 if flat_body.trim() == content.trim() {
                     let recursive_content = Doc::Concat(vec![
                         Doc::Text(">".to_string()),

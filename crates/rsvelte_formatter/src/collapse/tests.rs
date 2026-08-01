@@ -247,7 +247,7 @@ fn hug_close_tag_width_drives_inner_component_break() {
     let body = || Doc::Concat(vec![Doc::Text("Clear ".to_string()), icon()]);
 
     // Body alone from col 15 ends at 78 <= 80: the Icon must stay flat.
-    let a = print(&body(), 80, "  ", 7, 15);
+    let a = print(&body(), 80, IndentUnit::new("  ", 2), 7, 15);
     assert_eq!(
         a,
         "Clear <Icon data={TrashIcon} class=\"text-surface-content/50\" />"
@@ -261,7 +261,7 @@ fn hug_close_tag_width_drives_inner_component_break() {
         body(),
         Doc::Text("</button".to_string()),
     ]);
-    let b = print(&measured, 80, "  ", 7, 14);
+    let b = print(&measured, 80, IndentUnit::new("  ", 2), 7, 14);
     let expected = "\
 >Clear <Icon
                 data={TrashIcon}

@@ -1,6 +1,5 @@
 use oxc_formatter::JsFormatOptions;
 use rsvelte_core::ast::template::Attribute;
-use unicode_width::UnicodeWidthStr;
 
 pub(super) fn indent_str(level: usize, js_opts: &JsFormatOptions) -> String {
     if js_opts.indent_style.is_tab() {
@@ -15,15 +14,6 @@ pub(super) fn indent_str(level: usize, js_opts: &JsFormatOptions) -> String {
 /// them).
 pub(super) fn indent_visual_width(level: usize, js_opts: &JsFormatOptions) -> usize {
     level * js_opts.indent_width.value() as usize
-}
-
-/// Visual width of a rendered string, matching how `oxfmt` / prettier measure
-/// line length: East Asian Wide and Fullwidth characters (CJK text, fullwidth
-/// punctuation, …) count as two columns and combining marks as zero. Counting
-/// bare `chars()` under-measured CJK-heavy open tags, so they never crossed
-/// `printWidth` and never wrapped even when `oxfmt` would (#762).
-pub(super) fn visual_width(s: &str) -> usize {
-    UnicodeWidthStr::width(s)
 }
 
 // ─── source-scan helpers ────────────────────────────────────────────────

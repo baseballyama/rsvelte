@@ -6,6 +6,7 @@ use rsvelte_core::ast::template::Script;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+use crate::width::VisualWidth;
 
 /// Format a standalone JS/TS source file in-process via `oxc_formatter` — the
 /// same engine `oxfmt` uses for `.ts`/`.js`, so the output is byte-identical
@@ -204,7 +205,8 @@ pub(crate) fn format_nested_script(
     // Narrow the width by the final nesting so wrap decisions match the indented
     // result (mirrors `format_script`'s one-level narrowing, generalised).
     let mut js = options.js.clone();
-    let narrow = (body_indent.len() as u16).min(js.line_width.value().saturating_sub(1));
+    let narrow = (body_indent.visual_width(crate::width::tab_width(options)) as u16)
+        .min(js.line_width.value().saturating_sub(1));
     let nested_width = js.line_width.value().saturating_sub(narrow);
     js.line_width = oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
     let formatted = format_program(allocator, &parser_ret.program, js, None)

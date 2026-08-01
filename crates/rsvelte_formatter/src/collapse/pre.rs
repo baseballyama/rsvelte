@@ -838,6 +838,7 @@ pub(super) fn try_break_pre_content_tag(
     line_width: usize,
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     // Exactly one child, an expression tag (the only content-tag kind that
     // appears glued inside `<pre>` / `<textarea>` in practice).
     if fragment.nodes.len() != 1 {
@@ -859,8 +860,9 @@ pub(super) fn try_break_pre_content_tag(
     if open.contains('\n') || span.contains('\n') || span.len() <= 2 {
         return None;
     }
-    let column = current_column(out, start);
-    if column + open.width() + span.width() + close.width() <= line_width {
+    let column = current_column(out, start, tw);
+    if column + open.visual_width(tw) + span.visual_width(tw) + close.visual_width(tw) <= line_width
+    {
         return None; // fits on one line
     }
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
@@ -871,11 +873,11 @@ pub(super) fn try_break_pre_content_tag(
     // Continuation lines sit one indent level past the element; the expression
     // formatter adds its own level for the broken binary on top of that.
     let iw = options.js.indent_width.value() as usize;
-    let cont_cols = indent.width() + iw;
+    let cont_cols = indent.visual_width(tw) + iw;
     let inner = span.get(1..span.len() - 1)?.trim(); // strip the `{` … `}`
     // Force the top-level expression to break: the last line carries `}</pre>`,
     // which oxc can't see, so narrow the width by that glued suffix.
-    let suffix = 1 + close.width(); // `}` + `</tag>`
+    let suffix = 1 + close.visual_width(tw); // `}` + `</tag>`
     let width = line_width.saturating_sub(cont_cols + suffix).max(1);
     let wrapped =
         crate::expression::reformat_content_at_width(inner, options, width, cont_cols).ok()?;
@@ -907,6 +909,7 @@ pub(super) fn try_break_pre_own_attrs(
     line_width: usize,
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
     // Only single-line elements.
@@ -919,8 +922,8 @@ pub(super) fn try_break_pre_own_attrs(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    let column = indent.width();
-    if column + whole.width() <= line_width {
+    let column = indent.visual_width(tw);
+    if column + whole.visual_width(tw) <= line_width {
         return None;
     }
     // Prefer breaking a child element's open tag over the `<pre>`'s own attrs:
@@ -1082,17 +1085,18 @@ pub(super) fn try_fix_pre_child_open_tags(
     line_width: usize,
     options: &FormatOptions,
 ) -> Vec<(u32, u32, String)> {
+    let tw = tab_width(options);
     let mut edits = Vec::new();
     // Determine the `<pre>` element's leading indent column.
     let pre_s = pre_start as usize;
     let pre_line_start = out[..pre_s].rfind('\n').map_or(0, |i| i + 1);
     let pre_leading = &out[pre_line_start..pre_s];
     let pre_indent_col = if pre_leading.bytes().all(|b| b == b' ' || b == b'\t') {
-        pre_leading.width()
+        pre_leading.visual_width(tw)
     } else {
         // `<pre>` does not start at the beginning of its line (e.g. it directly
         // follows another element). Use its actual column.
-        current_column(out, pre_start)
+        current_column(out, pre_start, tw)
     };
     let iw = options.js.indent_width.value() as usize;
 
@@ -1143,7 +1147,7 @@ pub(super) fn try_fix_pre_child_open_tags(
             // line overflows — a short single-line child (`<code class="x">y</code>`)
             // stays glued.
             let content_multiline = out.get(open_end..ce).is_some_and(|c| c.contains('\n'));
-            if line.width() <= line_width && !content_multiline {
+            if line.visual_width(tw) <= line_width && !content_multiline {
                 continue; // fits on one line and single-line content — no action
             }
             // Drop `>` to a new indented line.  The indent sits two levels

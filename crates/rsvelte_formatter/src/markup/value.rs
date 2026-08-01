@@ -6,8 +6,8 @@ use crate::error::FormatError;
 use crate::expression::format_attribute_value_expression;
 use crate::options::FormatOptions;
 
-use super::util::visual_width;
 use super::value_sequence::render_attribute_value_sequence;
+use crate::width::{VisualWidth, tab_width};
 
 /// Return the source text of an `ExpressionTag`'s inner expression, without
 /// the surrounding `{`/`}`.
@@ -89,6 +89,7 @@ fn render_single_expression_value(
     attr_depth: usize,
     narrow_value: bool,
 ) -> Result<String, FormatError> {
+    let tw = tab_width(options);
     if inner_src.is_empty() {
         return Ok(format!("{}={{}}", node.name));
     }
@@ -140,7 +141,7 @@ fn render_single_expression_value(
     //     Using `prefix - indent_width` as extra_lead would over-narrow the budget
     //     and wrongly break inner expressions for deep objects like
     //     `classes={{ input: styles.fn({ prop: clsx(a, b) }) }}`.
-    let prefix = visual_width(node.name.as_str()) + 2;
+    let prefix = node.name.as_str().visual_width(tw) + 2;
     let indent_width = options.js.indent_width.value() as usize;
     let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
     let formatted = if narrow_value {
@@ -153,7 +154,7 @@ fn render_single_expression_value(
             // column beyond the value — counting `{` again here would over-report
             // the width by one and wrongly break a value that fills exactly to the
             // print width (an 80-column `disabledDates={[…]}` line).
-            if indent_cols + prefix + visual_width(&formatted) + 1 > line_width {
+            if indent_cols + prefix + formatted.visual_width(tw) + 1 > line_width {
                 if is_shallow_value(inner_src) {
                     // For a shallow expression (call / ternary / binary / logical chain),
                     // first try re-formatting with `extra_lead = prefix`.  If that
@@ -181,7 +182,7 @@ fn render_single_expression_value(
                             let prefix_first =
                                 prefix_result.lines().next().unwrap_or("").trim_end();
                             let prefix_total =
-                                indent_cols + prefix + visual_width(prefix_first) + 1;
+                                indent_cols + prefix + prefix_first.visual_width(tw) + 1;
                             if prefix_total <= line_width {
                                 return Ok(format!("{}={{{prefix_result}}}", node.name));
                             }
@@ -197,7 +198,7 @@ fn render_single_expression_value(
                         // The `prefix` narrowing forced a break. Try widening to
                         // `single_line_len` to give inner content more room.
                         let base_width = line_width.saturating_sub(indent_cols);
-                        let single_line_len = visual_width(&formatted);
+                        let single_line_len = formatted.visual_width(tw);
                         let extra_lead = base_width.saturating_sub(single_line_len);
                         if extra_lead < prefix {
                             // Widening would give more room — try the wider result.
@@ -238,7 +239,7 @@ fn render_single_expression_value(
                     // that over-narrows the body when `prefix` is large (e.g. a
                     // 15-char attribute name like `onValueChange`).
                     let base_width = line_width.saturating_sub(indent_cols);
-                    let inline_len = visual_width(&formatted);
+                    let inline_len = formatted.visual_width(tw);
                     let inline_total = indent_cols + prefix + 1 + inline_len + 1;
                     let arrow_extra = if inline_total > line_width + 1 {
                         // Overflow >= 2: use tight narrowing to force the arrow break
@@ -255,7 +256,7 @@ fn render_single_expression_value(
                     // The `format_attribute_value_expression` API uses extra_lead,
                     // so convert: narrowed = full_width − indent_cols − extra_lead,
                     // meaning extra_lead = full_width − indent_cols − (inline_len − 1).
-                    let inline_len = visual_width(&formatted);
+                    let inline_len = formatted.visual_width(tw);
                     // full_width − indent_cols is the budget without extra_lead
                     let base_width = line_width.saturating_sub(indent_cols);
                     // extra_lead that yields narrowed = inline_len − 1
@@ -269,7 +270,7 @@ fn render_single_expression_value(
             // Multi-line shallow: check the first line to decide whether to
             // re-format with extra_lead.
             let first_line = formatted.lines().next().unwrap_or("").trim_end();
-            let first_line_total = indent_cols + prefix + visual_width(first_line) + 1;
+            let first_line_total = indent_cols + prefix + first_line.visual_width(tw) + 1;
             if first_line_total > line_width {
                 let overflow = first_line_total - line_width;
                 let tighter = format_attribute_value_expression(
@@ -337,6 +338,7 @@ pub(super) fn render_attribute_node(
     attr_depth: usize,
     narrow_value: bool,
 ) -> Result<String, FormatError> {
+    let tw = tab_width(options);
     match &node.value {
         AttributeValue::True(_) => Ok(node.name.to_string()),
         AttributeValue::Expression(tag) => {
@@ -389,7 +391,7 @@ pub(super) fn render_attribute_node(
             }
 
             // Columns before the value body on the first line: `name="`.
-            let name_prefix = visual_width(node.name.as_str()) + 2;
+            let name_prefix = node.name.as_str().visual_width(tw) + 2;
             let body = render_attribute_value_sequence(
                 parts,
                 source,
@@ -425,6 +427,7 @@ pub(super) fn render_attribute_value_for_directive(
     narrow_value: bool,
     prefix: usize,
 ) -> Result<String, FormatError> {
+    let tw = tab_width(options);
     match value {
         AttributeValue::True(_) => Ok(String::new()),
         AttributeValue::Expression(tag) => {
@@ -441,7 +444,7 @@ pub(super) fn render_attribute_value_for_directive(
             let line_width = options.js.line_width.value() as usize;
             let formatted = if narrow_value
                 && !formatted.contains('\n')
-                && indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width
+                && indent_cols + prefix + 1 + formatted.visual_width(tw) + 1 > line_width
             {
                 format_attribute_value_expression(inner_src, options, attr_depth, prefix + 1)?
             } else {
@@ -469,7 +472,7 @@ pub(super) fn render_attribute_value_for_directive(
                     let line_width = options.js.line_width.value() as usize;
                     let formatted = if narrow_value
                         && !formatted.contains('\n')
-                        && indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width
+                        && indent_cols + prefix + 1 + formatted.visual_width(tw) + 1 > line_width
                     {
                         format_attribute_value_expression(
                             inner_src,

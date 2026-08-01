@@ -151,10 +151,10 @@ pub(super) fn text_end(node: &TemplateNode) -> Option<u32> {
 }
 
 /// Visual column where `pos` sits (width of its line's prefix).
-pub(super) fn current_column(out: &str, pos: u32) -> usize {
+pub(super) fn current_column(out: &str, pos: u32, tab_width: usize) -> usize {
     let pos = pos as usize;
     let line_start = out[..pos].rfind('\n').map_or(0, |i| i + 1);
-    out[line_start..pos].width()
+    out[line_start..pos].visual_width(tab_width)
 }
 
 /// Elements whose default CSS display is block / list-item — prettier trims the

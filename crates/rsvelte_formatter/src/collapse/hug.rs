@@ -190,6 +190,7 @@ pub(super) fn try_hug_block_inline_body(
     end: u32,
     body: &Fragment,
     line_width: usize,
+    tw: usize,
 ) -> Option<(u32, u32, String)> {
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
@@ -217,7 +218,7 @@ pub(super) fn try_hug_block_inline_body(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    if indent.width() + whole.width() <= line_width {
+    if indent.visual_width(tw) + whole.visual_width(tw) <= line_width {
         return None; // fits on one line
     }
     let prefix = out.get(s..elem_start)?; // block open tag (+ no leading ws)
@@ -245,6 +246,7 @@ pub(super) fn try_hug_mixed(
     line_width: usize,
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
     let (indent_unit_hm, indent_width_hm) = indent_config(options);
     // Inline elements hug (prettier's `blockElements` excludes button/input/…),
     // so only true block elements and raw-text elements are ineligible.
@@ -417,7 +419,7 @@ pub(super) fn try_hug_mixed(
     {
         return None;
     }
-    let column = current_column(out, start);
+    let column = current_column(out, start, tw);
 
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
@@ -489,9 +491,9 @@ pub(super) fn try_hug_mixed(
         // element's real start column) in that case so we don't incorrectly
         // collapse elements whose merged line would exceed `line_width`.
         let glued = if non_ws_prefix {
-            column + 1 + raw.width() + 2 + tag.width()
+            column + 1 + raw.visual_width(tw) + 2 + tag.visual_width(tw)
         } else {
-            last_line.width() + 1 + raw.width() + 2 + tag.width()
+            last_line.visual_width(tw) + 1 + raw.visual_width(tw) + 2 + tag.visual_width(tw)
         };
         if glued <= line_width {
             let result = format!("{onb}>{raw}</{tag}\n{ws_indent}>");
@@ -516,7 +518,8 @@ pub(super) fn try_hug_mixed(
         // tag `</tag` (prettier's `group(['>', body, '</tag'])`) so the printer's fits
         // lookahead counts its width — otherwise a child whose own attrs fit but
         // overflow once the close tag is appended never breaks.
-        let inner_line = inner_indent.width() + 1 + raw.width() + 2 + tag.width();
+        let inner_line =
+            inner_indent.visual_width(tw) + 1 + raw.visual_width(tw) + 2 + tag.visual_width(tw);
         if !raw_trail_ws_only
             && inner_line > line_width
             && !raw.contains('\n')
@@ -528,7 +531,7 @@ pub(super) fn try_hug_mixed(
                     .take_while(|&b| b == b' ' || b == b'\t')
                     .count()
             } else {
-                inner_indent.width() / indent_width_hm
+                inner_indent.visual_width(tw) / indent_width_hm
             };
             let measured = crate::doc::Doc::Group(vec![
                 crate::doc::Doc::Text(">".to_string()),
@@ -538,9 +541,9 @@ pub(super) fn try_hug_mixed(
             let printed_full = crate::doc::print(
                 &measured,
                 line_width,
-                indent_unit_hm.as_str(),
+                IndentUnit::new(indent_unit_hm.as_str(), tw),
                 base_level,
-                inner_indent.width(),
+                inner_indent.visual_width(tw),
             );
             if printed_full.contains('\n') {
                 let result2 = format!("{onb}\n{inner_indent}{printed_full}\n{ws_indent}>");
@@ -557,19 +560,19 @@ pub(super) fn try_hug_mixed(
         // to break.
         let body_opt = build_children_doc(out, fragment);
         if let Some(body) = body_opt {
-            let inner_col = inner_indent.width() + 1; // column after the `>`
+            let inner_col = inner_indent.visual_width(tw) + 1; // column after the `>`
             let base_level = if options.js.indent_style.is_tab() {
                 inner_indent
                     .bytes()
                     .take_while(|&b| b == b' ' || b == b'\t')
                     .count()
             } else {
-                inner_indent.width() / indent_width_hm
+                inner_indent.visual_width(tw) / indent_width_hm
             };
             let printed = crate::doc::print(
                 &body,
                 line_width,
-                indent_unit_hm.as_str(),
+                IndentUnit::new(indent_unit_hm.as_str(), tw),
                 base_level,
                 inner_col,
             );
@@ -590,10 +593,11 @@ pub(super) fn try_hug_mixed(
         //   - The raw content (all on one line) ends with `>`.
         //   - Removing the trailing `>` makes the inner line fit.
         //   - The result differs from the current form.
-        let full_inner = inner_indent.width() + 1 + raw.width() + 2 + tag.width();
+        let full_inner =
+            inner_indent.visual_width(tw) + 1 + raw.visual_width(tw) + 2 + tag.visual_width(tw);
         if full_inner > line_width && !raw.contains('\n') && raw.ends_with('>') {
             let raw_deferred = &raw[..raw.len() - 1]; // trim the trailing `>`
-            let deferred_inner = inner_indent.width() + 1 + raw_deferred.width();
+            let deferred_inner = inner_indent.visual_width(tw) + 1 + raw_deferred.visual_width(tw);
             if deferred_inner <= line_width {
                 let result3 = format!(
                     "{onb}\n{inner_indent}>{raw_deferred}\n{inner_indent}></{tag}\n{ws_indent}>"
@@ -606,7 +610,8 @@ pub(super) fn try_hug_mixed(
         return None;
     }
 
-    let element_one_line = column + open.width() + raw.width() + close.width();
+    let element_one_line =
+        column + open.visual_width(tw) + raw.visual_width(tw) + close.visual_width(tw);
     if element_one_line <= line_width && !has_flow_block {
         return None; // fits as-is (and no forced break needed)
     }
@@ -659,12 +664,12 @@ pub(super) fn try_hug_mixed(
             .take_while(|&b| b == b' ' || b == b'\t')
             .count()
     } else {
-        ws_indent.width() / indent_width_hm
+        ws_indent.visual_width(tw) / indent_width_hm
     };
     let printed = crate::doc::print(
         &elem_doc,
         line_width,
-        indent_unit_hm.as_str(),
+        IndentUnit::new(indent_unit_hm.as_str(), tw),
         level,
         column,
     );
