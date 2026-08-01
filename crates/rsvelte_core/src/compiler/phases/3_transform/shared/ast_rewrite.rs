@@ -85,7 +85,7 @@ pub fn with_program_mut(
     source: &str,
     source_type: SourceType,
     parse_options: ParseOptions,
-    f: impl FnOnce(&Allocator, &mut Program<'_>) -> bool,
+    f: impl for<'p> FnOnce(&'p Allocator, &mut Program<'p>) -> bool,
 ) -> Option<String> {
     dual_run::count_parse(dual_run::current_or(std::panic::Location::caller().file()));
     arena.with(|cell| {
