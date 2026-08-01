@@ -267,7 +267,7 @@ pub struct KitOverlayEntry {
 
 /// One plain `.ts` / `.js` source mirrored into the overlay with everything
 /// but its hijacked `.svelte` import declarations blanked out (see
-/// [`emit_import_probes`]). Positions are preserved byte for byte, so a
+/// `emit_import_probes`). Positions are preserved byte for byte, so a
 /// diagnostic on the probe is reported at the source's own line and column.
 #[derive(Debug, Clone)]
 pub struct ImportProbeEntry {
@@ -289,7 +289,7 @@ pub struct OverlayLayout {
     pub kit_entries: Vec<KitOverlayEntry>,
     pub import_probes: Vec<ImportProbeEntry>,
     /// `<base>.svelte.js` rune modules deliberately left without a
-    /// `.d.svelte.ts` bridge (see [`emit_svelte_module_bridges`]).
+    /// `.d.svelte.ts` bridge (see `emit_svelte_module_bridges`).
     pub withheld_js_modules: Vec<PathBuf>,
     /// Whether the project type-checks with `noImplicitAny`, which decides
     /// what official reports for those withheld modules.
@@ -2419,7 +2419,7 @@ fn prune_orphaned_module_bridges(mirror_dir: &Path, written: &std::collections::
     }
 }
 
-/// Infix marking a file under the mirror as an [`emit_import_probes`] probe.
+/// Infix marking a file under the mirror as an `emit_import_probes` probe.
 /// It has to differ from the source's own basename: a probe is a *blanked*
 /// copy, so a mirror file resolving `./relative` to it instead of the real
 /// module would see none of its exports.
@@ -2593,7 +2593,7 @@ fn prune_orphaned_import_probes(emit_dir: &Path, written: &std::collections::Has
 
 /// Restate what official svelte-check reports for a `.svelte` specifier that
 /// lands on a `.svelte.js` rune module the overlay deliberately left without a
-/// bridge (see [`emit_svelte_module_bridges`]).
+/// bridge (see `emit_svelte_module_bridges`).
 ///
 /// Under ESM-mode resolution the specifier reaches nothing at all, so the
 /// compiler says TS2307. Official forces the pre-ESM algorithm for `.svelte`
