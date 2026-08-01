@@ -145,3 +145,121 @@ fn multi_interpolation_value_second_opens_at_attr_indent() {
     let twice = fmt_at_width(&once, 80);
     assert_eq!(once, twice, "not idempotent:\n{once}");
 }
+
+// A directive's value text prints as a prettier `fill`, so the whitespace
+// between two interpolations is a break point: whatever the author wrote is
+// reflowed to the attribute indent (here 6 source spaces → 2).
+#[test]
+fn directive_value_reflows_inter_interpolation_whitespace() {
+    let src = concat!(
+        "<div\n",
+        "  style:transform-origin=\"{verticalAnchor === 'middle'\n",
+        "    ? 'center'\n",
+        "    : verticalAnchor === 'end'\n",
+        "      ? 'bottom'\n",
+        "      : 'top'}\n",
+        "      {textAnchor === 'middle' ? 'center' : textAnchor === 'end' ? 'right' : 'left'}\"\n",
+        ">x</div>\n",
+    );
+    let expected = concat!(
+        "<div\n",
+        "  style:transform-origin=\"{verticalAnchor === 'middle'\n",
+        "    ? 'center'\n",
+        "    : verticalAnchor === 'end'\n",
+        "      ? 'bottom'\n",
+        "      : 'top'}\n",
+        "  {textAnchor === 'middle'\n",
+        "    ? 'center'\n",
+        "    : textAnchor === 'end'\n",
+        "      ? 'right'\n",
+        "      : 'left'}\"\n",
+        ">\n",
+        "  x\n",
+        "</div>\n",
+    );
+    let once = fmt_at_width(src, 80);
+    assert_eq!(once, expected, "directive value reflow:\n{once}");
+    let twice = fmt_at_width(&once, 80);
+    assert_eq!(once, twice, "not idempotent:\n{once}");
+}
+
+// A REGULAR attribute's text prints verbatim, so the source whitespace before a
+// second interpolation survives while that interpolation's own continuation
+// lines still land at the attribute indent + one level.
+#[test]
+fn regular_attribute_value_keeps_inter_interpolation_whitespace() {
+    let src = concat!(
+        "<span title=\"{shortOne}\n",
+        "      {anotherConditionValueHere ? someMuchLongerAlternativeThree : someMuchLongerAlternativeFour}\">x</span>\n",
+    );
+    let expected = concat!(
+        "<span\n",
+        "  title=\"{shortOne}\n",
+        "      {anotherConditionValueHere\n",
+        "    ? someMuchLongerAlternativeThree\n",
+        "    : someMuchLongerAlternativeFour}\">x</span\n",
+        ">\n",
+    );
+    let once = fmt_at_width(src, 80);
+    assert_eq!(once, expected, "regular attribute value indent:\n{once}");
+    let twice = fmt_at_width(&once, 80);
+    assert_eq!(once, twice, "not idempotent:\n{once}");
+}
+
+// #2120: an attribute value holding TWO independently wrapping interpolations
+// separated by raw text. Only the first depth-0 boundary used to be honoured, so
+// the second expression stayed verbatim at column 0; every boundary must be
+// scanned so each expression run is re-indented.
+#[test]
+fn second_wrapped_interpolation_after_raw_text_is_reindented() {
+    let src = concat!(
+        "<span title=\"{someConditionValueXx ? aVeryLongAlternativeOneHere : aVeryLongAlternativeTwoHere}\n",
+        "\traw text\n",
+        "\t{anotherConditionValueHere ? someMuchLongerAlternativeThree : someMuchLongerAlternativeFour}\">x</span>\n",
+    );
+    let expected = concat!(
+        "<span\n",
+        "  title=\"{someConditionValueXx\n",
+        "    ? aVeryLongAlternativeOneHere\n",
+        "    : aVeryLongAlternativeTwoHere}\n",
+        "\traw text\n",
+        "\t{anotherConditionValueHere\n",
+        "    ? someMuchLongerAlternativeThree\n",
+        "    : someMuchLongerAlternativeFour}\">x</span\n",
+        ">\n",
+    );
+    let once = fmt_at_width(src, 80);
+    assert_eq!(once, expected, "second interpolation indent:\n{once}");
+    let twice = fmt_at_width(&once, 80);
+    assert_eq!(once, twice, "not idempotent:\n{once}");
+}
+
+// Three raw-text separated runs: a flat interpolation between two raw-text lines
+// must not swallow the boundary that the trailing wrapped one needs.
+#[test]
+fn every_raw_text_boundary_is_scanned() {
+    let src = concat!(
+        "<span title=\"{someConditionValueXx ? aVeryLongAlternativeOneHere : aVeryLongAlternativeTwoHere}\n",
+        "\traw a\n",
+        "\t{mid}\n",
+        "\traw b\n",
+        "\t{anotherConditionValueHere ? someMuchLongerAlternativeThree : someMuchLongerAlternativeFour}\">x</span>\n",
+    );
+    let expected = concat!(
+        "<span\n",
+        "  title=\"{someConditionValueXx\n",
+        "    ? aVeryLongAlternativeOneHere\n",
+        "    : aVeryLongAlternativeTwoHere}\n",
+        "\traw a\n",
+        "\t{mid}\n",
+        "\traw b\n",
+        "\t{anotherConditionValueHere\n",
+        "    ? someMuchLongerAlternativeThree\n",
+        "    : someMuchLongerAlternativeFour}\">x</span\n",
+        ">\n",
+    );
+    let once = fmt_at_width(src, 80);
+    assert_eq!(once, expected, "multi-boundary attribute indent:\n{once}");
+    let twice = fmt_at_width(&once, 80);
+    assert_eq!(once, twice, "not idempotent:\n{once}");
+}
