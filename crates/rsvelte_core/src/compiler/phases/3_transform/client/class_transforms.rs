@@ -6,6 +6,7 @@ use std::fmt::Write as _;
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
 use super::expression_needs_proxy;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::class_body::split_class_members_onto_lines;
 
 /// JS-lexical-aware replacement for `find_matching_paren`: given `s` positioned
 /// just after an opening `(`, return the byte offset of the matching `)`,
@@ -735,7 +736,11 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     let class_body_end =
         find_matching_bracket(script, class_body_start, '{').unwrap_or(class_body_start);
 
-    let class_body = &script[class_body_start..class_body_end];
+    // The member scan below is line-based, so members sharing a physical line
+    // must first be broken apart or everything after the first one is dropped
+    // (issue #2087).
+    let normalized_body = split_class_members_onto_lines(&script[class_body_start..class_body_end]);
+    let class_body: &str = &normalized_body;
 
     // Parse constructor info
     let mut constructor_content = String::new();
@@ -2325,5 +2330,57 @@ export class Counter {
             out.contains("#modified"),
             "modified should be transformed to private backing field:\n{out}"
         );
+    }
+
+    #[test]
+    fn single_line_class_lowers_every_rune_field() {
+        // Issue #2087: everything after the first rune field on a physical line
+        // used to be discarded, so `#d` and its accessors never reached the output.
+        let script = "export class Foo { n = $state(1); d = $derived(this.n * 2); }";
+        let out = transform_class_fields_client(script);
+        for expected in [
+            "#n = $.state(1)",
+            "get n()",
+            "set n(value)",
+            "#d = $.derived(",
+            "get d()",
+            "set d(value)",
+        ] {
+            assert!(out.contains(expected), "missing {expected}:\n{out}");
+        }
+    }
+
+    #[test]
+    fn single_line_nested_class_lowers_every_rune_field() {
+        let script = "class Outer { a = $state(1); b = $derived(this.a); }\nclass Inner { c = $state(2); d = $derived(this.c); }";
+        let out = transform_class_fields_client(script);
+        for expected in ["#b = $.derived(", "#d = $.derived(", "get b()", "get d()"] {
+            assert!(out.contains(expected), "missing {expected}:\n{out}");
+        }
+    }
+
+    #[test]
+    fn single_line_nested_class_expression_field_is_not_swallowed() {
+        // The nested class body must be broken open too, otherwise the outer
+        // scan reads `inner = class Inner { c = $state(2)` as a single field and
+        // lowers `inner` to the INNER field's value.
+        let script = "class Outer { a = $state(1); inner = class Inner { c = $state(2); e = $derived(this.c * 3); }; }";
+        let out = transform_class_fields_client(script);
+        assert!(out.contains("#a = $.state(1)"), "missing #a:\n{out}");
+        assert!(
+            !out.contains("#inner = $.state("),
+            "inner swallowed:\n{out}"
+        );
+        assert!(out.contains("#c = $.state(2)"), "missing #c:\n{out}");
+        assert!(out.contains("#e = $.derived("), "missing #e:\n{out}");
+    }
+
+    #[test]
+    fn same_line_members_survive_alongside_methods() {
+        let script = "class Foo { n = $state(1); get twice() { return this.n * 2 } d = $derived(this.n + 1); }";
+        let out = transform_class_fields_client(script);
+        assert!(out.contains("#n = $.state(1)"), "missing #n:\n{out}");
+        assert!(out.contains("get twice()"), "method dropped:\n{out}");
+        assert!(out.contains("#d = $.derived("), "missing #d:\n{out}");
     }
 }

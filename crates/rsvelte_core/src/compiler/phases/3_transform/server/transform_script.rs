@@ -9,6 +9,7 @@ use super::transform_legacy::transform_export_let_declarations;
 use super::transform_store::{
     transform_store_assignments, transform_store_destructure_assignments,
 };
+use crate::compiler::phases::phase3_transform::shared::class_body::split_class_members_onto_lines;
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 use std::fmt::Write as _;
@@ -4906,7 +4907,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         }
     }
 
-    let class_body = &script[class_body_start..class_body_end];
+    // The member scan below is line-based, so members sharing a physical line
+    // must first be broken apart or everything after the first one is dropped
+    // (issue #2087).
+    let normalized_body = split_class_members_onto_lines(&script[class_body_start..class_body_end]);
+    let class_body: &str = &normalized_body;
 
     #[derive(Debug, Clone)]
     enum ClassMember {

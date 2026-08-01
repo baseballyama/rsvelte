@@ -5,6 +5,7 @@
 
 pub mod ast_rewrite;
 pub mod async_body;
+pub mod class_body;
 pub mod template;
 
 pub use template::*;
