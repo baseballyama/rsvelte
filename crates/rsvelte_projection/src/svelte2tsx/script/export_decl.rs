@@ -23,7 +23,8 @@ use super::ExportedNames;
 /// - `export const MAX = 10;` (non-prop)
 /// - `export function fn() {}` (non-prop)
 /// - `export class Foo {}` (non-prop)
-/// - `export { a, b as c };` (re-exports with specifiers)
+/// - `export { a, b as c };` (exports with specifiers)
+/// - `export { a } from './mod';` (re-export; the module specifier is ignored)
 ///
 /// The `export` keyword is removed from the source via MagicString, and the
 /// exported names are recorded in `exported_names`.
@@ -280,8 +281,12 @@ pub(super) fn handle_export_named_decl(
         }
     }
 
-    // Case 2: export with specifiers (export { a, b as c };)
-    if !export.specifiers.is_empty() && export.source.is_none() {
+    // Case 2: an export clause with no declaration. Official
+    // `handleExportDeclaration` keys off `ts.isNamedExports(exportClause)` alone
+    // and never looks at `moduleSpecifier`, so a re-export (`export { a } from
+    // './mod'`) is stripped too — left in place it would put an `export … from`
+    // inside `$$render()`, which is not valid TSX (TS1233).
+    if export.declaration.is_none() {
         let node_end = export.span.end + offset;
         str.overwrite(node_start, node_end, "");
         for spec in export.specifiers.iter() {

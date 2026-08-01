@@ -1,0 +1,7 @@
+{
+	"description": "A component whose instance script re-exports a symbol from another module (`export { helper } from './lib/helper.js'`). svelte2tsx must strip that statement the way official does — leaving it in place puts an `export … from` inside the generated `$$render()` function, which is TS1233 (invalid TSX), and rsvelte-check then discards EVERY diagnostic for the file (#2113). The real type error below the re-export is what proves diagnostics still flow.",
+	"tsconfig": "tsconfig.json",
+	"issues": [
+		2113
+	]
+}
