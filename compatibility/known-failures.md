@@ -37,96 +37,73 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 3647 entries)
+## Client dev (`known-failures.client-dev.json`, 896 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
 transform (`css/index.js:146` keeps empty rules in dev), so a dev-only
 divergence is invisible to the two `dev: false` targets — #1981
 (`<X.Y bind:…>`) was live in 524 corpus files and undetected for exactly that
-reason. CSS is compared for this target too.
+reason. CSS is compared for this target too, and is clean: 0 css-mismatches.
 
-This baseline is the **enrolment seed**: it is what the corpus measured the
-first time it ever compiled with `dev: true`, not a set of regressions. Now that
-the client and server lists are empty, every entry diverges *only* on
-`client-dev`. The CSS comparison is already clean
-— 0 css-mismatches, so the dev empty-rule branch of the CSS transform matches
-upstream exactly.
+The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
+#2029, #2030, #2039, #2040, and the #2021 series) took it to 896 with no
+regression on `client` or `server`, both of which are empty.
 
-The checked-in pattern corpus (#2019) contributed 10 of these entries. All 10
-land in clusters that the real-world sources had already established, so the
-matrices confirmed the clusters rather than adding root causes.
+### How the counts below are derived
 
-The #2005 fix added three more (`pattern/issues/2005-derived-call-default.svelte`
-and the `array-` / `nested-call-default.svelte` points of
-`pattern/matrix/destructure-default-thunk/`): a destructured `$derived` is
-declared with `$.tag(...)` in dev (CD2), so *any* faithful repro of that shape
-lands here until CD2 is ported. The remaining five files of that matrix were
-written on `$state` destructuring, which
-is dev-clean, so the axis costs three entries rather than eight. That leaves 13
-`pattern/` entries in this list.
+The enrolment-era table attributed each entry by its **first differing line**.
+That is a trap this campaign hit four times: a pure statement **reordering**
+reports as the helper on the expected side being *absent*, so a positioning bug
+reads as an unported feature. #2020, #2022 and #2023 were all filed as "not
+emitted" and all turned out to be emitted in the right number and the wrong
+place.
 
-The entries are not independent bugs. Most are dev-only instrumentation helpers
-that rsvelte's client codegen does not emit **at all** — each such cluster is a
-single unported feature, and porting it drops the whole cluster at once. Counts
-are entry counts attributed by the first differing line, so they are a lower
-bound: an entry that diverges for two reasons is counted under whichever
-surfaces first.
+The table is now derived by **comparing how many times each helper appears** on
+each side, which separates the two directions and cannot be fooled by order:
 
-| Cluster | Entries | Missing dev instrumentation | Upstream emitter (`phases/3-transform/client/`) | Issue |
-|---|---|---|---|---|
-| CD1 | 1186 | `$.add_locations(...)` template location metadata + the `Comp[$.FILENAME]` it references | `transform-template/index.js` | #2020 |
-| CD2 | 628 | `$.tag()` / `$.tag_proxy()` labelling of reactive sources | `visitors/VariableDeclaration.js`, `visitors/ConstTag.js` | #2021 |
-| CD4 | 582 | `...$.legacy_api()` spread on legacy-mode components | `transform-client.js` | #2023 |
-| CD6 | 327 | `$.strict_equals` / `$.equals` instrumented comparisons | `visitors/BinaryExpression.js` | #2025 |
-| CD7 | 241 | `$.track_reactivity_loss(...)` around awaited expressions | `visitors/AwaitExpression.js`, `visitors/ForOfStatement.js` | #2026 |
-| CD8 | 90 | `$.create_ownership_validator` + `$$ownership_validator.mutation(...)` | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
-| CD9 | 71 | `$.log_if_contains_state(...)` wrapping of `console.*` calls | `visitors/CallExpression.js` | #2028 |
-| CD10 | 45 | the `$.apply(fn, this, $$args, Comp, [line, col])` event-handler wrapper | `visitors/shared/events.js` | #2029 |
-| CD11 | 8 | **bug** — emitted `$.add_locations` position tuples are off by 1–2 columns | `transform-template/index.js` | #2030 |
-| CD12 | 6 | `$.add_svelte_meta(...)` missing (1) or carrying a `1, 0` placeholder position (5, all `<svelte:self>`) | `visitors/RenderTag.js`, `visitors/shared/component.js` | #2039 |
-| CD13 | 3 | **bug** — `$inspect(...)` is left untransformed instead of becoming `$.inspect(...)` | `visitors/CallExpression.js` | #2040 |
+| Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
+|---|---:|---:|---|---|
+| equality instrumentation | 311 | 0 | `visitors/BinaryExpression.js` | #2025 |
+| `$.track_reactivity_loss(...)` | 261 | 2 | `visitors/AwaitExpression.js` | #2026 |
+| ownership mutation validation | 106 | 2 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
+| `console.*` wrapping | 68 | 73 | `visitors/CallExpression.js` | #2028 |
+| `$.tag()` / `$.tag_proxy()` | 26 | 0 | `visitors/VariableDeclaration.js` | #2021 |
 
-**CD5 is gone.** The `$.rest_props` dev name argument was ported in #2024: 459 of
-its 532 entries went green outright, and the rest are now counted under whichever
-cluster surfaces first in them, so they moved into the residue below rather than
-disappearing.
+732 entries are attributed to a cluster; the remaining **164** show no
+difference in any dev helper and are the formatting / long-tail residue tracked
+in #2064 (JSDoc dropped, the legacy `bind:` `function get()/set()` shape,
+`$.assign`, `$$css`).
 
-**CD3 is gone, and it was never a missing feature.** rsvelte emitted
-`$.check_target(new.target)` in every one of these entries, at the same count as
-upstream — it just emitted it after the `$$slots` / `$$sanitized_props` /
-`$$restProps` preamble instead of ahead of it, because upstream builds that run
-of statements with `unshift` and rsvelte pushes them in emission order. #2022
-moved it, taking 459 of the 583 entries green; the remaining ~124 co-occur with
-another cluster and moved into the residue. The lesson generalises: these counts
-are attributed by first differing line, so a pure statement **reordering**
-reports as the helper on the expected side being "missing". Confirm presence
-before reading a row as an unported feature.
+### The equality and await rows are not the bugs their issues describe
 
-Three of these are correctness bugs rather than unported features, so they are
-tracked apart: CD11 and CD12 emit the right call with the wrong source position,
-and **CD13 emits code that does not run** — `$inspect` is not a runtime binding,
-so a dev build of any component using it throws `ReferenceError`. CD13 is the
-highest-severity entry in this table despite being the smallest. CD11 only
-becomes observable once CD1 lands.
+#2025 and #2026 are both **merged**, so their clusters were expected to
+disappear here. They did not, and splitting the remainder by component mode
+says why:
 
-The remaining 460 entries not in the table above are residue of the same root causes
-rather than separate ones, so they are expected to clear with their parents.
-Two things spread them out. The statement reshaping CD6/CD7/CD9 perform
-(`const x = (await …)()`, multi-line `console.*`) relocates the divergence
-within the file; and the `expected`/`actual` pair recorded per failure comes
-from `firstDiffLine`, which is computed on the **byte** diff, while the pass/fail
-verdict comes from `astEquivalent`. A reported first differing line can
-therefore be a comment or JSDoc line — position noise `astEquivalent` itself
-absorbs — while the divergence that actually failed the entry sits further down.
-Read the reported line as a locator, not as the root cause. (This is not the
-oxfmt-unparsable fallback: the enrolment run formatted cleanly, 0 parse
-diagnostics on both trees.)
+| | legacy component | runes component | module script |
+|---|---:|---:|---:|
+| equality under-emits | **309** | 2 | 0 |
+| `track_reactivity_loss` under-emits | **146** | 97 | 18 |
 
-**#1981 is confirmed absent.** The enrolment run contains zero
+Both fixes ride the instance-script AST pass, and that pass sits under
+`if analysis.runes` — so a **legacy (non-runes) component is never
+instrumented at all**, for any of these helpers. Upstream instruments legacy
+components exactly like runes ones. This single gate, not the per-helper logic,
+is now the largest remaining cause on this target; it was recorded as a known
+residual on #2084 and is worth its own issue rather than being re-litigated
+per helper.
+
+The `console.*` row is the one place where rsvelte also emits **more** than
+upstream. Both directions come from the same root: upstream decides with
+`scope.evaluate(arg).has_unknown`, a 273-line abstract interpreter over an
+`UNKNOWN` / `STRING` / `FUNCTION` lattice, which rsvelte approximates with two
+ad-hoc predicates that disagree with each other. See #2028.
+
+**#1981 is confirmed absent.** The run contains zero
 `$$ownership_validator.binding(` divergences, so the #1989 fix holds across the
-whole corpus. CD8 is a *different* ownership gap (mutation tracking, not
-bindings) that only this lane could surface.
+whole corpus. The ownership row above is a *different* gap (mutation tracking,
+not bindings) that only this lane could surface.
 
 ## Hard-cluster warnings for future work
 
