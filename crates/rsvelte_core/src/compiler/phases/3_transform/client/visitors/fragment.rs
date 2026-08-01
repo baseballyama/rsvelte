@@ -134,6 +134,16 @@ pub fn fragment(
     let mut body: Vec<JsStatement> = Vec::new();
     let mut close: Option<JsStatement> = None;
 
+    let mut fragment_transform = context.state.transform.clone();
+    let mut fragment_transform_deep_read = context.state.transform_deep_read.clone();
+    let mut fragment_shadowed_prop_names = context.state.shadowed_prop_names.clone();
+    crate::compiler::phases::phase3_transform::client::utils::shadow_snippet_declarations(
+        &node.nodes,
+        &mut fragment_transform,
+        &mut fragment_transform_deep_read,
+        &mut fragment_shadowed_prop_names,
+    );
+
     // Create new state for this fragment
     // Use Memoizer::with_parent_conflicts to inherit conflicts from the parent,
     // ensuring variable names don't collide between outer and inner scopes (e.g., nested IfBlocks)
@@ -156,8 +166,8 @@ pub fn fragment(
         let_directives: Vec::new(),
         node: context.state.node.clone(),
         memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
-        transform: context.state.transform.clone(),
-        transform_deep_read: context.state.transform_deep_read.clone(),
+        transform: fragment_transform,
+        transform_deep_read: fragment_transform_deep_read,
         events: indexmap::IndexSet::default(), // Start empty, merge back later
         metadata: ComponentMetadata {
             namespace: namespace.clone(),
@@ -208,7 +218,7 @@ pub fn fragment(
         destructure_array_counter: context.state.destructure_array_counter.clone(),
         needs_props_from_events: context.state.needs_props_from_events.clone(),
         hidden_let_bindings: context.state.hidden_let_bindings.clone(),
-        shadowed_prop_names: context.state.shadowed_prop_names.clone(),
+        shadowed_prop_names: fragment_shadowed_prop_names,
         blocker_map: context.state.blocker_map.clone(),
         blocker_map_primary_names: context.state.blocker_map_primary_names.clone(),
         extra_blocker_indices: Vec::new(),

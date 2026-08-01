@@ -5,10 +5,42 @@
 //!
 //! Corresponds to `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
 
+use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::Binding;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use rustc_hash::FxHashSet;
+
+/// Let the `{#snippet}` blocks a fragment declares shadow the inherited reads of
+/// the same name, so identifiers inside that fragment resolve to the snippet.
+///
+/// Mirrors `get_transform` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`,
+/// which deletes every `normal`-kind declaration of the scope being entered from
+/// the inherited transform map. In a template fragment those `normal`
+/// declarations are exactly the snippet names (`scope.declare(node.expression,
+/// 'normal', 'function', node)` in `scope.js`). `shadowed_prop_names` covers the
+/// same ground for the non-source-prop shortcut in `expression_converter`, which
+/// resolves `$$props.x` straight from the binding instead of the transform map.
+pub fn shadow_snippet_declarations(
+    nodes: &[TemplateNode<'_>],
+    transform: &mut im::HashMap<
+        String,
+        crate::compiler::phases::phase3_transform::client::types::IdentifierTransform,
+    >,
+    transform_deep_read: &mut im::HashMap<String, ()>,
+    shadowed_prop_names: &mut im::HashSet<String>,
+) {
+    for node in nodes {
+        if let TemplateNode::SnippetBlock(snippet) = node
+            && let Some(name) = snippet.expression.name()
+        {
+            transform.remove(name);
+            transform_deep_read.remove(name);
+            shadowed_prop_names.insert(name.to_string());
+        }
+    }
+}
 
 /// Check if `text` contains any identifier that appears in `vars`.
 ///

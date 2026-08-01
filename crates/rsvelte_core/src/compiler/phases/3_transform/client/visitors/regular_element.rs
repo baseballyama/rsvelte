@@ -951,6 +951,18 @@ pub fn visit_regular_element(
         }
     }
 
+    // `{#snippet}` children shadow a same-named outer binding for the whole
+    // element fragment, exactly as they do for a block fragment (see
+    // `client::utils::shadow_snippet_declarations`).
+    let saved_transform_deep_read = context.state.transform_deep_read.clone();
+    let saved_shadowed_props = context.state.shadowed_prop_names.clone();
+    crate::compiler::phases::phase3_transform::client::utils::shadow_snippet_declarations(
+        &node.fragment.nodes,
+        &mut context.state.transform,
+        &mut context.state.transform_deep_read,
+        &mut context.state.shadowed_prop_names,
+    );
+
     // Propagate preserve_whitespace to child processing so that `pre`/`textarea`
     // whitespace is preserved for ExpressionTag/Text content within nested elements.
     // This mirrors the official compiler's state spread:
@@ -1319,6 +1331,8 @@ pub fn visit_regular_element(
     context.state.consts = saved_child_consts;
     context.state.scope = saved_scope;
     context.state.transform = saved_transform;
+    context.state.transform_deep_read = saved_transform_deep_read;
+    context.state.shadowed_prop_names = saved_shadowed_props;
     if has_declarations {
         context.state.async_consts = saved_async_consts;
     }

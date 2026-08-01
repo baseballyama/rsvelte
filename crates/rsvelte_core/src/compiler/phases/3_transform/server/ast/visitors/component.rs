@@ -399,6 +399,14 @@ fn build_component_children<'a, 'b>(
     let mut snippet_declarations: Vec<Statement<'a>> = Vec::new();
     let mut serialized_slots: Vec<ObjectPropertyKind<'a>> = Vec::new();
 
+    // A component's `{#snippet}` children are lifted out into props, so the slot
+    // bodies never see them through `process_children_inner`'s own frame — push
+    // the shadow here so a sibling `{@render row()}` still resolves to the local
+    // snippet instead of a same-named outer `$derived` / store.
+    state
+        .shadowed_names
+        .push(super::shared::fragment_snippet_names(&fragment.nodes));
+
     // Group non-snippet children by slot name (default vs `slot="name"`).
     // Snippet blocks are handled inline (they become named props + `$$slots`).
     let mut default_children: Vec<&'b TemplateNode<'a>> = Vec::new();
@@ -535,6 +543,7 @@ fn build_component_children<'a, 'b>(
         push_prop(groups, state.b.init("$$slots", slots_obj));
     }
 
+    state.shadowed_names.pop();
     snippet_declarations
 }
 
