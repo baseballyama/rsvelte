@@ -65,6 +65,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2060-const-shadow-textcontent.svelte` | [#2060](https://github.com/baseballyama/rsvelte/issues/2060) | A `{@const}` **shadowing** a component-scope binding must resolve to the `{@const}`, so the read stays a static `textContent` assignment |
 | `2138-legacy-assignment-destructure-rest.svelte` | [#2138](https://github.com/baseballyama/rsvelte/issues/2138) | A legacy destructuring **assignment** with quoted / computed keys and a rest — bracket member reads, an `$.exclude_from_object` key list built like `b.literal(...)`, and no `$$value` IIFE for an identifier right-hand side |
 | `2141-snippet-shadow-is-function.svelte` | [#2141](https://github.com/baseballyama/rsvelte/issues/2141) | A block-local `{#snippet}` shadowing a same-named outer `function` still reads as reactive (`is_function()` must resolve to the snippet, not the outer function) |
+| `2162-single-target-destructure-paren.svelte` | [#2162](https://github.com/baseballyama/rsvelte/issues/2162) | A single-target destructuring **assignment** (`({ a } = obj)`, no rest) keeps its wrapping parens — upstream always lowers through a `SequenceExpression`, even with one element, and esrap always self-parenthesizes one |
 
 ## `matrix/` — the axes around those repros
 

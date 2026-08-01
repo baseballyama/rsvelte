@@ -2,6 +2,7 @@
 
 use super::SCRIPT_ARRAY_COUNTER;
 use super::rune_transforms::{derived_prop_access, exclude_from_object_keys};
+use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
 use oxc_parser::{ParseOptions, Parser};
@@ -1570,7 +1571,17 @@ pub(super) fn generate_destructure_iife(
             }
 
             if assignments.len() == 1 {
-                return format!("({})", assignments[0]);
+                // Upstream always lowers through `b.sequence(assignments)` — a real
+                // `SequenceExpression`, unconditionally, even with one element — and
+                // esrap always self-parenthesizes a `SequenceExpression`. A bare
+                // `(assignment)` would reparse as a plain (non-sequence) expression
+                // and lose those parens downstream; the marker call preserves the
+                // "must be a sequence" decision through the reparse. See
+                // `SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER`.
+                return format!(
+                    "{}({})",
+                    SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER, assignments[0]
+                );
             } else {
                 // Single-line comma expression format.
                 // IMPORTANT: Must be single-line because downstream processing in

@@ -145,6 +145,49 @@ impl<'a> VisitMut<'a> for ShiftSpans {
     }
 }
 
+/// Rebuilds any `SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER(expr)` call — however
+/// deeply nested — into a one-element `SequenceExpression`. See the marker's doc
+/// comment and [`Cx::restore_single_target_destructure_sequences`].
+struct SingleTargetSequenceRebuilder<'a, 'x> {
+    ab: &'x AstBuilder<'a>,
+}
+
+impl<'a, 'x> VisitMut<'a> for SingleTargetSequenceRebuilder<'a, 'x> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let is_marker_call = matches!(
+            expr,
+            Expression::CallExpression(call)
+                if call.arguments.len() == 1
+                    && !call.arguments[0].is_spread()
+                    && matches!(
+                        &call.callee,
+                        Expression::Identifier(id)
+                            if id.name == SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER
+                    )
+        );
+        if !is_marker_call {
+            return;
+        }
+
+        expr.replace_with(|e| {
+            let Expression::CallExpression(mut call) = e else {
+                unreachable!()
+            };
+            let arg = call.arguments.pop().unwrap();
+            // `is_spread()` was checked above, so this conversion cannot fail.
+            let inner =
+                Expression::try_from(arg).unwrap_or_else(|()| unreachable!("checked above"));
+            Expression::SequenceExpression(SequenceExpression::boxed(
+                SPAN,
+                ArenaVec::from_value_in(inner, self.ab),
+                self.ab,
+            ))
+        });
+    }
+}
+
 /// The unified comment coordinate space for a reassembled program.
 struct Synth {
     /// Whether this pass places comments (`false` for the probe pass).
@@ -201,6 +244,25 @@ impl Synth {
         self.max_span = self.max_span.max(end);
     }
 }
+
+/// Marker callee wrapping a single-target destructuring-assignment collapse
+/// (`({ a } = obj)` → `a = obj.a`) so the "this must reprint as a
+/// `SequenceExpression`" decision survives the raw-text reparse. Upstream's
+/// `visit_assignment_expression` (`shared/assignments.js`) always lowers a
+/// destructuring assignment through `b.sequence(assignments)` — an ESTree
+/// `SequenceExpression` *unconditionally*, even for a single assignment — and
+/// esrap's `SequenceExpression` printer always self-parenthesizes, `(expr)`,
+/// regardless of element count. rsvelte's client transform generates this
+/// lowering as plain source text; a single-assignment collapse re-parses to a
+/// bare (non-sequence) expression, which every downstream printer correctly
+/// treats as redundantly parenthesized (matching upstream's behavior for any
+/// plain, user-written `(x = 1)`, where the parens really are dropped) and
+/// removes — silently losing upstream's parens for the destructuring case.
+/// Wrapping the single assignment in a call to this marker keeps the
+/// "force sequence" decision attached to the generated text itself;
+/// [`Cx::restore_single_target_destructure_sequences`] finds the marker call
+/// after reparse and rebuilds the real single-element `SequenceExpression`.
+pub(crate) const SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER: &str = "__rsvelte_seq1";
 
 /// Conversion context: holds the oxc [`AstBuilder`] and the IR arena used to
 /// resolve [`ExprId`] handles.
@@ -1116,6 +1178,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     fn parse_raw_statements(&self, code: &str) -> Option<Vec<Statement<'a>>> {
         let mut stmts = self.parse_chunk(code.trim())?;
         self.restore_legacy_pre_effect_deps(&mut stmts);
+        self.restore_single_target_destructure_sequences(&mut stmts);
         Some(stmts)
     }
 
@@ -1165,6 +1228,19 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     &self.ab,
                 ))
             });
+        }
+    }
+
+    /// See [`SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER`]. Unlike
+    /// [`Cx::restore_legacy_pre_effect_deps`] (which only ever sits at the top
+    /// of its own dedicated chunk), a destructuring-assignment collapse can be
+    /// nested arbitrarily deep (inside a function body, a block, another
+    /// expression, …), so this walks the whole chunk rather than just its
+    /// top-level statements.
+    fn restore_single_target_destructure_sequences(&self, stmts: &mut [Statement<'a>]) {
+        let mut rebuilder = SingleTargetSequenceRebuilder { ab: &self.ab };
+        for stmt in stmts {
+            rebuilder.visit_statement(stmt);
         }
     }
 
