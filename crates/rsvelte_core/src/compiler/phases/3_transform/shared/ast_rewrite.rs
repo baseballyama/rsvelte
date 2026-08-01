@@ -64,6 +64,46 @@ pub fn with_program<R>(
     })
 }
 
+/// Parse `source`, hand the program to `f` for in-place mutation, and print the
+/// result. `f` returns whether it changed anything; `None` comes back when it
+/// did not, when the source fails to parse, or when the printed form is byte-
+/// identical to the input — the same "nothing to report" contract the splice
+/// helpers use.
+///
+/// This is the port target for the collect-and-splice passes. Mutating in place
+/// removes the reason `splice`'s `innermost_only` exists: a pass that moves an
+/// existing subtree into a new wrapper composes with an inner rewrite for free,
+/// as long as it visits children before rewriting their parent.
+///
+/// `f` also receives the allocator the program lives in, because a replacement
+/// is not always built from subtrees of that program: a pass that splices in
+/// caller-supplied source (`invalidate_bodies`, for one) has to parse it into
+/// the same arena before it can be moved into place.
+#[track_caller]
+pub fn with_program_mut(
+    arena: &'static LocalKey<RefCell<Allocator>>,
+    source: &str,
+    source_type: SourceType,
+    parse_options: ParseOptions,
+    f: impl FnOnce(&Allocator, &mut Program<'_>) -> bool,
+) -> Option<String> {
+    dual_run::count_parse(dual_run::current_or(std::panic::Location::caller().file()));
+    arena.with(|cell| {
+        let allocator = std::mem::take(&mut *cell.borrow_mut());
+        let mut parsed = Parser::new(&allocator, source, source_type)
+            .with_options(parse_options)
+            .parse();
+        let out = if parsed.diagnostics.is_empty() && f(&allocator, &mut parsed.program) {
+            let printed = rsvelte_esrap::print(&parsed.program, source);
+            (printed != source).then_some(printed)
+        } else {
+            None
+        };
+        *cell.borrow_mut() = allocator;
+        out
+    })
+}
+
 /// Splice `edits` into `source`, returning the rewritten text or `None` when
 /// there is nothing to apply.
 ///
@@ -461,6 +501,45 @@ pub mod dual_run {
                     entry.2 += u32::from(!stable);
                 }
                 None => t.push((pass, 1, u32::from(!stable))),
+            }
+        });
+    }
+
+    /// Score a ported pass: does the `&mut Program` path land where the splice
+    /// path lands? Both sides go through [`normalize`] exactly once, so esrap
+    /// formatting cancels and only a real difference in what the pass did shows
+    /// up. Counts one run, and one mismatch when the two disagree — including
+    /// when one produced a rewrite and the other did not.
+    ///
+    /// The two paths apply their edits in different orders (collect-then-splice
+    /// versus post-order in place), so an order-sensitive pass is exactly what
+    /// this is here to catch. A mismatch is a mismatch; it is never explained
+    /// away as "just ordering".
+    pub fn compare_pass(
+        pass: &'static str,
+        source: &str,
+        spliced: Option<&str>,
+        ast: Option<&str>,
+    ) {
+        if !enabled() {
+            return;
+        }
+        let left = spliced.map_or_else(|| normalize(source), normalize);
+        let right = ast.map_or_else(|| normalize(source), normalize);
+        let agreed = match (left, right) {
+            (Some(l), Some(r)) => l == r,
+            // Neither side parsing is not a disagreement about the rewrite.
+            (None, None) => true,
+            _ => false,
+        };
+        TALLY.with(|t| {
+            let mut t = t.borrow_mut();
+            match t.iter_mut().find(|(name, ..)| *name == pass) {
+                Some(entry) => {
+                    entry.1 += 1;
+                    entry.2 += u32::from(!agreed);
+                }
+                None => t.push((pass, 1, u32::from(!agreed))),
             }
         });
     }
