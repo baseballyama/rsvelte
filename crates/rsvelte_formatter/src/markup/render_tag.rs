@@ -114,23 +114,28 @@ fn is_string_value_attr(a: &str) -> bool {
     }
 }
 
-/// Whether an interpolation-led string value (`name="{…}…"`) has newlines that
-/// are *all* literal HTML text (brace-depth 0, between interpolations) rather
-/// than a wrapped `{expr}` continuation — so it can be emitted verbatim to
-/// preserve source whitespace. False for no-newline values or any newline inside
-/// `{…}` (brace-depth > 0), which take the re-indent path.
-fn is_verbatim_interpolation_value(a: &str) -> bool {
-    let Some((_, value)) = a.split_once('=') else {
-        return false;
-    };
-    if !value.starts_with("\"{") {
-        return false;
-    }
+/// Where a rendered attribute's newlines sit relative to `{…}` brace depth.
+/// Inside braces a newline is a wrapped continuation of formatted JS; at depth 0
+/// it is literal HTML text between interpolations.
+struct ValueNewlines {
+    /// Byte offset (within the scanned value) of the first depth-0 newline whose
+    /// line carries a leading tab — see [`reindent_attr_with_raw_text`].
+    first_tabbed_at_depth0: Option<usize>,
+    any_at_depth0: bool,
+    any_inside_braces: bool,
+}
+
+fn scan_value_newlines(value: &str) -> ValueNewlines {
     let mut depth: i32 = 0;
     let mut quote: Option<u8> = None;
     let mut escaped = false;
-    let mut saw_newline_at_depth0 = false;
-    for &b in value.as_bytes() {
+    let mut out = ValueNewlines {
+        first_tabbed_at_depth0: None,
+        any_at_depth0: false,
+        any_inside_braces: false,
+    };
+    let bytes = value.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
         match quote {
             // Inside a JS string literal: only its own *unescaped* closing
             // delimiter ends it; braces/newlines there are not structural.
@@ -147,36 +152,60 @@ fn is_verbatim_interpolation_value(a: &str) -> bool {
                 b'\'' | b'"' | b'`' if depth > 0 => quote = Some(b),
                 b'{' => depth += 1,
                 b'}' => depth -= 1,
-                // Inside `{…}` a newline is a wrapped continuation (re-indent);
-                // at depth 0 it is literal text (verbatim).
-                b'\n' if depth > 0 => return false,
-                b'\n' => saw_newline_at_depth0 = true,
+                b'\n' if depth > 0 => out.any_inside_braces = true,
+                b'\n' => {
+                    out.any_at_depth0 = true;
+                    if out.first_tabbed_at_depth0.is_none() && bytes.get(i + 1) == Some(&b'\t') {
+                        out.first_tabbed_at_depth0 = Some(i);
+                    }
+                }
                 _ => {}
             },
         }
     }
-    saw_newline_at_depth0
+    out
+}
+
+/// Splits a rendered attribute into its value part and that value's offset,
+/// so brace-depth offsets can be mapped back onto the whole attribute.
+fn attr_value(a: &str) -> (usize, &str) {
+    match a.split_once('=') {
+        Some((name, value)) => (name.len() + 1, value),
+        None => (0, a),
+    }
+}
+
+/// Whether an interpolation-led string value (`name="{…}…"`) has newlines that
+/// are *all* literal HTML text (brace-depth 0, between interpolations) rather
+/// than a wrapped `{expr}` continuation — so it can be emitted verbatim to
+/// preserve source whitespace. False for no-newline values or any newline inside
+/// `{…}` (brace-depth > 0), which take the re-indent path.
+fn is_verbatim_interpolation_value(a: &str) -> bool {
+    let (_, value) = attr_value(a);
+    if !value.starts_with("\"{") {
+        return false;
+    }
+    let scan = scan_value_newlines(value);
+    !scan.any_inside_braces && scan.any_at_depth0
 }
 
 /// Re-indent an expression-led attribute (`class="{expr}\nraw-text…"`).
 ///
-/// OXC always formats JS with spaces (never tabs). When an attribute starts with
-/// a JS expression (`"{`) but also has continuation lines that start with a tab
-/// (`\n\t`), those tab-indented lines are raw HTML attribute text — not formatted
-/// JS — and must be kept verbatim. Split the attribute at the first `\n\t` and
-/// re-indent only the expression part; append the raw text as-is.
-///
-/// Falls back to `reindent(a, prefix, true)` when no `\n\t` is found (pure JS
-/// attribute — the normal path).
+/// Raw HTML text the author wrote between interpolations keeps its original
+/// source indentation, so re-indenting it would double-count that indent. It is
+/// recognised by a tab-indented line sitting at brace depth 0: depth 0 is
+/// outside every `{…}`, and formatted JS is only ever tab-indented under
+/// `useTabs` — where it is also always inside braces. Requiring both signals
+/// keeps the tab-indented continuation lines of a multi-line attribute value out
+/// of the raw-text branch, which used to strand them at column 0 (#2058).
 fn reindent_attr_with_raw_text(a: &str, prefix: &str) -> String {
-    // Find the first occurrence of a newline followed by a tab — this marks the
-    // boundary between formatted JS and raw source text.
-    if let Some(split_pos) = a.find("\n\t") {
-        let js_part = &a[..split_pos];
-        let raw_part = &a[split_pos..]; // starts with "\n\t…"
-        let reindented_js = crate::reindent::reindent(js_part, prefix, true);
-        format!("{reindented_js}{raw_part}")
-    } else {
-        crate::reindent::reindent(a, prefix, true)
+    let (value_offset, value) = attr_value(a);
+    match scan_value_newlines(value).first_tabbed_at_depth0 {
+        Some(pos) => {
+            let split_pos = value_offset + pos;
+            let reindented_js = crate::reindent::reindent(&a[..split_pos], prefix, true);
+            format!("{reindented_js}{}", &a[split_pos..])
+        }
+        None => crate::reindent::reindent(a, prefix, true),
     }
 }

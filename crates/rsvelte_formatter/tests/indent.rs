@@ -1,4 +1,6 @@
-use rsvelte_formatter::{FormatOptions, IndentStyle, IndentWidth, JsFormatOptions, format};
+use rsvelte_formatter::{
+    FormatOptions, IndentStyle, IndentWidth, JsFormatOptions, LineWidth, format,
+};
 
 #[test]
 fn default_options_indent_with_two_spaces() {
@@ -118,4 +120,62 @@ fn block_body_inline_child_fit_uses_display_width() {
         !out.contains("/> {label}"),
         "expected the wide Icon to break away from the trailing text:\n{out}"
     );
+}
+
+// ─── #2058: multi-line attribute values under `useTabs` ──────────────────
+//
+// A multi-line attribute value is formatted at column 0 and re-indented to the
+// attribute column afterwards. That re-indent used to treat any line starting
+// with a tab as verbatim raw HTML text, which is true only while the embedded
+// JS is space-indented — under `useTabs` the formatted JS is tab-indented too,
+// so every continuation line was left at column 0. Expectations below are the
+// oxfmt(`svelte: true`) oracle's output for the user's config (#2058).
+
+fn tab_opts() -> FormatOptions {
+    FormatOptions {
+        js: JsFormatOptions {
+            indent_style: IndentStyle::Tab,
+            indent_width: IndentWidth::try_from(4).expect("4 is valid"),
+            line_width: LineWidth::try_from(100).expect("100 is valid"),
+            ..JsFormatOptions::new()
+        },
+        ..FormatOptions::default()
+    }
+}
+
+#[test]
+fn tab_indent_reindents_multiline_arrow_attribute() {
+    let src = "<div class=\"wrap\">\n\t<div class=\"panel\">\n\t\t<div class=\"inner\">\n\t\t\t<SvelteFlow\n\t\t\t\tfitView\n\t\t\t\tonmove={(_event, viewport) => {\n\t\t\t\t\tgraph.activeDocument.viewport = { ...viewport };\n\t\t\t\t}}\n\t\t\t/>\n\t\t</div>\n\t</div>\n</div>\n";
+    let out = format(src, &tab_opts()).expect("format ok");
+    assert_eq!(out, src);
+}
+
+#[test]
+fn tab_indent_reindents_multiline_bind_getter_setter() {
+    let src = "<div>\n\t<div>\n\t\t<Comp\n\t\t\tbind:value={\n\t\t\t\t() => internalValueForTheBinding,\n\t\t\t\t(v) => {\n\t\t\t\t\tinternalValueForTheBinding = v;\n\t\t\t\t}\n\t\t\t}\n\t\t/>\n\t</div>\n</div>\n";
+    let out = format(src, &tab_opts()).expect("format ok");
+    assert_eq!(out, src);
+}
+
+#[test]
+fn tab_indent_reindents_multiline_object_attribute() {
+    let src = "<div>\n\t<div>\n\t\t<div>\n\t\t\t<Chart\n\t\t\t\tconfig={{\n\t\t\t\t\tkind: \"line\",\n\t\t\t\t\tpadding: { top: 10, right: 20, bottom: 30, left: 40 },\n\t\t\t\t\tanimate: true,\n\t\t\t\t}}\n\t\t\t/>\n\t\t</div>\n\t</div>\n</div>\n";
+    let out = format(src, &tab_opts()).expect("format ok");
+    assert_eq!(out, src);
+}
+
+#[test]
+fn tab_indent_reindents_multiline_arrow_beside_long_string_attribute() {
+    let src = "<div>\n\t<div>\n\t\t<button\n\t\t\tclass=\"a very long list of utility classes that will definitely not fit on one line at all\"\n\t\t\tonclick={async () => {\n\t\t\t\tawait save();\n\t\t\t\ttoast.show(\"saved\");\n\t\t\t}}\n\t\t>\n\t\t\tSave\n\t\t</button>\n\t</div>\n</div>\n";
+    let out = format(src, &tab_opts()).expect("format ok");
+    assert_eq!(out, src);
+}
+
+/// The interior of a template literal is program text, not indentation: it must
+/// survive the re-indent verbatim even though its lines start with tabs.
+#[test]
+fn tab_indent_keeps_template_literal_interior_verbatim() {
+    let src = "<div>\n\t<div>\n\t\t<Comp\n\t\t\ttemplate={`\n\tfirst line of the template literal\n\tsecond line of the template literal\n`}\n\t\t/>\n\t</div>\n</div>\n";
+    let out = format(src, &tab_opts()).expect("format ok");
+    assert_eq!(out, src);
 }
