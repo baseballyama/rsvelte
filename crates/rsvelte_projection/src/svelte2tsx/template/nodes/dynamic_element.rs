@@ -13,7 +13,6 @@ use crate::svelte2tsx::template::attributes::binding::{
 use crate::svelte2tsx::template::attributes::build_attributes_string;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_directive_prefix_suffix;
-use crate::svelte2tsx::template::attributes::let_::build_let_destructure_string;
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::segs::segs_to_string;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
@@ -21,7 +20,9 @@ use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spaci
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
-use super::component_slots::build_named_slot_element_attrs;
+use super::component_slots::{
+    build_named_slot_element_attrs, default_slot_let_block, named_slot_let_block,
+};
 use super::slot_element::slot_attr_static_name;
 
 /// Handle `<svelte:element this={tag}>`.
@@ -47,13 +48,12 @@ pub(crate) fn handle_svelte_dynamic_element(
         .as_ref()
         .zip(slot_attr_static_name(&el.attributes))
         .map(|(inst, name)| (inst.as_str(), name));
-    let named_slot_block = named_slot.as_ref().map(|(inst, target_slot)| {
-        let let_destructure = build_let_destructure_string(&el.attributes, source);
-        format!(
-            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
-            let_destructure, inst, target_slot
-        )
-    });
+    let named_slot_block = named_slot
+        .as_ref()
+        .map(|(inst, target_slot)| named_slot_let_block(&el.attributes, inst, target_slot, source));
+    // `<svelte:element let:x>` is an `Element` in official svelte2tsx, so its
+    // own `let:` forwards through the enclosing component's `$$slot_def.default`.
+    let default_slot_let = default_slot_let_block(&el.attributes, saved_slot.as_ref(), source);
 
     let raw_tag_text = get_expression_text(&el.tag, source);
     // If the `this` attribute value is a plain string literal (this="tag"),
@@ -114,13 +114,18 @@ pub(crate) fn handle_svelte_dynamic_element(
     // The slot-def block sits inside the opening tag's leading whitespace, so it
     // is emitted after the indent rather than before it.
     let indent = " ".repeat(spacing.before_block);
-    if let Some(block) = named_slot_block {
-        str.prepend_left(el.start, &format!("{}{}", indent, block));
-    }
-    let indent = if named_slot.is_some() {
-        String::new()
-    } else {
-        indent
+    let indent = match named_slot_block {
+        Some(block) => {
+            str.prepend_left(el.start, &format!("{}{}", indent, block));
+            String::new()
+        }
+        None => match &default_slot_let {
+            Some(block) => {
+                str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+                String::new()
+            }
+            None => indent,
+        },
     };
 
     // `use:` / `transition:` / `animate:` directives, same V4 emission as on a
@@ -286,8 +291,9 @@ pub(crate) fn handle_svelte_dynamic_element(
         }
     }
 
-    // Close the named-slot `$$slot_def[...]` wrapper block; restore context.
-    if named_slot.is_some() {
+    // Close the `$$slot_def[...]` / `$$slot_def.default` wrapper block; restore
+    // context.
+    if named_slot.is_some() || default_slot_let.is_some() {
         str.append_left(el.end, "}");
     }
     counter.slot_inst = saved_slot;

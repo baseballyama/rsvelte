@@ -6,13 +6,14 @@ use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
 use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
-use crate::svelte2tsx::template::attributes::let_::build_let_destructure_string;
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::utils::expr::get_expression_text;
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
+
+use super::component_slots::{default_slot_let_block, named_slot_let_block};
 
 /// Handle `<slot>` element.
 ///
@@ -42,13 +43,12 @@ pub(crate) fn handle_slot_element(
         .as_ref()
         .zip(slot_attr_static_name(&el.attributes))
         .map(|(inst, name)| (inst.as_str(), name));
-    let named_slot_block = named_slot.as_ref().map(|(inst, target_slot)| {
-        let let_destructure = build_let_destructure_string(&el.attributes, source);
-        format!(
-            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
-            let_destructure, inst, target_slot
-        )
-    });
+    let named_slot_block = named_slot
+        .as_ref()
+        .map(|(inst, target_slot)| named_slot_let_block(&el.attributes, inst, target_slot, source));
+    // `<slot let:x>` is an `Element` in official svelte2tsx, so its own `let:`
+    // forwards through the enclosing component's `$$slot_def.default`.
+    let default_slot_let = default_slot_let_block(&el.attributes, saved_slot.as_ref(), source);
 
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
@@ -93,7 +93,13 @@ pub(crate) fn handle_slot_element(
             str.prepend_left(el.start, &format!("{}{}", indent, block));
             String::new()
         }
-        None => indent,
+        None => match &default_slot_let {
+            Some(block) => {
+                str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+                String::new()
+            }
+            None => indent,
+        },
     };
     let opener = if bind_this_expr.is_some() {
         format!(
@@ -143,9 +149,9 @@ pub(crate) fn handle_slot_element(
         }
     }
 
-    // Close the named-slot `$$slot_def[...]` wrapper block, then restore the
-    // slot context for following siblings.
-    if named_slot.is_some() {
+    // Close the `$$slot_def[...]` / `$$slot_def.default` wrapper block, then
+    // restore the slot context for following siblings.
+    if named_slot.is_some() || default_slot_let.is_some() {
         str.append_left(el.end, "}");
     }
     counter.slot_inst = saved_slot;

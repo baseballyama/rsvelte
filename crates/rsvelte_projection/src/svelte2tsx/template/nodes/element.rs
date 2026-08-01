@@ -21,7 +21,7 @@ use crate::svelte2tsx::template::utils::source::{
 };
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
-use super::component_slots::handle_named_slot_element;
+use super::component_slots::{default_slot_let_block, handle_named_slot_element};
 use super::slot_element::{handle_slot_element, slot_attr_static_name};
 use super::snippet_block::hoist_snippet_blocks;
 
@@ -91,6 +91,13 @@ pub(crate) fn handle_regular_element(
         counter.slot_inst = saved_slot;
         return;
     }
+    // Default-slot `let:` receiver (`<div let:x>`): the bindings destructure from
+    // the enclosing component's `$$slot_def.default`, and the block scopes the
+    // element's body. Mirrors `Element.performTransformation`'s
+    // `slotLetsTransformation`. Note this is reached only after the `style`
+    // early-return above, matching official — the `<style>` node's whole range
+    // (block included) is wiped by `handleStyleTag`.
+    let default_slot_let = default_slot_let_block(&el.attributes, saved_slot.as_ref(), source);
 
     // Find the end of the opening tag (after the `>`)
     let opening_tag_end =
@@ -117,7 +124,7 @@ pub(crate) fn handle_regular_element(
         Some(opener_content_start),
     );
 
-    let mut spacing = opener_spacing(
+    let spacing = opener_spacing(
         source,
         el.start,
         &el.name,
@@ -132,13 +139,6 @@ pub(crate) fn handle_regular_element(
             is_slot_tag: false,
         },
     );
-    // A default-slot-let element (`<div let:x>`) has its leading gap folded
-    // into the `$$slot_def.default` destructure emitted by
-    // `process_component_children_with_slots` instead — see
-    // `suppress_default_slot_let_indent`'s doc comment.
-    if std::mem::take(&mut counter.suppress_default_slot_let_indent) {
-        spacing.before_block = 0;
-    }
     if spacing.in_attr_object > 0 {
         let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
         padded.push(Seg::Lit(" ".repeat(spacing.in_attr_object)));
@@ -211,7 +211,17 @@ pub(crate) fn handle_regular_element(
     } else {
         String::new()
     };
+    // The slot-let destructure sits *after* the opening tag's leading gap (the
+    // gap is part of the same official `transform()` call), so emit the gap with
+    // it and leave the createElement block unindented.
     let indent = " ".repeat(spacing.before_block);
+    let indent = match &default_slot_let {
+        Some(block) => {
+            str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+            String::new()
+        }
+        None => indent,
+    };
     let header_lit = if !directive_prefix.is_empty() {
         format!(
             "{}{{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
@@ -284,6 +294,9 @@ pub(crate) fn handle_regular_element(
             str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
         }
     }
+    if default_slot_let.is_some() {
+        str.append_left(el.end, "}");
+    }
     // Restore the slot context for following siblings (this element's own
     // children were processed with it cleared, via the `take()` above).
     counter.slot_inst = saved_slot;
@@ -302,13 +315,19 @@ pub(crate) fn handle_title_element(
         return;
     }
 
+    // `<title>` is an `Element` in official svelte2tsx, so it owns its own slot
+    // scope (children must not inherit the component context) and forwards its
+    // own `let:` through the enclosing component's `$$slot_def.default`.
+    let saved_slot = counter.slot_inst.take();
+    let default_slot_let = default_slot_let_block(&el.attributes, saved_slot.as_ref(), source);
+
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let attrs_str = build_attributes_string(
         &el.attributes,
         source,
         &counter.element_opener_comments,
-        counter.slot_inst.is_some(),
+        saved_slot.is_some(),
     );
 
     let spacing = opener_spacing(
@@ -321,14 +340,22 @@ pub(crate) fn handle_title_element(
         &counter.element_opener_comments,
         OpenerCtx {
             is_element: true,
-            in_component_slot: counter.slot_inst.is_some(),
+            in_component_slot: saved_slot.is_some(),
             tag_name: &el.name,
             is_slot_tag: false,
         },
     );
+    let indent = " ".repeat(spacing.before_block);
+    let indent = match &default_slot_let {
+        Some(block) => {
+            str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+            String::new()
+        }
+        None => indent,
+    };
     let opener = format!(
         "{}{{ svelteHTML.createElement(\"title\", {{{}{}}});",
-        " ".repeat(spacing.before_block),
+        indent,
         " ".repeat(spacing.in_attr_object),
         attrs_str
     );
@@ -343,4 +370,8 @@ pub(crate) fn handle_title_element(
     } else {
         str.append_left(el.end, " }");
     }
+    if default_slot_let.is_some() {
+        str.append_left(el.end, "}");
+    }
+    counter.slot_inst = saved_slot;
 }

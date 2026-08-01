@@ -17,6 +17,10 @@ use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spaci
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
 
+use super::component_slots::{
+    build_named_slot_element_attrs, default_slot_let_block, named_slot_let_block,
+};
+use super::slot_element::slot_attr_static_name;
 use super::snippet_block::handle_snippet_block_as_component_prop;
 
 /// Handle Svelte special elements (svelte:body, svelte:window, etc.).
@@ -44,18 +48,38 @@ pub(crate) fn handle_svelte_special_element(
         return;
     }
 
+    // These are all `Element`s in official svelte2tsx: they own their own slot
+    // scope (children must not inherit the component context) and forward their
+    // own `let:` through the enclosing component's `$$slot_def`, keyed by a
+    // static `slot=` when present.
+    let saved_slot = counter.slot_inst.take();
+    let named_slot: Option<(&str, &str)> = saved_slot
+        .as_ref()
+        .zip(slot_attr_static_name(&el.attributes))
+        .map(|(inst, name)| (inst.as_str(), name));
+    let named_slot_block = named_slot
+        .as_ref()
+        .map(|(inst, target_slot)| named_slot_let_block(&el.attributes, inst, target_slot, source));
+    let default_slot_let = default_slot_let_block(&el.attributes, saved_slot.as_ref(), source);
+
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
-    let mut attrs_str = build_attributes_string(
-        &el.attributes,
-        source,
-        &counter.element_opener_comments,
-        counter.slot_inst.is_some(),
-    );
+    // In a named-slot context the `slot` attribute is consumed by the wrapper
+    // block, so build the attributes without it.
+    let mut attrs_str = if named_slot.is_some() {
+        build_named_slot_element_attrs(&el.attributes, source)
+    } else {
+        build_attributes_string(
+            &el.attributes,
+            source,
+            &counter.element_opener_comments,
+            saved_slot.is_some(),
+        )
+    };
 
     // The special `svelte:…` elements name themselves with a literal in the start
     // transformation, so it contributes no source range.
-    let mut spacing = opener_spacing(
+    let spacing = opener_spacing(
         source,
         el.start,
         &el.name,
@@ -65,24 +89,26 @@ pub(crate) fn handle_svelte_special_element(
         &counter.element_opener_comments,
         OpenerCtx {
             is_element: true,
-            in_component_slot: counter.slot_inst.is_some(),
+            in_component_slot: saved_slot.is_some(),
             tag_name: &el.name,
             is_slot_tag: false,
         },
     );
-    // A default-slot-let `<svelte:fragment let:x>` has its leading gap folded
-    // into the `$$slot_def.default` destructure emitted by
-    // `process_component_children_with_slots` instead — see
-    // `suppress_default_slot_let_indent`'s doc comment.
-    if std::mem::take(&mut counter.suppress_default_slot_let_indent) {
-        spacing.before_block = 0;
-    }
     if spacing.in_attr_object > 0 {
         let mut padded = " ".repeat(spacing.in_attr_object);
         padded.push_str(&attrs_str);
         attrs_str = padded;
     }
+    // The slot-let destructure sits *after* the opening tag's leading gap, so
+    // emit the gap with it and leave the createElement block unindented.
     let indent = " ".repeat(spacing.before_block);
+    let indent = match named_slot_block.as_ref().or(default_slot_let.as_ref()) {
+        Some(block) => {
+            str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+            String::new()
+        }
+        None => indent,
+    };
 
     // `svelte:boundary` treats direct {#snippet} children as implicit props on
     // the `createElement` attrs object — exactly like InlineComponent in the
@@ -254,4 +280,9 @@ pub(crate) fn handle_svelte_special_element(
             str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
         }
     }
+
+    if named_slot.is_some() || default_slot_let.is_some() {
+        str.append_left(el.end, "}");
+    }
+    counter.slot_inst = saved_slot;
 }

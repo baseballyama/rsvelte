@@ -187,8 +187,12 @@ pub(crate) fn handle_snippet_block_inner(
         // entering a SnippetBlock, so element/component names inside a snippet
         // body always count depth from the snippet (e.g. `<Child>` directly in
         // a snippet is `$$_…C0C`), regardless of how deeply the snippet itself
-        // is nested in elements / `<svelte:boundary>`.
+        // is nested in elements / `<svelte:boundary>`. That reset also drops the
+        // enclosing component's slot scope, so a `let:`/`slot=` inside the body
+        // is a plain attribute rather than a `$$slot_def` consumer.
+        let saved_slot = counter.slot_inst.take();
         process_fragment_inplace(&block.body, source, options, str, counter, 0);
+        counter.slot_inst = saved_slot;
 
         let body_end = block.body.nodes.last().unwrap().end();
         if body_end < block.end {

@@ -141,7 +141,7 @@ pub(crate) fn handle_component(
     // it likewise needs the `const $$_inst = new …` form. Mirrors official's
     // `Element.addSlotLet` → `performTransformation` referencing
     // `this.parent.name`.
-    let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment, source);
+    let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment);
 
     // Named `{#snippet}` blocks that are direct children of a component are
     // passed as *implicit props* (`props: { name: (params) => … }`), not as
@@ -660,7 +660,7 @@ pub(crate) fn handle_svelte_component(
     // `bind:` directives, or children that reference the instance's slot defs
     // (named-slot children anywhere in blocks, or default-slot `let:` receivers).
     let children_have_named_slots = has_named_slot_children(&comp.fragment);
-    let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment, source);
+    let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment);
     let needs_inst = has_events
         || has_lets_scomp
         || has_binds

@@ -104,36 +104,122 @@ pub(crate) fn has_component_slot_children(fragment: &Fragment, source: &str) -> 
     false
 }
 
-/// Check if any *direct* child carries `let:` directives that destructure from
-/// THIS component's `$$slot_def` — i.e. a default-slot let receiver that is an
-/// *element* such as `<svelte:fragment let:a={x}>`, `<div let:foo>` or
-/// `<svelte:element let:foo>`. Such an element child references the parent
-/// component (`Element.addSlotLet` → `this.parent.name`), so the parent needs
-/// the `const $$_inst = new …` form.
+/// The `let:`-bearing attributes of an *element-kind* node — every node official
+/// svelte2tsx models as an `Element` (`Element` / `Slot` / `SlotTemplate` /
+/// `Title` / the `svelte:` meta tags), whose `let:` destructures from the
+/// ENCLOSING component's `$$slot_def` (`Element.addSlotLet` →
+/// `this.parent.name`).
 ///
-/// Component-kind children (`<Child let:foo>`, `<svelte:component let:foo>`,
-/// `<svelte:self let:foo>`) are excluded: their `let:` belongs to their OWN
-/// slot (`InlineComponent.addSlotLet` → `this.name`), so they do NOT force the
-/// parent's instance const. `let:` directives are only meaningful on direct
-/// children of a component, so this does not recurse.
-pub(crate) fn has_default_slot_let_children(fragment: &Fragment, _source: &str) -> bool {
+/// Component-kind nodes (`<Child let:foo>`, `<svelte:component let:foo>`,
+/// `<svelte:self let:foo>`) return `None`: their `let:` belongs to their OWN
+/// slot (`InlineComponent.addSlotLet` → `this.name`).
+fn element_kind_attributes<'a>(node: &'a TemplateNode<'a>) -> Option<&'a [Attribute<'a>]> {
+    match node {
+        TemplateNode::RegularElement(el) => Some(&el.attributes),
+        TemplateNode::SlotElement(el) => Some(&el.attributes),
+        TemplateNode::SvelteElement(el) => Some(&el.attributes),
+        TemplateNode::TitleElement(el) => Some(&el.attributes),
+        TemplateNode::SvelteFragment(el)
+        | TemplateNode::SvelteBoundary(el)
+        | TemplateNode::SvelteHead(el)
+        | TemplateNode::SvelteBody(el)
+        | TemplateNode::SvelteDocument(el)
+        | TemplateNode::SvelteOptions(el)
+        | TemplateNode::SvelteWindow(el) => Some(&el.attributes),
+        _ => None,
+    }
+}
+
+/// Check whether any element-kind node in THIS component's slot scope carries
+/// `let:` directives, and so destructures from the component's `$$slot_def` —
+/// which forces the `const $$_inst = new …` form.
+///
+/// Control-flow blocks are transparent to that scope: official svelte2tsx only
+/// pushes its `element` stack for elements/components, so a `<div let:x>` nested
+/// in `{#if}` / `{#each}` / `{#await}` / `{#key}` still has the component as its
+/// `parent`. This therefore recurses through blocks but NOT into nested
+/// elements/components (each owns its own slot scope) nor `{#snippet}` bodies
+/// (official resets `element` to `undefined` there).
+pub(crate) fn has_default_slot_let_children(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|node| {
-        // Only NON-component default-slot children forward their `let:` bindings
-        // to the enclosing component's `$$slot_def.default`. A component child
-        // (`<Child let:x>` / `<svelte:component let:x>` / `<svelte:self let:x>`)
-        // binds `let:x` from its OWN `$$slot_def.default` — its own
-        // `handle_component` emits that destructure — so it must not mark the
-        // parent as needing an instance var. Mirrors official svelte2tsx, where
-        // only `Element`/`SlotElement`/`InlineComponent` *slot content* (not the
-        // inline component's own lets) routes through the parent slot.
-        let attrs = match node {
-            TemplateNode::RegularElement(el) => &el.attributes,
-            TemplateNode::SvelteFragment(f) => &f.attributes,
-            TemplateNode::SvelteElement(e) => &e.attributes,
-            _ => return false,
-        };
-        has_let_directives(attrs)
+        if let Some(attrs) = element_kind_attributes(node) {
+            return has_let_directives(attrs);
+        }
+        match node {
+            TemplateNode::IfBlock(block) => {
+                has_default_slot_let_children(&block.consequent)
+                    || block
+                        .alternate
+                        .as_ref()
+                        .is_some_and(|alt| has_default_slot_let_children(alt))
+            }
+            TemplateNode::EachBlock(block) => {
+                has_default_slot_let_children(&block.body)
+                    || block
+                        .fallback
+                        .as_ref()
+                        .is_some_and(|fb| has_default_slot_let_children(fb))
+            }
+            TemplateNode::AwaitBlock(block) => {
+                block
+                    .pending
+                    .as_ref()
+                    .is_some_and(|p| has_default_slot_let_children(p))
+                    || block
+                        .then
+                        .as_ref()
+                        .is_some_and(|t| has_default_slot_let_children(t))
+                    || block
+                        .catch
+                        .as_ref()
+                        .is_some_and(|c| has_default_slot_let_children(c))
+            }
+            TemplateNode::KeyBlock(block) => has_default_slot_let_children(&block.fragment),
+            _ => false,
+        }
     })
+}
+
+/// The `$$slot_def.default` destructure an element-kind child of a component
+/// emits for its OWN `let:` directives, or `None` when `slot_inst` says this
+/// node is not in a component's slot scope, it has no `let:`, or a static
+/// `slot=` retargets it at a NAMED slot (official's `addSlotName` replaces the
+/// `default` key, so those callers emit the `$$slot_def["…"]` form instead).
+/// Mirrors `Element.performTransformation`'s `slotLetsTransformation`.
+///
+/// The block is emitted by the node's own handler, and therefore *after* the
+/// handler's leading gap — official runs it through the SAME `transform()` call
+/// as the opening-tag rewrite, so the gap precedes the destructure.
+pub(crate) fn default_slot_let_block(
+    attributes: &[Attribute],
+    slot_inst: Option<&String>,
+    source: &str,
+) -> Option<String> {
+    let inst = slot_inst?;
+    if !has_let_directives(attributes) || slot_attr_static_name(attributes).is_some() {
+        return None;
+    }
+    Some(format!(
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+        build_let_destructure_string(attributes, source),
+        inst
+    ))
+}
+
+/// The `$$slot_def["name"]` destructure an element-kind child emits when a
+/// static `slot=` retargets it at a named slot (official `addSlotName`).
+pub(crate) fn named_slot_let_block(
+    attributes: &[Attribute],
+    inst: &str,
+    target_slot: &str,
+    source: &str,
+) -> String {
+    format!(
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+        build_let_destructure_string(attributes, source),
+        inst,
+        target_slot
+    )
 }
 
 /// Check if any children have `slot="name"` attributes (named slots).
@@ -247,45 +333,21 @@ pub(crate) fn process_component_children_with_slots(
     counter: &mut Counter,
     depth: u32,
 ) -> bool {
-    // Build the default slot destructuring if needed
-    let let_destructure = if has_lets {
-        build_let_destructure_string(attributes, source)
-    } else {
-        String::new()
-    };
-
-    // Group children into default slot and named slots
-    // For each child, determine if it belongs to a named slot or the default slot
-    // Named slot children get their own $$slot_def blocks
-    // Default slot children are wrapped in a single block with the component's let: destructuring
-
-    // We need to track which children are named slots and process them specially.
-    // The approach: iterate over children, and for each named-slot child, emit
-    // a separate $$slot_def block. Non-named-slot children are part of the default slot.
-    //
-    // The default slot block is opened before the first default slot child and closed
-    // after the last one (or before the first named slot child).
-
-    let mut default_slot_opened = false;
+    // The component's OWN `let:` directives open a single `$$slot_def.default`
+    // block before the first child; it stays open across every child (named-slot
+    // children nest their own `$$slot_def["…"]` block inside it) and is closed
+    // after the last one.
     let mut prev_end: Option<u32> = None;
 
-    // If there are let: directives, we need to open the default slot block
-    // before any children (including text nodes).
-    if has_lets {
-        // We'll open the default slot block at the position of the first child
-        // or immediately after the opening tag
-        let block_open = format!(
-            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-            let_destructure, inst_var
+    if has_lets && let Some(first_node) = fragment.nodes.first() {
+        str.append_left_fmt(
+            first_node.start(),
+            format_args!(
+                "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+                build_let_destructure_string(attributes, source),
+                inst_var
+            ),
         );
-
-        // Find where to insert the block open
-        if let Some(first_node) = fragment.nodes.first() {
-            let first_start = first_node.start();
-            // Insert the block opening before the first child
-            str.append_left(first_start, &block_open);
-        }
-        default_slot_opened = true;
     }
 
     for node in &fragment.nodes {
@@ -337,78 +399,25 @@ pub(crate) fn process_component_children_with_slots(
                 }
             }
         } else {
-            // Default slot child - process normally
-            // If the default slot block was closed for a named slot, re-open it
-            if has_lets && !default_slot_opened {
-                let block_open = format!(
-                    "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-                    let_destructure, inst_var
-                );
-                str.append_left(node.start(), &block_open);
-                default_slot_opened = true;
-            }
-            // A default-slot child (`<svelte:fragment let:foo>`, `<div let:foo>`)
-            // with no `slot=` but its OWN `let:` directives needs a
-            // `$$slot_def.default` destructure block referencing the ENCLOSING
-            // component — JS reference's Element.performTransformation emits one
-            // whenever the default-slot child has `let:` directives. Wrap the
-            // child so the `let:` bindings are scoped to its body.
-            //
-            // A COMPONENT child (`<Child let:foo>`) is excluded: its `let:foo`
-            // binds from `Child`'s OWN `$$slot_def.default`, which its own
-            // `handle_component` already emits. Routing it through the parent
-            // here would wrongly duplicate the destructure onto the parent
-            // instance (#1232).
-            let fragment_lets = match node {
-                TemplateNode::SvelteFragment(el) if has_let_directives(&el.attributes) => {
-                    Some(el.attributes.as_slice())
-                }
-                TemplateNode::RegularElement(el) if has_let_directives(&el.attributes) => {
-                    Some(el.attributes.as_slice())
-                }
-                _ => None,
-            };
-            let fragment_block_open = if let Some(attributes) = fragment_lets {
-                let destructure = build_let_destructure_string(attributes, source);
-                let block = format!(
-                    "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-                    destructure, inst_var
-                );
-                // Official's `Element.performTransformation` runs the slot-let
-                // destructure through the SAME `transform()` call as the
-                // element/fragment's own opening-tag rewrite, so the leading gap
-                // ahead of `<div`/`<svelte:fragment` is folded into this
-                // block-open instead of the wrapped node's own indent. Compute
-                // that gap here (mirroring the wrapped node's own opener_spacing
-                // call) and tell the handler to suppress it.
-                let before_block = default_slot_let_before_block(node, source, counter);
-                str.append_left_fmt(
-                    node.start(),
-                    format_args!("{}{}", " ".repeat(before_block), block),
-                );
-                counter.suppress_default_slot_let_indent = true;
-                true
-            } else {
-                false
-            };
-            // Mark the component slot context so a `slot="…"` element nested
-            // inside this default-slot child's control-flow blocks (`{#if}` /
-            // `{#each}` / …) is lowered to the named-slot form referencing this
-            // component instance. A nested element/component clears it (each
-            // owns its own slot scope) via `handle_regular_element`'s `take()`.
+            // Default-slot child: mark the component slot context and process
+            // normally. The handler itself emits the `$$slot_def.default`
+            // destructure for the node's OWN `let:` directives (mirroring
+            // `Element.performTransformation`), and the same context reaches an
+            // element nested inside this child's control-flow blocks (`{#if}` /
+            // `{#each}` / …) — which official also treats as a direct slot
+            // consumer, since blocks do not push its `element` stack. A nested
+            // element/component clears it (each owns its own slot scope) via its
+            // handler's `take()`.
             let prev_slot = counter.slot_inst.replace(inst_var.to_string());
             process_node_inplace(node, source, options, str, counter, depth);
             counter.slot_inst = prev_slot;
-            if fragment_block_open {
-                str.append_left(node.end(), "}");
-            }
         }
 
         prev_end = Some(node.end());
     }
 
-    // Close the default slot block if still open
-    if default_slot_opened && has_lets {
+    // Close the component's own default-slot block.
+    if has_lets {
         // Find the position to close: after the last node, before the closing tag
         if let Some(end) = prev_end {
             let closing_tag_start = find_closing_tag_start(source, node_end);
@@ -421,58 +430,6 @@ pub(crate) fn process_component_children_with_slots(
         }
     }
     false
-}
-
-/// The leading gap `handle_regular_element` / `handle_svelte_special_element`
-/// would themselves attribute to the wrapped node's own indent, replayed here
-/// so it can be moved ahead of the default-slot-let block-open instead (see
-/// the call site in `process_component_children_with_slots`). Only
-/// `RegularElement` and `SvelteFragment` reach here — the two node kinds
-/// `has_let_directives` is checked against above.
-fn default_slot_let_before_block(node: &TemplateNode, source: &str, counter: &Counter) -> usize {
-    match node {
-        TemplateNode::RegularElement(el) => {
-            let opening_tag_end =
-                find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
-            opener_spacing(
-                source,
-                el.start,
-                &el.name,
-                opening_tag_end,
-                Some((el.start + 1, el.start + 1 + el.name.len() as u32)),
-                &el.attributes,
-                &counter.element_opener_comments,
-                OpenerCtx {
-                    is_element: true,
-                    in_component_slot: true,
-                    tag_name: &el.name,
-                    is_slot_tag: false,
-                },
-            )
-            .before_block
-        }
-        TemplateNode::SvelteFragment(el) => {
-            let opening_tag_end =
-                find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
-            opener_spacing(
-                source,
-                el.start,
-                &el.name,
-                opening_tag_end,
-                None,
-                &el.attributes,
-                &counter.element_opener_comments,
-                OpenerCtx {
-                    is_element: true,
-                    in_component_slot: true,
-                    tag_name: &el.name,
-                    is_slot_tag: false,
-                },
-            )
-            .before_block
-        }
-        _ => 0,
-    }
 }
 
 /// Handle a regular element child with `slot="name"` attribute inside a component.
