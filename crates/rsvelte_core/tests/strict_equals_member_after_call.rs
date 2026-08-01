@@ -14,6 +14,14 @@
 //!
 //! Note the negated form: `!==` emits `$.strict_equals(l, r, false)`, matching
 //! the official compiler, rather than negating the call from outside.
+//!
+//! The `$state.raw` locals below are reassigned (`items = [...]` /
+//! `arr = [...]`) so that reads stay wrapped in `$.get(...)` — a
+//! *non*-reassigned `$state.raw` local is optimized away to a plain value by
+//! the official compiler (and, since #2082, by rsvelte too), which would
+//! defeat the point of this call-wrapped-operand guard. See
+//! `state_raw_module_local_never_reassigned.rs` for that optimization's own
+//! coverage.
 
 use rsvelte_core::GenerateMode;
 use rsvelte_core::compile_module;
@@ -37,6 +45,7 @@ fn compile_mod_client_dev(src: &str) -> String {
 fn neq_after_member_on_tagged_state_call_chain() {
     let src = r#"export const fn = () => {
   let items = $state.raw([]);
+  items = [];
   if (items.length !== 0) items[0];
 };"#;
     let out = compile_mod_client_dev(src);
@@ -62,6 +71,7 @@ fn eq_after_member_on_tagged_state_call_chain() {
     // Mirror case with `===`.
     let src = r#"export const fn = () => {
   let items = $state.raw([]);
+  items = [];
   if (items.length === 0) items[0];
 };"#;
     let out = compile_mod_client_dev(src);
@@ -77,6 +87,7 @@ fn neq_after_bracket_index_chain() {
     // `arr[0].length !== 0` — the chain ends with a bracket-index too.
     let src = r#"export const fn = () => {
   let arr = $state.raw([[1, 2]]);
+  arr = [[3, 4]];
   if (arr[0].length !== 0) arr[0][0];
 };"#;
     let out = compile_mod_client_dev(src);

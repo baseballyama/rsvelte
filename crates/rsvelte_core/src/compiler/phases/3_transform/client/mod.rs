@@ -3828,16 +3828,19 @@ pub(crate) fn transform_module_script_runes(
 
     // Extract non-reactive module state vars: $state() variables that are NOT reassigned.
     // In runes mode (immutable=true), non-reassigned $state vars don't need $.state() or $.get().
-    // They only get $.proxy() for objects/arrays. This mirrors the instance-level is_state_source logic.
-    let mut module_non_reactive_vars: Vec<String> = if analysis.immutable {
+    // They only get $.proxy() for objects/arrays. This mirrors the official compiler's
+    // `is_state_source` (`3-transform/client/utils.js`), which gates purely on
+    // `binding.reassigned` — it is applied at every scope during the visitor traversal, not
+    // just the module's top-level scope. `Binding::reassigned` already reflects the true
+    // reassignment analysis (not just "declared with `const`"), so this check covers both
+    // top-level and function-local `let`/`const` `$state`/`$state.raw` locals alike (#2082).
+    let module_non_reactive_vars: Vec<String> = if analysis.immutable {
         analysis
             .root
             .bindings
             .iter()
             .filter(|b| {
-                // Module-level bindings are at scope 0
-                b.scope_index == 0
-                    && matches!(b.kind, BindingKind::State | BindingKind::RawState)
+                matches!(b.kind, BindingKind::State | BindingKind::RawState)
                     && !b.reassigned
                     && !analysis.accessors
             })
@@ -3846,18 +3849,6 @@ pub(crate) fn transform_module_script_runes(
     } else {
         Vec::new()
     };
-
-    // Also include `const` $state variables from any scope as non-reactive.
-    // `const` variables can never be reassigned, so they don't need $.state()/$.get() wrapping.
-    // This is especially important for module files where $state is used inside functions.
-    // NOTE: Only $state vars (is_state=true) qualify. $derived vars always need $.get() wrapping.
-    if analysis.immutable {
-        for (name, is_const, is_state) in &module_state_vars_with_const {
-            if *is_const && *is_state && !module_non_reactive_vars.contains(name) {
-                module_non_reactive_vars.push(name.clone());
-            }
-        }
-    }
 
     // Extract module proxy vars for non-reactive vars
     let module_proxy_vars = extract_proxy_vars(script);
