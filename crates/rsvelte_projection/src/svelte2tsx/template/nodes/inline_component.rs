@@ -35,8 +35,9 @@ use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_op
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
 
 use super::component_slots::{
-    handle_named_slot_component, has_component_slot_children, has_default_slot_let_children,
-    has_named_slot_children, process_component_children_with_slots,
+    handle_named_slot_component, handle_named_slot_svelte_component, handle_named_slot_svelte_self,
+    has_component_slot_children, has_default_slot_let_children, has_named_slot_children,
+    process_component_children_with_slots,
 };
 use super::slot_element::slot_attr_static_name;
 use super::snippet_block::handle_snippet_block_as_component_prop;
@@ -532,6 +533,28 @@ pub(crate) fn handle_svelte_component(
     // slot context (restored at the end for following siblings).
     let saved_outer_slot = counter.slot_inst.take();
 
+    // Nested named-slot routing: a static `slot="x"` svelte:component reached
+    // through a parent component's default-slot body (e.g. inside `{#if}` /
+    // `{#each}`) is wrapped in the parent's `$$slot_def["x"]` block — same as
+    // the direct-child path (`handle_named_slot_svelte_component`), mirroring
+    // `handle_component`'s equivalent check. `named_slot_component_close`
+    // guards against re-entering when we are already the routed inner call.
+    if !counter.named_slot_component_close
+        && let Some(ref inst) = saved_outer_slot
+        && slot_attr_static_name(&comp.attributes).is_some()
+    {
+        let inst = inst.clone();
+        handle_named_slot_svelte_component(comp, &inst, source, options, str, counter, depth);
+        counter.slot_inst = saved_outer_slot;
+        return;
+    }
+
+    // When processed as a named-slot child, suppress the `slot=` prop and the
+    // component's own default-slot `let:` block (the caller already consumed
+    // both into the `$$slot_def[...]` destructure ahead of this opener).
+    let named_slot_close = std::mem::take(&mut counter.named_slot_component_close);
+    let suppress_lets = std::mem::take(&mut counter.suppress_component_lets);
+
     let expr_text = get_expression_text(&comp.expression, source);
     let opening_tag_end = find_opening_tag_end(
         source,
@@ -546,8 +569,12 @@ pub(crate) fn handle_svelte_component(
     let has_events = !on_directives.is_empty();
 
     // Build attribute/props string (excluding on: directives)
-    let mut attrs_str =
-        build_component_props_string(&comp.attributes, source, &counter.element_opener_comments);
+    let mut attrs_str = build_component_props_string(
+        &comp.attributes,
+        source,
+        &counter.element_opener_comments,
+        named_slot_close,
+    );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     let scomp_spacing = opener_spacing(
@@ -560,7 +587,7 @@ pub(crate) fn handle_svelte_component(
         &counter.element_opener_comments,
         OpenerCtx {
             is_element: false,
-            in_component_slot: false,
+            in_component_slot: named_slot_close,
             tag_name: &comp.name,
             is_slot_tag: false,
         },
@@ -574,7 +601,7 @@ pub(crate) fn handle_svelte_component(
     // Check if component has meaningful children for Svelte 5 children prop
     let has_children = has_component_slot_children(&comp.fragment, source);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
-    let has_lets_scomp = has_let_directives(&comp.attributes);
+    let has_lets_scomp = !suppress_lets && has_let_directives(&comp.attributes);
     // Emit the synthetic `children` prop whenever there is default-slot content,
     // even alongside `let:` directives — matching handle_component (which has no
     // such guard). The `let:` destructure is emitted independently below.
@@ -639,6 +666,14 @@ pub(crate) fn handle_svelte_component(
         || has_binds
         || children_have_named_slots
         || children_have_default_slot_lets;
+    // A named-slot child's `$$slot_def[…]` prologue is emitted by the caller
+    // ahead of this block, and takes the leading gaps with it (mirrors
+    // `handle_component`'s `block_indent`).
+    let block_indent = if named_slot_close {
+        String::new()
+    } else {
+        " ".repeat(scomp_spacing.before_block)
+    };
     let mut opener = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
@@ -647,7 +682,7 @@ pub(crate) fn handle_svelte_component(
         };
         format!(
             "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
-            " ".repeat(scomp_spacing.before_block),
+            block_indent,
             inst_var,
             expr_text,
             inst_var,
@@ -659,11 +694,7 @@ pub(crate) fn handle_svelte_component(
     } else {
         format!(
             "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});",
-            " ".repeat(scomp_spacing.before_block),
-            inst_var,
-            expr_text,
-            inst_var,
-            attrs_str
+            block_indent, inst_var, expr_text, inst_var, attrs_str
         )
     };
 
@@ -747,6 +778,31 @@ pub(crate) fn handle_svelte_self(
         return;
     }
 
+    // This node's children own their own slot scope: clear any inherited slot
+    // context (restored at the end for following siblings).
+    let saved_outer_slot = counter.slot_inst.take();
+
+    // Nested named-slot routing: a static `slot="x"` svelte:self reached
+    // through a parent component's default-slot body (e.g. inside `{#if}` /
+    // `{#each}`) is wrapped in the parent's `$$slot_def["x"]` block — same as
+    // the direct-child path (`handle_named_slot_svelte_self`), mirroring
+    // `handle_component`'s equivalent check.
+    if !counter.named_slot_component_close
+        && let Some(ref inst) = saved_outer_slot
+        && slot_attr_static_name(&el.attributes).is_some()
+    {
+        let inst = inst.clone();
+        handle_named_slot_svelte_self(el, &inst, source, options, str, counter, depth);
+        counter.slot_inst = saved_outer_slot;
+        return;
+    }
+
+    // When processed as a named-slot child, suppress the `slot=` prop and the
+    // node's own default-slot `let:` block (the caller already consumed both
+    // into the `$$slot_def[...]` destructure ahead of this opener).
+    let named_slot_close = std::mem::take(&mut counter.named_slot_component_close);
+    let suppress_lets = std::mem::take(&mut counter.suppress_component_lets);
+
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     let closing_tag_start = find_closing_tag_start(source, el.end);
@@ -755,7 +811,7 @@ pub(crate) fn handle_svelte_self(
     // Separate on: + let: directives from regular attributes
     let mut has_on_directives = false;
     let mut on_directives = Vec::new();
-    let has_lets = has_let_directives(&el.attributes);
+    let has_lets = !suppress_lets && has_let_directives(&el.attributes);
     let mut prop_parts = Vec::new();
 
     for attr in &el.attributes {
@@ -769,6 +825,13 @@ pub(crate) fn handle_svelte_self(
             }
             _ => match attr {
                 Attribute::Attribute(node) => {
+                    // `slot="foo"` stays a normal prop EXCEPT when this node
+                    // is being named-slot-routed by its parent component,
+                    // where the attribute is consumed by the
+                    // `$$slot_def[...]` wrapper instead.
+                    if node.name == "slot" && named_slot_close {
+                        continue;
+                    }
                     // `<svelte:self>` is component-like (`__sveltets_2_createComponentAny`),
                     // so apply --* CSS-prop wrapping, not data-* element wrapping.
                     if let Some(s) = format_attribute_node(node, source, false) {
@@ -814,7 +877,7 @@ pub(crate) fn handle_svelte_self(
         &counter.element_opener_comments,
         OpenerCtx {
             is_element: false,
-            in_component_slot: false,
+            in_component_slot: named_slot_close,
             tag_name: &el.name,
             is_slot_tag: false,
         },
@@ -840,18 +903,23 @@ pub(crate) fn handle_svelte_self(
         None
     };
 
+    // A named-slot child's `$$slot_def[…]` prologue is emitted by the caller
+    // ahead of this block, and takes the leading gaps with it (mirrors
+    // `handle_svelte_component`'s `block_indent`).
+    let block_indent = if named_slot_close {
+        String::new()
+    } else {
+        " ".repeat(self_spacing.before_block)
+    };
     let create_call = if let Some(ref name) = var_name {
         format!(
             "{}{{ const {} = __sveltets_2_createComponentAny({{{}}});",
-            " ".repeat(self_spacing.before_block),
-            name,
-            props_inner
+            block_indent, name, props_inner
         )
     } else {
         format!(
             "{}{{ __sveltets_2_createComponentAny({{{}}});",
-            " ".repeat(self_spacing.before_block),
-            props_inner
+            block_indent, props_inner
         )
     };
 
@@ -892,6 +960,7 @@ pub(crate) fn handle_svelte_self(
         let trailing = if has_lets { "}}" } else { "}" };
         let combined = format!("{}{}", opener, trailing);
         str.overwrite(el.start, el.end, &combined);
+        counter.slot_inst = saved_outer_slot;
         return;
     }
 
@@ -907,4 +976,7 @@ pub(crate) fn handle_svelte_self(
         el.end,
         format_args!("{}{}", spaces, trailing),
     );
+
+    // Restore the slot context for following siblings.
+    counter.slot_inst = saved_outer_slot;
 }

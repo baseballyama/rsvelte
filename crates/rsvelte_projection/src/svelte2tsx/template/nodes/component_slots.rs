@@ -3,7 +3,7 @@
 
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, Component, Fragment, RegularElement,
-    SvelteElement, TemplateNode,
+    SvelteComponentElement, SvelteElement, TemplateNode,
 };
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
@@ -19,11 +19,12 @@ use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::attributes::transition::format_transition_directive;
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
 use crate::svelte2tsx::template::segs::segs_to_string;
+use crate::svelte2tsx::template::utils::expr::get_expression_range;
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
 
-use super::inline_component::handle_component;
+use super::inline_component::{handle_component, handle_svelte_component, handle_svelte_self};
 use super::slot_element::slot_attr_static_name;
 use crate::svelte2tsx::template::attributes::action::format_use_directive;
 
@@ -160,6 +161,18 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment) -> bool {
             TemplateNode::SvelteElement(el) if slot_attr_static_name(&el.attributes).is_some() => {
                 return true;
             }
+            // `<svelte:component this={expr} slot="name">` and `<svelte:self
+            // slot="name">` are `InlineComponent`s in official svelte2tsx
+            // (same as a named `<Component slot="name">`), so they forward
+            // into the parent's `$$slot_def[...]` the same way (#2136).
+            TemplateNode::SvelteComponent(sc)
+                if slot_attr_static_name(&sc.attributes).is_some() =>
+            {
+                return true;
+            }
+            TemplateNode::SvelteSelf(el) if slot_attr_static_name(&el.attributes).is_some() => {
+                return true;
+            }
             // Control-flow blocks are transparent to slot distribution: a
             // `<div slot="foo">` nested inside `{#if}` / `{#each}` / `{#await}`
             // / `{#key}` still targets the component's named slot (official
@@ -282,6 +295,8 @@ pub(crate) fn process_component_children_with_slots(
                 slot_attr_static_name(&child_comp.attributes).is_some()
             }
             TemplateNode::SvelteFragment(el) => slot_attr_static_name(&el.attributes).is_some(),
+            TemplateNode::SvelteComponent(sc) => slot_attr_static_name(&sc.attributes).is_some(),
+            TemplateNode::SvelteSelf(el) => slot_attr_static_name(&el.attributes).is_some(),
             _ => false,
         };
 
@@ -304,6 +319,16 @@ pub(crate) fn process_component_children_with_slots(
                 }
                 TemplateNode::SvelteFragment(el) => {
                     handle_named_slot_svelte_fragment(
+                        el, inst_var, source, options, str, counter, depth,
+                    );
+                }
+                TemplateNode::SvelteComponent(sc) => {
+                    handle_named_slot_svelte_component(
+                        sc, inst_var, source, options, str, counter, depth,
+                    );
+                }
+                TemplateNode::SvelteSelf(el) => {
+                    handle_named_slot_svelte_self(
                         el, inst_var, source, options, str, counter, depth,
                     );
                 }
@@ -678,6 +703,118 @@ pub(crate) fn handle_named_slot_component(
     } else {
         str.append_left(comp.end, "}");
     }
+}
+
+/// Handle a `<svelte:component this={expr} slot="name">` child inside a parent
+/// component. Official svelte2tsx models `svelte:component` as an
+/// `InlineComponent`, so a named-slot child of that kind forwards through the
+/// exact same `$$slot_def[...]` lowering as a named component
+/// (`handle_named_slot_component`) — see #2136.
+pub(crate) fn handle_named_slot_svelte_component(
+    comp: &SvelteComponentElement,
+    inst_var: &str,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+) {
+    let slot_name = slot_attr_static_name(&comp.attributes).unwrap_or_default();
+    let let_destructure = build_let_destructure_string(&comp.attributes, source);
+
+    let block_open = format!(
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+        let_destructure, inst_var, slot_name
+    );
+
+    // The `this={expr}` range stands in for the "name" head `handle_component`
+    // uses (`svelte:component` has no literal component-name token), same as
+    // `handle_svelte_component`'s own spacing computation.
+    let opening_tag_end =
+        find_opening_tag_end(source, comp.start, comp.end, &comp.name, &comp.attributes);
+    let spacing = opener_spacing(
+        source,
+        comp.start,
+        &comp.name,
+        opening_tag_end,
+        get_expression_range(&comp.expression),
+        &comp.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: false,
+            in_component_slot: true,
+            tag_name: &comp.name,
+            is_slot_tag: false,
+        },
+    );
+    str.append_left_fmt(
+        comp.start,
+        format_args!("{}{}", " ".repeat(spacing.before_block), block_open),
+    );
+
+    // Process the node normally; suppress its own `slot=` prop / default-slot
+    // `let:` emission — both are consumed by the block open above.
+    counter.named_slot_component_close = true;
+    counter.suppress_component_lets = true;
+    handle_svelte_component(comp, source, options, str, counter, depth);
+
+    // `svelte:component` keeps no name mapping on its closing tag (unlike a
+    // named component) — just close the named-slot block.
+    str.append_left(comp.end, "}");
+}
+
+/// Handle a `<svelte:self slot="name">` child inside a parent component.
+/// Official svelte2tsx models `svelte:self` as an `InlineComponent` too, so it
+/// forwards through the same lowering as `handle_named_slot_svelte_component`
+/// (#2136).
+pub(crate) fn handle_named_slot_svelte_self(
+    el: &SvelteElement,
+    inst_var: &str,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+) {
+    let slot_name = slot_attr_static_name(&el.attributes).unwrap_or_default();
+    let let_destructure = build_let_destructure_string(&el.attributes, source);
+
+    let block_open = format!(
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+        let_destructure, inst_var, slot_name
+    );
+
+    // `svelte:self` emits its opener as a pure string (no source range head),
+    // same as `handle_svelte_self`'s own spacing computation.
+    let opening_tag_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        None,
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: false,
+            in_component_slot: true,
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
+    str.append_left_fmt(
+        el.start,
+        format_args!("{}{}", " ".repeat(spacing.before_block), block_open),
+    );
+
+    counter.named_slot_component_close = true;
+    counter.suppress_component_lets = true;
+    handle_svelte_self(el, source, options, str, counter, depth);
+
+    // `svelte:self` keeps no name mapping on its closing tag — just close the
+    // named-slot block.
+    str.append_left(el.end, "}");
 }
 
 /// Build attribute string for a named slot element, excluding `slot` and `let:` directives.

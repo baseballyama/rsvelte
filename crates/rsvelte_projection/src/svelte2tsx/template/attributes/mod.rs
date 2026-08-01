@@ -295,14 +295,20 @@ pub(super) fn build_component_props_string(
     attributes: &[Attribute],
     source: &str,
     comments: &ElementOpenerCommentIndex,
+    drop_slot: bool,
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     for attr in attributes {
         match attr {
             Attribute::Attribute(node) => {
-                // Skip the `slot` attribute on components (it's for named slot targeting)
-                if node.name == "slot" {
+                // `slot="foo"` stays a normal prop EXCEPT when this node is
+                // being named-slot-routed by its parent component, where the
+                // attribute is consumed by the `$$slot_def[...]` wrapper
+                // instead (mirrors `build_component_props_segments`'s
+                // `drop_slot`, and official's `element.parent instanceof
+                // InlineComponent` check in `handleAttribute`).
+                if node.name == "slot" && drop_slot {
                     continue;
                 }
                 // is_element=false: --* attrs are wrapped with __sveltets_2_cssProp
