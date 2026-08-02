@@ -51,6 +51,24 @@ pub fn transform_state_set_reactive_ast(
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> Option<String> {
+    let spliced = transform_state_set_reactive_spliced(source, state_vars, non_reactive_vars);
+    if ast_rewrite::dual_run::enabled() {
+        let in_place = transform_state_set_reactive_in_place(source, state_vars, non_reactive_vars);
+        ast_rewrite::dual_run::compare_pass(
+            "state_set_reactive_ast:inplace",
+            source,
+            spliced.as_deref(),
+            in_place.as_deref(),
+        );
+    }
+    spliced
+}
+
+fn transform_state_set_reactive_spliced(
+    source: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> Option<String> {
     if state_vars.is_empty() {
         return None;
     }
@@ -276,5 +294,86 @@ mod tests {
     fn no_op_without_equals_token() {
         // Fast-path probe: no `=` in source → bail before parsing.
         assert!(transform_state_set_reactive_ast("foo(x);", &ssv(&["x"]), &[]).is_none());
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_STATE_SET_REACTIVE_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_state_set_reactive_ast`].
+pub(crate) fn transform_state_set_reactive_in_place(
+    source: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> Option<String> {
+    if state_vars.is_empty() {
+        return None;
+    }
+    memchr::memchr(b'=', source.as_bytes())?;
+    if !state_vars
+        .iter()
+        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
+    {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &MODULE_STATE_SET_REACTIVE_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let mut rewriter = StateSetRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                state_vars,
+                non_reactive_vars,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct StateSetRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    state_vars: &'b [String],
+    non_reactive_vars: &'b [String],
+    changed: bool,
+}
+
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StateSetRewriter<'a, 'b> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Expression::AssignmentExpression(assign) = &*expr else {
+            return;
+        };
+        if !matches!(assign.operator, AssignmentOperator::Assign) {
+            return;
+        }
+        let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left else {
+            return;
+        };
+        let name = id.name.as_str();
+        if !self.state_vars.iter().any(|s| s == name) {
+            return;
+        }
+        if self.non_reactive_vars.iter().any(|s| s == name) {
+            return;
+        }
+        let name = name.to_string();
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        let Expression::AssignmentExpression(assign) = taken else {
+            unreachable!("checked above")
+        };
+        let rhs = assign.unbox().right;
+        *expr = self.b.call("$.set", vec![self.b.id(&name), rhs]);
+        self.changed = true;
     }
 }
