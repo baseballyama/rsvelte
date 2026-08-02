@@ -5497,6 +5497,7 @@ fn transform_instance_script_for_visitors(
             transform_destructure_assignments_with_props(
                 &transformed,
                 state_vars,
+                non_reactive_state_vars,
                 store_sub_vars,
                 prop_assignment_transform_vars,
             )
