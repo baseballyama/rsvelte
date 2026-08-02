@@ -13,6 +13,7 @@ mod await_reactivity_loss_ast;
 mod class_body_ast;
 mod class_transforms;
 mod console_dev_ast;
+mod console_wrap;
 mod derived_by_ast;
 mod destructure_transforms;
 mod effect_rune_ast;
@@ -4168,9 +4169,13 @@ pub(crate) fn transform_module_script_runes(
     // the dev-only collectors exactly as the sequential call sites did.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) =
-            module_dev_tail_ast::transform_module_dev_tail_ast(&result, dev, is_ts, analysis.runes)
-        {
+        if let Some(rewritten) = module_dev_tail_ast::transform_module_dev_tail_ast(
+            &result,
+            dev,
+            is_ts,
+            analysis.runes,
+            Some(analysis),
+        ) {
             result = rewritten;
         }
     }
@@ -5688,15 +5693,19 @@ fn transform_instance_script_for_visitors(
         // Reference: CallExpression.js in the official Svelte compiler.
         //
         // Try the AST-based rewrite first (same helper as the module-script
-        // path); fall back to the legacy text scanner if the statement
+        // path); fall back to the legacy text scanner only if the statement
         // fragment fails to parse standalone (rare — the parser is lenient
         // for any complete expression / statement). The AST path fixes the
         // quote-counting string-skip heuristic that the text version uses.
         let transformed = if dev {
             let is_ts =
                 analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-            console_dev_ast::transform_console_calls_dev_ast(&transformed, is_ts)
-                .unwrap_or_else(|| transform_console_calls_dev(&transformed))
+            console_dev_ast::transform_console_calls_dev_fragment(
+                &transformed,
+                is_ts,
+                Some(analysis),
+            )
+            .unwrap_or(transformed)
         } else {
             transformed
         };
@@ -6206,7 +6215,7 @@ fn transform_instance_script_for_visitors(
     if dev
         && !analysis.runes
         && let Some(instrumented) =
-            instance_dev_tail_ast::transform_legacy_instance_dev_tail_ast(&result)
+            instance_dev_tail_ast::transform_legacy_instance_dev_tail_ast(&result, Some(analysis))
     {
         result = instrumented;
     }

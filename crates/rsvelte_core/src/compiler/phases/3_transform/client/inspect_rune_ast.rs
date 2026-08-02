@@ -125,7 +125,7 @@ mod tests {
 
     /// Through the production entry point, so the gate is exercised too.
     fn lower(source: &str) -> Option<String> {
-        transform_module_dev_tail_ast(source, true, false, true)
+        transform_module_dev_tail_ast(source, true, false, true, None)
     }
 
     #[test]

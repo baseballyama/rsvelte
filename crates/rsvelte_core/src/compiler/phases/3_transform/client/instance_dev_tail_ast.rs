@@ -1,6 +1,7 @@
 //! Dev-mode instance-script instrumentation for **legacy (non-runes)**
 //! components: `===` / `!==` → `$.strict_equals(...)`, `==` / `!=` →
-//! `$.equals(...)`, and `await X` → `(await $.track_reactivity_loss(X))()`.
+//! `$.equals(...)`, `await X` → `(await $.track_reactivity_loss(X))()`, and the
+//! `console.METHOD(...)` wrap.
 //!
 //! Upstream has no legacy/runes split here — `visitors/BinaryExpression.js`
 //! and `visitors/AwaitExpression.js` sit in the one client visitor map that
@@ -21,6 +22,8 @@ use oxc_allocator::Allocator;
 use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
 
+use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+
 use super::ast_rewrite;
 
 thread_local! {
@@ -31,13 +34,20 @@ thread_local! {
 /// when neither rewrite has anything to do, when the script fails to parse
 /// (a malformed intermediate is not this pass's to surface), or when no edit
 /// actually landed — the caller then keeps its existing `String`.
-pub(super) fn transform_legacy_instance_dev_tail_ast(source: &str) -> Option<String> {
+pub(super) fn transform_legacy_instance_dev_tail_ast(
+    source: &str,
+    analysis: Option<&ComponentAnalysis>,
+) -> Option<String> {
     // Per-collector probes mirroring each pass's own early-out. Neither pass
     // introduces the other's marker, so probing the original source stays sound
     // across fixed-point iterations.
     let has_equality = super::strict_equals_ast::source_has_equality_op(source);
     let has_await = super::await_reactivity_loss_ast::source_has_await(source);
-    if !has_equality && !has_await {
+    // The per-statement loop in `mod.rs` never sees a `$:` body — it is folded
+    // into a `$.legacy_pre_effect(...)` call afterwards — so the console wrap
+    // has to be re-collected over the settled script.
+    let has_console = memchr::memmem::find(source.as_bytes(), b"console.").is_some();
+    if !has_equality && !has_await && !has_console {
         return None;
     }
 
@@ -63,6 +73,11 @@ pub(super) fn transform_legacy_instance_dev_tail_ast(source: &str) -> Option<Str
                     ),
                 );
             }
+            if has_console {
+                edits.extend(super::console_dev_ast::collect_console_edits(
+                    program, src, analysis,
+                ));
+            }
             edits
         },
     )
@@ -70,7 +85,12 @@ pub(super) fn transform_legacy_instance_dev_tail_ast(source: &str) -> Option<Str
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+
+    /// A standalone fragment carries no analysis, so identifiers stay
+    /// unresolved — the conservative side of the console-wrap decision.
+    fn transform_legacy_instance_dev_tail_ast(source: &str) -> Option<String> {
+        super::transform_legacy_instance_dev_tail_ast(source, None)
+    }
 
     #[test]
     fn no_marker_is_none() {

@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 427 entries)
+## Client dev (`known-failures.client-dev.json`, 306 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -57,9 +57,9 @@ reason. CSS is compared for this target too, and is clean: 0 css-mismatches.
 
 The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
 #2029, #2030, #2039, #2040, and the #2021 series) took it to 896, #2116
-(legacy instance-script instrumentation) to 639, and #2090 (module-script
-`await` instrumentation) to 427 — all with no regression on `client` or
-`server`, both of which are empty.
+(legacy instance-script instrumentation) to 639, #2090 (module-script
+`await` instrumentation) to 427, and #2028 (`console.*` wrapping) to 306 — all
+with no regression on `client` or `server`, both of which are empty.
 
 ### How the counts below are derived
 
@@ -76,12 +76,12 @@ each side, which separates the two directions and cannot be fooled by order:
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
 | ownership mutation validation | 105 | 2 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
-| `console.*` wrapping | 68 | 73 | `visitors/CallExpression.js` | #2028 |
-| `$.tag()` / `$.tag_proxy()` | 26 | 0 | `visitors/VariableDeclaration.js` | #2021 |
+| `$.tag()` / `$.tag_proxy()` | 24 | 0 | `visitors/VariableDeclaration.js` | #2021 |
 | equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
+| `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-244 entries are attributed to a cluster; the remaining **183** show no
+123 entries are attributed to a cluster; the remaining **183** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (JSDoc dropped, the legacy `bind:` `function get()/set()` shape,
 `$.assign`, `$$css`).
@@ -114,11 +114,20 @@ template expressions rsvelte constant-folds (`{1 === 1}` → `"true"`), and one 
 `$props()` destructuring default that the runes AST pass emits as generated
 `$.fallback(...)` text and never re-visits. Both are #2064 long-tail.
 
-The `console.*` row is the one place where rsvelte also emits **more** than
-upstream. Both directions come from the same root: upstream decides with
-`scope.evaluate(arg).has_unknown`, a 273-line abstract interpreter over an
-`UNKNOWN` / `STRING` / `FUNCTION` lattice, which rsvelte approximates with two
-ad-hoc predicates that disagree with each other. See #2028.
+### What is left of the `console.*` row
+
+The row was 68 under / 73 over: two ad-hoc predicates decided the wrap, and
+neither was upstream's `scope.evaluate(arg).has_unknown`. #2028 routed both onto
+the `Evaluation` lattice already ported for the server transform, and gave the
+template path (event handlers, `{expr}`, `$:` bodies) a decision at all — it had
+none, which was every under-emit.
+
+The 2 remaining over-emits are both *shadowing*: the generated text the script
+pass rewrites has no scope chain, so an identifier is only resolved when the
+component declares that name exactly once. `<script module>`'s `foo` next to the
+instance script's `foo`, and a `$state` `method` next to an `{#each}`-destructured
+`method`, therefore stay conservative. Resolving them needs a scope-carrying
+rewrite of the script path — #2064 long-tail.
 
 **#1981 is confirmed absent.** The run contains zero
 `$$ownership_validator.binding(` divergences, so the #1989 fix holds across the

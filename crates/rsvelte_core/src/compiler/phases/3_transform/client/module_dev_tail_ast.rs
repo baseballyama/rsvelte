@@ -32,6 +32,8 @@ use oxc_allocator::Allocator;
 use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
 
+use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+
 use super::ast_rewrite;
 
 thread_local! {
@@ -45,11 +47,12 @@ thread_local! {
 /// `svelte-ignore` comment bodies are parsed. Returns `None` when nothing
 /// matched (no eligible marker, parse failure, or no edit actually
 /// landed), so the caller keeps its existing `String`.
-pub fn transform_module_dev_tail_ast(
+pub(super) fn transform_module_dev_tail_ast(
     source: &str,
     dev: bool,
     is_ts: bool,
     is_runes: bool,
+    analysis: Option<&ComponentAnalysis>,
 ) -> Option<String> {
     let bytes = source.as_bytes();
 
@@ -94,7 +97,9 @@ pub fn transform_module_dev_tail_ast(
                 ));
             }
             if has_console {
-                edits.extend(super::console_dev_ast::collect_console_edits(program, src));
+                edits.extend(super::console_dev_ast::collect_console_edits(
+                    program, src, analysis,
+                ));
             }
             if has_tag {
                 edits.extend(super::tag_declarator_ast::collect_tag_declarator_edits(
@@ -120,7 +125,17 @@ pub fn transform_module_dev_tail_ast(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+
+    /// A standalone module fragment carries no analysis, so identifiers stay
+    /// unresolved — the conservative side of the console-wrap decision.
+    fn transform_module_dev_tail_ast(
+        source: &str,
+        dev: bool,
+        is_ts: bool,
+        is_runes: bool,
+    ) -> Option<String> {
+        super::transform_module_dev_tail_ast(source, dev, is_ts, is_runes, None)
+    }
 
     /// Runes-mode dev batch — the shape `.svelte.(js|ts)` always compiles in.
     fn lower(source: &str) -> Option<String> {
@@ -189,11 +204,10 @@ mod tests {
 
     #[test]
     fn console_wrapping_uses_strict_rewritten_args() {
+        // The equality rewrite still lands, but the wrap does not: upstream
+        // evaluates the original `a === b` to `{true, false}`, never `UNKNOWN`.
         let out = lower("console.log(a === b);").unwrap();
-        assert_eq!(
-            out,
-            "console.log(...$.log_if_contains_state(\"log\", $.strict_equals(a, b)));"
-        );
+        assert_eq!(out, "console.log($.strict_equals(a, b));");
     }
 
     #[test]

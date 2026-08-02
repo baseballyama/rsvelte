@@ -10,7 +10,9 @@ use crate::ast::arena::{IdRange, ParseArena};
 use crate::ast::js::Expression;
 use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase3_transform::client::console_wrap;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
+use crate::compiler::phases::phase3_transform::js_ast::ExprId;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use compact_str::CompactString;
 use serde_json::Value;
@@ -724,15 +726,32 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
             }
 
+            let arg_children: Vec<&JsNode> = pa.get_js_children(*arguments).iter().collect();
+
+            // Dev-mode `console.METHOD(...)` wrapping — decided on the ORIGINAL
+            // arguments, before any of them is lowered.
+            let console_method = if context.state.options.dev {
+                console_wrap_method(pa.get_js_node(*callee), context).filter(|_| {
+                    let args: Vec<serde_json::Value> =
+                        arg_children.iter().map(|arg| arg.to_value()).collect();
+                    console_wrap::args_need_wrap(&args, context.state.analysis)
+                })
+            } else {
+                None
+            };
+
             let conv_callee = {
                 let __tmp = convert_js_node(pa.get_js_node(*callee), context);
                 context.arena.alloc_expr(__tmp)
             };
-            let arg_children: Vec<&JsNode> = pa.get_js_children(*arguments).iter().collect();
             let conv_arguments: Vec<JsExpr> = arg_children
                 .iter()
                 .map(|arg| convert_js_node(arg, context))
                 .collect();
+
+            if let Some(method) = console_method {
+                return build_console_log_wrap(conv_callee, &method, conv_arguments, context);
+            }
 
             JsExpr::Call(JsCallExpression {
                 callee: conv_callee,
@@ -1878,79 +1897,43 @@ fn convert_call_expression(
 
     // In dev mode, transform console.METHOD() calls to wrap args with $.log_if_contains_state()
     // Reference: CallExpression.js lines 91-115 in the official Svelte compiler
-    if context.state.options.dev
-        && let Some(console_method) = get_console_method_name(obj)
-    {
-        const CONSOLE_METHODS: &[&str] = &[
-            "debug",
-            "dir",
-            "error",
-            "group",
-            "groupCollapsed",
-            "info",
-            "log",
-            "trace",
-            "warn",
-        ];
-        if CONSOLE_METHODS.contains(&console_method.as_str()) {
-            let raw_args = obj.get("arguments").and_then(|a| a.as_array());
-            // Check if any argument could contain reactive state (has_unknown)
-            // We use a heuristic: if any arg is not a simple literal, wrap it
-            let has_unknown_arg = raw_args
-                .map(|args| {
-                    args.iter().any(|arg| {
-                        let arg_type = arg
-                            .as_object()
-                            .and_then(|o| o.get("type"))
-                            .and_then(|t| t.as_str())
-                            .unwrap_or("");
-                        arg_type == "SpreadElement" || arg_type != "Literal"
-                    })
-                })
-                .unwrap_or(false);
-
-            if has_unknown_arg {
-                let callee = obj
-                    .get("callee")
-                    .map(|c| {
-                        let __tmp = convert_json_value(c, context);
-                        context.arena.alloc_expr(__tmp)
-                    })
-                    .unwrap_or_else(|| {
-                        context
-                            .arena
-                            .alloc_expr(JsExpr::Identifier("unknown".into()))
-                    });
-
-                let mut log_args: Vec<JsExpr> =
-                    vec![JsExpr::Literal(JsLiteral::String(console_method.into()))];
-                if let Some(args) = raw_args {
-                    for arg in args {
-                        log_args.push(convert_json_value(arg, context));
-                    }
-                }
-
-                // console.METHOD(...$.log_if_contains_state('METHOD', args...))
-                return JsExpr::Call(JsCallExpression {
-                    callee,
-                    arguments: vec![JsExpr::Spread(context.arena.alloc_expr(JsExpr::Call(
-                        JsCallExpression {
-                            callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
-                                object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
-                                property: JsMemberProperty::Identifier(
-                                    "log_if_contains_state".into(),
-                                ),
-                                computed: false,
-                                optional: false,
-                            })),
-                            arguments: log_args,
-                            optional: false,
-                        },
-                    )))],
-                    optional: false,
-                });
-            }
-        }
+    let empty_args: Vec<Value> = Vec::new();
+    let raw_args = obj
+        .get("arguments")
+        .and_then(|a| a.as_array())
+        .unwrap_or(&empty_args);
+    let console_method = if context.state.options.dev {
+        get_console_method_name(obj)
+            .filter(|method| {
+                console_wrap::CONSOLE_METHODS.contains(&method.as_str())
+                    && context.state.get_binding("console").is_none()
+            })
+            .filter(|_| console_wrap::args_need_wrap(raw_args, context.state.analysis))
+    } else {
+        None
+    };
+    if let Some(method) = console_method {
+        let callee = obj
+            .get("callee")
+            .map(|c| {
+                let __tmp = convert_json_value(c, context);
+                context.arena.alloc_expr(__tmp)
+            })
+            .unwrap_or_else(|| {
+                context
+                    .arena
+                    .alloc_expr(JsExpr::Identifier("unknown".into()))
+            });
+        let args: Vec<JsExpr> = obj
+            .get("arguments")
+            .and_then(|a| a.as_array())
+            .map(|args| {
+                args.iter()
+                    .map(|arg| convert_json_value(arg, context))
+                    .collect()
+            })
+            .unwrap_or_default();
+        return build_console_log_wrap(callee, &method, args, context);
     }
 
     let callee = obj
@@ -2003,6 +1986,58 @@ fn get_console_method_name(obj: &serde_json::Map<String, Value>) -> Option<Strin
         return None;
     }
     Some(property.get("name")?.as_str()?.to_string())
+}
+
+/// The console method a typed callee names, when upstream's dev branch applies:
+/// `console.<known method>` with `console` itself unshadowed.
+fn console_wrap_method(callee: &JsNode, context: &ComponentContext) -> Option<String> {
+    let JsNode::MemberExpression {
+        object,
+        property,
+        computed,
+        ..
+    } = callee
+    else {
+        return None;
+    };
+    if *computed {
+        return None;
+    }
+    let pa = context.state.parse_arena;
+    if get_jsnode_identifier_name(pa.get_js_node(*object))? != "console" {
+        return None;
+    }
+    let method = get_jsnode_identifier_name(pa.get_js_node(*property))?;
+    (console_wrap::CONSOLE_METHODS.contains(&method.as_str())
+        && context.state.get_binding("console").is_none())
+    .then_some(method)
+}
+
+/// `console.METHOD(...$.log_if_contains_state("METHOD", ...args))`.
+fn build_console_log_wrap(
+    callee: ExprId,
+    method: &str,
+    args: Vec<JsExpr>,
+    context: &ComponentContext,
+) -> JsExpr {
+    let mut log_args: Vec<JsExpr> = vec![JsExpr::Literal(JsLiteral::String(method.into()))];
+    log_args.extend(args);
+    JsExpr::Call(JsCallExpression {
+        callee,
+        arguments: vec![JsExpr::Spread(context.arena.alloc_expr(JsExpr::Call(
+            JsCallExpression {
+                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                    property: JsMemberProperty::Identifier("log_if_contains_state".into()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: log_args,
+                optional: false,
+            },
+        )))],
+        optional: false,
+    })
 }
 
 /// List of all Svelte runes.

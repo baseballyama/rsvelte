@@ -1,6 +1,8 @@
 //! AST-based dev-mode `console.METHOD(args)` →
 //! `console.METHOD(...$.log_if_contains_state("METHOD", args))`
-//! wrapping for module scripts (`.svelte.js` / `.svelte.ts`).
+//! wrapping for generated script text — module scripts
+//! (`.svelte.js` / `.svelte.ts`), instance-script statements, and the settled
+//! legacy instance script (whose `$:` bodies no per-statement pass ever sees).
 //!
 //! Replaces `props_transforms::transform_console_calls_dev`, whose
 //! string-literal skip relied on `is_inside_string_literal` —
@@ -17,8 +19,7 @@
 //! * Single spread element of `$$args` — this is the
 //!   `$.inspect()` default callback pattern, already handled
 //!   downstream.
-//! * All arguments are simple literals (numbers, strings, booleans,
-//!   `null`, `undefined`) — wrapping them adds noise without value.
+//! * No argument can evaluate to `UNKNOWN` — see `console_wrap`.
 
 use std::cell::RefCell;
 
@@ -29,28 +30,23 @@ use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
 
+use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+
 use super::ast_rewrite::{self, Edit};
+use super::console_wrap::{CONSOLE_METHODS, shape_can_be_unknown};
 
 thread_local! {
     static MODULE_CONSOLE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
 
-const CONSOLE_METHODS: &[&str] = &[
-    "debug",
-    "dir",
-    "error",
-    "group",
-    "groupCollapsed",
-    "info",
-    "log",
-    "trace",
-    "warn",
-];
-
 /// AST-based `console.METHOD(args)` wrapping. Returns `None` if no
 /// `console.` text appears, the source fails to parse, or no call
 /// site needs wrapping.
-pub fn transform_console_calls_dev_ast(source: &str, is_ts: bool) -> Option<String> {
+pub(super) fn transform_console_calls_dev_ast(
+    source: &str,
+    is_ts: bool,
+    analysis: Option<&ComponentAnalysis>,
+) -> Option<String> {
     // Fast probe — most module scripts have no console calls at all.
     memchr::memmem::find(source.as_bytes(), b"console.")?;
 
@@ -64,16 +60,46 @@ pub fn transform_console_calls_dev_ast(source: &str, is_ts: bool) -> Option<Stri
         ast_rewrite::rewrite_once(
             &MODULE_CONSOLE_ALLOC,
             src,
-            if is_ts {
-                SourceType::ts().with_module(true)
-            } else {
-                SourceType::mjs()
-            },
+            fragment_source_type(is_ts),
             ParseOptions::default(),
             false,
-            |program| collect_console_edits(program, src),
+            |program| collect_console_edits(program, src, analysis),
         )
     })
+}
+
+fn fragment_source_type(is_ts: bool) -> SourceType {
+    if is_ts {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::mjs()
+    }
+}
+
+/// Dev console wrapping for one generated instance-script fragment.
+///
+/// The legacy text scanner is reached only for a fragment oxc rejects: it
+/// cannot tell a real call from `console.log(...)` sitting inside a comment or
+/// a string, so running it on a fragment that parsed but simply needed no wrap
+/// rewrites commented-out code.
+pub(super) fn transform_console_calls_dev_fragment(
+    source: &str,
+    is_ts: bool,
+    analysis: Option<&ComponentAnalysis>,
+) -> Option<String> {
+    memchr::memmem::find(source.as_bytes(), b"console.")?;
+    if let Some(rewritten) = transform_console_calls_dev_ast(source, is_ts, analysis) {
+        return Some(rewritten);
+    }
+    let parsed = ast_rewrite::with_program(
+        &MODULE_CONSOLE_ALLOC,
+        source,
+        fragment_source_type(is_ts),
+        ParseOptions::default(),
+        |_| Some(()),
+    )
+    .is_some();
+    (!parsed).then(|| super::props_transforms::transform_console_calls_dev(source))
 }
 
 /// Collect leaf `console.METHOD(args)` wraps (calls whose arguments
@@ -81,9 +107,14 @@ pub fn transform_console_calls_dev_ast(source: &str, is_ts: bool) -> Option<Stri
 /// cases resolve across fixed-point iterations — the standalone
 /// `transform_console_calls_dev_ast` loop and the batched module
 /// dev-tail driver both drive that loop.
-pub(super) fn collect_console_edits(program: &Program<'_>, source: &str) -> Vec<Edit> {
+pub(super) fn collect_console_edits(
+    program: &Program<'_>,
+    source: &str,
+    analysis: Option<&ComponentAnalysis>,
+) -> Vec<Edit> {
     let mut collector = ConsoleCollector {
         source,
+        analysis,
         replacements: Vec::new(),
     };
     collector.visit_program(program);
@@ -92,6 +123,7 @@ pub(super) fn collect_console_edits(program: &Program<'_>, source: &str) -> Vec<
 
 struct ConsoleCollector<'src> {
     source: &'src str,
+    analysis: Option<&'src ComponentAnalysis>,
     replacements: Vec<Edit>,
 }
 
@@ -129,10 +161,14 @@ impl<'a, 'src> Visit<'a> for ConsoleCollector<'src> {
             return;
         }
 
-        // If every argument is a "simple literal" (string / number /
-        // boolean / null / undefined / void 0), wrapping is pure
-        // noise — the runtime check would always return false.
-        if call.arguments.iter().all(is_simple_literal_arg) {
+        // Upstream wraps only when some argument's `scope.evaluate` can be
+        // `UNKNOWN`. This pass sees generated JS, so it applies the scope-free
+        // half of that lattice.
+        if !call
+            .arguments
+            .iter()
+            .any(|arg| arg_can_be_unknown(arg, self.analysis))
+        {
             return;
         }
 
@@ -224,41 +260,14 @@ fn args_contain_unwrapped_console_call(s: &str) -> bool {
     false
 }
 
-/// Mirror of `props_transforms::is_simple_literal` for AST args.
-/// Simple = the result is a primitive known at parse time, with no
-/// reactive references possible.
-fn is_simple_literal_arg(arg: &Argument<'_>) -> bool {
+/// Upstream's per-argument half of the wrap test: a `SpreadElement` always
+/// forces the wrap, everything else goes through the shape lattice.
+fn arg_can_be_unknown(arg: &Argument<'_>, analysis: Option<&ComponentAnalysis>) -> bool {
     match arg {
-        Argument::SpreadElement(_) => false, // could spread a reactive proxy
-        _ => {
-            // Argument is a wrapper around Expression — convert.
-            let Some(expr) = arg.as_expression() else {
-                return false;
-            };
-            is_simple_literal_expr(expr)
-        }
-    }
-}
-
-fn is_simple_literal_expr(expr: &Expression<'_>) -> bool {
-    match expr {
-        Expression::StringLiteral(_)
-        | Expression::NumericLiteral(_)
-        | Expression::BooleanLiteral(_)
-        | Expression::NullLiteral(_)
-        | Expression::BigIntLiteral(_) => true,
-        // `undefined` is technically an Identifier, but only in
-        // global scope. The text predecessor counted it as simple, so
-        // mirror that.
-        Expression::Identifier(id) if id.name == "undefined" => true,
-        // `void 0` etc.
-        Expression::UnaryExpression(u)
-            if u.operator == oxc_syntax::operator::UnaryOperator::Void =>
-        {
-            true
-        }
-        Expression::TemplateLiteral(t) if t.expressions.is_empty() => true,
-        _ => false,
+        Argument::SpreadElement(_) => true,
+        _ => arg
+            .as_expression()
+            .is_none_or(|expr| shape_can_be_unknown(expr, analysis)),
     }
 }
 
@@ -266,9 +275,15 @@ fn is_simple_literal_expr(expr: &Expression<'_>) -> bool {
 mod tests {
     use super::*;
 
+    /// No analysis: every identifier stays unresolved, which is what a
+    /// standalone fragment looks like to this pass.
+    fn transform_console_calls_dev_ast_for_test(source: &str, is_ts: bool) -> Option<String> {
+        transform_console_calls_dev_ast(source, is_ts, None)
+    }
+
     #[test]
     fn wraps_console_log_with_identifier() {
-        let out = transform_console_calls_dev_ast("console.log(x);", false).unwrap();
+        let out = transform_console_calls_dev_ast_for_test("console.log(x);", false).unwrap();
         assert_eq!(out, "console.log(...$.log_if_contains_state(\"log\", x));");
     }
 
@@ -276,7 +291,7 @@ mod tests {
     fn wraps_each_known_method() {
         for method in CONSOLE_METHODS {
             let src = format!("console.{}(x);", method);
-            let out = transform_console_calls_dev_ast(&src, false).unwrap();
+            let out = transform_console_calls_dev_ast_for_test(&src, false).unwrap();
             let expected = format!(
                 "console.{}(...$.log_if_contains_state(\"{}\", x));",
                 method, method
@@ -287,7 +302,7 @@ mod tests {
 
     #[test]
     fn skips_empty_args() {
-        assert!(transform_console_calls_dev_ast("console.log();", false).is_none());
+        assert!(transform_console_calls_dev_ast_for_test("console.log();", false).is_none());
     }
 
     #[test]
@@ -295,7 +310,7 @@ mod tests {
         // The shape `(...$$args) => console.log(...$$args)` is
         // emitted by $.inspect's default callback.
         let src = "(...$$args) => console.log(...$$args)";
-        assert!(transform_console_calls_dev_ast(src, false).is_none());
+        assert!(transform_console_calls_dev_ast_for_test(src, false).is_none());
     }
 
     #[test]
@@ -311,15 +326,57 @@ mod tests {
             "console.log(`static`);",
         ] {
             assert!(
-                transform_console_calls_dev_ast(src, false).is_none(),
+                transform_console_calls_dev_ast_for_test(src, false).is_none(),
                 "should skip: {src}"
             );
         }
     }
 
+    /// `scope.evaluate` resolves every one of these to a value set without
+    /// `UNKNOWN`, whatever the operands are, so upstream never wraps them.
+    #[test]
+    fn skips_arguments_no_operator_can_leave_unknown() {
+        for src in [
+            "console.log(`n is ${n}`);",
+            r#"console.log("n is " + n);"#,
+            "console.log(a + b);",
+            "console.log(a === b);",
+            "console.log($.strict_equals(a, b));",
+            "console.log(!!x);",
+            "console.log(typeof x);",
+            "console.log($effect.tracking());",
+            "console.log($.effect_tracking());",
+            "console.log(() => x);",
+            "console.log(a ? `y` : `n`);",
+        ] {
+            assert!(
+                transform_console_calls_dev_ast_for_test(src, false).is_none(),
+                "should skip: {src}"
+            );
+        }
+    }
+
+    /// The legacy text scanner cannot see comments; it must not be reached for
+    /// a fragment that parses and simply needs no wrap.
+    #[test]
+    fn commented_out_call_is_left_alone() {
+        let src = "// console.log('data: ', data)\nlet x = 1;";
+        assert!(transform_console_calls_dev_fragment(src, false, None).is_none());
+    }
+
+    #[test]
+    fn unparsable_fragment_still_reaches_the_text_scanner() {
+        let out = transform_console_calls_dev_fragment("console.log(x); let =;", false, None);
+        assert_eq!(
+            out.as_deref(),
+            Some("console.log(...$.log_if_contains_state(\"log\", x)); let =;")
+        );
+    }
+
     #[test]
     fn wraps_mixed_literal_and_identifier() {
-        let out = transform_console_calls_dev_ast(r#"console.log("x:", x);"#, false).unwrap();
+        let out =
+            transform_console_calls_dev_ast_for_test(r#"console.log("x:", x);"#, false).unwrap();
         assert_eq!(
             out,
             r#"console.log(...$.log_if_contains_state("log", "x:", x));"#
@@ -329,19 +386,19 @@ mod tests {
     #[test]
     fn skips_non_console_methods() {
         // `console.bogus(x)` isn't one of the recognised methods.
-        assert!(transform_console_calls_dev_ast("console.bogus(x);", false).is_none());
+        assert!(transform_console_calls_dev_ast_for_test("console.bogus(x);", false).is_none());
     }
 
     #[test]
     fn does_not_rewrite_inside_string_literal() {
         let src = r#"let s = "console.log(x)";"#;
-        assert!(transform_console_calls_dev_ast(src, false).is_none());
+        assert!(transform_console_calls_dev_ast_for_test(src, false).is_none());
     }
 
     #[test]
     fn rewrites_inside_template_literal_expression() {
         let src = "let s = `${console.log(x)}`;";
-        let out = transform_console_calls_dev_ast(src, false).unwrap();
+        let out = transform_console_calls_dev_ast_for_test(src, false).unwrap();
         assert_eq!(
             out,
             "let s = `${console.log(...$.log_if_contains_state(\"log\", x))}`;"
@@ -351,7 +408,7 @@ mod tests {
     #[test]
     fn nested_console_calls() {
         let src = "console.log(console.warn(x));";
-        let out = transform_console_calls_dev_ast(src, false).unwrap();
+        let out = transform_console_calls_dev_ast_for_test(src, false).unwrap();
         // Both wraps: inner first, then outer wraps the rewritten inner.
         assert_eq!(
             out,
@@ -362,25 +419,25 @@ mod tests {
     #[test]
     fn ts_source_type_works() {
         let src = "let x: number = 1; console.log(x);";
-        let out = transform_console_calls_dev_ast(src, true).unwrap();
+        let out = transform_console_calls_dev_ast_for_test(src, true).unwrap();
         assert!(out.contains("$.log_if_contains_state(\"log\", x)"));
     }
 
     #[test]
     fn parse_error_returns_none() {
-        assert!(transform_console_calls_dev_ast("console.log(", false).is_none());
+        assert!(transform_console_calls_dev_ast_for_test("console.log(", false).is_none());
     }
 
     #[test]
     fn no_op_without_console_keyword() {
-        assert!(transform_console_calls_dev_ast("let x = 1;", false).is_none());
+        assert!(transform_console_calls_dev_ast_for_test("let x = 1;", false).is_none());
     }
 
     #[test]
     fn skips_spread_with_other_identifier() {
         // `console.log(...args)` where `args` isn't `$$args` should
         // still wrap — could be reactive.
-        let out = transform_console_calls_dev_ast("console.log(...args);", false).unwrap();
+        let out = transform_console_calls_dev_ast_for_test("console.log(...args);", false).unwrap();
         assert_eq!(
             out,
             "console.log(...$.log_if_contains_state(\"log\", ...args));"

@@ -141,6 +141,13 @@ impl Evaluation {
         }
     }
 
+    /// True if `UNKNOWN` is among the possible values (mirrors `has_unknown`).
+    /// An empty value set can only come from a node shape this port declines to
+    /// model, so it counts as unknown too.
+    pub(crate) fn has_unknown(&self) -> bool {
+        self.values.is_empty() || self.values.iter().any(|v| matches!(v, EvalValue::Unknown))
+    }
+
     /// True if the value is known to be a string (mirrors `is_string`).
     pub(crate) fn is_string(&self) -> bool {
         !self.values.is_empty()
@@ -1024,9 +1031,12 @@ impl<'a> EvalCtx<'a> {
         }
         // Template-loop bindings: upstream marks each indexes NUMBER and
         // items/await/snippet params unknown.
+        if matches!(binding.kind, EachIndex) {
+            return Evaluation::single(EvalValue::NumberMarker);
+        }
         if matches!(
             binding.kind,
-            EachItem | EachIndex | AwaitThen | AwaitCatch | SnippetParam | Let
+            EachItem | AwaitThen | AwaitCatch | SnippetParam | Let
         ) {
             return Evaluation::unknown();
         }
