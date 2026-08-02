@@ -173,6 +173,13 @@ pub struct ServerTransformState<'a> {
     /// `_1`, `_2`, … — so two destructured `$state(...)` declarations deconflict
     /// (`tmp` / `tmp_1`).
     pub state_tmp_counter: usize,
+    /// Monotonic counter for the `$$array` temp generated per `ArrayPattern` in a
+    /// RUNES-mode destructured `$state(...)` / `$state.raw(...)` declaration
+    /// (mirrors upstream `scope.generate('$$array')`). Shared across every
+    /// top-level declaration in the component (not reset per declarator), so a
+    /// SECOND array-pattern declaration is named `$$array_1`, not a colliding
+    /// `$$array`. The first is bare `$$array`, subsequent ones append `_1`, `_2`, …
+    pub array_counter: u32,
     /// Whether the CURRENT children run is the direct children of a
     /// RegularElement / TitleElement (`process_children` `parent.is_some()`).
     /// Mirrors upstream's `AwaitExpression` server visitor parent-walk: an inline
@@ -291,6 +298,7 @@ impl<'a> ServerTransformState<'a> {
             derived_d_counter: 0,
             derived_array_counter: 0,
             state_tmp_counter: 0,
+            array_counter: 0,
             in_element_children: false,
             attr_optimiser: None,
             shadowed_names: Vec::new(),

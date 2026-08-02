@@ -4074,6 +4074,54 @@ fn ast_matches_oracle_destructure_state_and_store_init() {
     );
 }
 
+/// Regression for #2187: the server transform's `$$array` counter must be
+/// COMPONENT-WIDE, not reset per declaration — two SEPARATE array-pattern
+/// `$state(...)` declarations in one script must deconflict to `$$array` /
+/// `$$array_1` (写経 the per-component `scope.generate('$$array')`), instead of
+/// both colliding on bare `$$array`. `oracle_dump` (rsvelte's own pre-AST text
+/// pipeline) shares this exact counter-reset bug, so it can't serve as the
+/// oracle here — assert the AST pipeline's literal output instead.
+#[test]
+fn array_counter_is_shared_across_declarations() {
+    let src = "<script>\n\tlet [a, b] = $state([1, 2]);\n\tlet [c, d] = $state([3, 4]);\n</script>\n\n{a}{b}{c}{d}";
+    let out = run(src);
+    assert!(
+        out.contains("$$array = $.to_array(tmp, 2)"),
+        "first array declarator should be the bare `$$array` temp:\n{out}"
+    );
+    assert!(
+        out.contains("$$array_1 = $.to_array(tmp_1, 2)"),
+        "second array declarator should deconflict to `$$array_1`:\n{out}"
+    );
+    assert!(
+        !out.contains("$$array_2"),
+        "only two array patterns were declared, so no `$$array_2` should appear:\n{out}"
+    );
+}
+
+/// Regression for #2187 (LEGACY mode): the same component-wide `$$array`
+/// counter applies when a destructured PROP declaration and a destructured
+/// legacy-reactive-state declaration both contain array patterns in the same
+/// script — the state destructure must continue the counter the props
+/// destructure already advanced, not restart at `$$array`.
+#[test]
+fn array_counter_is_shared_across_legacy_props_and_state_declarations() {
+    let src = "<script>\n\texport let [a, b] = [1, 2];\n\tlet [c, d] = [3, 4];\n\tfunction inc() {\n\t\tc++;\n\t\td++;\n\t}\n</script>\n\n<button onclick={inc}>{a}{b}{c}{d}</button>";
+    let out = run(src);
+    assert!(
+        out.contains("$$array = $.to_array"),
+        "first (props) array declarator should be the bare `$$array` temp:\n{out}"
+    );
+    assert!(
+        out.contains("$$array_1 = $.to_array"),
+        "second (state) array declarator should deconflict to `$$array_1`:\n{out}"
+    );
+    assert!(
+        !out.contains("$$array_2"),
+        "only two array patterns were declared, so no `$$array_2` should appear:\n{out}"
+    );
+}
+
 /// Snippet codegen parity with the `transform_server` oracle for the
 /// runtime-runes snippet cluster — exercising the two server-codegen axes the
 /// AST visitor was missing: VERBATIM parameter emission (destructuring

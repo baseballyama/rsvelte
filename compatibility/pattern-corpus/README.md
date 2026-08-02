@@ -70,6 +70,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2141-snippet-shadow-is-function.svelte` | [#2141](https://github.com/baseballyama/rsvelte/issues/2141) | A block-local `{#snippet}` shadowing a same-named outer `function` still reads as reactive (`is_function()` must resolve to the snippet, not the outer function) |
 | `2162-single-target-destructure-paren.svelte` | [#2162](https://github.com/baseballyama/rsvelte/issues/2162) | A single-target destructuring **assignment** (`({ a } = obj)`, no rest) keeps its wrapping parens — upstream always lowers through a `SequenceExpression`, even with one element, and esrap always self-parenthesizes one |
 | `2177-each-item-destructure-cache.svelte` | [#2177](https://github.com/baseballyama/rsvelte/issues/2177) | A legacy destructuring **assignment** inside a template expression (event handler) whose right-hand side is an each-block item — `should_cache` must be decided from the *visited* RHS (`item` → `$.get(item)`), so it caches into a `$$value` IIFE like upstream instead of staying an uncached sequence / re-reading the item |
+| `2187-server-array-counter.svelte` | [#2187](https://github.com/baseballyama/rsvelte/issues/2187) | Server: two SEPARATE array-pattern `$state(...)` declarations in one script must deconflict their `$.to_array` temp — `$$array`, `$$array_1` — instead of both emitting `$$array` (the counter must be component-wide, not reset per declaration) |
 
 ## `matrix/` — the axes around those repros
 

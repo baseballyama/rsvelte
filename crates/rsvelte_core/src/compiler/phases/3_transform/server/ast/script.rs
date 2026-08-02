@@ -1643,7 +1643,14 @@ fn lower_variable_declaration<'a>(
                 if matches!(rune, DeclRune::State)
                     && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
                 {
-                    create_state_declarators(pat, new_init, state, &mut decls);
+                    // `state.array_counter` is the component-wide counter (not
+                    // reset per statement, since this function runs once PER
+                    // top-level declaration) — copy it out, thread it through the
+                    // call, then write it back (mirrors `wrap_reads_in_statement_
+                    // counted`'s copy-out/write-back around `self.array_counter`).
+                    let mut array_counter = state.array_counter;
+                    create_state_declarators(pat, new_init, state, &mut array_counter, &mut decls);
+                    state.array_counter = array_counter;
                 } else if matches!(rune, DeclRune::Derived | DeclRune::DerivedBy)
                     && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
                 {
@@ -1693,10 +1700,15 @@ fn lower_variable_declaration<'a>(
 /// `scope.generate('$$array')`; here the component instance scope has no
 /// `tmp` / `$$array` bindings for these fixtures, so the names are emitted
 /// verbatim (KNOWN GAP: no deconfliction against user-declared `tmp`/`$$array`).
+/// `array_counter` is the CALLER's array-temp counter, threaded (not reset) so a
+/// SECOND destructured-declaration array pattern in the same component is named
+/// `$$array_1`, not a colliding `$$array` (写経 the per-component
+/// `scope.generate('$$array')`).
 fn create_state_declarators<'a>(
     pat: oxc_ast::ast::BindingPattern<'a>,
     value: Option<OxcExpression<'a>>,
     state: &mut ServerTransformState<'a>,
+    array_counter: &mut u32,
     decls: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)>,
 ) {
     // `let tmp = <value>` — deconflict the temp name across the component (mirrors
@@ -1710,12 +1722,11 @@ fn create_state_declarators<'a>(
     let mut paths: Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)> = Vec::new();
     let mut array_decls: Vec<(String, OxcExpression<'a>)> = Vec::new();
     let tmp_id = b.id(&tmp_name);
-    let mut array_counter: u32 = 0;
     extract_paths(
         pat,
         tmp_id,
         state,
-        &mut array_counter,
+        array_counter,
         &mut paths,
         &mut array_decls,
     );
@@ -3041,9 +3052,14 @@ fn lower_legacy_var_decl<'a>(
                 decls.push((pat, init_expr));
             } else {
                 // Destructured reactive state: `let { a, b } = obj` →
-                // `let tmp = obj, a = tmp.a, b = tmp.b;` (写经
+                // `let tmp = obj, a = tmp.a, b = tmp.b;` (写経
                 // `create_state_declarators`). The synthetic group stays COMBINED.
-                create_state_declarators(pat, init_expr, state, &mut decls);
+                // Reuses THIS function's already-threaded `array_counter` (shared
+                // with the props-destructure and assignment-destructure `$$array`
+                // temps below), so a state destructure sharing a script with
+                // either still deconflicts (写経 the single per-component
+                // `scope.generate('$$array')`).
+                create_state_declarators(pat, init_expr, state, array_counter, &mut decls);
             }
             out.push(b.var_decl_from_pairs(kind, decls));
             continue;
