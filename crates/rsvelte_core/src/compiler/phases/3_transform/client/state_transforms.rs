@@ -1371,17 +1371,70 @@ pub(super) fn transform_legacy_destructure_declarations(
 
     let immutable_arg = if immutable { ", true" } else { "" };
 
-    if is_object {
-        // Object destructuring: { a, b: c, d = default, ...rest }
-        let inner = &pattern_str[1..pattern_str.len() - 1];
-        let props = split_derived_object_properties(inner);
-        let mut parts = vec![format!("{} = {}", tmp_name, expr)];
+    let mut paths = Vec::new();
+    let mut inserts = Vec::new();
+    extract_legacy_destructure_paths(pattern_str, &tmp_name, &mut paths, &mut inserts);
 
-        let has_rest = props.iter().any(|prop| prop.trim().starts_with("..."));
-        let excluded_keys: Vec<String> = if has_rest {
-            exclude_from_object_keys(&props)
+    // Upstream emits `tmp`, then every `$$array` insert, then every path.
+    let mut parts = vec![format!("{} = {}", tmp_name, expr)];
+    parts.extend(
+        inserts
+            .into_iter()
+            .map(|(name, value)| format!("{} = $.derived(() => {})", name, value)),
+    );
+    for (name, access) in paths {
+        if legacy_state_var_names.contains(&name) {
+            let source = format!("$.mutable_source({}{})", access, immutable_arg);
+            parts.push(format!(
+                "{} = {}",
+                name,
+                tag_legacy_source(source, &name, dev)
+            ));
         } else {
-            Vec::new()
+            parts.push(format!("{} = {}", name, access));
+        }
+    }
+
+    let trailing = if full_trimmed.ends_with(';') { ";" } else { "" };
+    format!("{} {}{}", keyword, parts.join(", "), trailing)
+}
+
+/// Port of upstream's `_extract_paths` (`utils/ast.js`) over the destructuring
+/// pattern's source text: appends one `(name, initializer)` pair per bound leaf
+/// to `paths`, and one `($$array, $.to_array(...))` helper per array pattern to
+/// `inserts`, both in the same depth-first order upstream walks the pattern in.
+///
+/// The recursion is what makes a nested pattern work at all — every level feeds
+/// the member access it built as the next level's base expression, so a leaf
+/// carries the whole path (`tmp.a.b`) instead of only its last hop.
+fn extract_legacy_destructure_paths(
+    pattern: &str,
+    expression: &str,
+    paths: &mut Vec<(String, String)>,
+    inserts: &mut Vec<(String, String)>,
+) {
+    let pattern = pattern.trim();
+    if pattern.is_empty() {
+        return;
+    }
+
+    // `AssignmentPattern` — checked before the bracket forms, since a nested
+    // pattern with a default (`{ b } = { b: 3 }`) also starts with `{`.
+    if !pattern.starts_with("...")
+        && let Some(eq_pos) = find_default_equals(pattern)
+    {
+        let fallback = build_fallback_string(expression, pattern[eq_pos + 1..].trim());
+        extract_legacy_destructure_paths(&pattern[..eq_pos], &fallback, paths, inserts);
+        return;
+    }
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let props = split_derived_object_properties(&pattern[1..pattern.len() - 1]);
+        let has_rest = props.iter().any(|prop| prop.trim().starts_with("..."));
+        let excluded_keys = if has_rest {
+            exclude_from_object_keys(&props).join(", ")
+        } else {
+            String::new()
         };
 
         for prop in &props {
@@ -1389,199 +1442,115 @@ pub(super) fn transform_legacy_destructure_declarations(
             if prop.is_empty() {
                 continue;
             }
-
-            if let Some(rest_name) = prop.strip_prefix("...") {
-                let rest_name = rest_name.trim();
-                let access = format!(
-                    "$.exclude_from_object({}, [{}])",
-                    tmp_name,
-                    excluded_keys.join(", ")
-                );
-                if legacy_state_var_names.contains(&rest_name.to_string()) {
-                    parts.push(format!(
-                        "{} = {}",
-                        rest_name,
-                        tag_legacy_source(
-                            format!("$.mutable_source({}{})", access, immutable_arg),
-                            rest_name,
-                            dev
-                        )
-                    ));
-                } else {
-                    parts.push(format!("{} = {}", rest_name, access));
-                }
+            if let Some(rest_target) = prop.strip_prefix("...") {
+                let rest_expression =
+                    format!("$.exclude_from_object({}, [{}])", expression, excluded_keys);
+                extract_legacy_destructure_paths(rest_target, &rest_expression, paths, inserts);
                 continue;
             }
 
-            let (explicit_key, value_part) = match find_derived_property_colon(prop) {
-                Some(colon_pos) => (Some(prop[..colon_pos].trim()), prop[colon_pos + 1..].trim()),
-                None => (None, prop),
+            let (key, value) = match find_derived_property_colon(prop) {
+                Some(colon_pos) => (prop[..colon_pos].trim(), prop[colon_pos + 1..].trim()),
+                // Shorthand: the key is the name, the value is the whole
+                // property (so `{ a = 1 }` still becomes an `AssignmentPattern`).
+                None => match find_default_equals(prop) {
+                    Some(eq_pos) => (prop[..eq_pos].trim(), prop),
+                    None => (prop, prop),
+                },
             };
-            let (var_name, default_val) = match find_default_equals(value_part) {
-                Some(eq_pos) => (
-                    value_part[..eq_pos].trim(),
-                    Some(value_part[eq_pos + 1..].trim()),
-                ),
-                None => (value_part, None),
-            };
-            let key = explicit_key.unwrap_or(var_name);
-
-            let member = derived_prop_access(tmp_name.as_str(), tmp_name.as_str(), key);
-            let access = match default_val {
-                Some(default_val) => build_fallback_string(&member, default_val),
-                None => member,
-            };
-            if legacy_state_var_names.contains(&var_name.to_string()) {
-                parts.push(format!(
-                    "{} = {}",
-                    var_name,
-                    tag_legacy_source(
-                        format!("$.mutable_source({}{})", access, immutable_arg),
-                        var_name,
-                        dev
-                    )
-                ));
-            } else {
-                parts.push(format!("{} = {}", var_name, access));
-            }
+            let object_expression = derived_prop_access(expression, expression, key);
+            extract_legacy_destructure_paths(value, &object_expression, paths, inserts);
         }
+        return;
+    }
 
-        let trailing = if full_trimmed.ends_with(';') { ";" } else { "" };
-        format!("{} {}{}", keyword, parts.join(", "), trailing)
-    } else {
-        // Array destructuring: [a, b, ...rest]
-        let inner = &pattern_str[1..pattern_str.len() - 1];
-        let elements = split_derived_array_elements(inner);
+    if pattern.starts_with('[') && pattern.ends_with(']') {
+        let mut elements = split_derived_array_elements(&pattern[1..pattern.len() - 1]);
+        // A trailing comma is not an elision, so it contributes no element.
+        if elements.last().is_some_and(|el| el.trim().is_empty()) {
+            elements.pop();
+        }
+        let ends_with_rest = elements
+            .last()
+            .is_some_and(|el| el.trim().starts_with("..."));
 
-        let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
-        let element_count = elements.len();
-
-        let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
-            let current = c.get();
-            c.set(current + 1);
-            current
-        });
-
-        let array_var = if global_counter == 0 {
-            "$$array".to_string()
+        let array_var = next_script_array_var();
+        let to_array = if ends_with_rest {
+            format!("$.to_array({})", expression)
         } else {
-            format!("$$array_{}", global_counter)
+            format!("$.to_array({}, {})", expression, elements.len())
         };
-
-        let to_array_args = if has_rest {
-            format!("$.to_array({})", tmp_name)
-        } else {
-            format!("$.to_array({}, {})", tmp_name, element_count)
-        };
-
-        let mut parts = vec![
-            format!("{} = {}", tmp_name, expr),
-            format!("{} = $.derived(() => {})", array_var, to_array_args),
-        ];
+        inserts.push((array_var.clone(), to_array));
 
         for (i, element) in elements.iter().enumerate() {
             let element = element.trim();
             if element.is_empty() {
                 continue;
             }
-
-            if let Some(rest_name) = element.strip_prefix("...") {
-                let rest_name = rest_name.trim();
-                let access = format!("$.get({}).slice({})", array_var, i);
-                let is_state = legacy_state_var_names.contains(&rest_name.to_string());
-                if is_state {
-                    parts.push(format!(
-                        "{} = {}",
-                        rest_name,
-                        tag_legacy_source(
-                            format!("$.mutable_source({}{})", access, immutable_arg),
-                            rest_name,
-                            dev
-                        )
-                    ));
-                } else {
-                    parts.push(format!("{} = {}", rest_name, access));
-                }
-                continue;
-            }
-
-            let (var_name, default_val) = match find_default_equals(element) {
-                Some(eq_pos) => (element[..eq_pos].trim(), Some(element[eq_pos + 1..].trim())),
-                None => (element, None),
+            let (target, element_expression) = match element.strip_prefix("...") {
+                Some(rest_target) => (rest_target, format!("$.get({}).slice({})", array_var, i)),
+                None => (element, format!("$.get({})[{}]", array_var, i)),
             };
-            let member = format!("$.get({})[{}]", array_var, i);
-            let access = match default_val {
-                Some(default_val) => build_fallback_string(&member, default_val),
-                None => member,
-            };
-            if legacy_state_var_names.contains(&var_name.to_string()) {
-                parts.push(format!(
-                    "{} = {}",
-                    var_name,
-                    tag_legacy_source(
-                        format!("$.mutable_source({}{})", access, immutable_arg),
-                        var_name,
-                        dev
-                    )
-                ));
-            } else {
-                parts.push(format!("{} = {}", var_name, access));
-            }
+            extract_legacy_destructure_paths(target, &element_expression, paths, inserts);
         }
+        return;
+    }
 
-        let trailing = if full_trimmed.ends_with(';') { ";" } else { "" };
-        format!("{} {}{}", keyword, parts.join(", "), trailing)
+    paths.push((pattern.to_string(), expression.to_string()));
+}
+
+/// The next `$$array` / `$$array_<n>` helper name, mirroring upstream's
+/// `scope.generate('$$array')`.
+fn next_script_array_var() -> String {
+    let index = SCRIPT_ARRAY_COUNTER.with(|c| {
+        let current = c.get();
+        c.set(current + 1);
+        current
+    });
+    if index == 0 {
+        "$$array".to_string()
+    } else {
+        format!("$$array_{}", index)
     }
 }
 
-/// Extract variable names from a destructuring pattern.
+/// Every name bound by a destructuring pattern, nested leaves included.
 pub(super) fn extract_legacy_destructure_var_names(pattern: &str) -> Vec<String> {
     let mut names = Vec::new();
-    let pattern = pattern.trim();
+    collect_legacy_destructure_var_names(pattern, &mut names);
+    names
+}
 
-    if pattern.starts_with('{') && pattern.ends_with('}') {
-        let inner = &pattern[1..pattern.len() - 1];
-        let props = split_derived_object_properties(inner);
-        for prop in &props {
-            let prop = prop.trim();
-            if prop.is_empty() {
-                continue;
-            }
-            if let Some(rest_name) = prop.strip_prefix("...") {
-                names.push(rest_name.trim().to_string());
-            } else {
-                let value_part = match find_derived_property_colon(prop) {
-                    Some(colon_pos) => prop[colon_pos + 1..].trim(),
-                    None => prop,
-                };
-                let var_name = match find_default_equals(value_part) {
-                    Some(eq_pos) => value_part[..eq_pos].trim(),
-                    None => value_part,
-                };
-                names.push(var_name.to_string());
-            }
-        }
-    } else if pattern.starts_with('[') && pattern.ends_with(']') {
-        let inner = &pattern[1..pattern.len() - 1];
-        let elements = split_derived_array_elements(inner);
-        for el in &elements {
-            let el = el.trim();
-            if el.is_empty() {
-                continue;
-            }
-            if let Some(rest_name) = el.strip_prefix("...") {
-                names.push(rest_name.trim().to_string());
-            } else {
-                let var_name = match find_default_equals(el) {
-                    Some(eq_pos) => el[..eq_pos].trim(),
-                    None => el,
-                };
-                names.push(var_name.to_string());
-            }
-        }
+fn collect_legacy_destructure_var_names(pattern: &str, names: &mut Vec<String>) {
+    let pattern = pattern.trim();
+    if pattern.is_empty() {
+        return;
     }
 
-    names
+    if let Some(rest_target) = pattern.strip_prefix("...") {
+        collect_legacy_destructure_var_names(rest_target, names);
+        return;
+    }
+    if let Some(eq_pos) = find_default_equals(pattern) {
+        collect_legacy_destructure_var_names(&pattern[..eq_pos], names);
+        return;
+    }
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        for prop in split_derived_object_properties(&pattern[1..pattern.len() - 1]) {
+            let value = match find_derived_property_colon(&prop) {
+                Some(colon_pos) => &prop[colon_pos + 1..],
+                None => prop.as_str(),
+            };
+            collect_legacy_destructure_var_names(value, names);
+        }
+    } else if pattern.starts_with('[') && pattern.ends_with(']') {
+        for element in split_derived_array_elements(&pattern[1..pattern.len() - 1]) {
+            collect_legacy_destructure_var_names(&element, names);
+        }
+    } else {
+        names.push(pattern.to_string());
+    }
 }
 
 /// Whether a statement is the chained `<keyword> tmp = expr, … ` expansion built
