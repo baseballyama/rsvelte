@@ -72,12 +72,21 @@ The comments involved are the user's own `@type` / `@param` JSDoc,
 `@ts-expect-error`, `@ts-ignore` and `svelte-ignore`, carried over from the
 `<script>` block. Losing them changes what `svelte-check` and ESLint report on
 the generated code, which is why they are in the meaningful set rather than
-treated as prose.
+treated as prose. The corpus gate runs with comments ignored for the same
+reason, and for one more: its ratchet only ever shrinks, so a comparison that
+adds failures cannot be switched on first.
+
+Annotations are part of that gap too, in the other direction — bits-ui's
+`menubar.svelte.ts` compiles to a `/* @__PURE__ */` that the official compiler
+drops and rsvelte keeps.
 
 Known limit: the list is ordered but not anchored to a position in the code, so
 a meaningful comment that moves without any other change is not detected. The
 comments that are position-sensitive in practice (`#__PURE__` and friends) are
-also printed inline by codegen, so they are covered by the code comparison.
+also printed inline by codegen under this policy, so they are covered by the
+code comparison. `CommentPolicy::Ignore` therefore has to switch that printing
+off as well: an annotation left in the printed text is a comment difference
+reported as a code difference.
 
 ## Parse failure is a failure
 

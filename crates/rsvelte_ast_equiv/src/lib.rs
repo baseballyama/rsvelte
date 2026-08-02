@@ -172,15 +172,18 @@ pub fn canonicalize_with(code: &str, options: Options) -> Result<Canonical, Pars
             .collect(),
     };
 
-    // `annotation: true` keeps `/* #__PURE__ */` & friends positionally
-    // anchored in the printed text; they are also listed in `comments`, which
-    // is redundant but only ever makes the comparison stricter.
+    // Under `Meaningful`, printing annotations keeps `/* #__PURE__ */` & friends
+    // positionally anchored; they are also listed in `comments`, which is
+    // redundant but only ever makes the comparison stricter. Under `Ignore` they
+    // have to be off too — an annotation left in the printed text is a comment
+    // difference reported as a code difference, which is precisely what the
+    // caller asked not to see.
     let codegen_options = CodegenOptions {
         single_quote: true,
         comments: CommentOptions {
             normal: false,
             jsdoc: false,
-            annotation: true,
+            annotation: options.comments == CommentPolicy::Meaningful,
             legal: LegalComment::None,
         },
         ..Default::default()
@@ -535,6 +538,39 @@ mod tests {
             )
             .is_equivalent()
         );
+    }
+
+    #[test]
+    fn comment_policy_ignore_drops_every_kind_of_comment() {
+        // Ignore has to reach the printed text too. Annotations are the ones
+        // that leak: OXC prints them next to the call they apply to, so an
+        // annotation the two sides disagree about surfaces as a code
+        // difference — which is how a real corpus entry (bits-ui's
+        // `menubar.svelte.ts`, where the official compiler drops a
+        // `/* @__PURE__ */` that rsvelte keeps) failed a comparison that had
+        // asked for comments to be ignored.
+        let options = Options::default().with_comments(CommentPolicy::Ignore);
+        for (left, right) in [
+            ("let m = /* @__PURE__ */ new Map();", "let m = new Map();"),
+            (
+                "/* #__NO_SIDE_EFFECTS__ */ function f() {}",
+                "function f() {}",
+            ),
+            ("/** @type {number} */\nlet x = 1;", "let x = 1;"),
+            ("/** @component docs */\nlet x = 1;", "let x = 1;"),
+            ("// svelte-ignore a11y_x\nlet x = 1;", "let x = 1;"),
+            ("/** @license MIT */\nlet x = 1;", "let x = 1;"),
+            (
+                "import(/* webpackChunkName: 'a' */ './a.js');",
+                "import('./a.js');",
+            ),
+        ] {
+            let result = compare_with(left, right, options);
+            assert!(
+                result.is_equivalent(),
+                "comments must not reach the comparison under Ignore, got {result:?}\n  left: {left}"
+            );
+        }
     }
 
     #[test]
