@@ -136,19 +136,10 @@ pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'
                 .any(|w| w.eq_ignore_ascii_case(b"</style>"))
         };
         if has_proper_style_close {
-            // Also blank any trailing whitespace after the style tag
-            let mut blank_end = css.end;
-            let bytes = source.as_bytes();
-            while (blank_end as usize) < bytes.len() {
-                let b = bytes[blank_end as usize];
-                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                    blank_end += 1;
-                } else {
-                    break;
-                }
-            }
-            str.overwrite(css.start, blank_end, "");
-            blanked_style_ranges.push((css.start as usize, blank_end as usize));
+            // `handleStyleTag` removes exactly the node range — whitespace
+            // around the tag survives into the template body.
+            str.overwrite(css.start, css.end, "");
+            blanked_style_ranges.push((css.start as usize, css.end as usize));
         }
     }
     {
@@ -205,16 +196,7 @@ pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'
                     && let Some(close_off) = source[abs_start..].find("</style>")
                 {
                     let abs_end = abs_start + close_off + 8; // 8 = len("</style>")
-                    let mut blank_end = abs_end as u32;
-                    while (blank_end as usize) < bytes.len() {
-                        let b = bytes[blank_end as usize];
-                        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                            blank_end += 1;
-                        } else {
-                            break;
-                        }
-                    }
-                    str.overwrite(abs_start as u32, blank_end, "");
+                    str.overwrite(abs_start as u32, abs_end as u32, "");
                     search_from = abs_end;
                     continue;
                 }

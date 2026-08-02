@@ -10,8 +10,31 @@ use crate::svelte2tsx::magic_string::MagicString;
 /// If the result is empty but the original text had content, at least 1
 /// space is preserved (to prevent hover artifacts in the language server).
 pub(crate) fn handle_text(text: &Text, _source: &str, str: &mut MagicString<'_>) {
+    handle_text_trimmed(text, str, false, false);
+}
+
+/// `handle_text` for a node whose `data` the Svelte-4 AST conversion trimmed.
+///
+/// `legacy.js::remove_surrounding_whitespace_nodes` strips the leading /
+/// trailing whitespace off the first / last `Text` child of a
+/// `<svelte:boundary>` or a `{#snippet}` body without moving its `start`/`end`,
+/// so svelte2tsx blanks the whole source range but computes the replacement
+/// from the trimmed data.
+pub(crate) fn handle_text_trimmed(
+    text: &Text,
+    str: &mut MagicString<'_>,
+    trim_start: bool,
+    trim_end: bool,
+) {
     if text.start >= text.end {
         return;
+    }
+    let mut data: &str = &text.data;
+    if trim_start {
+        data = data.trim_start();
+    }
+    if trim_end {
+        data = data.trim_end();
     }
     // Mirror JS reference (`htmlxtojsx_v2/nodes/Text.ts`) exactly: it inspects
     // `node.data` — the *decoded* inner text (HTML entities resolved, e.g.
@@ -24,10 +47,10 @@ pub(crate) fn handle_text(text: &Text, _source: &str, str: &mut MagicString<'_>)
     // range for `&nbsp;` is the literal `&nbsp;`, which is invalid JS and made
     // oxfmt reject the whole output. The decoded U+00A0 is a JS whitespace
     // character, so it formats away cleanly like any other whitespace.
-    if text.data.is_empty() {
+    if data.is_empty() {
         return;
     }
-    let mut replacement: String = text.data.chars().filter(|c| c.is_whitespace()).collect();
+    let mut replacement: String = data.chars().filter(|c| c.is_whitespace()).collect();
     if replacement.is_empty() {
         replacement = " ".to_string();
     }
