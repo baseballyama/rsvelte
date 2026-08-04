@@ -4355,11 +4355,14 @@ fn transform_instance_script_for_visitors(
     // template-literal `${...}` interpolations do not count). Scripts without
     // such tokens keep their comments, matching upstream (esrap prints them
     // as leading trivia).
+    // Upstream rebuilds every `$:` statement as a synthesized
+    // `legacy_pre_effect(...)` call, so its comments have nothing left to
+    // attach to. Everything else in the script keeps them.
     let script: std::borrow::Cow<str> = if analysis.runes || !legacy_script_has_dollar_token(script)
     {
         std::borrow::Cow::Borrowed(script)
     } else {
-        std::borrow::Cow::Owned(strip_js_single_line_comments(script))
+        std::borrow::Cow::Owned(strip_reactive_statement_comments(script))
     };
 
     // Transform class fields only if the script contains class definitions with runes
