@@ -1,5 +1,7 @@
 ---
 "@rsvelte/compiler": patch
+"@rsvelte/svelte2tsx": patch
+"@rsvelte/svelte-check": patch
 ---
 
 fix(svelte2tsx): skip identifiers in a slot expression's computed object key. A
