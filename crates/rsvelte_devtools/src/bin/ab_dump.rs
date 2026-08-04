@@ -7,7 +7,7 @@
 //! `.svelte` inputs are compiled first, because the layout question that matters
 //! is about compiler output, not about arbitrary hand-written JS.
 //!
-//! Usage: `ab_dump [--write <dir>] [--server] <file.js|file.svelte> ...`
+//! Usage: `ab_dump [--write <dir>] [--server] [--single-quote] <file.js|file.svelte> ...`
 
 use oxc_allocator::Allocator;
 use oxc_codegen::Codegen;
@@ -18,6 +18,7 @@ use rsvelte_core::{CompileOptions, GenerateMode};
 fn main() {
     let mut write_dir: Option<String> = None;
     let mut server = false;
+    let mut single_quote = false;
     let mut files: Vec<String> = Vec::new();
 
     let mut args = std::env::args().skip(1);
@@ -25,6 +26,7 @@ fn main() {
         match arg.as_str() {
             "--write" => write_dir = args.next(),
             "--server" => server = true,
+            "--single-quote" => single_quote = true,
             other => files.push(other.to_string()),
         }
     }
@@ -76,7 +78,15 @@ fn main() {
         }
 
         let esrap = rsvelte_esrap::print_with(&ret.program, &text, &opts);
-        let oxc = Codegen::new().build(&ret.program).code;
+        // Quote style is the only layout knob `CodegenOptions` offers, so make it
+        // switchable to show whether either setting can close the quote diffs.
+        let oxc = Codegen::new()
+            .with_options(oxc_codegen::CodegenOptions {
+                single_quote,
+                ..oxc_codegen::CodegenOptions::default()
+            })
+            .build(&ret.program)
+            .code;
 
         let delta = (oxc.len() as f64 - esrap.len() as f64) / esrap.len() as f64 * 100.0;
         let marker = if esrap == oxc { "  IDENTICAL" } else { "" };
