@@ -49,6 +49,29 @@ pub fn timer_elapsed(_start: TimerStart) -> Duration {
     Duration::ZERO
 }
 
+/// Per-call-site cost of the `rsvelte_esrap` printer inside one compile run.
+///
+/// Split out from [`Phase3Breakdown`] because the printer is reached from four
+/// independent sites and the question "would a faster printer speed up
+/// `compile()`" needs each site's share separately, not their sum.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct EsrapBreakdown {
+    /// Client final print (`print_split` / `print_with_map` / `print_with`).
+    pub client_print: Duration,
+    pub client_print_calls: u64,
+    /// Server final print (the single whole-program `print`).
+    pub server_print: Duration,
+    pub server_print_calls: u64,
+    /// Server async-body round-trip: the print half.
+    pub server_pipe_print: Duration,
+    /// Server async-body round-trip: the re-parse half of the same round-trip.
+    pub server_pipe_reparse: Duration,
+    pub server_pipe_calls: u64,
+    /// `normalize_js_with_oxc` slow path (parse + print), print half only.
+    pub normalize_print: Duration,
+    pub normalize_calls: u64,
+}
+
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Phase3Breakdown {
     pub visit_program: Duration,
@@ -66,6 +89,64 @@ thread_local! {
     static ASSEMBLY_AFTER_FRAGMENT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static CSS_RENDER: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static CODEGEN: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+
+    static ESRAP_CLIENT: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
+    static ESRAP_SERVER: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
+    static ESRAP_PIPE: Cell<(Duration, Duration, u64)> =
+        const { Cell::new((Duration::ZERO, Duration::ZERO, 0)) };
+    static ESRAP_NORMALIZE: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
+}
+
+#[inline]
+pub fn record_esrap_client(d: Duration) {
+    ESRAP_CLIENT.with(|c| {
+        let (t, n) = c.get();
+        c.set((t + d, n + 1));
+    });
+}
+
+#[inline]
+pub fn record_esrap_server(d: Duration) {
+    ESRAP_SERVER.with(|c| {
+        let (t, n) = c.get();
+        c.set((t + d, n + 1));
+    });
+}
+
+#[inline]
+pub fn record_esrap_pipe(print: Duration, reparse: Duration) {
+    ESRAP_PIPE.with(|c| {
+        let (p, r, n) = c.get();
+        c.set((p + print, r + reparse, n + 1));
+    });
+}
+
+#[inline]
+pub fn record_esrap_normalize(d: Duration) {
+    ESRAP_NORMALIZE.with(|c| {
+        let (t, n) = c.get();
+        c.set((t + d, n + 1));
+    });
+}
+
+pub fn take_esrap_breakdown() -> EsrapBreakdown {
+    let (client_print, client_print_calls) = ESRAP_CLIENT.with(|c| c.replace((Duration::ZERO, 0)));
+    let (server_print, server_print_calls) = ESRAP_SERVER.with(|c| c.replace((Duration::ZERO, 0)));
+    let (server_pipe_print, server_pipe_reparse, server_pipe_calls) =
+        ESRAP_PIPE.with(|c| c.replace((Duration::ZERO, Duration::ZERO, 0)));
+    let (normalize_print, normalize_calls) =
+        ESRAP_NORMALIZE.with(|c| c.replace((Duration::ZERO, 0)));
+    EsrapBreakdown {
+        client_print,
+        client_print_calls,
+        server_print,
+        server_print_calls,
+        server_pipe_print,
+        server_pipe_reparse,
+        server_pipe_calls,
+        normalize_print,
+        normalize_calls,
+    }
 }
 
 #[inline]

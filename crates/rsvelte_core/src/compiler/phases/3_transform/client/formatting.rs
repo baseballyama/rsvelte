@@ -842,7 +842,10 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         if !parsed.diagnostics.is_empty() {
             return js.to_string();
         }
-        rsvelte_esrap::print(&parsed.program, &protected)
+        let _t = super::super::profile::timer_start();
+        let printed = rsvelte_esrap::print(&parsed.program, &protected);
+        super::super::profile::record_esrap_normalize(super::super::profile::timer_elapsed(_t));
+        printed
     });
 
     // Restore `;;`. esrap keeps the two void statements on separate lines.

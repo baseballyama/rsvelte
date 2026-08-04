@@ -3421,7 +3421,10 @@ pub fn transform_instance<'a>(
     // only sync instance statements falls through unchanged. `use_async` is
     // false for every ordinary component, so this never touches sync output.
     if state.eval_inputs.use_async && !body.is_empty() {
+        use crate::compiler::phases::phase3_transform::profile;
+        let _t = profile::timer_start();
         let body_text = state.b.program(body_clone(state, &body)).pipe_print();
+        let print_elapsed = profile::timer_elapsed(_t);
         if let Some(result) =
             crate::compiler::phases::phase3_transform::shared::async_body::transform_async_body_dev(
                 body_text.trim(),
@@ -3429,10 +3432,14 @@ pub fn transform_instance<'a>(
                 state.options.dev,
             )
         {
+            let _t = profile::timer_start();
             let reparsed = state.reparse_program(result.output.trim());
+            profile::record_esrap_pipe(print_elapsed, profile::timer_elapsed(_t));
             if !reparsed.is_empty() {
                 return reparsed;
             }
+        } else {
+            profile::record_esrap_pipe(print_elapsed, std::time::Duration::ZERO);
         }
     }
 

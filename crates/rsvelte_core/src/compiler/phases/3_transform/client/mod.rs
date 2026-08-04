@@ -2350,6 +2350,7 @@ fn transform_client_with_visitors(
                         // unified comment coordinate space `to_oxc` built.
                         Some(comment_source) => {
                             let map_source = options.enable_sourcemap.then_some(source);
+                            let _t = super::profile::timer_start();
                             let pm = rsvelte_esrap::print_split(
                                 oxc_prog,
                                 comment_source,
@@ -2358,16 +2359,21 @@ fn transform_client_with_visitors(
                                 &converted.loc_map,
                                 &print_opts,
                             );
+                            super::profile::record_esrap_client(super::profile::timer_elapsed(_t));
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
                         None if options.enable_sourcemap => {
+                            let _t = super::profile::timer_start();
                             let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
+                            super::profile::record_esrap_client(super::profile::timer_elapsed(_t));
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
-                        None => (
-                            rsvelte_esrap::print_with(oxc_prog, "", &print_opts),
-                            Vec::new(),
-                        ),
+                        None => {
+                            let _t = super::profile::timer_start();
+                            let code = rsvelte_esrap::print_with(oxc_prog, "", &print_opts);
+                            super::profile::record_esrap_client(super::profile::timer_elapsed(_t));
+                            (code, Vec::new())
+                        }
                     }
                 },
             )

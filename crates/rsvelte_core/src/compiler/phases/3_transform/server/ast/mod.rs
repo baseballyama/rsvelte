@@ -1439,7 +1439,12 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
     }
 
     let program = b.program(program_body);
-    Some(rsvelte_esrap::print(&program, ""))
+    let _t = crate::compiler::phases::phase3_transform::profile::timer_start();
+    let printed = rsvelte_esrap::print(&program, "");
+    crate::compiler::phases::phase3_transform::profile::record_esrap_server(
+        crate::compiler::phases::phase3_transform::profile::timer_elapsed(_t),
+    );
+    Some(printed)
 }
 
 #[cfg(test)]
