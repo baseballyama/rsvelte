@@ -207,6 +207,27 @@ fn report(run: usize, samples: &[Sample]) {
         pct(print_all) * 0.8
     );
 
+    // A scheduling stall lands inside whichever timer is running, so a handful
+    // of files can carry a double-digit share of the summed print time. Repeat
+    // the aggregate without the slowest 1% of files to show how much of the
+    // headline number is that artifact rather than printing.
+    let mut by_total: Vec<&Sample> = samples.iter().collect();
+    by_total.sort_by_key(|s| s.total);
+    let keep = by_total.len() - by_total.len() / 100;
+    let trimmed = &by_total[..keep];
+    let t_total: Duration = trimmed.iter().map(|s| s.total).sum();
+    let t_client: Duration = trimmed.iter().map(|s| s.client_print).sum();
+    let t_server: Duration = trimmed.iter().map(|s| s.server_print).sum();
+    let t_print: Duration = trimmed.iter().map(|s| s.print_total()).sum();
+    let t_pct = |d: Duration| d.as_secs_f64() / t_total.as_secs_f64() * 100.0;
+    println!(
+        "  trimmed (slowest 1% of files dropped, n={keep}): client {:5.2}%  server {:5.2}%  ALL {:5.2}%  -> 5x gives {:5.2}%",
+        t_pct(t_client),
+        t_pct(t_server),
+        t_pct(t_print),
+        t_pct(t_print) * 0.8
+    );
+
     // Per-file distribution of the printer's share: the aggregate above is
     // dominated by the largest files, so report the per-file spread too.
     let mut shares: Vec<f64> = samples

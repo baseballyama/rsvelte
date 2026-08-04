@@ -4,21 +4,27 @@
 //! can be made to agree on layout, so this reports the size delta and the first
 //! differing lines rather than a pass/fail.
 //!
-//! Usage: `ab_dump [--write <dir>] <file.js> ...`
+//! `.svelte` inputs are compiled first, because the layout question that matters
+//! is about compiler output, not about arbitrary hand-written JS.
+//!
+//! Usage: `ab_dump [--write <dir>] [--server] <file.js|file.svelte> ...`
 
 use oxc_allocator::Allocator;
 use oxc_codegen::Codegen;
 use oxc_parser::{ParseOptions, Parser};
 use oxc_span::SourceType;
+use rsvelte_core::{CompileOptions, GenerateMode};
 
 fn main() {
     let mut write_dir: Option<String> = None;
+    let mut server = false;
     let mut files: Vec<String> = Vec::new();
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--write" => write_dir = args.next(),
+            "--server" => server = true,
             other => files.push(other.to_string()),
         }
     }
@@ -36,6 +42,25 @@ fn main() {
                 eprintln!("cannot read {path}: {err}");
                 continue;
             }
+        };
+        let text = if path.ends_with(".svelte") {
+            let options = CompileOptions {
+                generate: if server {
+                    GenerateMode::Server
+                } else {
+                    GenerateMode::Client
+                },
+                ..CompileOptions::default()
+            };
+            match rsvelte_core::compile(&text, options) {
+                Ok(result) => result.js.code,
+                Err(err) => {
+                    eprintln!("{path}: compile failed: {err:?}");
+                    continue;
+                }
+            }
+        } else {
+            text
         };
 
         let allocator = Allocator::default();
