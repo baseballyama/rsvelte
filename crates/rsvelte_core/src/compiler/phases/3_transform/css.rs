@@ -2745,14 +2745,17 @@ fn global_inner_selector_info(rel: &Value) -> SelectorInfo {
 }
 
 /// A resolved sibling operand for the `+` / `~` prune check: either a compound
-/// matched directly against an element, or a descendant/child ancestor-chain
-/// (subject last) verified structurally against an element's ancestors. The
-/// `Chain` variant lets `:global(.a .z) + .b` and `.foo > .a { & + & }` honour
-/// the ancestor constraint (`.a` above `.z`, `.foo` above `.a`) instead of
-/// bailing to unresolved on the multi-relative chain.
+/// matched directly against an element, or a set of alternative descendant/
+/// child/sibling ancestor-chains (subject last, one per comma branch or
+/// `:is()`/`:where()` alternative) verified structurally against an element's
+/// ancestors, matching if any alternative does. The `Chain` variant lets
+/// `:global(.a .z) + .b`, `.foo > .a { & + & }` and `.x, .y { & + & }` honour
+/// the ancestor constraint (`.a` above `.z`, `.foo` above `.a`, either `.x` or
+/// `.y` above) instead of bailing to unresolved on the multi-relative or
+/// multi-branch chain.
 enum SiblingMatcher {
     Info(SelectorInfo),
-    Chain(Vec<Value>),
+    Chain(Vec<Vec<Value>>),
     /// A chain whose ancestor constraint cannot be verified because the lexical
     /// parent walk does not model the real ancestry. Dropping to the
     /// compound-only `Info` would silently discard the constraint and let the
@@ -2766,10 +2769,10 @@ fn matcher_matches_at(matcher: &SiblingMatcher, idx: usize, ctx: &CssContext) ->
     };
     match matcher {
         SiblingMatcher::Info(info) => selector_matches_element(info, el),
-        SiblingMatcher::Chain(rels) => {
+        SiblingMatcher::Chain(chains) => chains.iter().any(|rels| {
             structural_element_matches_compound(el, &rels[rels.len() - 1])
                 && structural_ancestors_satisfy_links(rels, rels.len() - 1, idx, ctx)
-        }
+        }),
         // Callers bail before matching; `true` keeps the conservative direction.
         SiblingMatcher::Unresolvable => true,
     }
@@ -2843,14 +2846,14 @@ fn resolve_global_inner_matcher(rel: &Value, ctx: &CssContext) -> SiblingMatcher
         if !structural_ancestry_is_lexical(ctx) {
             return SiblingMatcher::Unresolvable;
         }
-        return SiblingMatcher::Chain(rels.clone());
+        return SiblingMatcher::Chain(vec![rels.clone()]);
     }
     SiblingMatcher::Info(global_inner_selector_info(rel))
 }
 
 /// True when a single nesting level's compounds can be evaluated by the
-/// structural ancestor matcher: only ` `/`>` combinators (the head compound may
-/// carry a null combinator) and only evaluable simple selectors (no
+/// structural ancestor matcher: only ` `/`>`/`+`/`~` combinators (the head
+/// compound may carry a null combinator) and only evaluable simple selectors (no
 /// `:global`/`&`/functional pseudo). Unlike [`chain_is_structurally_evaluable`]
 /// this accepts a single-compound level (a bare `.grand`).
 fn level_is_structurally_evaluable(rels: &[Value]) -> bool {
@@ -2863,7 +2866,7 @@ fn level_is_structurally_evaluable(rels: &[Value]) -> bool {
             .and_then(|c| c.get("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
-        if comb != " " && comb != ">" {
+        if comb != " " && comb != ">" && comb != "+" && comb != "~" {
             return false;
         }
     }
@@ -2874,6 +2877,67 @@ fn level_is_structurally_evaluable(rels: &[Value]) -> bool {
                 !sels.is_empty() && sels.iter().all(structural_simple_selector_is_evaluable)
             })
     })
+}
+
+/// The complex-selector list of a bare `:is(...)`/`:where(...)` compound (a
+/// single simple selector, no combinator on the head besides the implicit
+/// null), mirroring [`global_inner_complex_rels`]'s `args` shape. `None` for
+/// anything else, including a compound that mixes `:is()` with other simple
+/// selectors — upstream only expands a *bare* functional-pseudo compound.
+fn functional_pseudo_selector_list(rel: &Value) -> Option<&Vec<Value>> {
+    let sels = rel.get("selectors").and_then(|s| s.as_array())?;
+    if sels.len() != 1 {
+        return None;
+    }
+    let sel = &sels[0];
+    if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+        return None;
+    }
+    let name = sel.get("name").and_then(|n| n.as_str())?;
+    if name != "is" && name != "where" {
+        return None;
+    }
+    sel.get("args")
+        .and_then(|a| a.get("children"))
+        .and_then(|c| c.as_array())
+}
+
+/// Expand a single nesting level's relative-selector list into every
+/// structurally-evaluable alternative, recursing into a bare `:is()`/`:where()`
+/// head so `& :is(.a, .b) { … }` and `.foo, .bar { & + & { … } }` both
+/// contribute one branch per inner complex selector, mirroring upstream's
+/// per-branch `NestingSelector` OR recursion instead of bailing on the first
+/// unevaluable shape.
+fn collect_relative_selector_branches(rels: &[Value], out: &mut Vec<Vec<Value>>) {
+    if level_is_structurally_evaluable(rels) {
+        out.push(rels.to_vec());
+        return;
+    }
+    if rels.len() == 1
+        && let Some(inner_complexes) = functional_pseudo_selector_list(&rels[0])
+    {
+        for complex in inner_complexes {
+            if let Some(inner_rels) = complex.get("children").and_then(|c| c.as_array()) {
+                collect_relative_selector_branches(inner_rels, out);
+            }
+        }
+    }
+}
+
+/// Expand every comma branch of a nesting level's prelude into its
+/// structurally-evaluable alternatives, mirroring upstream `apply_selector`'s
+/// `NestingSelector` case, which iterates `parent.prelude.children` (every
+/// comma branch) and ORs the match across all of them instead of requiring a
+/// single complex selector.
+fn collect_level_branches(prelude: &Value, out: &mut Vec<Vec<Value>>) {
+    let Some(children) = prelude.get("children").and_then(|c| c.as_array()) else {
+        return;
+    };
+    for complex in children {
+        if let Some(rels) = complex.get("children").and_then(|c| c.as_array()) {
+            collect_relative_selector_branches(rels, out);
+        }
+    }
 }
 
 /// Clone a relative selector, forcing a null/absent combinator on its head to a
@@ -2895,55 +2959,63 @@ fn with_descendant_head(rel: &Value) -> Value {
     cloned
 }
 
-/// Build the full ancestor chain (subject last) for nesting levels
+/// Build every alternative ancestor chain (subject last) for nesting levels
 /// `preludes[..level]`, mirroring upstream `get_relative_selectors` +
 /// `NestingSelector` resolution: each enclosing rule contributes its prelude,
-/// linked to the level below by an implicit descendant combinator, so
-/// `.grand { .foo > .a { … } }` resolves `&` to `.grand .foo > .a`. Returns
-/// `None` if any level is not a single structurally-evaluable descendant/child
-/// complex selector (multiple complex selectors, sibling combinators, nested
-/// `&`, `:global`, or functional pseudo) — the caller then falls back to the
-/// compound `Info` path.
-fn build_parent_chain(preludes: &[&Value], level: usize) -> Option<Vec<Value>> {
+/// OR-ing across every comma branch and `:is()`/`:where()` alternative
+/// ([`collect_level_branches`]) and linking each to the level below by an
+/// implicit descendant combinator, so `.grand { .foo > .a { … } }` resolves `&`
+/// to `.grand .foo > .a` and `.x, .y { & + & { … } }` yields one chain per
+/// branch instead of bailing on the comma list. Returns `None` only when a
+/// level contributes zero evaluable branches at all.
+fn build_parent_chains(preludes: &[&Value], level: usize) -> Option<Vec<Vec<Value>>> {
     if level == 0 {
         return None;
     }
-    let prelude = preludes[level - 1];
-    let children = prelude.get("children").and_then(|c| c.as_array())?;
-    if children.len() != 1 {
-        return None;
-    }
-    let rels = children[0].get("children").and_then(|c| c.as_array())?;
-    if !level_is_structurally_evaluable(rels) {
+    let mut own_branches = Vec::new();
+    collect_level_branches(preludes[level - 1], &mut own_branches);
+    if own_branches.is_empty() {
         return None;
     }
     if level == 1 {
-        return Some(rels.clone());
+        return Some(own_branches);
     }
-    let mut chain = build_parent_chain(preludes, level - 1)?;
-    chain.push(with_descendant_head(&rels[0]));
-    chain.extend(rels[1..].iter().cloned());
-    Some(chain)
+    let lower_chains = build_parent_chains(preludes, level - 1)?;
+    let mut chains = Vec::with_capacity(lower_chains.len() * own_branches.len());
+    for lower in &lower_chains {
+        for branch in &own_branches {
+            let mut chain = lower.clone();
+            chain.push(with_descendant_head(&branch[0]));
+            chain.extend(branch[1..].iter().cloned());
+            chains.push(chain);
+        }
+    }
+    Some(chains)
 }
 
 /// If `rel` is a bare `&` (a single NestingSelector), resolve it against the
-/// full stack of enclosing rule preludes into a descendant/child chain (subject
-/// last) so `.foo > .a { & + & }` and `.grand { .foo > .a { & + & } }` verify
-/// every ancestor level, not just the immediate parent. Returns `None` when the
-/// resolved chain is a single compound (no ancestor constraint — handled by
-/// [`extract_selector_info_resolving_nesting`]) or when any level is a shape the
-/// structural matcher cannot evaluate.
-fn resolve_bare_nesting_chain(rel: &Value, ctx: &CssContext) -> Option<Vec<Value>> {
+/// full stack of enclosing rule preludes into every alternative descendant/
+/// sibling chain (subject last) so `.foo > .a { & + & }`,
+/// `.grand { .foo > .a { & + & } }` and `.x, .y { & + & }` verify every
+/// ancestor level and comma branch, not just the immediate single-branch
+/// parent. Chains that resolve to a single compound (no ancestor constraint —
+/// handled by [`extract_selector_info_resolving_nesting`]) are dropped;
+/// returns `None` when every branch is dropped or unevaluable.
+fn resolve_bare_nesting_chains(rel: &Value, ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
     let sels = rel.get("selectors").and_then(|s| s.as_array())?;
     if sels.len() != 1 || sels[0].get("type").and_then(|t| t.as_str()) != Some("NestingSelector") {
         return None;
     }
     let parent_preludes = ctx.parent_preludes.borrow();
-    let chain = build_parent_chain(&parent_preludes, parent_preludes.len())?;
-    if chain.len() < 2 {
-        return None;
+    let chains: Vec<Vec<Value>> = build_parent_chains(&parent_preludes, parent_preludes.len())?
+        .into_iter()
+        .filter(|chain| chain.len() >= 2)
+        .collect();
+    if chains.is_empty() {
+        None
+    } else {
+        Some(chains)
     }
-    Some(chain)
 }
 
 /// Resolve a sibling operand relative selector into a [`SiblingMatcher`],
@@ -2951,11 +3023,11 @@ fn resolve_bare_nesting_chain(rel: &Value, ctx: &CssContext) -> Option<Vec<Value
 /// parent (`Unresolvable` when that chain's ancestors are not lexical), else the
 /// existing compound `Info`.
 fn resolve_sibling_matcher(rel: &Value, ctx: &CssContext) -> SiblingMatcher {
-    if let Some(chain) = resolve_bare_nesting_chain(rel, ctx) {
+    if let Some(chains) = resolve_bare_nesting_chains(rel, ctx) {
         if !structural_ancestry_is_lexical(ctx) {
             return SiblingMatcher::Unresolvable;
         }
-        return SiblingMatcher::Chain(chain);
+        return SiblingMatcher::Chain(chains);
     }
     SiblingMatcher::Info(extract_selector_info_resolving_nesting(rel, ctx))
 }
@@ -3443,6 +3515,14 @@ fn structural_ancestors_satisfy_links(
         };
         structural_element_matches_compound(&elements[p], prev)
             && structural_ancestors_satisfy_links(rels, link_idx - 1, p, ctx)
+    } else if combinator == "+" || combinator == "~" {
+        // A sibling link searches the previous-sibling relation, not ancestry —
+        // `visit_possible_siblings` already models the `+`/`~` adjacency/generality
+        // distinction the compound-only `SelectorInfo` matcher relies on elsewhere.
+        visit_possible_siblings(ctx, el_idx, false, combinator == "~", |sibling_idx| {
+            structural_element_matches_compound(&elements[sibling_idx], prev)
+                && structural_ancestors_satisfy_links(rels, link_idx - 1, sibling_idx, ctx)
+        })
     } else {
         let mut parent = elements[el_idx].parent_idx;
         while let Some(p) = parent {
