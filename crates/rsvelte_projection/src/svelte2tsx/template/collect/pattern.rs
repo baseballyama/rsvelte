@@ -176,6 +176,35 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
                 prev = c;
                 i += 1;
             }
+            '[' if expect_prop => {
+                // Computed object key (`{ [expr]: value }`). Official's `isObjectKey`
+                // only matches when the `Identifier` node sits directly in the key
+                // slot, so a bare-identifier key (`[item]`) is left untouched while a
+                // compound key expression (`[item + 1]`) has its nested identifiers
+                // resolved as if they weren't in key position at all — mirrored here
+                // by consuming the whole `[…]` span and branching on its shape.
+                let close = find_matching_close(&chars, i, '[', ']');
+                let inner: String = chars[i + 1..close].iter().collect();
+                let trimmed = inner.trim();
+                let is_bare_ident = {
+                    let mut it = trimmed.chars();
+                    match it.next() {
+                        Some(c0) if is_ident_start(c0) => it.all(is_ident),
+                        _ => false,
+                    }
+                };
+                out.push('[');
+                if is_bare_ident {
+                    out.push_str(&inner);
+                } else {
+                    out.push_str(&resolve_slot_expression(&inner, scope));
+                }
+                out.push(']');
+                expect_prop = false;
+                prev2 = prev;
+                prev = ']';
+                i = close + 1;
+            }
             '[' | '(' => {
                 ctx.push(false);
                 expect_prop = false;
@@ -245,8 +274,8 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
                 i = j;
             }
             _ => {
-                // Any other char in property position (e.g. `.` of a spread,
-                // a computed-key `[`) means this is not a plain shorthand.
+                // Any other char in property position (e.g. `.` of a spread)
+                // means this is not a plain shorthand.
                 expect_prop = false;
                 out.push(c);
                 prev2 = prev;
@@ -256,4 +285,43 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
         }
     }
     out
+}
+
+/// Find the index of the `close` char matching the `open` char at `chars[open_index]`,
+/// skipping over string/template literals so brackets inside them don't count. Only the
+/// depth of `open`/`close` itself is tracked — other bracket kinds nested inside pair up
+/// on their own and never unbalance this count.
+fn find_matching_close(chars: &[char], open_index: usize, open: char, close: char) -> usize {
+    let n = chars.len();
+    let mut depth = 0i32;
+    let mut i = open_index;
+    while i < n {
+        let c = chars[i];
+        if c == '"' || c == '\'' || c == '`' {
+            let quote = c;
+            i += 1;
+            while i < n {
+                let ch = chars[i];
+                i += 1;
+                if ch == '\\' && i < n {
+                    i += 1;
+                    continue;
+                }
+                if ch == quote {
+                    break;
+                }
+            }
+            continue;
+        }
+        if c == open {
+            depth += 1;
+        } else if c == close {
+            depth -= 1;
+            if depth == 0 {
+                return i;
+            }
+        }
+        i += 1;
+    }
+    n.saturating_sub(1)
 }
