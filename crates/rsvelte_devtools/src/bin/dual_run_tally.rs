@@ -75,6 +75,37 @@ fn main() {
             println!("  {pass:<38} {unverified:>11}");
         }
     }
+
+    println!("\nper-pass work (text path | in-place path)\n");
+    println!(
+        "{:<32} {:>6} {:>11} {:>7} {:>6} {:>12} | {:>6} {:>11} {:>6} {:>12}",
+        "pass",
+        "parses",
+        "parsed B",
+        "splices",
+        "edits",
+        "moved B",
+        "parses",
+        "parsed B",
+        "prints",
+        "printed B"
+    );
+    for (pass, text, ast) in rsvelte_core::ast_rewrite_dual_run_work() {
+        println!(
+            "{:<32} {:>6} {:>11} {:>7} {:>6} {:>12} | {:>6} {:>11} {:>6} {:>12}",
+            pass,
+            text.parses,
+            text.parsed_bytes,
+            text.splices,
+            text.edits,
+            text.moved_bytes,
+            ast.parses,
+            ast.parsed_bytes,
+            ast.prints,
+            ast.printed_bytes
+        );
+    }
+
     if total_mismatches > 0 || total_unverified > 0 {
         std::process::exit(2);
     }

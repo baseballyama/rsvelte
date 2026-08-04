@@ -227,6 +227,10 @@ fn single_pass(
         // retry by wrapping in a synthetic class so OXC can recognise the
         // method signatures.  Span offsets are adjusted back to the original
         // source after collection.
+        ast_rewrite::dual_run::count_parse(
+            ast_rewrite::dual_run::current_or(file!()),
+            source.len(),
+        );
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
             .with_options(ParseOptions {
                 allow_return_outside_function: true,
@@ -249,6 +253,10 @@ fn single_pass(
         };
 
         let program_to_visit = if parse_str_owned.is_some() {
+            ast_rewrite::dual_run::count_parse(
+                ast_rewrite::dual_run::current_or(file!()),
+                parse_str.len(),
+            );
             let ret = Parser::new(&allocator, parse_str, SourceType::mjs())
                 .with_options(ParseOptions {
                     allow_return_outside_function: true,

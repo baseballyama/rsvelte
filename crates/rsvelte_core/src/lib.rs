@@ -57,6 +57,18 @@ pub fn ast_rewrite_dual_run_parses() -> u32 {
 pub fn ast_rewrite_dual_run_parses_by_pass() -> Vec<(&'static str, u32)> {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::parses_by_pass()
 }
+
+/// Per-pass work counters, split into what the text path did and what the
+/// in-place path did. Load-independent, so a port's effect is decided by
+/// counting instead of by timing runs that differ by less than the noise.
+#[doc(hidden)]
+pub use compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::Work as AstRewriteWork;
+
+/// `(pass, text-path work, in-place work)`.
+#[doc(hidden)]
+pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewriteWork)> {
+    compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::work()
+}
 #[cfg(feature = "parallel")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,

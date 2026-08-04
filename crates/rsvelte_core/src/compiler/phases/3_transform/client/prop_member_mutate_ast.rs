@@ -405,6 +405,7 @@ impl<'a> PropMemberMutateRewriter<'a, '_> {
             return None;
         }
         let owned = self.allocator.alloc_str(body);
+        ast_rewrite::dual_run::count_parse(ast_rewrite::dual_run::current_or(file!()), owned.len());
         let ret = oxc_parser::Parser::new(self.allocator, owned, SourceType::mjs()).parse();
         if !ret.diagnostics.is_empty() {
             return None;

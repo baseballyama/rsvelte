@@ -568,6 +568,7 @@ impl<'a, 'b> LegacyStateMemberMutateRewriter<'a, 'b> {
     /// the program's own arena — it is caller-supplied source, not a subtree.
     fn invalidate_call(&self, body: &str) -> Option<Expression<'a>> {
         let owned = self.allocator.alloc_str(body);
+        ast_rewrite::dual_run::count_parse(ast_rewrite::dual_run::current_or(file!()), owned.len());
         let parsed = oxc_parser::Parser::new(self.allocator, owned, SourceType::mjs()).parse();
         if !parsed.diagnostics.is_empty() {
             return None;

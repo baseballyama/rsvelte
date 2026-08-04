@@ -48,7 +48,10 @@ pub fn with_program<R>(
     parse_options: ParseOptions,
     f: impl FnOnce(&Program<'_>) -> Option<R>,
 ) -> Option<R> {
-    dual_run::count_parse(dual_run::current_or(std::panic::Location::caller().file()));
+    dual_run::count_parse(
+        dual_run::current_or(std::panic::Location::caller().file()),
+        source.len(),
+    );
     arena.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parsed = Parser::new(&allocator, source, source_type)
@@ -87,20 +90,24 @@ pub fn with_program_mut(
     parse_options: ParseOptions,
     f: impl for<'p> FnOnce(&'p Allocator, &mut Program<'p>) -> bool,
 ) -> Option<String> {
-    dual_run::count_parse(dual_run::current_or(std::panic::Location::caller().file()));
-    arena.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let mut parsed = Parser::new(&allocator, source, source_type)
-            .with_options(parse_options)
-            .parse();
-        let out = if parsed.diagnostics.is_empty() && f(&allocator, &mut parsed.program) {
-            let printed = rsvelte_esrap::print(&parsed.program, source);
-            (printed != source).then_some(printed)
-        } else {
-            None
-        };
-        *cell.borrow_mut() = allocator;
-        out
+    let pass = dual_run::current_or(std::panic::Location::caller().file());
+    dual_run::in_path(dual_run::Path::Ast, || {
+        dual_run::count_parse(pass, source.len());
+        arena.with(|cell| {
+            let allocator = std::mem::take(&mut *cell.borrow_mut());
+            let mut parsed = Parser::new(&allocator, source, source_type)
+                .with_options(parse_options)
+                .parse();
+            let out = if parsed.diagnostics.is_empty() && f(&allocator, &mut parsed.program) {
+                let printed = rsvelte_esrap::print(&parsed.program, source);
+                dual_run::count_print(pass, printed.len());
+                (printed != source).then_some(printed)
+            } else {
+                None
+            };
+            *cell.borrow_mut() = allocator;
+            out
+        })
     })
 }
 
@@ -125,41 +132,45 @@ pub fn with_class_fragment_program_mut(
     f: impl for<'p> FnOnce(&'p Allocator, &mut Program<'p>, &str) -> bool,
 ) -> Option<String> {
     let pass = dual_run::current_or(std::panic::Location::caller().file());
-    dual_run::count_parse(pass);
-    arena.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let out = (|| {
-            let bare = Parser::new(&allocator, source, SourceType::mjs())
-                .with_options(parse_options)
-                .parse();
-            let wrapped_source;
-            let (mut parsed, parse_str, wrapped) = if bare.diagnostics.is_empty() {
-                (bare, source, false)
-            } else {
-                dual_run::count_parse(pass);
-                wrapped_source = format!("{CLASS_FRAGMENT_PREFIX}{source}\n}}");
-                let ret = Parser::new(&allocator, &wrapped_source, SourceType::mjs())
+    dual_run::in_path(dual_run::Path::Ast, || {
+        dual_run::count_parse(pass, source.len());
+        arena.with(|cell| {
+            let allocator = std::mem::take(&mut *cell.borrow_mut());
+            let out = (|| {
+                let bare = Parser::new(&allocator, source, SourceType::mjs())
                     .with_options(parse_options)
                     .parse();
-                if !ret.diagnostics.is_empty() {
+                let wrapped_source;
+                let (mut parsed, parse_str, wrapped) = if bare.diagnostics.is_empty() {
+                    (bare, source, false)
+                } else {
+                    wrapped_source = format!("{CLASS_FRAGMENT_PREFIX}{source}\n}}");
+                    dual_run::count_parse(pass, wrapped_source.len());
+                    let ret = Parser::new(&allocator, &wrapped_source, SourceType::mjs())
+                        .with_options(parse_options)
+                        .parse();
+                    if !ret.diagnostics.is_empty() {
+                        return None;
+                    }
+                    (ret, wrapped_source.as_str(), true)
+                };
+                if !f(&allocator, &mut parsed.program, parse_str) {
                     return None;
                 }
-                (ret, wrapped_source.as_str(), true)
-            };
-            if !f(&allocator, &mut parsed.program, parse_str) {
-                return None;
-            }
-            let options = rsvelte_esrap::PrintOptions::default().with_indent(CLASS_FRAGMENT_INDENT);
-            let printed = rsvelte_esrap::print_with(&parsed.program, parse_str, &options);
-            let printed = if wrapped {
-                unwrap_class_fragment(&printed)?
-            } else {
-                printed
-            };
-            (printed != source).then_some(printed)
-        })();
-        *cell.borrow_mut() = allocator;
-        out
+                let options =
+                    rsvelte_esrap::PrintOptions::default().with_indent(CLASS_FRAGMENT_INDENT);
+                let printed = rsvelte_esrap::print_with(&parsed.program, parse_str, &options);
+                dual_run::count_print(pass, printed.len());
+                let printed = if wrapped {
+                    unwrap_class_fragment(&printed)?
+                } else {
+                    printed
+                };
+                (printed != source).then_some(printed)
+            })();
+            *cell.borrow_mut() = allocator;
+            out
+        })
     })
 }
 
@@ -230,9 +241,14 @@ pub fn splice_with_deferred(
     // Apply right-to-left so earlier offsets stay valid as we mutate.
     edits.sort_by_key(|&(start, ..)| std::cmp::Reverse(start));
     let mut out = source.to_string();
+    // One full copy of the source, then per edit the tail `replace_range`
+    // shifts — the byte traffic an in-place rewrite does not pay.
+    let mut moved = source.len() as u64;
     for (start, end, replacement) in &edits {
+        moved += (out.len() - *end as usize) as u64;
         out.replace_range(*start as usize..*end as usize, replacement);
     }
+    dual_run::count_splice(pass, edits.len(), moved);
     dual_run::check_normalize_idempotent(pass, &out);
     Some((out, deferred))
 }
@@ -536,10 +552,109 @@ pub mod dual_run {
         *ENABLED
     }
 
+    /// Which implementation of a pass did the work being counted.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub enum Path {
+        /// The collect-and-splice text path being replaced.
+        Text,
+        /// The in-place `&mut Program` path replacing it.
+        Ast,
+    }
+
+    /// Deterministic per-pass work counters, in units that do not move with
+    /// machine load: how many times each path parsed, rebuilt or printed a
+    /// script, and how many bytes it copied doing so.
+    ///
+    /// `moved_bytes` is what a splice costs in byte traffic — one full copy of
+    /// the source plus, per edit, the tail that `replace_range` shifts. It is a
+    /// lower bound on the text path's total: the replacement strings each pass
+    /// formats before splicing are not counted here.
+    #[derive(Default, Clone, Copy)]
+    pub struct Work {
+        pub parses: u32,
+        pub parsed_bytes: u64,
+        pub splices: u32,
+        pub edits: u32,
+        pub moved_bytes: u64,
+        pub prints: u32,
+        pub printed_bytes: u64,
+    }
+
     thread_local! {
-        static PARSES: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
-        static PARSE_BY_PASS: StdRefCell<Vec<(&'static str, u32)>> =
+        static WORK: StdRefCell<Vec<(&'static str, [Work; 2])>> =
             const { StdRefCell::new(Vec::new()) };
+        static PATH: std::cell::Cell<Path> = const { std::cell::Cell::new(Path::Text) };
+        /// Set while the harness itself is parsing and printing, so normalising
+        /// the two sides of a comparison is not billed to the pass under test.
+        static HARNESS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    }
+
+    fn with_work(pass: &'static str, f: impl FnOnce(&mut Work)) {
+        if !enabled() || HARNESS.with(std::cell::Cell::get) {
+            return;
+        }
+        let slot = PATH.with(std::cell::Cell::get) as usize;
+        WORK.with(|w| {
+            let mut w = w.borrow_mut();
+            match w.iter_mut().find(|(name, _)| *name == pass) {
+                Some(entry) => f(&mut entry.1[slot]),
+                None => {
+                    let mut fresh = [Work::default(), Work::default()];
+                    f(&mut fresh[slot]);
+                    w.push((pass, fresh));
+                }
+            }
+        });
+    }
+
+    /// Attribute everything `f` does to `path`, restoring the previous
+    /// attribution afterwards so a nested parse inside an in-place rewrite is
+    /// not billed to the text path it is replacing.
+    pub fn in_path<R>(path: Path, f: impl FnOnce() -> R) -> R {
+        let previous = PATH.with(|p| p.replace(path));
+        let out = f();
+        PATH.with(|p| p.set(previous));
+        out
+    }
+
+    /// Suppress work accounting for the duration of `f`.
+    fn in_harness<R>(f: impl FnOnce() -> R) -> R {
+        let previous = HARNESS.with(|h| h.replace(true));
+        let out = f();
+        HARNESS.with(|h| h.set(previous));
+        out
+    }
+
+    /// One rebuilt script: `edits` replacements applied over `moved` bytes.
+    #[inline]
+    pub fn count_splice(pass: &'static str, edits: usize, moved: u64) {
+        with_work(pass, |w| {
+            w.splices += 1;
+            w.edits += edits as u32;
+            w.moved_bytes += moved;
+        });
+    }
+
+    /// One printed script of `len` bytes.
+    #[inline]
+    pub fn count_print(pass: &'static str, len: usize) {
+        with_work(pass, |w| {
+            w.prints += 1;
+            w.printed_bytes += len as u64;
+        });
+    }
+
+    /// `(pass, text-path work, in-place work)` for this thread, by parse count.
+    pub fn work() -> Vec<(&'static str, Work, Work)> {
+        WORK.with(|w| {
+            let mut v: Vec<_> = w
+                .borrow()
+                .iter()
+                .map(|&(name, [text, ast])| (name, text, ast))
+                .collect();
+            v.sort_by_key(|(_, text, ast)| std::cmp::Reverse(text.parses + ast.parses));
+            v
+        })
     }
 
     // `#[track_caller]` on the driver entry points names the pass by its own
@@ -580,33 +695,31 @@ pub mod dual_run {
             .unwrap_or(file)
     }
 
-    /// One `with_program` entry — i.e. one re-parse of an intermediate script.
+    /// One driver-helper entry — i.e. one re-parse of an intermediate script of
+    /// `len` bytes.
     #[inline]
-    pub fn count_parse(pass: &'static str) {
-        if !enabled() {
-            return;
-        }
-        PARSES.with(|c| c.set(c.get() + 1));
-        PARSE_BY_PASS.with(|t| {
-            let mut t = t.borrow_mut();
-            match t.iter_mut().find(|(name, _)| *name == pass) {
-                Some(entry) => entry.1 += 1,
-                None => t.push((pass, 1)),
-            }
+    pub fn count_parse(pass: &'static str, len: usize) {
+        with_work(pass, |w| {
+            w.parses += 1;
+            w.parsed_bytes += len as u64;
         });
     }
 
     /// `(pass, re-parses)` for this thread, most-run first.
     pub fn parses_by_pass() -> Vec<(&'static str, u32)> {
-        PARSE_BY_PASS.with(|t| {
-            let mut v = t.borrow().clone();
-            v.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
-            v
-        })
+        let mut v: Vec<_> = work()
+            .into_iter()
+            .map(|(name, text, ast)| (name, text.parses + ast.parses))
+            .collect();
+        v.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+        v
     }
 
     pub fn parses() -> u32 {
-        PARSES.with(std::cell::Cell::get)
+        work()
+            .iter()
+            .map(|(_, text, ast)| text.parses + ast.parses)
+            .sum()
     }
 
     thread_local! {
@@ -630,6 +743,10 @@ pub mod dual_run {
     const CLASS_PREFIX: &str = "class _Dummy_ {\n";
 
     fn print_normalized(source: &str) -> Option<String> {
+        in_harness(|| print_normalized_inner(source))
+    }
+
+    fn print_normalized_inner(source: &str) -> Option<String> {
         with_program(
             &NORMALIZE_ARENA,
             source,
@@ -731,5 +848,6 @@ pub mod dual_run {
 
     pub fn reset() {
         TALLY.with(|t| t.borrow_mut().clear());
+        WORK.with(|w| w.borrow_mut().clear());
     }
 }
