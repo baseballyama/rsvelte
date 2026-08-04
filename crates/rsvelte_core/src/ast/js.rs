@@ -41,8 +41,74 @@ impl<'a> TypedExpr<'a> {
     /// First call is expensive (serde serialization), subsequent calls are O(1).
     #[inline]
     pub fn as_json(&self) -> &serde_json::Value {
-        self.json_cache
-            .get_or_init(|| Box::new(self.node.to_value()))
+        self.json_cache.get_or_init(|| {
+            let value = Box::new(self.node.to_value());
+            #[cfg(feature = "measure-json")]
+            measure_json::record(&value);
+            value
+        })
+    }
+}
+
+/// Deterministic counters for how much `serde_json::Value` the lazy JSON cache
+/// materializes, so the cost of the JSON-backed readers can be quantified
+/// without a sampling profiler (and so without a quiet machine).
+#[cfg(feature = "measure-json")]
+pub mod measure_json {
+    use std::cell::Cell;
+
+    thread_local! {
+        static MATERIALIZATIONS: Cell<u64> = const { Cell::new(0) };
+        static NODES: Cell<u64> = const { Cell::new(0) };
+        static MAP_ENTRIES: Cell<u64> = const { Cell::new(0) };
+        static STRINGS: Cell<u64> = const { Cell::new(0) };
+    }
+
+    fn walk(value: &serde_json::Value, nodes: &mut u64, entries: &mut u64, strings: &mut u64) {
+        match value {
+            serde_json::Value::Object(map) => {
+                *nodes += 1;
+                *entries += map.len() as u64;
+                // Each entry owns a heap `String` key; string values own one more.
+                *strings += map.len() as u64;
+                for (_, v) in map.iter() {
+                    walk(v, nodes, entries, strings);
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for v in items {
+                    walk(v, nodes, entries, strings);
+                }
+            }
+            serde_json::Value::String(_) => *strings += 1,
+            _ => {}
+        }
+    }
+
+    pub(super) fn record(value: &serde_json::Value) {
+        let (mut nodes, mut entries, mut strings) = (0, 0, 0);
+        walk(value, &mut nodes, &mut entries, &mut strings);
+        MATERIALIZATIONS.with(|c| c.set(c.get() + 1));
+        NODES.with(|c| c.set(c.get() + nodes));
+        MAP_ENTRIES.with(|c| c.set(c.get() + entries));
+        STRINGS.with(|c| c.set(c.get() + strings));
+    }
+
+    /// `(materializations, objects, map_entries, strings)` since the last reset.
+    pub fn snapshot() -> (u64, u64, u64, u64) {
+        (
+            MATERIALIZATIONS.with(|c| c.get()),
+            NODES.with(|c| c.get()),
+            MAP_ENTRIES.with(|c| c.get()),
+            STRINGS.with(|c| c.get()),
+        )
+    }
+
+    pub fn reset() {
+        MATERIALIZATIONS.with(|c| c.set(0));
+        NODES.with(|c| c.set(0));
+        MAP_ENTRIES.with(|c| c.set(0));
+        STRINGS.with(|c| c.set(0));
     }
 }
 
