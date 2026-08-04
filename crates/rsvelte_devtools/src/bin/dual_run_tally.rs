@@ -1,7 +1,8 @@
 //! Runs every official `.svelte` fixture through the client compiler with the
 //! `RSVELTE_AST_DUAL_RUN` equivalence harness on, and prints the per-pass
-//! `(runs, mismatches)` tally. Exits 2 if any ported Phase-3 pass disagreed
-//! with the text-splicing path it replaces.
+//! `(runs, mismatches, unverified)` tally. Exits 2 if any ported Phase-3 pass
+//! disagreed with the text-splicing path it replaces, and also if any run could
+//! not be compared at all — a pass that is never scored proves nothing.
 
 use std::path::{Path, PathBuf};
 
@@ -55,14 +56,26 @@ fn main() {
 
     let tally = rsvelte_core::ast_rewrite_dual_run_tally();
     println!("{} fixtures\n", files.len());
-    println!("{:<40} {:>8} {:>10}", "pass", "runs", "mismatches");
-    let mut total = 0;
-    for (pass, runs, mismatches) in &tally {
-        println!("{pass:<40} {runs:>8} {mismatches:>10}");
-        total += mismatches;
+    println!(
+        "{:<40} {:>8} {:>10} {:>11}",
+        "pass", "runs", "mismatches", "unverified"
+    );
+    let mut total_mismatches = 0;
+    let mut total_unverified = 0;
+    for (pass, runs, mismatches, unverified) in &tally {
+        println!("{pass:<40} {runs:>8} {mismatches:>10} {unverified:>11}");
+        total_mismatches += mismatches;
+        total_unverified += unverified;
     }
-    println!("\ntotal mismatches: {total}");
-    if total > 0 {
+    println!("\ntotal mismatches: {total_mismatches}");
+    println!("total unverified: {total_unverified}");
+    if total_unverified > 0 {
+        println!("\nunverified by pass:");
+        for (pass, _, _, unverified) in tally.iter().filter(|e| e.3 > 0) {
+            println!("  {pass:<38} {unverified:>11}");
+        }
+    }
+    if total_mismatches > 0 || total_unverified > 0 {
         std::process::exit(2);
     }
 }

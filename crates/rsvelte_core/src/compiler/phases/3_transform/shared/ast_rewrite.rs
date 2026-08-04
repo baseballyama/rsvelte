@@ -379,9 +379,78 @@ pub mod dual_run {
     static ENABLED: LazyLock<bool> =
         LazyLock::new(|| std::env::var_os("RSVELTE_AST_DUAL_RUN").is_some());
 
+    /// How many mismatching runs per pass to dump both sides of. A bare count
+    /// says a port is wrong but not how, and the two sides are far too large to
+    /// print in full for every fixture.
+    static DUMP: LazyLock<u32> = LazyLock::new(|| {
+        std::env::var("RSVELTE_AST_DUAL_RUN_DUMP")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
+    });
+
     thread_local! {
-        static TALLY: StdRefCell<Vec<(&'static str, u32, u32)>> =
-            const { StdRefCell::new(Vec::new()) };
+        static DUMPED: StdRefCell<Vec<(&'static str, u32)>> = const { StdRefCell::new(Vec::new()) };
+    }
+
+    fn dump(pass: &'static str, source: &str, left: Option<&str>, right: Option<&str>) {
+        let budget = *DUMP;
+        if budget == 0 {
+            return;
+        }
+        let seen = DUMPED.with(|d| {
+            let mut d = d.borrow_mut();
+            match d.iter_mut().find(|(name, _)| *name == pass) {
+                Some(entry) => {
+                    entry.1 += 1;
+                    entry.1
+                }
+                None => {
+                    d.push((pass, 1));
+                    1
+                }
+            }
+        });
+        if seen > budget {
+            return;
+        }
+        eprintln!("=== {pass} mismatch #{seen} ===");
+        eprintln!("--- input ---\n{source}");
+        eprintln!("--- spliced ---\n{}", left.unwrap_or("<unparseable>"));
+        eprintln!("--- in place ---\n{}", right.unwrap_or("<unparseable>"));
+    }
+
+    thread_local! {
+        static TALLY: StdRefCell<Vec<Entry>> = const { StdRefCell::new(Vec::new()) };
+    }
+
+    /// `(pass, runs, mismatches, unverified)`.
+    pub type Entry = (&'static str, u32, u32, u32);
+
+    /// What one scored run established about a pass.
+    enum Verdict {
+        Match,
+        Mismatch,
+        /// The comparison never happened — normalisation could not read one or
+        /// both sides. Kept apart from `Match` because a no-op satisfies "no
+        /// mismatch" just as well as a faithful port does.
+        Unverified,
+    }
+
+    fn record(pass: &'static str, verdict: &Verdict) {
+        let mismatch = u32::from(matches!(verdict, Verdict::Mismatch));
+        let unverified = u32::from(matches!(verdict, Verdict::Unverified));
+        TALLY.with(|t| {
+            let mut t = t.borrow_mut();
+            match t.iter_mut().find(|(name, ..)| *name == pass) {
+                Some(entry) => {
+                    entry.1 += 1;
+                    entry.2 += mismatch;
+                    entry.3 += unverified;
+                }
+                None => t.push((pass, 1, mismatch, unverified)),
+            }
+        });
     }
 
     #[inline]
@@ -466,18 +535,44 @@ pub mod dual_run {
         static NORMALIZE_ARENA: RefCell<Allocator> = RefCell::new(Allocator::default());
     }
 
-    /// `esrap(parse(source))` — the single normalisation both sides of a
-    /// comparison pass through. `None` when `source` does not parse, which is
-    /// not a verdict: an intermediate that no longer parses is the splice
-    /// pipeline's own business, not evidence about the pass.
-    pub fn normalize(source: &str) -> Option<String> {
+    /// How `normalize` managed to read a fragment. Part of the compared value:
+    /// two sides that needed different shapes to parse did different things,
+    /// even when the printed text coincides.
+    #[derive(PartialEq, Eq, Debug)]
+    pub enum Shape {
+        /// Parses as a module on its own.
+        Bare,
+        /// Only parses as class members, so it is a method-body fragment
+        /// extracted without its enclosing `class`.
+        ClassBody,
+    }
+
+    /// Class wrapper for fragments that Phase-3 passes hand around without
+    /// their enclosing `class`, mirroring what those passes parse with.
+    const CLASS_PREFIX: &str = "class _Dummy_ {\n";
+
+    fn print_normalized(source: &str) -> Option<String> {
         with_program(
             &NORMALIZE_ARENA,
             source,
             SourceType::mjs(),
-            ParseOptions::default(),
+            ParseOptions {
+                allow_return_outside_function: true,
+                ..ParseOptions::default()
+            },
             |program| Some(rsvelte_esrap::print(program, source)),
         )
+    }
+
+    /// `esrap(parse(source))` — the single normalisation both sides of a
+    /// comparison pass through. `None` when `source` reads in neither shape,
+    /// which is not a verdict but an admission that nothing was established.
+    pub fn normalize(source: &str) -> Option<(Shape, String)> {
+        if let Some(printed) = print_normalized(source) {
+            return Some((Shape::Bare, printed));
+        }
+        let wrapped = format!("{CLASS_PREFIX}{source}\n}}");
+        print_normalized(&wrapped).map(|printed| (Shape::ClassBody, printed))
     }
 
     /// Record whether esrap normalisation is a fixed point for `output`.
@@ -488,20 +583,19 @@ pub mod dual_run {
         if !enabled() {
             return;
         }
-        let Some(once) = normalize(output) else {
-            return;
-        };
-        let stable = normalize(&once).is_some_and(|twice| twice == once);
-        TALLY.with(|t| {
-            let mut t = t.borrow_mut();
-            match t.iter_mut().find(|(name, ..)| *name == pass) {
-                Some(entry) => {
-                    entry.1 += 1;
-                    entry.2 += u32::from(!stable);
+        let verdict = match normalize(output) {
+            None => Verdict::Unverified,
+            // A wrapped fragment prints as a whole class, which then reads bare,
+            // so only the text can be a fixed point here — not the shape.
+            Some((_, once)) => {
+                if normalize(&once).is_some_and(|(_, twice)| twice == once) {
+                    Verdict::Match
+                } else {
+                    Verdict::Mismatch
                 }
-                None => t.push((pass, 1, u32::from(!stable))),
             }
-        });
+        };
+        record(pass, &verdict);
     }
 
     /// Score a ported pass: does the `&mut Program` path land where the splice
@@ -530,29 +624,29 @@ pub mod dual_run {
         }
         let left = spliced.map_or_else(|| normalize(source), normalize);
         let right = ast.map_or_else(|| normalize(source), normalize);
-        let agreed = match (left, right) {
-            (Some(l), Some(r)) => l == r,
-            // Neither side parsing is not a disagreement about the rewrite.
-            (None, None) => true,
-            _ => false,
+        let verdict = match (&left, &right) {
+            (Some(l), Some(r)) if l == r => Verdict::Match,
+            // Only one side reaching an AST is itself a disagreement.
+            (Some(_), Some(_)) | (Some(_), None) | (None, Some(_)) => Verdict::Mismatch,
+            // Nothing was compared, so nothing was established.
+            (None, None) => Verdict::Unverified,
         };
-        TALLY.with(|t| {
-            let mut t = t.borrow_mut();
-            match t.iter_mut().find(|(name, ..)| *name == pass) {
-                Some(entry) => {
-                    entry.1 += 1;
-                    entry.2 += u32::from(!agreed);
-                }
-                None => t.push((pass, 1, u32::from(!agreed))),
-            }
-        });
+        if matches!(verdict, Verdict::Mismatch) {
+            dump(
+                pass,
+                source,
+                left.as_ref().map(|(_, t)| t.as_str()),
+                right.as_ref().map(|(_, t)| t.as_str()),
+            );
+        }
+        record(pass, &verdict);
     }
 
-    /// `(pass, runs, mismatches)` for this thread, sorted by run count.
-    pub fn tally() -> Vec<(&'static str, u32, u32)> {
+    /// `(pass, runs, mismatches, unverified)` for this thread, by run count.
+    pub fn tally() -> Vec<Entry> {
         TALLY.with(|t| {
             let mut v = t.borrow().clone();
-            v.sort_by_key(|&(_, runs, _)| std::cmp::Reverse(runs));
+            v.sort_by_key(|&(_, runs, ..)| std::cmp::Reverse(runs));
             v
         })
     }
