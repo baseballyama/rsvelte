@@ -51,6 +51,42 @@ pub(crate) fn format_bind_directive(bind: &BindDirective, source: &str) -> Strin
     format!("\"bind:{}\":{},", bind.name, expr_text)
 }
 
+/// Component-side prop text for a `bind:` directive: `foo:expr,`, or the
+/// shorthand `expr,` when written as bare `bind:foo`. `bind:this` contributes
+/// no prop (it is applied as an assignment after the create call). Mirrors the
+/// `InlineComponent` branch of upstream `Binding.ts`.
+pub(crate) fn format_component_bind_directive(
+    bind: &BindDirective,
+    source: &str,
+) -> Option<String> {
+    if bind.name == "this" {
+        return None;
+    }
+    let expr_range = get_expression_range(&bind.expression);
+    let get_set = get_set_binding_ranges(&bind.expression, source);
+    let is_shorthand = get_set.is_none()
+        && expr_range.is_some_and(|(s, _)| s == bind.start + "bind:".len() as u32);
+    if let Some((s, e)) = expr_range
+        && is_shorthand
+    {
+        return Some(format!("{},", slice_src(source, s as usize, e as usize)));
+    }
+    let value = if let Some(((gs, ge), (ss, se))) = get_set {
+        format!(
+            "__sveltets_2_get_set_binding({},{})",
+            slice_src(source, gs as usize, ge as usize),
+            slice_src(source, ss as usize, se as usize),
+        )
+    } else if let Some((s, e)) = expr_range {
+        // Keep a trailing TS postfix the parser narrowed out of the span.
+        let e = extend_expr_end_with_ts_postfix(source, e, bind.end);
+        slice_src(source, s as usize, e as usize).to_string()
+    } else {
+        get_expression_text(&bind.expression, source).to_string()
+    };
+    Some(format!("{}:{},", bind.name, value))
+}
+
 /// One-way HTML element bindings whose value reflects an element property
 /// (`clientWidth`, etc.). Mirrors the JS reference's `oneWayBindingAttributes`
 /// in `htmlxtojsx_v2/nodes/Binding.ts`.

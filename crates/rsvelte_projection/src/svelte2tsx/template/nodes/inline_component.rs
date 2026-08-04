@@ -10,7 +10,7 @@ use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, slice_src};
 
 use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
-use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
+use crate::svelte2tsx::template::attributes::binding::format_component_bind_directive;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_component_directive_suffix;
 use crate::svelte2tsx::template::attributes::event_handler::{build_on_calls, get_on_directives};
@@ -41,6 +41,58 @@ use super::component_slots::{
 };
 use super::slot_element::slot_attr_static_name;
 use super::snippet_block::handle_snippet_block_as_component_prop;
+
+/// Post-create-call statements every inline component emits for its `bind:`
+/// directives: the `bind:this` assignment plus, per two-way binding, a setter
+/// type-widener and the `$$bindings` marker.
+fn build_component_bind_suffix(attributes: &[Attribute], source: &str, inst_var: &str) -> String {
+    let mut out = String::new();
+    for attr in attributes {
+        let Attribute::BindDirective(bind) = attr else {
+            continue;
+        };
+        if bind.name == "this" {
+            // `bind:this={getFn, setFn}` (Svelte 5 function binding) calls the
+            // setter with the instance instead of assigning to it.
+            if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+                let _ = write!(
+                    out,
+                    "({})({});",
+                    slice_src(source, ss as usize, se as usize),
+                    inst_var
+                );
+            } else {
+                // A trailing TS assertion the parser stripped off the LHS moves
+                // onto the RHS instance var: `pane = $$_inst as Pane;`.
+                let expr_text = get_binding_lhs_text(&bind.expression, source);
+                let postfix = get_expression_range(&bind.expression)
+                    .map(|(_, e)| {
+                        let ge =
+                            get_expression_end_stripping_ts(&bind.expression, source).unwrap_or(e);
+                        let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                        slice_src(source, ge as usize, ee as usize)
+                    })
+                    .unwrap_or("");
+                let _ = write!(out, "{} = {}{};", expr_text, inst_var, postfix);
+            }
+            continue;
+        }
+        if get_set_binding_ranges(&bind.expression, source).is_some() {
+            // A get/set pair is already type-checked through
+            // `__sveltets_2_get_set_binding(...)` in the props literal, so the
+            // type-widener is skipped.
+            let _ = write!(out, "{}.$$bindings = '{}';", inst_var, bind.name);
+            continue;
+        }
+        let expr_text = get_binding_lhs_text(&bind.expression, source);
+        let _ = write!(
+            out,
+            "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
+            expr_text, inst_var, bind.name
+        );
+    }
+    out
+}
 
 /// The `</Component>` → `Component}` mapping upstream keeps for the closing tag.
 /// The `svelte:` tags keep nothing there, and neither does a component whose
@@ -261,63 +313,7 @@ pub(crate) fn handle_component(
     //   `() => expr = __sveltets_2_any(null); inst.$$bindings = 'name';`
     // is appended (as ignore-wrapped statements) for every non-`bind:this`
     // binding on a component.
-    let component_bind_suffix = {
-        let mut out = String::new();
-        for attr in &comp.attributes {
-            if let Attribute::BindDirective(bind) = attr {
-                if bind.name == "this" {
-                    // `bind:this={getFn, setFn}` (Svelte 5 function binding) calls
-                    // the setter with the instance: `(setFn)(inst);` (mirrors
-                    // Binding.ts). Plain `bind:this={x}` → `x = inst;`.
-                    if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
-                        let _ = write!(
-                            out,
-                            "({})({});",
-                            slice_src(source, ss as usize, se as usize),
-                            inst_var
-                        );
-                    } else {
-                        // The assignment LHS strips a trailing TS assertion
-                        // (`getEnd`); a `bind:this={consolePane as Pane}` postfix
-                        // moves onto the RHS instance var:
-                        // `consolePane = $$_inst as Pane;` — same as the element
-                        // `bind:this` path (mirrors Binding.ts appending
-                        // `[getEnd, expression.end]` after the assignment).
-                        let expr_text = get_binding_lhs_text(&bind.expression, source);
-                        let postfix = get_expression_range(&bind.expression)
-                            .map(|(_, e)| {
-                                let ge = get_expression_end_stripping_ts(&bind.expression, source)
-                                    .unwrap_or(e);
-                                let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                                slice_src(source, ge as usize, ee as usize)
-                            })
-                            .unwrap_or("");
-                        let _ = write!(out, "{} = {}{};", expr_text, inst_var, postfix);
-                    }
-                    continue;
-                }
-                if get_set_binding_ranges(&bind.expression, source).is_some() {
-                    // Function binding `bind:foo={getFn, setFn}`: the get/set
-                    // pair is already type-checked via
-                    // `__sveltets_2_get_set_binding(...)` in the props literal,
-                    // so the `() => expr = __sveltets_2_any(null)` type-widener
-                    // is skipped (mirrors the `if (!isGetSetBinding)` guard in
-                    // upstream `handleBinding`). Only the `$$bindings` marker
-                    // is emitted.
-                    let _ = write!(out, "{}.$$bindings = '{}';", inst_var, bind.name);
-                    continue;
-                }
-                // Setter type-widener: LHS strips a trailing TS assertion.
-                let expr_text = get_binding_lhs_text(&bind.expression, source);
-                let _ = write!(
-                    out,
-                    "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
-                    expr_text, inst_var, bind.name
-                );
-            }
-        }
-        out
-    };
+    let component_bind_suffix = build_component_bind_suffix(&comp.attributes, source, &inst_var);
     let (header_lit, trailer_lit) = if needs_instance {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
@@ -620,42 +616,7 @@ pub(crate) fn handle_svelte_component(
         .attributes
         .iter()
         .any(|a| matches!(a, Attribute::BindDirective(_)));
-    // Build the bind suffix (same shape as `handle_component`'s
-    // `component_bind_suffix`).
-    let component_bind_suffix = {
-        let mut out = String::new();
-        for attr in &comp.attributes {
-            if let Attribute::BindDirective(bind) = attr {
-                if bind.name == "this" {
-                    // LHS strips a trailing TS assertion; a postfix moves onto the
-                    // RHS instance var (mirrors Binding.ts / the element path).
-                    let bexpr = get_binding_lhs_text(&bind.expression, source);
-                    let postfix = get_expression_range(&bind.expression)
-                        .map(|(_, e)| {
-                            let ge = get_expression_end_stripping_ts(&bind.expression, source)
-                                .unwrap_or(e);
-                            let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                            slice_src(source, ge as usize, ee as usize)
-                        })
-                        .unwrap_or("");
-                    let _ = write!(out, "{} = {}{};", bexpr, inst_var, postfix);
-                    continue;
-                }
-                if get_set_binding_ranges(&bind.expression, source).is_some() {
-                    let _ = write!(out, "{}.$$bindings = '{}';", inst_var, bind.name);
-                    continue;
-                }
-                // Setter type-widener: LHS strips a trailing TS assertion.
-                let bexpr = get_binding_lhs_text(&bind.expression, source);
-                let _ = write!(
-                    out,
-                    "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
-                    bexpr, inst_var, bind.name
-                );
-            }
-        }
-        out
-    };
+    let component_bind_suffix = build_component_bind_suffix(&comp.attributes, source, &inst_var);
     // Need an instance variable when there are `on:` events, `let:` directives,
     // `bind:` directives, or children that reference the instance's slot defs
     // (named-slot children anywhere in blocks, or default-slot `let:` receivers).
@@ -844,7 +805,12 @@ pub(crate) fn handle_svelte_self(
                     }
                 }
                 Attribute::BindDirective(bind) => {
-                    prop_parts.push(format_bind_directive(bind, source));
+                    // `<svelte:self>` is an inline component upstream, so a
+                    // binding is a plain prop (`value:x,`), never the element
+                    // form (`"bind:value":x,`).
+                    if let Some(s) = format_component_bind_directive(bind, source) {
+                        prop_parts.push(s);
+                    }
                 }
                 _ => {}
             },
@@ -900,10 +866,25 @@ pub(crate) fn handle_svelte_self(
     // `$$slot_def`, which forces the `const $$_svelteselfN = …` form.
     let children_have_named_slots = has_named_slot_children(&el.fragment);
     let children_have_default_slot_lets = has_default_slot_let_children(&el.fragment);
+    // Direct `{#snippet}` children become implicit props, but only on the simple
+    // children path — the slot paths own their own block scoping.
+    let use_snippet_props =
+        !(has_lets || children_have_named_slots || children_have_default_slot_lets)
+            && el
+                .fragment
+                .nodes
+                .iter()
+                .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+    let has_bindings = el
+        .attributes
+        .iter()
+        .any(|a| matches!(a, Attribute::BindDirective(_)));
     let needs_inst_var = has_on_directives
         || has_lets
         || children_have_named_slots
-        || children_have_default_slot_lets;
+        || children_have_default_slot_lets
+        || use_snippet_props
+        || has_bindings;
     // Use depth as the instance variable index, mirroring official InlineComponent.ts
     // `this._name = '$$_svelteself' + this.computeDepth()`.
     let var_name = if needs_inst_var {
@@ -922,23 +903,32 @@ pub(crate) fn handle_svelte_self(
     };
     let create_call = if let Some(ref name) = var_name {
         format!(
-            "{}{{ const {} = __sveltets_2_createComponentAny({{{}}});",
+            "{}{{ const {} = __sveltets_2_createComponentAny({{{}",
             block_indent, name, props_inner
         )
     } else {
         format!(
-            "{}{{ __sveltets_2_createComponentAny({{{}}});",
+            "{}{{ __sveltets_2_createComponentAny({{{}",
             block_indent, props_inner
         )
     };
 
-    let mut opener = create_call;
+    // Closes the props object, then the `bind:` statements and the `$on()`
+    // registrations — the same order official's transformation array emits.
+    let trailer_lit = match var_name {
+        Some(ref name) => format!(
+            "}});{}{}",
+            build_component_bind_suffix(&el.attributes, source, name),
+            build_on_calls(name, &on_directives, source)
+        ),
+        None => "});".to_string(),
+    };
 
-    // Inline `$on()` registration immediately after the const declaration.
-    // Shared with `handle_component` so the emitted call text (no trailing
-    // space before the next statement) matches official's `addEvent`.
-    if let Some(ref name) = var_name {
-        opener.push_str(&build_on_calls(name, &on_directives, source));
+    let mut opener = create_call;
+    // The snippet-prop path leaves the props object open so the relocated
+    // `{#snippet}` props can be appended inside it.
+    if !use_snippet_props {
+        opener.push_str(&trailer_lit);
     }
 
     // `let:` directives become a `{const { $$_$$, name, ... } = inst.$$slot_def.default; $$_$$;`
@@ -989,6 +979,55 @@ pub(crate) fn handle_svelte_self(
             counter,
             depth + 1,
         )
+    } else if use_snippet_props {
+        let inst_var = var_name
+            .as_deref()
+            .expect("snippet props require an instance variable name");
+        counter.slot_inst = var_name.clone();
+        // A snippet already sitting at the anchor is in place — moving it would
+        // be a forbidden self-move — so the anchor just advances past it.
+        let mut anchor = opening_tag_end;
+        let mut last_snippet_end: Option<u32> = None;
+        let mut snippet_names: Vec<String> = Vec::new();
+        for node in &el.fragment.nodes {
+            if let TemplateNode::SnippetBlock(s) = node {
+                if s.start >= s.end {
+                    continue;
+                }
+                snippet_names.push(get_expression_text(&s.expression, source).to_string());
+                handle_snippet_block_as_component_prop(s, source, options, str, counter, depth + 1);
+                if s.start == anchor {
+                    anchor = s.end;
+                } else {
+                    str.move_range(s.start, s.end, anchor);
+                }
+                last_snippet_end = Some(s.end);
+            } else {
+                process_node_inplace(node, source, options, str, counter, depth + 1);
+            }
+        }
+        counter.slot_inst = None;
+        // Destructuring from `$$prop_def` anchors each snippet's contextual
+        // `Snippet<[Args]>` parameter types.
+        let prop_def_suffix = if snippet_names.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "/*\u{03A9}ignore_start\u{03A9}*/const {{{}}} = {}.$$prop_def;/*\u{03A9}ignore_end\u{03A9}*/",
+                snippet_names.join(", "),
+                inst_var
+            )
+        };
+        let closing = format!("{trailer_lit}{prop_def_suffix}");
+        match last_snippet_end {
+            Some(end) => {
+                str.append_left(end, &closing);
+            }
+            None => {
+                str.prepend_right(opening_tag_end, &closing);
+            }
+        }
+        false
     } else {
         // Still publish the slot context (as `handle_svelte_component` does) so
         // a descendant that reaches for `$$slot_def` without being detected
