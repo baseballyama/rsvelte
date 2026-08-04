@@ -770,7 +770,7 @@ fn run_validator_tests() -> CategoryResult {
                 }
                 Err(e) => {
                     if let Some(expected) = &expected_error {
-                        let verdict = check_validator_error(expected, &e);
+                        let verdict = check_validator_error(expected, &e, &input);
                         let outcome = validator_error_result(&name, verdict);
                         let details = SampleDetails {
                             errors_matched: Some(outcome.is_ok()),
