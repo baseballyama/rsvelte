@@ -180,17 +180,9 @@ pub fn transform_private_class_assign_ast(
     other_qualified: &[String],
 ) -> Option<String> {
     let spliced = transform_private_class_assign_spliced(source, state_qualified, other_qualified);
-    if ast_rewrite::dual_run::enabled() {
-        let in_place =
-            transform_private_class_assign_in_place(source, state_qualified, other_qualified);
-        ast_rewrite::dual_run::compare_pass(
-            "private_class_assign_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+    ast_rewrite::dual_run::resolve("private_class_assign_ast:inplace", source, spliced, || {
+        transform_private_class_assign_in_place(source, state_qualified, other_qualified)
+    })
 }
 
 fn transform_private_class_assign_spliced(

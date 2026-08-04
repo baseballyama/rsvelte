@@ -63,16 +63,9 @@ pub fn transform_store_member_mutate_ast_with_props(
     prop_store_names: &[String],
 ) -> Option<String> {
     let spliced = transform_store_member_mutate_spliced(source, store_subs, prop_store_names);
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_store_member_mutate_in_place(source, store_subs, prop_store_names);
-        ast_rewrite::dual_run::compare_pass(
-            "store_member_mutate_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+    ast_rewrite::dual_run::resolve("store_member_mutate_ast:inplace", source, spliced, || {
+        transform_store_member_mutate_in_place(source, store_subs, prop_store_names)
+    })
 }
 
 fn transform_store_member_mutate_spliced(

@@ -67,16 +67,9 @@ thread_local! {
 /// nothing to rewrite or the source fails to parse.
 pub fn transform_prop_assign_ast(source: &str, prop_vars: &[String]) -> Option<String> {
     let spliced = transform_prop_assign_spliced(source, prop_vars);
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_prop_assign_in_place(source, prop_vars);
-        ast_rewrite::dual_run::compare_pass(
-            "prop_assign_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+    ast_rewrite::dual_run::resolve("prop_assign_ast:inplace", source, spliced, || {
+        transform_prop_assign_in_place(source, prop_vars)
+    })
 }
 
 fn transform_prop_assign_spliced(source: &str, prop_vars: &[String]) -> Option<String> {

@@ -69,22 +69,15 @@ pub fn transform_store_update_ast(
         state_vars,
         non_reactive_state_vars,
     );
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_store_update_in_place(
+    ast_rewrite::dual_run::resolve("store_update_ast:inplace", source, spliced, || {
+        transform_store_update_in_place(
             source,
             store_sub_vars,
             prop_vars,
             state_vars,
             non_reactive_state_vars,
-        );
-        ast_rewrite::dual_run::compare_pass(
-            "store_update_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+        )
+    })
 }
 
 fn transform_store_update_spliced(

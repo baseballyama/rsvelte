@@ -82,21 +82,14 @@ pub fn transform_prop_member_mutate_ast(
         non_bindable_prop_vars,
         prop_invalidate_bodies,
     );
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_prop_member_mutate_in_place(
+    ast_rewrite::dual_run::resolve("prop_member_mutate_ast:inplace", source, spliced, || {
+        transform_prop_member_mutate_in_place(
             source,
             prop_vars,
             non_bindable_prop_vars,
             prop_invalidate_bodies,
-        );
-        ast_rewrite::dual_run::compare_pass(
-            "prop_member_mutate_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+        )
+    })
 }
 
 fn transform_prop_member_mutate_spliced(

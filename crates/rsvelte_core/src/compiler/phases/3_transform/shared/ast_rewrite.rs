@@ -473,6 +473,9 @@ pub mod dual_run {
     static ENABLED: LazyLock<bool> =
         LazyLock::new(|| std::env::var_os("RSVELTE_AST_DUAL_RUN").is_some());
 
+    static PREFER_IN_PLACE: LazyLock<bool> =
+        LazyLock::new(|| std::env::var_os("RSVELTE_AST_IN_PLACE").is_some());
+
     /// How many mismatching runs per pass to dump both sides of. A bare count
     /// says a port is wrong but not how, and the two sides are far too large to
     /// print in full for every fixture.
@@ -550,6 +553,37 @@ pub mod dual_run {
     #[inline]
     pub fn enabled() -> bool {
         *ENABLED
+    }
+
+    /// Whether a ported pass returns its in-place result instead of the spliced
+    /// one. Off unless asked for, so production behaviour is untouched; the
+    /// real flip is a separate decision, and this exists so its effect on the
+    /// corpus can be measured before that decision is made.
+    #[inline]
+    pub fn prefer_in_place() -> bool {
+        *PREFER_IN_PLACE
+    }
+
+    /// Run a ported pass's in-place path and decide which result the pass
+    /// returns.
+    ///
+    /// The in-place path costs a parse and a print, so it is skipped entirely
+    /// unless the gate or the flip asks for it. Under the flip its result is
+    /// returned as-is — including `None` where the spliced path rewrote —
+    /// because falling back there would hide exactly the disagreement the gate
+    /// exists to surface.
+    pub fn resolve(
+        pass: &'static str,
+        source: &str,
+        spliced: Option<String>,
+        in_place: impl FnOnce() -> Option<String>,
+    ) -> Option<String> {
+        if !enabled() && !prefer_in_place() {
+            return spliced;
+        }
+        let in_place = in_place();
+        compare_pass(pass, source, spliced.as_deref(), in_place.as_deref());
+        if prefer_in_place() { in_place } else { spliced }
     }
 
     /// Which implementation of a pass did the work being counted.

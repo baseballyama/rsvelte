@@ -104,24 +104,16 @@ pub fn transform_state_pipeline_ast(
         )
     });
 
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_state_pipeline_in_place(
+    ast_rewrite::dual_run::resolve("state_pipeline_ast:inplace", source, spliced, || {
+        transform_state_pipeline_in_place(
             source,
             state_vars,
             raw_state_vars,
             is_runes,
             non_proxy_vars,
             &effective_read_names,
-        );
-        ast_rewrite::dual_run::compare_pass(
-            "state_pipeline_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-
-    spliced
+        )
+    })
 }
 
 fn single_pass(

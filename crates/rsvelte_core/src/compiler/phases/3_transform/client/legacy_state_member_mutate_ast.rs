@@ -74,22 +74,20 @@ pub fn transform_legacy_state_member_mutate_ast(
         raw_state_vars,
         invalidate_bodies,
     );
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_legacy_state_member_mutate_in_place(
-            source,
-            state_vars,
-            non_reactive_state_vars,
-            raw_state_vars,
-            invalidate_bodies,
-        );
-        ast_rewrite::dual_run::compare_pass(
-            "legacy_state_member_mutate_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+    ast_rewrite::dual_run::resolve(
+        "legacy_state_member_mutate_ast:inplace",
+        source,
+        spliced,
+        || {
+            transform_legacy_state_member_mutate_in_place(
+                source,
+                state_vars,
+                non_reactive_state_vars,
+                raw_state_vars,
+                invalidate_bodies,
+            )
+        },
+    )
 }
 
 fn transform_legacy_state_member_mutate_spliced(

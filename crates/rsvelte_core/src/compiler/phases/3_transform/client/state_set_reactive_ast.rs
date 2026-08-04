@@ -52,16 +52,9 @@ pub fn transform_state_set_reactive_ast(
     non_reactive_vars: &[String],
 ) -> Option<String> {
     let spliced = transform_state_set_reactive_spliced(source, state_vars, non_reactive_vars);
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_state_set_reactive_in_place(source, state_vars, non_reactive_vars);
-        ast_rewrite::dual_run::compare_pass(
-            "state_set_reactive_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+    ast_rewrite::dual_run::resolve("state_set_reactive_ast:inplace", source, spliced, || {
+        transform_state_set_reactive_in_place(source, state_vars, non_reactive_vars)
+    })
 }
 
 fn transform_state_set_reactive_spliced(

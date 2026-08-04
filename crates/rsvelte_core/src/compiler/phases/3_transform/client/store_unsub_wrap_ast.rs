@@ -53,16 +53,9 @@ pub fn transform_store_unsub_wrap_ast(
     store_sub_vars: &[String],
 ) -> Option<String> {
     let spliced = transform_store_unsub_wrap_spliced(source, state_vars, store_sub_vars);
-    if ast_rewrite::dual_run::enabled() {
-        let in_place = transform_store_unsub_wrap_in_place(source, state_vars, store_sub_vars);
-        ast_rewrite::dual_run::compare_pass(
-            "store_unsub_wrap_ast:inplace",
-            source,
-            spliced.as_deref(),
-            in_place.as_deref(),
-        );
-    }
-    spliced
+    ast_rewrite::dual_run::resolve("store_unsub_wrap_ast:inplace", source, spliced, || {
+        transform_store_unsub_wrap_in_place(source, state_vars, store_sub_vars)
+    })
 }
 
 fn transform_store_unsub_wrap_spliced(
