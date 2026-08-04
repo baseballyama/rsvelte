@@ -31,9 +31,9 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "base64"
-version = "0.22.1"
+version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "base64-simd"
@@ -104,21 +104,6 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "compact_str"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dfdd1c2274d9aa354115b09dc9a901d6c5576818cdf70d14cae2bdb47df00ab"
-dependencies = [
- "castaway",
- "cfg-if",
- "itoa",
- "rustversion",
- "ryu",
- "serde",
- "static_assertions",
-]
-
-[[package]]
-name = "compact_str"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79fcda08c33bb58b97008b2cdada6622500e949e060f5913361763121abd2416"
@@ -133,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_client"
-version = "1.0.0-beta.5"
+version = "1.5.0"
 dependencies = [
  "base64",
  "corsa_core",
@@ -149,11 +134,11 @@ dependencies = [
 
 [[package]]
 name = "corsa_core"
-version = "1.0.0-beta.5"
+version = "1.5.0"
 dependencies = [
  "base64",
  "bumpalo",
- "compact_str 0.9.1",
+ "compact_str",
  "memchr",
  "rustc-hash",
  "serde",
@@ -164,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_jsonrpc"
-version = "1.0.0-beta.5"
+version = "1.5.0"
 dependencies = [
  "corsa_core",
  "corsa_runtime",
@@ -176,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_runtime"
-version = "1.0.0-beta.5"
+version = "1.5.0"
 dependencies = [
  "smallvec",
 ]
@@ -854,7 +839,7 @@ name = "oxc_span"
 version = "0.142.0"
 source = "git+https://github.com/oxc-project/oxc?rev=65fe65d8429e1d1bdf86c517ff08bd119ee87660#65fe65d8429e1d1bdf86c517ff08bd119ee87660"
 dependencies = [
- "compact_str 0.10.0",
+ "compact_str",
  "oxc-miette",
  "oxc_allocator",
  "oxc_ast_macros",
@@ -868,7 +853,7 @@ name = "oxc_str"
 version = "0.142.0"
 source = "git+https://github.com/oxc-project/oxc?rev=65fe65d8429e1d1bdf86c517ff08bd119ee87660#65fe65d8429e1d1bdf86c517ff08bd119ee87660"
 dependencies = [
- "compact_str 0.10.0",
+ "compact_str",
  "hashbrown",
  "oxc_allocator",
  "oxc_estree",
@@ -1084,7 +1069,7 @@ name = "rsvelte_core"
 version = "0.10.3"
 dependencies = [
  "bumpalo",
- "compact_str 0.10.0",
+ "compact_str",
  "im",
  "indexmap",
  "itoa",
@@ -1123,7 +1108,7 @@ dependencies = [
 name = "rsvelte_esrap"
 version = "0.9.0"
 dependencies = [
- "compact_str 0.10.0",
+ "compact_str",
  "memchr",
  "oxc_allocator",
  "oxc_ast",
@@ -1136,7 +1121,7 @@ name = "rsvelte_lint"
 version = "0.10.3"
 dependencies = [
  "anyhow",
- "compact_str 0.10.0",
+ "compact_str",
  "oxc_allocator",
  "oxc_ast",
  "oxc_parser",
