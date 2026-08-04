@@ -4,8 +4,9 @@
 //!
 //! Load-independent: the replayed scanner runs next to the current one on the
 //! same inputs, so the totals are "what the old code would have allocated"
-//! against the current code's zero at those sites. Requires the instrumentation
-//! feature:
+//! against the current code's zero at those sites. The same run also compares
+//! the two scanners' verdicts, so a nonzero mismatch count means the refactor
+//! changed behavior. Requires the instrumentation feature:
 //!
 //! ```text
 //! cargo run --profile profiling -p rsvelte_devtools --bin await_alloc_count \
@@ -89,7 +90,7 @@ fn main() {
             },
         );
     }
-    let (calls, input_bytes, word_async, rest, rest_again, word_await, alloc_bytes) =
+    let (calls, input_bytes, word_async, rest, rest_again, word_await, alloc_bytes, mismatch) =
         measure_await::snapshot();
 
     let n = files.len() as f64;
@@ -113,4 +114,5 @@ fn main() {
         total as f64 / n
     );
     println!("new code allocates 0 at these four sites");
+    println!("verdict mismatches (old vs new): {mismatch}");
 }

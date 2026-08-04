@@ -5,7 +5,9 @@
 //! observed allocations rather than a model of them. Running it alongside the
 //! current scanner gives "what the old code would have allocated" against
 //! "what the new code allocates" (zero at these four sites) without needing a
-//! quiet machine. Requires the instrumentation feature:
+//! quiet machine. It doubles as a differential oracle: every call compares the
+//! old verdict against the new one and counts disagreements. Requires the
+//! instrumentation feature:
 //!
 //! ```text
 //! cargo run --profile profiling -p rsvelte_devtools --bin await_alloc_count \
@@ -26,6 +28,8 @@ thread_local! {
     /// Per-position 5-char `word` built before the `"await"` test.
     static WORD_AWAIT: Cell<u64> = const { Cell::new(0) };
     static ALLOC_BYTES: Cell<u64> = const { Cell::new(0) };
+    /// Calls where the replayed scanner disagreed with the current one.
+    static MISMATCH: Cell<u64> = const { Cell::new(0) };
 }
 
 fn bump(counter: &'static std::thread::LocalKey<Cell<u64>>, bytes: usize) {
@@ -37,9 +41,9 @@ fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
 
-/// `(calls, input_bytes, word_async, rest, rest_again, word_await, alloc_bytes)`
-/// since the last reset.
-pub fn snapshot() -> (u64, u64, u64, u64, u64, u64, u64) {
+/// `(calls, input_bytes, word_async, rest, rest_again, word_await, alloc_bytes,
+/// mismatch)` since the last reset.
+pub fn snapshot() -> (u64, u64, u64, u64, u64, u64, u64, u64) {
     (
         CALLS.with(|c| c.get()),
         INPUT_BYTES.with(|c| c.get()),
@@ -48,6 +52,7 @@ pub fn snapshot() -> (u64, u64, u64, u64, u64, u64, u64) {
         REST_AGAIN.with(|c| c.get()),
         WORD_AWAIT.with(|c| c.get()),
         ALLOC_BYTES.with(|c| c.get()),
+        MISMATCH.with(|c| c.get()),
     )
 }
 
@@ -59,14 +64,22 @@ pub fn reset() {
     REST_AGAIN.with(|c| c.set(0));
     WORD_AWAIT.with(|c| c.set(0));
     ALLOC_BYTES.with(|c| c.set(0));
+    MISMATCH.with(|c| c.set(0));
 }
 
 /// Replay the pre-refactor scan of `expr`, counting every `String` it builds at
-/// the four sites the refactor removed.
-pub fn record(expr: &str) {
+/// the four sites the refactor removed, and compare its verdict against
+/// `new_result` so any behavior drift is counted rather than assumed absent.
+pub fn record(expr: &str, new_result: bool) {
     CALLS.with(|c| c.set(c.get() + 1));
     INPUT_BYTES.with(|c| c.set(c.get() + expr.len() as u64));
 
+    if replay(expr) != new_result {
+        MISMATCH.with(|c| c.set(c.get() + 1));
+    }
+}
+
+fn replay(expr: &str) -> bool {
     let chars: Vec<char> = expr.chars().collect();
     let mut i = 0;
     let mut in_string = false;
@@ -113,7 +126,7 @@ pub fn record(expr: &str) {
                 let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
                 let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
                 if before_ok && after_ok {
-                    return;
+                    return true;
                 }
             }
         }
@@ -146,4 +159,6 @@ pub fn record(expr: &str) {
 
         i += 1;
     }
+
+    false
 }

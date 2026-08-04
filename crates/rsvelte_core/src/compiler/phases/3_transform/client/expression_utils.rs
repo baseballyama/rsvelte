@@ -2148,10 +2148,14 @@ pub(super) fn is_top_level_function_call(expr: &str) -> bool {
 /// - `foo(await 1)` -> true
 /// - `async () => { return await 1; }` -> false (await is inside async function)
 pub(super) fn contains_direct_await_in_expression(expr: &str) -> bool {
-    const AWAIT: [char; 5] = ['a', 'w', 'a', 'i', 't'];
-
+    let found = scan_for_direct_await(expr);
     #[cfg(feature = "measure-await")]
-    crate::measure_await::record(expr);
+    crate::measure_await::record(expr, found);
+    found
+}
+
+fn scan_for_direct_await(expr: &str) -> bool {
+    const AWAIT: [char; 5] = ['a', 'w', 'a', 'i', 't'];
 
     let chars: Vec<char> = expr.chars().collect();
     let mut i = 0;
