@@ -395,9 +395,8 @@ pub mod dual_run {
             const { StdRefCell::new(Vec::new()) };
     }
 
-    /// The pass a call came from, named by its source file (`state_reads_ast`).
-    /// `#[track_caller]` on the driver entry points makes this the pass file
-    /// rather than this module, with no signature churn across 37 call sites.
+    // `#[track_caller]` on the driver entry points names the pass by its own
+    // source file, so no call site needs a pass-name parameter.
     thread_local! {
         static CURRENT: std::cell::Cell<Option<&'static str>> =
             const { std::cell::Cell::new(None) };
