@@ -28,6 +28,8 @@
 pub mod ast;
 pub mod compiler;
 pub mod error;
+#[cfg(feature = "measure-await")]
+pub mod measure_await;
 pub mod toolchain;
 
 pub use compiler::legacy::convert_to_legacy;

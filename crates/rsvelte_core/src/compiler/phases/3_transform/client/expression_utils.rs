@@ -2148,6 +2148,11 @@ pub(super) fn is_top_level_function_call(expr: &str) -> bool {
 /// - `foo(await 1)` -> true
 /// - `async () => { return await 1; }` -> false (await is inside async function)
 pub(super) fn contains_direct_await_in_expression(expr: &str) -> bool {
+    const AWAIT: [char; 5] = ['a', 'w', 'a', 'i', 't'];
+
+    #[cfg(feature = "measure-await")]
+    crate::measure_await::record(expr);
+
     let chars: Vec<char> = expr.chars().collect();
     let mut i = 0;
     let mut in_string = false;
@@ -2177,37 +2182,13 @@ pub(super) fn contains_direct_await_in_expression(expr: &str) -> bool {
             continue;
         }
 
-        // Check for 'async' keyword followed by function definition
-        if i + 5 <= chars.len() {
-            let word: String = chars[i..i + 5].iter().collect();
-            if word == "async" {
-                // Check if this is followed by function or arrow syntax
-                let rest: String = chars[i + 5..].iter().collect();
-                let rest_trimmed = rest.trim_start();
-                if rest_trimmed.starts_with("(")
-                    || rest_trimmed.starts_with("function")
-                    || chars[i + 5..]
-                        .iter()
-                        .collect::<String>()
-                        .trim_start()
-                        .starts_with("=>")
-                {
-                    // We found an async function, track depth when we see '{'
-                    // For now, just note we're in async context
-                }
-            }
-        }
-
         // Check for 'await' keyword at top level
-        if i + 5 <= chars.len() && async_fn_depth == 0 {
-            let word: String = chars[i..i + 5].iter().collect();
-            if word == "await" {
-                // Make sure it's a word boundary
-                let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
-                let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
-                if before_ok && after_ok {
-                    return true;
-                }
+        if i + 5 <= chars.len() && async_fn_depth == 0 && chars[i..i + 5] == AWAIT {
+            // Make sure it's a word boundary
+            let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+            let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
+            if before_ok && after_ok {
+                return true;
             }
         }
 
