@@ -28,7 +28,12 @@ fn main() {
         std::process::exit(1);
     }
 
-    let root = Path::new("submodules/svelte/packages/svelte/tests");
+    // A caller scoping the tally to one fixture subtree needs to say which.
+    let arg = std::env::args().nth(1);
+    let root = arg.as_deref().map_or_else(
+        || Path::new("submodules/svelte/packages/svelte/tests"),
+        Path::new,
+    );
     let mut files = Vec::new();
     collect(root, &mut files);
     files.sort();
