@@ -105,6 +105,49 @@ fn collect(dir: &Path, files: &mut Vec<(PathBuf, String)>) {
     }
 }
 
+/// Names the kind of object being allocated, from the innermost frame that says
+/// so. `serde_json` is checked before the generic string/map buckets because a
+/// `Map` insert underneath it is JSON materialization, not a caller's own map.
+fn categorize(names: &[String]) -> &'static str {
+    for name in names {
+        if name.contains("serde_json") || name.contains("JsNode as serde::ser::Serialize") {
+            return "serde_json";
+        }
+        if name.contains("indexmap") || name.contains("hashbrown") || name.contains("SipHash") {
+            return "hash/map";
+        }
+        if name.contains("alloc::string")
+            || name.contains("to_string")
+            || name.contains("to_owned")
+            || name.contains("push_str")
+            || name.contains("core::fmt")
+        {
+            return "string";
+        }
+        if name.contains("alloc::vec") || name.contains("RawVec") {
+            return "vec";
+        }
+        if name.contains("compact_str") {
+            return "compact_str";
+        }
+    }
+    "other"
+}
+
+fn is_rsvelte_source(path: &Path) -> bool {
+    path.to_str()
+        .is_some_and(|s| s.contains("/crates/rsvelte") && !s.contains("/crates/rsvelte_devtools"))
+}
+
+/// Keeps the crate-relative part so rows stay short and stable across checkouts.
+fn short_path(path: &Path) -> String {
+    let s = path.to_string_lossy();
+    match s.rfind("/crates/") {
+        Some(pos) => s[pos + "/crates/".len()..].to_string(),
+        None => s.into_owned(),
+    }
+}
+
 /// Strips the monomorphization hash and generic arguments so that samples from
 /// the same source function aggregate into one row.
 fn clean(name: &str) -> String {
@@ -197,6 +240,10 @@ fn main() {
     let mut by_frame: std::collections::HashMap<String, (u64, u64)> =
         std::collections::HashMap::new();
     let mut by_stack_top: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut by_category: std::collections::HashMap<&'static str, u64> =
+        std::collections::HashMap::new();
+    let mut by_category_site: std::collections::HashMap<(&'static str, String), u64> =
+        std::collections::HashMap::new();
 
     for (frames, depth, size) in &stacks {
         let mut names: Vec<String> = Vec::new();
@@ -204,8 +251,18 @@ fn main() {
             // SAFETY: `ip` came from this process's own stack walk.
             unsafe {
                 backtrace::resolve_unsynchronized(*ip as *mut _, |symbol| {
-                    if let Some(name) = symbol.name() {
-                        names.push(clean(&name.to_string()));
+                    // Inlining collapses whole call trees into one symbol name, so
+                    // the line table -- which still points at the original source
+                    // line -- is the only per-site attribution available.
+                    match (symbol.filename(), symbol.lineno()) {
+                        (Some(file), Some(line)) if is_rsvelte_source(file) => {
+                            names.push(format!("{}:{line}", short_path(file)));
+                        }
+                        _ => {
+                            if let Some(name) = symbol.name() {
+                                names.push(clean(&name.to_string()));
+                            }
+                        }
                     }
                 });
             }
@@ -227,7 +284,12 @@ fn main() {
                 entry.1 += *size as u64;
             }
         }
+        let category = categorize(&names);
+        *by_category.entry(category).or_default() += 1;
         if let Some(name) = first_rsvelte {
+            *by_category_site
+                .entry((category, name.clone()))
+                .or_default() += 1;
             *by_stack_top.entry(name).or_default() += 1;
         }
     }
@@ -240,6 +302,34 @@ fn main() {
         files.len()
     );
     println!("stacks captured: {}", stacks.len());
+    println!();
+    println!("== what is being allocated ==");
+    let mut cats: Vec<_> = by_category.into_iter().collect();
+    cats.sort_by(|a, b| b.1.cmp(&a.1));
+    for (name, count) in &cats {
+        println!(
+            "{:6.2}%  {:8.1}/file  {name}",
+            *count as f64 / total * 100.0,
+            *count as f64 * every as f64 / n_files
+        );
+    }
+    for (category, _) in &cats {
+        let mut rows: Vec<_> = by_category_site
+            .iter()
+            .filter(|((c, _), _)| c == category)
+            .map(|((_, site), count)| (site.clone(), *count))
+            .collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1));
+        println!();
+        println!("== {category}: innermost rsvelte site ==");
+        for (site, count) in rows.into_iter().take(top) {
+            println!(
+                "{:6.2}%  {:8.1}/file  {site}",
+                count as f64 / total * 100.0,
+                count as f64 * every as f64 / n_files
+            );
+        }
+    }
     println!();
     println!("== innermost rsvelte frame (self) ==");
     let mut rows: Vec<_> = by_stack_top.into_iter().collect();
