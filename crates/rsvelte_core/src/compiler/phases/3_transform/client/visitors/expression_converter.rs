@@ -4437,7 +4437,7 @@ fn convert_assignment_expression(
 
 /// Check if a JSON AST node has a `svelte-ignore` leading comment with the given code.
 /// This checks the `leadingComments` array for comments containing `svelte-ignore <code>`.
-fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
+pub(crate) fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
     if let Some(Value::Array(comments)) = obj.get("leadingComments") {
         for comment in comments {
             if let Some(value) = comment
@@ -4455,7 +4455,7 @@ fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
 
 /// Check if a JSON AST node has a `svelte-ignore` leading comment with the given code,
 /// also checking the source code directly for comments not attached in the JSON AST.
-fn is_svelte_ignored_with_source(
+pub(crate) fn is_svelte_ignored_with_source(
     obj: &serde_json::Map<String, Value>,
     code: &str,
     source: &str,
@@ -4545,7 +4545,7 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
 /// Check if an assignment expression's LHS is a member expression targeting a prop,
 /// and if so, return the ownership validation info (prop_alias, path array, optional source location).
 /// This works on the original JSON AST before transforms are applied.
-fn check_ownership_validation(
+pub(crate) fn check_ownership_validation(
     left_json: Option<&Value>,
     context: &ComponentContext,
 ) -> Option<(String, Vec<JsExpr>, Option<(usize, usize)>)> {
