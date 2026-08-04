@@ -69,10 +69,7 @@ fn main() {
         bytes as f64 / 1e6
     );
 
-    let opts = rsvelte_esrap::PrintOptions {
-        keep_empty_statements: true,
-        ..Default::default()
-    };
+    let opts = rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
 
     // Sampler target: loop until the deadline so a CPU profile attributes
     // essentially everything to the printer.
