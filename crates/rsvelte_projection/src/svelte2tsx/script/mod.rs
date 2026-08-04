@@ -11,6 +11,7 @@ mod component_events;
 mod export_decl;
 mod exported_names;
 mod hoistable_types;
+mod nested_special_types;
 mod parse;
 mod props_rune;
 mod reactive;
@@ -48,6 +49,7 @@ use hoistable_types::{
     HoistCandidate, hoist_dollar_generic_referenced_types, is_ident_char_for_str,
     is_special_type_name, resolve_hoistable_type_decls, rewrite_interface_to_type_dts,
 };
+use nested_special_types::{apply_special_type_name, scan_nested_special_type_decls};
 use parse::with_parsed_script;
 pub(crate) use parse::{ParsedScript, ParsedScripts};
 use props_rune::{
@@ -384,16 +386,7 @@ pub fn process_instance_script(
                 // Detect $$Slots and $$Events type/interface declarations
                 oxc::Statement::TSInterfaceDeclaration(iface) => {
                     let name = iface.id.name.to_string();
-                    if name == "$$Slots" {
-                        exported_names.has_slots_type = true;
-                    } else if name == "$$Events" {
-                        exported_names.has_events_type = true;
-                        if exported_names.events_type_decl_pos.is_none() {
-                            exported_names.events_type_decl_pos = Some(offset + iface.span.start);
-                        }
-                    } else if name == "$$Props" {
-                        exported_names.uses_dollar_props_type = true;
-                    }
+                    apply_special_type_name(&name, iface.span.start, exported_names, offset);
                     exported_names.instance_type_names.insert(name.clone());
                     if !is_special_type_name(&name) {
                         candidates.push(HoistCandidate {
@@ -414,17 +407,7 @@ pub fn process_instance_script(
                 }
                 oxc::Statement::TSTypeAliasDeclaration(type_alias) => {
                     let name = type_alias.id.name.to_string();
-                    if name == "$$Slots" {
-                        exported_names.has_slots_type = true;
-                    } else if name == "$$Events" {
-                        exported_names.has_events_type = true;
-                        if exported_names.events_type_decl_pos.is_none() {
-                            exported_names.events_type_decl_pos =
-                                Some(offset + type_alias.span.start);
-                        }
-                    } else if name == "$$Props" {
-                        exported_names.uses_dollar_props_type = true;
-                    }
+                    apply_special_type_name(&name, type_alias.span.start, exported_names, offset);
                     exported_names.instance_type_names.insert(name.clone());
                     if !is_special_type_name(&name) {
                         candidates.push(HoistCandidate {
@@ -463,6 +446,13 @@ pub fn process_instance_script(
                 _ => {}
             }
         }
+
+        // Official's walk is fully recursive, so a nested `$$Slots` /
+        // `$$Events` / `$$Props` interface/type-alias still sets the
+        // corresponding flag even though it can never become a hoist
+        // candidate (see nested_special_types.rs). Pass 1 above only visits
+        // top-level statements, so re-scan recursively for the flags alone.
+        scan_nested_special_type_decls(&program.body, exported_names, offset);
 
         // Also collect names declared by reactive statements to avoid
         // treating previously-reactive-declared variables as undeclared.
