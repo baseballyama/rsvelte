@@ -8,10 +8,13 @@
 
 mod attributes;
 mod collect;
-mod ctx;
+// `pub(crate)`: `svelte2tsx::nodes::svelte_options` is a sibling of `template`,
+// not a descendant, but needs `ElementOpenerCommentIndex` to call `opener_spacing`
+// outside the main walk.
+pub(crate) mod ctx;
 mod nodes;
 mod segs;
-mod utils;
+pub(crate) mod utils;
 mod walk;
 
 use crate::ast::template::{Fragment, Root};

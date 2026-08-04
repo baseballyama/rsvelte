@@ -140,8 +140,11 @@ mod tests {
     }
 }
 
+// `pub(crate)` (not `pub(super)`): `svelte2tsx::nodes::svelte_options` is a
+// sibling of `template`, not a descendant, but still needs to construct an
+// empty index (via `Default`) to call `opener_spacing` outside the main walk.
 #[derive(Default)]
-pub(super) struct ElementOpenerCommentIndex {
+pub(crate) struct ElementOpenerCommentIndex {
     ranges: Vec<(u32, u32)>,
     #[cfg(test)]
     range_visits: std::cell::Cell<usize>,

@@ -2,7 +2,9 @@
 //! stores it in `ast.options` rather than `fragment.nodes`, so it needs its own
 //! emitter.
 
-use crate::ast::template::Root;
+use crate::ast::template::{Attribute, Root};
+use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
+use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 
 use super::super::magic_string::MagicString;
 use super::super::svelte2tsx::slice_src;
@@ -19,14 +21,12 @@ pub(crate) fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut Ma
     }
     // Build attribute string from options attributes
     let mut attrs_parts = Vec::new();
-    let mut has_expression_attr = false;
     for node in &options_node.attributes {
         match &node.value {
             crate::ast::template::AttributeValue::True(_) => {
                 attrs_parts.push(format!("\"{}\":true,", node.name));
             }
             crate::ast::template::AttributeValue::Expression(expr) => {
-                has_expression_attr = true;
                 let expr_text = slice_src(
                     source,
                     expr.expression.start().unwrap_or(0) as usize,
@@ -44,7 +44,6 @@ pub(crate) fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut Ma
                 if parts.len() == 1
                     && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
                 {
-                    has_expression_attr = true;
                     let expr_text = slice_src(
                         source,
                         expr.expression.start().unwrap_or(0) as usize,
@@ -65,7 +64,6 @@ pub(crate) fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut Ma
                                 );
                             }
                             AttributeValuePart::ExpressionTag(expr) => {
-                                has_expression_attr = true;
                                 if let (Some(s), Some(e)) =
                                     (expr.expression.start(), expr.expression.end())
                                 {
@@ -82,38 +80,38 @@ pub(crate) fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut Ma
             }
         }
     }
-    let attrs_str = if attrs_parts.is_empty() {
-        String::new()
-    } else if has_expression_attr {
-        // Expression attributes: preserve source spacing
-        let extra_spaces =
-            count_tag_to_attr_spaces_in_source("svelte:options", options_node.start, source);
-        format!("{}{}", " ".repeat(extra_spaces + 1), attrs_parts.join(""))
-    } else {
-        // Bare boolean attributes only: no extra spacing
+
+    // `svelte:options` is in `LITERAL_NAME_TAGS` (official names it with a plain
+    // string literal), so it contributes no `head` range to the gap replay.
+    let attributes: Vec<Attribute> = options_node
+        .attributes
+        .iter()
+        .map(|node| Attribute::Attribute(node.clone()))
+        .collect();
+    let spacing = opener_spacing(
+        source,
+        options_node.start,
+        "svelte:options",
+        options_node.end,
+        None,
+        &attributes,
+        &ElementOpenerCommentIndex::default(),
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: false,
+            tag_name: "svelte:options",
+            is_slot_tag: false,
+        },
+    );
+    let attrs_str = format!(
+        "{}{}",
+        " ".repeat(spacing.in_attr_object),
         attrs_parts.join("")
-    };
+    );
     let replacement = format!(
-        " {{ svelteHTML.createElement(\"svelte:options\", {{{}}});}}",
+        "{}{{ svelteHTML.createElement(\"svelte:options\", {{{}}});}}",
+        " ".repeat(spacing.before_block),
         attrs_str
     );
     str.overwrite(options_node.start, options_node.end, &replacement);
-}
-
-/// Count whitespace between tag name and first attribute in source.
-fn count_tag_to_attr_spaces_in_source(tag_name: &str, el_start: u32, source: &str) -> usize {
-    let name_end = el_start as usize + 1 + tag_name.len(); // +1 for '<'
-    let bytes = source.as_bytes();
-    let mut count = 0;
-    let mut i = name_end;
-    while i < source.len() {
-        let ch = bytes[i];
-        if ch == b' ' || ch == b'\t' || ch == b'\n' || ch == b'\r' {
-            count += 1;
-            i += 1;
-        } else {
-            break;
-        }
-    }
-    count
 }
