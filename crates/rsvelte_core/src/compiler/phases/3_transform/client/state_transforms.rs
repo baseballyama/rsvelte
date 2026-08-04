@@ -3,15 +3,15 @@
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 
-use super::destructure_transforms::build_fallback_string;
+use super::destructure_transforms::{ArrayHelperRead, extract_destructure_paths};
 use super::expression_utils::{
     byte_pos_to_char_index, find_statement_end_client, is_shadowed_by_for_loop_var,
 };
 use super::rune_transforms::{
-    derived_prop_access, exclude_from_object_keys, find_default_equals,
-    find_derived_property_colon, split_derived_array_elements, split_derived_object_properties,
+    find_default_equals, find_derived_property_colon, split_derived_array_elements,
+    split_derived_object_properties,
 };
-use super::{SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, get_or_compile_regex};
+use super::{STATE_TMP_COUNTER, get_or_compile_regex};
 use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
 
 // ---------------------------------------------------------------------------
@@ -1373,7 +1373,13 @@ pub(super) fn transform_legacy_destructure_declarations(
 
     let mut paths = Vec::new();
     let mut inserts = Vec::new();
-    extract_legacy_destructure_paths(pattern_str, &tmp_name, &mut paths, &mut inserts);
+    extract_destructure_paths(
+        pattern_str,
+        &tmp_name,
+        ArrayHelperRead::Signal,
+        &mut paths,
+        &mut inserts,
+    );
 
     // Upstream emits `tmp`, then every `$$array` insert, then every path.
     let mut parts = vec![format!("{} = {}", tmp_name, expr)];
@@ -1397,121 +1403,6 @@ pub(super) fn transform_legacy_destructure_declarations(
 
     let trailing = if full_trimmed.ends_with(';') { ";" } else { "" };
     format!("{} {}{}", keyword, parts.join(", "), trailing)
-}
-
-/// Port of upstream's `_extract_paths` (`utils/ast.js`) over the destructuring
-/// pattern's source text: appends one `(name, initializer)` pair per bound leaf
-/// to `paths`, and one `($$array, $.to_array(...))` helper per array pattern to
-/// `inserts`, both in the same depth-first order upstream walks the pattern in.
-///
-/// The recursion is what makes a nested pattern work at all — every level feeds
-/// the member access it built as the next level's base expression, so a leaf
-/// carries the whole path (`tmp.a.b`) instead of only its last hop.
-fn extract_legacy_destructure_paths(
-    pattern: &str,
-    expression: &str,
-    paths: &mut Vec<(String, String)>,
-    inserts: &mut Vec<(String, String)>,
-) {
-    let pattern = pattern.trim();
-    if pattern.is_empty() {
-        return;
-    }
-
-    // `AssignmentPattern` — checked before the bracket forms, since a nested
-    // pattern with a default (`{ b } = { b: 3 }`) also starts with `{`.
-    if !pattern.starts_with("...")
-        && let Some(eq_pos) = find_default_equals(pattern)
-    {
-        let fallback = build_fallback_string(expression, pattern[eq_pos + 1..].trim());
-        extract_legacy_destructure_paths(&pattern[..eq_pos], &fallback, paths, inserts);
-        return;
-    }
-
-    if pattern.starts_with('{') && pattern.ends_with('}') {
-        let props = split_derived_object_properties(&pattern[1..pattern.len() - 1]);
-        let has_rest = props.iter().any(|prop| prop.trim().starts_with("..."));
-        let excluded_keys = if has_rest {
-            exclude_from_object_keys(&props).join(", ")
-        } else {
-            String::new()
-        };
-
-        for prop in &props {
-            let prop = prop.trim();
-            if prop.is_empty() {
-                continue;
-            }
-            if let Some(rest_target) = prop.strip_prefix("...") {
-                let rest_expression =
-                    format!("$.exclude_from_object({}, [{}])", expression, excluded_keys);
-                extract_legacy_destructure_paths(rest_target, &rest_expression, paths, inserts);
-                continue;
-            }
-
-            let (key, value) = match find_derived_property_colon(prop) {
-                Some(colon_pos) => (prop[..colon_pos].trim(), prop[colon_pos + 1..].trim()),
-                // Shorthand: the key is the name, the value is the whole
-                // property (so `{ a = 1 }` still becomes an `AssignmentPattern`).
-                None => match find_default_equals(prop) {
-                    Some(eq_pos) => (prop[..eq_pos].trim(), prop),
-                    None => (prop, prop),
-                },
-            };
-            let object_expression = derived_prop_access(expression, expression, key);
-            extract_legacy_destructure_paths(value, &object_expression, paths, inserts);
-        }
-        return;
-    }
-
-    if pattern.starts_with('[') && pattern.ends_with(']') {
-        let mut elements = split_derived_array_elements(&pattern[1..pattern.len() - 1]);
-        // A trailing comma is not an elision, so it contributes no element.
-        if elements.last().is_some_and(|el| el.trim().is_empty()) {
-            elements.pop();
-        }
-        let ends_with_rest = elements
-            .last()
-            .is_some_and(|el| el.trim().starts_with("..."));
-
-        let array_var = next_script_array_var();
-        let to_array = if ends_with_rest {
-            format!("$.to_array({})", expression)
-        } else {
-            format!("$.to_array({}, {})", expression, elements.len())
-        };
-        inserts.push((array_var.clone(), to_array));
-
-        for (i, element) in elements.iter().enumerate() {
-            let element = element.trim();
-            if element.is_empty() {
-                continue;
-            }
-            let (target, element_expression) = match element.strip_prefix("...") {
-                Some(rest_target) => (rest_target, format!("$.get({}).slice({})", array_var, i)),
-                None => (element, format!("$.get({})[{}]", array_var, i)),
-            };
-            extract_legacy_destructure_paths(target, &element_expression, paths, inserts);
-        }
-        return;
-    }
-
-    paths.push((pattern.to_string(), expression.to_string()));
-}
-
-/// The next `$$array` / `$$array_<n>` helper name, mirroring upstream's
-/// `scope.generate('$$array')`.
-fn next_script_array_var() -> String {
-    let index = SCRIPT_ARRAY_COUNTER.with(|c| {
-        let current = c.get();
-        c.set(current + 1);
-        current
-    });
-    if index == 0 {
-        "$$array".to_string()
-    } else {
-        format!("$$array_{}", index)
-    }
 }
 
 /// Every name bound by a destructuring pattern, nested leaves included.

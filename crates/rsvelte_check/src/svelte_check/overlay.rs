@@ -84,6 +84,10 @@ struct GlobalTypes {
 struct SvelteTypesShadow {
     path: PathBuf,
     modules: Vec<String>,
+    /// Directory to put first in `typeRoots` so a `/// <reference types="svelte" />`
+    /// resolves to the stub inside it instead of the original declarations (see
+    /// [`materialize_svelte_type_ref_stub`]).
+    type_ref_root: PathBuf,
 }
 
 /// The installed `svelte` package, as `getPackageInfo('svelte', …)` in
@@ -138,6 +142,10 @@ fn select_global_types(workspace: &Path, cache_dir: &Path) -> GlobalTypes {
 /// declarations.
 const SVELTE_AMBIENT_WILDCARD: &str = "declare module '*.svelte' {";
 
+/// Cache-dir subdirectory holding the `svelte` type-reference stub package,
+/// used as the first `typeRoots` entry.
+const SVELTE_TYPE_REF_DIR: &str = "svelte-type-ref";
+
 /// Copy the installed svelte's `types/index.d.ts` into the cache dir with its
 /// ambient `declare module '*.svelte'` block blanked out, mirroring what
 /// official svelte-check does to the same file as it reads it
@@ -179,14 +187,67 @@ fn materialize_svelte_types_shadow(
         return None;
     }
 
+    let type_ref_root = materialize_svelte_type_ref_stub(cache_dir)?;
     let path = cache_dir.join(SVELTE_TYPES_SHADOW_NAME);
     // Rewriting an unchanged file would invalidate the compiler's build info.
     if fs::read_to_string(&path).is_ok_and(|existing| existing == blanked) {
-        return Some(SvelteTypesShadow { path, modules });
+        return Some(SvelteTypesShadow {
+            path,
+            modules,
+            type_ref_root,
+        });
     }
     fs::create_dir_all(cache_dir).ok()?;
     fs::write(&path, &blanked).ok()?;
-    Some(SvelteTypesShadow { path, modules })
+    Some(SvelteTypesShadow {
+        path,
+        modules,
+        type_ref_root,
+    })
+}
+
+/// Materialise `<cache>/<SVELTE_TYPE_REF_DIR>/svelte/` — a types package named
+/// `svelte` whose declarations are empty — and return the directory to place
+/// first in `typeRoots`.
+///
+/// `paths` and [`blank_svelte_type_reference`] between them cover every channel
+/// rsvelte controls, but not the one its dependencies use: `@sveltejs/kit` and
+/// `@tanstack/svelte-table` (among others) open their shipped `.d.ts` with
+/// `/// <reference types="svelte" />`, and a type reference inside a file we do
+/// not generate resolves through `typeRoots` / node resolution, not `paths`.
+/// That pulled the ORIGINAL `types/index.d.ts` back into the program next to the
+/// blanked copy, so svelte's ambient modules were declared twice — and
+/// `Snippet`'s brand being a `unique symbol` per declaration, a snippet built
+/// against one was not assignable to the other (#2211: false TS2322 on every
+/// snippet handed to a component prop).
+///
+/// An empty stub is enough to satisfy those references because the blanked copy
+/// is in the overlay's `files` unconditionally: the program has svelte's
+/// declarations either way, and now from exactly one file. `typeRoots` keeps
+/// resolving everything else — the primary lookup falls through to the node
+/// resolution that finds `@types/node` and friends.
+fn materialize_svelte_type_ref_stub(cache_dir: &Path) -> Option<PathBuf> {
+    let root = cache_dir.join(SVELTE_TYPE_REF_DIR);
+    let package_dir = root.join("svelte");
+    fs::create_dir_all(&package_dir).ok()?;
+    write_if_changed(
+        &package_dir.join("package.json"),
+        "{ \"name\": \"svelte\", \"version\": \"0.0.0\", \"types\": \"./index.d.ts\" }\n",
+    )?;
+    write_if_changed(
+        &package_dir.join("index.d.ts"),
+        "// Intentionally empty: see materialize_svelte_type_ref_stub.\n",
+    )?;
+    Some(root)
+}
+
+/// Write `contents` unless the file already holds them — an unchanged cache dir
+/// keeps the compiler's build info valid across runs.
+fn write_if_changed(path: &Path, contents: &str) -> Option<()> {
+    if fs::read_to_string(path).is_ok_and(|existing| existing == contents) {
+        return Some(());
+    }
+    fs::write(path, contents).ok()
 }
 
 /// Exact `paths` entries redirecting every module the installed svelte declares
@@ -610,6 +671,7 @@ pub fn materialize_overlay_with(
     // standalone rsvelte install has no `node_modules/svelte2tsx` to read.
     if global_types.svelte_types.is_none() {
         let _ = fs::remove_file(cache_dir.join(SVELTE_TYPES_SHADOW_NAME));
+        let _ = fs::remove_dir_all(cache_dir.join(SVELTE_TYPE_REF_DIR));
     }
     for (name, contents) in SHIM_FILES {
         let path = cache_dir.join(name);
@@ -1204,6 +1266,42 @@ fn build_overlay_tsconfig(
                 .collect(),
         ),
     );
+    // `typeRoots`: put the stub package first so a `/// <reference types="svelte" />`
+    // in a dependency's shipped `.d.ts` cannot pull the original declarations in
+    // beside the blanked copy (#2211). Setting the option replaces TypeScript's
+    // default of every ancestor `node_modules/@types`, which would stop `@types/*`
+    // packages being auto-included, so the effective value is restated after it.
+    if let Some(shadow) = &global_types.svelte_types {
+        let mut type_roots_abs = vec![shadow.type_ref_root.clone()];
+        type_roots_abs.extend(
+            original
+                .map(resolve_type_roots_abs)
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| default_type_roots(cache_dir)),
+        );
+        // A name in `types` resolves through `typeRoots` alone — unlike a
+        // `/// <reference types="…" />`, it does not fall back to node
+        // resolution — so a plain package pinned there (`"types": ["@sveltejs/kit"]`,
+        // which SvelteKit projects use) would become TS2688 the moment the option
+        // is set at all. Widening with the `node_modules` dirs themselves is inert
+        // here precisely because a pinned `types` turns automatic inclusion off:
+        // nothing under them enters the program unless it is named.
+        if original.is_some_and(has_explicit_types) {
+            type_roots_abs.extend(ancestor_dirs_containing(
+                cache_dir,
+                Path::new("node_modules"),
+            ));
+        }
+        compiler_opts.insert(
+            "typeRoots".into(),
+            serde_json::Value::Array(
+                type_roots_abs
+                    .iter()
+                    .map(|p| serde_json::Value::String(path_relative(cache_dir, p)))
+                    .collect(),
+            ),
+        );
+    }
     // `paths`: same override-wholesale gotcha as `rootDirs` above — a child
     // `compilerOptions.paths` replaces the base's entirely, so start from the
     // resolved chain (absolutised, since the overlay tsconfig lives in a
@@ -1673,6 +1771,61 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
             Some(dirs)
         })
         .unwrap_or_default()
+}
+
+/// Resolve a tsconfig's effective `typeRoots` to absolute paths, the same
+/// nearest-definition-wins way [`resolve_root_dirs_abs`] resolves `rootDirs`.
+/// Empty when no config in the chain sets it, which is when TypeScript's own
+/// default applies — see [`default_type_roots`].
+fn resolve_type_roots_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
+    let config_dir = config_dir_of(tsconfig_path);
+    extends_chain(tsconfig_path)
+        .into_iter()
+        .find_map(|(dir, parsed)| {
+            let dirs = parsed
+                .get("compilerOptions")?
+                .get("typeRoots")?
+                .as_array()?
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| substitute_config_dir(s, &config_dir).unwrap_or_else(|| dir.join(s)))
+                .collect();
+            Some(dirs)
+        })
+        .unwrap_or_default()
+}
+
+/// TypeScript's default `typeRoots`: every `node_modules/@types` from `from`
+/// upwards (`getDefaultTypeRoots`). Only existing directories are listed — the
+/// value is restated verbatim in the overlay, and a path that resolves to
+/// nothing is what TypeScript itself would have skipped.
+fn default_type_roots(from: &Path) -> Vec<PathBuf> {
+    ancestor_dirs_containing(from, &Path::new("node_modules").join("@types"))
+}
+
+/// Every `<ancestor>/<suffix>` that exists, walking up from `from`.
+fn ancestor_dirs_containing(from: &Path, suffix: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let mut cursor = Some(absolutize(from));
+    while let Some(dir) = cursor {
+        let candidate = dir.join(suffix);
+        if candidate.is_dir() {
+            found.push(candidate);
+        }
+        cursor = dir.parent().map(Path::to_path_buf);
+    }
+    found
+}
+
+/// Whether any config in the chain pins `compilerOptions.types`, which turns off
+/// TypeScript's automatic inclusion of every type package it can find.
+fn has_explicit_types(tsconfig_path: &Path) -> bool {
+    extends_chain(tsconfig_path).into_iter().any(|(_, parsed)| {
+        parsed
+            .get("compilerOptions")
+            .and_then(|c| c.get("types"))
+            .is_some_and(serde_json::Value::is_array)
+    })
 }
 
 /// Whether a tsconfig `target` is ES2015+; `None` for an unrecognized string — a year-numbered target is parsed generically so newer TS releases need no change here.
@@ -4867,6 +5020,124 @@ mod tests {
         assert!(
             !tsx.contains("reference types=\"svelte\""),
             "the svelte type reference must be blanked:\n{tsx}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_dependencys_svelte_type_reference_resolves_to_an_empty_stub() {
+        // #2211: blanking the directive in our own shadows covers only the files
+        // we generate. A dependency that opens its shipped `.d.ts` with
+        // `/// <reference types="svelte" />` (@sveltejs/kit, @tanstack/svelte-table)
+        // resolves it through `typeRoots`, which `paths` cannot intercept, so the
+        // original declarations came back beside the blanked copy and every
+        // ambient svelte module was declared twice — `Snippet`'s `unique symbol`
+        // brand included, which is what made a snippet unassignable to `Snippet`.
+        let tmp = std::env::temp_dir().join(format!("svc_typeref_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::create_dir_all(tmp.join("node_modules/@types/node")).unwrap();
+        fake_svelte_types(&tmp);
+        fs::write(tmp.join("src/App.svelte"), "<p>hi</p>\n").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let layout = materialize_overlay(&tmp, &files, None).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+
+        let type_roots: Vec<String> = cfg["compilerOptions"]["typeRoots"]
+            .as_array()
+            .unwrap_or_else(|| panic!("typeRoots not set:\n{cfg}"))
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            type_roots.first().map(String::as_str),
+            Some(SVELTE_TYPE_REF_DIR),
+            "the stub root must be searched first: {type_roots:?}"
+        );
+        // TypeScript's default is replaced by whatever we set, so the roots it
+        // would have used itself have to survive — otherwise `@types/*` packages
+        // stop being auto-included.
+        assert!(
+            type_roots
+                .iter()
+                .any(|r| r.ends_with("node_modules/@types")),
+            "the default type roots were dropped: {type_roots:?}"
+        );
+
+        let stub = tmp.join(format!(
+            ".svelte-check/{SVELTE_TYPE_REF_DIR}/svelte/index.d.ts"
+        ));
+        let stub_text = fs::read_to_string(&stub).expect("stub not materialised");
+        assert!(
+            !stub_text.contains("declare module"),
+            "the stub must declare nothing — the blanked copy in `files` is the \
+             single source of svelte's ambient modules:\n{stub_text}"
+        );
+        assert!(
+            fs::read_to_string(tmp.join(format!(
+                ".svelte-check/{SVELTE_TYPE_REF_DIR}/svelte/package.json"
+            )))
+            .is_ok_and(|p| p.contains("\"types\"")),
+            "a typeRoots entry is only resolvable as a types package"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_pinned_types_entry_still_resolves_under_the_stub_type_roots() {
+        // Setting `typeRoots` at all replaces TypeScript's default, and a name in
+        // `types` resolves through that option alone — no node-resolution fallback
+        // — so a plain package pinned there (SvelteKit writes
+        // `"types": ["@sveltejs/kit"]`) came back as TS2688, which took every real
+        // diagnostic in the project with it.
+        let tmp = std::env::temp_dir().join(format!("svc_typeref_types_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::create_dir_all(tmp.join("node_modules/@sveltejs/kit")).unwrap();
+        fake_svelte_types(&tmp);
+        fs::write(tmp.join("src/App.svelte"), "<p>hi</p>\n").unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "types": ["@sveltejs/kit"] } }"#,
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let type_roots: Vec<String> = cfg["compilerOptions"]["typeRoots"]
+            .as_array()
+            .unwrap_or_else(|| panic!("typeRoots not set:\n{cfg}"))
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            type_roots.iter().any(|r| r.ends_with("node_modules")),
+            "a pinned `types` needs the `node_modules` dirs among the roots to stay \
+             resolvable: {type_roots:?}"
+        );
+
+        // Without a pinned `types`, automatic inclusion is on and the same entry
+        // would drag every installed package into the program as a type library.
+        fs::write(tmp.join("tsconfig.json"), r#"{ "compilerOptions": {} }"#).unwrap();
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let type_roots: Vec<String> = cfg["compilerOptions"]["typeRoots"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            !type_roots.iter().any(|r| r.ends_with("node_modules")),
+            "widened roots must stay behind a pinned `types`: {type_roots:?}"
         );
 
         let _ = fs::remove_dir_all(&tmp);
