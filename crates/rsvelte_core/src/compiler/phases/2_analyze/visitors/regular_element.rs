@@ -942,9 +942,18 @@ pub fn visit<'a, 'b: 'a>(
                     continue;
                 }
 
+                // Upstream routes the immediate parent through
+                // `is_tag_valid_with_parent`, which words it as a child relation.
+                let relation = if !is_direct_parent {
+                    "a descendant of"
+                } else if is_direct_only_disallowed(ancestor_name) {
+                    "a direct child of"
+                } else {
+                    "a child of"
+                };
                 let message = format!(
-                    "`<{}>` cannot be a descendant of `<{}>`",
-                    element.name, ancestor_name
+                    "`<{}>` cannot be {} `<{}>`",
+                    element.name, relation, ancestor_name
                 );
 
                 // Check if there's a block between us and this ancestor
