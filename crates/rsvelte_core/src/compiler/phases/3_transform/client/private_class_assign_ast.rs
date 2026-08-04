@@ -806,10 +806,9 @@ fn compound_op_node(op: AssignmentOperator) -> Option<CompoundOp> {
     })
 }
 
-/// In-place equivalent of [`transform_private_class_assign_ast`]. The spliced
-/// path's synthetic-`class` re-parse has no in-place analogue — printing a
-/// wrapped program would emit the wrapper — so a source that only parses
-/// wrapped yields `None` here and stays on the spliced path.
+/// In-place equivalent of [`transform_private_class_assign_ast`]. Class method
+/// bodies reach this pass without their enclosing `class`, so the driver parses
+/// them inside a synthetic one and strips it back off what it prints.
 pub(crate) fn transform_private_class_assign_in_place(
     source: &str,
     state_qualified: &[String],
@@ -826,22 +825,21 @@ pub(crate) fn transform_private_class_assign_in_place(
         return None;
     }
 
-    ast_rewrite::with_program_mut(
+    ast_rewrite::with_class_fragment_program_mut(
         &MODULE_PRIVATE_CLASS_ASSIGN_IN_PLACE_ALLOC,
         source,
-        SourceType::mjs(),
         ParseOptions {
             allow_return_outside_function: true,
             ..ParseOptions::default()
         },
-        |allocator, program| {
+        |allocator, program, parse_str| {
             let mut binding_info = BindingInfoCollector::default();
             binding_info.visit_program(program);
 
             let mut rewriter = PrivateClassAssignRewriter {
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
                 alloc: allocator,
-                source,
+                source: parse_str,
                 state_qualified,
                 other_qualified,
                 var_proxy: binding_info.var_proxy,
@@ -973,5 +971,51 @@ impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for PrivateClassAssignRewriter<'a, 'b> 
             Expression::UpdateExpression(_) => self.rewrite_update(expr),
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod in_place_tests {
+    use super::*;
+
+    fn ssv(names: &[&str]) -> Vec<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn rewrites_a_bare_class_method_body() {
+        // A method definition is not a module, so this only reaches the rewriter
+        // through the synthetic-`class` wrapper — and must come back without it.
+        let src = "remove(item) {\n  this.#files = this.#files.filter((f) => f !== item);\n}";
+        let out =
+            transform_private_class_assign_in_place(src, &ssv(&["this.#files"]), &[]).unwrap();
+        assert!(
+            out.contains("$.set(this.#files,"),
+            "expected $.set rewrite, got: {out}"
+        );
+        assert!(!out.contains("_Dummy_"), "wrapper leaked into: {out}");
+        assert!(
+            out.starts_with("remove(item)"),
+            "wrapper indent leaked into: {out}"
+        );
+    }
+
+    #[test]
+    fn agrees_with_the_spliced_path_on_a_class_method_body() {
+        let src = concat!(
+            "get files() {\n  return this.#files;\n}\n",
+            "add(item) {\n  this.#files = this.#files.concat(item);\n}\n",
+        );
+        let state = ssv(&["this.#files"]);
+        let spliced = transform_private_class_assign_ast(src, &state, &[]).unwrap();
+        let in_place = transform_private_class_assign_in_place(src, &state, &[]).unwrap();
+        // Reprinting is not byte-preserving — the in-place path re-emits the whole
+        // fragment — so the two paths are compared the way the dual-run gate
+        // compares them: through the printer.
+        assert_eq!(
+            ast_rewrite::dual_run::normalize(&in_place),
+            ast_rewrite::dual_run::normalize(&spliced),
+        );
+        assert_ne!(in_place, src, "the in-place path must have rewritten");
     }
 }

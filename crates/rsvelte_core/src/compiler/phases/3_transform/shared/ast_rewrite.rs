@@ -104,6 +104,84 @@ pub fn with_program_mut(
     })
 }
 
+/// Class wrapper for method-body fragments that Phase-3 hands around without
+/// their enclosing `class`, and the indentation the printer puts every member
+/// of that wrapper behind.
+const CLASS_FRAGMENT_PREFIX: &str = "class _Dummy_ {\n";
+const CLASS_FRAGMENT_INDENT: &str = "\t";
+
+/// [`with_program_mut`] for a source that may only parse as class members — a
+/// method body extracted without its enclosing `class`. The wrapper is added
+/// before parsing and taken back off the printed text, so the caller both sees
+/// and returns the fragment it passed in.
+///
+/// `f` additionally receives the text the program's spans index into, which is
+/// the wrapped copy whenever the bare parse failed.
+#[track_caller]
+pub fn with_class_fragment_program_mut(
+    arena: &'static LocalKey<RefCell<Allocator>>,
+    source: &str,
+    parse_options: ParseOptions,
+    f: impl for<'p> FnOnce(&'p Allocator, &mut Program<'p>, &str) -> bool,
+) -> Option<String> {
+    let pass = dual_run::current_or(std::panic::Location::caller().file());
+    dual_run::count_parse(pass);
+    arena.with(|cell| {
+        let allocator = std::mem::take(&mut *cell.borrow_mut());
+        let out = (|| {
+            let bare = Parser::new(&allocator, source, SourceType::mjs())
+                .with_options(parse_options)
+                .parse();
+            let wrapped_source;
+            let (mut parsed, parse_str, wrapped) = if bare.diagnostics.is_empty() {
+                (bare, source, false)
+            } else {
+                dual_run::count_parse(pass);
+                wrapped_source = format!("{CLASS_FRAGMENT_PREFIX}{source}\n}}");
+                let ret = Parser::new(&allocator, &wrapped_source, SourceType::mjs())
+                    .with_options(parse_options)
+                    .parse();
+                if !ret.diagnostics.is_empty() {
+                    return None;
+                }
+                (ret, wrapped_source.as_str(), true)
+            };
+            if !f(&allocator, &mut parsed.program, parse_str) {
+                return None;
+            }
+            let options = rsvelte_esrap::PrintOptions::default().with_indent(CLASS_FRAGMENT_INDENT);
+            let printed = rsvelte_esrap::print_with(&parsed.program, parse_str, &options);
+            let printed = if wrapped {
+                unwrap_class_fragment(&printed)?
+            } else {
+                printed
+            };
+            (printed != source).then_some(printed)
+        })();
+        *cell.borrow_mut() = allocator;
+        out
+    })
+}
+
+/// Undo [`CLASS_FRAGMENT_PREFIX`]: drop the synthetic class's header and closing
+/// brace, and pull every member back out of the level of indentation the printer
+/// put it behind, so the result nests where the input did.
+fn unwrap_class_fragment(printed: &str) -> Option<String> {
+    let body = printed
+        .strip_prefix(CLASS_FRAGMENT_PREFIX)?
+        .trim_end()
+        .strip_suffix('}')?
+        .trim_end_matches('\n');
+    let mut out = String::with_capacity(body.len());
+    for (i, line) in body.split('\n').enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(line.strip_prefix(CLASS_FRAGMENT_INDENT).unwrap_or(line));
+    }
+    Some(out)
+}
+
 /// Splice `edits` into `source`, returning the rewritten text or `None` when
 /// there is nothing to apply.
 ///
