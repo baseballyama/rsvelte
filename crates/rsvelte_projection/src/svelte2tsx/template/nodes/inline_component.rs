@@ -935,15 +935,10 @@ pub(crate) fn handle_svelte_self(
     let mut opener = create_call;
 
     // Inline `$on()` registration immediately after the const declaration.
+    // Shared with `handle_component` so the emitted call text (no trailing
+    // space before the next statement) matches official's `addEvent`.
     if let Some(ref name) = var_name {
-        for on in &on_directives {
-            if let Some(ref expr) = on.expression {
-                let expr_text = get_expression_text(expr, source);
-                let _ = write!(opener, "{}.$on(\"{}\", {}); ", name, on.name, expr_text);
-            } else {
-                let _ = write!(opener, "{}.$on(\"{}\", () => {{}}); ", name, on.name);
-            }
-        }
+        opener.push_str(&build_on_calls(name, &on_directives, source));
     }
 
     // `let:` directives become a `{const { $$_$$, name, ... } = inst.$$slot_def.default; $$_$$;`
