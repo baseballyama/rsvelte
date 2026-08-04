@@ -47,8 +47,10 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
-use oxc_span::{GetSpan, SourceType};
-use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
+use oxc_span::{GetSpan, SourceType, Span};
+use oxc_syntax::operator::{
+    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
+};
 use oxc_syntax::symbol::SymbolId;
 use rustc_hash::FxHashSet;
 
@@ -73,20 +75,56 @@ pub fn transform_state_assigns_ast(
     is_runes: bool,
     non_proxy_vars: &[String],
 ) -> Option<String> {
+    let spliced = transform_state_assigns_spliced(
+        source,
+        state_vars,
+        raw_state_vars,
+        is_runes,
+        non_proxy_vars,
+    );
+    ast_rewrite::dual_run::resolve(
+        "state_assigns_combined_ast:inplace",
+        source,
+        spliced,
+        || {
+            transform_state_assigns_in_place(
+                source,
+                state_vars,
+                raw_state_vars,
+                is_runes,
+                non_proxy_vars,
+            )
+        },
+    )
+}
+
+/// The three probes are pure cost avoidance: no state variable named in
+/// `state_vars` can be assigned without its name and an assignment token both
+/// appearing literally in `source`.
+fn has_candidate(source: &str, state_vars: &[String]) -> bool {
     if state_vars.is_empty() {
-        return None;
+        return false;
     }
     if !state_vars
         .iter()
         .any(|v| memchr::memmem::find(source.as_bytes(), v.as_bytes()).is_some())
     {
-        return None;
+        return false;
     }
     // Cheapest probe — at least one `=` or `++`/`--` token.
-    if memchr::memchr(b'=', source.as_bytes()).is_none()
-        && memchr::memmem::find(source.as_bytes(), b"++").is_none()
-        && memchr::memmem::find(source.as_bytes(), b"--").is_none()
-    {
+    memchr::memchr(b'=', source.as_bytes()).is_some()
+        || memchr::memmem::find(source.as_bytes(), b"++").is_some()
+        || memchr::memmem::find(source.as_bytes(), b"--").is_some()
+}
+
+fn transform_state_assigns_spliced(
+    source: &str,
+    state_vars: &[String],
+    raw_state_vars: &[String],
+    is_runes: bool,
+    non_proxy_vars: &[String],
+) -> Option<String> {
+    if !has_candidate(source, state_vars) {
         return None;
     }
 
@@ -132,6 +170,46 @@ fn single_pass(
     )
 }
 
+/// The compound operators this pass rewrites, paired with the exact spelling
+/// the text form emits. Bitwise and shift compounds (`&=`, `<<=`, …) are
+/// deliberately absent — the text predecessor's allowlist stops here.
+fn compound_operator(op: AssignmentOperator) -> Option<(&'static str, CompoundOp)> {
+    Some(match op {
+        AssignmentOperator::Addition => ("+", CompoundOp::Binary(BinaryOperator::Addition)),
+        AssignmentOperator::Subtraction => ("-", CompoundOp::Binary(BinaryOperator::Subtraction)),
+        AssignmentOperator::Multiplication => {
+            ("*", CompoundOp::Binary(BinaryOperator::Multiplication))
+        }
+        AssignmentOperator::Division => ("/", CompoundOp::Binary(BinaryOperator::Division)),
+        AssignmentOperator::Remainder => ("%", CompoundOp::Binary(BinaryOperator::Remainder)),
+        AssignmentOperator::Exponential => ("**", CompoundOp::Binary(BinaryOperator::Exponential)),
+        AssignmentOperator::LogicalNullish => {
+            ("??", CompoundOp::Logical(LogicalOperator::Coalesce))
+        }
+        AssignmentOperator::LogicalAnd => ("&&", CompoundOp::Logical(LogicalOperator::And)),
+        AssignmentOperator::LogicalOr => ("||", CompoundOp::Logical(LogicalOperator::Or)),
+        _ => return None,
+    })
+}
+
+#[derive(Clone, Copy)]
+enum CompoundOp {
+    Binary(BinaryOperator),
+    Logical(LogicalOperator),
+}
+
+/// Shared eligibility test, so the in-place finder can never disagree with the
+/// splice collector about which targets belong to this pass.
+fn is_rewritable_target(
+    semantic: &Semantic,
+    id: &IdentifierReference,
+    state_vars: &[String],
+    state_var_symbols: &FxHashSet<SymbolId>,
+) -> bool {
+    state_vars.iter().any(|s| s.as_str() == id.name.as_str())
+        && is_state_var_reference_or_unresolved(semantic, id, state_var_symbols, state_vars)
+}
+
 struct CombinedCollector<'a, 'sem> {
     source: &'a str,
     semantic: &'sem Semantic<'sem>,
@@ -151,16 +229,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {
             return;
         };
         let name = id.name.as_str();
-        if !self.state_vars.iter().any(|s| s.as_str() == name) {
-            return;
-        }
-        let ident_ref: &IdentifierReference = id;
-        if !is_state_var_reference_or_unresolved(
-            self.semantic,
-            ident_ref,
-            &self.state_var_symbols,
-            self.state_vars,
-        ) {
+        if !is_rewritable_target(self.semantic, id, self.state_vars, &self.state_var_symbols) {
             return;
         }
 
@@ -193,20 +262,8 @@ impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {
                     .push((expr.span.start, expr.span.end, rewrite));
             }
             op => {
-                // Compound (arithmetic + logical). Bitwise compound
-                // (`&=`, `|=`, etc.) is intentionally NOT in the
-                // mapping — matches the text predecessor's allowlist.
-                let op_str: &str = match op {
-                    AssignmentOperator::Addition => "+",
-                    AssignmentOperator::Subtraction => "-",
-                    AssignmentOperator::Multiplication => "*",
-                    AssignmentOperator::Division => "/",
-                    AssignmentOperator::Remainder => "%",
-                    AssignmentOperator::Exponential => "**",
-                    AssignmentOperator::LogicalNullish => "??",
-                    AssignmentOperator::LogicalAnd => "&&",
-                    AssignmentOperator::LogicalOr => "||",
-                    _ => return,
+                let Some((op_str, _)) = compound_operator(op) else {
+                    return;
                 };
                 let rhs_trimmed = rhs_text.trim();
                 let rhs_for_output = if needs_compound_assignment_parens(rhs_trimmed, op_str) {
@@ -231,16 +288,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {
             return;
         };
         let name = id.name.as_str();
-        if !self.state_vars.iter().any(|s| s.as_str() == name) {
-            return;
-        }
-        let ident_ref: &IdentifierReference = id;
-        if !is_state_var_reference_or_unresolved(
-            self.semantic,
-            ident_ref,
-            &self.state_var_symbols,
-            self.state_vars,
-        ) {
+        if !is_rewritable_target(self.semantic, id, self.state_vars, &self.state_var_symbols) {
             return;
         }
 
@@ -313,6 +361,298 @@ pub(super) fn ident_rhs_needs_proxy(
         _ => false,
     };
     Some(!non_proxy)
+}
+
+thread_local! {
+    static STATE_ASSIGNS_IN_PLACE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_state_assigns_ast`].
+///
+/// The splice form needs a fixed point because `splice_with_deferred` drops
+/// any edit whose span strictly contains another, so `outer = (inner = 1)`
+/// takes one iteration per nesting level and each iteration re-parses the
+/// already-rewritten text. Mutating the tree post-order collapses that to a
+/// single parse: a nested assignment is replaced before the one enclosing it.
+///
+/// What the extra iterations also did, though, was feed each enclosing site
+/// the *rewritten* text of its right-hand side, and two decisions here are
+/// taken from that text — `expression_needs_proxy_with_scope` and
+/// `needs_compound_assignment_parens`. So the finder keeps a ledger of what
+/// each rewritten site would have printed and reconstructs the enclosing
+/// site's right-hand side from it, rather than reading the untouched source.
+///
+/// One accepted divergence: the splice form gives up after
+/// [`ast_rewrite::MAX_FIXED_POINT_ITERS`] nesting levels, this one does not.
+fn transform_state_assigns_in_place(
+    source: &str,
+    state_vars: &[String],
+    raw_state_vars: &[String],
+    is_runes: bool,
+    non_proxy_vars: &[String],
+) -> Option<String> {
+    if !has_candidate(source, state_vars) {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &STATE_ASSIGNS_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |allocator, program| {
+            let targets = {
+                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+                let semantic = &semantic_ret.semantic;
+                let state_var_symbols = find_state_var_symbols(semantic, state_vars);
+
+                let mut finder = StateAssignsFinder {
+                    source,
+                    semantic,
+                    state_vars,
+                    raw_state_vars,
+                    is_runes,
+                    non_proxy_vars,
+                    state_var_symbols,
+                    ledger: Vec::new(),
+                    targets: Vec::new(),
+                };
+                finder.visit_program(program);
+                finder.targets
+            };
+            if targets.is_empty() {
+                return false;
+            }
+
+            let mut rewriter = StateAssignsRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                targets,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+#[derive(Clone, Copy)]
+enum Rewrite {
+    Assign { needs_proxy: bool },
+    Compound(CompoundOp),
+    Update { prefix: bool, decrement: bool },
+}
+
+struct StateAssignsFinder<'a, 'sem> {
+    source: &'a str,
+    semantic: &'sem Semantic<'sem>,
+    state_vars: &'a [String],
+    raw_state_vars: &'a [String],
+    is_runes: bool,
+    non_proxy_vars: &'a [String],
+    state_var_symbols: FxHashSet<SymbolId>,
+    /// Disjoint and source-ordered `(span, text the splice form would emit)`,
+    /// which post-order visiting maintains for free.
+    ledger: Vec<(Span, String)>,
+    targets: Vec<(Span, Rewrite)>,
+}
+
+impl<'a, 'sem> StateAssignsFinder<'a, 'sem> {
+    /// `source[span]` with every already-rewritten site inside it substituted —
+    /// what the next fixed-point iteration would have read.
+    fn shadow_text(&self, span: Span) -> String {
+        let mut out = String::new();
+        let mut cursor = span.start;
+        for (inner, text) in &self.ledger {
+            if inner.start < span.start || inner.end > span.end {
+                continue;
+            }
+            out.push_str(&self.source[cursor as usize..inner.start as usize]);
+            out.push_str(text);
+            cursor = inner.end;
+        }
+        out.push_str(&self.source[cursor as usize..span.end as usize]);
+        out
+    }
+
+    fn record(&mut self, span: Span, rewrite: Rewrite, text: String) {
+        // Everything this site encloses is already folded into `text`, so the
+        // ledger stays disjoint; keeping it sorted by start makes `shadow_text`
+        // independent of the order the visitor happens to reach siblings in.
+        self.ledger
+            .retain(|(inner, _)| !(span.start <= inner.start && inner.end <= span.end));
+        let at = self
+            .ledger
+            .partition_point(|(inner, _)| inner.start < span.start);
+        self.ledger.insert(at, (span, text));
+        self.targets.push((span, rewrite));
+    }
+}
+
+impl<'a, 'sem, 'ast> Visit<'ast> for StateAssignsFinder<'a, 'sem> {
+    fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
+        walk::walk_assignment_expression(self, expr);
+
+        let AssignmentTarget::AssignmentTargetIdentifier(id) = &expr.left else {
+            return;
+        };
+        let name = id.name.as_str();
+        if !is_rewritable_target(self.semantic, id, self.state_vars, &self.state_var_symbols) {
+            return;
+        }
+
+        let rhs_text = self.shadow_text(expr.right.span());
+
+        match expr.operator {
+            AssignmentOperator::Assign => {
+                let is_raw_state = self.raw_state_vars.iter().any(|s| s.as_str() == name);
+                let site_decision = match expr.right.get_inner_expression() {
+                    Expression::Identifier(rhs_id) => ident_rhs_needs_proxy(self.semantic, rhs_id),
+                    _ => None,
+                };
+                let needs_proxy = self.is_runes
+                    && !is_raw_state
+                    && site_decision.unwrap_or_else(|| {
+                        expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
+                    });
+                let text = if needs_proxy {
+                    format!("$.set({}, {}, true)", name, rhs_text)
+                } else {
+                    format!("$.set({}, {})", name, rhs_text)
+                };
+                self.record(expr.span, Rewrite::Assign { needs_proxy }, text);
+            }
+            op => {
+                let Some((op_str, compound)) = compound_operator(op) else {
+                    return;
+                };
+                let rhs_trimmed = rhs_text.trim();
+                let rhs_for_output = if needs_compound_assignment_parens(rhs_trimmed, op_str) {
+                    format!("({})", rhs_trimmed)
+                } else {
+                    rhs_trimmed.to_string()
+                };
+                let text = format!(
+                    "$.set({}, $.get({}) {} {})",
+                    name, name, op_str, rhs_for_output
+                );
+                self.record(expr.span, Rewrite::Compound(compound), text);
+            }
+        }
+    }
+
+    fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
+        walk::walk_update_expression(self, expr);
+
+        let SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &expr.argument else {
+            return;
+        };
+        let name = id.name.as_str();
+        if !is_rewritable_target(self.semantic, id, self.state_vars, &self.state_var_symbols) {
+            return;
+        }
+
+        let text = match (expr.operator, expr.prefix) {
+            (UpdateOperator::Increment, false) => format!("$.update({})", name),
+            (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", name),
+            (UpdateOperator::Increment, true) => format!("$.update_pre({})", name),
+            (UpdateOperator::Decrement, true) => format!("$.update_pre({}, -1)", name),
+        };
+        let rewrite = Rewrite::Update {
+            prefix: expr.prefix,
+            decrement: expr.operator == UpdateOperator::Decrement,
+        };
+        self.record(expr.span, rewrite, text);
+    }
+}
+
+struct StateAssignsRewriter<'a> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    targets: Vec<(Span, Rewrite)>,
+    changed: bool,
+}
+
+impl<'a> StateAssignsRewriter<'a> {
+    /// Ends the immutable borrow of `*expr` before the caller replaces it, and
+    /// copies the name into the arena so it outlives the node it came from.
+    fn plan(&self, expr: &Expression<'a>) -> Option<(Rewrite, &'a str)> {
+        let (span, name) = match expr {
+            Expression::AssignmentExpression(assign) => {
+                let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left else {
+                    return None;
+                };
+                (assign.span, id.name.as_str())
+            }
+            Expression::UpdateExpression(update) => {
+                let SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &update.argument
+                else {
+                    return None;
+                };
+                (update.span, id.name.as_str())
+            }
+            _ => return None,
+        };
+        let rewrite = self
+            .targets
+            .iter()
+            .find(|(target, _)| *target == span)
+            .map(|(_, rewrite)| *rewrite)?;
+        Some((rewrite, self.b.str(name)))
+    }
+
+    fn take_assignment_rhs(&self, expr: &mut Expression<'a>) -> Expression<'a> {
+        let taken = std::mem::replace(expr, self.b.void0());
+        let Expression::AssignmentExpression(assign) = taken else {
+            unreachable!("planned as an assignment")
+        };
+        assign.unbox().right
+    }
+}
+
+impl<'a> oxc_ast_visit::VisitMut<'a> for StateAssignsRewriter<'a> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Some((rewrite, name)) = self.plan(expr) else {
+            return;
+        };
+        match rewrite {
+            Rewrite::Assign { needs_proxy } => {
+                let rhs = self.take_assignment_rhs(expr);
+                let mut args = vec![self.b.id(name), rhs];
+                if needs_proxy {
+                    args.push(self.b.bool(true));
+                }
+                *expr = self.b.call("$.set", args);
+            }
+            Rewrite::Compound(op) => {
+                let rhs = self.take_assignment_rhs(expr);
+                // The text form parenthesises the right operand by scanning it;
+                // here esrap re-derives every paren from precedence, so an
+                // explicit node would be dropped before printing anyway.
+                let get = self.b.call("$.get", vec![self.b.id(name)]);
+                let value = match op {
+                    CompoundOp::Binary(op) => self.b.binary(op, get, rhs),
+                    CompoundOp::Logical(op) => self.b.logical(op, get, rhs),
+                };
+                *expr = self.b.call("$.set", vec![self.b.id(name), value]);
+            }
+            Rewrite::Update { prefix, decrement } => {
+                let callee = if prefix { "$.update_pre" } else { "$.update" };
+                let mut args = vec![self.b.id(name)];
+                if decrement {
+                    args.push(
+                        self.b
+                            .unary(UnaryOperator::UnaryNegation, self.b.number(1.0)),
+                    );
+                }
+                *expr = self.b.call(callee, args);
+            }
+        }
+        self.changed = true;
+    }
 }
 
 #[cfg(test)]
