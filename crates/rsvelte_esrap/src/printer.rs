@@ -18,8 +18,8 @@ use oxc_syntax::operator::UnaryOperator;
 
 use compact_str::{CompactString, format_compact};
 
+use crate::PrintOptions;
 use crate::context::Context;
-use crate::{PrintOptions, QuoteStyle};
 
 /// A node kind the printer does not yet handle. Carries the kind name so the
 /// conformance harness can report exactly which visitors are still missing.
@@ -3622,7 +3622,7 @@ impl<'opt> Printer<'opt> {
         if let Some(raw) = &s.raw {
             return raw.as_str().into();
         }
-        quote(s.value.as_str(), self.options.quote)
+        quote(s.value.as_str())
     }
 }
 
@@ -3635,29 +3635,22 @@ fn literal_raw(raw: Option<&str>, fallback: impl FnOnce() -> CompactString) -> C
     }
 }
 
-/// Quote a string value with the preferred quote char, escaping as needed.
-fn quote(value: &str, style: QuoteStyle) -> CompactString {
-    let q = match style {
-        QuoteStyle::Single => '\'',
-        QuoteStyle::Double => '"',
-    };
+/// Quote a string value in single quotes, escaping as needed.
+fn quote(value: &str) -> CompactString {
     // esrap's `quote` escapes only `\`, the quote char, `\n`, and `\r` — a literal
     // tab is left as-is. Match it exactly (don't escape `\t`).
     let mut out = CompactString::with_capacity(value.len() + 2);
-    out.push(q);
+    out.push('\'');
     for ch in value.chars() {
         match ch {
             '\\' => out.push_str("\\\\"),
-            c if c == q => {
-                out.push('\\');
-                out.push(c);
-            }
+            '\'' => out.push_str("\\'"),
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             c => out.push(c),
         }
     }
-    out.push(q);
+    out.push('\'');
     out
 }
 

@@ -48,11 +48,8 @@ use oxc_ast::ast::Program;
 /// rsvelte's conventions (tab indent, single quotes).
 #[derive(Debug, Clone)]
 pub struct PrintOptions {
-    /// The indentation unit for one level (default `"\t"`).
+    /// The indentation unit for one level (always `"\t"`).
     indent: String,
-    /// Preferred quote character for string literals without a preserved `raw`
-    /// (default single quote).
-    quote: QuoteStyle,
     /// Keep `EmptyStatement` (`;`) nodes in statement-list bodies instead of
     /// filtering them (esrap's default, matching the server AST). The rsvelte
     /// client `to_oxc` path parses string-codegen `Raw` chunks whose `;;` become
@@ -61,41 +58,16 @@ pub struct PrintOptions {
     keep_empty_statements: bool,
 }
 
-/// Quote preference for synthesized string literals.
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QuoteStyle {
-    /// Prefer single-quoted string literals.
-    Single,
-    /// Prefer double-quoted string literals.
-    Double,
-}
-
 impl Default for PrintOptions {
     fn default() -> Self {
         Self {
             indent: String::from("\t"),
-            quote: QuoteStyle::Single,
             keep_empty_statements: false,
         }
     }
 }
 
 impl PrintOptions {
-    /// Set the indentation unit used for one nesting level.
-    #[must_use]
-    pub fn with_indent(mut self, indent: impl Into<String>) -> Self {
-        self.indent = indent.into();
-        self
-    }
-
-    /// Set the preferred quote style for synthesized string literals.
-    #[must_use]
-    pub fn with_quote_style(mut self, quote: QuoteStyle) -> Self {
-        self.quote = quote;
-        self
-    }
-
     /// Control whether empty statements are retained in statement lists.
     #[must_use]
     pub fn with_empty_statements(mut self, keep: bool) -> Self {
