@@ -71,7 +71,11 @@ fn main() {
 
     let mut files = Vec::new();
     collect(&root, &mut files);
-    assert!(!files.is_empty(), "no .svelte files under {}", root.display());
+    assert!(
+        !files.is_empty(),
+        "no .svelte files under {}",
+        root.display()
+    );
 
     measure_json::reset();
     for (_, content) in &files {
@@ -91,7 +95,10 @@ fn main() {
         "materializations: {materializations} total, {:.1}/file",
         materializations as f64 / n
     );
-    println!("objects:          {objects} total, {:.1}/file", objects as f64 / n);
+    println!(
+        "objects:          {objects} total, {:.1}/file",
+        objects as f64 / n
+    );
     println!(
         "map entries:      {entries} total, {:.1}/file  (= key String allocs = map inserts = hashes)",
         entries as f64 / n
