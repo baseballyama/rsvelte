@@ -204,133 +204,390 @@ pub(super) fn find_matching_close_paren(s: &str) -> Option<usize> {
     None
 }
 
-/// Strip single-line `//` comments from JavaScript source code.
+/// Drop the comments belonging to a `$:` reactive statement, and only those.
 ///
-/// This is needed because our text-based transforms (e.g., wrapping store assignments
-/// in `$.store_set(...)`) can create invalid JS when comments containing braces
-/// appear mid-expression. The official Svelte compiler avoids this because it uses
-/// an AST-based approach where comments are naturally excluded from the output.
+/// Upstream replaces each reactive statement with a synthesized
+/// `$.legacy_pre_effect(...)` call, so its comments — leading ones and any
+/// inside its body — have no node left to attach to and never reach the
+/// output. Every other comment in the instance script does survive, which is
+/// why this cannot be a blanket strip.
 ///
-/// The function preserves:
-/// - `//` inside string literals (`'`, `"`, `` ` ``)
-/// - The line structure (newlines are preserved)
+/// `svelte-ignore` comments are kept regardless: later text passes read them.
 ///
-/// It also handles `/* ... */` block comments.
-pub(super) fn strip_js_single_line_comments(source: &str) -> String {
-    let mut result = String::with_capacity(source.len());
+/// String literals, template literals and their `${…}` interpolations are
+/// tracked so a `$:` or `//` inside one is not mistaken for code.
+pub(super) fn strip_reactive_statement_comments(source: &str) -> String {
+    let reactive_spans = reactive_statement_spans(source);
+    if reactive_spans.is_empty() {
+        return source.to_string();
+    }
+    strip_comments_in_spans(source, &reactive_spans)
+}
+
+/// Byte ranges covered by top-level `$:` statements, each extended backwards
+/// over the whitespace and comments that lead up to the label.
+fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
     let bytes = source.as_bytes();
     let len = bytes.len();
+    let mut spans = Vec::new();
+    let mut scan = JsScan::new();
     let mut i = 0;
-    let mut copy_start = 0; // Start of current segment to bulk-copy (preserves UTF-8)
-    let mut in_string = false;
-    let mut string_char = b'"';
-    // Stack of template-literal interpolation brace counts. Each entry is the
-    // depth of `{}` inside the current `${...}`; when it reaches -1 the
-    // interpolation closes and we return to the surrounding template literal.
-    let mut template_interp_stack: Vec<i32> = Vec::new();
+    // Byte just past the last code token, i.e. where a leading comment run may
+    // start.
+    let mut after_last_code = 0;
 
     while i < len {
+        let starts_comment = scan.starts_comment(source, i);
+        if let Some(next) = scan.step(source, i) {
+            // A string is a code token, and so — for attachment purposes — is a
+            // comment that trails code on the same line: it belongs to the
+            // statement above, not to whatever follows.
+            let trails_code = starts_comment && !source[after_last_code..i].contains('\n');
+            if !starts_comment || trails_code {
+                after_last_code = next;
+            }
+            i = next;
+            continue;
+        }
         let c = bytes[i];
-
-        // Inside a backtick template literal: detect `${` to enter interpolation
-        if in_string && string_char == b'`' && c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-            template_interp_stack.push(0);
-            in_string = false;
-            i += 2;
-            continue;
-        }
-
-        // Handle string literals
-        if !in_string && (c == b'\'' || c == b'"' || c == b'`') {
-            in_string = true;
-            string_char = c;
+        if c.is_ascii_whitespace() {
             i += 1;
             continue;
         }
+        // A `$:` label only starts a reactive statement at the top level of the
+        // script, and only where a statement can begin.
+        if c == b'$'
+            && bytes.get(i + 1) == Some(&b':')
+            && scan.depth == 0
+            && matches!(scan.last_code, None | Some(b';') | Some(b'{') | Some(b'}'))
+        {
+            let end = reactive_statement_end(source, &mut scan, i + 2);
+            let end = extend_over_trailing_comment(source, end);
+            spans.push((after_last_code, end));
+            i = end;
+            after_last_code = end;
+            continue;
+        }
+        scan.note_code(c);
+        i += 1;
+        after_last_code = i;
+    }
+    spans
+}
 
-        if in_string {
-            if c == b'\\' && i + 1 < len {
-                // Skip escaped character
-                i += 2;
-                continue;
-            }
-            if c == string_char {
-                in_string = false;
-            }
+/// Byte just past the end of the reactive statement whose body starts at
+/// `from`. A statement that opens a block ends with the matching `}`;
+/// otherwise it ends at the next top-level `;`, or at a line break that can
+/// only be a statement boundary.
+fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize {
+    let bytes = source.as_bytes();
+    let len = bytes.len();
+    let base_depth = scan.depth;
+    let mut opened_block = false;
+    let mut i = from;
+
+    while i < len {
+        if let Some(next) = scan.step(source, i) {
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        if c == b'\n'
+            && scan.depth == base_depth
+            && !opened_block
+            && !continues_statement(scan.last_code)
+            && !next_line_continues(source, i + 1)
+        {
+            return i;
+        }
+        if c.is_ascii_whitespace() {
             i += 1;
             continue;
         }
-
-        // While inside a template-literal interpolation, track `{`/`}`.
-        // The closing `}` of the `${` does not require a matching `{`.
-        if let Some(top) = template_interp_stack.last_mut() {
-            if c == b'{' {
-                *top += 1;
-                i += 1;
-                continue;
-            } else if c == b'}' {
-                if *top == 0 {
-                    template_interp_stack.pop();
-                    in_string = true;
-                    string_char = b'`';
-                    i += 1;
-                    continue;
-                } else {
-                    *top -= 1;
-                    i += 1;
-                    continue;
+        match c {
+            b'(' | b'[' => scan.depth += 1,
+            b'{' => {
+                scan.depth += 1;
+                opened_block = true;
+            }
+            b')' | b']' => scan.depth = scan.depth.saturating_sub(1),
+            b'}' => {
+                scan.depth = scan.depth.saturating_sub(1);
+                if scan.depth == base_depth && opened_block {
+                    scan.note_code(c);
+                    return i + 1;
                 }
             }
+            b';' if scan.depth == base_depth => {
+                scan.note_code(c);
+                return i + 1;
+            }
+            _ => {}
         }
-
-        // Detect // single-line comments
-        if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
-            // Flush everything before the comment
-            result.push_str(&source[copy_start..i]);
-            // Scan to end of line
-            let comment_start = i;
-            i += 2;
-            while i < len && bytes[i] != b'\n' {
-                i += 1;
-            }
-            // Preserve svelte-ignore comments as they affect subsequent code generation
-            let comment_text = &source[comment_start..i];
-            if memmem::find(comment_text.as_bytes(), b"svelte-ignore").is_some() {
-                result.push_str(comment_text);
-            }
-            copy_start = i;
-            // The newline will be copied in the next segment
-            continue;
-        }
-
-        // Detect /* block comments */
-        if c == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
-            // Flush everything before the comment
-            result.push_str(&source[copy_start..i]);
-            i += 2;
-            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                // Preserve newlines inside block comments to maintain line structure
-                if bytes[i] == b'\n' {
-                    result.push('\n');
-                }
-                i += 1;
-            }
-            if i + 1 < len {
-                i += 2; // Skip */
-            }
-            copy_start = i;
-            continue;
-        }
-
+        scan.note_code(c);
         i += 1;
     }
+    len
+}
 
-    // Flush remaining content
-    if copy_start < len {
-        result.push_str(&source[copy_start..]);
+/// Whether the next line continues the statement rather than starting a new
+/// one — a leading `.`, `(` or operator, as in a chained call split across
+/// lines.
+fn next_line_continues(source: &str, from: usize) -> bool {
+    let bytes = source.as_bytes();
+    let mut i = from;
+    loop {
+        while matches!(
+            bytes.get(i),
+            Some(b' ') | Some(b'\t') | Some(b'\r') | Some(b'\n')
+        ) {
+            i += 1;
+        }
+        // Skip over comments between the two lines.
+        match (bytes.get(i), bytes.get(i + 1)) {
+            (Some(b'/'), Some(b'/')) => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            (Some(b'/'), Some(b'*')) => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+            }
+            _ => break,
+        }
+    }
+    matches!(
+        bytes.get(i),
+        Some(
+            b'.' | b')'
+                | b']'
+                | b','
+                | b'?'
+                | b':'
+                | b'='
+                | b'+'
+                | b'-'
+                | b'*'
+                | b'/'
+                | b'%'
+                | b'&'
+                | b'|'
+                | b'^'
+                | b'<'
+                | b'>'
+                | b'('
+                | b'['
+                | b'`'
+        )
+    )
+}
+
+/// Extend a statement's end over a comment that trails it on the same line.
+/// Such a comment belongs to the statement being removed, so upstream drops it
+/// too — and leaving it behind would strand it inside the generated call.
+fn extend_over_trailing_comment(source: &str, end: usize) -> usize {
+    let bytes = source.as_bytes();
+    let mut i = end;
+    while matches!(bytes.get(i), Some(b' ') | Some(b'\t')) {
+        i += 1;
+    }
+    if bytes.get(i) != Some(&b'/') {
+        return end;
+    }
+    match bytes.get(i + 1) {
+        Some(b'/') => {
+            let mut j = i + 2;
+            while j < bytes.len() && bytes[j] != b'\n' {
+                j += 1;
+            }
+            j
+        }
+        Some(b'*') => {
+            let mut j = i + 2;
+            while j + 1 < bytes.len() && !(bytes[j] == b'*' && bytes[j + 1] == b'/') {
+                if bytes[j] == b'\n' {
+                    return end;
+                }
+                j += 1;
+            }
+            (j + 2).min(bytes.len())
+        }
+        _ => end,
+    }
+}
+
+/// Whether a statement can continue past a line break after this token.
+fn continues_statement(last_code: Option<u8>) -> bool {
+    matches!(
+        last_code,
+        None | Some(
+            b'=' | b'+'
+                | b'-'
+                | b'*'
+                | b'/'
+                | b'%'
+                | b'&'
+                | b'|'
+                | b'^'
+                | b'!'
+                | b'~'
+                | b'<'
+                | b'>'
+                | b'?'
+                | b':'
+                | b','
+                | b'.'
+                | b'('
+                | b'['
+                | b'{'
+        )
+    )
+}
+
+/// Rebuild `source` without the comments that fall inside any of `spans`.
+fn strip_comments_in_spans(source: &str, spans: &[(usize, usize)]) -> String {
+    let bytes = source.as_bytes();
+    let len = bytes.len();
+    let mut result = String::with_capacity(source.len());
+    let mut copy_start = 0;
+    let mut scan = JsScan::new();
+    let mut i = 0;
+
+    while i < len {
+        let comment_start = i;
+        let is_comment = scan.starts_comment(source, i);
+        let Some(next) = scan.step(source, i) else {
+            scan.note_code(bytes[i]);
+            i += 1;
+            continue;
+        };
+        i = next;
+        if !is_comment {
+            continue;
+        }
+        let inside = spans
+            .iter()
+            .any(|&(start, end)| comment_start >= start && comment_start < end);
+        let text = &source[comment_start..i];
+        if !inside || memmem::find(text.as_bytes(), b"svelte-ignore").is_some() {
+            continue;
+        }
+        result.push_str(&source[copy_start..comment_start]);
+        // Keep the line structure so later offset-based passes stay aligned.
+        for byte in text.bytes() {
+            if byte == b'\n' {
+                result.push('\n');
+            }
+        }
+        copy_start = i;
     }
 
+    result.push_str(&source[copy_start..]);
     result
+}
+
+/// Shared scanner state for the string / template / comment shapes that must
+/// not be read as code.
+struct JsScan {
+    in_string: bool,
+    string_char: u8,
+    template_interp: Vec<i32>,
+    depth: i32,
+    last_code: Option<u8>,
+}
+
+impl JsScan {
+    fn new() -> Self {
+        Self {
+            in_string: false,
+            string_char: b'"',
+            template_interp: Vec::new(),
+            depth: 0,
+            last_code: None,
+        }
+    }
+
+    fn note_code(&mut self, c: u8) {
+        if !c.is_ascii_whitespace() {
+            self.last_code = Some(c);
+        }
+    }
+
+    /// Whether a comment begins at `i` — false inside a string, where `//` is
+    /// just text.
+    fn starts_comment(&self, source: &str, i: usize) -> bool {
+        let bytes = source.as_bytes();
+        !self.in_string && bytes[i] == b'/' && matches!(bytes.get(i + 1), Some(b'/') | Some(b'*'))
+    }
+
+    /// Consume a string, template literal or comment starting at `i`, returning
+    /// the byte just past it. `None` when `i` is ordinary code.
+    fn step(&mut self, source: &str, i: usize) -> Option<usize> {
+        let bytes = source.as_bytes();
+        let len = bytes.len();
+        let c = bytes[i];
+
+        if self.in_string {
+            if self.string_char == b'`' && c == b'$' && bytes.get(i + 1) == Some(&b'{') {
+                self.template_interp.push(0);
+                self.in_string = false;
+                return Some(i + 2);
+            }
+            if c == b'\\' && i + 1 < len {
+                return Some(i + 2);
+            }
+            if c == self.string_char {
+                self.in_string = false;
+                self.last_code = Some(c);
+            }
+            return Some(i + 1);
+        }
+
+        if let Some(top) = self.template_interp.last_mut() {
+            if c == b'{' {
+                *top += 1;
+                return Some(i + 1);
+            }
+            if c == b'}' {
+                if *top == 0 {
+                    self.template_interp.pop();
+                    self.in_string = true;
+                    self.string_char = b'`';
+                } else {
+                    *top -= 1;
+                }
+                return Some(i + 1);
+            }
+        }
+
+        if c == b'\'' || c == b'"' || c == b'`' {
+            self.in_string = true;
+            self.string_char = c;
+            return Some(i + 1);
+        }
+
+        if c == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            let mut end = i + 2;
+            while end < len && bytes[end] != b'\n' {
+                end += 1;
+            }
+            return Some(end);
+        }
+
+        if c == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            let mut end = i + 2;
+            while end + 1 < len && !(bytes[end] == b'*' && bytes[end + 1] == b'/') {
+                end += 1;
+            }
+            return Some((end + 2).min(len));
+        }
+
+        None
+    }
 }
 
 /// Strip `/* $$async_noop... */;` placeholders from script output.
@@ -931,4 +1188,135 @@ pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
         }
     }
     result.join("\n")
+}
+
+#[cfg(test)]
+mod reactive_comment_tests {
+    use super::strip_reactive_statement_comments;
+
+    #[track_caller]
+    fn assert_kept(source: &str) {
+        assert_eq!(strip_reactive_statement_comments(source), source);
+    }
+
+    #[test]
+    fn keeps_comments_that_belong_to_surviving_statements() {
+        assert_kept("/** @type {number} */\nlet x = 1;\n$: y = x;\n");
+        assert_kept("let x = 1; // trailing\n$: y = x;\n");
+        assert_kept("// leading the whole script\nlet x = 1;\n$: y = x;\n");
+    }
+
+    #[test]
+    fn drops_the_comments_leading_a_reactive_statement() {
+        let out = strip_reactive_statement_comments("let x = 1;\n// note\n$: y = x;\n");
+        assert_eq!(out, "let x = 1;\n\n$: y = x;\n");
+    }
+
+    #[test]
+    fn drops_comments_inside_a_reactive_block() {
+        let out = strip_reactive_statement_comments("$: {\n\t// inner\n\ty = 1;\n}\n");
+        assert_eq!(out, "$: {\n\t\n\ty = 1;\n}\n");
+    }
+
+    #[test]
+    fn drops_comments_inside_a_reactive_if_block() {
+        let out = strip_reactive_statement_comments(
+            "$: if (a) {\n\t/* inner */\n\tb = 1;\n}\nlet z = 1; // kept\n",
+        );
+        assert_eq!(out, "$: if (a) {\n\t\n\tb = 1;\n}\nlet z = 1; // kept\n");
+    }
+
+    #[test]
+    fn a_reactive_statement_without_a_semicolon_ends_at_the_line() {
+        let out = strip_reactive_statement_comments("$: y = x\n// after, kept\nlet z = 1;\n");
+        assert_eq!(out, "$: y = x\n// after, kept\nlet z = 1;\n");
+    }
+
+    #[test]
+    fn keeps_svelte_ignore_even_on_a_reactive_statement() {
+        assert_kept("let x = 1;\n// svelte-ignore state_referenced_locally\n$: y = x;\n");
+    }
+
+    #[test]
+    fn ignores_dollar_colon_inside_strings_and_templates() {
+        assert_kept("let a = '$: not code';\n// kept\nlet b = 1;\n");
+        assert_kept("let a = `${x}$: still not code`;\n// kept\nlet b = 1;\n");
+        assert_kept("let a = 'a // not a comment';\n// kept\nlet b = 1;\n");
+    }
+
+    #[test]
+    fn a_label_inside_a_function_body_is_not_a_reactive_statement() {
+        assert_kept("function f() {\n\t// kept\n\tlab: for (;;) break lab;\n}\n");
+    }
+
+    #[test]
+    fn line_structure_survives_so_later_offset_passes_stay_aligned() {
+        let source = "let x = 1;\n/* multi\n   line */\n$: y = x;\n";
+        let out = strip_reactive_statement_comments(source);
+        assert_eq!(out.lines().count(), source.lines().count());
+    }
+}
+
+#[cfg(test)]
+mod reactive_trailing_comment_tests {
+    use super::strip_reactive_statement_comments;
+
+    #[test]
+    fn drops_a_comment_trailing_the_reactive_statement_itself() {
+        // Left in place it lands inside the generated `legacy_pre_effect` call
+        // and the output stops being parseable.
+        let out =
+            strip_reactive_statement_comments("$: double = count * 2; // this too\nlet x = 1;\n");
+        assert_eq!(out, "$: double = count * 2; \nlet x = 1;\n");
+    }
+
+    #[test]
+    fn drops_a_block_comment_trailing_on_the_same_line() {
+        let out =
+            strip_reactive_statement_comments("$: y = x; /* trailing */\nlet z = 1; // kept\n");
+        assert_eq!(out, "$: y = x; \nlet z = 1; // kept\n");
+    }
+
+    #[test]
+    fn keeps_a_comment_on_the_line_after_a_reactive_statement() {
+        let source = "$: y = x;\n// belongs to the next statement\nlet z = 1;\n";
+        assert_eq!(strip_reactive_statement_comments(source), source);
+    }
+
+    #[test]
+    fn drops_a_comment_trailing_a_reactive_block() {
+        let out = strip_reactive_statement_comments("$: {\n\ty = 1;\n} // trailing\nlet z = 1;\n");
+        assert_eq!(out, "$: {\n\ty = 1;\n} \nlet z = 1;\n");
+    }
+}
+
+#[cfg(test)]
+mod reactive_multiline_tests {
+    use super::strip_reactive_statement_comments;
+
+    #[test]
+    fn a_chained_call_split_across_lines_is_one_statement() {
+        // Ending the statement at the first newline would leave the body's
+        // comments in place, where the text transforms mangle them.
+        let out = strip_reactive_statement_comments(
+            "$: filtered = rows\n\t.filter(r => {\n\t\t// inner\n\t\treturn true;\n\t});\nlet z = 1; // kept\n",
+        );
+        assert!(
+            !out.contains("// inner"),
+            "body comment should be dropped: {out}"
+        );
+        assert!(
+            out.contains("// kept"),
+            "later comment should survive: {out}"
+        );
+    }
+
+    #[test]
+    fn an_operator_at_the_end_of_a_line_continues_the_statement() {
+        let out = strip_reactive_statement_comments(
+            "$: total = a +\n\tb; // trailing\nlet z = 1; // kept\n",
+        );
+        assert!(!out.contains("// trailing"));
+        assert!(out.contains("// kept"));
+    }
 }

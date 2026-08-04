@@ -1,7 +1,10 @@
 //! Destructuring assignment transformations and IIFE generation.
 
 use super::SCRIPT_ARRAY_COUNTER;
-use super::rune_transforms::{derived_prop_access, exclude_from_object_keys};
+use super::rune_transforms::{
+    derived_prop_access, exclude_from_object_keys, find_default_equals,
+    find_derived_property_colon, split_derived_array_elements, split_derived_object_properties,
+};
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
@@ -63,7 +66,7 @@ pub(super) fn transform_destructure_assignments(
     state_vars: &[String],
     store_sub_vars: &[String],
 ) -> String {
-    transform_destructure_assignments_with_props(statement, state_vars, store_sub_vars, &[])
+    transform_destructure_assignments_with_props(statement, state_vars, &[], store_sub_vars, &[])
 }
 
 /// Transform destructure assignments, with knowledge of prop variables.
@@ -76,9 +79,14 @@ pub(super) fn transform_destructure_assignments(
 /// form (with `$$value` caching) because the official compiler visits the RHS
 /// first, turning it into a CallExpression, and then checks
 /// `should_cache = value.type !== 'Identifier'`.
+///
+/// `non_reactive_state_vars` is subtracted from `state_vars` for that same
+/// right-hand-side test: only a state variable whose read becomes `$.get(…)`
+/// makes the visited value a CallExpression.
 pub(super) fn transform_destructure_assignments_with_props(
     statement: &str,
     state_vars: &[String],
+    non_reactive_state_vars: &[String],
     store_sub_vars: &[String],
     prop_vars: &[String],
 ) -> String {
@@ -104,6 +112,11 @@ pub(super) fn transform_destructure_assignments_with_props(
     let store_set: rustc_hash::FxHashSet<&str> =
         store_sub_vars.iter().map(|s| s.as_str()).collect();
     let prop_set: rustc_hash::FxHashSet<&str> = prop_vars.iter().map(|s| s.as_str()).collect();
+    let reactive_state_set: rustc_hash::FxHashSet<&str> = state_vars
+        .iter()
+        .map(|s| s.as_str())
+        .filter(|s| !non_reactive_state_vars.iter().any(|n| n == s))
+        .collect();
 
     // Process the statement, looking for destructure assignments.
     // We scan for patterns and replace them with IIFEs.
@@ -113,6 +126,7 @@ pub(super) fn transform_destructure_assignments_with_props(
         &state_set,
         &store_set,
         &prop_set,
+        &reactive_state_set,
     ) {
         result = transformed;
     }
@@ -138,6 +152,7 @@ pub(super) fn find_and_transform_one_destructure(
     state_set: &rustc_hash::FxHashSet<&str>,
     store_set: &rustc_hash::FxHashSet<&str>,
     prop_set: &rustc_hash::FxHashSet<&str>,
+    reactive_state_set: &rustc_hash::FxHashSet<&str>,
 ) -> Option<String> {
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
@@ -160,11 +175,11 @@ pub(super) fn find_and_transform_one_destructure(
     // - Patterns inside strings or comments
 
     // Collect all valid candidate destructures, then pick the rightmost one.
-    // Each candidate stores (close_bracket_char_idx, pattern_start, close_bracket, rhs_start_after_eq)
+    // Each candidate stores (close_bracket_char_idx, pattern_start, rhs_start_after_eq)
+    #[derive(Clone, Copy)]
     struct Candidate {
         close_pos: usize,     // char index of ] or }
         pattern_start: usize, // char index of [ or {
-        close_bracket: char,  // ] or }
         eq_pos: usize,        // char index of =
     }
     let mut candidates: Vec<Candidate> = Vec::new();
@@ -291,7 +306,6 @@ pub(super) fn find_and_transform_one_destructure(
                     candidates.push(Candidate {
                         close_pos: i,
                         pattern_start,
-                        close_bracket,
                         eq_pos: j,
                     });
                 }
@@ -301,6 +315,26 @@ pub(super) fn find_and_transform_one_destructure(
         i += 1;
     }
 
+    if candidates.is_empty() {
+        return None;
+    }
+
+    // A candidate that sits *inside* another candidate's pattern is not an
+    // assignment at all — it is that pattern's `AssignmentPattern` default
+    // (`({ a: { b } = { b: 3 } } = src)`), which the outer expansion lowers
+    // through `$.fallback`. Rewriting it on its own would plant a call in an
+    // LValue slot. (The `let` / `const` / `var` form is caught earlier by
+    // `is_inside_enclosing_pattern`, which has no outer candidate to compare
+    // against.)
+    let candidates: Vec<Candidate> = candidates
+        .iter()
+        .copied()
+        .filter(|c| {
+            !candidates
+                .iter()
+                .any(|other| other.pattern_start < c.pattern_start && c.close_pos < other.close_pos)
+        })
+        .collect();
     if candidates.is_empty() {
         return None;
     }
@@ -347,7 +381,6 @@ pub(super) fn find_and_transform_one_destructure(
     let candidate = &candidates[candidate_idx];
     let i = candidate.close_pos;
     let pattern_start = candidate.pattern_start;
-    let close_bracket = candidate.close_bracket;
     let j = candidate.eq_pos;
     let rhs_start = j + 1;
 
@@ -381,11 +414,12 @@ pub(super) fn find_and_transform_one_destructure(
 
     // Check if RHS will become a function call
     let rhs_trimmed = rhs_str.trim();
-    let rhs_will_be_call = prop_set.contains(rhs_trimmed) || store_set.contains(rhs_trimmed);
+    let rhs_will_be_call = prop_set.contains(rhs_trimmed)
+        || store_set.contains(rhs_trimmed)
+        || reactive_state_set.contains(rhs_trimmed);
 
     // Generate the IIFE replacement
     let iife = generate_destructure_iife(
-        close_bracket,
         pattern_str,
         rhs_str,
         is_standalone,
@@ -1290,430 +1324,263 @@ fn wrap_arrow_body(body: &str) -> String {
     }
 }
 
-/// Generate an IIFE for a destructure assignment.
+/// How a path reads the `$$array` helper that an array pattern contributes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum ArrayHelperRead {
+    /// Assignment lowering — the helper is a plain `var`, read directly.
+    Value,
+    /// Declaration lowering — the helper is a `$.derived`, read through `$.get`.
+    Signal,
+}
+
+/// Port of upstream's `_extract_paths` (`utils/ast.js`) over a destructuring
+/// pattern's source text: appends one `(target, initializer)` pair per bound leaf
+/// to `paths`, and one `($$array, $.to_array(...))` helper per array pattern to
+/// `inserts`, both in the same depth-first order upstream walks the pattern in.
 ///
-/// For array patterns: `((<p>) => { var $$array = $.to_array(<p>, N); target1 = $$array[0]; ... })(rhs)`
-/// For object patterns: `(($$value) => { target1 = $$value.key1; ... })(rhs)`
+/// The recursion is what makes a nested pattern work at all — every level feeds
+/// the member access it built as the next level's base expression, so a leaf
+/// carries the whole path (`$$value.a.b`) instead of only its last hop.
+pub(super) fn extract_destructure_paths(
+    pattern: &str,
+    expression: &str,
+    array_read: ArrayHelperRead,
+    paths: &mut Vec<(String, String)>,
+    inserts: &mut Vec<(String, String)>,
+) {
+    let pattern = pattern.trim();
+    if pattern.is_empty() {
+        return;
+    }
+
+    // `AssignmentPattern` — checked before the bracket forms, since a nested
+    // pattern with a default (`{ b } = { b: 3 }`) also starts with `{`.
+    if !pattern.starts_with("...")
+        && let Some(eq_pos) = find_default_equals(pattern)
+    {
+        let fallback = build_fallback_string(expression, pattern[eq_pos + 1..].trim());
+        extract_destructure_paths(&pattern[..eq_pos], &fallback, array_read, paths, inserts);
+        return;
+    }
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let props = split_derived_object_properties(&pattern[1..pattern.len() - 1]);
+        let has_rest = props.iter().any(|prop| prop.trim().starts_with("..."));
+        let excluded_keys = if has_rest {
+            exclude_from_object_keys(&props).join(", ")
+        } else {
+            String::new()
+        };
+
+        for prop in &props {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+            if let Some(rest_target) = prop.strip_prefix("...") {
+                let rest_expression =
+                    format!("$.exclude_from_object({}, [{}])", expression, excluded_keys);
+                extract_destructure_paths(
+                    rest_target,
+                    &rest_expression,
+                    array_read,
+                    paths,
+                    inserts,
+                );
+                continue;
+            }
+
+            let (key, value) = match find_derived_property_colon(prop) {
+                Some(colon_pos) => (prop[..colon_pos].trim(), prop[colon_pos + 1..].trim()),
+                // Shorthand: the key is the name, the value is the whole
+                // property (so `{ a = 1 }` still becomes an `AssignmentPattern`).
+                None => match find_default_equals(prop) {
+                    Some(eq_pos) => (prop[..eq_pos].trim(), prop),
+                    None => (prop, prop),
+                },
+            };
+            let object_expression = derived_prop_access(expression, expression, key);
+            extract_destructure_paths(value, &object_expression, array_read, paths, inserts);
+        }
+        return;
+    }
+
+    if pattern.starts_with('[') && pattern.ends_with(']') {
+        let mut elements = split_derived_array_elements(&pattern[1..pattern.len() - 1]);
+        // A trailing comma is not an elision, so it contributes no element.
+        if elements.last().is_some_and(|el| el.trim().is_empty()) {
+            elements.pop();
+        }
+        let ends_with_rest = elements
+            .last()
+            .is_some_and(|el| el.trim().starts_with("..."));
+
+        let array_var = next_script_array_var();
+        let to_array = if ends_with_rest {
+            format!("$.to_array({})", expression)
+        } else {
+            format!("$.to_array({}, {})", expression, elements.len())
+        };
+        inserts.push((array_var.clone(), to_array));
+
+        let helper = match array_read {
+            ArrayHelperRead::Value => array_var,
+            ArrayHelperRead::Signal => format!("$.get({})", array_var),
+        };
+        for (i, element) in elements.iter().enumerate() {
+            let element = element.trim();
+            if element.is_empty() {
+                continue;
+            }
+            let (target, element_expression) = match element.strip_prefix("...") {
+                Some(rest_target) => (rest_target, format!("{}.slice({})", helper, i)),
+                None => (element, format!("{}[{}]", helper, i)),
+            };
+            extract_destructure_paths(target, &element_expression, array_read, paths, inserts);
+        }
+        return;
+    }
+
+    paths.push((pattern.to_string(), expression.to_string()));
+}
+
+/// The next `$$array` / `$$array_<n>` helper name, mirroring upstream's
+/// `scope.generate('$$array')`.
+pub(super) fn next_script_array_var() -> String {
+    let index = SCRIPT_ARRAY_COUNTER.with(|c| {
+        let current = c.get();
+        c.set(current + 1);
+        current
+    });
+    if index == 0 {
+        "$$array".to_string()
+    } else {
+        format!("$$array_{}", index)
+    }
+}
+
+/// Whether the text is a bare identifier — upstream's
+/// `should_cache = value.type !== 'Identifier'` test, on source text.
+fn string_is_identifier(s: &str) -> bool {
+    !s.is_empty()
+        && !s.starts_with(|c: char| c.is_ascii_digit())
+        && s.chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+/// Lower a destructuring assignment the way upstream's
+/// `visit_assignment_expression` (`shared/assignments.js`) does: every leaf of
+/// the pattern — however deeply nested — becomes one flat assignment from the
+/// full member path, and every array pattern contributes a `$$array` helper.
 ///
-/// The IIFE parameter `<p>` is the RHS identifier itself when the RHS is a plain
-/// identifier (upstream `should_cache = value.type !== 'Identifier'` is false);
-/// otherwise the RHS is cached in `$$value`.
+/// With no helper and an identifier right-hand side the result is a sequence
+/// expression (`(a = rhs.x, b = rhs.y)`); otherwise the statements go into an
+/// IIFE whose parameter is the RHS identifier itself when it needs no caching
+/// (`should_cache = value.type !== 'Identifier'`) and `$$value` when it does.
 ///
-/// When `is_standalone` is false (the destructure is part of a larger expression),
-/// `return <p>;` is appended so the IIFE returns the value.
+/// When `is_standalone` is false (the destructure is part of a larger
+/// expression), the value is appended so the form still evaluates to the RHS.
 pub(super) fn generate_destructure_iife(
-    pattern_type: char, // ']' for array, '}' for object
     pattern_str: &str,
     rhs_str: &str,
     is_standalone: bool,
     store_sub_vars: &[String],
     force_cache_rhs: bool,
 ) -> String {
-    let trimmed = pattern_str.trim();
+    let rhs_trimmed = rhs_str.trim();
+    // Upstream visits the right-hand side first, so a state / store / prop read
+    // is already a call by the time `should_cache = value.type !== 'Identifier'`
+    // is evaluated — which is what `force_cache_rhs` carries here.
+    let should_cache = force_cache_rhs || !string_is_identifier(rhs_trimmed);
+    let param_name = if should_cache { "$$value" } else { rhs_trimmed };
 
-    // Remove outer brackets (both array `[...]` and object `{...}`)
-    let inner = &trimmed[1..trimmed.len() - 1];
+    let mut paths = Vec::new();
+    let mut inserts = Vec::new();
+    extract_destructure_paths(
+        pattern_str,
+        param_name,
+        ArrayHelperRead::Value,
+        &mut paths,
+        &mut inserts,
+    );
 
-    let parts = split_on_commas(inner);
+    if paths.is_empty() && inserts.is_empty() {
+        return format!("({} = {})", pattern_str.trim(), rhs_str);
+    }
 
-    if pattern_type == ']' {
-        // Array destructure
-        let array_name = SCRIPT_ARRAY_COUNTER.with(|c| {
-            let count = c.get();
-            let name = if count == 0 {
-                "$$array".to_string()
-            } else {
-                format!("$$array_{}", count)
-            };
-            c.set(count + 1);
-            name
-        });
-
-        // Check if last element is a rest element
-        let has_rest = parts
-            .last()
-            .map(|p| p.trim().starts_with("..."))
-            .unwrap_or(false);
-
-        // Upstream `visit_assignment_expression`: `should_cache = value.type !==
-        // 'Identifier'`. When the RHS is a plain identifier (and won't be
-        // rewritten into a call — see `force_cache_rhs`), it is used verbatim as
-        // both the IIFE parameter and the `$.to_array(...)` base
-        // (`((array) => { var $$array = $.to_array(array, 2); … })(array)`);
-        // otherwise the value is cached in a `$$value` parameter.
-        let rhs_trimmed = rhs_str.trim();
-        let rhs_is_simple_identifier = !rhs_trimmed.is_empty()
-            && rhs_trimmed
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-            && !rhs_trimmed.starts_with(|c: char| c.is_ascii_digit());
-        let param_name = if rhs_is_simple_identifier && !force_cache_rhs {
-            rhs_trimmed
-        } else {
-            "$$value"
-        };
-
-        let to_array_args = if has_rest {
-            format!("$.to_array({})", param_name)
-        } else {
-            format!("$.to_array({}, {})", param_name, parts.len())
-        };
-
-        let mut body_lines = Vec::new();
-        body_lines.push(format!("\tvar {} = {};", array_name, to_array_args));
-        body_lines.push(String::new()); // blank line
-
-        for (idx, part) in parts.iter().enumerate() {
-            let part = part.trim();
-            if part.is_empty() {
-                continue; // Skip holes
-            }
-
-            if let Some(rest_target) = part.strip_prefix("...") {
-                let rest_target = rest_target.trim();
-                if rest_target.starts_with('{') && rest_target.ends_with('}') {
-                    // Rest with object destructure pattern: ...{ z = 26 }
-                    // Generate inline property access from .slice() result
-                    let slice_expr = format!("{}.slice({})", array_name, idx);
-                    let obj_inner = &rest_target[1..rest_target.len() - 1];
-                    let obj_parts = split_on_commas(obj_inner);
-                    for obj_part in &obj_parts {
-                        let obj_part = obj_part.trim();
-                        if obj_part.is_empty() {
-                            continue;
-                        }
-                        if let Some(eq_pos) = find_top_level_equals(obj_part) {
-                            let prop_name = obj_part[..eq_pos].trim();
-                            let default_val = obj_part[eq_pos + 1..].trim();
-                            let access = format!("{}.{}", slice_expr, prop_name);
-                            let fallback = build_fallback_string(&access, default_val);
-                            body_lines.push(format!("\t{} = {};", prop_name, fallback));
-                        } else {
-                            body_lines
-                                .push(format!("\t{} = {}.{};", obj_part, slice_expr, obj_part));
-                        }
-                    }
+    if inserts.is_empty() && !should_cache {
+        // No `$$array` helper and no caching: upstream emits a plain sequence
+        // expression, whose elements are ordinary assignments. A store target
+        // has to be lowered here — nothing downstream rewrites a store write
+        // that is not its own statement.
+        let mut expressions: Vec<String> = paths
+            .iter()
+            .map(|(target, access)| {
+                if target.starts_with('$') && store_sub_vars.iter().any(|v| v == target) {
+                    format!("$.store_set({}, {})", &target[1..], access)
                 } else {
-                    body_lines.push(format!(
-                        "\t{} = {}.slice({});",
-                        rest_target, array_name, idx
-                    ));
+                    format!("{} = {}", target, access)
                 }
-            } else {
-                // Handle default value: `target = default`
-                let (target, default_val) = if let Some(eq_pos) = find_top_level_equals(part) {
-                    let t = part[..eq_pos].trim();
-                    let d = part[eq_pos + 1..].trim();
-                    (t, Some(d))
-                } else {
-                    (part, None)
-                };
-
-                if let Some(default_val) = default_val {
-                    let access = format!("{}[{}]", array_name, idx);
-                    let fallback = build_fallback_string(&access, default_val);
-                    body_lines.push(format!("\t{} = {};", target, fallback));
-                } else {
-                    body_lines.push(format!("\t{} = {}[{}];", target, array_name, idx));
-                }
-            }
-        }
+            })
+            .collect();
 
         if !is_standalone {
-            body_lines.push(String::new()); // blank line before return
-            body_lines.push(format!("\treturn {};", param_name));
+            // This is part of an expression, so the sequence must end with the value.
+            expressions.push(rhs_trimmed.to_string());
         }
 
-        let body = body_lines.join("\n");
-        // When the IIFE body or RHS contains `await`, the arrow must be async
-        // and the whole call must be `await`ed. This matches the official Svelte
-        // compiler which generates `await (async (<param>) => { ... })(rhs)`.
-        if code_contains_await(&body) || code_contains_await(rhs_str) {
-            format!(
-                "await (async ({}) => {{\n{}\n}})({})",
-                param_name, body, rhs_str
-            )
-        } else {
-            format!("(({}) => {{\n{}\n}})({})", param_name, body, rhs_str)
+        if expressions.len() == 1 {
+            // Upstream always lowers through `b.sequence(assignments)` — a real
+            // `SequenceExpression`, unconditionally, even with one element — and
+            // esrap always self-parenthesizes a `SequenceExpression`. A bare
+            // `(assignment)` would reparse as a plain (non-sequence) expression
+            // and lose those parens downstream; the marker call preserves the
+            // "must be a sequence" decision through the reparse. See
+            // `SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER`.
+            return format!(
+                "{}({})",
+                SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER, expressions[0]
+            );
         }
+        // Single-line comma expression format.
+        // IMPORTANT: Must be single-line because downstream processing in
+        // process_accumulated/find_statement_end_client treats newlines at depth 0
+        // as statement boundaries, which would break multi-line expressions.
+        return format!("({})", expressions.join(", "));
+    }
+
+    // Upstream emits every `$$array` helper first, then every assignment, so a
+    // nested helper is declared before the paths that read it.
+    let mut body_lines: Vec<String> = inserts
+        .iter()
+        .map(|(name, value)| format!("\tvar {} = {};", name, value))
+        .collect();
+    if !body_lines.is_empty() {
+        body_lines.push(String::new());
+    }
+    // A store target keeps its plain `$store = …` form here: the IIFE body is a
+    // statement list, so the ordinary store-assignment transform still sees it.
+    body_lines.extend(
+        paths
+            .iter()
+            .map(|(target, access)| format!("\t{} = {};", target, access)),
+    );
+
+    if !is_standalone {
+        body_lines.push(String::new());
+        body_lines.push(format!("\treturn {};", param_name));
+    }
+
+    let body = body_lines.join("\n");
+    // When the IIFE body or RHS contains `await`, the arrow must be async and the
+    // whole call must be `await`ed, matching upstream's `is_expression_async` test.
+    if code_contains_await(&body) || code_contains_await(rhs_str) {
+        format!(
+            "await (async ({}) => {{\n{}\n}})({})",
+            param_name, body, rhs_str
+        )
     } else {
-        // Object destructure
-        //
-        // Optimization: when the RHS is a simple identifier and the pattern has only
-        // simple targets (no defaults, no nested patterns, no rest elements), we can
-        // generate a comma/sequence expression instead of an IIFE.
-        // This matches the official Svelte compiler output:
-        //   `({$a, $b} = obj)` → `($.store_set(a, obj.$a), $.store_set(b, obj.$b));`
-        // instead of:
-        //   `(($$value) => { ... })(obj);`
-        let rhs_is_simple_identifier = rhs_str
-            .trim()
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
-        // Check if all parts are "simple enough" to use direct property access instead of IIFE.
-        // Allow defaults (= sign) since we can use $.fallback() with direct access.
-        let all_parts_simple = !parts.is_empty()
-            && parts.iter().all(|p| {
-                let p = p.trim();
-                if p.is_empty() {
-                    return true;
-                }
-                // A rest element is an ordinary path upstream — `$.exclude_from_object`
-                // needs no `$$value` — so only a nested rest target forces the IIFE.
-                if let Some(rest_target) = p.strip_prefix("...") {
-                    let rest_target = rest_target.trim();
-                    return !rest_target.starts_with('[') && !rest_target.starts_with('{');
-                }
-                // If key-value, target must be simple identifier (no nested patterns)
-                if let Some(colon_pos) = find_top_level_colon(p) {
-                    let target = p[colon_pos + 1..].trim();
-                    // Check for default value in key-value pair
-                    let target_without_default = if let Some(eq_pos) = find_top_level_equals(target)
-                    {
-                        target[..eq_pos].trim()
-                    } else {
-                        target
-                    };
-                    // No nested array/object patterns
-                    if target_without_default.starts_with('[')
-                        || target_without_default.starts_with('{')
-                    {
-                        return false;
-                    }
-                } else {
-                    // Shorthand with default: check the name part
-                    if let Some(eq_pos) = find_top_level_equals(p) {
-                        let name = p[..eq_pos].trim();
-                        if name.starts_with('[') || name.starts_with('{') {
-                            return false;
-                        }
-                    }
-                }
-                true
-            });
-
-        if rhs_is_simple_identifier && all_parts_simple && !force_cache_rhs {
-            // Generate comma/sequence expression with individual assignments.
-            // When the RHS is a simple identifier (and won't be transformed to a call),
-            // there's no need for caching in $$value.
-            // This matches the official Svelte compiler output:
-            //   `({$a, $b} = obj)` -> `($.store_set(a, obj.$a), $.store_set(b, obj.$b));`
-            //   `({store1, store2} = context)` -> `(store1 = context.store1, store2 = context.store2)`
-            //
-            // For store sub targets: generate $.store_set() directly
-            // For state var targets: generate plain assignment (downstream transforms add $.set() etc.)
-            //
-            // Use a single line to avoid issues with downstream transforms that treat
-            // newlines as statement boundaries (find_statement_end_client).
-            let mut assignments: Vec<String> = Vec::new();
-            for part in &parts {
-                let part = part.trim();
-                if part.is_empty() {
-                    continue;
-                }
-
-                let (target, access) = if let Some(rest_target) = part.strip_prefix("...") {
-                    (
-                        rest_target.trim().to_string(),
-                        format!(
-                            "$.exclude_from_object({}, [{}])",
-                            rhs_str,
-                            exclude_from_object_keys(&parts).join(", ")
-                        ),
-                    )
-                } else {
-                    let (key, target_with_default) =
-                        if let Some(colon_pos) = find_top_level_colon(part) {
-                            (
-                                part[..colon_pos].trim().to_string(),
-                                part[colon_pos + 1..].trim().to_string(),
-                            )
-                        } else {
-                            // Shorthand: {x} or {x = default} means key=x
-                            let name = if let Some(eq_pos) = find_top_level_equals(part) {
-                                part[..eq_pos].trim().to_string()
-                            } else {
-                                part.to_string()
-                            };
-                            (name.clone(), part.to_string())
-                        };
-
-                    // Split target from default value
-                    let (target, default_val) =
-                        if let Some(eq_pos) = find_top_level_equals(&target_with_default) {
-                            (
-                                target_with_default[..eq_pos].trim().to_string(),
-                                Some(target_with_default[eq_pos + 1..].trim().to_string()),
-                            )
-                        } else {
-                            (target_with_default.clone(), None)
-                        };
-
-                    let member = derived_prop_access(rhs_str, rhs_str, &key);
-                    let access = match &default_val {
-                        Some(default_val) => build_fallback_string(&member, default_val),
-                        None => member,
-                    };
-                    (target, access)
-                };
-
-                // Check if the target is a store subscription variable ($storeName)
-                if store_sub_vars.contains(&target) && target.starts_with('$') {
-                    assignments.push(format!("$.store_set({}, {})", &target[1..], access));
-                } else {
-                    assignments.push(format!("{} = {}", target, access));
-                }
-            }
-
-            if !is_standalone {
-                // Part of a larger expression - need the value at the end
-                assignments.push(rhs_str.to_string());
-            }
-
-            if assignments.len() == 1 {
-                // Upstream always lowers through `b.sequence(assignments)` — a real
-                // `SequenceExpression`, unconditionally, even with one element — and
-                // esrap always self-parenthesizes a `SequenceExpression`. A bare
-                // `(assignment)` would reparse as a plain (non-sequence) expression
-                // and lose those parens downstream; the marker call preserves the
-                // "must be a sequence" decision through the reparse. See
-                // `SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER`.
-                return format!(
-                    "{}({})",
-                    SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER, assignments[0]
-                );
-            } else {
-                // Single-line comma expression format.
-                // IMPORTANT: Must be single-line because downstream processing in
-                // process_accumulated/find_statement_end_client treats newlines at depth 0
-                // as statement boundaries, which would break multi-line expressions.
-                return format!("({})", assignments.join(", "));
-            }
-        }
-
-        let mut body_lines = Vec::new();
-        let mut prepend_lines: Vec<String> = Vec::new();
-
-        for part in &parts {
-            let part = part.trim();
-            if part.is_empty() {
-                continue;
-            }
-
-            if let Some(rest_target) = part.strip_prefix("...") {
-                // Rest element: ...rest = $.exclude_from_object($$value, [keys...])
-                body_lines.push(format!(
-                    "\t{} = $.exclude_from_object($$value, [{}]);",
-                    rest_target.trim(),
-                    exclude_from_object_keys(&parts).join(", ")
-                ));
-            } else if let Some(colon_pos) = find_top_level_colon(part) {
-                // Key-value pair: key: target
-                let key = part[..colon_pos].trim();
-                let target = part[colon_pos + 1..].trim();
-
-                // Handle default value
-                // `derived_prop_access` keeps bracket notation for computed and
-                // literal keys, like upstream's `b.member(…, prop.computed ||
-                // prop.key.type !== 'Identifier')`.
-                let value_access = derived_prop_access("$$value", "$$value", key);
-                if let Some(eq_pos) = find_top_level_equals(target) {
-                    let actual_target = target[..eq_pos].trim();
-                    let default_val = target[eq_pos + 1..].trim();
-                    let fallback = build_fallback_string(&value_access, default_val);
-                    body_lines.push(format!("\t{} = {};", actual_target, fallback));
-                } else if target.starts_with('[') && target.ends_with(']') {
-                    // Nested array pattern: key: [a, b, c]
-                    // Inline the array destructuring instead of creating a nested IIFE
-                    let inner_parts = split_on_commas(&target[1..target.len() - 1]);
-                    let array_name = SCRIPT_ARRAY_COUNTER.with(|c| {
-                        let count = c.get();
-                        let name = if count == 0 {
-                            "$$array".to_string()
-                        } else {
-                            format!("$$array_{}", count)
-                        };
-                        c.set(count + 1);
-                        name
-                    });
-                    // Insert the to_array call at the beginning of body_lines
-                    // We use a marker to insert it at the right place later
-                    let has_rest = inner_parts
-                        .last()
-                        .map(|p| p.trim().starts_with("..."))
-                        .unwrap_or(false);
-                    let to_array_args = if has_rest {
-                        format!("$.to_array({})", value_access)
-                    } else {
-                        format!("$.to_array({}, {})", value_access, inner_parts.len())
-                    };
-                    // We need to insert the var declaration before the assignments
-                    // Store it as a "prepend" item
-                    prepend_lines.push(format!("\tvar {} = {};", array_name, to_array_args));
-
-                    for (idx, inner_part) in inner_parts.iter().enumerate() {
-                        let inner_part = inner_part.trim();
-                        if inner_part.is_empty() {
-                            continue;
-                        }
-                        if let Some(rest_target) = inner_part.strip_prefix("...") {
-                            body_lines.push(format!(
-                                "\t{} = {}.slice({});",
-                                rest_target.trim(),
-                                array_name,
-                                idx
-                            ));
-                        } else if let Some(eq_pos) = find_top_level_equals(inner_part) {
-                            let actual_target = inner_part[..eq_pos].trim();
-                            let default_val = inner_part[eq_pos + 1..].trim();
-                            let access = format!("{}[{}]", array_name, idx);
-                            let fallback = build_fallback_string(&access, default_val);
-                            body_lines.push(format!("\t{} = {};", actual_target, fallback));
-                        } else {
-                            body_lines.push(format!("\t{} = {}[{}];", inner_part, array_name, idx));
-                        }
-                    }
-                } else {
-                    body_lines.push(format!("\t{} = {};", target, value_access));
-                }
-            } else {
-                // Shorthand: {x} means key=x, target=x
-                let name = if let Some(eq_pos) = find_top_level_equals(part) {
-                    let actual_name = part[..eq_pos].trim();
-                    let default_val = part[eq_pos + 1..].trim();
-                    let access = format!("$$value.{}", actual_name);
-                    let fallback = build_fallback_string(&access, default_val);
-                    body_lines.push(format!("\t{} = {};", actual_name, fallback));
-                    continue;
-                } else {
-                    part
-                };
-
-                body_lines.push(format!("\t{} = $$value.{};", name, name));
-            }
-        }
-
-        // Prepend array destructure declarations before assignments
-        if !prepend_lines.is_empty() {
-            prepend_lines.push(String::new()); // blank line after declarations
-            let mut all_lines = prepend_lines;
-            all_lines.extend(body_lines);
-            body_lines = all_lines;
-        }
-
-        if !is_standalone {
-            body_lines.push(String::new()); // blank line before return
-            body_lines.push("\treturn $$value;".to_string());
-        }
-
-        let body = body_lines.join("\n");
-        // When the IIFE body or RHS contains `await`, the arrow must be async
-        // and the whole call must be `await`ed.
-        if code_contains_await(&body) || code_contains_await(rhs_str) {
-            format!("await (async ($$value) => {{\n{}\n}})({})", body, rhs_str)
-        } else {
-            format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
-        }
+        format!("(({}) => {{\n{}\n}})({})", param_name, body, rhs_str)
     }
 }
 

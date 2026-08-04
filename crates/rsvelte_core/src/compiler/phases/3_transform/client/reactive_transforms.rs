@@ -491,6 +491,7 @@ pub(super) fn transform_reactive_statement(
             let body = &transform_destructure_assignments_with_props(
                 body,
                 state_vars,
+                non_reactive_state_vars,
                 store_sub_vars,
                 prop_assignment_transform_vars,
             );
@@ -672,6 +673,7 @@ pub(super) fn transform_reactive_statement(
         let body = &transform_destructure_assignments_with_props(
             body,
             state_vars,
+            non_reactive_state_vars,
             store_sub_vars,
             prop_assignment_transform_vars,
         );
