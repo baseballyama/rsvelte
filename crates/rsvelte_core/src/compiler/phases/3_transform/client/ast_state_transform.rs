@@ -22,7 +22,10 @@ use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
-use super::destructure_transforms::{build_fallback_string, js_number_to_string, unthunk_string};
+use super::destructure_transforms::{
+    ArrayHelperRead, build_fallback_string, extract_destructure_paths, js_number_to_string,
+    unthunk_string,
+};
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
@@ -2978,6 +2981,20 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             self.add_replacement(full_start, full_end, replacement);
             return;
         }
+        // Nested/keyed/defaulted patterns the two narrow helpers above don't
+        // cover (e.g. `({ b: o.p } = src)`, `({ a: { value } } = src)`).
+        if matches!(
+            &expr.left,
+            AssignmentTarget::ObjectAssignmentTarget(_)
+                | AssignmentTarget::ArrayAssignmentTarget(_)
+        ) && expr.operator == AssignmentOperator::Assign
+            && let Some(replacement) =
+                self.try_build_nested_destructure_prop_assignment(&expr.left, &expr.right)
+        {
+            let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
+            self.add_replacement(full_start, full_end, replacement);
+            return;
+        }
         if matches!(
             &expr.left,
             AssignmentTarget::ObjectAssignmentTarget(_)
@@ -3575,6 +3592,103 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 body, rhs_trimmed
             ))
         }
+    }
+
+    /// Fallback for destructuring-assignment targets the two narrow helpers
+    /// above don't cover — nested patterns, renamed (`{ a: b }`) properties,
+    /// and defaults. Reuses the shared text-based `extract_destructure_paths`
+    /// pattern-walker (the same one the declaration-lowering path uses) to get
+    /// one `(target, initializer)` pair per bound leaf, then wraps prop-var
+    /// leaves in `name(...)` calls the way the narrow helpers above do — this
+    /// function's output is spliced in as final text and never re-walked, so
+    /// prop writes must be wrapped here rather than left for a later pass.
+    fn try_build_nested_destructure_prop_assignment<'ast>(
+        &mut self,
+        target: &AssignmentTarget<'ast>,
+        rhs: &Expression<'ast>,
+    ) -> Option<String> {
+        let target_span = target.span();
+        let pattern_text =
+            self.source[target_span.start as usize..target_span.end as usize].to_string();
+
+        let rhs_start = rhs.span().start;
+        let rhs_end = rhs.span().end;
+        self.visit_expression(rhs);
+        let rhs_text = self.apply_and_drain_inner_replacements(rhs_start, rhs_end);
+        let rhs_trimmed = rhs_text.trim();
+
+        let is_simple_ident = matches!(rhs, Expression::Identifier(_));
+        let access_base: String = if is_simple_ident {
+            rhs_trimmed.to_string()
+        } else {
+            "$$value".to_string()
+        };
+
+        let mut paths: Vec<(String, String)> = Vec::new();
+        let mut inserts: Vec<(String, String)> = Vec::new();
+        extract_destructure_paths(
+            &pattern_text,
+            &access_base,
+            ArrayHelperRead::Value,
+            &mut paths,
+            &mut inserts,
+        );
+
+        if paths.is_empty() {
+            return None;
+        }
+
+        // Only fire when at least one bound leaf is a prop var — otherwise
+        // there's nothing for this pass to rewrite, and the untransformed
+        // fallback (which leaves non-reactive destructuring verbatim) is correct.
+        let mut changed = false;
+        let assignments: Vec<String> = paths
+            .iter()
+            .map(|(target_text, init_text)| {
+                if !target_text.contains('.')
+                    && !target_text.contains('[')
+                    && self.is_active_prop_var(target_text)
+                {
+                    changed = true;
+                    format!("{}({})", target_text, init_text)
+                } else {
+                    format!("{} = {}", target_text, init_text)
+                }
+            })
+            .collect();
+
+        if !changed {
+            return None;
+        }
+
+        if inserts.is_empty() && is_simple_ident {
+            return Some(if assignments.len() == 1 {
+                // See the sequence-marker comment on the shorthand helper above —
+                // the same "always a real SequenceExpression" rule applies here.
+                format!(
+                    "{}({})",
+                    SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER,
+                    assignments.into_iter().next().unwrap()
+                )
+            } else {
+                format!("({})", assignments.join(", "))
+            });
+        }
+
+        let mut body = String::new();
+        for (var_name, init) in &inserts {
+            let _ = writeln!(body, "\t\t\tvar {} = {};", var_name, init);
+        }
+        for assignment in &assignments {
+            let _ = writeln!(body, "\t\t\t{};", assignment);
+        }
+        if !is_simple_ident {
+            let _ = writeln!(body, "\t\t\treturn $$value;");
+        }
+        Some(format!(
+            "(($$value) => {{\n{}\t\t}})({})",
+            body, rhs_trimmed
+        ))
     }
 
     /// Check if an assignment target is a direct rest-prop member assignment.

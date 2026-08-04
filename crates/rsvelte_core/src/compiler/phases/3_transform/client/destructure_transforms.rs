@@ -108,7 +108,6 @@ pub(super) fn transform_destructure_assignments_with_props(
     let mut result = statement.to_string();
 
     // Build HashSets once for O(1) lookups across all iterations
-    let state_set: rustc_hash::FxHashSet<&str> = state_vars.iter().map(|s| s.as_str()).collect();
     let store_set: rustc_hash::FxHashSet<&str> =
         store_sub_vars.iter().map(|s| s.as_str()).collect();
     let prop_set: rustc_hash::FxHashSet<&str> = prop_vars.iter().map(|s| s.as_str()).collect();
@@ -123,7 +122,6 @@ pub(super) fn transform_destructure_assignments_with_props(
     while let Some(transformed) = find_and_transform_one_destructure(
         &result,
         store_sub_vars,
-        &state_set,
         &store_set,
         &prop_set,
         &reactive_state_set,
@@ -149,7 +147,6 @@ pub(super) fn transform_destructure_assignments_with_props(
 pub(super) fn find_and_transform_one_destructure(
     statement: &str,
     store_sub_vars: &[String],
-    state_set: &rustc_hash::FxHashSet<&str>,
     store_set: &rustc_hash::FxHashSet<&str>,
     prop_set: &rustc_hash::FxHashSet<&str>,
     reactive_state_set: &rustc_hash::FxHashSet<&str>,
@@ -283,7 +280,7 @@ pub(super) fn find_and_transform_one_destructure(
                     // through the normal assignment lowering, so a prop target
                     // (`a = …` → `a(…)`) counts exactly like a state or store one.
                     let has_reactive_target = targets.iter().any(|t| {
-                        state_set.contains(t.as_str())
+                        reactive_state_set.contains(t.as_str())
                             || store_set.contains(t.as_str())
                             || prop_set.contains(t.as_str())
                     });
