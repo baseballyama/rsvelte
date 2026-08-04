@@ -1,5 +1,50 @@
 # @rsvelte/compiler
 
+## 0.10.3
+
+### Patch Changes
+
+- e6ac019: fix(compiler): decide the dev-mode `console.*` wrap with `scope.evaluate` — `$.log_if_contains_state(...)` now wraps exactly the calls the official compiler wraps. Template-position calls (event handlers, `{expr}`, `$:` bodies) were never wrapped at all, and calls whose arguments a template literal, a `+`/comparison operator or a resolvable binding proves cannot hold state were wrapped when they should not be
+- 5a18d1a: Legacy (non-runes) destructuring _declarations_ now expand nested patterns like the official compiler. `let { a: { b } } = obj` used to be left verbatim, so the nested state leaf never got its `$.mutable_source` wrapper (nor the dev `$.tag` label); the expansion is now a port of upstream's recursive `extract_paths`, so every leaf carries its full path (`tmp.a.b`), a nested `...rest` subtracts only its own level's keys, a default on a nested pattern becomes the base the sub-pattern reads from, and every array pattern — at any depth — gets its own `$$array` helper, emitted before the leaves that read it.
+- f7b59e8: Fix a server (SSR) codegen bug where two SEPARATE array-pattern destructuring declarations in one script (e.g. `let [a, b] = $state([1, 2]); let [c, d] = $state([3, 4]);`) both emitted a colliding `$$array = $.to_array(...)` temp. The `$$array` counter is now component-wide instead of being reset per declaration, so it deconflicts to `$$array`, `$$array_1`, … like the official compiler's `scope.generate('$$array')`.
+- 55df228: fix(compiler): instrument legacy (non-runes) instance scripts in dev mode — `a === b` now emits `$.strict_equals(a, b)` (and `!==` / `==` / `!=` their counterparts) and `await X` emits `(await $.track_reactivity_loss(X))()`, matching the official compiler, which runs the same client visitors for legacy and runes components
+- 80553c0: fix(compiler): instrument module scripts in dev mode — `await X` inside a component's `<script module>` or a `.svelte.(js|ts)` module now emits `(await $.track_reactivity_loss(X))()`, matching the official compiler, whose `AwaitExpression` visitor runs over every script kind
+- 1fe97f3: fix(svelte2tsx): close the three slots-reflection resolver gaps. A destructuring
+  `let:` value (`let:whatever={{ bla }}`) bound only the directive's own name, so
+  every leaf identifier stayed unresolved in the `slots` reflection instead of
+  resolving through `(({ bla }) => bla)(…$$slot_def['default'].whatever)`; slot-prop
+  resolution substituted identifiers by token without tracking object-literal
+  context, so an in-scope name in object **key** position (and inside a string
+  literal) was rewritten too (`{ item: … }` became
+  `{ __sveltets_2_unwrapArr(items): … }`); and a `{:catch e}` binding was not typed
+  as `__sveltets_2_any({})`. The `{#await}` opening-tag padding is now derived from
+  official `transform`'s collapsed-gap count (`2 + then + catch` spaces) rather than
+  a constant, which also fixes the bare and pending-only shapes.
+- ce189a1: fix(svelte2tsx): lower slots for `<svelte:self>` as a slot parent. Official
+  svelte2tsx models `<svelte:self>` as an `InlineComponent`, so its children are
+  slot consumers of that node, but rsvelte performed no lowering there at all:
+  `<svelte:self><div slot="a">` kept a bogus `"slot":`a`` prop instead of the
+  `$$slot_def["a"]` wrapper, `<svelte:self><div let:x>` kept a bogus
+  `"let:x":true` prop instead of the `$$slot_def.default` destructure (leaving
+  every `let:` binding an undeclared identifier), and the `$$_svelteselfN`
+  instance const was never declared. Named-slot children reached through
+  `{#if}` / `{#each}` / `{#await}` / `{#key}` now forward too, and a
+  `<svelte:self>` that is itself a named-slot child keeps both levels of
+  wrapper.
+- b632694: fix(svelte2tsx): mirror official whitespace/gap accounting for `<style>` and
+  `<svelte:boundary>`. Blanking a `<style>` tag also swallowed the whitespace that
+  followed it, so a top-level `<style>…</style>\n` lost its trailing newline
+  (`async () => {};` instead of `async () => {\n};`); upstream `handleStyleTag`
+  removes exactly the node range. And `<svelte:boundary>` was lowered with the
+  literal-name start transformation, whereas upstream `Element.ts` only
+  special-cases `svelte:options` / `head` / `window` / `body` / `fragment` and
+  lets everything else keep the tag name as a source range — one more kept range,
+  so the props object gets two spaces of gap instead of one. Because the Svelte-4
+  AST conversion drops a whitespace-only first/last `Text` child of a boundary,
+  `computeStartTagEnd` also lands on the first real child (folding the `\n\t`
+  before it into the opener) and a content-bearing first/last `Text` has its data
+  trimmed before being blanked.
+
 ## 0.10.2
 
 ### Patch Changes

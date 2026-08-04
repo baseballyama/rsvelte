@@ -1,5 +1,54 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.10
+
+### Patch Changes
+
+- 1fe97f3: fix(svelte2tsx): close the three slots-reflection resolver gaps. A destructuring
+  `let:` value (`let:whatever={{ bla }}`) bound only the directive's own name, so
+  every leaf identifier stayed unresolved in the `slots` reflection instead of
+  resolving through `(({ bla }) => bla)(…$$slot_def['default'].whatever)`; slot-prop
+  resolution substituted identifiers by token without tracking object-literal
+  context, so an in-scope name in object **key** position (and inside a string
+  literal) was rewritten too (`{ item: … }` became
+  `{ __sveltets_2_unwrapArr(items): … }`); and a `{:catch e}` binding was not typed
+  as `__sveltets_2_any({})`. The `{#await}` opening-tag padding is now derived from
+  official `transform`'s collapsed-gap count (`2 + then + catch` spaces) rather than
+  a constant, which also fixes the bare and pending-only shapes.
+- ce189a1: fix(svelte2tsx): lower slots for `<svelte:self>` as a slot parent. Official
+  svelte2tsx models `<svelte:self>` as an `InlineComponent`, so its children are
+  slot consumers of that node, but rsvelte performed no lowering there at all:
+  `<svelte:self><div slot="a">` kept a bogus `"slot":`a`` prop instead of the
+  `$$slot_def["a"]` wrapper, `<svelte:self><div let:x>` kept a bogus
+  `"let:x":true` prop instead of the `$$slot_def.default` destructure (leaving
+  every `let:` binding an undeclared identifier), and the `$$_svelteselfN`
+  instance const was never declared. Named-slot children reached through
+  `{#if}` / `{#each}` / `{#await}` / `{#key}` now forward too, and a
+  `<svelte:self>` that is itself a named-slot child keeps both levels of
+  wrapper.
+- b632694: fix(svelte2tsx): mirror official whitespace/gap accounting for `<style>` and
+  `<svelte:boundary>`. Blanking a `<style>` tag also swallowed the whitespace that
+  followed it, so a top-level `<style>…</style>\n` lost its trailing newline
+  (`async () => {};` instead of `async () => {\n};`); upstream `handleStyleTag`
+  removes exactly the node range. And `<svelte:boundary>` was lowered with the
+  literal-name start transformation, whereas upstream `Element.ts` only
+  special-cases `svelte:options` / `head` / `window` / `body` / `fragment` and
+  lets everything else keep the tag name as a source range — one more kept range,
+  so the props object gets two spaces of gap instead of one. Because the Svelte-4
+  AST conversion drops a whitespace-only first/last `Text` child of a boundary,
+  `computeStartTagEnd` also lands on the first real child (folding the `\n\t`
+  before it into the opener) and a content-bearing first/last `Text` has its data
+  trimmed before being blanked.
+- Updated dependencies [e6ac019]
+- Updated dependencies [5a18d1a]
+- Updated dependencies [f7b59e8]
+- Updated dependencies [55df228]
+- Updated dependencies [80553c0]
+- Updated dependencies [1fe97f3]
+- Updated dependencies [ce189a1]
+- Updated dependencies [b632694]
+  - @rsvelte/compiler@0.10.3
+
 ## 0.2.9
 
 ### Patch Changes
