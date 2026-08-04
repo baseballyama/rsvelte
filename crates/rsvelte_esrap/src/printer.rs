@@ -72,9 +72,6 @@ pub struct Printer<'opt> {
     /// Sorted, disjoint `(start, end, mapped)` ranges translating a comment-space
     /// offset back to a source-map-space offset. `None` mapped = unmapped.
     loc_map: Vec<(u32, u32, Option<u32>)>,
-    /// Optional caller hooks that inject synthetic leading/trailing comments per
-    /// statement (esrap's `getLeadingComments` / `getTrailingComments`).
-    hooks: Option<&'opt crate::CommentHooks<'opt>>,
 }
 
 /// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
@@ -82,13 +79,8 @@ pub struct Printer<'opt> {
 /// free function so the comment-flush loops can hold a `&Cmt` borrowed straight
 /// out of `self.comments` without cloning it.
 fn write_comment(cmt: &Cmt, ctx: &mut Context) {
-    write_comment_parts(cmt.block, &cmt.value, ctx);
-}
-
-/// The body of [`write_comment`], shared with synthetic comments injected via
-/// [`crate::CommentHooks`].
-fn write_comment_parts(block: bool, value: &str, ctx: &mut Context) {
-    if !block {
+    let value = &cmt.value;
+    if !cmt.block {
         ctx.write(format_compact!("//{value}"));
         return;
     }
@@ -407,7 +399,6 @@ impl<'opt> Printer<'opt> {
             map_line_starts: None,
             loc_base: None,
             loc_map: Vec::new(),
-            hooks: None,
         }
     }
 
@@ -427,7 +418,6 @@ impl<'opt> Printer<'opt> {
             line_starts,
             loc_base: None,
             loc_map: Vec::new(),
-            hooks: None,
         }
     }
 
@@ -444,12 +434,6 @@ impl<'opt> Printer<'opt> {
         self.map_line_starts = Some(map_line_starts);
         self.loc_base = Some(loc_base);
         self.loc_map = loc_map.to_vec();
-        self
-    }
-
-    /// Attach caller comment hooks (builder-style).
-    pub fn with_hooks(mut self, hooks: &'opt crate::CommentHooks<'opt>) -> Self {
-        self.hooks = Some(hooks);
         self
     }
 
@@ -587,31 +571,6 @@ impl<'opt> Printer<'opt> {
     }
 
     // ----- comments ---------------------------------------------------------
-
-    /// esrap's `write_additional_comments`: emit hook-supplied synthetic comments
-    /// around a node. Leading comments get a newline (line) or trailing space
-    /// (single-line block) after them; trailing comments get a leading space
-    /// before the first.
-    fn write_additional_comments(
-        &mut self,
-        comments: &[crate::SynthComment],
-        leading: bool,
-        ctx: &mut Context,
-    ) {
-        for (i, c) in comments.iter().enumerate() {
-            if !leading && i == 0 {
-                ctx.write(" ");
-            }
-            write_comment_parts(c.block, &c.value, ctx);
-            if leading {
-                if !c.block {
-                    ctx.newline();
-                } else if !c.value.contains('\n') {
-                    ctx.write(" ");
-                }
-            }
-        }
-    }
 
     /// esrap's `flush_comments_until`: emit every pending comment that starts
     /// before `to` (byte offset / `to_line`). The `from_line` margin rule adds a
@@ -938,24 +897,6 @@ impl<'opt> Printer<'opt> {
     }
 
     fn print_statement(&mut self, stmt: &Statement, ctx: &mut Context) {
-        // esrap's `_` wildcard order: hook-supplied leading comments, then the
-        // real leading-comment flush + node, then hook-supplied trailing comments.
-        if let Some(hooks) = self.hooks
-            && let Some(f) = &hooks.get_leading
-        {
-            let synth = f(stmt);
-            self.write_additional_comments(&synth, true, ctx);
-        }
-        self.print_statement_inner(stmt, ctx);
-        if let Some(hooks) = self.hooks
-            && let Some(f) = &hooks.get_trailing
-        {
-            let synth = f(stmt);
-            self.write_additional_comments(&synth, false, ctx);
-        }
-    }
-
-    fn print_statement_inner(&mut self, stmt: &Statement, ctx: &mut Context) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
         let start = stmt.span().start;
         self.flush_leading(ctx, start, self.line_of(start));
