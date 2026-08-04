@@ -174,10 +174,12 @@ pub(super) fn compute_header_suffix_len(source: &str, expr_end: usize) -> usize 
 /// This distinguishes call-chain breaks (hardlines in prettier, kept by removeLines)
 /// from argument-wrapping breaks (softlines in prettier, removed by removeLines).
 pub(super) fn is_method_chain_break(multi: &str) -> bool {
-    multi
-        .lines()
-        .skip(1)
-        .any(|line| line.trim_start().starts_with('.'))
+    multi.lines().skip(1).any(|line| {
+        let trimmed = line.trim_start();
+        // A spread argument (`...rest`) also starts with `.` — exclude it so an
+        // expanded-args break isn't mistaken for a call-chain break.
+        trimmed.starts_with('.') && !trimmed.starts_with("...")
+    })
 }
 
 pub(super) fn outer_parens_match(inner: &str) -> bool {

@@ -272,3 +272,67 @@ fn each_header_settles_iterable_before_key() {
         "{#each wrap(inner({ a: 1, b: 2 }), { c: 3 }) as item (getRows({ limit: 20 }))}"
     );
 }
+
+// #2070: a spread final argument is not a grouped-layout call, so the oracle
+// keeps the header on one line even when OXC's multi-line rendering of the
+// call would otherwise look like a chain break.
+#[test]
+fn spread_final_argument_keeps_header_on_one_line() {
+    let src = concat!(
+        "<script>\n",
+        "\tlet alpha = 1;\n",
+        "\tlet restOfTheArguments = [];\n",
+        "\tlet someCalleeNameHere = { getGrid: (a, ...r) => [] };\n",
+        "</script>\n",
+        "\n",
+        "{#if a}\n",
+        "\t{#if b}\n",
+        "\t\t{#each someCalleeNameHere.getGrid(alpha, ...restOfTheArguments) as m, id (id)}\n",
+        "\t\t\t<div>{m}</div>\n",
+        "\t\t{/each}\n",
+        "\t{/if}\n",
+        "{/if}\n",
+    );
+    assert_eq!(
+        header_of(&fmt(src)),
+        "{#each someCalleeNameHere.getGrid(alpha, ...restOfTheArguments) as m, id (id)}"
+    );
+}
+
+// #2070: a call with an arrow-function block-body argument (e.g. an effect
+// hook) prints multi-line regardless of width; the continuation lines must
+// nest at the header's own indent depth, not OXC's column-0 output.
+#[test]
+fn arrow_block_body_argument_reindents_continuation_to_header_depth() {
+    let src = concat!(
+        "<script>\n",
+        "\tlet depA = 1;\n",
+        "\tlet depB = 2;\n",
+        "\tfunction run() {}\n",
+        "\tfunction useEffect(fn, deps) {}\n",
+        "</script>\n",
+        "\n",
+        "{#if a}\n",
+        "\t{#if b}\n",
+        "\t\t{#if useEffect(() => { run(); }, [depA, depB])}\n",
+        "\t\t\t<div>x</div>\n",
+        "\t\t{/if}\n",
+        "\t{/if}\n",
+        "{/if}\n",
+    );
+    let out = fmt(src);
+    let block = out
+        .lines()
+        .skip_while(|l| !l.trim_start().starts_with("{#if useEffect"))
+        .take_while(|l| !l.trim_start().starts_with("<div>x</div>"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert_eq!(
+        block,
+        concat!(
+            "    {#if useEffect(() => {\n",
+            "      run();\n",
+            "    }, [depA, depB])}"
+        )
+    );
+}
