@@ -3072,40 +3072,53 @@ pub(super) fn wrap_prop_mutation_validation(
             runes_search_from = expr_start + replacement.len();
         }
 
-        // Pattern: `prop(prop().member_chain = value, true)` or `prop(prop()[expr] = value, true)`
-        // We search for `prop(prop()` followed by either `.` or `[`
-        let wrapper_prefix = format!("{}({}()", var_name, var_name);
+        // Pattern: `prop(prop().member_chain = value, true)` or `prop(prop()[expr] = value, true)`.
+        // The assignment may carry one extra wrapping paren when it's consumed as an
+        // expression result rather than a bare statement: `prop((prop().member = value), true)`.
+        let outer_call = format!("{}(", var_name);
+        let inner_call = format!("{}()", var_name);
         let mut search_from = 0;
 
         while search_from < result.len() {
-            let Some(prefix_rel) = result[search_from..].find(&wrapper_prefix) else {
+            let Some(prefix_rel) = result[search_from..].find(&outer_call) else {
                 break;
             };
             let abs_start = search_from + prefix_rel;
-            let after_prefix = abs_start + wrapper_prefix.len();
-            // Check that the next character is `.` or `[` (member access)
-            if after_prefix >= result.len() {
-                search_from = after_prefix;
-                continue;
-            }
-            let next_char = result.as_bytes()[after_prefix] as char;
-            if next_char != '.' && next_char != '[' {
-                search_from = after_prefix;
-                continue;
-            }
-            let wrapper_start_len = wrapper_prefix.len() + 1; // includes the `.` or `[`
+            let after_outer = abs_start + outer_call.len();
 
             // Check this is a standalone identifier (not part of a longer name)
             if abs_start > 0 {
                 let prev_char = result.as_bytes()[abs_start - 1] as char;
                 if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '$' {
-                    search_from = abs_start + wrapper_start_len;
+                    search_from = after_outer;
                     continue;
                 }
             }
 
+            let inner_probe_start = if result.as_bytes().get(after_outer) == Some(&b'(') {
+                after_outer + 1
+            } else {
+                after_outer
+            };
+            if !result[inner_probe_start..].starts_with(&inner_call) {
+                search_from = after_outer;
+                continue;
+            }
+            let after_inner_call = inner_probe_start + inner_call.len();
+            // Check that the next character is `.` or `[` (member access)
+            if after_inner_call >= result.len() {
+                search_from = after_outer;
+                continue;
+            }
+            let next_char = result.as_bytes()[after_inner_call] as char;
+            if next_char != '.' && next_char != '[' {
+                search_from = after_outer;
+                continue;
+            }
+            let wrapper_start_len = after_inner_call + 1 - abs_start; // includes the `.` or `[`
+
             // Find the inner assignment: after `prop(` find the matching `, true)`
-            let inner_start = abs_start + var_name.len() + 1; // skip `prop(`
+            let inner_start = after_outer; // skip outer `prop(`
 
             // Find `, true)` that closes this specific prop() call
             // We need to find the matching closing paren, accounting for nesting
@@ -3164,6 +3177,14 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // Extract the assignment expression (without `, true`)
             let assignment_expr = inner_trimmed[..inner_trimmed.len() - ", true".len()].trim();
+            // Some call sites wrap the assignment in an extra pair of parens
+            // (e.g. `(config().padAngle = value)`) when the result is consumed
+            // as an expression; strip one layer before pattern-matching.
+            let assignment_expr = assignment_expr
+                .strip_prefix('(')
+                .and_then(|s| s.strip_suffix(')'))
+                .map(str::trim)
+                .unwrap_or(assignment_expr);
 
             // Parse the member chain from `prop().member_chain`
             // Parse the member chain from `prop().member_chain` or `prop()[expr]`
