@@ -247,6 +247,10 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment) -> bool {
             TemplateNode::SvelteElement(el) if slot_attr_static_name(&el.attributes).is_some() => {
                 return true;
             }
+            // `<svelte:boundary slot="name">` is an `Element` upstream too.
+            TemplateNode::SvelteBoundary(el) if slot_attr_static_name(&el.attributes).is_some() => {
+                return true;
+            }
             // `<svelte:component this={expr} slot="name">` and `<svelte:self
             // slot="name">` are `InlineComponent`s in official svelte2tsx
             // (same as a named `<Component slot="name">`), so they forward
