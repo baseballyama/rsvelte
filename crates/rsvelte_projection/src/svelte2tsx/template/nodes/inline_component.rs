@@ -622,9 +622,20 @@ pub(crate) fn handle_svelte_component(
     // (named-slot children anywhere in blocks, or default-slot `let:` receivers).
     let children_have_named_slots = has_named_slot_children(&comp.fragment);
     let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment);
+    // Direct `{#snippet}` children become implicit props (mirroring
+    // `handle_component`), but only on the simple-children path — the slot paths
+    // own their own block scoping.
+    let use_snippet_props =
+        !(has_lets_scomp || children_have_named_slots || children_have_default_slot_lets)
+            && comp
+                .fragment
+                .nodes
+                .iter()
+                .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
     let needs_inst = has_events
         || has_lets_scomp
         || has_binds
+        || use_snippet_props
         || children_have_named_slots
         || children_have_default_slot_lets;
     // A named-slot child's `$$slot_def[…]` prologue is emitted by the caller
@@ -635,29 +646,33 @@ pub(crate) fn handle_svelte_component(
     } else {
         " ".repeat(scomp_spacing.before_block)
     };
-    let mut opener = if needs_inst {
+    let (mut opener, trailer_lit) = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
             String::new()
         };
-        format!(
-            "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
-            block_indent,
-            inst_var,
-            expr_text,
-            inst_var,
-            inst_var,
-            attrs_str,
-            component_bind_suffix,
-            on_calls
+        (
+            format!(
+                "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}",
+                block_indent, inst_var, expr_text, inst_var, inst_var, attrs_str
+            ),
+            format!("}}}});{}{}", component_bind_suffix, on_calls),
         )
     } else {
-        format!(
-            "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}}}}});",
-            block_indent, inst_var, expr_text, inst_var, attrs_str
+        (
+            format!(
+                "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}",
+                block_indent, inst_var, expr_text, inst_var, attrs_str
+            ),
+            "}});".to_string(),
         )
     };
+    // The snippet-props path keeps the props object open so the demoted
+    // `{#snippet}` children can be moved inside it.
+    if !use_snippet_props {
+        opener.push_str(&trailer_lit);
+    }
 
     // Slot let-forwarding: `{const { $$_$$, prop, } = inst.$$slot_def.default; $$_$$;`
     // Mirrors `defaultSlotLetTransformation` in the JS reference's
@@ -691,6 +706,50 @@ pub(crate) fn handle_svelte_component(
             counter,
             depth + 1,
         )
+    } else if use_snippet_props {
+        let prev_slot = counter.slot_inst.replace(inst_var.clone());
+        let mut anchor = opening_tag_end;
+        let mut last_snippet_end: Option<u32> = None;
+        let mut snippet_names: Vec<String> = Vec::new();
+        for node in &comp.fragment.nodes {
+            if let TemplateNode::SnippetBlock(s) = node {
+                if s.start >= s.end {
+                    continue;
+                }
+                snippet_names.push(get_expression_text(&s.expression, source).to_string());
+                handle_snippet_block_as_component_prop(s, source, options, str, counter, depth + 1);
+                // A self-move is rejected by MagicString, so a snippet already at
+                // the anchor only advances it.
+                if s.start == anchor {
+                    anchor = s.end;
+                } else {
+                    str.move_range(s.start, s.end, anchor);
+                }
+                last_snippet_end = Some(s.end);
+            } else {
+                process_node_inplace(node, source, options, str, counter, depth + 1);
+            }
+        }
+        counter.slot_inst = prev_slot;
+        let prop_def_suffix = if snippet_names.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "/*\u{03A9}ignore_start\u{03A9}*/const {{{}}} = {}.$$prop_def;/*\u{03A9}ignore_end\u{03A9}*/",
+                snippet_names.join(", "),
+                inst_var
+            )
+        };
+        let closing = format!("{trailer_lit}{prop_def_suffix}");
+        match last_snippet_end {
+            Some(end) => {
+                str.append_left(end, &closing);
+            }
+            None => {
+                str.prepend_right(opening_tag_end, &closing);
+            }
+        }
+        false
     } else {
         // Mark the slot context so `slot="x"` children nested in control-flow
         // blocks still lower to `inst.$$slot_def["x"]`.
