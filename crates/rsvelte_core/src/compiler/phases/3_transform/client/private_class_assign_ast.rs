@@ -42,14 +42,14 @@ use std::cell::RefCell;
 // mold principle P6: trusted-input compiler hot path uses FxHash, never SipHash.
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use oxc_allocator::Allocator;
+use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::{ParseOptions, Parser};
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
-use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
+use oxc_syntax::operator::{AssignmentOperator, UnaryOperator, UpdateOperator};
 
 use super::ast_rewrite::{self, Edit};
 
@@ -175,6 +175,25 @@ thread_local! {
 /// (no proxy logic). Returns `None` when there's nothing to
 /// rewrite or the source fails to parse.
 pub fn transform_private_class_assign_ast(
+    source: &str,
+    state_qualified: &[String],
+    other_qualified: &[String],
+) -> Option<String> {
+    let spliced = transform_private_class_assign_spliced(source, state_qualified, other_qualified);
+    if ast_rewrite::dual_run::enabled() {
+        let in_place =
+            transform_private_class_assign_in_place(source, state_qualified, other_qualified);
+        ast_rewrite::dual_run::compare_pass(
+            "private_class_assign_ast:inplace",
+            source,
+            spliced.as_deref(),
+            in_place.as_deref(),
+        );
+    }
+    spliced
+}
+
+fn transform_private_class_assign_spliced(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
@@ -309,15 +328,13 @@ enum Compound {
     Logic(&'static str),
 }
 
-impl<'a> PrivateClassAssignCollector<'a> {
-    fn classify(&self, text: &str) -> Option<Match> {
-        if self.state_qualified.iter().any(|q| q.as_str() == text) {
-            Some(Match::State)
-        } else if self.other_qualified.iter().any(|q| q.as_str() == text) {
-            Some(Match::Other)
-        } else {
-            None
-        }
+fn classify(text: &str, state_qualified: &[String], other_qualified: &[String]) -> Option<Match> {
+    if state_qualified.iter().any(|q| q.as_str() == text) {
+        Some(Match::State)
+    } else if other_qualified.iter().any(|q| q.as_str() == text) {
+        Some(Match::Other)
+    } else {
+        None
     }
 }
 
@@ -329,7 +346,7 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
             return;
         };
         let pf_text = &self.source[pf.span.start as usize..pf.span.end as usize];
-        let Some(kind) = self.classify(pf_text) else {
+        let Some(kind) = classify(pf_text, self.state_qualified, self.other_qualified) else {
             return;
         };
         let qualified = pf_text;
@@ -408,7 +425,7 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
             return;
         };
         let pf_text = &self.source[pf.span.start as usize..pf.span.end as usize];
-        if self.classify(pf_text).is_none() {
+        if classify(pf_text, self.state_qualified, self.other_qualified).is_none() {
             return;
         }
         let qualified = pf_text;
@@ -749,5 +766,212 @@ mod tests {
             "stray ) detected in:\n{}",
             out
         );
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_PRIVATE_CLASS_ASSIGN_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// The compound operators as nodes: logical assignment lowers to a
+/// `LogicalExpression`, every other compound to a `BinaryExpression`.
+enum CompoundOp {
+    Binary(oxc_syntax::operator::BinaryOperator),
+    Logical(oxc_syntax::operator::LogicalOperator),
+}
+
+fn compound_op_node(op: AssignmentOperator) -> Option<CompoundOp> {
+    use AssignmentOperator::*;
+    use oxc_syntax::operator::{BinaryOperator as B, LogicalOperator as L};
+    Some(match op {
+        Addition => CompoundOp::Binary(B::Addition),
+        Subtraction => CompoundOp::Binary(B::Subtraction),
+        Multiplication => CompoundOp::Binary(B::Multiplication),
+        Division => CompoundOp::Binary(B::Division),
+        Remainder => CompoundOp::Binary(B::Remainder),
+        Exponential => CompoundOp::Binary(B::Exponential),
+        ShiftLeft => CompoundOp::Binary(B::ShiftLeft),
+        ShiftRight => CompoundOp::Binary(B::ShiftRight),
+        ShiftRightZeroFill => CompoundOp::Binary(B::ShiftRightZeroFill),
+        BitwiseOR => CompoundOp::Binary(B::BitwiseOR),
+        BitwiseXOR => CompoundOp::Binary(B::BitwiseXOR),
+        BitwiseAnd => CompoundOp::Binary(B::BitwiseAnd),
+        LogicalOr => CompoundOp::Logical(L::Or),
+        LogicalAnd => CompoundOp::Logical(L::And),
+        LogicalNullish => CompoundOp::Logical(L::Coalesce),
+        Assign => return None,
+    })
+}
+
+/// In-place equivalent of [`transform_private_class_assign_ast`]. The spliced
+/// path's synthetic-`class` re-parse has no in-place analogue — printing a
+/// wrapped program would emit the wrapper — so a source that only parses
+/// wrapped yields `None` here and stays on the spliced path.
+pub(crate) fn transform_private_class_assign_in_place(
+    source: &str,
+    state_qualified: &[String],
+    other_qualified: &[String],
+) -> Option<String> {
+    if state_qualified.is_empty() && other_qualified.is_empty() {
+        return None;
+    }
+    if !state_qualified
+        .iter()
+        .chain(other_qualified.iter())
+        .any(|q| memchr::memmem::find(source.as_bytes(), q.as_bytes()).is_some())
+    {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &MODULE_PRIVATE_CLASS_ASSIGN_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |allocator, program| {
+            let mut binding_info = BindingInfoCollector::default();
+            binding_info.visit_program(program);
+
+            let mut rewriter = PrivateClassAssignRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                alloc: allocator,
+                source,
+                state_qualified,
+                other_qualified,
+                var_proxy: binding_info.var_proxy,
+                reassigned: binding_info.reassigned,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct PrivateClassAssignRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    alloc: &'a Allocator,
+    source: &'b str,
+    state_qualified: &'b [String],
+    other_qualified: &'b [String],
+    var_proxy: HashMap<String, bool>,
+    reassigned: HashSet<String>,
+    changed: bool,
+}
+
+impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
+    fn rewrite_assignment(&mut self, expr: &mut Expression<'a>) {
+        let Expression::AssignmentExpression(assign) = &*expr else {
+            return;
+        };
+        let AssignmentTarget::PrivateFieldExpression(pf) = &assign.left else {
+            return;
+        };
+        let pf_text = &self.source[pf.span.start as usize..pf.span.end as usize];
+        let Some(kind) = classify(pf_text, self.state_qualified, self.other_qualified) else {
+            return;
+        };
+        let operator = assign.operator;
+
+        // Mirrors upstream `AssignmentExpression.js`: only `=` and the logical
+        // compounds are non-coercive, and the logical ones build a
+        // `LogicalExpression`, which `should_proxy` always proxies.
+        let needs_proxy = matches!(kind, Match::State)
+            && match operator {
+                AssignmentOperator::Assign => {
+                    should_proxy_with_bindings(&assign.right, &self.var_proxy, &self.reassigned)
+                }
+                AssignmentOperator::LogicalOr
+                | AssignmentOperator::LogicalAnd
+                | AssignmentOperator::LogicalNullish => true,
+                _ => false,
+            };
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        let Expression::AssignmentExpression(assign) = taken else {
+            unreachable!("checked above")
+        };
+        let assign = assign.unbox();
+        let AssignmentTarget::PrivateFieldExpression(pf) = assign.left else {
+            unreachable!("checked above")
+        };
+
+        let value = match compound_op_node(operator) {
+            None => assign.right,
+            Some(CompoundOp::Binary(op)) => self.b.binary(op, self.field_read(&pf), assign.right),
+            Some(CompoundOp::Logical(op)) => self.b.logical(op, self.field_read(&pf), assign.right),
+        };
+
+        let mut args = vec![Expression::PrivateFieldExpression(pf), value];
+        if needs_proxy {
+            args.push(self.b.bool(true));
+        }
+        *expr = self.b.call("$.set", args);
+        self.changed = true;
+    }
+
+    fn rewrite_update(&mut self, expr: &mut Expression<'a>) {
+        let Expression::UpdateExpression(update) = &*expr else {
+            return;
+        };
+        let SimpleAssignmentTarget::PrivateFieldExpression(pf) = &update.argument else {
+            return;
+        };
+        let pf_text = &self.source[pf.span.start as usize..pf.span.end as usize];
+        if classify(pf_text, self.state_qualified, self.other_qualified).is_none() {
+            return;
+        }
+        let callee = if update.prefix {
+            "$.update_pre"
+        } else {
+            "$.update"
+        };
+        let decrement = matches!(update.operator, UpdateOperator::Decrement);
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        let Expression::UpdateExpression(update) = taken else {
+            unreachable!("checked above")
+        };
+        let SimpleAssignmentTarget::PrivateFieldExpression(pf) = update.unbox().argument else {
+            unreachable!("checked above")
+        };
+
+        let mut args = vec![Expression::PrivateFieldExpression(pf)];
+        if decrement {
+            args.push(
+                self.b
+                    .unary(UnaryOperator::UnaryNegation, self.b.number(1.0)),
+            );
+        }
+        *expr = self.b.call(callee, args);
+        self.changed = true;
+    }
+
+    fn field_read(
+        &self,
+        pf: &oxc_allocator::Box<'a, PrivateFieldExpression<'a>>,
+    ) -> Expression<'a> {
+        self.b.call(
+            "$.get",
+            vec![Expression::PrivateFieldExpression(pf.clone_in(self.alloc))],
+        )
+    }
+}
+
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for PrivateClassAssignRewriter<'a, 'b> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        match &*expr {
+            Expression::AssignmentExpression(_) => self.rewrite_assignment(expr),
+            Expression::UpdateExpression(_) => self.rewrite_update(expr),
+            _ => {}
+        }
     }
 }
