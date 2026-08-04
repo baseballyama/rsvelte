@@ -62,6 +62,24 @@ pub fn transform_store_member_mutate_ast_with_props(
     store_subs: &[String],
     prop_store_names: &[String],
 ) -> Option<String> {
+    let spliced = transform_store_member_mutate_spliced(source, store_subs, prop_store_names);
+    if ast_rewrite::dual_run::enabled() {
+        let in_place = transform_store_member_mutate_in_place(source, store_subs, prop_store_names);
+        ast_rewrite::dual_run::compare_pass(
+            "store_member_mutate_ast:inplace",
+            source,
+            spliced.as_deref(),
+            in_place.as_deref(),
+        );
+    }
+    spliced
+}
+
+fn transform_store_member_mutate_spliced(
+    source: &str,
+    store_subs: &[String],
+    prop_store_names: &[String],
+) -> Option<String> {
     if store_subs.is_empty() {
         return None;
     }
@@ -377,5 +395,134 @@ mod tests {
     #[test]
     fn no_op_without_store_name() {
         assert!(transform_store_member_mutate_ast("let x = 1;", &ssv(&["$store"])).is_none());
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_STORE_MEMBER_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_store_member_mutate_ast_with_props`].
+pub(crate) fn transform_store_member_mutate_in_place(
+    source: &str,
+    store_subs: &[String],
+    prop_store_names: &[String],
+) -> Option<String> {
+    if store_subs.is_empty() {
+        return None;
+    }
+    if !store_subs
+        .iter()
+        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
+    {
+        return None;
+    }
+    ast_rewrite::with_program_mut(
+        &MODULE_STORE_MEMBER_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let mut rewriter = MemberMutateRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                store_subs,
+                prop_store_names,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct MemberMutateRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    store_subs: &'b [String],
+    prop_store_names: &'b [String],
+    changed: bool,
+}
+
+impl<'a> MemberMutateRewriter<'a, '_> {
+    /// The leftmost identifier of a member chain — the only part of a mutation
+    /// target that is itself a store read.
+    fn chain_root<'e>(expr: &'e mut Expression<'a>) -> Option<&'e mut Expression<'a>> {
+        let mut cur = expr;
+        loop {
+            if matches!(cur, Expression::Identifier(_)) {
+                return Some(cur);
+            }
+            cur = match cur {
+                Expression::StaticMemberExpression(m) => &mut m.object,
+                Expression::ComputedMemberExpression(m) => &mut m.object,
+                _ => return None,
+            };
+        }
+    }
+
+    fn simple_target_root<'e>(
+        target: &'e mut SimpleAssignmentTarget<'a>,
+    ) -> Option<&'e mut Expression<'a>> {
+        match target {
+            SimpleAssignmentTarget::StaticMemberExpression(m) => Self::chain_root(&mut m.object),
+            SimpleAssignmentTarget::ComputedMemberExpression(m) => Self::chain_root(&mut m.object),
+            _ => None,
+        }
+    }
+
+    fn assignment_target_root<'e>(
+        target: &'e mut AssignmentTarget<'a>,
+    ) -> Option<&'e mut Expression<'a>> {
+        match target {
+            AssignmentTarget::StaticMemberExpression(m) => Self::chain_root(&mut m.object),
+            AssignmentTarget::ComputedMemberExpression(m) => Self::chain_root(&mut m.object),
+            _ => None,
+        }
+    }
+
+    fn mutation_root<'e>(expr: &'e mut Expression<'a>) -> Option<&'e mut Expression<'a>> {
+        match expr {
+            Expression::AssignmentExpression(a) => Self::assignment_target_root(&mut a.left),
+            Expression::UpdateExpression(u) => Self::simple_target_root(&mut u.argument),
+            _ => None,
+        }
+    }
+}
+
+impl<'a> oxc_ast_visit::VisitMut<'a> for MemberMutateRewriter<'a, '_> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Some(root) = Self::mutation_root(expr) else {
+            return;
+        };
+        let Expression::Identifier(id) = &*root else {
+            return;
+        };
+        let store_sub = id.name.to_string();
+        if !self.store_subs.contains(&store_sub) {
+            return;
+        }
+        let store_name = &store_sub[1..];
+
+        *root = self
+            .b
+            .call("$.untrack", vec![self.b.id(store_sub.as_str())]);
+
+        let store_access = if self.prop_store_names.iter().any(|n| n == store_name) {
+            self.b.call(store_name, vec![])
+        } else {
+            self.b.id(store_name)
+        };
+        let mutation = std::mem::replace(expr, self.b.void0());
+        let published = self
+            .b
+            .call("$.untrack", vec![self.b.id(store_sub.as_str())]);
+        *expr = self
+            .b
+            .call("$.store_mutate", vec![store_access, mutation, published]);
+        self.changed = true;
     }
 }
