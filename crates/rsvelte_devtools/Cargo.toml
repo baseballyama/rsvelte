@@ -31,6 +31,7 @@ rsvelte_core = { path = "../rsvelte_core", default-features = false }
 rsvelte_esrap = { path = "../rsvelte_esrap" }
 rsvelte_projection = { path = "../rsvelte_projection" }
 
+backtrace = "0.3"
 chrono = "0.4"
 oxc_allocator = "0.142"
 oxc_codegen = "0.142"
