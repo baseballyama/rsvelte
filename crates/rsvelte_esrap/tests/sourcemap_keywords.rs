@@ -16,7 +16,7 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 
 use rsvelte_esrap::Mapping;
-use rsvelte_esrap::{PrintWithMap, print_with_map};
+use rsvelte_esrap::{PrintOptions, PrintWithMap, print_with_map};
 
 /// Generated `(line0, col0)` of `index` within `code` — a port of the JS test's
 /// `generatedLineColumn`: line is the count of `\n` before `index`, column is the
@@ -71,7 +71,8 @@ fn mapped(source: &str) -> Mapped {
         "parse errors for {source:?}: {:?}",
         ret.diagnostics
     );
-    let PrintWithMap { code, mappings, .. } = print_with_map(&ret.program, source);
+    let PrintWithMap { code, mappings, .. } =
+        print_with_map(&ret.program, source, &PrintOptions::default());
     Mapped {
         source: source.to_string(),
         code,

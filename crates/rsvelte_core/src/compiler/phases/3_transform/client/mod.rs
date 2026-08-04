@@ -2361,8 +2361,7 @@ fn transform_client_with_visitors(
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
                         None if options.enable_sourcemap => {
-                            let pm =
-                                rsvelte_esrap::print_with_map_opts(oxc_prog, source, &print_opts);
+                            let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
                         None => (

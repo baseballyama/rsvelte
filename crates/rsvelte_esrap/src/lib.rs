@@ -143,13 +143,6 @@ pub fn print_split(
     printed
 }
 
-/// Print `program` to JavaScript with the default options, returning both the
-/// code and decoded source-map mappings. The emitted code is byte-identical to
-/// [`print()`] — `Location` anchors only carry mapping data, never add text.
-pub fn print_with_map(program: &Program<'_>, source: &str) -> PrintWithMap {
-    print_with_map_opts(program, source, &PrintOptions::default())
-}
-
 /// The decoded result of [`print_with_map`].
 #[non_exhaustive]
 #[derive(Debug, Clone)]
@@ -161,16 +154,11 @@ pub struct PrintWithMap {
     pub mappings: Vec<Mapping>,
 }
 
-/// One decoded source-map segment:
-/// `[generated_column, source_index, source_line, source_column]`.
-pub type SourceMapSegment = [i64; 4];
-
-/// Like [`print_with_map`] but with explicit options.
-pub fn print_with_map_opts(
-    program: &Program<'_>,
-    source: &str,
-    options: &PrintOptions,
-) -> PrintWithMap {
+/// Print `program` to JavaScript, returning both the code and decoded
+/// source-map mappings. The emitted code is byte-identical to what
+/// [`print_with`] returns — `Location` anchors only carry mapping data, never
+/// add text.
+pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOptions) -> PrintWithMap {
     let line_starts = printer::line_starts(source);
     let comments = printer::build_comments(program, source, &line_starts);
     let mut printer = printer::Printer::with_comments(options, comments, line_starts);
