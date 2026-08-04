@@ -148,7 +148,14 @@ fn load_validator_fixture(sample_dir: &Path) -> Result<ValidatorFixture, SkipRea
     let expected_warnings: Vec<ExpectedWarning> = if warnings_path.exists() {
         let content = read_fixture_file(&warnings_path)
             .ok_or(SkipReason::MissingInput("readable warnings.json"))?;
-        serde_json::from_str(&content).unwrap_or_default()
+        // A malformed warnings.json must fail loudly, not silently become "expect
+        // zero warnings" — that would make the fixture pass trivially either way.
+        serde_json::from_str(&content).unwrap_or_else(|e| {
+            panic!(
+                "{}: warnings.json is not valid JSON: {e}",
+                warnings_path.display()
+            )
+        })
     } else {
         Vec::new()
     };

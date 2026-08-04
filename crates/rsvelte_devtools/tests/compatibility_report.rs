@@ -639,8 +639,18 @@ fn run_validator_tests() -> CategoryResult {
         let errors_path = sample_dir.join("errors.json");
 
         let expected_warnings: Vec<serde_json::Value> = if warnings_path.exists() {
-            let content = read_fixture_file(&warnings_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_default()
+            // An unreadable or malformed warnings.json must fail loudly, not
+            // silently collapse to "expect zero warnings" (which would make the
+            // fixture pass regardless of what the compiler actually emits).
+            let content = read_fixture_file(&warnings_path).unwrap_or_else(|| {
+                panic!("{}: could not read warnings.json", warnings_path.display())
+            });
+            serde_json::from_str(&content).unwrap_or_else(|e| {
+                panic!(
+                    "{}: warnings.json is not valid JSON: {e}",
+                    warnings_path.display()
+                )
+            })
         } else {
             Vec::new()
         };

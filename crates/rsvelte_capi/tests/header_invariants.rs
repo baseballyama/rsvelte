@@ -5,7 +5,7 @@
 //! the build script (when RSVELTE_CAPI_CHECK_HEADER=1, in CI).
 
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn header() -> String {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -13,6 +13,34 @@ fn header() -> String {
         .join("rsvelte.h");
     std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("could not read {}: {e}", path.display()))
+}
+
+/// The committed (git HEAD) header content, not whatever currently sits in
+/// the working tree. `build.rs` overwrites `include/rsvelte.h` with fresh
+/// cbindgen output on every default build (no `RSVELTE_CAPI_CHECK_HEADER`),
+/// which runs before this test — so comparing against the working-tree file
+/// would always pass trivially (freshly-generated vs. freshly-generated).
+/// Comparing against HEAD instead checks the invariant this test actually
+/// claims to check: is the committed header still what cbindgen produces.
+fn committed_header(crate_dir: &Path) -> String {
+    // `git show <rev>:<path>` resolves `<path>` relative to the repo root,
+    // not the `-C` directory — a bare "include/rsvelte.h" silently means
+    // "<repo-root>/include/rsvelte.h" (which doesn't exist) rather than this
+    // crate's header. The `./` prefix is what opts into `-C`-relative
+    // resolution.
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(crate_dir)
+        .args(["show", "HEAD:./include/rsvelte.h"])
+        .output()
+        .unwrap_or_else(|e| panic!("failed to run `git show HEAD:./include/rsvelte.h`: {e}"));
+    if !output.status.success() {
+        panic!(
+            "could not read committed include/rsvelte.h from git HEAD: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    String::from_utf8(output.stdout).expect("git show output is UTF-8")
 }
 
 #[test]
@@ -67,8 +95,10 @@ fn header_has_include_guard() {
     assert!(h.contains("#endif"));
 }
 
-/// Re-run cbindgen in-process and verify the committed header exactly
-/// matches it. Belt-and-braces with the build script's check.
+/// Re-run cbindgen in-process and verify the git-committed header exactly
+/// matches it — independent of the build script's own check, and of
+/// whatever the build script may have already rewritten in the working
+/// tree (see `committed_header`).
 #[test]
 fn header_matches_freshly_generated() {
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -83,7 +113,7 @@ fn header_matches_freshly_generated() {
     bindings.write(&mut buf);
     let generated = String::from_utf8(buf).expect("utf-8");
 
-    let committed = header();
+    let committed = committed_header(&crate_dir);
 
     if normalize(&committed) != normalize(&generated) {
         panic!(
