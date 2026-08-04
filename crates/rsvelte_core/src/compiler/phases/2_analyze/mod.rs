@@ -2543,15 +2543,33 @@ pub enum AnalysisError {
     Css(String),
     /// Validation error with error code (Svelte-compatible format)
     /// The code is the Svelte error code (e.g., "attribute_duplicate")
-    ValidationWithCode { code: String, message: String },
+    ValidationWithCode {
+        code: String,
+        message: String,
+        /// Source span, when the raising site has a node to attribute the error to.
+        start: Option<u32>,
+        end: Option<u32>,
+    },
 }
 
 impl AnalysisError {
-    /// Create a validation error with code
+    /// Create a validation error with code and no span.
     pub fn validation(code: &str, message: impl Into<String>) -> Self {
         AnalysisError::ValidationWithCode {
             code: code.to_string(),
             message: message.into(),
+            start: None,
+            end: None,
+        }
+    }
+
+    /// Create a validation error with code and a source span.
+    pub fn validation_at(code: &str, message: impl Into<String>, start: u32, end: u32) -> Self {
+        AnalysisError::ValidationWithCode {
+            code: code.to_string(),
+            message: message.into(),
+            start: Some(start),
+            end: Some(end),
         }
     }
 }
@@ -2562,7 +2580,7 @@ impl std::fmt::Display for AnalysisError {
             AnalysisError::Scope(msg) => write!(f, "Scope error: {}", msg),
             AnalysisError::Validation(msg) => write!(f, "Validation error: {}", msg),
             AnalysisError::Css(msg) => write!(f, "CSS error: {}", msg),
-            AnalysisError::ValidationWithCode { code, message } => {
+            AnalysisError::ValidationWithCode { code, message, .. } => {
                 write!(f, "{}: {}", code, message)
             }
         }
@@ -2574,9 +2592,16 @@ impl std::error::Error for AnalysisError {}
 impl From<crate::error::ParseError> for AnalysisError {
     fn from(err: crate::error::ParseError) -> Self {
         match err {
-            crate::error::ParseError::SvelteError { code, message, .. } => {
-                AnalysisError::ValidationWithCode { code, message }
-            }
+            crate::error::ParseError::SvelteError {
+                code,
+                message,
+                span,
+            } => AnalysisError::ValidationWithCode {
+                code,
+                message,
+                start: Some(span.0 as u32),
+                end: Some(span.1 as u32),
+            },
             other => AnalysisError::Validation(format!("{}", other)),
         }
     }

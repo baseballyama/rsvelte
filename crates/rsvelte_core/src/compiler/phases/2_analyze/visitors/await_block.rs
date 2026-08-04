@@ -71,10 +71,12 @@ pub fn visit<'a, 'b: 'a>(
                     && let Some(whitespace) = captures.get(1)
                     && !whitespace.as_str().is_empty()
                 {
-                    return Err(AnalysisError::ValidationWithCode {
-                        code: "block_unexpected_character".to_string(),
-                        message: "Expected '{:then', not '{ :then'".to_string(),
-                    });
+                    return Err(AnalysisError::validation_at(
+                        "block_unexpected_character",
+                        "Expected '{:then', not '{ :then'",
+                        (start - 10) as u32,
+                        start as u32,
+                    ));
                 }
             }
         }
@@ -93,10 +95,12 @@ pub fn visit<'a, 'b: 'a>(
                     && let Some(whitespace) = captures.get(1)
                     && !whitespace.as_str().is_empty()
                 {
-                    return Err(AnalysisError::ValidationWithCode {
-                        code: "block_unexpected_character".to_string(),
-                        message: "Expected '{:catch', not '{ :catch'".to_string(),
-                    });
+                    return Err(AnalysisError::validation_at(
+                        "block_unexpected_character",
+                        "Expected '{:catch', not '{ :catch'",
+                        (start - 10) as u32,
+                        start as u32,
+                    ));
                 }
             }
         }

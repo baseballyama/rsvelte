@@ -7,6 +7,7 @@
 
 use rsvelte_core::CompileError;
 use rsvelte_core::compiler::AnalysisError;
+use rsvelte_core::compiler::legacy::Utf8ToUtf16;
 use rsvelte_core::error::ParseError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -674,13 +675,27 @@ pub fn strip_error_link(message: &str) -> &str {
     }
 }
 
-/// The `(code, message)` pair carried by an rsvelte compile failure, when it
-/// has one. Raw OXC parse failures carry neither.
-pub fn svelte_error_parts(err: &CompileError) -> Option<(&str, &str)> {
+/// The `(code, message, byte_span)` carried by an rsvelte compile failure,
+/// when it has one. Raw OXC parse failures carry neither; macro-routed
+/// validation errors may carry a code/message without a span yet.
+pub fn svelte_error_parts(err: &CompileError) -> Option<(&str, &str, Option<(u32, u32)>)> {
     match err {
-        CompileError::Parse(ParseError::SvelteError { code, message, .. }) => Some((code, message)),
-        CompileError::Analysis(AnalysisError::ValidationWithCode { code, message }) => {
-            Some((code, message))
+        CompileError::Parse(ParseError::SvelteError {
+            code,
+            message,
+            span,
+        }) => Some((code, message, Some((span.0 as u32, span.1 as u32)))),
+        CompileError::Analysis(AnalysisError::ValidationWithCode {
+            code,
+            message,
+            start,
+            end,
+        }) => {
+            let span = match (start, end) {
+                (Some(s), Some(e)) => Some((*s, *e)),
+                _ => None,
+            };
+            Some((code, message, span))
         }
         _ => None,
     }
@@ -704,6 +719,7 @@ pub enum ValidatorErrorVerdict {
     Match,
     MessageMismatch(String),
     CodeMismatch(String),
+    SpanMismatch(String),
 }
 
 /// Validator fixtures whose expected *message* is an acorn diagnostic that
@@ -719,13 +735,20 @@ pub const VALIDATOR_MESSAGE_DIVERGENCES: &[&str] = &[
     "each-block-destructured-object-rest-comma-after",
 ];
 
+/// Compare a resolved `(line, column)` against the fixture's pinned position.
+fn position_matches(actual: (usize, usize), expected: &ExpectedPosition) -> bool {
+    actual.0 as u32 == expected.line && actual.1 as u32 == expected.column
+}
+
 /// Compare an rsvelte compile failure against a validator fixture's pinned
-/// error, upstream-style: exact code plus exact message (minus the doc link).
+/// error, upstream-style: exact code, exact message (minus the doc link), and
+/// (when the fixture pins one) exact start/end position.
 pub fn check_validator_error(
     expected: &ExpectedValidatorError,
     err: &CompileError,
+    source: &str,
 ) -> ValidatorErrorVerdict {
-    if let Some((code, message)) = svelte_error_parts(err) {
+    if let Some((code, message, span)) = svelte_error_parts(err) {
         if code != expected.code {
             return ValidatorErrorVerdict::CodeMismatch(format!(
                 "Expected error code '{}', got '{}'",
@@ -738,6 +761,41 @@ pub fn check_validator_error(
                 "Error message mismatch for '{}':\n  expected: {}\n  actual:   {}",
                 expected.code, expected.message, actual_message
             ));
+        }
+        if let (Some(expected_start), Some(expected_end)) = (&expected.start, &expected.end) {
+            match span {
+                Some((start, end)) => {
+                    let table = Utf8ToUtf16::new(source);
+                    let (start_line, start_col, _) = table.position(start as usize);
+                    let (end_line, end_col, _) = table.position(end as usize);
+                    let start_ok = position_matches((start_line, start_col), expected_start);
+                    let end_ok = position_matches((end_line, end_col), expected_end);
+                    if !start_ok || !end_ok {
+                        return ValidatorErrorVerdict::SpanMismatch(format!(
+                            "Error span mismatch for '{}':\n  expected: {}:{}..{}:{}\n  actual:   {}:{}..{}:{}",
+                            expected.code,
+                            expected_start.line,
+                            expected_start.column,
+                            expected_end.line,
+                            expected_end.column,
+                            start_line,
+                            start_col,
+                            end_line,
+                            end_col,
+                        ));
+                    }
+                }
+                None => {
+                    return ValidatorErrorVerdict::SpanMismatch(format!(
+                        "Error span mismatch for '{}': expected {}:{}..{}:{}, got no span",
+                        expected.code,
+                        expected_start.line,
+                        expected_start.column,
+                        expected_end.line,
+                        expected_end.column,
+                    ));
+                }
+            }
         }
         return ValidatorErrorVerdict::Match;
     }
@@ -764,7 +822,8 @@ pub fn validator_error_result(sample: &str, verdict: ValidatorErrorVerdict) -> R
         ValidatorErrorVerdict::Match => Ok(()),
         ValidatorErrorVerdict::MessageMismatch(_) if known => Ok(()),
         ValidatorErrorVerdict::MessageMismatch(detail)
-        | ValidatorErrorVerdict::CodeMismatch(detail) => Err(detail),
+        | ValidatorErrorVerdict::CodeMismatch(detail)
+        | ValidatorErrorVerdict::SpanMismatch(detail) => Err(detail),
     }
 }
 

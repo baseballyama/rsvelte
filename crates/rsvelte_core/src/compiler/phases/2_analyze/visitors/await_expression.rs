@@ -62,17 +62,21 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
     if suspend {
         if !context.analysis.experimental_async {
-            return Err(AnalysisError::ValidationWithCode {
-                code: "experimental_async".to_string(),
-                message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`".to_string(),
-            });
+            return Err(AnalysisError::validation_at(
+                "experimental_async",
+                "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`",
+                node.start().unwrap_or(0),
+                node.end().unwrap_or(0),
+            ));
         }
 
         if !context.analysis.runes {
-            return Err(AnalysisError::ValidationWithCode {
-                code: "legacy_await_invalid".to_string(),
-                message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode".to_string(),
-            });
+            return Err(AnalysisError::validation_at(
+                "legacy_await_invalid",
+                "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode",
+                node.start().unwrap_or(0),
+                node.end().unwrap_or(0),
+            ));
         }
     }
 

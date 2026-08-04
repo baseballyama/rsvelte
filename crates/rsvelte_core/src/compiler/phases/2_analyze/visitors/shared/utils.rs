@@ -31,21 +31,28 @@ lazy_static! {
 /// a) `experimental.async` is enabled and b) the component is in runes mode
 /// (AwaitExpression.js L26-42). Function boundaries reset `expression` to
 /// `null` (shared/function.js L19-23) — mirrored by `in_template_function`.
-pub(crate) fn validate_template_await(context: &VisitorContext) -> Result<(), AnalysisError> {
+pub(crate) fn validate_template_await(
+    context: &VisitorContext,
+    node: &JsNode,
+) -> Result<(), AnalysisError> {
     if context.in_template_function {
         return Ok(());
     }
     if !context.analysis.experimental_async {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "experimental_async".to_string(),
-            message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`".to_string(),
-        });
+        return Err(AnalysisError::validation_at(
+            "experimental_async",
+            "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`",
+            node.start().unwrap_or(0),
+            node.end().unwrap_or(0),
+        ));
     }
     if !context.analysis.runes {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "legacy_await_invalid".to_string(),
-            message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode".to_string(),
-        });
+        return Err(AnalysisError::validation_at(
+            "legacy_await_invalid",
+            "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode",
+            node.start().unwrap_or(0),
+            node.end().unwrap_or(0),
+        ));
     }
     Ok(())
 }
@@ -1399,7 +1406,7 @@ pub fn walk_js_expression_node(
             metadata.set_has_await(true);
             // See the `Some("AwaitExpression")` arm in `walk_js_expression` —
             // mirrors upstream AwaitExpression.js L26-42 (suspend gate).
-            validate_template_await(context)?;
+            validate_template_await(context, expression)?;
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::UpdateExpression { argument, .. } => {
