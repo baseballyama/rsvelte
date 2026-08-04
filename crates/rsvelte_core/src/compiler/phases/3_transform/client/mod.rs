@@ -2359,19 +2359,25 @@ fn transform_client_with_visitors(
                                 &converted.loc_map,
                                 &print_opts,
                             );
-                            super::profile::record_esrap_client(super::profile::timer_elapsed(_t));
+                            super::profile::record_esrap_client_split(
+                                super::profile::timer_elapsed(_t),
+                            );
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
                         None if options.enable_sourcemap => {
                             let _t = super::profile::timer_start();
                             let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
-                            super::profile::record_esrap_client(super::profile::timer_elapsed(_t));
+                            super::profile::record_esrap_client_map(super::profile::timer_elapsed(
+                                _t,
+                            ));
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
                         None => {
                             let _t = super::profile::timer_start();
                             let code = rsvelte_esrap::print_with(oxc_prog, "", &print_opts);
-                            super::profile::record_esrap_client(super::profile::timer_elapsed(_t));
+                            super::profile::record_esrap_client_plain(
+                                super::profile::timer_elapsed(_t),
+                            );
                             (code, Vec::new())
                         }
                     }
