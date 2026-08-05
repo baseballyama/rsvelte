@@ -2813,7 +2813,9 @@ fn structural_ancestry_is_lexical(ctx: &CssContext) -> bool {
 /// outside the element's `{#snippet}` body, in which case the union of the
 /// parents of every `{@render}` site of that snippet (upstream
 /// `get_ancestor_elements` breaking the path walk at a `SnippetBlock`).
-fn effective_parents(ctx: &CssContext, el_idx: usize) -> Vec<usize> {
+/// `None` when a snippet's render sites are unknown, in which case callers must
+/// stay conservative rather than treat the ancestor set as empty.
+fn effective_parents(ctx: &CssContext, el_idx: usize) -> Option<Vec<usize>> {
     let el = &ctx.dom_structure.elements[el_idx];
     let mut out = Vec::new();
     let mut seen: FxHashSet<&str> = FxHashSet::default();
@@ -2823,10 +2825,10 @@ fn effective_parents(ctx: &CssContext, el_idx: usize) -> Vec<usize> {
         el.snippet_name.as_deref(),
         &mut seen,
         &mut out,
-    );
+    )?;
     out.sort_unstable();
     out.dedup();
-    out
+    Some(out)
 }
 
 fn expand_effective_parents<'a>(
@@ -2835,22 +2837,20 @@ fn expand_effective_parents<'a>(
     snippet: Option<&'a str>,
     seen: &mut FxHashSet<&'a str>,
     out: &mut Vec<usize>,
-) {
+) -> Option<()> {
     if let Some(p) = parent_idx
         && ctx.dom_structure.elements[p].snippet_name.as_deref() == snippet
     {
         out.push(p);
-        return;
+        return Some(());
     }
     // The lexical walk left the snippet body (or hit the root): continue from
     // wherever the snippet is rendered.
-    let Some(name) = snippet else { return };
+    let Some(name) = snippet else { return Some(()) };
     if !seen.insert(name) {
-        return;
+        return Some(());
     }
-    let Some(sites) = ctx.dom_structure.snippet_render_sites.get(name) else {
-        return;
-    };
+    let sites = ctx.dom_structure.snippet_render_sites.get(name)?;
     for site in sites {
         expand_effective_parents(
             ctx,
@@ -2858,8 +2858,9 @@ fn expand_effective_parents<'a>(
             site.snippet_name.as_deref(),
             seen,
             out,
-        );
+        )?;
     }
+    Some(())
 }
 
 /// True when a descendant/child chain (subject last) can be evaluated by the
@@ -3563,7 +3564,10 @@ fn structural_ancestors_satisfy_links(
     let prev = &rels[link_idx - 1];
     let elements = &ctx.dom_structure.elements;
     if combinator == ">" {
-        effective_parents(ctx, el_idx).into_iter().any(|p| {
+        let Some(parents) = effective_parents(ctx, el_idx) else {
+            return true;
+        };
+        parents.into_iter().any(|p| {
             structural_element_matches_compound(&elements[p], prev)
                 && structural_ancestors_satisfy_links(rels, link_idx - 1, p, ctx)
         })
@@ -3576,7 +3580,9 @@ fn structural_ancestors_satisfy_links(
                 && structural_ancestors_satisfy_links(rels, link_idx - 1, sibling_idx, ctx)
         })
     } else {
-        let mut queue = effective_parents(ctx, el_idx);
+        let Some(mut queue) = effective_parents(ctx, el_idx) else {
+            return true;
+        };
         let mut visited: FxHashSet<usize> = queue.iter().copied().collect();
         while let Some(p) = queue.pop() {
             if structural_element_matches_compound(&elements[p], prev)
@@ -3584,7 +3590,10 @@ fn structural_ancestors_satisfy_links(
             {
                 return true;
             }
-            for next in effective_parents(ctx, p) {
+            let Some(nexts) = effective_parents(ctx, p) else {
+                return true;
+            };
+            for next in nexts {
                 if visited.insert(next) {
                     queue.push(next);
                 }
