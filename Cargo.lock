@@ -2507,7 +2507,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_esrap"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "compact_str 0.10.0",
  "memchr",

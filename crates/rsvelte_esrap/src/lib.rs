@@ -48,11 +48,8 @@ use oxc_ast::ast::Program;
 /// rsvelte's conventions (tab indent, single quotes).
 #[derive(Debug, Clone)]
 pub struct PrintOptions {
-    /// The indentation unit for one level (default `"\t"`).
+    /// The indentation unit for one level (always `"\t"`).
     indent: String,
-    /// Preferred quote character for string literals without a preserved `raw`
-    /// (default single quote).
-    quote: QuoteStyle,
     /// Keep `EmptyStatement` (`;`) nodes in statement-list bodies instead of
     /// filtering them (esrap's default, matching the server AST). The rsvelte
     /// client `to_oxc` path parses string-codegen `Raw` chunks whose `;;` become
@@ -61,41 +58,16 @@ pub struct PrintOptions {
     keep_empty_statements: bool,
 }
 
-/// Quote preference for synthesized string literals.
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QuoteStyle {
-    /// Prefer single-quoted string literals.
-    Single,
-    /// Prefer double-quoted string literals.
-    Double,
-}
-
 impl Default for PrintOptions {
     fn default() -> Self {
         Self {
             indent: String::from("\t"),
-            quote: QuoteStyle::Single,
             keep_empty_statements: false,
         }
     }
 }
 
 impl PrintOptions {
-    /// Set the indentation unit used for one nesting level.
-    #[must_use]
-    pub fn with_indent(mut self, indent: impl Into<String>) -> Self {
-        self.indent = indent.into();
-        self
-    }
-
-    /// Set the preferred quote style for synthesized string literals.
-    #[must_use]
-    pub fn with_quote_style(mut self, quote: QuoteStyle) -> Self {
-        self.quote = quote;
-        self
-    }
-
     /// Control whether empty statements are retained in statement lists.
     #[must_use]
     pub fn with_empty_statements(mut self, keep: bool) -> Self {
@@ -171,103 +143,6 @@ pub fn print_split(
     printed
 }
 
-/// A synthetic comment injected by a [`CommentHooks`] callback (esrap's
-/// `BaseComment`). `block` chooses `/* … */` vs `// …`; `value` is the interior
-/// text (without delimiters).
-#[derive(Debug, Clone)]
-pub struct SynthComment {
-    block: bool,
-    value: String,
-}
-
-impl SynthComment {
-    /// A `// value` line comment.
-    pub fn line(value: impl Into<String>) -> Self {
-        Self {
-            block: false,
-            value: value.into(),
-        }
-    }
-
-    /// A `/* value */` block comment.
-    pub fn block(value: impl Into<String>) -> Self {
-        Self {
-            block: true,
-            value: value.into(),
-        }
-    }
-}
-
-/// A callback that returns the synthetic comments to attach to a statement
-/// (esrap's `getLeadingComments` / `getTrailingComments` options).
-pub type CommentCallback<'h> =
-    Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + Send + Sync + 'h>;
-
-/// Caller hooks that inject synthetic comments around statements, mirroring
-/// esrap's `getLeadingComments` / `getTrailingComments` options. Each callback
-/// receives the statement node and returns the comments to emit (leading
-/// comments precede the node; trailing comments follow it on the same line).
-#[derive(Default)]
-pub struct CommentHooks<'h> {
-    get_leading: Option<CommentCallback<'h>>,
-    get_trailing: Option<CommentCallback<'h>>,
-}
-
-impl<'h> CommentHooks<'h> {
-    /// Create an empty hook set.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Register the callback that supplies comments before each statement.
-    #[must_use]
-    pub fn with_leading(
-        mut self,
-        callback: impl Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + Send + Sync + 'h,
-    ) -> Self {
-        self.get_leading = Some(Box::new(callback));
-        self
-    }
-
-    /// Register the callback that supplies comments after each statement.
-    #[must_use]
-    pub fn with_trailing(
-        mut self,
-        callback: impl Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + Send + Sync + 'h,
-    ) -> Self {
-        self.get_trailing = Some(Box::new(callback));
-        self
-    }
-}
-
-/// Like [`print_with`], but invokes `hooks` to inject synthetic leading/trailing
-/// comments per statement (esrap's `getLeadingComments`/`getTrailingComments`).
-pub fn print_with_hooks(
-    program: &Program<'_>,
-    source: &str,
-    options: &PrintOptions,
-    hooks: &CommentHooks<'_>,
-) -> String {
-    let line_starts = printer::line_starts(source);
-    let comments = printer::build_comments(program, source, &line_starts);
-    let mut printer =
-        printer::Printer::with_comments(options, comments, line_starts).with_hooks(hooks);
-    let mut ctx = context::Context::new();
-    printer.print_program(program, &mut ctx);
-    let commands = ctx.into_commands();
-    let code = command::print(&commands, &options.indent);
-    pool::recycle(commands);
-    code
-}
-
-/// Print `program` to JavaScript with the default options, returning both the
-/// code and decoded source-map mappings. The emitted code is byte-identical to
-/// [`print()`] — `Location` anchors only carry mapping data, never add text.
-pub fn print_with_map(program: &Program<'_>, source: &str) -> PrintWithMap {
-    print_with_map_opts(program, source, &PrintOptions::default())
-}
-
 /// The decoded result of [`print_with_map`].
 #[non_exhaustive]
 #[derive(Debug, Clone)]
@@ -279,16 +154,11 @@ pub struct PrintWithMap {
     pub mappings: Vec<Mapping>,
 }
 
-/// One decoded source-map segment:
-/// `[generated_column, source_index, source_line, source_column]`.
-pub type SourceMapSegment = [i64; 4];
-
-/// Like [`print_with_map`] but with explicit options.
-pub fn print_with_map_opts(
-    program: &Program<'_>,
-    source: &str,
-    options: &PrintOptions,
-) -> PrintWithMap {
+/// Print `program` to JavaScript, returning both the code and decoded
+/// source-map mappings. The emitted code is byte-identical to what
+/// [`print_with`] returns — `Location` anchors only carry mapping data, never
+/// add text.
+pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOptions) -> PrintWithMap {
     let line_starts = printer::line_starts(source);
     let comments = printer::build_comments(program, source, &line_starts);
     let mut printer = printer::Printer::with_comments(options, comments, line_starts);
