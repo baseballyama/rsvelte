@@ -1879,11 +1879,21 @@ fn build_getter_setter_with_primitive(
                 let binding = context.state.get_binding(root_name);
                 if let Some(binding) = binding {
                     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                    if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
-                        context.state.needs_mutation_validation.set(true);
+                    // build_ast_member_path returns None when a property along the chain
+                    // (e.g. `obj[a.b]`) is neither a Literal nor an Identifier, mirroring
+                    // validate_mutation()'s bail-out (`else { return expression; }`).
+                    let path =
+                        if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+                            // Official sets this before building the path, so an unbuildable
+                            // path still emits the `$$ownership_validator` preamble.
+                            context.state.needs_mutation_validation.set(true);
+                            build_ast_member_path(original_expr)
+                        } else {
+                            None
+                        };
+                    if let Some(path) = path {
                         let prop_alias =
                             binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
-                        let path = build_ast_member_path(original_expr);
                         let mut args =
                             vec![b::string(&prop_alias), b::array(path), transformed_set];
                         // Add source location (line, column) if available
@@ -2748,61 +2758,72 @@ fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
 /// Build the member property path from an AST Expression (JSON-based).
 /// For `form.count` returns `[b::string("form"), b::string("count")]`.
 /// This walks the member expression chain and collects all property names as literals.
-fn build_ast_member_path(expr: &Expression) -> Vec<JsExpr> {
+// Mirrors validate_mutation()'s path-building while-loop (shared/utils.js): any property that
+// isn't a plain Literal/Identifier (e.g. `obj[a.b]`) aborts the whole wrap rather than skipping
+// just that segment, so we return None here and the caller must leave the mutation unwrapped.
+fn build_ast_member_path(expr: &Expression) -> Option<Vec<JsExpr>> {
     let mut path = Vec::new();
-    build_ast_member_path_recursive(expr.as_json(), &mut path);
-    path
+    build_ast_member_path_recursive(expr.as_json(), &mut path).then_some(path)
 }
 
-fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExpr>) {
+fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExpr>) -> bool {
     let obj = match val.as_object() {
         Some(o) => o,
-        None => return,
+        None => return true,
     };
     match obj.get("type").and_then(|t| t.as_str()) {
         Some("MemberExpression") => {
             // Recurse into object first
-            if let Some(object) = obj.get("object") {
-                build_ast_member_path_recursive(object, path);
+            if let Some(object) = obj.get("object")
+                && !build_ast_member_path_recursive(object, path)
+            {
+                return false;
             }
             // Add current property
             let computed = obj
                 .get("computed")
                 .and_then(|c| c.as_bool())
                 .unwrap_or(false);
-            if let Some(property) = obj.get("property")
-                && let Some(prop_obj) = property.as_object()
-                && let Some(prop_type) = prop_obj.get("type").and_then(|t| t.as_str())
-            {
-                match prop_type {
-                    "Identifier" => {
-                        if let Some(name) = prop_obj.get("name").and_then(|n| n.as_str()) {
-                            if computed {
-                                path.push(b::id(name));
-                            } else {
-                                path.push(b::string(name));
-                            }
+            let Some(property) = obj.get("property") else {
+                return true;
+            };
+            let Some(prop_obj) = property.as_object() else {
+                return true;
+            };
+            let Some(prop_type) = prop_obj.get("type").and_then(|t| t.as_str()) else {
+                return true;
+            };
+            match prop_type {
+                "Identifier" => {
+                    if let Some(name) = prop_obj.get("name").and_then(|n| n.as_str()) {
+                        if computed {
+                            path.push(b::id(name));
+                        } else {
+                            path.push(b::string(name));
                         }
                     }
-                    "Literal" => {
-                        if let Some(value) = prop_obj.get("value") {
-                            if let Some(s) = value.as_str() {
-                                path.push(b::string(s));
-                            } else if let Some(n) = value.as_f64() {
-                                path.push(b::number(n));
-                            }
-                        }
-                    }
-                    _ => {}
+                    true
                 }
+                "Literal" => {
+                    if let Some(value) = prop_obj.get("value") {
+                        if let Some(s) = value.as_str() {
+                            path.push(b::string(s));
+                        } else if let Some(n) = value.as_f64() {
+                            path.push(b::number(n));
+                        }
+                    }
+                    true
+                }
+                _ => false,
             }
         }
         Some("Identifier") => {
             if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
                 path.push(b::string(name));
             }
+            true
         }
-        _ => {}
+        _ => true,
     }
 }
 
