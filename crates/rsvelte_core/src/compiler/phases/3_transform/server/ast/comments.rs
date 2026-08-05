@@ -13,6 +13,7 @@
 //! comments are dropped with it instead of being flushed inside an unrelated
 //! node.
 
+use crate::compiler::phases::phase3_transform::print_timers;
 use oxc_allocator::{Allocator, Vec as ArenaVec};
 use oxc_ast::ast::{Comment, Program, Statement};
 use oxc_ast_visit::{VisitMut, walk_mut};
@@ -166,7 +167,10 @@ pub fn print_with_comments<'a>(
     allocator: &'a Allocator,
 ) -> String {
     if registry.is_empty() {
-        return rsvelte_esrap::print(program, "");
+        let _t = print_timers::start();
+        let out = rsvelte_esrap::print(program, "");
+        print_timers::add::SERVER_PRINT(print_timers::elapsed(_t));
+        return out;
     }
 
     let bases: Vec<(u32, u32)> = registry
@@ -219,13 +223,17 @@ pub fn print_with_comments<'a>(
     remap.visit_program(program);
 
     if comments.is_empty() {
-        return rsvelte_esrap::print(program, "");
+        let _t = print_timers::start();
+        let out = rsvelte_esrap::print(program, "");
+        print_timers::add::SERVER_PRINT(print_timers::elapsed(_t));
+        return out;
     }
     comments.sort_by_key(|c| c.span.start);
     super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
     program.comments = ArenaVec::from_iter_in(comments, &allocator);
 
-    rsvelte_esrap::print_split(
+    let _t = print_timers::start();
+    let out = rsvelte_esrap::print_split(
         program,
         &buf,
         PAD.len() as u32,
@@ -233,5 +241,7 @@ pub fn print_with_comments<'a>(
         &[],
         &rsvelte_esrap::PrintOptions::default(),
     )
-    .code
+    .code;
+    print_timers::add::SERVER_PRINT_SPLIT(print_timers::elapsed(_t));
+    out
 }

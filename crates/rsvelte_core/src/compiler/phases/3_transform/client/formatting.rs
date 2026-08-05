@@ -4,6 +4,7 @@ use std::cell::RefCell;
 
 use memchr::memmem;
 
+use crate::compiler::phases::phase3_transform::print_timers;
 use oxc_allocator::Allocator;
 
 // Thread-local OXC allocator reused across normalize_js_with_oxc calls to avoid
@@ -585,7 +586,10 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         if !parsed.diagnostics.is_empty() {
             return js.to_string();
         }
-        rsvelte_esrap::print(&parsed.program, &protected)
+        let _t = print_timers::start();
+        let out = rsvelte_esrap::print(&parsed.program, &protected);
+        print_timers::add::NORMALIZE_PRINT(print_timers::elapsed(_t));
+        out
     });
 
     // Restore `;;`. esrap keeps the two void statements on separate lines.
