@@ -2885,6 +2885,7 @@ pub(super) fn wrap_prop_mutation_validation(
         // This handles the case where transform_prop_assignments skips member mutation wrapping in runes mode.
         let runes_prefix = format!("{}().", var_name);
         let mut runes_search_from = 0;
+        let mut loc_cursor = memchr::memmem::find(source.as_bytes(), b"<script").unwrap_or(0);
 
         while runes_search_from < result.len() {
             let Some(prefix_rel) = result[runes_search_from..].find(&runes_prefix) else {
@@ -2908,8 +2909,14 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
             // Skip if already inside $$ownership_validator.mutation
+            // Only the immediately enclosing call counts: a wrapper emitted earlier in the
+            // program must not suppress later mutations of the same prop.
             if before.ends_with("mutation(")
-                || before.contains(&format!("$$ownership_validator.mutation('{}',", prop_alias))
+                || (before.ends_with("], ")
+                    && before.contains(&format!(
+                        "$$ownership_validator.mutation('{}', [",
+                        prop_alias
+                    )))
             {
                 runes_search_from = abs_start + runes_prefix.len();
                 continue;
@@ -3048,8 +3055,15 @@ pub(super) fn wrap_prop_mutation_validation(
                 .trim_end()
                 .to_string();
 
-            // Find source location
-            let (line_num, col_num) = find_prop_mutation_location(source, var_name);
+            // Each mutation reports its own source position, so consume them in order.
+            let (line_num, col_num) =
+                match find_prop_mutation_location_from(source, var_name, loc_cursor) {
+                    Some((line, col, next)) => {
+                        loc_cursor = next;
+                        (line, col)
+                    }
+                    None => find_prop_mutation_location(source, var_name),
+                };
 
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
@@ -3281,8 +3295,15 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
 
-            // Find the original source location
-            let (line_num, col_num) = find_prop_mutation_location(source, var_name);
+            // Each mutation reports its own source position, so consume them in order.
+            let (line_num, col_num) =
+                match find_prop_mutation_location_from(source, var_name, loc_cursor) {
+                    Some((line, col, next)) => {
+                        loc_cursor = next;
+                        (line, col)
+                    }
+                    None => find_prop_mutation_location(source, var_name),
+                };
 
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
@@ -3311,6 +3332,132 @@ pub(super) fn wrap_prop_mutation_validation(
     }
 
     result
+}
+
+/// Find the next prop mutation of `var_name` at or after `from`, returning its
+/// line/column plus the offset to resume scanning from.
+pub(super) fn find_prop_mutation_location_from(
+    source: &str,
+    var_name: &str,
+    from: usize,
+) -> Option<(usize, usize, usize)> {
+    let bytes = source.as_bytes();
+    let mut search = from;
+
+    while search < source.len() {
+        let rel = memchr::memmem::find(&bytes[search..], var_name.as_bytes())?;
+        let start = search + rel;
+        let end = start + var_name.len();
+        search = end;
+
+        if start > 0 {
+            let prev = bytes[start - 1] as char;
+            if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == '.' {
+                continue;
+            }
+        }
+        if end >= source.len() || (bytes[end] != b'.' && bytes[end] != b'[') {
+            continue;
+        }
+        if let Some(after) = scan_member_chain(bytes, end)
+            && is_mutation_operator(bytes, after)
+        {
+            let (line, col) =
+                crate::compiler::phases::phase3_transform::utils::locate_in_source(source, start);
+            return Some((line, col, end));
+        }
+    }
+
+    None
+}
+
+/// Advance past `.name` / `[expr]` accessors, returning the offset just after the chain.
+fn scan_member_chain(bytes: &[u8], mut pos: usize) -> Option<usize> {
+    loop {
+        while pos < bytes.len() && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
+            pos += 1;
+        }
+        if pos >= bytes.len() {
+            return Some(pos);
+        }
+        match bytes[pos] {
+            b'.' => {
+                pos += 1;
+                while pos < bytes.len() && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
+                    pos += 1;
+                }
+                let ident_start = pos;
+                while pos < bytes.len() {
+                    let c = bytes[pos] as char;
+                    if c.is_alphanumeric() || c == '_' || c == '$' {
+                        pos += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if pos == ident_start {
+                    return None;
+                }
+            }
+            b'[' => {
+                let mut depth = 0usize;
+                while pos < bytes.len() {
+                    match bytes[pos] {
+                        b'[' => depth += 1,
+                        b']' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                pos += 1;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    pos += 1;
+                }
+                if depth != 0 {
+                    return None;
+                }
+            }
+            _ => return Some(pos),
+        }
+    }
+}
+
+/// Whether an assignment or update operator starts at `pos`.
+fn is_mutation_operator(bytes: &[u8], mut pos: usize) -> bool {
+    while pos < bytes.len() && (bytes[pos] as char).is_whitespace() {
+        pos += 1;
+    }
+    if pos >= bytes.len() {
+        return false;
+    }
+    if bytes[pos] == b'+' && bytes.get(pos + 1) == Some(&b'+') {
+        return true;
+    }
+    if bytes[pos] == b'-' && bytes.get(pos + 1) == Some(&b'-') {
+        return true;
+    }
+    let op_start = pos;
+    while pos < bytes.len()
+        && matches!(
+            bytes[pos],
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^' | b'?' | b'<' | b'>'
+        )
+    {
+        pos += 1;
+    }
+    if pos >= bytes.len() || bytes[pos] != b'=' {
+        return false;
+    }
+    // `==`, `===`, `<=`, `>=` and `=>` compare rather than assign.
+    if pos == op_start && bytes.get(pos + 1) == Some(&b'=') {
+        return false;
+    }
+    if pos > op_start && matches!(bytes[pos - 1], b'<' | b'>') && pos - op_start == 1 {
+        return false;
+    }
+    bytes.get(pos + 1) != Some(&b'=') && bytes.get(pos + 1) != Some(&b'>')
 }
 
 /// Find the line/column in the original source for a prop mutation.
