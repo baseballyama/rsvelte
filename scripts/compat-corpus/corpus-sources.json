@@ -30,6 +30,8 @@
 	{ "path": "submodules/svelte-checkbox", "id": "svelte-checkbox", "markdown": false },
 	{ "path": "submodules/svelte-toggle", "id": "svelte-toggle", "markdown": false },
 	{ "path": "submodules/svelthree", "id": "svelthree", "markdown": false },
+	{ "path": "submodules/runed", "id": "runed", "markdown": false },
+	{ "path": "submodules/svelte-toolbelt", "id": "svelte-toolbelt", "markdown": false },
 	{ "path": "submodules/cmsaasstarter", "id": "cmsaasstarter", "markdown": false },
 	{ "path": "submodules/skeleton", "id": "skeleton", "markdown": false },
 	{ "path": "compatibility/pattern-corpus", "id": "pattern", "markdown": false, "required": true }

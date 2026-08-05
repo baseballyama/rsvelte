@@ -323,3 +323,19 @@
 	branch = main
 	ignore = dirty
 	shallow = true
+
+# Rune-in-module utility libraries: almost pure .svelte.(js|ts), the corpus's
+# thinnest surface (modules were 3.4% of entries before these landed).
+[submodule "submodules/runed"]
+	path = submodules/runed
+	url = https://github.com/svecosystem/runed.git
+	branch = main
+	ignore = dirty
+	shallow = true
+
+[submodule "submodules/svelte-toolbelt"]
+	path = submodules/svelte-toolbelt
+	url = https://github.com/huntabyte/svelte-toolbelt.git
+	branch = main
+	ignore = dirty
+	shallow = true

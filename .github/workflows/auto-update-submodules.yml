@@ -118,6 +118,10 @@ jobs:
             path: submodules/svelte-toggle
           - name: svelthree
             path: submodules/svelthree
+          - name: runed
+            path: submodules/runed
+          - name: svelte-toolbelt
+            path: submodules/svelte-toolbelt
           - name: cmsaasstarter
             path: submodules/cmsaasstarter
     concurrency:

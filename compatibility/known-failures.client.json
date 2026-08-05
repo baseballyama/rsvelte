@@ -1,1 +1,11 @@
-[]
+[
+	"runed/packages/runed/src/lib/utilities/pressed-keys/pressed-keys.svelte.ts",
+	"runed/packages/runed/src/lib/utilities/resource/resource.svelte.ts",
+	"runed/packages/runed/src/lib/utilities/resource/resource.test.svelte.ts",
+	"runed/packages/runed/src/lib/utilities/use-debounce/use-debounce.svelte.ts",
+	"runed/packages/runed/src/lib/utilities/use-interval/use-interval.svelte.ts",
+	"runed/packages/runed/src/lib/utilities/watch/watch.test.svelte.ts",
+	"runed/sites/docs/src/lib/components/demos/animation-frames.svelte",
+	"runed/sites/docs/src/lib/components/demos/scroll-state.svelte",
+	"runed/sites/docs/src/lib/components/demos/use-search-params.svelte"
+]

@@ -49,6 +49,8 @@ in [`compatibility/`](../../compatibility/).
 | [HosseinShabani/svelte-checkbox](https://github.com/HosseinShabani/svelte-checkbox) | `submodules/svelte-checkbox` | Checkbox (awesome-svelte) |
 | [beyonk-adventures/svelte-toggle](https://github.com/beyonk-adventures/svelte-toggle) | `submodules/svelte-toggle` | Toggle (awesome-svelte) |
 | [vatro/svelthree](https://github.com/vatro/svelthree) | `submodules/svelthree` | Three.js components (awesome-svelte) |
+| [svecosystem/runed](https://github.com/svecosystem/runed) | `submodules/runed` | Rune utilities — almost pure `.svelte.(js|ts)` |
+| [huntabyte/svelte-toolbelt](https://github.com/huntabyte/svelte-toolbelt) | `submodules/svelte-toolbelt` | Rune/DOM utilities — almost pure `.svelte.(js|ts)` |
 | [CriticalMoments/CMSaasStarter](https://github.com/CriticalMoments/CMSaasStarter) | `submodules/cmsaasstarter` | SvelteKit SaaS starter (awesome-svelte) |
 | [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) | `submodules/skeleton` | UI library + docs/playground monorepo (also the svelte-check e2e gate) |
 | — (in-repo) | `compatibility/pattern-corpus` | hand-written patterns: one minimal repro per fixed divergence + the feature matrices around them ([README](../../compatibility/pattern-corpus/README.md)) |
