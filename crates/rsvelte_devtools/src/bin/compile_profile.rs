@@ -295,8 +295,27 @@ fn main() {
     );
 }
 
+/// The six shipped projects, picked so this population is byte-for-byte the one
+/// the `$:` density check ran on: the density figure and the shares then
+/// describe the same files rather than two similar-sounding sets.
+const SHIPPED_PROJECTS: [&str; 6] = [
+    "submodules/flowbite-svelte",
+    "submodules/bits-ui",
+    "submodules/shadcn-svelte",
+    "submodules/layerchart",
+    "submodules/skeleton",
+    "submodules/svelte-ux",
+];
+
 fn collect_files() -> Vec<(String, String)> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    if std::env::args().any(|a| a == "--shipped") {
+        let mut files = Vec::new();
+        for project in &SHIPPED_PROJECTS {
+            collect_svelte_files(&base.join(project), &mut files);
+        }
+        return files;
+    }
     let test_dir = base.join("submodules/svelte/packages/svelte/tests");
     let categories = [
         "parser-modern/samples",
