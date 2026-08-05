@@ -103,18 +103,27 @@ pub(super) fn fill_inline_runs(
     while i < nodes.len() {
         // A `<!-- prettier-ignore -->`d node must never join a run (it — and its
         // whole subtree — stays verbatim): treat it as a run boundary so it's
-        // skipped here and left for `collect`'s own per-node guard.
-        if crate::prettier_ignore::preceded_by_prettier_ignore(nodes, i)
-            || !is_run_member(out, &nodes[i])
+        // skipped here and left for `collect`'s own per-node guard. The one
+        // exception is an ignore comment glued to an inline node mid-prose: that
+        // pair joins the run as a single verbatim atom.
+        if inline_ignore_atom(out, nodes, i).is_none()
+            && (crate::prettier_ignore::preceded_by_prettier_ignore(nodes, i)
+                || !is_run_member(out, &nodes[i]))
         {
             i += 1;
             continue;
         }
         let mut j = i;
-        while j < nodes.len()
-            && is_run_member(out, &nodes[j])
-            && !crate::prettier_ignore::preceded_by_prettier_ignore(nodes, j)
-        {
+        while j < nodes.len() {
+            if inline_ignore_atom(out, nodes, j).is_some() {
+                j += 2;
+                continue;
+            }
+            if !is_run_member(out, &nodes[j])
+                || crate::prettier_ignore::preceded_by_prettier_ignore(nodes, j)
+            {
+                break;
+            }
             j += 1;
         }
         if let Some(edit) = try_fill_run(
@@ -450,15 +459,25 @@ pub(super) fn try_fill_mixed(
     let whole = out.get(s..e)?;
     // Must be mixed (at least one non-text child) and entirely inline.
     let mut has_non_text = false;
-    for n in &fragment.nodes {
-        if !matches!(n, TemplateNode::Text(_)) {
-            has_non_text = true;
-            // A comment always sits on its own line(s) — never fill it inline
-            // with the surrounding prose. Leave the whole fragment to the
-            // indent pass (which keeps the comment on its own line).
-            if matches!(n, TemplateNode::Comment(_)) || !is_inline_node(n) {
-                return None;
-            }
+    let mut ignored_idx = None;
+    for (i, n) in fragment.nodes.iter().enumerate() {
+        if matches!(n, TemplateNode::Text(_)) {
+            continue;
+        }
+        has_non_text = true;
+        // An ignore comment glued to an inline node is one verbatim atom of the
+        // prose, so the fill flows across it; any OTHER comment sits on its own
+        // line(s) — never fill it inline with the surrounding prose, leave the
+        // whole fragment to the indent pass (which keeps it on its own line).
+        if inline_ignore_atom(out, &fragment.nodes, i).is_some() {
+            ignored_idx = Some(i + 1);
+            continue;
+        }
+        if ignored_idx == Some(i) {
+            continue;
+        }
+        if matches!(n, TemplateNode::Comment(_)) || !is_inline_node(n) {
+            return None;
         }
     }
     if !has_non_text {
