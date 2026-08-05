@@ -364,6 +364,21 @@ fn comments_in(all: &[Comment], lo: u32, hi: u32) -> u64 {
         .count() as u64
 }
 
+/// A statement lowered without a whole-statement reparse: everything between its
+/// bounds is rebuilt from sub-slices, so its comments reach no reparse counter.
+/// The site count is the denominator a comment count of 0 needs.
+fn count_non_reparse(all: &[Comment], span: Span) {
+    super::comment_stats::bump::NON_REPARSE_SITES(1);
+    super::comment_stats::bump::INTERIOR_NON_REPARSE(comments_in(all, span.start, span.end));
+}
+
+/// An `export <decl>` lowered from the declaration's span alone, which skips the
+/// `export` keyword and anything between it and the declaration.
+fn count_export_keyword(all: &[Comment], exp_start: u32, decl_start: u32) {
+    super::comment_stats::bump::EXPORT_KEYWORD_SITES(1);
+    super::comment_stats::bump::INTERIOR_EXPORT_KEYWORD(comments_in(all, exp_start, decl_start));
+}
+
 /// Parse + lower a single RUNES-mode script into transformed top-level
 /// statements. `import_sink` receives instance-script imports to hoist (`None`
 /// for module).
@@ -445,11 +460,7 @@ fn transform_script<'a>(
                     }
                 }
                 Statement::VariableDeclaration(vd) => {
-                    super::comment_stats::bump::INTERIOR_NON_REPARSE(comments_in(
-                        &ret.program.comments,
-                        vd.span.start,
-                        vd.span.end,
-                    ));
+                    count_non_reparse(&ret.program.comments, vd.span);
                     out.extend(lower_variable_declaration(vd, src, is_instance, state));
                 }
                 // INSTANCE-only `ExportNamedDeclaration` override (写经 the per-instance
@@ -467,16 +478,12 @@ fn transform_script<'a>(
                             break 'emit;
                         }
                         Some(oxc_ast::ast::Declaration::VariableDeclaration(vd)) => {
-                            super::comment_stats::bump::INTERIOR_EXPORT_KEYWORD(comments_in(
+                            count_export_keyword(
                                 &ret.program.comments,
                                 exp.span.start,
                                 vd.span.start,
-                            ));
-                            super::comment_stats::bump::INTERIOR_NON_REPARSE(comments_in(
-                                &ret.program.comments,
-                                vd.span.start,
-                                vd.span.end,
-                            ));
+                            );
+                            count_non_reparse(&ret.program.comments, vd.span);
                             out.extend(lower_variable_declaration(vd, src, is_instance, state));
                         }
                         Some(decl) => {
@@ -484,11 +491,7 @@ fn transform_script<'a>(
                             // declaration verbatim (re-parsed from its source span)
                             // with the same read-wrap every re-homed statement gets.
                             let span = decl.span();
-                            super::comment_stats::bump::INTERIOR_EXPORT_KEYWORD(comments_in(
-                                &ret.program.comments,
-                                exp.span.start,
-                                span.start,
-                            ));
+                            count_export_keyword(&ret.program.comments, exp.span.start, span.start);
                             let slice = &src[span.start as usize..span.end as usize];
                             if let Some(mut rehomed) = state.reparse_statement(slice) {
                                 super::read_wrap::wrap_reads_in_statement(
@@ -2720,16 +2723,12 @@ fn transform_script_legacy<'a>(
                     };
                     match decl {
                         oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
-                            super::comment_stats::bump::INTERIOR_EXPORT_KEYWORD(comments_in(
+                            count_export_keyword(
                                 &ret.program.comments,
                                 exp.span.start,
                                 vd.span.start,
-                            ));
-                            super::comment_stats::bump::INTERIOR_NON_REPARSE(comments_in(
-                                &ret.program.comments,
-                                vd.span.start,
-                                vd.span.end,
-                            ));
+                            );
+                            count_non_reparse(&ret.program.comments, vd.span);
                             out.extend(lower_legacy_var_decl(
                                 vd,
                                 src,
@@ -2747,11 +2746,7 @@ fn transform_script_legacy<'a>(
                             let is_fn =
                                 matches!(other, oxc_ast::ast::Declaration::FunctionDeclaration(_));
                             let span = other.span();
-                            super::comment_stats::bump::INTERIOR_EXPORT_KEYWORD(comments_in(
-                                &ret.program.comments,
-                                exp.span.start,
-                                span.start,
-                            ));
+                            count_export_keyword(&ret.program.comments, exp.span.start, span.start);
                             let slice = &src[span.start as usize..span.end as usize];
                             if let Some(mut rehomed) = state.reparse_statement(slice) {
                                 if is_instance && is_fn {
@@ -2769,11 +2764,7 @@ fn transform_script_legacy<'a>(
                     }
                 }
                 Statement::VariableDeclaration(vd) => {
-                    super::comment_stats::bump::INTERIOR_NON_REPARSE(comments_in(
-                        &ret.program.comments,
-                        vd.span.start,
-                        vd.span.end,
-                    ));
+                    count_non_reparse(&ret.program.comments, vd.span);
                     out.extend(lower_legacy_var_decl(
                         vd,
                         src,

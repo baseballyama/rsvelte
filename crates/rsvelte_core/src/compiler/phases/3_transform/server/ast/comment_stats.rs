@@ -41,6 +41,8 @@ counters! {
     SCRIPT_COMMENTS_TRAILING,
     INTERIOR_EXPORT_KEYWORD,
     INTERIOR_NON_REPARSE,
+    EXPORT_KEYWORD_SITES,
+    NON_REPARSE_SITES,
 }
 
 pub fn enabled() -> bool {
