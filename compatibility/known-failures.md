@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 203 entries)
+## Client dev (`known-failures.client-dev.json`, 187 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -66,7 +66,10 @@ set($$value)` instead of arrows) to 234, the residual `$.tag` tail
 (uninitialized legacy state without a trailing semicolon) to 224, and #2089 (the
 same ownership validation on assignments and update expressions written in
 template expressions, which are converted through the typed `JsNode` path) to
-203 — all with no regression on `client` or `server`, both of which are empty.
+203, and the legacy half of the same validation (`prop_mutation_vars` was
+gated on `analysis.runes`, so no `export let` prop member mutation in an
+instance script was ever wrapped) to 187 — all with no regression on `client`
+or `server`, both of which are empty.
 
 ### How the counts below are derived
 
@@ -82,13 +85,13 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| ownership mutation validation | 48 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
+| ownership mutation validation | 9 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
 | equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-59 entries are attributed to a cluster; the remaining **144** show no
+20 entries are attributed to a cluster; the remaining **167** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (`$.assign`, `$$css`, `$.event` handler naming, constant-folded
 template expressions). The legacy `bind:` `function get()/set()` shape was 47
@@ -156,6 +159,15 @@ component declares that name exactly once. `<script module>`'s `foo` next to the
 instance script's `foo`, and a `$state` `method` next to an `{#each}`-destructured
 `method`, therefore stay conservative. Resolving them needs a scope-carrying
 rewrite of the script path — #2064 long-tail.
+
+### What is left of the ownership row
+
+The 9 remaining under-emits are all `bind:this={prop[expr]}` on an element
+inside an `{#each}`: the setter upstream builds is
+`($$value, j) => $$ownership_validator.mutation(null, ['divs', j], …)`, whose
+path tail is the each-block index *expression*, not a literal member name.
+rsvelte's `bind:this` path wraps only the non-parameterised setter shape, so the
+each-scoped one falls through — #2064 long-tail.
 
 **#1981 is confirmed absent.** The run contains zero
 `$$ownership_validator.binding(` divergences, so the #1989 fix holds across the
