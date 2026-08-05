@@ -562,6 +562,7 @@ fn transform_client_with_visitors(
         );
         rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
         super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
+        super::profile::record_parent_site(false);
         // Transfer the script's $$array counter to the context state so that the template
         // visitor continues numbering from where the script left off.
         let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
@@ -4240,6 +4241,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         None,
     );
     super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
+    super::profile::record_parent_site(true);
     out
 }
 
@@ -4322,6 +4324,7 @@ fn transform_instance_script_for_visitors(
     source_projection: Option<&ScriptProjection>,
 ) -> String {
     super::profile::record_st_entry();
+    let _entry_guard = super::profile::EntryGuard::new();
     if script.is_empty() {
         return String::new();
     }

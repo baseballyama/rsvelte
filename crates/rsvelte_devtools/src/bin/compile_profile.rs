@@ -270,6 +270,14 @@ fn main() {
         st.parent_calls,
         st.calls
     );
+    println!(
+        "    NESTING nested {} | sites: main {} pub {} (sum {} vs entries {})",
+        st.nested_entries,
+        st.parent_site_main,
+        st.parent_site_pub,
+        st.parent_site_main + st.parent_site_pub,
+        st.entries
+    );
     report_reparse(&mut rows, ms(total));
     println!(
         "  Template fragment:   {:7.2}ms ({:5.1}%)",

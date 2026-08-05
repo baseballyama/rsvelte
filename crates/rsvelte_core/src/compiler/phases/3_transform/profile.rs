@@ -130,6 +130,19 @@ pub struct ScriptTextBreakdown {
     /// Every `record_script_text`. Must equal `entries`, or some staged work
     /// ran outside the parent timer and the stage sum cannot be compared to it.
     pub parent_calls: u64,
+    /// Entries that happened while an outer entry was still on the stack.
+    ///
+    /// `entries == parent_calls` does not prove the two are paired: a missing
+    /// one and a spare one cancel. Re-entry is the case that actually breaks
+    /// the arithmetic, because the inner call's stage timers accumulate into
+    /// the same totals the outer call's parent timer already covers, letting
+    /// the stage sum exceed its parent. Any non-zero value here invalidates
+    /// every share taken from `script_text` and below.
+    pub nested_entries: u64,
+    /// `record_script_text` split by call site, so a parent call with no entry
+    /// (or the reverse) cannot hide inside an equal total.
+    pub parent_site_main: u64,
+    pub parent_site_pub: u64,
 }
 
 /// The `*_ast` rewrite passes all reach the parser through one choke point,
@@ -184,6 +197,10 @@ thread_local! {
     static ST_REACTIVE_STMT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_REACTIVE_CALLS: Cell<u64> = const { Cell::new(0) };
     static ST_PARENT_CALLS: Cell<u64> = const { Cell::new(0) };
+    static ST_DEPTH: Cell<u64> = const { Cell::new(0) };
+    static ST_NESTED_ENTRIES: Cell<u64> = const { Cell::new(0) };
+    static ST_PARENT_SITE_MAIN: Cell<u64> = const { Cell::new(0) };
+    static ST_PARENT_SITE_PUB: Cell<u64> = const { Cell::new(0) };
 
     static ESRAP_CLIENT_SPLIT: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
     static ESRAP_CLIENT_MAP: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
@@ -312,6 +329,39 @@ pub fn record_script_text(d: Duration) {
 }
 
 #[inline]
+pub fn record_parent_site(is_pub: bool) {
+    if is_pub {
+        ST_PARENT_SITE_PUB.with(|c| c.set(c.get() + 1));
+    } else {
+        ST_PARENT_SITE_MAIN.with(|c| c.set(c.get() + 1));
+    }
+}
+
+/// Tracks how deep the staged function is on the stack, so a re-entrant call
+/// is counted rather than inferred.
+pub struct EntryGuard;
+
+impl EntryGuard {
+    #[expect(clippy::new_without_default, reason = "a guard is never defaulted")]
+    pub fn new() -> Self {
+        ST_DEPTH.with(|d| {
+            let depth = d.get() + 1;
+            d.set(depth);
+            if depth > 1 {
+                ST_NESTED_ENTRIES.with(|c| c.set(c.get() + 1));
+            }
+        });
+        Self
+    }
+}
+
+impl Drop for EntryGuard {
+    fn drop(&mut self) {
+        ST_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+    }
+}
+
+#[inline]
 pub fn record_st_entry() {
     ST_ENTRIES.with(|c| c.set(c.get() + 1));
 }
@@ -403,6 +453,9 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         reactive_calls: ST_REACTIVE_CALLS.with(|c| c.replace(0)),
         entries: ST_ENTRIES.with(|c| c.replace(0)),
         parent_calls: ST_PARENT_CALLS.with(|c| c.replace(0)),
+        nested_entries: ST_NESTED_ENTRIES.with(|c| c.replace(0)),
+        parent_site_main: ST_PARENT_SITE_MAIN.with(|c| c.replace(0)),
+        parent_site_pub: ST_PARENT_SITE_PUB.with(|c| c.replace(0)),
     }
 }
 
