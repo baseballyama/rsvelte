@@ -1793,7 +1793,6 @@ fn process_bind_directive<'a>(
                             context,
                         )
                     {
-                        context.state.needs_mutation_validation.set(true);
                         let mut args = vec![b::string(&prop_alias), b::array(path), wrapped];
                         if let Some((line, col)) = source_loc {
                             args.push(b::literal_number(line as f64));
