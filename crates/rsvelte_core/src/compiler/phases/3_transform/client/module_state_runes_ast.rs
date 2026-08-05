@@ -34,6 +34,7 @@ thread_local! {
 pub fn transform_module_state_runes_ast(
     source: &str,
     non_reactive_vars: &[String],
+    state_binding_names: &[String],
     non_proxy_vars: &[String],
     is_ts: bool,
 ) -> Option<String> {
@@ -61,7 +62,7 @@ pub fn transform_module_state_runes_ast(
             edits.extend(super::state_call_ast::collect_state_call_edits(
                 program,
                 src,
-                non_reactive_vars,
+                state_binding_names,
                 non_proxy_vars,
             ));
             edits
@@ -76,7 +77,7 @@ mod tests {
     #[test]
     fn mixed_disjoint_runes_all_lower_in_one_pass() {
         let src = "let a = $state.snapshot(x);\nlet b = $state.raw(0);\nlet c = $state(1);";
-        let out = transform_module_state_runes_ast(src, &[], &[], false).unwrap();
+        let out = transform_module_state_runes_ast(src, &[], &[], &[], false).unwrap();
         assert_eq!(
             out,
             "let a = $.snapshot(x);\nlet b = $.state(0);\nlet c = $.state(1);"
@@ -85,7 +86,7 @@ mod tests {
 
     #[test]
     fn no_rune_is_none() {
-        assert!(transform_module_state_runes_ast("let x = 1;", &[], &[], false).is_none());
+        assert!(transform_module_state_runes_ast("let x = 1;", &[], &[], &[], false).is_none());
     }
 
     #[test]
@@ -93,7 +94,8 @@ mod tests {
         // Every rewrite descends only into expression positions, so the same
         // bytes inside a string literal must not be touched.
         assert!(
-            transform_module_state_runes_ast(r#"let s = "$state(x)";"#, &[], &[], false).is_none()
+            transform_module_state_runes_ast(r#"let s = "$state(x)";"#, &[], &[], &[], false)
+                .is_none()
         );
     }
 
@@ -105,6 +107,7 @@ mod tests {
         // sequential passes would have produced.
         let out = transform_module_state_runes_ast(
             "let a = $state($state.snapshot(x));",
+            &[],
             &[],
             &[],
             false,

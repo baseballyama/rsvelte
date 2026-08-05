@@ -3960,6 +3960,35 @@ pub(crate) fn transform_module_script_runes(
         Vec::new()
     };
 
+    // Every `$state`/`$state.raw` binding eligible for the non-reactive
+    // shortcut; the declaration rewrite settles reassignment per binding.
+    let module_state_binding_names: Vec<String> = if analysis.immutable && !analysis.accessors {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::State | BindingKind::RawState))
+            .map(|b| b.name.clone())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    // `bindings` is flat across every scope, so same-named `$state` locals in
+    // sibling functions collapse into one entry; such a name cannot classify
+    // reads and writes by itself and must be resolved per binding instead.
+    let ambiguous_state_names: Vec<String> = module_non_reactive_vars
+        .iter()
+        .filter(|name| {
+            analysis.root.bindings.iter().any(|b| {
+                matches!(b.kind, BindingKind::State | BindingKind::RawState)
+                    && b.reassigned
+                    && &b.name == *name
+            })
+        })
+        .cloned()
+        .collect();
+
     // Extract module proxy vars for non-reactive vars
     let module_proxy_vars = extract_proxy_vars(script);
 
@@ -4023,6 +4052,7 @@ pub(crate) fn transform_module_script_runes(
         if let Some(rewritten) = module_state_runes_ast::transform_module_state_runes_ast(
             &result,
             &module_non_reactive_vars,
+            &module_state_binding_names,
             &module_non_proxy_vars,
             is_ts,
         ) {
@@ -4200,7 +4230,7 @@ pub(crate) fn transform_module_script_runes(
     // if any declaration (let/const/var) for the variable exists in the text.
     // In module scripts, declarations and assignments coexist, so we need to
     // process non-declaration lines separately.
-    if !reactive_module_state_vars.is_empty() {
+    if !reactive_module_state_vars.is_empty() || !ambiguous_state_names.is_empty() {
         // Collect no-proxy vars (these should NOT get proxy flag in $.set())
         // The official Svelte compiler skips the proxy flag for derived, raw_state,
         // prop, bindable_prop, and store_sub bindings (AssignmentExpression.js L136-141).
@@ -4237,13 +4267,28 @@ pub(crate) fn transform_module_script_runes(
         // READ wraps in a single parse + SemanticBuilder. Replaces
         // the previous sequential `state_assigns_combined_ast` +
         // `wrap_state_vars_in_expr` which each did their own parse.
+        // Ambiguous names must reach the visitor, which resolves each reference
+        // to its own binding instead of trusting the name-keyed classification.
+        let mut pipeline_state_vars = reactive_module_state_vars.clone();
+        pipeline_state_vars.extend(
+            ambiguous_state_names
+                .iter()
+                .filter(|name| module_state_vars.contains(name))
+                .cloned(),
+        );
+        let pipeline_non_reactive_vars: Vec<String> = module_non_reactive_vars
+            .iter()
+            .filter(|name| !ambiguous_state_names.contains(name))
+            .cloned()
+            .collect();
+
         result = state_pipeline_ast::transform_state_pipeline_ast(
             &result,
-            &reactive_module_state_vars,
+            &pipeline_state_vars,
             &derived_vars,
             analysis.runes,
             &[],
-            &module_non_reactive_vars,
+            &pipeline_non_reactive_vars,
         )
         .unwrap_or(result);
     }
