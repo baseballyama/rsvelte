@@ -494,30 +494,36 @@ fn render_stylesheet_internal(
         let keyframes = collect_keyframe_names(children);
 
         // Transform the CSS
-        let mut code = transform_css(children, &selector, hash, css_content, css_start, &ctx);
+        let mut writer = transform_css(children, &selector, hash, css_content, css_start, &ctx);
 
-        // Post-process: replace animation keyframe references
+        // Post-process: replace animation keyframe references. Upstream inserts
+        // the prefix through MagicString, so the mapping is only accurate while
+        // no keyframe reference moved the output.
         if !keyframes.is_empty() {
-            code = replace_animation_keyframes(&code, hash, &keyframes);
+            writer.text = replace_animation_keyframes(&writer.text, hash, &keyframes);
+            writer.copies.clear();
         }
 
         // Generate CSS source map
-        let map =
-            generate_css_sourcemap(source, &code, css_start, options, include_sourcemap_content);
+        let map = generate_css_sourcemap(source, &writer, options, include_sourcemap_content);
 
-        Ok(CssOutput { code, map })
+        Ok(CssOutput {
+            code: writer.text,
+            map,
+        })
     }
 }
 
-/// Generate a source map for CSS output.
+/// Generate a source map for the CSS output.
 ///
-/// Creates token-level mappings from the generated CSS back to the original source.
-/// For each CSS token (identifiers, properties, values, etc.), we match between
-/// the generated CSS and the CSS content in the original source.
+/// Mirrors what MagicString's `generateMap` produces for the edit stream
+/// `css/index.js` applies: a segment at the start of every copied run, at the
+/// start of every line inside one, and at every `addSourcemapLocation` — which
+/// the `_` visitor calls on every visited node's `start` and `end`. Inserted
+/// text is a chunk intro/outro and carries no segment at all.
 fn generate_css_sourcemap(
     source: &str,
-    css_code: &str,
-    css_start: usize,
+    writer: &CssWriter,
     options: &CompileOptions,
     include_sourcemap_content: bool,
 ) -> Option<String> {
@@ -538,118 +544,68 @@ fn generate_css_sourcemap(
         "input.svelte".to_string()
     };
 
-    // Determine file name for the "file" field
+    // `file: options.cssOutputFilename || options.filename` (`css/index.js`),
+    // which MagicString reduces to its basename.
     let file_name = css_output_filename
-        .map(|f| {
-            f.split(['/', '\\'])
-                .next_back()
-                .unwrap_or("input.svelte.css")
-                .to_string()
-        })
-        .unwrap_or_else(|| "input.svelte.css".to_string());
+        .or(filename)
+        .and_then(|f| f.split(['/', '\\']).next_back())
+        .unwrap_or("input.svelte.css")
+        .to_string();
 
-    // Extract CSS tokens from both the generated CSS and the original source's CSS section
-    let gen_tokens = extract_css_tokens(css_code);
-    let css_source_section = &source[css_start..];
-    let src_tokens = extract_css_tokens(css_source_section);
-
-    let gen_line_starts = build_line_starts(css_code);
     let source_line_starts = build_line_starts(source);
+    let code = writer.text.as_bytes();
+    let mut mappings: Vec<SourceMapping> = Vec::new();
+    let mut gen_line = 0u32;
+    let mut gen_col = 0u32;
+    let mut cursor = 0usize;
 
-    let mut mappings = Vec::new();
+    let advance = |from: usize, to: usize, gen_line: &mut u32, gen_col: &mut u32| {
+        for &byte in &code[from..to] {
+            if byte == b'\n' {
+                *gen_line += 1;
+                *gen_col = 0;
+            } else {
+                *gen_col += 1;
+            }
+        }
+    };
 
-    // Build per-token-name matching (same approach as JS token matching)
-    let mut src_positions: rustc_hash::FxHashMap<&str, Vec<usize>> =
-        rustc_hash::FxHashMap::default();
-    for token in &src_tokens {
-        src_positions
-            .entry(token.text)
-            .or_default()
-            .push(token.offset + css_start); // Absolute position in source
-    }
+    for &(gen_start, src_start, len) in &writer.copies {
+        let gen_start = gen_start as usize;
+        advance(cursor, gen_start, &mut gen_line, &mut gen_col);
+        cursor = gen_start + len as usize;
 
-    let mut src_consumed: rustc_hash::FxHashMap<&str, usize> = rustc_hash::FxHashMap::default();
-
-    // Track the last matched source position for handling .svelte-xxx scoping suffixes
-    let mut last_src_end: Option<usize> = None;
-
-    for gen_token in &gen_tokens {
-        // Handle .svelte-xxx scoping suffixes: these don't exist in the source,
-        // but the end of the scoped selector should map to the end of the original selector.
-        if gen_token.text.starts_with(".svelte-") {
-            if let Some(src_end) = last_src_end {
-                // End of scoped selector -> end of original selector
-                let gen_end = gen_token.offset + gen_token.text.len();
-                let (gen_line_end, gen_col_end) = offset_to_line_col(&gen_line_starts, gen_end);
-                let (orig_line_end, orig_col_end) =
-                    offset_to_line_col(&source_line_starts, src_end);
+        let (mut line, mut column) = offset_to_line_col(&source_line_starts, src_start as usize);
+        let mut first = true;
+        for offset in src_start..src_start + len {
+            if source.as_bytes()[offset as usize] == b'\n' {
+                line += 1;
+                column = 0;
+                gen_line += 1;
+                gen_col = 0;
+                first = true;
+                continue;
+            }
+            if first || writer.marks.contains(&offset) {
                 mappings.push(SourceMapping {
-                    gen_line: gen_line_end as u32,
-                    gen_col: gen_col_end as u32,
+                    gen_line,
+                    gen_col,
                     source: 0,
-                    orig_line: orig_line_end as u32,
-                    orig_col: orig_col_end as u32,
+                    orig_line: line as u32,
+                    orig_col: column as u32,
                     name: None,
                 });
             }
-            continue;
+            column += 1;
+            gen_col += 1;
+            first = false;
         }
-
-        let positions = match src_positions.get(gen_token.text) {
-            Some(p) => p,
-            None => {
-                last_src_end = None;
-                continue;
-            }
-        };
-
-        let consumed = src_consumed.entry(gen_token.text).or_insert(0);
-        if *consumed >= positions.len() {
-            last_src_end = None;
-            continue;
-        }
-
-        let src_pos = positions[*consumed];
-        *consumed += 1;
-
-        let (gen_line, gen_col) = offset_to_line_col(&gen_line_starts, gen_token.offset);
-        let (orig_line, orig_col) = offset_to_line_col(&source_line_starts, src_pos);
-
-        // Start of token
-        mappings.push(SourceMapping {
-            gen_line: gen_line as u32,
-            gen_col: gen_col as u32,
-            source: 0,
-            orig_line: orig_line as u32,
-            orig_col: orig_col as u32,
-            name: None,
-        });
-
-        // End of token
-        let gen_end = gen_token.offset + gen_token.text.len();
-        let src_end = src_pos + gen_token.text.len();
-        let (gen_line_end, gen_col_end) = offset_to_line_col(&gen_line_starts, gen_end);
-        let (orig_line_end, orig_col_end) = offset_to_line_col(&source_line_starts, src_end);
-        mappings.push(SourceMapping {
-            gen_line: gen_line_end as u32,
-            gen_col: gen_col_end as u32,
-            source: 0,
-            orig_line: orig_line_end as u32,
-            orig_col: orig_col_end as u32,
-            name: None,
-        });
-
-        last_src_end = Some(src_end);
     }
+    advance(cursor, code.len(), &mut gen_line, &mut gen_col);
 
-    // Sort and dedup
-    mappings.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
-    mappings.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
-
-    // Ensure mappings cover all output lines
     let mut mappings_str = encode_vlq_mappings(&mappings);
-    let output_line_count = css_code.chars().filter(|&c| c == '\n').count();
-    let mapped_lines = mappings_str.chars().filter(|&c| c == ';').count();
+    let output_line_count = writer.text.matches('\n').count();
+    let mapped_lines = mappings_str.matches(';').count();
     for _ in mapped_lines..output_line_count {
         mappings_str.push(';');
     }
@@ -663,131 +619,6 @@ fn generate_css_sourcemap(
     ))
 }
 
-/// CSS token for source map matching.
-struct CssToken<'a> {
-    text: &'a str,
-    offset: usize,
-}
-
-/// Extract tokens from CSS code for source map matching.
-/// Extracts identifiers, class selectors (.foo), CSS properties, and values.
-fn extract_css_tokens(code: &str) -> Vec<CssToken<'_>> {
-    let bytes = code.as_bytes();
-    let len = bytes.len();
-    let mut tokens = Vec::new();
-    let mut i = 0;
-
-    while i < len {
-        let b = bytes[i];
-
-        // Skip whitespace
-        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-            i += 1;
-            continue;
-        }
-
-        // CSS selector with dot prefix (e.g., .foo)
-        if b == b'.'
-            && i + 1 < len
-            && (bytes[i + 1].is_ascii_alphabetic() || bytes[i + 1] == b'_' || bytes[i + 1] == b'-')
-        {
-            let start = i;
-            i += 1;
-            while i < len
-                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'-')
-            {
-                i += 1;
-            }
-            tokens.push(CssToken {
-                text: &code[start..i],
-                offset: start,
-            });
-            continue;
-        }
-
-        // CSS property/identifier with possible hyphens (e.g., color, background-color, --custom-prop)
-        if b.is_ascii_alphabetic() || b == b'_' || b == b'-' {
-            let start = i;
-            i += 1;
-            while i < len
-                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'-')
-            {
-                i += 1;
-            }
-            tokens.push(CssToken {
-                text: &code[start..i],
-                offset: start,
-            });
-            continue;
-        }
-
-        // Numeric values
-        if b.is_ascii_digit() {
-            let start = i;
-            i += 1;
-            while i < len
-                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'.' || bytes[i] == b'%')
-            {
-                i += 1;
-            }
-            tokens.push(CssToken {
-                text: &code[start..i],
-                offset: start,
-            });
-            continue;
-        }
-
-        // String literal
-        if b == b'\'' || b == b'"' {
-            let start = i;
-            let quote = b;
-            i += 1;
-            while i < len && bytes[i] != quote {
-                if bytes[i] == b'\\' && i + 1 < len {
-                    i += 2;
-                } else {
-                    i += 1;
-                }
-            }
-            if i < len {
-                i += 1;
-            }
-            tokens.push(CssToken {
-                text: &code[start..i],
-                offset: start,
-            });
-            continue;
-        }
-
-        // Skip comments
-        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
-            i += 2;
-            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                i += 1;
-            }
-            if i + 1 < len {
-                i += 2;
-            }
-            continue;
-        }
-
-        // CSS punctuation: capture single-character tokens for precise source map end positions
-        if matches!(b, b'(' | b')' | b'{' | b'}' | b':' | b';' | b',') {
-            tokens.push(CssToken {
-                text: &code[i..i + 1],
-                offset: i,
-            });
-            i += 1;
-            continue;
-        }
-
-        i += 1;
-    }
-
-    tokens
-}
-
-/// Collect all keyframe names defined in the stylesheet
 fn collect_keyframe_names(children: &[Value]) -> FxHashSet<String> {
     let mut keyframes = FxHashSet::default();
     for child in children {
@@ -1013,6 +844,178 @@ fn extract_css_content(source: &str) -> Option<(String, usize)> {
 }
 
 /// Transform CSS by adding scoping to selectors while preserving whitespace
+/// The generated CSS plus what MagicString would need to map it: which runs are
+/// copied straight out of the source, and which source offsets carry an
+/// `addSourcemapLocation` (`css/index.js`'s `_` visitor marks every visited
+/// node's `start` and `end`). Text that is not `copy`d is an insertion, which
+/// MagicString stores as a chunk intro/outro and never maps.
+#[derive(Default)]
+struct CssWriter {
+    text: String,
+    /// `(generated offset, source offset, length)`, in generated order.
+    copies: Vec<(u32, u32, u32)>,
+    marks: FxHashSet<u32>,
+}
+
+impl CssWriter {
+    /// Emit text that has no source of its own.
+    fn push_str(&mut self, text: &str) {
+        self.text.push_str(text);
+    }
+
+    fn push(&mut self, ch: char) {
+        self.text.push(ch);
+    }
+
+    /// Emit `text`, which is `source[src_start..src_start + text.len()]`.
+    fn copy(&mut self, src_start: usize, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let gen_start = self.text.len() as u32;
+        let src_start = src_start as u32;
+        let len = text.len() as u32;
+        // MagicString only splits a chunk at an edit, so two runs that are
+        // adjacent in both the source and the output are one chunk and carry
+        // one segment, not two.
+        match self.copies.last_mut() {
+            Some((previous_gen, previous_src, prev_len))
+                if *previous_gen + *prev_len == gen_start
+                    && *previous_src + *prev_len == src_start =>
+            {
+                *prev_len += len;
+            }
+            _ => self.copies.push((gen_start, src_start, len)),
+        }
+        self.text.push_str(text);
+    }
+
+    fn mark(&mut self, offset: usize) {
+        self.marks.insert(offset as u32);
+    }
+}
+
+impl std::fmt::Write for CssWriter {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.text.push_str(s);
+        Ok(())
+    }
+}
+
+/// Emit a transformed selector, mapping the parts that came straight out of the
+/// source. Upstream inserts the scoping modifier with `appendLeft` /
+/// `prependRight`, so everything around it is an unedited chunk; when the two
+/// cannot be lined up by skipping modifiers alone — a `:global(…)` was removed,
+/// an unused branch was commented out — the prelude is emitted unmapped rather
+/// than mapped wrongly.
+fn emit_selector(
+    output: &mut CssWriter,
+    produced: &str,
+    css_source: &str,
+    css_start: usize,
+    prelude_start: usize,
+    prelude_end: usize,
+    modifier: &str,
+) {
+    let (from, to) = (
+        prelude_start.saturating_sub(css_start),
+        prelude_end.saturating_sub(css_start),
+    );
+    if to > css_source.len() || from >= to || !produced.is_ascii() {
+        output.push_str(produced);
+        return;
+    }
+    let src = css_source[from..to].as_bytes();
+    if !src.is_ascii() {
+        output.push_str(produced);
+        return;
+    }
+    let where_modifier = format!(":where({modifier})");
+    let emitted = produced.as_bytes();
+    let mut runs: Vec<(usize, usize, usize)> = Vec::new();
+    let (mut i, mut j) = (0usize, 0usize);
+    while j < emitted.len() {
+        for inserted in [where_modifier.as_bytes(), modifier.as_bytes()] {
+            if emitted[j..].starts_with(inserted) && !src[i..].starts_with(inserted) {
+                j += inserted.len();
+                break;
+            }
+        }
+        if j >= emitted.len() {
+            break;
+        }
+        if i < src.len() && src[i] == emitted[j] {
+            match runs.last_mut() {
+                Some((run_gen, run_src, len)) if *run_gen + *len == j && *run_src + *len == i => {
+                    *len += 1;
+                }
+                _ => runs.push((j, i, 1)),
+            }
+            i += 1;
+            j += 1;
+            continue;
+        }
+        output.push_str(produced);
+        return;
+    }
+    let mut cursor = 0;
+    for (run_gen, run_src, len) in runs {
+        output.push_str(&produced[cursor..run_gen]);
+        output.copy(prelude_start + run_src, &produced[run_gen..run_gen + len]);
+        cursor = run_gen + len;
+    }
+    output.push_str(&produced[cursor..]);
+}
+
+fn mark_node(output: &mut CssWriter, node: &Value) {
+    if let Some(start) = node.get("start").and_then(|s| s.as_u64()) {
+        output.mark(start as usize);
+    }
+    if let Some(end) = node.get("end").and_then(|e| e.as_u64()) {
+        output.mark(end as usize);
+    }
+}
+
+/// Mark every node of a subtree the CSS walk enters. `PseudoClassSelector`
+/// only recurses for `is` / `where` / `has` / `not` (`css/index.js`), so the
+/// arguments of anything else — `:global(…)` above all — are never visited.
+fn mark_tree(output: &mut CssWriter, node: &Value) {
+    match node {
+        Value::Object(map) => {
+            if map.contains_key("start") && map.contains_key("type") {
+                mark_node(output, node);
+                if map.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                    && !matches!(
+                        map.get("name").and_then(|n| n.as_str()),
+                        Some("is" | "where" | "has" | "not")
+                    )
+                {
+                    return;
+                }
+            }
+            for value in map.values() {
+                mark_tree(output, value);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                mark_tree(output, item);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// A block copied through verbatim still has its declarations visited.
+fn mark_block(output: &mut CssWriter, block: &Value) {
+    mark_node(output, block);
+    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+        for child in children {
+            mark_node(output, child);
+        }
+    }
+}
+
 fn transform_css<'a>(
     children: &'a [Value],
     selector: &str,
@@ -1020,8 +1023,8 @@ fn transform_css<'a>(
     css_source: &str,
     css_start: usize,
     ctx: &CssContext<'a>,
-) -> String {
-    let mut output = String::new();
+) -> CssWriter {
+    let mut output = CssWriter::default();
     let mut specificity_bumped = false;
     let mut last_end = css_start;
 
@@ -1050,7 +1053,7 @@ fn transform_css<'a>(
         let trailing_start = last_end - css_start;
         if trailing_start < css_source.len() {
             let gap = &css_source[trailing_start..];
-            output.push_str(if ctx.minify { gap.trim_end() } else { gap });
+            output.copy(last_end, if ctx.minify { gap.trim_end() } else { gap });
         }
     }
 
@@ -1064,7 +1067,7 @@ fn transform_node_preserving<'a>(
     hash: &str,
     css_source: &str,
     css_start: usize,
-    output: &mut String,
+    output: &mut CssWriter,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
     ctx: &CssContext<'a>,
@@ -4894,7 +4897,7 @@ fn transform_rule_preserving<'a>(
     hash: &str,
     css_source: &str,
     css_start: usize,
-    output: &mut String,
+    output: &mut CssWriter,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
     ctx: &CssContext<'a>,
@@ -4914,9 +4917,12 @@ fn transform_rule_preserving<'a>(
         let ws_end = node_start.saturating_sub(css_start);
         if ws_end <= css_source.len() && ws_start < ws_end {
             let gap = &css_source[ws_start..ws_end];
-            output.push_str(if ctx.minify { gap.trim_end() } else { gap });
+            output.copy(*last_end, if ctx.minify { gap.trim_end() } else { gap });
         }
     }
+
+    output.mark(node_start);
+    output.mark(node_end);
 
     // Check if this is a top-level :global {} block
     // This is special - we comment out the :global wrapper but keep content unscoped
@@ -4958,7 +4964,7 @@ fn transform_rule_preserving<'a>(
                 let escaped = original.replace("*/", "*\\/");
                 output.push_str(&escaped);
             } else {
-                output.push_str(original);
+                output.copy(node_start, original);
             }
         }
 
@@ -4990,7 +4996,7 @@ fn transform_rule_preserving<'a>(
                     let escaped = original.replace("*/", "*\\/");
                     output.push_str(&escaped);
                 } else {
-                    output.push_str(original);
+                    output.copy(node_start, original);
                 }
             }
 
@@ -5003,6 +5009,7 @@ fn transform_rule_preserving<'a>(
 
     // Get the prelude (selector list)
     if let Some(prelude) = node.get("prelude") {
+        mark_tree(output, prelude);
         // Transform selectors
         let transformed_selector = transform_selector_list(
             prelude,
@@ -5016,7 +5023,17 @@ fn transform_rule_preserving<'a>(
             is_in_global_block,
             is_in_bare_global_block,
         );
-        output.push_str(&transformed_selector);
+        let prelude_start = prelude.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let prelude_end_for_map = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        emit_selector(
+            output,
+            &transformed_selector,
+            css_source,
+            css_start,
+            prelude_start,
+            prelude_end_for_map,
+            selector,
+        );
 
         // Get the block and process it
         if let Some(block) = node.get("block") {
@@ -5032,7 +5049,7 @@ fn transform_rule_preserving<'a>(
                 let ws_start = prelude_end.saturating_sub(css_start);
                 let ws_end = block_start.saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
-                    output.push_str(&css_source[ws_start..ws_end]);
+                    output.copy(prelude_end, &css_source[ws_start..ws_end]);
                 }
             }
 
@@ -5120,7 +5137,8 @@ fn transform_rule_preserving<'a>(
                 let blk_start = block_start.saturating_sub(css_start);
                 let blk_end = block_end.saturating_sub(css_start);
                 if blk_end <= css_source.len() && blk_start < blk_end {
-                    output.push_str(&css_source[blk_start..blk_end]);
+                    mark_block(output, block);
+                    output.copy(block_start, &css_source[blk_start..blk_end]);
                 }
             }
         }
@@ -5136,7 +5154,7 @@ fn transform_block_with_nested_rules<'a>(
     hash: &str,
     css_source: &str,
     css_start: usize,
-    output: &mut String,
+    output: &mut CssWriter,
     specificity_bumped: &mut bool,
     ctx: &CssContext<'a>,
     is_in_global_block: bool,
@@ -5284,7 +5302,7 @@ fn transform_nested_atrule<'a>(
     hash: &str,
     css_source: &str,
     css_start: usize,
-    output: &mut String,
+    output: &mut CssWriter,
     specificity_bumped: &mut bool,
     ctx: &CssContext<'a>,
     is_in_global_block: bool,
@@ -5458,7 +5476,7 @@ fn transform_global_block(
     _hash: &str,
     css_source: &str,
     css_start: usize,
-    output: &mut String,
+    output: &mut CssWriter,
     _specificity_bumped: &mut bool,
     _ctx: &CssContext,
 ) {
@@ -5535,7 +5553,7 @@ fn transform_atrule_preserving<'a>(
     hash: &str,
     css_source: &str,
     css_start: usize,
-    output: &mut String,
+    output: &mut CssWriter,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
     ctx: &CssContext<'a>,
@@ -7373,7 +7391,7 @@ mod tests {
                 minify: false,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
-            println!("CSS Output:\n{}", output);
+            println!("CSS Output:\n{}", output.text);
         }
     }
 
@@ -7416,7 +7434,7 @@ mod tests {
                 minify: false,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
-            println!("CSS Output:\n{}", output);
+            println!("CSS Output:\n{}", output.text);
         }
     }
 }

@@ -2039,7 +2039,6 @@ fn transform_client_with_visitors(
         // Render the actual scoped CSS code.
         // Injected styles are minified unless in dev mode, matching upstream's
         // `minify: analysis.inject_styles && !options.dev` (3-transform/css/index.js:36).
-        let is_custom_element = analysis.custom_element.is_some();
         let mut css_code = String::new();
         let css_render_result = if !options.dev {
             super::css::render_stylesheet_minified(analysis, ast.css.as_deref(), source, options)
@@ -2048,14 +2047,10 @@ fn transform_client_with_visitors(
         };
         if let Ok(css_output) = css_render_result {
             css_code = css_output.code;
-            // In dev mode, embed the CSS source map as a data URI in the CSS code.
-            // This matches the official Svelte compiler behavior (css/index.js):
-            //   css.code += `\n/*# sourceMappingURL=${css.map.toUrl()} */`;
-            // IMPORTANT: Only for css="injected" mode, NOT for custom elements.
-            // Custom elements embed CSS in $$css.code without sourcemaps.
-            // Reference: css/index.js line 68: `if (dev && options.css === 'injected' && css.code)`
+            // `if (dev && analysis.inject_styles && css.code)` (`css/index.js`),
+            // which a custom element satisfies too — its `$$css.code` carries
+            // the map like any other injected stylesheet.
             if options.dev
-                && !is_custom_element
                 && !css_code.is_empty()
                 && let Some(mut css_map_json) = css_output.map
             {
