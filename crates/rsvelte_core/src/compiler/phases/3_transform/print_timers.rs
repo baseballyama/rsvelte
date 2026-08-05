@@ -25,8 +25,8 @@ macro_rules! sites {
             })*
         }
 
-        fn take_all() -> Vec<(&'static str, Duration)> {
-            vec![$((stringify!($name), $name.with(|c| c.replace(Duration::ZERO)))),*]
+        fn read_all() -> Vec<(&'static str, Duration)> {
+            vec![$((stringify!($name), $name.with(|c| c.get()))),*]
         }
     };
 }
@@ -66,13 +66,34 @@ pub fn elapsed(start: Option<std::time::Instant>) -> Duration {
     start.map_or(Duration::ZERO, |s| s.elapsed())
 }
 
-/// Emit and reset the per-compile totals, in nanoseconds.
-pub fn dump() {
+/// One write per `BATCH` compiles instead of one per compile: the emit sits
+/// inside the compile the caller is timing, so a per-compile write would land
+/// in the denominator it is meant to measure against. Totals are cumulative and
+/// carry their own compile count, so a reader takes the LAST record rather than
+/// summing, and the uncovered tail is at most `BATCH` compiles.
+const BATCH: u64 = 4096;
+
+thread_local! {
+    static COMPILES: Cell<u64> = const { Cell::new(0) };
+}
+
+pub fn note_compile() {
     if !enabled() {
         return;
     }
-    let mut line = String::from("PRINT_TIMERS");
-    for (k, v) in take_all() {
+    let n = COMPILES.with(|c| {
+        let n = c.get() + 1;
+        c.set(n);
+        n
+    });
+    if n % BATCH == 0 {
+        emit(n);
+    }
+}
+
+fn emit(compiles: u64) {
+    let mut line = format!("PRINT_TIMERS COMPILES={compiles}");
+    for (k, v) in read_all() {
         line.push_str(&format!(" {k}={}", v.as_nanos()));
     }
     line.push('\n');
