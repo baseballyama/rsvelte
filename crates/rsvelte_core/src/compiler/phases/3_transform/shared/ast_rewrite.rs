@@ -591,7 +591,14 @@ pub mod dual_run {
     /// for byte. The sides shown are unnormalised on purpose: a run whose two
     /// sides differ only in what esrap cancels still needs classifying, and the
     /// normalised text of such a run is identical and so shows nothing.
-    fn dump(pass: &'static str, kind: &'static str, source: &str, left: &str, right: &str) {
+    fn dump(
+        pass: &'static str,
+        kind: &'static str,
+        sides: [&'static str; 2],
+        source: &str,
+        left: &str,
+        right: &str,
+    ) {
         let budget = *DUMP;
         if budget == 0 {
             return;
@@ -617,8 +624,8 @@ pub mod dual_run {
         }
         eprintln!("=== {pass} {kind} #{seen} ===");
         eprintln!("--- input ---\n{source}");
-        eprintln!("--- spliced ---\n{left}");
-        eprintln!("--- in place ---\n{right}");
+        eprintln!("--- {} ---\n{left}", sides[0]);
+        eprintln!("--- {} ---\n{right}", sides[1]);
     }
 
     thread_local! {
@@ -975,7 +982,9 @@ pub mod dual_run {
     /// Record whether esrap normalisation is a fixed point for `output`.
     ///
     /// Counts one run for `pass`, and one mismatch if normalising twice differs
-    /// from normalising once.
+    /// from normalising once. A failure here dumps its two normalisations under
+    /// `RSVELTE_AST_DUAL_RUN_DUMP` for the same reason a failed port does: the
+    /// count says the normaliser moved, not what it moved.
     pub fn check_normalize_idempotent(pass: &'static str, output: &str) {
         if !enabled() {
             return;
@@ -984,13 +993,20 @@ pub mod dual_run {
             None => Verdict::Unverified,
             // A wrapped fragment prints as a whole class, which then reads bare,
             // so only the text can be a fixed point here — not the shape.
-            Some((_, once)) => {
-                if normalize(&once).is_some_and(|(_, twice)| twice == once) {
-                    Verdict::RawMatch
-                } else {
+            Some((_, once)) => match normalize(&once) {
+                Some((_, twice)) if twice == once => Verdict::RawMatch,
+                twice => {
+                    dump(
+                        pass,
+                        "normalise not a fixed point",
+                        ["normalised once", "normalised twice"],
+                        output,
+                        &once,
+                        twice.as_ref().map_or("<did not read>", |(_, text)| text),
+                    );
                     Verdict::Mismatch
                 }
-            }
+            },
         };
         record(pass, &verdict);
     }
@@ -1043,7 +1059,14 @@ pub mod dual_run {
             // Nothing was compared, so nothing was established.
             (None, None) => Verdict::Unverified,
         };
-        dump(pass, verdict.label(), source, raw_left, raw_right);
+        dump(
+            pass,
+            verdict.label(),
+            ["spliced", "in place"],
+            source,
+            raw_left,
+            raw_right,
+        );
         record(pass, &verdict);
     }
 
