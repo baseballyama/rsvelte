@@ -299,9 +299,10 @@ mod tests {
     }
 
     #[test]
-    fn deeper_member_chain_left_alone() {
+    fn deeper_member_chain_wraps_the_field() {
         let src = "let x = this.#count.foo;";
-        assert!(transform_private_v_suffix_ast(src, &ssv(&["this.#count"])).is_none());
+        let out = transform_private_v_suffix_ast(src, &ssv(&["this.#count"])).unwrap();
+        assert_eq!(out, "let x = this.#count.v.foo;");
     }
 
     #[test]
