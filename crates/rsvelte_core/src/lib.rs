@@ -70,12 +70,10 @@ pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewr
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::work()
 }
 
-/// `(terminators dropped, of those the ones that changed how the text after the
-/// fragment binds, of those the ones that could not be checked)`. The second
-/// number is the one that matters: both readings are valid JavaScript, so no
-/// parse gate downstream can see a wrong one.
+/// How many fragments came back without the terminator the printer added, for
+/// the Phase-3 in-place path.
 #[doc(hidden)]
-pub fn ast_rewrite_termination_counts() -> (u32, u32, u32) {
+pub fn ast_rewrite_termination_counts() -> u32 {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::termination_counts()
 }
 #[cfg(feature = "parallel")]

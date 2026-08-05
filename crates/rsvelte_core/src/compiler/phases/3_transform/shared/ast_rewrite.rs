@@ -144,7 +144,7 @@ fn keep_fragment_termination(source: &str, printed: &mut String) {
         return;
     }
     printed.truncate(printed.len() - 1);
-    dual_run::count_termination(source, printed);
+    dual_run::count_termination();
 }
 
 /// How many statements a fragment is once text follows it, or `None` when the
@@ -683,47 +683,19 @@ pub mod dual_run {
     }
 
     thread_local! {
-        /// `(terminators dropped, of those the ones that changed what follows,
-        /// of those the ones that could not be checked)`.
-        static TERMINATION: std::cell::Cell<(u32, u32, u32)> =
-            const { std::cell::Cell::new((0, 0, 0)) };
+        /// How many fragments came back without the terminator the printer added.
+        /// Whether dropping it changed what follows is not counted: the drop only
+        /// happens when it does not, so the answer is fixed at zero.
+        static TERMINATION: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     }
 
-    /// Record one dropped terminator, and whether dropping it changed how the
-    /// text after the fragment binds.
-    ///
-    /// Under the gate only: this re-parses both forms, and the question it was
-    /// added to answer — does a shipped fragment ever rebind what follows it —
-    /// has been answered over the corpus. It stays so the same question can be
-    /// asked again when the in-place path takes on more passes.
-    pub(super) fn count_termination(source: &str, printed: &str) {
-        if !enabled() {
-            return;
-        }
-        let before = statements_with_following_text(source);
-        let after = statements_with_following_text(printed);
-        let unchecked = before.is_none() || after.is_none();
-        let differs = !unchecked && before != after;
-        TERMINATION.with(|t| {
-            let (pops, changed, unverifiable) = t.get();
-            t.set((
-                pops + 1,
-                changed + u32::from(differs),
-                unverifiable + u32::from(unchecked),
-            ));
-        });
-        if differs && *DUMP > 0 {
-            eprintln!(
-                "=== following text binds differently ===\n--- source ---\n{source}\n--- printed ---\n{printed}\n"
-            );
-        }
+    /// Record one dropped terminator.
+    pub(super) fn count_termination() {
+        TERMINATION.with(|t| t.set(t.get() + 1));
     }
 
-    /// `(terminators dropped, of those the ones that changed what follows, of
-    /// those the ones that could not be checked)`. The first is the denominator:
-    /// a zero second number means nothing without it, and the third says how much
-    /// of the denominator the check could not speak for.
-    pub fn termination_counts() -> (u32, u32, u32) {
+    /// How many fragments came back without the terminator the printer added.
+    pub fn termination_counts() -> u32 {
         TERMINATION.with(std::cell::Cell::get)
     }
 
