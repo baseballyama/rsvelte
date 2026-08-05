@@ -72,6 +72,50 @@ fn non_pre_element_still_reindents() {
     assert_eq!(out, "<div>\n  <p>x</p>\n</div>");
 }
 
+#[test]
+fn pre_child_open_tag_breaks_when_content_is_multiline() {
+    let out = fmt("<pre><code><span>a</span>\n<span>b</span>\n</code></pre>");
+    assert_eq!(
+        out,
+        "<pre><code\n    ><span>a</span>\n<span>b</span>\n</code></pre>"
+    );
+}
+
+#[test]
+fn pre_child_open_tag_breaks_for_text_and_expression_content() {
+    assert_eq!(
+        fmt("<pre><code>a\nb\n</code></pre>"),
+        "<pre><code\n    >a\nb\n</code></pre>"
+    );
+    assert_eq!(
+        fmt("<pre><code>{value}\nb\n</code></pre>"),
+        "<pre><code\n    >{value}\nb\n</code></pre>"
+    );
+}
+
+#[test]
+fn pre_child_open_tag_stays_hugged_when_not_borrowed() {
+    // Single-line content: nothing forces the break.
+    assert_eq!(
+        fmt("<pre><code><span>a</span></code></pre>"),
+        "<pre><code><span>a</span></code></pre>"
+    );
+    // Leading whitespace in the content is not borrowed, so the `>` stays.
+    assert_eq!(
+        fmt("<pre><code> a\nb\n</code></pre>"),
+        "<pre><code> a\nb\n</code></pre>"
+    );
+    assert_eq!(
+        fmt("<pre><code>\na\nb\n</code></pre>"),
+        "<pre><code>\na\nb\n</code></pre>"
+    );
+    // A block-display child is not leading-space-sensitive.
+    assert_eq!(
+        fmt("<pre><div>a\nb\n</div></pre>"),
+        "<pre><div>a\nb\n</div></pre>"
+    );
+}
+
 /// The `<pre>`-with-a-block pass re-parses its own sub-format output. That
 /// re-parse must use the same options `format` uses, or it fails and the pass
 /// silently leaves the body unformatted. Neither case is reachable from the
