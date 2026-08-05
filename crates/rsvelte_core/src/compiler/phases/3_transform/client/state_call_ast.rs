@@ -3,8 +3,8 @@
 //!
 //! Output depends on three axes:
 //!
-//! * Whether the enclosing binding is reassigned somewhere (resolved per
-//!   binding against `state_binding_names`, the eligible `$state` names).
+//! * Whether the enclosing binding is reassigned somewhere (`non_reactive_vars`,
+//!   resolved per binding for the names listed in `ambiguous_vars`).
 //! * Whether the argument value needs `$.proxy(...)` wrapping
 //!   (object / array / await — delegated to the existing
 //!   `expression_utils::expression_needs_proxy` helper, which
@@ -47,14 +47,16 @@ use super::expression_utils::{collapse_to_single_line, expression_needs_proxy_wi
 pub(super) fn collect_state_call_edits(
     program: &Program<'_>,
     source: &str,
-    state_binding_names: &[String],
+    non_reactive_vars: &[String],
+    ambiguous_vars: &[String],
     non_proxy_vars: &[String],
 ) -> Vec<Edit> {
     let semantic_ret = SemanticBuilder::new().build(program);
     let mut collector = StateCallCollector {
         source,
         semantic: &semantic_ret.semantic,
-        state_binding_names,
+        non_reactive_vars,
+        ambiguous_vars,
         non_proxy_vars,
         current_var: None,
         replacements: Vec::new(),
@@ -70,21 +72,27 @@ pub(super) fn collect_state_call_edits(
 struct StateCallCollector<'a, 'src, 'sem> {
     source: &'src str,
     semantic: &'sem Semantic<'sem>,
-    state_binding_names: &'a [String],
+    non_reactive_vars: &'a [String],
+    ambiguous_vars: &'a [String],
     non_proxy_vars: &'a [String],
     current_var: Option<(String, Option<SymbolId>)>,
     replacements: Vec<Edit>,
 }
 
 impl StateCallCollector<'_, '_, '_> {
-    /// `non_reactive_vars` is keyed by name, so same-named `$state` bindings in
-    /// different scopes collapse into one entry; re-check reassignment on the
+    /// A name in `ambiguous_vars` covers `$state` bindings that disagree on
+    /// reassignment, so the caller's name-keyed answer cannot be trusted; ask the
     /// binding actually being initialised (upstream's `binding.reassigned`).
-    fn symbol_is_reassigned(&self, symbol_id: SymbolId) -> bool {
-        self.semantic
-            .scoping()
-            .get_resolved_references(symbol_id)
-            .any(|reference| reference.is_write())
+    fn is_non_reactive(&self, name: &str, symbol_id: Option<SymbolId>) -> bool {
+        if self.ambiguous_vars.iter().any(|v| v == name) {
+            return !symbol_id.is_some_and(|id| {
+                self.semantic
+                    .scoping()
+                    .get_resolved_references(id)
+                    .any(|reference| reference.is_write())
+            });
+        }
+        self.non_reactive_vars.iter().any(|v| v == name)
     }
 }
 
@@ -121,10 +129,10 @@ impl<'ast> Visit<'ast> for StateCallCollector<'_, '_, '_> {
         };
         let collapsed = collapse_to_single_line(&content);
 
-        let is_non_reactive = self.current_var.as_ref().is_some_and(|(name, symbol_id)| {
-            self.state_binding_names.iter().any(|v| v == name)
-                && !symbol_id.is_some_and(|id| self.symbol_is_reassigned(id))
-        });
+        let is_non_reactive = self
+            .current_var
+            .as_ref()
+            .is_some_and(|(name, symbol_id)| self.is_non_reactive(name, *symbol_id));
         let needs_proxy = !trimmed_is_empty
             && expression_needs_proxy_with_scope(content.trim(), self.non_proxy_vars);
 
@@ -177,7 +185,9 @@ mod tests {
             },
             ParseOptions::default(),
             false,
-            |program| collect_state_call_edits(program, source, non_reactive_vars, non_proxy_vars),
+            |program| {
+                collect_state_call_edits(program, source, non_reactive_vars, &[], non_proxy_vars)
+            },
         )
     }
 
@@ -213,11 +223,16 @@ mod tests {
 
     #[test]
     fn same_named_siblings_resolve_per_binding() {
-        let out = transform_state_call_ast(
-            "function a() { let count = $state(0); count++; }\nfunction b() { const count = $state(0); use(count); }",
-            &nrv(&["count"]),
-            &[],
+        let source = "function a() { let count = $state(0); count++; }\nfunction b() { const count = $state(0); use(count); }";
+        let out = ast_rewrite::rewrite_once(
+            &TEST_ALLOC,
+            source,
+            SourceType::mjs(),
+            ParseOptions::default(),
             false,
+            |program| {
+                collect_state_call_edits(program, source, &nrv(&["count"]), &nrv(&["count"]), &[])
+            },
         )
         .unwrap();
         assert_eq!(

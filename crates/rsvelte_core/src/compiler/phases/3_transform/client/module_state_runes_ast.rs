@@ -34,7 +34,7 @@ thread_local! {
 pub fn transform_module_state_runes_ast(
     source: &str,
     non_reactive_vars: &[String],
-    state_binding_names: &[String],
+    ambiguous_vars: &[String],
     non_proxy_vars: &[String],
     is_ts: bool,
 ) -> Option<String> {
@@ -62,7 +62,8 @@ pub fn transform_module_state_runes_ast(
             edits.extend(super::state_call_ast::collect_state_call_edits(
                 program,
                 src,
-                state_binding_names,
+                non_reactive_vars,
+                ambiguous_vars,
                 non_proxy_vars,
             ));
             edits

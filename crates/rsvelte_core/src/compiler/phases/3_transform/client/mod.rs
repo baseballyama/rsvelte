@@ -3960,23 +3960,9 @@ pub(crate) fn transform_module_script_runes(
         Vec::new()
     };
 
-    // Every `$state`/`$state.raw` binding eligible for the non-reactive
-    // shortcut; the declaration rewrite settles reassignment per binding.
-    let module_state_binding_names: Vec<String> = if analysis.immutable && !analysis.accessors {
-        analysis
-            .root
-            .bindings
-            .iter()
-            .filter(|b| matches!(b.kind, BindingKind::State | BindingKind::RawState))
-            .map(|b| b.name.clone())
-            .collect()
-    } else {
-        Vec::new()
-    };
-
     // `bindings` is flat across every scope, so same-named `$state` locals in
     // sibling functions collapse into one entry; such a name cannot classify
-    // reads and writes by itself and must be resolved per binding instead.
+    // declarations, reads or writes by itself and must be resolved per binding.
     let ambiguous_state_names: Vec<String> = module_non_reactive_vars
         .iter()
         .filter(|name| {
@@ -4052,7 +4038,7 @@ pub(crate) fn transform_module_script_runes(
         if let Some(rewritten) = module_state_runes_ast::transform_module_state_runes_ast(
             &result,
             &module_non_reactive_vars,
-            &module_state_binding_names,
+            &ambiguous_state_names,
             &module_non_proxy_vars,
             is_ts,
         ) {
