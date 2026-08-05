@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 46 entries)
+## Client dev (`known-failures.client-dev.json`, 42 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -109,6 +109,14 @@ line/column. 16 of the 39 cleared entries are that fix (`svelthree/*` and
 statements); the rest were already passing and had not been re-measured since
 the PRs that fixed them.
 
+Pairing them by the *value* each mutation writes took it to 42. Matching on the
+member path alone cannot separate two mutations of the same member, and matching
+in output order gets them backwards whenever a `$:` body — emitted at the end as
+a `legacy_pre_effect` — competes with a function declared after it. The locator
+now also reads a chain written through a TypeScript non-null assertion or an
+optional access (`selected!.from`, `selected?.from`), which it had been skipping
+entirely.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -137,12 +145,12 @@ it but under-emit call sites. The preamble half is now empty; both survivors
 emit their `$$ownership_validator.binding(...)` calls and are missing exactly one
 `$$ownership_validator.mutation(...)` each.
 
-17 entries are attributed to a cluster; the remaining **29** show no
-difference in any dev helper: 17 are the CSS sourcemap `$$css`/`$css` carries in
-dev, 5 are comment placement, 3 are dev label / path-element text, 2 are
-redundant parentheses around an ownership wrapper and 2 are one-off shapes (an
-escaped-CSS literal, an `$.assign_async` wrap). All are
-tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
+17 entries are attributed to a cluster; the remaining **25** show no
+difference in any dev helper: 18 are the CSS sourcemap the `$$css`/`$css`
+payload carries in dev, 2 are a `$.trace` label's line:column, 2 are redundant
+parentheses around an ownership wrapper, 1 is a statement missing from a
+legacy `$:` body and 2 are one-off shapes (an `$.assign` location, an
+`$.assign_async` wrap). All are tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
 entries of that residue and is fixed: `build_each_block_accessor_parts` now
 hands the element `bind:` path the unthunked getter body plus the setter body,
 so `dev` can emit upstream's named accessors (`BindDirective.js:46-54`). The

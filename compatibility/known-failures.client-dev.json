@@ -6,7 +6,6 @@
 	"svar-core/site/src/Demo.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelTooltip.svelte",
-	"svelte-ux/packages/svelte-ux/src/lib/components/DateRange.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/MultiSelect.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/07-$inspect.md/3.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/09-@attach.md/3.svelte",
@@ -41,8 +40,5 @@
 	"svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options/main.svelte",
 	"svelte/packages/svelte/tests/validator/samples/general-siblings-combinator-in-custom-element-selects-slot-fallback/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/siblings-combinator-in-custom-element-selects-slot-fallback/input.svelte",
-	"svelthree/src/lib/components/CubeCamera.svelte",
-	"svelthree/src/lib/components/OrthographicCamera.svelte",
-	"svelthree/src/lib/components/PerspectiveCamera.svelte",
 	"svelthree/src/lib/components/WebGLRenderer.svelte"
 ]

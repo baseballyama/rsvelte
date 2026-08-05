@@ -3082,7 +3082,7 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // Each mutation reports its own source position.
             let (line_num, col_num) = sites
-                .take(static_member_names(&path_parts).as_deref())
+                .take(static_member_names(&path_parts).as_deref(), &full_expr)
                 .unwrap_or_else(|| find_prop_mutation_location(source, var_name));
 
             // Build the path array
@@ -3315,17 +3315,20 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
 
+            // The full original expression is the entire prop(prop().member = value, true) call
+            let end_pos = inner_start + close_byte_pos + 1; // +1 for closing paren
+            let full_original_expr = result[abs_start..end_pos].to_string();
+
             // Each mutation reports its own source position.
             let (line_num, col_num) = sites
-                .take(static_member_names(&path_parts).as_deref())
+                .take(
+                    static_member_names(&path_parts).as_deref(),
+                    &full_original_expr,
+                )
                 .unwrap_or_else(|| find_prop_mutation_location(source, var_name));
 
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
-
-            // The full original expression is the entire prop(prop().member = value, true) call
-            let end_pos = inner_start + close_byte_pos + 1; // +1 for closing paren
-            let full_original_expr = result[abs_start..end_pos].to_string();
 
             // Build the replacement
             let mut replacement = format!(
@@ -3349,15 +3352,28 @@ pub(super) fn wrap_prop_mutation_validation(
     result
 }
 
-/// The source mutations of one prop, in source order, each with the member
-/// names it writes (`None` once any element is computed).
+/// One mutation of a prop as it is written in the source.
+struct PropMutationSite {
+    line: usize,
+    column: usize,
+    /// The member names it writes, or `None` once any element is computed.
+    chain: Option<Vec<String>>,
+    /// The identifier-shaped words of the value it assigns.
+    value_words: Vec<String>,
+    /// Whether it is written inside a `$:` statement.
+    reactive: bool,
+    used: bool,
+}
+
+/// The source mutations of one prop, in source order.
 pub(super) struct PropMutationSites {
-    sites: Vec<(usize, usize, Option<Vec<String>>, bool)>,
+    sites: Vec<PropMutationSite>,
 }
 
 impl PropMutationSites {
     pub(super) fn collect(source: &str, var_name: &str) -> Self {
         let mut sites = Vec::new();
+        let reactive = reactive_statement_ranges(source);
         let mut cursor = memchr::memmem::find(source.as_bytes(), b"<script").unwrap_or(0);
         let bytes = source.as_bytes();
         let mut search = cursor;
@@ -3377,39 +3393,218 @@ impl PropMutationSites {
                     continue;
                 }
             }
-            if end >= source.len() || (bytes[end] != b'.' && bytes[end] != b'[') {
+            let chain_start = skip_non_null_assertions(bytes, end);
+            if !starts_member_access(bytes, chain_start) {
                 continue;
             }
-            if let Some((after, chain)) = scan_member_chain_names(bytes, end)
-                && is_mutation_operator(bytes, after)
+            if let Some((after, chain)) = scan_member_chain_names(bytes, chain_start)
+                && let Some(value_start) = mutation_value_start(bytes, after)
             {
-                let (line, col) =
+                let (line, column) =
                     crate::compiler::phases::phase3_transform::utils::locate_in_source(
                         source, start,
                     );
-                sites.push((line, col, chain, false));
+                sites.push(PropMutationSite {
+                    line,
+                    column,
+                    chain,
+                    value_words: identifier_words(
+                        &source[value_start..statement_end(bytes, after)],
+                    ),
+                    reactive: reactive
+                        .iter()
+                        .any(|(from, to)| (*from..*to).contains(&start)),
+                    used: false,
+                });
                 cursor = end;
             }
         }
+        // A `$:` body is emitted at the end of the instance script as a
+        // `legacy_pre_effect`, so consuming reactive sites last is what keeps
+        // them lined up with the output when the value cannot tell two
+        // mutations of the same member apart.
+        sites.sort_by_key(|site| site.reactive);
         Self { sites }
     }
 
-    /// The next unconsumed site writing `chain`. Matching on the member names
-    /// rather than on position is what keeps a moved statement — a `$:` body
-    /// becomes a `legacy_pre_effect` at the end of the output — from taking the
-    /// location of whichever mutation happens to be printed before it.
-    pub(super) fn take(&mut self, chain: Option<&[String]>) -> Option<(usize, usize)> {
-        let matching = self.sites.iter().position(|(_, _, site_chain, used)| {
-            !used
-                && match (chain, site_chain) {
-                    (Some(want), Some(have)) => want == have.as_slice(),
-                    _ => false,
-                }
-        });
-        let index = matching.or_else(|| self.sites.iter().position(|s| !s.3))?;
-        self.sites[index].3 = true;
-        Some((self.sites[index].0, self.sites[index].1))
+    /// The source position of the mutation that produced `expression`. Matching
+    /// on the member names and on the words of the assigned value rather than
+    /// on position is what keeps a moved statement — a `$:` body becomes a
+    /// `legacy_pre_effect` at the end of the output — from taking the location
+    /// of whichever mutation happens to be printed before it.
+    pub(super) fn take(
+        &mut self,
+        chain: Option<&[String]>,
+        expression: &str,
+    ) -> Option<(usize, usize)> {
+        let words = identifier_words(assigned_value(expression));
+        let best = self
+            .sites
+            .iter()
+            .enumerate()
+            .filter(|(_, site)| {
+                !site.used
+                    && match (chain, &site.chain) {
+                        (Some(want), Some(have)) => want == have.as_slice(),
+                        _ => false,
+                    }
+            })
+            .max_by_key(|(index, site)| {
+                let shared = site
+                    .value_words
+                    .iter()
+                    .filter(|word| words.contains(*word))
+                    .count();
+                // Ties keep source order.
+                (shared, std::cmp::Reverse(*index))
+            })
+            .map(|(index, _)| index);
+        let index = best.or_else(|| self.sites.iter().position(|site| !site.used))?;
+        self.sites[index].used = true;
+        Some((self.sites[index].line, self.sites[index].column))
     }
+}
+
+/// The byte ranges of the `$:` statements in the instance script. A `$:` label
+/// is only reactive at the top level, so nested ones are skipped by depth.
+fn reactive_statement_ranges(source: &str) -> Vec<(usize, usize)> {
+    let bytes = source.as_bytes();
+    let script = memchr::memmem::find(bytes, b"<script").unwrap_or(0);
+    let mut ranges = Vec::new();
+    let mut depth = 0i32;
+    let mut i = script;
+    while i + 1 < bytes.len() {
+        match (bytes[i], bytes[i + 1]) {
+            (b'/', b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            (b'/', b'*') => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i += 2;
+            }
+            (quote @ (b'"' | b'\'' | b'`'), _) => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+            }
+            (b'{' | b'(' | b'[', _) => {
+                depth += 1;
+                i += 1;
+            }
+            (b'}' | b')' | b']', _) => {
+                depth -= 1;
+                i += 1;
+            }
+            (b'$', b':') if depth == 0 => {
+                let mut inner = 0i32;
+                let mut j = i + 2;
+                while j < bytes.len() {
+                    match bytes[j] {
+                        b'{' | b'(' | b'[' => inner += 1,
+                        b'}' | b')' | b']' => inner -= 1,
+                        b';' | b'\n' if inner <= 0 => break,
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                ranges.push((i, j));
+                i = j;
+            }
+            _ => i += 1,
+        }
+    }
+    ranges
+}
+
+/// The value half of an assignment expression. Comparing whole expressions
+/// would count the member chain, which every candidate for the same path
+/// shares, and a value that repeats that chain would then outscore a literal.
+fn assigned_value(expression: &str) -> &str {
+    let bytes = expression.as_bytes();
+    for i in 0..bytes.len() {
+        if bytes[i] != b'=' {
+            continue;
+        }
+        let previous = i.checked_sub(1).map(|p| bytes[p]);
+        if bytes.get(i + 1) != Some(&b'=')
+            && bytes.get(i + 1) != Some(&b'>')
+            && !matches!(previous, Some(b'=') | Some(b'!') | Some(b'<') | Some(b'>'))
+        {
+            return &expression[i + 1..];
+        }
+    }
+    expression
+}
+
+/// The identifier-shaped words of `text`, which is how a source value and the
+/// transformed one the output carries (`x` inside `$.get(x)`) are compared.
+fn identifier_words(text: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut current = String::new();
+    for ch in text.chars() {
+        if ch.is_alphanumeric() || ch == '_' || ch == '$' {
+            current.push(ch);
+        } else if !current.is_empty() {
+            words.push(std::mem::take(&mut current));
+        }
+    }
+    if !current.is_empty() {
+        words.push(current);
+    }
+    words
+}
+
+/// Advance past TypeScript non-null assertions, which sit between an identifier
+/// and the accessor that follows it (`selected!.from`).
+fn skip_non_null_assertions(bytes: &[u8], mut pos: usize) -> usize {
+    while bytes.get(pos) == Some(&b'!') && bytes.get(pos + 1) != Some(&b'=') {
+        pos += 1;
+    }
+    pos
+}
+
+/// Whether a member access — plain, computed or optional — starts at `pos`.
+fn starts_member_access(bytes: &[u8], pos: usize) -> bool {
+    match bytes.get(pos) {
+        Some(b'.') | Some(b'[') => true,
+        Some(b'?') => bytes.get(pos + 1) == Some(&b'.'),
+        _ => false,
+    }
+}
+
+/// The offset just after the mutation operator at `pos`, or `None` when there
+/// is no operator there.
+fn mutation_value_start(bytes: &[u8], mut pos: usize) -> Option<usize> {
+    if !is_mutation_operator(bytes, pos) {
+        return None;
+    }
+    while pos < bytes.len() && (bytes[pos] as char).is_whitespace() {
+        pos += 1;
+    }
+    // `++` / `--` write no value of their own.
+    if matches!(bytes.get(pos), Some(b'+') | Some(b'-')) && bytes.get(pos + 1) == bytes.get(pos) {
+        return Some((pos + 2).min(bytes.len()));
+    }
+    while pos < bytes.len() && bytes[pos] != b'=' {
+        pos += 1;
+    }
+    Some((pos + 1).min(bytes.len()))
+}
+
+/// The offset of the `;` or newline that ends the statement starting at `pos`.
+fn statement_end(bytes: &[u8], pos: usize) -> usize {
+    let mut i = pos;
+    while i < bytes.len() && bytes[i] != b';' && bytes[i] != b'\n' {
+        i += 1;
+    }
+    i
 }
 
 /// The member names `'a'`-quoted by the path builders, or `None` when any
@@ -3501,6 +3696,16 @@ fn scan_member_chain_names(bytes: &[u8], mut pos: usize) -> Option<(usize, Optio
     loop {
         while pos < bytes.len() && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
             pos += 1;
+        }
+        pos = skip_non_null_assertions(bytes, pos);
+        // An optional access reads the same member the plain one would; `?.[`
+        // is computed, so land on the `[` rather than on the `.`.
+        if bytes.get(pos) == Some(&b'?') && bytes.get(pos + 1) == Some(&b'.') {
+            pos += if bytes.get(pos + 2) == Some(&b'[') {
+                2
+            } else {
+                1
+            };
         }
         if pos >= bytes.len() {
             return Some((pos, names));
