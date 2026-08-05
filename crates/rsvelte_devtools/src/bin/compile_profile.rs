@@ -488,7 +488,13 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
         ("template", |r| r.template),
         ("js_codegen", |r| r.codegen),
     ];
-    let total_all: f64 = rows.iter().map(|r| ms(r.analyze) + ms(r.transform)).sum();
+    // Every bucket printed below has to be inside this, or the shares are not
+    // parts of one whole: `ensure_script` sits outside `analyze + transform`, and
+    // pricing it against that denominator pushed the column past 100%.
+    let total_all: f64 = rows
+        .iter()
+        .map(|r| ms(r.ensure_script) + ms(r.analyze) + ms(r.transform))
+        .sum();
     println!("\n  === scaling vs {label} (n = {}) ===", rows.len());
 
     let mut order: Vec<usize> = (0..rows.len()).collect();
@@ -524,9 +530,28 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
             fitted
         );
     }
+    // The three transform sub-buckets do not cover `transform`; printing the
+    // remainder is what lets the shares above be checked against 100% instead of
+    // being read as a partition they are not.
+    let uncovered: f64 = rows
+        .iter()
+        .map(|r| ms(r.transform) - ms(r.script_text) - ms(r.template) - ms(r.codegen))
+        .sum::<f64>()
+        / total_all.max(f64::MIN_POSITIVE);
+    println!(
+        "    {:<12} {:>44} {:>6.1}%",
+        "(transform, not in the three above)",
+        "",
+        uncovered * 100.0
+    );
     let total_pts: Vec<(f64, f64)> = rows
         .iter()
-        .map(|r| (predictor(r), ms(r.analyze) + ms(r.transform)))
+        .map(|r| {
+            (
+                predictor(r),
+                ms(r.ensure_script) + ms(r.analyze) + ms(r.transform),
+            )
+        })
         .collect();
     let (total_exp, used) = log_slope(&total_pts);
     println!(
