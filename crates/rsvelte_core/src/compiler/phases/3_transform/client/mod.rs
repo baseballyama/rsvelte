@@ -4225,7 +4225,10 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     dev: bool,
     reactive_import_names: &[String],
 ) -> String {
-    transform_instance_script_for_visitors(
+    // Timed like the main call site, so the script-text bucket stays the parent
+    // of its five stage timers rather than missing this entry point's share.
+    let _script_start = super::profile::timer_start();
+    let out = transform_instance_script_for_visitors(
         script,
         analysis,
         dev,
@@ -4233,7 +4236,9 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         might_have_comma_separated_declaration(script),
         None,
         None,
-    )
+    );
+    super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
+    out
 }
 
 /// True when a legacy-mode script contains a `$`-token that the fragile
