@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 180 entries)
+## Client dev (`known-failures.client-dev.json`, 133 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -75,7 +75,13 @@ assignment that an `await` followed, so the two ran together into a call chain.
 The dev eager read of a snippet parameter that carries a default value
 (`{#snippet item(id = expr)}` — the plain-identifier parameter took a code path
 that skipped the `$.get(id);` upstream emits so `Cannot access x before
-initialization` still throws) took it to 180.
+initialization` still throws) took it to 180. The `bind:this={obj.foo}` setter
+took it to 133: upstream builds that setter by visiting a synthesized
+`obj.foo = $$value` assignment, so it reaches `validate_mutation()`
+(`shared/utils.js:300`), whereas rsvelte built it directly and so emitted
+neither the wrapper nor the preamble. Eight of the 47 cleared entries are that
+fix; the rest were already passing and had simply not been re-measured since the
+PRs that fixed them.
 
 ### How the counts below are derived
 
@@ -91,13 +97,19 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| ownership mutation validation | 9 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
+| ownership mutation validation | 2 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
 | equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-20 entries are attributed to a cluster; the remaining **160** show no
+The ownership row splits into two halves: entries missing the
+`$.create_ownership_validator($$props)` preamble entirely, and entries that have
+it but under-emit call sites. The preamble half is now empty; both survivors
+emit their `$$ownership_validator.binding(...)` calls and are missing exactly one
+`$$ownership_validator.mutation(...)` each.
+
+13 entries are attributed to a cluster; the remaining **120** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (`$.assign`, `$$css`, `$.event` handler naming, constant-folded
 template expressions). The legacy `bind:` `function get()/set()` shape was 47
