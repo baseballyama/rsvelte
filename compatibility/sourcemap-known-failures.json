@@ -58,6 +58,7 @@
   "map-parity\ttwo-scripts\tclient\t24",
   "map-parity\ttwo-scripts\tserver\t13",
   "map-parity\ttypescript\tclient\t52",
+  "map-parity\ttypescript\tserver\t17",
   "out-of-range\tattached-sourcemap\tclient\t3",
   "out-of-range\tbasic\tclient\t2",
   "out-of-range\tbinding\tclient\t2",

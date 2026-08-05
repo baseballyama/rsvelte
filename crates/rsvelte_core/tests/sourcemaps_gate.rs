@@ -200,7 +200,16 @@ const EXPECTED_ANCHOR_COUNT: usize = 23;
 /// `<sample>/<target>` pairs whose generated code is byte-identical to the
 /// official compiler's — the population `map-parity` can observe at all. A drop
 /// means byte-parity regressed and the map check silently shrank with it.
-const EXPECTED_IDENTICAL_OUTPUTS: usize = 56;
+///
+/// The mirror image also holds and is why `map-parity typescript server 17` is
+/// in the ratchet: carrying legacy-script comments into SSR output made
+/// `typescript`/`server` byte-identical for the first time, so the population
+/// grew (56 → 57 pairs, 772 → 818 official segments) and 46 previously unseen
+/// segments entered the comparison. 29 of them reproduce, 17 do not (missing
+/// +15, wrong +2). Those 17 are newly *visible*, not newly *broken* — overall
+/// reproduction rose 164/772 to 193/818 — so the entry records a measurement
+/// this gate could not make before, not a regression it is forgiving.
+const EXPECTED_IDENTICAL_OUTPUTS: usize = 57;
 
 /// What `scripts/fixtures/generate-fixtures.mjs` compiled the oracle with. Every
 /// sourcemaps `_config.js` fails to import under the generator (it pulls in the
