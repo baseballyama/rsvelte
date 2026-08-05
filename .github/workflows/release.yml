@@ -356,6 +356,67 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # Per-platform rsvelte-language-server builds for @rsvelte/language-server.
+  # Mirrors `build-rsvelte-lint`, including its profile choice: the server
+  # isolates a per-document compiler panic via `catch_unwind`, which only works
+  # when the binary UNWINDS, so it builds with `--profile dist-lsp` (dist's
+  # opt/strip, panic = "unwind"). Output lives under `target/<target>/dist-lsp/`.
+  build-rsvelte-language-server:
+    name: Build rsvelte-language-server (${{ matrix.triple }})
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install cross-compile linker
+        if: matrix.apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt }}
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build rsvelte-language-server
+        shell: bash
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
+        run: cargo build --profile dist-lsp --bin rsvelte-language-server --target ${{ matrix.target }}
+
+      - name: Stage binary
+        shell: bash
+        run: |
+          mkdir -p stage
+          cp "target/${{ matrix.target }}/dist-lsp/rsvelte-language-server${{ matrix.ext }}" \
+             "stage/rsvelte-language-server${{ matrix.ext }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rsvelte-language-server-${{ matrix.triple }}
+          path: stage/rsvelte-language-server${{ matrix.ext }}
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     name: Publish
     # Publish only runs on the "Version Packages" merge commit, once the
@@ -363,7 +424,15 @@ jobs:
     # changesets consumed. This is the only path that needs staged binaries.
     if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     runs-on: ubuntu-latest
-    needs: [close-version-cycle, build-svelte-check, build-vps-native, build-rsvelte-fmt, build-rsvelte-lint]
+    needs:
+      [
+        close-version-cycle,
+        build-svelte-check,
+        build-vps-native,
+        build-rsvelte-fmt,
+        build-rsvelte-lint,
+        build-rsvelte-language-server,
+      ]
     timeout-minutes: 30
     # Publishing is non-atomic across packages and must never be interrupted.
     concurrency:
@@ -423,6 +492,9 @@ jobs:
 
       - name: Stage rsvelte-lint binaries
         run: pnpm run stage-lint
+
+      - name: Stage rsvelte-language-server binaries
+        run: pnpm run stage-language-server
 
       - name: Stage vps-native binaries
         run: pnpm run stage-vps-native

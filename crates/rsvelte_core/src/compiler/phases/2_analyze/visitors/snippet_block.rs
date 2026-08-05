@@ -28,6 +28,31 @@ pub fn visit<'a, 'b: 'a>(
     // Validate and register the snippet
     validate_snippet(block, context)?;
 
+    // A snippet declared directly inside a component is rendered by that
+    // component, so the component's position is one of its render sites.
+    if matches!(
+        context.path.last(),
+        Some(
+            TemplateNode::Component(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::SvelteSelf(_)
+        )
+    ) && let Some(name) = super::shared::snippets::get_snippet_name(block)
+    {
+        let site = super::super::types::CssRenderSite {
+            parent_idx: context.current_parent_idx(),
+            snippet_name: context.current_snippet_name(),
+        };
+        context
+            .analysis
+            .css
+            .dom_structure
+            .snippet_render_sites
+            .entry(name)
+            .or_default()
+            .push(site);
+    }
+
     // Validate block is not empty (warn if only whitespace)
     // Reference: SnippetBlock.js L14 - validate_block_not_empty(node.body, context)
     if let Some(warning) = validate_block_not_empty(Some(&block.body))? {

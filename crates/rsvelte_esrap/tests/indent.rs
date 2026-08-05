@@ -1,14 +1,15 @@
-//! Port of esrap's `test/indent.test.js`: the `indent` option controls one
-//! level of indentation.
+//! Port of esrap's `test/indent.test.js`, restricted to the one indentation
+//! unit rsvelte prints with: a tab.
 
 use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
-use rsvelte_esrap::{PrintOptions, print_with};
+use rsvelte_esrap::print;
 
 const SRC: &str = "const foo = () => { const bar = 'baz' }";
 
-fn print_indented(indent: &str) -> String {
+#[test]
+fn indent_is_tab() {
     let alloc = Allocator::default();
     let ret = Parser::new(&alloc, SRC, SourceType::default().with_module(true)).parse();
     assert!(
@@ -16,30 +17,8 @@ fn print_indented(indent: &str) -> String {
         "parse error: {:?}",
         ret.diagnostics
     );
-    let opts = PrintOptions::default().with_indent(indent);
-    print_with(&ret.program, SRC, &opts)
-}
-
-#[test]
-fn default_indent_is_tab() {
     assert_eq!(
-        print_indented("\t"),
+        print(&ret.program, SRC),
         "const foo = () => {\n\tconst bar = 'baz';\n};"
-    );
-}
-
-#[test]
-fn two_space_indent() {
-    assert_eq!(
-        print_indented("  "),
-        "const foo = () => {\n  const bar = 'baz';\n};"
-    );
-}
-
-#[test]
-fn four_space_indent() {
-    assert_eq!(
-        print_indented("    "),
-        "const foo = () => {\n    const bar = 'baz';\n};"
     );
 }

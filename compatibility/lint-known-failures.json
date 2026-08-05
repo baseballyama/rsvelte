@@ -63,9 +63,9 @@
 	"flowbite-svelte/src/routes/utils/ExampleWrapper.svelte|-svelte/prefer-svelte-reactivity\t170:14\tFound a mutable instance of the built-in URL class. Use SvelteURL instead.",
 	"flowbite-svelte/src/routes/utils/icons/ExternalLink.svelte|-svelte/sort-attributes\t22:3\tAttribute 'role' should go before 'xmlns'.",
 	"shadcn-svelte/docs/src/lib/components/block-viewer-toolbar.svelte|-svelte/no-target-blank\t78:6\tUsing target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk.",
-	"shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte|-svelte/no-goto-without-base\t192:16\tFound a goto() call with a url that isn't prefixed with the base path.",
-	"shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte|-svelte/no-goto-without-base\t221:17\tFound a goto() call with a url that isn't prefixed with the base path.",
-	"shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte|-svelte/no-goto-without-base\t255:16\tFound a goto() call with a url that isn't prefixed with the base path.",
+	"shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte|-svelte/no-goto-without-base\t190:16\tFound a goto() call with a url that isn't prefixed with the base path.",
+	"shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte|-svelte/no-goto-without-base\t219:17\tFound a goto() call with a url that isn't prefixed with the base path.",
+	"shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte|-svelte/no-goto-without-base\t245:16\tFound a goto() call with a url that isn't prefixed with the base path.",
 	"shadcn-svelte/docs/src/lib/components/github-link.svelte|-svelte/no-target-blank\t28:2\tUsing target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk.",
 	"shadcn-svelte/docs/src/lib/components/mdsx/blueprint.svelte|+svelte/experimental-require-slot-types\t1:2\tThe component must define the $$Slots interface.",
 	"shadcn-svelte/docs/src/lib/registry/blocks/chart-bar-active.svelte|+svelte/sort-attributes\t64:9\tAttribute 'data' should go before 'rounded'.",
@@ -73,10 +73,10 @@
 	"shadcn-svelte/docs/src/lib/registry/blocks/chart-bar-active.svelte|-svelte/sort-attributes\t64:9\tAttribute 'data' should go before 'seriesKey'.",
 	"shadcn-svelte/docs/src/lib/registry/blocks/chart-bar-active.svelte|-svelte/sort-attributes\t78:9\tAttribute 'data' should go before 'seriesKey'.",
 	"shadcn-svelte/docs/src/lib/registry/blocks/otp-02/components/otp-form.svelte|+svelte/prefer-const\t7:6\t'className' is never reassigned. Use 'const' instead.",
-	"shadcn-svelte/docs/src/lib/registry/examples/combobox-form.svelte|+svelte/prefer-destructured-store-props\t102:30\tDestructure language from $formData for better change tracking & fewer redraws",
-	"shadcn-svelte/docs/src/lib/registry/examples/combobox-form.svelte|+svelte/prefer-destructured-store-props\t94:10\tDestructure language from $formData for better change tracking & fewer redraws",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/item-explorer.svelte|-svelte/no-goto-without-base\t53:18\tFound a goto() call with a url that isn't prefixed with the base path.",
+	"shadcn-svelte/docs/src/lib/registry/examples/combobox-form.svelte|+svelte/prefer-destructured-store-props\t93:10\tDestructure language from $formData for better change tracking & fewer redraws",
+	"shadcn-svelte/docs/src/lib/registry/examples/combobox-form.svelte|+svelte/prefer-destructured-store-props\t99:50\tDestructure language from $formData for better change tracking & fewer redraws",
+	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/item-explorer.svelte|-svelte/no-goto-without-base\t48:32\tFound a goto() call with a url that isn't prefixed with the base path.",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/preview-switcher.svelte|-svelte/no-goto-without-base\t30:25\tFound a goto() call with a url that isn't prefixed with the base path.",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/docs/[...slug]/+page.svelte|-svelte/no-target-blank\t119:9\tUsing target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk.",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/docs/[...slug]/+page.svelte|-svelte/no-target-blank\t130:9\tUsing target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk."
+	"shadcn-svelte/docs/src/routes/(app)/(layout)/docs/[...slug]/+page.svelte|-svelte/no-target-blank\t116:50\tUsing target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk.",
+	"shadcn-svelte/docs/src/routes/(app)/(layout)/docs/[...slug]/+page.svelte|-svelte/no-target-blank\t122:50\tUsing target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk."
 ]

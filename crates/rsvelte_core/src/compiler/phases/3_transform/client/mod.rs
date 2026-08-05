@@ -551,6 +551,7 @@ fn transform_client_with_visitors(
         let split_top_level_declarations =
             instance_has_top_level_multi_declarator(ast, &instance_script.raw);
         let _script_start = super::profile::timer_start();
+        let _parent_scope = super::profile::ParentScope::new();
         let mut transformed = transform_instance_script_for_visitors(
             &script_body,
             analysis,
@@ -562,6 +563,7 @@ fn transform_client_with_visitors(
         );
         rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
         super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
+        super::profile::record_parent_site(false);
         // Transfer the script's $$array counter to the context state so that the template
         // visitor continues numbering from where the script left off.
         let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
@@ -1230,7 +1232,13 @@ fn transform_client_with_visitors(
         // content is always emitted at the function body level.
         let script_indent = 1usize;
         let trimmed = transformed_script.trim();
-        let script_source_offset = content.start;
+        // `content.start` is the byte right after `<script>`, which resolves to a
+        // column past the end of that line; anchor the chunk at its first token.
+        let script_source_offset = source
+            .get(content.start as usize..content.end as usize)
+            .map_or(content.start, |text| {
+                content.start + (text.len() - text.trim_start().len()) as u32
+            });
         if !trimmed.is_empty() {
             // Apply async body transformation if experimental.async is enabled
             // This splits the instance script at the first top-level `await`
@@ -2350,7 +2358,7 @@ fn transform_client_with_visitors(
                         // unified comment coordinate space `to_oxc` built.
                         Some(comment_source) => {
                             let map_source = options.enable_sourcemap.then_some(source);
-                            let _t = super::print_timers::start();
+                            let _t = super::profile::timer_start();
                             let pm = rsvelte_esrap::print_split(
                                 oxc_prog,
                                 comment_source,
@@ -2359,25 +2367,24 @@ fn transform_client_with_visitors(
                                 &converted.loc_map,
                                 &print_opts,
                             );
-                            super::print_timers::add::CLIENT_PRINT_SPLIT(
-                                super::print_timers::elapsed(_t),
+                            super::profile::record_esrap_client_split(
+                                super::profile::timer_elapsed(_t),
                             );
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
                         None if options.enable_sourcemap => {
-                            let _t = super::print_timers::start();
-                            let pm =
-                                rsvelte_esrap::print_with_map_opts(oxc_prog, source, &print_opts);
-                            super::print_timers::add::CLIENT_PRINT_WITH_MAP(
-                                super::print_timers::elapsed(_t),
-                            );
+                            let _t = super::profile::timer_start();
+                            let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
+                            super::profile::record_esrap_client_map(super::profile::timer_elapsed(
+                                _t,
+                            ));
                             (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
                         }
                         None => {
-                            let _t = super::print_timers::start();
+                            let _t = super::profile::timer_start();
                             let code = rsvelte_esrap::print_with(oxc_prog, "", &print_opts);
-                            super::print_timers::add::CLIENT_PRINT_WITH(
-                                super::print_timers::elapsed(_t),
+                            super::profile::record_esrap_client_plain(
+                                super::profile::timer_elapsed(_t),
                             );
                             (code, Vec::new())
                         }
@@ -2657,7 +2664,9 @@ pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
     #[cfg(test)]
     MODULE_COMMENT_REPARSES.with(|count| count.set(count.get() + 1));
     let allocator = Allocator::default();
+    let _pt = super::profile::timer_start();
     let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
+    super::profile::record_direct_parse(super::profile::timer_elapsed(_pt), src.len());
     if !ret.diagnostics.is_empty() {
         return src.to_string();
     }
@@ -4230,7 +4239,11 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     dev: bool,
     reactive_import_names: &[String],
 ) -> String {
-    transform_instance_script_for_visitors(
+    // Timed like the main call site, so the script-text bucket stays the parent
+    // of its five stage timers rather than missing this entry point's share.
+    let _script_start = super::profile::timer_start();
+    let _parent_scope = super::profile::ParentScope::new();
+    let out = transform_instance_script_for_visitors(
         script,
         analysis,
         dev,
@@ -4238,7 +4251,10 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         might_have_comma_separated_declaration(script),
         None,
         None,
-    )
+    );
+    super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
+    super::profile::record_parent_site(true);
+    out
 }
 
 /// True when a legacy-mode script contains a `$`-token that the fragile
@@ -4319,6 +4335,8 @@ fn transform_instance_script_for_visitors(
     retained_program: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
     source_projection: Option<&ScriptProjection>,
 ) -> String {
+    super::profile::record_st_entry();
+    let _entry_guard = super::profile::EntryGuard::new();
     if script.is_empty() {
         return String::new();
     }
@@ -4353,6 +4371,8 @@ fn transform_instance_script_for_visitors(
         };
     }
 
+    let _stage = super::profile::timer_start();
+
     // Reset the $$array counters for this component
     // This ensures unique names across multiple $derived destructuring patterns
     SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
@@ -4371,11 +4391,14 @@ fn transform_instance_script_for_visitors(
     // template-literal `${...}` interpolations do not count). Scripts without
     // such tokens keep their comments, matching upstream (esrap prints them
     // as leading trivia).
+    // Upstream rebuilds every `$:` statement as a synthesized
+    // `legacy_pre_effect(...)` call, so its comments have nothing left to
+    // attach to. Everything else in the script keeps them.
     let script: std::borrow::Cow<str> = if analysis.runes || !legacy_script_has_dollar_token(script)
     {
         std::borrow::Cow::Borrowed(script)
     } else {
-        std::borrow::Cow::Owned(strip_js_single_line_comments(script))
+        std::borrow::Cow::Owned(strip_reactive_statement_comments(script))
     };
 
     // Transform class fields only if the script contains class definitions with runes
@@ -4415,6 +4438,9 @@ fn transform_instance_script_for_visitors(
     } else {
         script_rest_raw
     };
+
+    super::profile::record_st_prenormalize(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
 
     // Collect state variables from analysis for $.get() wrapping
     // LegacyReactive bindings (from `$: x = expr`) also need $.get()/$.set() transforms
@@ -4902,14 +4928,18 @@ fn transform_instance_script_for_visitors(
 
     // Collect prop variable info for ownership mutation validation (dev mode only).
     // Maps prop variable name to its prop alias (the public prop name).
-    let prop_mutation_vars: Vec<(String, String)> = if dev && analysis.runes {
+    let prop_mutation_vars: Vec<(String, Option<String>)> = if dev {
         analysis
             .root
             .bindings
             .iter()
             .filter(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
             .map(|b| {
-                let alias = b.prop_alias.as_deref().unwrap_or(&b.name).to_string();
+                // Upstream only ever assigns `prop_alias` from a `$props()` destructuring key,
+                // so legacy `export let` props report a `null` alias.
+                let alias = analysis
+                    .runes
+                    .then(|| b.prop_alias.as_deref().unwrap_or(&b.name).to_string());
                 (b.name.clone(), alias)
             })
             .collect()
@@ -5200,6 +5230,9 @@ fn transform_instance_script_for_visitors(
         if accumulated.is_empty() {
             return;
         }
+        // Timed from here so the loop's own line scanning is what remains.
+        let _stmt_start = super::profile::timer_start();
+        let _guard = super::profile::ProcessAccumulatedGuard(_stmt_start);
 
         // Join all accumulated lines into a single statement
         let statement = accumulated.join("\n");
@@ -5208,6 +5241,8 @@ fn transform_instance_script_for_visitors(
         // Handle $: reactive statements in legacy (non-runes) mode
         // Transform `$: c = a + b;` to `$.legacy_pre_effect(() => (...deps), () => { c(a() + b()); })`
         if !analysis.runes && first_line_trimmed.starts_with("$:") {
+            let _reactive_start = super::profile::timer_start();
+            let _reactive_guard = super::profile::ReactiveStmtGuard(_reactive_start);
             // Extract assignment targets and dependencies from the raw statement
             // for topological sorting (matching official compiler's order_reactive_statements)
             let (assigned_vars, dep_vars) = extract_reactive_statement_deps(
@@ -5419,6 +5454,7 @@ fn transform_instance_script_for_visitors(
             .unwrap_or(first_line_trimmed);
 
         // Transform runes ($state, $derived, $effect, $props)
+        let _runes_start = super::profile::timer_start();
         let mut transformed = transform_client_runes_with_skip_and_state(
             &statement,
             non_reactive_state_vars,
@@ -5432,6 +5468,7 @@ fn transform_instance_script_for_visitors(
             store_sub_vars,
             read_only_props,
         );
+        super::profile::record_st_runes(super::profile::timer_elapsed(_runes_start));
 
         // In dev mode, if the previous output line carries a
         // `<!-- svelte-ignore state_snapshot_uncloneable -->` comment,
@@ -5513,6 +5550,7 @@ fn transform_instance_script_for_visitors(
             transform_destructure_assignments_with_props(
                 &transformed,
                 state_vars,
+                non_reactive_state_vars,
                 store_sub_vars,
                 prop_assignment_transform_vars,
             )
@@ -5696,14 +5734,6 @@ fn transform_instance_script_for_visitors(
             transformed
         };
 
-        // Wrap prop member expression mutations with $$ownership_validator.mutation()
-        // Reference: validate_mutation() in shared/utils.js
-        let transformed = if !prop_mutation_vars.is_empty() {
-            wrap_prop_mutation_validation(&transformed, &prop_mutation_vars, &analysis.source)
-        } else {
-            transformed
-        };
-
         // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
         // to detect when state proxies are logged directly.
         // Reference: CallExpression.js in the official Svelte compiler.
@@ -5745,6 +5775,9 @@ fn transform_instance_script_for_visitors(
 
     // Pre-compute runes fast-path eligibility flags
     let runes_fastpath_eligible = analysis.runes && !dev && prop_mutation_vars.is_empty();
+
+    super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
 
     while line_idx < script_lines.len() {
         let line = script_lines[line_idx];
@@ -6009,6 +6042,9 @@ fn transform_instance_script_for_visitors(
         );
     }
 
+    super::profile::record_st_line_loop(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
+
     // Append reactive statements at the end, mirroring the official Svelte compiler which
     // appends all $: reactive statements AFTER the rest of the instance body code.
     // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js
@@ -6215,6 +6251,9 @@ fn transform_instance_script_for_visitors(
         }
     }
 
+    super::profile::record_st_ast_transforms(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
+
     // Post-processing: transform shadowed local reactive vars within their enclosing function bodies.
     // These are state variables declared inside nested functions that share names with
     // top-level bindings. They're not in state_vars (to avoid incorrectly transforming
@@ -6222,6 +6261,13 @@ fn transform_instance_script_for_visitors(
     // This must run regardless of runes mode.
     if !shadowed_local_reactive_vars.is_empty() {
         result = transform_shadowed_local_state_vars(&result, &shadowed_local_reactive_vars);
+    }
+
+    // Must run after the runes AST pass: it matches the post-transform `prop()` getter
+    // form, which does not exist yet while the per-statement pipeline is still running.
+    // Reference: validate_mutation() in shared/utils.js
+    if !prop_mutation_vars.is_empty() {
+        result = wrap_prop_mutation_validation(&result, &prop_mutation_vars, &analysis.source);
     }
 
     // Dev-mode equality / `await` instrumentation for legacy components. Upstream
@@ -6235,6 +6281,8 @@ fn transform_instance_script_for_visitors(
     {
         result = instrumented;
     }
+
+    super::profile::record_st_post_passes(super::profile::timer_elapsed(_stage));
 
     result
 }

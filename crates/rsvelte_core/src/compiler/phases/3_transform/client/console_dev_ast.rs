@@ -1,5 +1,5 @@
 //! AST-based dev-mode `console.METHOD(args)` →
-//! `console.METHOD(...$.log_if_contains_state("METHOD", args))`
+//! `console.METHOD(...$.log_if_contains_state('METHOD', args))`
 //! wrapping for generated script text — module scripts
 //! (`.svelte.js` / `.svelte.ts`), instance-script statements, and the settled
 //! legacy instance script (whose `$:` bodies no per-statement pass ever sees).
@@ -194,8 +194,10 @@ impl<'a, 'src> Visit<'a> for ConsoleCollector<'src> {
             return;
         }
 
+        // Single quotes: the method name is a plain `b.literal`, which esrap prints
+        // single-quoted, and this text path bypasses the printer.
         let rewrite = format!(
-            "console.{}(...$.log_if_contains_state(\"{}\", {}))",
+            "console.{}(...$.log_if_contains_state('{}', {}))",
             method, method, args_text
         );
         self.replacements
@@ -284,7 +286,7 @@ mod tests {
     #[test]
     fn wraps_console_log_with_identifier() {
         let out = transform_console_calls_dev_ast_for_test("console.log(x);", false).unwrap();
-        assert_eq!(out, "console.log(...$.log_if_contains_state(\"log\", x));");
+        assert_eq!(out, "console.log(...$.log_if_contains_state('log', x));");
     }
 
     #[test]
@@ -293,7 +295,7 @@ mod tests {
             let src = format!("console.{}(x);", method);
             let out = transform_console_calls_dev_ast_for_test(&src, false).unwrap();
             let expected = format!(
-                "console.{}(...$.log_if_contains_state(\"{}\", x));",
+                "console.{}(...$.log_if_contains_state('{}', x));",
                 method, method
             );
             assert_eq!(out, expected, "method {method}");
@@ -369,7 +371,7 @@ mod tests {
         let out = transform_console_calls_dev_fragment("console.log(x); let =;", false, None);
         assert_eq!(
             out.as_deref(),
-            Some("console.log(...$.log_if_contains_state(\"log\", x)); let =;")
+            Some("console.log(...$.log_if_contains_state('log', x)); let =;")
         );
     }
 
@@ -379,7 +381,7 @@ mod tests {
             transform_console_calls_dev_ast_for_test(r#"console.log("x:", x);"#, false).unwrap();
         assert_eq!(
             out,
-            r#"console.log(...$.log_if_contains_state("log", "x:", x));"#
+            r#"console.log(...$.log_if_contains_state('log', "x:", x));"#
         );
     }
 
@@ -401,7 +403,7 @@ mod tests {
         let out = transform_console_calls_dev_ast_for_test(src, false).unwrap();
         assert_eq!(
             out,
-            "let s = `${console.log(...$.log_if_contains_state(\"log\", x))}`;"
+            "let s = `${console.log(...$.log_if_contains_state('log', x))}`;"
         );
     }
 
@@ -412,7 +414,7 @@ mod tests {
         // Both wraps: inner first, then outer wraps the rewritten inner.
         assert_eq!(
             out,
-            "console.log(...$.log_if_contains_state(\"log\", console.warn(...$.log_if_contains_state(\"warn\", x))));"
+            "console.log(...$.log_if_contains_state('log', console.warn(...$.log_if_contains_state('warn', x))));"
         );
     }
 
@@ -420,7 +422,7 @@ mod tests {
     fn ts_source_type_works() {
         let src = "let x: number = 1; console.log(x);";
         let out = transform_console_calls_dev_ast_for_test(src, true).unwrap();
-        assert!(out.contains("$.log_if_contains_state(\"log\", x)"));
+        assert!(out.contains("$.log_if_contains_state('log', x)"));
     }
 
     #[test]
@@ -440,7 +442,7 @@ mod tests {
         let out = transform_console_calls_dev_ast_for_test("console.log(...args);", false).unwrap();
         assert_eq!(
             out,
-            "console.log(...$.log_if_contains_state(\"log\", ...args));"
+            "console.log(...$.log_if_contains_state('log', ...args));"
         );
     }
 }

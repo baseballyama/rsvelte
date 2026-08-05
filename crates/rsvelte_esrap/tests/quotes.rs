@@ -1,16 +1,15 @@
 //! Port of esrap's `test/quotes.test.js`.
 //!
 //! esrap prefers a literal's preserved `raw` spelling; the JS test strips `raw`
-//! (`clean`) so the quote-preference + escaping path runs. We do the same with a
-//! `VisitMut` that nulls every `StringLiteral.raw`, then print with the chosen
-//! `QuoteStyle`.
+//! (`clean`) so the quote + escaping path runs. We do the same with a `VisitMut`
+//! that nulls every `StringLiteral.raw`.
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::StringLiteral;
 use oxc_ast_visit::VisitMut;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
-use rsvelte_esrap::{PrintOptions, QuoteStyle, print_with};
+use rsvelte_esrap::print;
 
 struct StripRaw;
 impl<'a> VisitMut<'a> for StripRaw {
@@ -19,7 +18,7 @@ impl<'a> VisitMut<'a> for StripRaw {
     }
 }
 
-fn print_stripped(source: &str, quote: QuoteStyle) -> String {
+fn print_stripped(source: &str) -> String {
     let alloc = Allocator::default();
     let mut ret = Parser::new(&alloc, source, SourceType::default().with_module(true)).parse();
     assert!(
@@ -28,49 +27,20 @@ fn print_stripped(source: &str, quote: QuoteStyle) -> String {
         ret.diagnostics
     );
     StripRaw.visit_program(&mut ret.program);
-    let opts = PrintOptions::default().with_quote_style(quote);
-    print_with(&ret.program, source, &opts)
+    print(&ret.program, source)
 }
 
 #[test]
-fn default_quote_is_single() {
-    assert_eq!(
-        print_stripped("const foo = 'bar'", QuoteStyle::Single),
-        "const foo = 'bar';"
-    );
-}
-
-#[test]
-fn single_quotes_when_single() {
-    assert_eq!(
-        print_stripped("const foo = 'bar'", QuoteStyle::Single),
-        "const foo = 'bar';"
-    );
-}
-
-#[test]
-fn double_quotes_when_double() {
-    assert_eq!(
-        print_stripped("const foo = 'bar'", QuoteStyle::Double),
-        "const foo = \"bar\";"
-    );
+fn quotes_are_single() {
+    assert_eq!(print_stripped("const foo = 'bar'"), "const foo = 'bar';");
 }
 
 #[test]
 fn escape_single_quotes_in_literal() {
     // source: const foo = "b'ar"  → value b'ar → single-quoted: 'b\'ar'
     assert_eq!(
-        print_stripped("const foo = \"b'ar\"", QuoteStyle::Single),
+        print_stripped("const foo = \"b'ar\""),
         "const foo = 'b\\'ar';"
-    );
-}
-
-#[test]
-fn escape_double_quotes_in_literal() {
-    // source: const foo = 'b"ar' → value b"ar → double-quoted: "b\"ar"
-    assert_eq!(
-        print_stripped("const foo = 'b\"ar'", QuoteStyle::Double),
-        "const foo = \"b\\\"ar\";"
     );
 }
 
@@ -78,7 +48,7 @@ fn escape_double_quotes_in_literal() {
 fn escapes_new_lines() {
     // source string "a\nb" → value a<LF>b → 'a\nb'
     assert_eq!(
-        print_stripped("const str = \"a\\nb\"", QuoteStyle::Single),
+        print_stripped("const str = \"a\\nb\""),
         "const str = 'a\\nb';"
     );
 }
@@ -87,7 +57,7 @@ fn escapes_new_lines() {
 fn escapes_escape_characters() {
     // source string "a\\nb" → value a\nb (backslash, n) → 'a\\nb'
     assert_eq!(
-        print_stripped("const str = \"a\\\\nb\"", QuoteStyle::Single),
+        print_stripped("const str = \"a\\\\nb\""),
         "const str = 'a\\\\nb';"
     );
 }
@@ -96,7 +66,7 @@ fn escapes_escape_characters() {
 fn escapes_double_escaped_backslashes() {
     // source $.text('\\\\') → value \\ (two backslashes) → '\\\\'
     assert_eq!(
-        print_stripped("var text = $.text('\\\\\\\\');", QuoteStyle::Single),
+        print_stripped("var text = $.text('\\\\\\\\');"),
         "var text = $.text('\\\\\\\\');"
     );
 }
@@ -105,16 +75,16 @@ fn escapes_double_escaped_backslashes() {
 fn does_not_double_escape_single_quotes() {
     // source 'a\'b' → value a'b → 'a\'b'
     assert_eq!(
-        print_stripped("const str = 'a\\'b'", QuoteStyle::Single),
+        print_stripped("const str = 'a\\'b'"),
         "const str = 'a\\'b';"
     );
 }
 
 #[test]
-fn does_not_escape_non_preferred_quote() {
+fn does_not_escape_the_other_quote() {
     // source "a\"b" → value a"b → single-quoted leaves the double quote: 'a"b'
     assert_eq!(
-        print_stripped("const str = \"a\\\"b\"", QuoteStyle::Single),
+        print_stripped("const str = \"a\\\"b\""),
         "const str = 'a\"b';"
     );
 }
@@ -123,7 +93,7 @@ fn does_not_escape_non_preferred_quote() {
 fn handles_n_r() {
     // source "a\n\rb" → value a<LF><CR>b → 'a\n\rb'
     assert_eq!(
-        print_stripped("const str = \"a\\n\\rb\"", QuoteStyle::Single),
+        print_stripped("const str = \"a\\n\\rb\""),
         "const str = 'a\\n\\rb';"
     );
 }

@@ -22,7 +22,10 @@ use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::FxHashSet;
 
-use super::destructure_transforms::{build_fallback_string, js_number_to_string, unthunk_string};
+use super::destructure_transforms::{
+    ArrayHelperRead, build_fallback_string, extract_destructure_paths, js_number_to_string,
+    unthunk_string,
+};
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
@@ -233,6 +236,10 @@ struct StateVarCollector<'a, 's> {
     /// When inside a shorthand property like `{ foo }`, the IdentifierReference
     /// for `foo` needs special handling: `{ foo: $.get(foo) }`.
     in_shorthand_property: bool,
+    /// Subtrees carrying a `svelte-ignore await_reactivity_loss`.
+    await_ignore_ranges: super::await_reactivity_loss_ast::AwaitIgnoreRanges,
+    /// Starts of `await` expressions that are a whole statement relying on ASI.
+    unterminated_await_starts: FxHashSet<u32>,
 
     // --- Phase A-2 fields ---
     /// Prop source variables that need getter/setter wrapping: `prop` -> `prop()`.
@@ -359,6 +366,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             replacements_sorted: true,
             scoped_vars: vec![FxHashSet::default()],
             in_shorthand_property: false,
+            await_ignore_ranges: Default::default(),
+            unterminated_await_starts: FxHashSet::default(),
             prop_source_vars: prop_source_set,
             non_bindable_prop_vars: non_bindable_set,
             store_sub_vars: store_sub_set,
@@ -1914,6 +1923,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 .and_then(|src| find_trace_source_location(before_block_post, src, default_label));
             match (source_pos, self.filename) {
                 (Some((line, col)), Some(filename)) => {
+                    // `locate_node()` runs the path through `sanitize_location()`.
+                    let filename = filename.replace('/', "/\u{200b}");
                     format!("() => '{} ({}:{}:{})'", default_label, filename, line, col)
                 }
                 _ => format!("() => '{}'", default_label),
@@ -1989,20 +2000,27 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_span = expr.argument.span();
         let arg_text = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
 
-        self.add_replacement(
-            expr.span.start,
-            expr.span.end,
-            format!("(await $.track_reactivity_loss({}))()", arg_text.trim()),
-        );
+        let mut replacement = format!("(await $.track_reactivity_loss({}))()", arg_text.trim());
+        if self.unterminated_await_starts.contains(&expr.span.start) {
+            replacement.push(';');
+        }
+        self.add_replacement(expr.span.start, expr.span.end, replacement);
         true
     }
 
     fn is_await_reactivity_loss_ignored(&self, offset: u32) -> bool {
-        super::await_reactivity_loss_ast::await_reactivity_loss_ignored(
+        self.await_ignore_ranges.contains(offset)
+    }
+
+    fn collect_await_ignore_ranges(&mut self, program: &Program<'_>) {
+        if !self.dev || !super::await_reactivity_loss_ast::source_has_await(self.source) {
+            return;
+        }
+        self.await_ignore_ranges = super::await_reactivity_loss_ast::collect_await_ignore_ranges(
+            program,
             self.source,
-            offset,
             self.is_runes,
-        )
+        );
     }
 
     /// Walk every argument of a `CallExpression` so inner state-var refs
@@ -2303,6 +2321,18 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         if !self.try_rewrite_strict_equals_binary(expr) {
             walk::walk_binary_expression(self, expr);
         }
+    }
+
+    fn visit_statements(&mut self, stmts: &oxc_allocator::Vec<'ast, Statement<'ast>>) {
+        for pair in stmts.windows(2) {
+            if let Some(start) = super::await_reactivity_loss_ast::unterminated_await_statement(
+                &pair[0],
+                self.source,
+            ) {
+                self.unterminated_await_starts.insert(start);
+            }
+        }
+        walk::walk_statements(self, stmts);
     }
 
     fn visit_await_expression(&mut self, expr: &AwaitExpression<'ast>) {
@@ -2978,6 +3008,20 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             self.add_replacement(full_start, full_end, replacement);
             return;
         }
+        // Nested/keyed/defaulted patterns the two narrow helpers above don't
+        // cover (e.g. `({ b: o.p } = src)`, `({ a: { value } } = src)`).
+        if matches!(
+            &expr.left,
+            AssignmentTarget::ObjectAssignmentTarget(_)
+                | AssignmentTarget::ArrayAssignmentTarget(_)
+        ) && expr.operator == AssignmentOperator::Assign
+            && let Some(replacement) =
+                self.try_build_nested_destructure_prop_assignment(&expr.left, &expr.right)
+        {
+            let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
+            self.add_replacement(full_start, full_end, replacement);
+            return;
+        }
         if matches!(
             &expr.left,
             AssignmentTarget::ObjectAssignmentTarget(_)
@@ -3575,6 +3619,103 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 body, rhs_trimmed
             ))
         }
+    }
+
+    /// Fallback for destructuring-assignment targets the two narrow helpers
+    /// above don't cover — nested patterns, renamed (`{ a: b }`) properties,
+    /// and defaults. Reuses the shared text-based `extract_destructure_paths`
+    /// pattern-walker (the same one the declaration-lowering path uses) to get
+    /// one `(target, initializer)` pair per bound leaf, then wraps prop-var
+    /// leaves in `name(...)` calls the way the narrow helpers above do — this
+    /// function's output is spliced in as final text and never re-walked, so
+    /// prop writes must be wrapped here rather than left for a later pass.
+    fn try_build_nested_destructure_prop_assignment<'ast>(
+        &mut self,
+        target: &AssignmentTarget<'ast>,
+        rhs: &Expression<'ast>,
+    ) -> Option<String> {
+        let target_span = target.span();
+        let pattern_text =
+            self.source[target_span.start as usize..target_span.end as usize].to_string();
+
+        let rhs_start = rhs.span().start;
+        let rhs_end = rhs.span().end;
+        self.visit_expression(rhs);
+        let rhs_text = self.apply_and_drain_inner_replacements(rhs_start, rhs_end);
+        let rhs_trimmed = rhs_text.trim();
+
+        let is_simple_ident = matches!(rhs, Expression::Identifier(_));
+        let access_base: String = if is_simple_ident {
+            rhs_trimmed.to_string()
+        } else {
+            "$$value".to_string()
+        };
+
+        let mut paths: Vec<(String, String)> = Vec::new();
+        let mut inserts: Vec<(String, String)> = Vec::new();
+        extract_destructure_paths(
+            &pattern_text,
+            &access_base,
+            ArrayHelperRead::Value,
+            &mut paths,
+            &mut inserts,
+        );
+
+        if paths.is_empty() {
+            return None;
+        }
+
+        // Only fire when at least one bound leaf is a prop var — otherwise
+        // there's nothing for this pass to rewrite, and the untransformed
+        // fallback (which leaves non-reactive destructuring verbatim) is correct.
+        let mut changed = false;
+        let assignments: Vec<String> = paths
+            .iter()
+            .map(|(target_text, init_text)| {
+                if !target_text.contains('.')
+                    && !target_text.contains('[')
+                    && self.is_active_prop_var(target_text)
+                {
+                    changed = true;
+                    format!("{}({})", target_text, init_text)
+                } else {
+                    format!("{} = {}", target_text, init_text)
+                }
+            })
+            .collect();
+
+        if !changed {
+            return None;
+        }
+
+        if inserts.is_empty() && is_simple_ident {
+            return Some(if assignments.len() == 1 {
+                // See the sequence-marker comment on the shorthand helper above —
+                // the same "always a real SequenceExpression" rule applies here.
+                format!(
+                    "{}({})",
+                    SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER,
+                    assignments.into_iter().next().unwrap()
+                )
+            } else {
+                format!("({})", assignments.join(", "))
+            });
+        }
+
+        let mut body = String::new();
+        for (var_name, init) in &inserts {
+            let _ = writeln!(body, "\t\t\tvar {} = {};", var_name, init);
+        }
+        for assignment in &assignments {
+            let _ = writeln!(body, "\t\t\t{};", assignment);
+        }
+        if !is_simple_ident {
+            let _ = writeln!(body, "\t\t\treturn $$value;");
+        }
+        Some(format!(
+            "(($$value) => {{\n{}\t\t}})({})",
+            body, rhs_trimmed
+        ))
     }
 
     /// Check if an assignment target is a direct rest-prop member assignment.
@@ -4246,7 +4387,12 @@ pub(super) fn transform_state_vars_ast(
 
     with_ast_transform_allocator(|alloc| {
         let source_type = SourceType::mjs();
+        let _pt = super::super::profile::timer_start();
         let parsed = Parser::new(alloc, script, source_type).parse();
+        super::super::profile::record_direct_parse(
+            super::super::profile::timer_elapsed(_pt),
+            script.len(),
+        );
 
         if parsed.panicked || !parsed.diagnostics.is_empty() {
             // Parse error - fall back to text-based transform
@@ -4436,6 +4582,7 @@ fn collect_state_var_replacements(
         config.exported_names,
     );
     collector.semantic = semantic_ret.as_ref().map(|ret| &ret.semantic);
+    collector.collect_await_ignore_ranges(program);
     collector.visit_program(program);
     collector.replacements
 }
@@ -4473,6 +4620,7 @@ fn collect_state_var_replacements_without_semantic_scan(
         config.analysis,
         config.exported_names,
     );
+    collector.collect_await_ignore_ranges(program);
     for statement in &program.body {
         if !projected_statement_is_type_only(statement) {
             collector.visit_statement(statement);

@@ -181,3 +181,11 @@ for (const src of SOURCES) {
 manifest.sort((a, b) => (a.id < b.id ? -1 : 1));
 fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest, null, '\t') + '\n');
 console.log(`[collect] total: ${manifest.length} corpus entries -> ${path.relative(ROOT, OUT)}`);
+
+// A near-empty manifest would make every downstream verify.mjs comparison
+// pass vacuously instead of catching a real regression.
+const MIN_MANIFEST_ENTRIES = 1000;
+if (manifest.length < MIN_MANIFEST_ENTRIES) {
+	console.error(`[collect] only ${manifest.length} corpus entries collected (expected >= ${MIN_MANIFEST_ENTRIES})`);
+	process.exit(2);
+}

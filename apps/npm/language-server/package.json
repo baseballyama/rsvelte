@@ -22,9 +22,11 @@
   ],
   "type": "module",
   "bin": {
-    "rsvelte-language-server": "dist/server.mjs"
+    "rsvelte-language-server": "bin/rsvelte-language-server.mjs"
   },
   "files": [
+    "bin/rsvelte-language-server.mjs",
+    "lib/resolve.mjs",
     "dist/server.mjs",
     "dist/vendor/rsvelte_lint.cjs",
     "dist/vendor/rsvelte_lint_bg.wasm"
@@ -34,6 +36,13 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"test/*.test.mjs\"",
     "prepublishOnly": "node -e \"for (const f of ['dist/server.mjs','dist/vendor/rsvelte_lint.cjs','dist/vendor/rsvelte_lint_bg.wasm']) if (!require('fs').existsSync(f)) { console.error('missing '+f+' — run build:language-server first'); process.exit(1) }\""
+  },
+  "optionalDependencies": {
+    "@rsvelte/language-server-darwin-arm64": "workspace:^",
+    "@rsvelte/language-server-darwin-x64": "workspace:^",
+    "@rsvelte/language-server-linux-arm64-gnu": "workspace:^",
+    "@rsvelte/language-server-linux-x64-gnu": "workspace:^",
+    "@rsvelte/language-server-win32-x64-msvc": "workspace:^"
   },
   "dependencies": {
     "vscode-languageserver": "^10.0.0",

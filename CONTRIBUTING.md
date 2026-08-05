@@ -201,11 +201,18 @@ Quick refs:
 ```bash
 scripts/bench/bench.sh --quick          # ~30s comparison vs official compiler
 scripts/bench/bench.sh --criterion      # full criterion run (HTML reports under target/criterion/)
-scripts/bench/bench.sh --profile path/to/component.svelte
+scripts/bench/bench.sh --profile path/to/component.svelte   # hot-spot search only, see below
 ```
+
+`--profile` reports a per-phase breakdown, but that breakdown does not match
+the compiler's production path: the profiler calls the phase functions
+directly, which skips work the shipped compiler does and adds work it does
+not. Use it to find which functions are hot; do not use its shares to argue
+how time divides between parse, analyze, and transform.
 
 Benchmarks are not yet enforced in CI, so any performance-sensitive change
 should be validated locally and the result mentioned in the PR description.
+Prefer `--quick` and `--criterion` for numbers you intend to quote.
 
 ## Commit and PR conventions
 

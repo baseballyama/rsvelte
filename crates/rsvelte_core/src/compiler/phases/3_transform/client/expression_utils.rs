@@ -2148,6 +2148,15 @@ pub(super) fn is_top_level_function_call(expr: &str) -> bool {
 /// - `foo(await 1)` -> true
 /// - `async () => { return await 1; }` -> false (await is inside async function)
 pub(super) fn contains_direct_await_in_expression(expr: &str) -> bool {
+    let found = scan_for_direct_await(expr);
+    #[cfg(feature = "measure-await")]
+    crate::measure_await::record(expr, found);
+    found
+}
+
+fn scan_for_direct_await(expr: &str) -> bool {
+    const AWAIT: [char; 5] = ['a', 'w', 'a', 'i', 't'];
+
     let chars: Vec<char> = expr.chars().collect();
     let mut i = 0;
     let mut in_string = false;
@@ -2177,37 +2186,13 @@ pub(super) fn contains_direct_await_in_expression(expr: &str) -> bool {
             continue;
         }
 
-        // Check for 'async' keyword followed by function definition
-        if i + 5 <= chars.len() {
-            let word: String = chars[i..i + 5].iter().collect();
-            if word == "async" {
-                // Check if this is followed by function or arrow syntax
-                let rest: String = chars[i + 5..].iter().collect();
-                let rest_trimmed = rest.trim_start();
-                if rest_trimmed.starts_with("(")
-                    || rest_trimmed.starts_with("function")
-                    || chars[i + 5..]
-                        .iter()
-                        .collect::<String>()
-                        .trim_start()
-                        .starts_with("=>")
-                {
-                    // We found an async function, track depth when we see '{'
-                    // For now, just note we're in async context
-                }
-            }
-        }
-
         // Check for 'await' keyword at top level
-        if i + 5 <= chars.len() && async_fn_depth == 0 {
-            let word: String = chars[i..i + 5].iter().collect();
-            if word == "await" {
-                // Make sure it's a word boundary
-                let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
-                let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
-                if before_ok && after_ok {
-                    return true;
-                }
+        if i + 5 <= chars.len() && async_fn_depth == 0 && chars[i..i + 5] == AWAIT {
+            // Make sure it's a word boundary
+            let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+            let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
+            if before_ok && after_ok {
+                return true;
             }
         }
 
@@ -2481,5 +2466,125 @@ mod proxy_detection_tests {
         assert!(expression_needs_proxy("/* @__PURE__ */ createThing()"));
         // Functions still don't need a proxy even behind a comment.
         assert!(!expression_needs_proxy("/* c */ () => 1"));
+    }
+}
+
+#[cfg(test)]
+mod await_scan_tests {
+    use super::{contains_direct_await_in_expression, is_identifier_char};
+
+    /// The scanner as it stood before the per-character `String` builds were
+    /// removed, kept verbatim so the inputs below compare two implementations
+    /// rather than one against a hand-written expectation. The `"async"` arm is
+    /// the branch the refactor dropped; the corpus never reaches it, so its
+    /// equivalence has to be pinned by construction here instead.
+    fn pre_refactor_scan(expr: &str) -> bool {
+        let chars: Vec<char> = expr.chars().collect();
+        let mut i = 0;
+        let mut in_string = false;
+        let mut string_char = ' ';
+        let mut async_fn_depth = 0;
+
+        while i < chars.len() {
+            let c = chars[i];
+
+            if !in_string && (c == '"' || c == '\'' || c == '`') {
+                in_string = true;
+                string_char = c;
+                i += 1;
+                continue;
+            }
+            if in_string && c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+                i += 1;
+                continue;
+            }
+            if in_string {
+                i += 1;
+                continue;
+            }
+
+            if i + 5 <= chars.len() {
+                let word: String = chars[i..i + 5].iter().collect();
+                if word == "async" {
+                    let rest: String = chars[i + 5..].iter().collect();
+                    let rest_trimmed = rest.trim_start();
+                    if rest_trimmed.starts_with("(")
+                        || rest_trimmed.starts_with("function")
+                        || chars[i + 5..]
+                            .iter()
+                            .collect::<String>()
+                            .trim_start()
+                            .starts_with("=>")
+                    {
+                        // Empty in the original too: the arm computed a verdict
+                        // it never acted on.
+                    }
+                }
+            }
+
+            if i + 5 <= chars.len() && async_fn_depth == 0 {
+                let word: String = chars[i..i + 5].iter().collect();
+                if word == "await" {
+                    let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+                    let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
+                    if before_ok && after_ok {
+                        return true;
+                    }
+                }
+            }
+
+            if c == '{' {
+                let before: String = chars[..i].iter().collect();
+                if before.trim_end().ends_with("=>") {
+                    let before_trimmed = before.trim_end();
+                    if let Some(paren_pos) = before_trimmed.rfind('(') {
+                        let before_paren = &before_trimmed[..paren_pos];
+                        if before_paren.trim_end().ends_with("async") {
+                            async_fn_depth += 1;
+                        }
+                    } else if let Some(async_pos) =
+                        memchr::memmem::rfind(before_trimmed.as_bytes(), b"async")
+                    {
+                        let between = &before_trimmed[async_pos + 5..];
+                        if between
+                            .trim()
+                            .chars()
+                            .all(|c| is_identifier_char(c) || c == ' ')
+                        {
+                            async_fn_depth += 1;
+                        }
+                    }
+                }
+            } else if c == '}' && async_fn_depth > 0 {
+                async_fn_depth -= 1;
+            }
+
+            i += 1;
+        }
+
+        false
+    }
+
+    #[test]
+    fn agrees_with_pre_refactor_scan_on_the_async_branch() {
+        // Each input makes the dropped arm's `word == "async"` test fire; the
+        // three tails cover its three disjuncts plus the case where all fail.
+        let cases = [
+            "async () => { await x }",
+            "async function () { await x }",
+            "async x => await x",
+            "asyncThing(await x)",
+            "await async () => 1",
+            "async",
+            "async\u{3000}=> await x",
+        ];
+        for expr in cases {
+            assert_eq!(
+                contains_direct_await_in_expression(expr),
+                pre_refactor_scan(expr),
+                "verdict drift on {expr:?}"
+            );
+        }
     }
 }

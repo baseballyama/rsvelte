@@ -274,6 +274,26 @@ pub(super) fn content_tag_breakable_doc(
     }]))
 }
 
+/// Source of the `[<!-- prettier-ignore -->, ignored node]` pair at `i` when the
+/// comment is glued directly to a single-line node: prettier keeps filling the
+/// surrounding prose across such a pair, printing only its source verbatim.
+pub(super) fn inline_ignore_atom<'a>(
+    out: &'a str,
+    nodes: &[TemplateNode],
+    i: usize,
+) -> Option<&'a str> {
+    let comment = nodes.get(i)?;
+    if !crate::prettier_ignore::is_prettier_ignore_comment(comment) {
+        return None;
+    }
+    let ignored = nodes.get(i + 1)?;
+    if node_end(comment) != node_start(ignored) {
+        return None;
+    }
+    let span = out.get(node_start(comment) as usize..node_end(ignored) as usize)?;
+    (!span.contains('\n')).then_some(span)
+}
+
 // `use_word_first`: when true, a trailing text node that follows a non-void
 // inline element and starts with a space is converted to word-first format.
 // Only pass `true` from `try_fill_run` where the element fits flat in context.
@@ -291,15 +311,39 @@ pub(super) fn build_children_doc_nodes(
     // inline element carries a leading `line` (prettier's
     // `handleWhitespaceOfPrevTextNode`).
     let mut ws_prev = false;
+    // Set after an inline `<!-- prettier-ignore -->` atom so its ignored node is
+    // not printed a second time.
+    let mut skip_ignored = false;
+    // Set after an inline atom so the following text keeps filling in the same
+    // `Fill` — the atom is one of its (unbreakable) words, not a sibling doc.
+    let mut merge_into_fill = false;
 
     for (i, node) in nodes.iter().enumerate() {
+        if skip_ignored {
+            skip_ignored = false;
+            continue;
+        }
+        if let Some(atom) = inline_ignore_atom(out, nodes, i) {
+            let part = Doc::Text(atom.to_string());
+            match docs.last_mut() {
+                Some(Doc::Fill(parts)) => parts.push(part),
+                _ if ws_prev => docs.push(Doc::Fill(vec![Doc::Line, part])),
+                _ => docs.push(Doc::Fill(vec![part])),
+            }
+            ws_prev = false;
+            skip_ignored = true;
+            merge_into_fill = true;
+            continue;
+        }
+        let merge_prev_fill = std::mem::take(&mut merge_into_fill);
         match node {
             TemplateNode::Text(t) => {
                 ws_prev = false;
                 let txt = out.get(t.start as usize..t.end as usize)?;
                 let trim_left = i == 0;
                 let trim_right = i == n - 1;
-                let prev_inline = i > 0 && is_inline_regular_element(&nodes[i - 1]);
+                let prev_inline =
+                    i > 0 && !merge_prev_fill && is_inline_regular_element(&nodes[i - 1]);
                 let next_inline = i + 1 < n && is_inline_regular_element(&nodes[i + 1]);
                 let mut tl = trim_left;
                 let mut tr = trim_right;
@@ -453,11 +497,13 @@ pub(super) fn build_children_doc_nodes(
                     && prev_is_phrasing_inline
                     && next_is_not_element
                     && txt.chars().filter(|&c| c == '\n').count() == 1;
-                if use_soft_break {
+                if use_soft_break && !merge_prev_fill {
                     docs.push(Doc::Line);
                 } else {
                     let parts = split_text_to_docs(txt, tl, tr);
-                    if ws_only {
+                    if let (true, Some(Doc::Fill(prev))) = (merge_prev_fill, docs.last_mut()) {
+                        prev.extend(parts);
+                    } else if ws_only {
                         // Whitespace-only separator (between mustaches / atoms): emit
                         // the bare `line`(s) so they break with the surrounding
                         // element group (prettier's `splitTextToDocs` returns a bare

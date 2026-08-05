@@ -92,6 +92,33 @@ pub fn transform_store_assign_ast(
     state_vars: &[String],
     non_reactive_state_vars: &[String],
 ) -> Option<String> {
+    let spliced = || {
+        transform_store_assign_spliced(
+            source,
+            store_sub_vars,
+            prop_vars,
+            state_vars,
+            non_reactive_state_vars,
+        )
+    };
+    ast_rewrite::dual_run::resolve("store_assign_ast:inplace", source, spliced, || {
+        transform_store_assign_in_place(
+            source,
+            store_sub_vars,
+            prop_vars,
+            state_vars,
+            non_reactive_state_vars,
+        )
+    })
+}
+
+fn transform_store_assign_spliced(
+    source: &str,
+    store_sub_vars: &[String],
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> Option<String> {
     if store_sub_vars.is_empty() {
         return None;
     }
@@ -371,7 +398,7 @@ mod tests {
         let out =
             transform_store_assign_ast("$a = 1; $b += 2;", &ssv(&["$a", "$b"]), &[], &[], &[])
                 .unwrap();
-        assert_eq!(out, "$.store_set(a, 1); $.store_set(b, $b() + 2);");
+        assert_eq!(out, "$.store_set(a, 1);\n$.store_set(b, $b() + 2);");
     }
 
     #[test]
@@ -432,5 +459,148 @@ mod tests {
         assert!(
             transform_store_assign_ast("let x = 1;", &ssv(&["$count"]), &[], &[], &[]).is_none()
         );
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_STORE_ASSIGN_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// The compound operators above, as nodes. Logical assignment lowers to a
+/// `LogicalExpression`, everything else to a `BinaryExpression`.
+enum StoreCompoundOp {
+    Binary(oxc_syntax::operator::BinaryOperator),
+    Logical(oxc_syntax::operator::LogicalOperator),
+}
+
+fn compound_store_op_node(op: AssignmentOperator) -> Option<StoreCompoundOp> {
+    use AssignmentOperator::*;
+    use oxc_syntax::operator::{BinaryOperator as B, LogicalOperator as L};
+    Some(match op {
+        Addition => StoreCompoundOp::Binary(B::Addition),
+        Subtraction => StoreCompoundOp::Binary(B::Subtraction),
+        Multiplication => StoreCompoundOp::Binary(B::Multiplication),
+        Division => StoreCompoundOp::Binary(B::Division),
+        Remainder => StoreCompoundOp::Binary(B::Remainder),
+        Exponential => StoreCompoundOp::Binary(B::Exponential),
+        ShiftLeft => StoreCompoundOp::Binary(B::ShiftLeft),
+        ShiftRight => StoreCompoundOp::Binary(B::ShiftRight),
+        ShiftRightZeroFill => StoreCompoundOp::Binary(B::ShiftRightZeroFill),
+        BitwiseOR => StoreCompoundOp::Binary(B::BitwiseOR),
+        BitwiseXOR => StoreCompoundOp::Binary(B::BitwiseXOR),
+        BitwiseAnd => StoreCompoundOp::Binary(B::BitwiseAnd),
+        LogicalOr => StoreCompoundOp::Logical(L::Or),
+        LogicalAnd => StoreCompoundOp::Logical(L::And),
+        LogicalNullish => StoreCompoundOp::Logical(L::Coalesce),
+        _ => return None,
+    })
+}
+
+/// In-place equivalent of [`transform_store_assign_ast`].
+pub(crate) fn transform_store_assign_in_place(
+    source: &str,
+    store_sub_vars: &[String],
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> Option<String> {
+    if store_sub_vars.is_empty() {
+        return None;
+    }
+    if !store_sub_vars
+        .iter()
+        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
+    {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &MODULE_STORE_ASSIGN_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let mut rewriter = StoreAssignRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                store_sub_vars,
+                prop_vars,
+                state_vars,
+                non_reactive_state_vars,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct StoreAssignRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    store_sub_vars: &'b [String],
+    prop_vars: &'b [String],
+    state_vars: &'b [String],
+    non_reactive_state_vars: &'b [String],
+    changed: bool,
+}
+
+impl<'a, 'b> StoreAssignRewriter<'a, 'b> {
+    /// How the store itself is read: a prop is a getter call, reactive state
+    /// goes through `$.get`, anything else is the bare binding.
+    fn store_access(&self, store_name: &str) -> Expression<'a> {
+        if self.prop_vars.iter().any(|p| p == store_name) {
+            self.b.call(store_name, vec![])
+        } else if self.state_vars.iter().any(|s| s == store_name)
+            && !self.non_reactive_state_vars.iter().any(|s| s == store_name)
+        {
+            self.b.call("$.get", vec![self.b.id(store_name)])
+        } else {
+            self.b.id(store_name)
+        }
+    }
+}
+
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StoreAssignRewriter<'a, 'b> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Expression::AssignmentExpression(assign) = &*expr else {
+            return;
+        };
+        let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left else {
+            return;
+        };
+        let name = id.name.as_str();
+        if !self.store_sub_vars.iter().any(|s| s == name) {
+            return;
+        }
+        let operator = assign.operator;
+        if operator != AssignmentOperator::Assign && compound_store_op_node(operator).is_none() {
+            return;
+        }
+        let store_sub = name.to_string();
+        let store_name = store_sub[1..].to_string();
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        let Expression::AssignmentExpression(assign) = taken else {
+            unreachable!("checked above")
+        };
+        let rhs = assign.unbox().right;
+        let access = self.store_access(&store_name);
+        let value = match compound_store_op_node(operator) {
+            None => rhs,
+            Some(StoreCompoundOp::Binary(op)) => {
+                self.b
+                    .binary(op, self.b.call(store_sub.as_str(), vec![]), rhs)
+            }
+            Some(StoreCompoundOp::Logical(op)) => {
+                self.b
+                    .logical(op, self.b.call(store_sub.as_str(), vec![]), rhs)
+            }
+        };
+        *expr = self.b.call("$.store_set", vec![access, value]);
+        self.changed = true;
     }
 }

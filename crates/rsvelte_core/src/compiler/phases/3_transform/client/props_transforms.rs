@@ -93,15 +93,24 @@ fn is_arrow_param_binding(chars: &[char], var_start: usize, var_len: usize) -> b
 ///
 /// For example, `a + b` where `a` and `b` are props becomes `a() + b()`.
 pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
+    #[cfg(feature = "measure-prop-reads")]
+    crate::measure_prop_reads::record_call();
     if prop_vars.is_empty() {
+        #[cfg(feature = "measure-prop-reads")]
+        crate::measure_prop_reads::record_empty_props();
         return expr.to_string();
     }
 
     // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
     let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(expr, &var_set) {
+        #[cfg(feature = "measure-prop-reads")]
+        crate::measure_prop_reads::record_no_match();
         return expr.to_string();
     }
+
+    #[cfg(feature = "measure-prop-reads")]
+    crate::measure_prop_reads::record_slow(expr.chars().count(), prop_vars.len());
 
     let mut result = expr.to_string();
 
@@ -113,6 +122,8 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
 
         let mut new_result = String::with_capacity(result.len() * 2);
         let chars: Vec<char> = result.chars().collect();
+        #[cfg(feature = "measure-prop-reads")]
+        crate::measure_prop_reads::record_pass(chars.len());
         let mut i = 0;
 
         // Track whether we're inside a string literal to avoid transforming
@@ -2050,7 +2061,12 @@ fn ast_expr_is_simple(value: &str, analysis: &ComponentAnalysis) -> Option<bool>
     let alloc = Allocator::default();
     // Wrap in parens so an object literal (`{...}`) parses as an expression, not a block.
     let src = format!("({})", value.trim());
+    let _pt = super::super::profile::timer_start();
     let parsed = Parser::new(&alloc, &src, SourceType::mjs()).parse();
+    super::super::profile::record_direct_parse(
+        super::super::profile::timer_elapsed(_pt),
+        src.len(),
+    );
     if parsed.panicked || !parsed.diagnostics.is_empty() {
         return None;
     }
@@ -2085,7 +2101,12 @@ fn ast_should_proxy(value: &str, analysis: Option<&ComponentAnalysis>) -> Option
     let alloc = Allocator::default();
     // Wrap in parens so an object literal (`{...}`) parses as an expression.
     let src = format!("({})", value.trim());
+    let _pt = super::super::profile::timer_start();
     let parsed = Parser::new(&alloc, &src, SourceType::mjs()).parse();
+    super::super::profile::record_direct_parse(
+        super::super::profile::timer_elapsed(_pt),
+        src.len(),
+    );
     if parsed.panicked || !parsed.diagnostics.is_empty() {
         return None;
     }
@@ -2873,7 +2894,7 @@ pub(super) fn is_valid_js_identifier(s: &str) -> bool {
 /// Reference: validate_mutation() in shared/utils.js
 pub(super) fn wrap_prop_mutation_validation(
     stmt: &str,
-    prop_vars: &[(String, String)], // (var_name, prop_alias)
+    prop_vars: &[(String, Option<String>)], // (var_name, prop_alias)
     source: &str,
 ) -> String {
     let _trimmed = stmt.trim();
@@ -2881,10 +2902,15 @@ pub(super) fn wrap_prop_mutation_validation(
     let mut result = stmt.to_string();
 
     for (var_name, prop_alias) in prop_vars {
+        let alias_literal = match prop_alias {
+            Some(alias) => format!("'{}'", alias),
+            None => "null".to_string(),
+        };
         // First, try the runes-mode pattern: `prop().member = value` (not wrapped in prop(..., true))
         // This handles the case where transform_prop_assignments skips member mutation wrapping in runes mode.
         let runes_prefix = format!("{}().", var_name);
         let mut runes_search_from = 0;
+        let mut loc_cursor = memchr::memmem::find(source.as_bytes(), b"<script").unwrap_or(0);
 
         while runes_search_from < result.len() {
             let Some(prefix_rel) = result[runes_search_from..].find(&runes_prefix) else {
@@ -2908,8 +2934,14 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
             // Skip if already inside $$ownership_validator.mutation
+            // Only the immediately enclosing call counts: a wrapper emitted earlier in the
+            // program must not suppress later mutations of the same prop.
             if before.ends_with("mutation(")
-                || before.contains(&format!("$$ownership_validator.mutation('{}',", prop_alias))
+                || (before.ends_with("], ")
+                    && before.contains(&format!(
+                        "$$ownership_validator.mutation({}, [",
+                        alias_literal
+                    )))
             {
                 runes_search_from = abs_start + runes_prefix.len();
                 continue;
@@ -2919,7 +2951,7 @@ pub(super) fn wrap_prop_mutation_validation(
             let after_prefix = &result[abs_start + runes_prefix.len()..];
 
             // Parse member chain to find assignment operator
-            let mut path_parts: Vec<String> = vec![format!("'{}'", prop_alias)];
+            let mut path_parts: Vec<String> = vec![format!("'{}'", var_name)];
             let chars: Vec<char> = after_prefix.chars().collect();
             let mut pos = 0;
 
@@ -3048,16 +3080,23 @@ pub(super) fn wrap_prop_mutation_validation(
                 .trim_end()
                 .to_string();
 
-            // Find source location
-            let (line_num, col_num) = find_prop_mutation_location(source, var_name);
+            // Each mutation reports its own source position, so consume them in order.
+            let (line_num, col_num) =
+                match find_prop_mutation_location_from(source, var_name, loc_cursor) {
+                    Some((line, col, next)) => {
+                        loc_cursor = next;
+                        (line, col)
+                    }
+                    None => find_prop_mutation_location(source, var_name),
+                };
 
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
 
             // Build the replacement
             let mut replacement = format!(
-                "$$ownership_validator.mutation('{}', {}, {}",
-                prop_alias, path_array, full_expr,
+                "$$ownership_validator.mutation({}, {}, {}",
+                alias_literal, path_array, full_expr,
             );
             if line_num > 0 {
                 let _ = write!(replacement, ", {}, {}", line_num, col_num);
@@ -3072,40 +3111,53 @@ pub(super) fn wrap_prop_mutation_validation(
             runes_search_from = expr_start + replacement.len();
         }
 
-        // Pattern: `prop(prop().member_chain = value, true)` or `prop(prop()[expr] = value, true)`
-        // We search for `prop(prop()` followed by either `.` or `[`
-        let wrapper_prefix = format!("{}({}()", var_name, var_name);
+        // Pattern: `prop(prop().member_chain = value, true)` or `prop(prop()[expr] = value, true)`.
+        // The assignment may carry one extra wrapping paren when it's consumed as an
+        // expression result rather than a bare statement: `prop((prop().member = value), true)`.
+        let outer_call = format!("{}(", var_name);
+        let inner_call = format!("{}()", var_name);
         let mut search_from = 0;
 
         while search_from < result.len() {
-            let Some(prefix_rel) = result[search_from..].find(&wrapper_prefix) else {
+            let Some(prefix_rel) = result[search_from..].find(&outer_call) else {
                 break;
             };
             let abs_start = search_from + prefix_rel;
-            let after_prefix = abs_start + wrapper_prefix.len();
-            // Check that the next character is `.` or `[` (member access)
-            if after_prefix >= result.len() {
-                search_from = after_prefix;
-                continue;
-            }
-            let next_char = result.as_bytes()[after_prefix] as char;
-            if next_char != '.' && next_char != '[' {
-                search_from = after_prefix;
-                continue;
-            }
-            let wrapper_start_len = wrapper_prefix.len() + 1; // includes the `.` or `[`
+            let after_outer = abs_start + outer_call.len();
 
             // Check this is a standalone identifier (not part of a longer name)
             if abs_start > 0 {
                 let prev_char = result.as_bytes()[abs_start - 1] as char;
                 if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '$' {
-                    search_from = abs_start + wrapper_start_len;
+                    search_from = after_outer;
                     continue;
                 }
             }
 
+            let inner_probe_start = if result.as_bytes().get(after_outer) == Some(&b'(') {
+                after_outer + 1
+            } else {
+                after_outer
+            };
+            if !result[inner_probe_start..].starts_with(&inner_call) {
+                search_from = after_outer;
+                continue;
+            }
+            let after_inner_call = inner_probe_start + inner_call.len();
+            // Check that the next character is `.` or `[` (member access)
+            if after_inner_call >= result.len() {
+                search_from = after_outer;
+                continue;
+            }
+            let next_char = result.as_bytes()[after_inner_call] as char;
+            if next_char != '.' && next_char != '[' {
+                search_from = after_outer;
+                continue;
+            }
+            let wrapper_start_len = after_inner_call + 1 - abs_start; // includes the `.` or `[`
+
             // Find the inner assignment: after `prop(` find the matching `, true)`
-            let inner_start = abs_start + var_name.len() + 1; // skip `prop(`
+            let inner_start = after_outer; // skip outer `prop(`
 
             // Find `, true)` that closes this specific prop() call
             // We need to find the matching closing paren, accounting for nesting
@@ -3164,6 +3216,14 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // Extract the assignment expression (without `, true`)
             let assignment_expr = inner_trimmed[..inner_trimmed.len() - ", true".len()].trim();
+            // Some call sites wrap the assignment in an extra pair of parens
+            // (e.g. `(config().padAngle = value)`) when the result is consumed
+            // as an expression; strip one layer before pattern-matching.
+            let assignment_expr = assignment_expr
+                .strip_prefix('(')
+                .and_then(|s| s.strip_suffix(')'))
+                .map(str::trim)
+                .unwrap_or(assignment_expr);
 
             // Parse the member chain from `prop().member_chain`
             // Parse the member chain from `prop().member_chain` or `prop()[expr]`
@@ -3180,7 +3240,7 @@ pub(super) fn wrap_prop_mutation_validation(
                 };
 
             // Parse member identifiers/bracket accesses until we hit an assignment operator
-            let mut path_parts: Vec<String> = vec![format!("'{}'", prop_alias)];
+            let mut path_parts: Vec<String> = vec![format!("'{}'", var_name)];
             let chars: Vec<char> = after_prop_call.chars().collect();
             let mut pos = 0;
 
@@ -3260,8 +3320,15 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
 
-            // Find the original source location
-            let (line_num, col_num) = find_prop_mutation_location(source, var_name);
+            // Each mutation reports its own source position, so consume them in order.
+            let (line_num, col_num) =
+                match find_prop_mutation_location_from(source, var_name, loc_cursor) {
+                    Some((line, col, next)) => {
+                        loc_cursor = next;
+                        (line, col)
+                    }
+                    None => find_prop_mutation_location(source, var_name),
+                };
 
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
@@ -3272,8 +3339,8 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // Build the replacement
             let mut replacement = format!(
-                "$$ownership_validator.mutation('{}', {}, {}",
-                prop_alias, path_array, full_original_expr,
+                "$$ownership_validator.mutation({}, {}, {}",
+                alias_literal, path_array, full_original_expr,
             );
             if line_num > 0 {
                 let _ = write!(replacement, ", {}, {}", line_num, col_num);
@@ -3290,6 +3357,207 @@ pub(super) fn wrap_prop_mutation_validation(
     }
 
     result
+}
+
+/// Find the next prop mutation of `var_name` at or after `from`, returning its
+/// line/column plus the offset to resume scanning from.
+pub(super) fn find_prop_mutation_location_from(
+    source: &str,
+    var_name: &str,
+    from: usize,
+) -> Option<(usize, usize, usize)> {
+    let bytes = source.as_bytes();
+    let mut search = from;
+
+    while search < source.len() {
+        let rel = memchr::memmem::find(&bytes[search..], var_name.as_bytes())?;
+        let start = search + rel;
+        let end = start + var_name.len();
+        search = end;
+
+        // `light.foo = value` written inside a comment or a string is not the
+        // mutation being located, and consuming it here shifts every later
+        // mutation onto the wrong position.
+        if !is_in_code(source, from, start) {
+            continue;
+        }
+
+        if start > 0 {
+            let prev = bytes[start - 1] as char;
+            if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == '.' {
+                continue;
+            }
+        }
+        if end >= source.len() || (bytes[end] != b'.' && bytes[end] != b'[') {
+            continue;
+        }
+        if let Some(after) = scan_member_chain(bytes, end)
+            && is_mutation_operator(bytes, after)
+        {
+            let (line, col) =
+                crate::compiler::phases::phase3_transform::utils::locate_in_source(source, start);
+            return Some((line, col, end));
+        }
+    }
+
+    None
+}
+
+/// Whether `target` sits in code rather than inside a comment or a string /
+/// template literal. `from` must itself be a code offset — the scan starts
+/// there in the code state, so callers pass the previous confirmed match.
+fn is_in_code(source: &str, from: usize, target: usize) -> bool {
+    #[derive(PartialEq)]
+    enum S {
+        Code,
+        Line,
+        Block,
+        Single,
+        Double,
+        Template,
+    }
+    let bytes = source.as_bytes();
+    let mut state = S::Code;
+    let mut i = from;
+    while i < target {
+        let c = bytes[i];
+        let next = bytes.get(i + 1).copied();
+        match state {
+            S::Code => match (c, next) {
+                (b'/', Some(b'/')) => {
+                    state = S::Line;
+                    i += 2;
+                    continue;
+                }
+                (b'/', Some(b'*')) => {
+                    state = S::Block;
+                    i += 2;
+                    continue;
+                }
+                (b'\'', _) => state = S::Single,
+                (b'"', _) => state = S::Double,
+                (b'`', _) => state = S::Template,
+                _ => {}
+            },
+            S::Line => {
+                if c == b'\n' {
+                    state = S::Code;
+                }
+            }
+            S::Block => {
+                if c == b'*' && next == Some(b'/') {
+                    state = S::Code;
+                    i += 2;
+                    continue;
+                }
+            }
+            S::Single | S::Double | S::Template => {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                let closer = match state {
+                    S::Single => b'\'',
+                    S::Double => b'"',
+                    _ => b'`',
+                };
+                if c == closer {
+                    state = S::Code;
+                }
+            }
+        }
+        i += 1;
+    }
+    state == S::Code
+}
+
+/// Advance past `.name` / `[expr]` accessors, returning the offset just after the chain.
+fn scan_member_chain(bytes: &[u8], mut pos: usize) -> Option<usize> {
+    loop {
+        while pos < bytes.len() && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
+            pos += 1;
+        }
+        if pos >= bytes.len() {
+            return Some(pos);
+        }
+        match bytes[pos] {
+            b'.' => {
+                pos += 1;
+                while pos < bytes.len() && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
+                    pos += 1;
+                }
+                let ident_start = pos;
+                while pos < bytes.len() {
+                    let c = bytes[pos] as char;
+                    if c.is_alphanumeric() || c == '_' || c == '$' {
+                        pos += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if pos == ident_start {
+                    return None;
+                }
+            }
+            b'[' => {
+                let mut depth = 0usize;
+                while pos < bytes.len() {
+                    match bytes[pos] {
+                        b'[' => depth += 1,
+                        b']' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                pos += 1;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    pos += 1;
+                }
+                if depth != 0 {
+                    return None;
+                }
+            }
+            _ => return Some(pos),
+        }
+    }
+}
+
+/// Whether an assignment or update operator starts at `pos`.
+fn is_mutation_operator(bytes: &[u8], mut pos: usize) -> bool {
+    while pos < bytes.len() && (bytes[pos] as char).is_whitespace() {
+        pos += 1;
+    }
+    if pos >= bytes.len() {
+        return false;
+    }
+    if bytes[pos] == b'+' && bytes.get(pos + 1) == Some(&b'+') {
+        return true;
+    }
+    if bytes[pos] == b'-' && bytes.get(pos + 1) == Some(&b'-') {
+        return true;
+    }
+    let op_start = pos;
+    while pos < bytes.len()
+        && matches!(
+            bytes[pos],
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^' | b'?' | b'<' | b'>'
+        )
+    {
+        pos += 1;
+    }
+    if pos >= bytes.len() || bytes[pos] != b'=' {
+        return false;
+    }
+    // `==`, `===`, `<=`, `>=` and `=>` compare rather than assign.
+    if pos == op_start && bytes.get(pos + 1) == Some(&b'=') {
+        return false;
+    }
+    if pos > op_start && matches!(bytes[pos - 1], b'<' | b'>') && pos - op_start == 1 {
+        return false;
+    }
+    bytes.get(pos + 1) != Some(&b'=') && bytes.get(pos + 1) != Some(&b'>')
 }
 
 /// Find the line/column in the original source for a prop mutation.
@@ -3391,7 +3659,7 @@ pub(super) fn transform_console_calls_dev(stmt: &str) -> String {
                 if !args_content.is_empty() && !all_args_are_literals(args_content) {
                     // Transform: console.METHOD(args) -> console.METHOD(...$.log_if_contains_state("METHOD", args))
                     let new_call = format!(
-                        "console.{}(...$.log_if_contains_state(\"{}\", {}))",
+                        "console.{}(...$.log_if_contains_state('{}', {}))",
                         method, method, args_content
                     );
                     let call_end = args_start + args_end + 1; // +1 for closing paren
@@ -3584,7 +3852,7 @@ mod prop_mutation_location_tests {
     #[test]
     fn mutation_wrapper_carries_the_utf16_column() {
         let source = "<script>\nlet { item } = $props();\nfunction go() { /*🎉*/ item.name = 1; }\n</script>";
-        let prop_vars = vec![("item".to_string(), "item".to_string())];
+        let prop_vars = vec![("item".to_string(), Some("item".to_string()))];
         assert_eq!(
             wrap_prop_mutation_validation("item().name = 1", &prop_vars, source),
             "$$ownership_validator.mutation('item', ['item', 'name'], item().name = 1, 3, 23)"

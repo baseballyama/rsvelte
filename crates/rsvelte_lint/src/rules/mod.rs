@@ -72,6 +72,7 @@ pub mod no_unused_class_name;
 pub mod no_unused_props;
 #[cfg(feature = "native")] // native-only compile + source-scan meta rule (see above)
 pub mod no_unused_svelte_ignore;
+pub mod no_unused_vars;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
 pub mod prefer_class_directive;

@@ -189,6 +189,12 @@ pub fn unified_build_bind_this(
         context.state.transform.insert(name.to_string(), t);
     }
 
+    // Upstream builds the `bind:this` setter by visiting a synthesized `expr = $$value`
+    // assignment, so it passes through `validate_mutation()`; rsvelte builds it directly.
+    if context.state.dev && setter_expr.is_none() {
+        set = validate_bind_this_mutation(expression, set, context);
+    }
+
     // Apply optional chaining to getter MemberExpression nodes only
     if let JsExpr::Member(_) = &get {
         fn make_optional(
@@ -445,11 +451,30 @@ fn bind_directive_inner(
     } else if binding_name == "this" {
         // bind:this is handled specially below in build_special_binding_call
         build_getter_setter(&node.expression, &expression, context)
-    } else if let Some(each_result) =
-        build_each_block_getter_setter(&node.expression, &expression, context)
+    } else if let Some((get, get_body, setter_body)) =
+        build_each_block_accessor_parts(&node.expression, &expression, context)
     {
         // Inside an each block - use the each-block-aware getter/setter
-        each_result
+        if context.state.dev {
+            // dev emits named accessors so `$inspect(...)` stack traces stay useful
+            let get_src = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                &get_body,
+                &context.arena,
+            );
+            (
+                JsExpr::Raw(format!("function get() {{\n\treturn {};\n}}", get_src).into()),
+                Some(JsExpr::Raw(
+                    format!("function set($$value) {{\n\t{};\n}}", setter_body).into(),
+                )),
+            )
+        } else {
+            (
+                get,
+                Some(JsExpr::Raw(
+                    format!("($$value) => (\n\t{}\n)", setter_body).into(),
+                )),
+            )
+        }
     } else {
         // Build getter and setter from the expression
         // Pass is_primitive=true for regular element bindings to skip proxy flag
@@ -1879,13 +1904,26 @@ fn build_getter_setter_with_primitive(
                 let binding = context.state.get_binding(root_name);
                 if let Some(binding) = binding {
                     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                    if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
-                        context.state.needs_mutation_validation.set(true);
-                        let prop_alias =
-                            binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
-                        let path = build_ast_member_path(original_expr);
-                        let mut args =
-                            vec![b::string(&prop_alias), b::array(path), transformed_set];
+                    // build_ast_member_path returns None when a property along the chain
+                    // (e.g. `obj[a.b]`) is neither a Literal nor an Identifier, mirroring
+                    // validate_mutation()'s bail-out (`else { return expression; }`).
+                    let path =
+                        if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+                            // Official sets this before building the path, so an unbuildable
+                            // path still emits the `$$ownership_validator` preamble.
+                            context.state.needs_mutation_validation.set(true);
+                            build_ast_member_path(original_expr)
+                        } else {
+                            None
+                        };
+                    if let Some(path) = path {
+                        let mut args = vec![
+                            crate::compiler::phases::phase3_transform::client::visitors::expression_converter::ownership_alias_literal(
+                                binding.prop_alias.clone(),
+                            ),
+                            b::array(path),
+                            transformed_set,
+                        ];
                         // Add source location (line, column) if available
                         let start_pos = original_expr.start().map(|v| v as usize);
                         if let Some(start) = start_pos {
@@ -2021,9 +2059,20 @@ fn has_use_directive(
 /// an each item variable.
 pub fn build_each_block_getter_setter(
     original_expr: &Expression,
-    _converted_expr: &JsExpr,
+    converted_expr: &JsExpr,
     context: &mut ComponentContext,
 ) -> Option<(JsExpr, Option<JsExpr>)> {
+    let (get, _, setter_body) =
+        build_each_block_accessor_parts(original_expr, converted_expr, context)?;
+    let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
+    Some((get, Some(set)))
+}
+
+fn build_each_block_accessor_parts(
+    original_expr: &Expression,
+    _converted_expr: &JsExpr,
+    context: &mut ComponentContext,
+) -> Option<(JsExpr, JsExpr, String)> {
     // Only applies in legacy mode (not runes)
     if context.state.analysis.runes {
         return None;
@@ -2048,7 +2097,9 @@ pub fn build_each_block_getter_setter(
     // Build the invalidation sequence
     let invalidation = build_invalidation_expr(&each_ctx);
 
-    match expr_info {
+    // `get_body` is the expression the getter returns; dev needs it unthunked so the
+    // accessors can be emitted as named functions (useful `$inspect` stack traces).
+    let (get, get_body, setter_body) = match expr_info {
         EachBindingExprInfo::DirectItem { item_name: _ } => {
             // Direct item reference: bind:value={item}
             // Official Svelte uses collection[$$index] for both getter and setter
@@ -2100,8 +2151,7 @@ pub fn build_each_block_getter_setter(
                 format!("{}[{}] = $$value", collection_access, index_access)
             };
 
-            let set = JsExpr::Raw(format!("($$value) => ({})", setter_body).into());
-            Some((get, Some(set)))
+            (get, member_expr, setter_body)
         }
         EachBindingExprInfo::ItemProperty {
             item_name,
@@ -2162,8 +2212,7 @@ pub fn build_each_block_getter_setter(
                 )
             };
 
-            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
-            Some((get, Some(set)))
+            (get, JsExpr::Raw(get_expr_str.into()), setter_body)
         }
         EachBindingExprInfo::DestructuredVar {
             var_name,
@@ -2174,12 +2223,17 @@ pub fn build_each_block_getter_setter(
             //         then wrap in thunk. b::thunk(&context.arena, f()) => f (via unthunk optimization)
             //         b::thunk(&context.arena, $.get(f)) => () => $.get(f)
             // Setter: ($$value) => (update_path = $$value, invalidation)
-            let get = if let Some(transform) = context.state.transform.get(&var_name)
+            let read_body = if let Some(transform) = context.state.transform.get(&var_name)
                 && let Some(read_fn) = &transform.read
             {
-                b::thunk(&context.arena, read_fn(&context.arena, b::id(&var_name)))
+                Some(read_fn(&context.arena, b::id(&var_name)))
             } else {
-                b::id(&var_name)
+                None
+            };
+            let get_body = read_body.clone().unwrap_or_else(|| b::id(&var_name));
+            let get = match read_body {
+                Some(body) => b::thunk(&context.arena, body),
+                None => b::id(&var_name),
             };
 
             let setter_body = if let Some(ref inv) = invalidation {
@@ -2188,8 +2242,7 @@ pub fn build_each_block_getter_setter(
                 format!("{} = $$value", update_path)
             };
 
-            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
-            Some((get, Some(set)))
+            (get, get_body, setter_body)
         }
         EachBindingExprInfo::ComputedAccess {
             access_expr,
@@ -2206,10 +2259,11 @@ pub fn build_each_block_getter_setter(
                 format!("{} = $$value", assign_expr)
             };
 
-            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
-            Some((get, Some(set)))
+            (get, JsExpr::Raw(access_expr.into()), setter_body)
         }
-    }
+    };
+
+    Some((get, get_body, setter_body))
 }
 
 /// Information about how a binding expression references an each block item.
@@ -2748,61 +2802,119 @@ fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
 /// Build the member property path from an AST Expression (JSON-based).
 /// For `form.count` returns `[b::string("form"), b::string("count")]`.
 /// This walks the member expression chain and collects all property names as literals.
-fn build_ast_member_path(expr: &Expression) -> Vec<JsExpr> {
+// Mirrors validate_mutation()'s path-building while-loop (shared/utils.js): any property that
+// isn't a plain Literal/Identifier (e.g. `obj[a.b]`) aborts the whole wrap rather than skipping
+// just that segment, so we return None here and the caller must leave the mutation unwrapped.
+fn build_ast_member_path(expr: &Expression) -> Option<Vec<JsExpr>> {
     let mut path = Vec::new();
-    build_ast_member_path_recursive(expr.as_json(), &mut path);
-    path
+    build_ast_member_path_recursive(expr.as_json(), &mut path).then_some(path)
 }
 
-fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExpr>) {
+/// `validate_mutation()` applied to the setter synthesized for `bind:this={obj.foo}`.
+fn validate_bind_this_mutation(
+    expression: &Expression,
+    set: JsExpr,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    if !expression.is_member_expression() {
+        return set;
+    }
+    let Some(root_name) = get_ast_root_identifier(expression) else {
+        return set;
+    };
+    let Some(binding) = context.state.get_binding(&root_name) else {
+        return set;
+    };
+    if !matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+        return set;
+    }
+    let alias = crate::compiler::phases::phase3_transform::client::visitors::expression_converter::ownership_alias_literal(
+        binding.prop_alias.clone(),
+    );
+
+    // Official sets this before building the path, so an unbuildable path still
+    // emits the `$$ownership_validator` preamble.
+    context.state.needs_mutation_validation.set(true);
+    let Some(path) = build_ast_member_path(expression) else {
+        return set;
+    };
+
+    let mut args = vec![alias, b::array(path), set];
+    if let Some(start) = expression.start() {
+        let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
+            &context.state.analysis.source,
+            start as usize,
+        );
+        args.push(b::number(line as f64));
+        args.push(b::number(col as f64));
+    }
+    b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$$ownership_validator.mutation"),
+        args,
+    )
+}
+
+fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExpr>) -> bool {
     let obj = match val.as_object() {
         Some(o) => o,
-        None => return,
+        None => return true,
     };
     match obj.get("type").and_then(|t| t.as_str()) {
         Some("MemberExpression") => {
             // Recurse into object first
-            if let Some(object) = obj.get("object") {
-                build_ast_member_path_recursive(object, path);
+            if let Some(object) = obj.get("object")
+                && !build_ast_member_path_recursive(object, path)
+            {
+                return false;
             }
             // Add current property
             let computed = obj
                 .get("computed")
                 .and_then(|c| c.as_bool())
                 .unwrap_or(false);
-            if let Some(property) = obj.get("property")
-                && let Some(prop_obj) = property.as_object()
-                && let Some(prop_type) = prop_obj.get("type").and_then(|t| t.as_str())
-            {
-                match prop_type {
-                    "Identifier" => {
-                        if let Some(name) = prop_obj.get("name").and_then(|n| n.as_str()) {
-                            if computed {
-                                path.push(b::id(name));
-                            } else {
-                                path.push(b::string(name));
-                            }
+            let Some(property) = obj.get("property") else {
+                return true;
+            };
+            let Some(prop_obj) = property.as_object() else {
+                return true;
+            };
+            let Some(prop_type) = prop_obj.get("type").and_then(|t| t.as_str()) else {
+                return true;
+            };
+            match prop_type {
+                "Identifier" => {
+                    if let Some(name) = prop_obj.get("name").and_then(|n| n.as_str()) {
+                        if computed {
+                            path.push(b::id(name));
+                        } else {
+                            path.push(b::string(name));
                         }
                     }
-                    "Literal" => {
-                        if let Some(value) = prop_obj.get("value") {
-                            if let Some(s) = value.as_str() {
-                                path.push(b::string(s));
-                            } else if let Some(n) = value.as_f64() {
-                                path.push(b::number(n));
-                            }
-                        }
-                    }
-                    _ => {}
+                    true
                 }
+                "Literal" => {
+                    if let Some(value) = prop_obj.get("value") {
+                        if let Some(s) = value.as_str() {
+                            path.push(b::string(s));
+                        } else if let Some(n) = value.as_f64() {
+                            path.push(b::number(n));
+                        }
+                    }
+                    true
+                }
+                _ => false,
             }
         }
         Some("Identifier") => {
             if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
                 path.push(b::string(name));
             }
+            true
         }
-        _ => {}
+        _ => true,
     }
 }
 

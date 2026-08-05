@@ -70,7 +70,7 @@ diagnostics! {
     attribute_global_event_reference(name: &str) => "You are referencing `globalThis.{}`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference", name;
 
     /// Reactive declaration is invalid placement (not at the top level of an instance script)
-    reactive_declaration_invalid_placement() => "Reactive declarations are only valid at the top level of the instance script";
+    reactive_declaration_invalid_placement() => "Reactive declarations only exist at the top level of the instance script";
 
     // Performance warnings
 
@@ -333,7 +333,7 @@ pub fn state_referenced_locally(
 pub fn a11y_unknown_aria_attribute(attribute: &str, suggestion: Option<&str>) -> AnalysisWarning {
     let message = if let Some(suggestion) = suggestion {
         format!(
-            "Unknown aria attribute 'aria-{}' (did you mean '{}'?)\nhttps://svelte.dev/e/a11y_unknown_aria_attribute",
+            "Unknown aria attribute 'aria-{}'. Did you mean '{}'?\nhttps://svelte.dev/e/a11y_unknown_aria_attribute",
             attribute, suggestion
         )
     } else {
@@ -349,7 +349,7 @@ pub fn a11y_unknown_aria_attribute(attribute: &str, suggestion: Option<&str>) ->
 pub fn a11y_unknown_role(role: &str, suggestion: Option<&str>) -> AnalysisWarning {
     let message = if let Some(suggestion) = suggestion {
         format!(
-            "Unknown role '{}' (did you mean '{}'?)\nhttps://svelte.dev/e/a11y_unknown_role",
+            "Unknown role '{}'. Did you mean '{}'?\nhttps://svelte.dev/e/a11y_unknown_role",
             role, suggestion
         )
     } else {

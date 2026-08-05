@@ -81,6 +81,18 @@ Most users won't run this directly — the
 bundles and launches it. For other editors, point your LSP client at the
 `rsvelte-language-server` binary with the `--stdio` transport.
 
+## Native server
+
+`rsvelte-language-server` is a launcher. It prefers the prebuilt native (Rust)
+server shipped in the optional `@rsvelte/language-server-<platform>` packages
+and falls back to the bundled JS server when no platform package is installed
+(unsupported platform, or an install that skipped optional dependencies).
+
+| Environment variable | Effect |
+| --- | --- |
+| `RSVELTE_LANGUAGE_SERVER_BIN` | Run this binary instead of the resolved one. |
+| `RSVELTE_LANGUAGE_SERVER_JS=1` | Force the bundled JS server. |
+
 ## License
 
 MIT

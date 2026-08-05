@@ -99,13 +99,15 @@ fn visit_common(
             }
 
             if found_invalid_paren {
-                return Err(AnalysisError::ValidationWithCode {
-                    code: "bind_invalid_parens".to_string(),
-                    message: format!(
+                return Err(AnalysisError::validation_at(
+                    "bind_invalid_parens",
+                    format!(
                         "bind:{} cannot have parentheses around the expression",
                         directive.name
                     ),
-                });
+                    directive.start,
+                    directive.end,
+                ));
             }
         }
 
@@ -116,11 +118,12 @@ fn visit_common(
             let arena = context.parse_arena;
             let expr_slice = arena.get_js_children(expressions);
             if !expr_slice.is_empty() && expr_slice.len() != 2 {
-                return Err(AnalysisError::ValidationWithCode {
-                    code: "bind_invalid_expression".to_string(),
-                    message: "Binding with getter/setter requires exactly two functions"
-                        .to_string(),
-                });
+                return Err(AnalysisError::validation_at(
+                    "bind_invalid_expression",
+                    "Binding with getter/setter requires exactly two functions",
+                    directive.start,
+                    directive.end,
+                ));
             }
         }
 
@@ -164,10 +167,12 @@ fn visit_common(
         // Fall back to JSON for MemberExpression chains
         binding_name_owned = get_object_name_via_json(&expr_node).unwrap_or_default();
         if binding_name_owned.is_empty() {
-            return Err(AnalysisError::ValidationWithCode {
-                code: "bind_invalid_expression".to_string(),
-                message: "Invalid binding expression".to_string(),
-            });
+            return Err(AnalysisError::validation_at(
+                "bind_invalid_expression",
+                "Invalid binding expression",
+                directive.start,
+                directive.end,
+            ));
         }
         &binding_name_owned
     };
@@ -326,11 +331,12 @@ pub(super) fn validate_bind_value_identifier(
     };
 
     if !is_valid {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "bind_invalid_value".to_string(),
-            message: "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value"
-                .to_string(),
-        });
+        return Err(AnalysisError::validation_at(
+            "bind_invalid_value",
+            "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+            directive.expression.start().unwrap_or(0),
+            directive.expression.end().unwrap_or(0),
+        ));
     }
 
     Ok(())

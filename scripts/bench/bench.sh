@@ -5,6 +5,9 @@
 #   ./scripts/bench/bench.sh              # Run full JS vs Rust comparison
 #   ./scripts/bench/bench.sh --criterion  # Run Criterion micro-benchmarks
 #   ./scripts/bench/bench.sh --profile    # Run profiler on a single large file
+#                                         # (hotspot identification only — its phase
+#                                         #  breakdown does not match the production
+#                                         #  path; see run_profile below)
 #   ./scripts/bench/bench.sh --quick      # Quick single-threaded-only comparison
 #
 # Prerequisites:
@@ -80,10 +83,17 @@ run_criterion() {
     ok "Criterion benchmarks complete. See target/criterion/ for HTML reports."
 }
 
+# The profiler calls the phase functions directly instead of going through the
+# production entry point, so it skips work the shipped compiler does (TypeScript
+# removal, `<svelte:options>` merging) and adds work it does not (re-parsing a
+# script the production path hands over already parsed). Its per-phase numbers
+# are therefore not the production split. Use it to find hot functions, not to
+# apportion time between phases.
 run_profile() {
     local file="${1:-}"
     log "Building profiler..."
     cargo build --release -p rsvelte_devtools --bin profiler 2>&1 | tail -1
+    warn "Per-phase numbers below are NOT the production split (hotspot use only)."
 
     if [ -n "$file" ]; then
         log "Profiling: $file"
@@ -176,7 +186,8 @@ case "${1:-}" in
         echo ""
         echo "  (no args)    Full JS vs Rust comparison benchmark"
         echo "  --criterion  Criterion micro-benchmarks (per-phase)"
-        echo "  --profile    Profiler with per-phase breakdown"
+        echo "  --profile    Profiler, for finding hot functions"
+        echo "               (its per-phase breakdown is not the production split)"
         echo "  --quick      Quick single-threaded-only summary"
         echo "  --help       Show this help"
         ;;

@@ -218,10 +218,15 @@ fn handle_class<'a>(class: &Class<'a>, source: &str, replacements: &mut Vec<(u32
     }
 }
 
-/// Compute the set of private field base-names (without `#`) that
-/// look like compiler-converted public fields: i.e. a `set name(v)`
-/// method exists whose body calls `$.set(this.#name, ...)`.
-fn compute_originally_public<'a>(class: &Class<'a>, source: &str) -> Vec<String> {
+/// Map each private backing field to the public name it was lowered from.
+///
+/// The label upstream prints is `get_name(definition.key)` on the **original**
+/// key (`phases/nodes.js:157`), which this pass no longer has: a public
+/// `count = $state()` is already `#_count` plus an accessor pair. The pair is
+/// therefore matched back — the generated setter body is exactly
+/// `$.set(this.#backing, value[, true])` — and its key supplies the name,
+/// including the `String(value)` spelling of a literal key.
+fn compute_originally_public<'a>(class: &Class<'a>, source: &str) -> Vec<(String, String)> {
     let mut result = Vec::new();
     for el in &class.body.body {
         let ClassElement::MethodDefinition(method) = el else {
@@ -230,26 +235,60 @@ fn compute_originally_public<'a>(class: &Class<'a>, source: &str) -> Vec<String>
         if method.kind != MethodDefinitionKind::Set {
             continue;
         }
-        let PropertyKey::StaticIdentifier(setter_name) = &method.key else {
+        let Some(public_name) = property_key_name(&method.key) else {
             continue;
         };
-        let base_name = setter_name.name.as_str();
         let Some(body) = &method.value.body else {
             continue;
         };
         let body_text = &source[body.span.start as usize..body.span.end as usize];
-        let needle = format!("$.set(this.#{}", base_name);
-        if body_text.contains(&needle) {
-            result.push(base_name.to_string());
+        if let Some(backing) = generated_setter_backing(body_text) {
+            result.push((backing, public_name));
         }
     }
     result
 }
 
+/// `get_name(node)` from `phases/nodes.js`: a literal key prints as
+/// `String(value)`, an identifier as its name.
+fn property_key_name<'a>(key: &PropertyKey<'a>) -> Option<String> {
+    match key {
+        PropertyKey::StaticIdentifier(id) => Some(id.name.to_string()),
+        PropertyKey::PrivateIdentifier(id) => Some(format!("#{}", id.name)),
+        PropertyKey::NumericLiteral(lit) => Some(lit.raw.as_ref()?.to_string()),
+        PropertyKey::StringLiteral(lit) => Some(lit.value.to_string()),
+        _ => None,
+    }
+}
+
+/// The backing field of a *generated* accessor: the body has to be exactly the
+/// `$.set(this.#backing, value[, true])` statement `emit_class_field` writes, so
+/// a hand-written setter over a genuinely private field keeps its `#` label.
+fn generated_setter_backing(body_text: &str) -> Option<String> {
+    let compact: String = body_text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let inner = compact
+        .strip_prefix("{ $.set(this.#")?
+        .strip_suffix("}")?
+        .trim_end();
+    let inner = inner.strip_suffix(';')?;
+    let (backing, rest) = inner.split_once(',')?;
+    if !matches!(rest.trim_end_matches(')').trim(), "value" | "value, true") {
+        return None;
+    }
+    if backing.is_empty()
+        || !backing
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+    {
+        return None;
+    }
+    Some(backing.to_string())
+}
+
 fn handle_property_definition<'a>(
     prop: &PropertyDefinition<'a>,
     class_name: &str,
-    originally_public: &[String],
+    originally_public: &[(String, String)],
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -264,10 +303,12 @@ fn handle_property_definition<'a>(
     };
 
     let field_name = pid.name.as_str();
-    let label = if originally_public.iter().any(|s| s.as_str() == field_name) {
-        format!("{}.{}", class_name, field_name)
-    } else {
-        format!("{}.#{}", class_name, field_name)
+    let label = match originally_public
+        .iter()
+        .find(|(backing, _)| backing == field_name)
+    {
+        Some((_, public_name)) => format!("{}.{}", class_name, public_name),
+        None => format!("{}.#{}", class_name, field_name),
     };
 
     let init_text = &source[init_span.start as usize..init_span.end as usize];
@@ -278,7 +319,7 @@ fn handle_property_definition<'a>(
 fn walk_method_stmt_for_this_assigns<'a>(
     stmt: &Statement<'a>,
     class_name: &str,
-    originally_public: &[String],
+    originally_public: &[(String, String)],
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -406,7 +447,7 @@ fn walk_method_stmt_for_this_assigns<'a>(
 fn walk_method_expr_for_this_assigns<'a>(
     expr: &Expression<'a>,
     class_name: &str,
-    originally_public: &[String],
+    originally_public: &[(String, String)],
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -443,7 +484,7 @@ fn walk_method_expr_for_this_assigns<'a>(
 fn handle_this_assignment<'a>(
     a: &AssignmentExpression<'a>,
     class_name: &str,
-    originally_public: &[String],
+    originally_public: &[(String, String)],
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -471,14 +512,14 @@ fn handle_this_assignment<'a>(
         return;
     };
 
-    let label = if let Some(base_name) = field_name.strip_prefix('#') {
-        if originally_public.iter().any(|s| s.as_str() == base_name) {
-            format!("{}.{}", class_name, base_name)
-        } else {
-            format!("{}.{}", class_name, field_name)
-        }
-    } else {
-        format!("{}.{}", class_name, field_name)
+    let label = match field_name.strip_prefix('#').and_then(|backing| {
+        originally_public
+            .iter()
+            .find(|(name, _)| name == backing)
+            .map(|(_, public_name)| public_name)
+    }) {
+        Some(public_name) => format!("{}.{}", class_name, public_name),
+        None => format!("{}.{}", class_name, field_name),
     };
 
     let init_text = &source[init_span.start as usize..init_span.end as usize];
@@ -544,12 +585,21 @@ mod tests {
 
     #[test]
     fn label_drops_hash_when_originally_public() {
-        // Compiler-converted public field: paired setter calls
-        // `$.set(this.#count, ...)`.
-        let src = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(v) { $.set(this.#count, v, true); } }";
+        // Compiler-converted public field: the generated setter body is exactly
+        // `$.set(this.#count, value, true)`.
+        let src = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(value) { $.set(this.#count, value, true); } }";
         let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
         assert!(out.contains("$.tag($.state(0), 'C.count')"));
         assert!(!out.contains("'C.#count'"));
+    }
+
+    #[test]
+    fn label_keeps_hash_for_a_hand_written_accessor_over_a_private_field() {
+        // `set count(val) { this.#count = val }` lowers to a setter whose body
+        // is NOT the generated one, so `#count` was written as private.
+        let src = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(val) { $.set(this.#count, val, true); } }";
+        let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
+        assert!(out.contains("$.tag($.state(0), 'C.#count')"), "got: {out}");
     }
 
     #[test]
@@ -569,7 +619,7 @@ mod tests {
     #[test]
     fn this_private_assign_drops_hash_when_originally_public() {
         // Constructor assignment + paired getter/setter.
-        let src = "class C { constructor() { this.#count = $.state(0); } get count() { return $.get(this.#count); } set count(v) { $.set(this.#count, v, true); } }";
+        let src = "class C { constructor() { this.#count = $.state(0); } get count() { return $.get(this.#count); } set count(value) { $.set(this.#count, value, true); } }";
         let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
         assert!(out.contains("this.#count = $.tag($.state(0), 'C.count')"));
     }

@@ -417,6 +417,23 @@ pub(crate) fn handle_svelte_special_element(
     counter.slot_inst = saved_slot;
 }
 
+/// Walk a fragment whose surrounding whitespace `legacy.js` removes.
+pub(super) fn process_fragment_trimmed(
+    nodes: &[TemplateNode],
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+) {
+    let whitespace = SurroundingWhitespace::of(nodes);
+    for (index, node) in nodes.iter().enumerate() {
+        process_child(
+            node, index, nodes, whitespace, source, options, str, counter, depth,
+        );
+    }
+}
+
 /// Dispatch one child, applying the `<svelte:boundary>` whitespace surgery: a
 /// dropped node is never visited (so its source survives verbatim) and a
 /// trimmed one is blanked from its shortened `data`.

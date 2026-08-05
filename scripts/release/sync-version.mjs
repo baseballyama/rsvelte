@@ -27,6 +27,9 @@
 //   Without this sync the crate stays at `0.1.0` no matter how many releases
 //   ship, so `rsvelte-fmt --version` would report a stale version that never
 //   matches the published `@rsvelte/fmt` package.
+// - `@rsvelte/language-server` ← `crates/rsvelte_language_server`: the native
+//   server reports `serverInfo.version` from `env!("CARGO_PKG_VERSION")`, which
+//   editors surface, so it must track the npm package it ships in.
 //
 // Each binary's `--version` must match the npm package it ships in.
 
@@ -70,6 +73,11 @@ const MAPPINGS = [
 		npm: 'apps/npm/svelte-check/package.json',
 		cargoToml: 'crates/rsvelte_check/Cargo.toml',
 		lockName: 'rsvelte_check',
+	},
+	{
+		npm: 'apps/npm/language-server/package.json',
+		cargoToml: 'crates/rsvelte_language_server/Cargo.toml',
+		lockName: 'rsvelte_language_server',
 	},
 ];
 

@@ -38,6 +38,7 @@ use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
+use oxc_syntax::operator::UnaryOperator;
 use oxc_syntax::operator::UpdateOperator;
 
 use super::ast_rewrite::{self, Edit};
@@ -55,6 +56,33 @@ thread_local! {
 /// Returns `None` if there's nothing to rewrite (no `$<store>` in
 /// source, no UpdateExpression matched, or parse failure).
 pub fn transform_store_update_ast(
+    source: &str,
+    store_sub_vars: &[String],
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> Option<String> {
+    let spliced = || {
+        transform_store_update_spliced(
+            source,
+            store_sub_vars,
+            prop_vars,
+            state_vars,
+            non_reactive_state_vars,
+        )
+    };
+    ast_rewrite::dual_run::resolve("store_update_ast:inplace", source, spliced, || {
+        transform_store_update_in_place(
+            source,
+            store_sub_vars,
+            prop_vars,
+            state_vars,
+            non_reactive_state_vars,
+        )
+    })
+}
+
+fn transform_store_update_spliced(
     source: &str,
     store_sub_vars: &[String],
     prop_vars: &[String],
@@ -248,7 +276,10 @@ mod tests {
     fn multiple_stores_in_one_source() {
         let out =
             transform_store_update_ast("$a++; $b--;", &ssv(&["$a", "$b"]), &[], &[], &[]).unwrap();
-        assert_eq!(out, "$.update_store(a, $a()); $.update_store(b, $b(), -1);");
+        assert_eq!(
+            out,
+            "$.update_store(a, $a());\n$.update_store(b, $b(), -1);"
+        );
     }
 
     #[test]
@@ -268,5 +299,114 @@ mod tests {
         assert!(
             transform_store_update_ast("let x = 1;", &ssv(&["$count"]), &[], &[], &[]).is_none()
         );
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_STORE_UPDATE_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_store_update_ast`].
+pub(crate) fn transform_store_update_in_place(
+    source: &str,
+    store_sub_vars: &[String],
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> Option<String> {
+    if store_sub_vars.is_empty() {
+        return None;
+    }
+    if !store_sub_vars
+        .iter()
+        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
+    {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &MODULE_STORE_UPDATE_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let mut rewriter = StoreUpdateRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                store_sub_vars,
+                prop_vars,
+                state_vars,
+                non_reactive_state_vars,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct StoreUpdateRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    store_sub_vars: &'b [String],
+    prop_vars: &'b [String],
+    state_vars: &'b [String],
+    non_reactive_state_vars: &'b [String],
+    changed: bool,
+}
+
+impl<'a, 'b> StoreUpdateRewriter<'a, 'b> {
+    /// How the store itself is read: a prop is a getter call, reactive state
+    /// goes through `$.get`, anything else is the bare binding.
+    fn store_access(&self, store_name: &str) -> Expression<'a> {
+        if self.prop_vars.iter().any(|p| p == store_name) {
+            self.b.call(store_name, vec![])
+        } else if self.state_vars.iter().any(|s| s == store_name)
+            && !self.non_reactive_state_vars.iter().any(|s| s == store_name)
+        {
+            self.b.call("$.get", vec![self.b.id(store_name)])
+        } else {
+            self.b.id(store_name)
+        }
+    }
+}
+
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StoreUpdateRewriter<'a, 'b> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Expression::UpdateExpression(update) = &*expr else {
+            return;
+        };
+        let SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &update.argument else {
+            return;
+        };
+        let name = id.name.as_str();
+        if !self.store_sub_vars.iter().any(|s| s == name) {
+            return;
+        }
+        let store_sub = name.to_string();
+        let store_name = store_sub[1..].to_string();
+
+        let (callee, decrement) = match (update.operator, update.prefix) {
+            (UpdateOperator::Increment, true) => ("$.update_pre_store", false),
+            (UpdateOperator::Decrement, true) => ("$.update_pre_store", true),
+            (UpdateOperator::Increment, false) => ("$.update_store", false),
+            (UpdateOperator::Decrement, false) => ("$.update_store", true),
+        };
+
+        let mut args = vec![
+            self.store_access(&store_name),
+            self.b.call(store_sub.as_str(), vec![]),
+        ];
+        if decrement {
+            args.push(
+                self.b
+                    .unary(UnaryOperator::UnaryNegation, self.b.number(1.0)),
+            );
+        }
+        *expr = self.b.call(callee, args);
+        self.changed = true;
     }
 }

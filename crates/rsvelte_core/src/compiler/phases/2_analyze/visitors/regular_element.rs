@@ -942,9 +942,18 @@ pub fn visit<'a, 'b: 'a>(
                     continue;
                 }
 
+                // Upstream routes the immediate parent through
+                // `is_tag_valid_with_parent`, which words it as a child relation.
+                let relation = if !is_direct_parent {
+                    "a descendant of"
+                } else if is_direct_only_disallowed(ancestor_name) {
+                    "a direct child of"
+                } else {
+                    "a child of"
+                };
                 let message = format!(
-                    "`<{}>` cannot be a descendant of `<{}>`",
-                    element.name, ancestor_name
+                    "`<{}>` cannot be {} `<{}>`",
+                    element.name, relation, ancestor_name
                 );
 
                 // Check if there's a block between us and this ancestor
@@ -1018,10 +1027,7 @@ pub fn visit<'a, 'b: 'a>(
             has_content: !element.fragment.nodes.is_empty(),
             has_opaque_content,
             is_dynamic_tag: false,
-            in_snippet: context
-                .fragment_owner_stack
-                .iter()
-                .any(|o| matches!(o, super::FragmentOwnerType::SnippetBlock(..))),
+            snippet_name: context.current_snippet_name(),
             prev_is_opaque_boundary: false,
             prev_has_opaque_boundary: false,
         };

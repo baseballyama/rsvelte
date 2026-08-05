@@ -87,6 +87,7 @@ fn run_without_sidecar(dir: &Path, args: &[&str]) -> Output {
 #[test]
 fn function_warning_filter_drops_matching_warning() {
     if !node_available() {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
         return;
     }
     let dir = workspace("drop");
@@ -113,6 +114,7 @@ fn function_warning_filter_drops_matching_warning() {
 #[test]
 fn falsy_non_false_return_drops_warning() {
     if !node_available() {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
         return;
     }
     // Svelte uses a truthiness test (`if (!warning_filter(w)) return;`), so a
@@ -142,6 +144,7 @@ fn falsy_non_false_return_drops_warning() {
 #[test]
 fn function_warning_filter_keeps_non_matching_warning() {
     if !node_available() {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
         return;
     }
     let dir = workspace("keep");
@@ -216,6 +219,7 @@ fn missing_sidecar_fails_open_with_note() {
 #[test]
 fn broken_config_fails_open() {
     if !node_available() {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
         return;
     }
     // The static probe sees a function-shaped warningFilter, but the config
@@ -240,6 +244,7 @@ fn broken_config_fails_open() {
 #[test]
 fn warning_filter_wins_over_compiler_warnings_error_promotion() {
     if !node_available() {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
         return;
     }
     // A warning the filter rejects must be *gone* before `--compiler-warnings
@@ -338,7 +343,10 @@ const FAKE_SIDECAR: &str = r#"
 
 #[test]
 fn apply_drops_rejected_warning_keeps_others() {
-    let Some(node) = node_bin() else { return };
+    let Some(node) = node_bin() else {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
+        return;
+    };
     let (env, script) = env_with_script(node, FAKE_SIDECAR, DEFAULT_TIMEOUT);
     let mut diags = vec![warn("drop_me"), warn("keep_me")];
     apply(&env, Path::new("svelte.config.js"), &mut diags);
@@ -349,7 +357,10 @@ fn apply_drops_rejected_warning_keeps_others() {
 
 #[test]
 fn apply_hung_sidecar_times_out_and_keeps_all() {
-    let Some(node) = node_bin() else { return };
+    let Some(node) = node_bin() else {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
+        return;
+    };
     let (env, script) = env_with_script(
         node,
         "setInterval(() => {}, 1000);",
@@ -363,7 +374,10 @@ fn apply_hung_sidecar_times_out_and_keeps_all() {
 
 #[test]
 fn apply_malformed_response_keeps_all() {
-    let Some(node) = node_bin() else { return };
+    let Some(node) = node_bin() else {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
+        return;
+    };
     let (env, script) = env_with_script(
         node,
         "process.stdout.write('not framed json');",
@@ -377,7 +391,10 @@ fn apply_malformed_response_keeps_all() {
 
 #[test]
 fn apply_leaves_non_svelte_and_error_diagnostics_untouched() {
-    let Some(node) = node_bin() else { return };
+    let Some(node) = node_bin() else {
+        eprintln!("[warning-filter] no `node` on $PATH; skipping.");
+        return;
+    };
     // Even a filter that drops everything must not remove errors / ts diags.
     let sidecar = r#"
         const M = '\x00<<rsvelte-warning-filter>>\x00';

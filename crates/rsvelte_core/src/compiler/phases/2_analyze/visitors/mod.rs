@@ -599,6 +599,17 @@ impl<'a> VisitorContext<'a> {
         self.dom_element_stack.last().copied()
     }
 
+    /// Name of the innermost enclosing `{#snippet}`, if any.
+    pub fn current_snippet_name(&self) -> Option<String> {
+        self.fragment_owner_stack
+            .iter()
+            .rev()
+            .find_map(|o| match o {
+                FragmentOwnerType::SnippetBlock(_, name) => Some(name.clone()),
+                _ => None,
+            })
+    }
+
     /// Push ignore codes onto the stack.
     /// This is called when entering a node with preceding svelte-ignore comments.
     pub fn push_ignore(&mut self, ignores: Vec<String>) {

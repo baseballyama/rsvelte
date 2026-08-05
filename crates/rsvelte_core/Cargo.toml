@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_core"
-version = "0.10.3"
+version = "0.10.4"
 edition = "2024"
 rust-version = "1.95"
 description = "Low-level compiler implementation for the rsvelte Svelte toolchain"
@@ -27,6 +27,24 @@ crate-type = ["rlib"]
 default = []
 parallel = ["dep:rayon"]
 trace-fastpath = []
+# Repository-local instrumentation: replay the pre-refactor `await` scanner so
+# the `String` allocations it performed can be counted. Off by default.
+measure-await = []
+# Repository-local instrumentation: count the slot-name `String` allocations the
+# pre-refactor component slot grouping performed. Off by default.
+measure-slot-key = []
+# Repository-local instrumentation: count the quoted-module-source `String`
+# allocations the pre-refactor `module_source` performed. Off by default.
+measure-module-source = []
+# Repository-local instrumentation: record the `hoisted` length distribution in
+# `clean_node_list` so its pre-allocation can be judged. Off by default.
+measure-hoisted = []
+# Repository-local instrumentation: count the `serde_json::Value` that the lazy
+# expression cache materializes. Off by default and zero-cost when off.
+measure-json = []
+# Repository-local instrumentation: decompose the per-prop re-scan in
+# `transform_prop_reads_in_expr`. Off by default.
+measure-prop-reads = []
 # Select the JavaScript entropy backend when the compiler is embedded in wasm.
 # Binding exports live in `rsvelte_lint_bindings`, not in this library.
 wasm-target = ["dep:getrandom", "getrandom/wasm_js"]
@@ -55,7 +73,7 @@ oxc_ast = { version = "0.142", features = ["serialize"] }
 oxc_span = "0.142"
 oxc_diagnostics = "0.142"
 oxc_codegen = "0.142"
-rsvelte_esrap = { version = "=0.9.0", path = "../rsvelte_esrap" }
+rsvelte_esrap = { version = "=0.10.0", path = "../rsvelte_esrap" }
 oxc_syntax = "0.142"
 oxc_semantic = "0.142"
 

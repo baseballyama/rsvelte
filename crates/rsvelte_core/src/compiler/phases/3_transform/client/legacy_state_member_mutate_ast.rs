@@ -67,6 +67,38 @@ pub fn transform_legacy_state_member_mutate_ast(
     raw_state_vars: &[String],
     invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
+    let spliced = || {
+        transform_legacy_state_member_mutate_spliced(
+            source,
+            state_vars,
+            non_reactive_state_vars,
+            raw_state_vars,
+            invalidate_bodies,
+        )
+    };
+    ast_rewrite::dual_run::resolve(
+        "legacy_state_member_mutate_ast:inplace",
+        source,
+        spliced,
+        || {
+            transform_legacy_state_member_mutate_in_place(
+                source,
+                state_vars,
+                non_reactive_state_vars,
+                raw_state_vars,
+                invalidate_bodies,
+            )
+        },
+    )
+}
+
+fn transform_legacy_state_member_mutate_spliced(
+    source: &str,
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+    raw_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
+) -> Option<String> {
     if state_vars.is_empty() {
         return None;
     }
@@ -400,7 +432,7 @@ mod tests {
             &eb(),
         )
         .unwrap();
-        assert_eq!(out, "$.mutate(a, a.x = 1); $.mutate(b, b.y = 2);");
+        assert_eq!(out, "$.mutate(a, a.x = 1);\n$.mutate(b, b.y = 2);");
     }
 
     #[test]
@@ -439,5 +471,149 @@ mod tests {
             transform_legacy_state_member_mutate_ast("let x = 1;", &ssv(&["obj"]), &[], &[], &eb())
                 .is_none()
         );
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+//
+// Same mapping, applied to the program instead of its text. The splice path
+// above stays authoritative; this runs under `RSVELTE_AST_DUAL_RUN` so the two
+// can be compared until the whole pipeline flips to a single parse.
+
+thread_local! {
+    static MODULE_LEGACY_STATE_MEMBER_MUTATE_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_legacy_state_member_mutate_ast`].
+pub(crate) fn transform_legacy_state_member_mutate_in_place(
+    source: &str,
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+    raw_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
+) -> Option<String> {
+    if state_vars.is_empty() {
+        return None;
+    }
+    memchr::memchr(b'=', source.as_bytes())?;
+    if !state_vars
+        .iter()
+        .filter(|v| !non_reactive_state_vars.iter().any(|nr| nr == *v))
+        .filter(|v| !raw_state_vars.iter().any(|r| r == *v))
+        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
+    {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &MODULE_LEGACY_STATE_MEMBER_MUTATE_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let mut rewriter = LegacyStateMemberMutateRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                allocator,
+                state_vars,
+                non_reactive_state_vars,
+                raw_state_vars,
+                invalidate_bodies,
+                skip_assignment_spans: Vec::new(),
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct LegacyStateMemberMutateRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    allocator: &'a oxc_allocator::Allocator,
+    state_vars: &'b [String],
+    non_reactive_state_vars: &'b [String],
+    raw_state_vars: &'b [String],
+    invalidate_bodies: &'b rustc_hash::FxHashMap<String, String>,
+    /// Assignments already enclosed in a `$.mutate(var, …)` wrap. Recorded on
+    /// the way down so the assignment itself is left alone on the way up.
+    skip_assignment_spans: Vec<Span>,
+    changed: bool,
+}
+
+impl<'a, 'b> LegacyStateMemberMutateRewriter<'a, 'b> {
+    fn is_eligible(&self, name: &str) -> bool {
+        self.state_vars.iter().any(|s| s == name)
+            && !self.non_reactive_state_vars.iter().any(|nr| nr == name)
+            && !self.raw_state_vars.iter().any(|r| r == name)
+    }
+
+    /// Record the inner assignment of a `$.mutate(var, <assignment>)` wrap.
+    fn note_existing_wrap(&mut self, expr: &Expression<'a>) {
+        if let Expression::CallExpression(call) = expr
+            && call.arguments.len() == 2
+            && let Expression::StaticMemberExpression(callee) = &call.callee
+            && callee.property.name.as_str() == "mutate"
+            && let Expression::Identifier(dollar) = &callee.object
+            && dollar.name.as_str() == "$"
+            && let Argument::Identifier(arg0) = &call.arguments[0]
+            && self.is_eligible(arg0.name.as_str())
+            && let Argument::AssignmentExpression(inner) = &call.arguments[1]
+        {
+            self.skip_assignment_spans.push(inner.span);
+        }
+    }
+
+    /// `$.invalidate_inner_signals(() => { <body> })`, with `body` parsed into
+    /// the program's own arena — it is caller-supplied source, not a subtree.
+    fn invalidate_call(&self, body: &str) -> Option<Expression<'a>> {
+        let owned = self.allocator.alloc_str(body);
+        ast_rewrite::dual_run::count_parse(ast_rewrite::dual_run::current_or(file!()), owned.len());
+        let parsed = oxc_parser::Parser::new(self.allocator, owned, SourceType::mjs()).parse();
+        if !parsed.diagnostics.is_empty() {
+            return None;
+        }
+        let stmts: Vec<Statement<'a>> = parsed.program.body.into_iter().collect();
+        Some(self.b.call(
+            "$.invalidate_inner_signals",
+            vec![self.b.thunk_block(stmts, false)],
+        ))
+    }
+}
+
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for LegacyStateMemberMutateRewriter<'a, 'b> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        self.note_existing_wrap(expr);
+        // Children first: an inner assignment is rewritten before the parent
+        // that encloses it, which is what the splice path's `innermost_only`
+        // plus fixed-point loop was reaching for.
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Expression::AssignmentExpression(assign) = &*expr else {
+            return;
+        };
+        if self.skip_assignment_spans.contains(&assign.span) {
+            return;
+        }
+        let Some((root, _)) =
+            LegacyStateMemberMutateCollector::root_of_assignment_target(&assign.left)
+        else {
+            return;
+        };
+        if !self.is_eligible(root) {
+            return;
+        }
+        let root = root.to_string();
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        let mutate = self.b.call("$.mutate", vec![self.b.id(&root), taken]);
+        *expr = match self.invalidate_bodies.get(&root) {
+            Some(body) if !body.is_empty() => match self.invalidate_call(body) {
+                Some(invalidate) => self.b.sequence(vec![mutate, invalidate]),
+                None => mutate,
+            },
+            _ => mutate,
+        };
+        self.changed = true;
     }
 }

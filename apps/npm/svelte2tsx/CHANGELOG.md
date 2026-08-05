@@ -1,5 +1,44 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.11
+
+### Patch Changes
+
+- cc54f59: fix(svelte2tsx): skip identifiers in a slot expression's computed object key. A
+  bare-identifier computed key (`{ [item]: 1 }`) was resolved through the
+  `{#each}`/`let:` scope like any other identifier, but official's
+  `resolveExpression` never substitutes a key position at all — it only
+  descends into a compound key expression (`{ [item + 1]: 1 }`), whose nested
+  identifiers resolve normally because the key slot there is not an
+  `Identifier` node.
+- e703fd2: Apply `remove_surrounding_whitespace_nodes` to `{#snippet}` bodies and reproduce upstream's opener gap for the standalone snippet form, and route `<svelte:boundary slot="x">` inside a component through the `$$slot_def[...]` wrapper so the generated TSX matches official svelte2tsx.
+- d1ca60c: Demote `<svelte:component>`'s direct `{#snippet}` children to implicit props, like a named component's and `<svelte:self>`'s. They were emitted as standalone `const foo = (a) => …` declarations, so TypeScript could not contextually type the snippet parameters from the target component's props; they now move into the `props: { … }` object anchored by a `$$prop_def` destructure. The `let:` / named-slot paths keep their own block scoping and are unaffected.
+- faeba67: Route `<svelte:options>`'s opener gap through the shared `opener_spacing` helper so the generated TSX matches official svelte2tsx exactly, including bare boolean attributes like `<svelte:options runes />`.
+- c86c2e5: Transform `<svelte:self>` `bind:` directives and `{#snippet}` children like a named component's: two-way bindings now emit a plain prop plus the `$$bindings` marker and setter type-widener instead of the DOM `"bind:value"` form, `bind:this` assigns the component instance, and direct snippet children are demoted to props anchored by a `$$prop_def` destructure.
+- 50c3fd0: fix(svelte2tsx): drop the trailing space after `<svelte:self>`'s generated
+  `$on(...)` calls. `handle_svelte_self` reimplemented event-call emission
+  with a bespoke loop that appended `'); '` instead of `');'`, diverging from
+  official's `InlineComponent.addEvent` and from rsvelte's own
+  `handle_component`, which already reuses the shared `build_on_calls` helper.
+  `handle_svelte_self` now calls the same helper.
+- Updated dependencies [44f6150]
+- Updated dependencies [6939249]
+- Updated dependencies [5656f23]
+- Updated dependencies [62b250c]
+- Updated dependencies [23267de]
+- Updated dependencies [a07a013]
+- Updated dependencies [682a6bb]
+- Updated dependencies [44f6150]
+- Updated dependencies [ddf91d3]
+- Updated dependencies [cc54f59]
+- Updated dependencies [e703fd2]
+- Updated dependencies [d1ca60c]
+- Updated dependencies [faeba67]
+- Updated dependencies [c86c2e5]
+- Updated dependencies [50c3fd0]
+- Updated dependencies [57b8766]
+  - @rsvelte/compiler@0.10.4
+
 ## 0.2.10
 
 ### Patch Changes

@@ -261,6 +261,15 @@ skipping. Do not point it at `$TSGO_BIN`: that names a batch `tsc`/`tsgo` for
 `.github/workflows/type-aware-lint.yml` runs fmt + clippy + the suite on changes to
 the crate, weekly, and on dispatch.
 
+Because it is a separate workspace, its `Cargo.lock` is never re-resolved by the root
+`cargo test` — any in-repo crate version bump (a Changesets release, a manual
+`rsvelte_esrap` bump) staleifies it, and the `--locked` suite above only notices on the
+next PR that happens to touch the lint crates. The `Lint-types lockfile` job in `ci.yml`
+runs `scripts/ci/check-lint-types-lock.mjs` on **every** PR (resolution only — no
+compilation) so drift fails on the PR that introduces it; `pnpm run fix:lint-types-lock`
+repairs it. `pnpm run version-packages` re-runs the same check after `sync-version`, so a
+release PR cannot ship a stale pin.
+
 ## Quick Reference
 
 ### Adding Features

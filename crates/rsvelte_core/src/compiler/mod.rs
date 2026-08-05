@@ -633,9 +633,7 @@ pub(crate) fn prepare_and_analyze<'source>(
 /// Returns a `CompileResult` containing the generated JavaScript and CSS.
 pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
-    let out = crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate);
-    crate::compiler::phases::phase3_transform::print_timers::note_compile();
-    out
+    crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
 }
 
 #[doc(hidden)]

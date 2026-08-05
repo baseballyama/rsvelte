@@ -13,6 +13,8 @@ fn error(code: &str, message: impl Into<String>) -> AnalysisError {
     AnalysisError::ValidationWithCode {
         code: code.to_string(),
         message: message.into(),
+        start: None,
+        end: None,
     }
 }
 

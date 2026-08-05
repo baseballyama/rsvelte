@@ -55,6 +55,11 @@ target
 /apps/npm/lint-*/rsvelte-lint.exe
 /apps/npm/lint-*/rsvelte_lint.node
 
+# rsvelte-language-server platform binaries (staged into per-platform npm
+# packages by the release workflow; never committed)
+/apps/npm/language-server-*/rsvelte-language-server
+/apps/npm/language-server-*/rsvelte-language-server.exe
+
 # Playwright MCP
 .playwright-mcp/
 

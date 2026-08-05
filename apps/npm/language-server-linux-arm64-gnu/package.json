@@ -1,0 +1,26 @@
+{
+  "name": "@rsvelte/language-server-linux-arm64-gnu",
+  "version": "0.3.0",
+  "description": "Prebuilt rsvelte-language-server binary for linux-arm64-gnu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/language-server-linux-arm64-gnu"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "rsvelte-language-server"
+  ],
+  "scripts": {
+    "prepack": "chmod +x rsvelte-language-server"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

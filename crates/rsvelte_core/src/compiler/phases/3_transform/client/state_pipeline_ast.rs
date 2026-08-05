@@ -42,9 +42,11 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType};
-use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
+use oxc_syntax::operator::{
+    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
+};
 use oxc_syntax::symbol::SymbolId;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::ast_rewrite::{self, Edit};
 use super::expression_utils::{
@@ -91,9 +93,22 @@ pub fn transform_state_pipeline_ast(
         return None;
     }
 
-    ast_rewrite::fixed_point(source, |src| {
-        single_pass(
-            src,
+    let spliced = || {
+        ast_rewrite::fixed_point(source, |src| {
+            single_pass(
+                src,
+                state_vars,
+                raw_state_vars,
+                is_runes,
+                non_proxy_vars,
+                &effective_read_names,
+            )
+        })
+    };
+
+    ast_rewrite::dual_run::resolve("state_pipeline_ast:inplace", source, spliced, || {
+        transform_state_pipeline_in_place(
+            source,
             state_vars,
             raw_state_vars,
             is_runes,
@@ -136,6 +151,8 @@ fn single_pass(
                 read_replacements: Vec::new(),
                 assigns_replacements: Vec::new(),
                 skip_spans: FxHashSet::default(),
+                in_place: false,
+                sites: Sites::default(),
             };
             visitor.visit_program(program);
 
@@ -181,6 +198,31 @@ struct PipelineVisitor<'a, 'sem> {
     /// $.update / $.update_pre / $.mutate, shorthand-property
     /// value position.
     skip_spans: FxHashSet<u32>,
+    /// Whether this walk feeds the in-place rewriter rather than the
+    /// splice pipeline. Gates both `sites` collection and the wider
+    /// rhs fold, so the splice path stays byte-for-byte unchanged.
+    in_place: bool,
+    sites: Sites,
+}
+
+/// The rewrite sites the in-place pass needs, keyed by `(start, end)`
+/// span. Operator, `prefix` and proxy-ness are re-read off the AST, so
+/// only the decision itself crosses from the walk to the rewriter.
+#[derive(Default)]
+struct Sites {
+    reads: FxHashSet<(u32, u32)>,
+    shorthands: FxHashSet<(u32, u32)>,
+    assigns: FxHashMap<(u32, u32), bool>,
+    updates: FxHashSet<(u32, u32)>,
+}
+
+impl Sites {
+    fn is_empty(&self) -> bool {
+        self.reads.is_empty()
+            && self.shorthands.is_empty()
+            && self.assigns.is_empty()
+            && self.updates.is_empty()
+    }
 }
 
 impl<'a, 'sem> PipelineVisitor<'a, 'sem> {
@@ -231,6 +273,44 @@ impl<'a, 'sem> PipelineVisitor<'a, 'sem> {
         }
         out
     }
+
+    /// The rhs text as the splice pipeline would see it on its *last*
+    /// fixed-point iteration: inner assignments and updates are already
+    /// rewritten there, and `expression_needs_proxy_with_scope` reads
+    /// that text. The in-place path runs once, so it folds them here.
+    fn rhs_text_with_inner_edits(&self, rhs_span: oxc_span::Span) -> String {
+        let rhs_start = rhs_span.start as usize;
+        let original = &self.source[rhs_start..rhs_span.end as usize];
+        let mut inner: Vec<&Edit> = self
+            .read_replacements
+            .iter()
+            .chain(self.assigns_replacements.iter())
+            .filter(|(s, e, _)| *s >= rhs_span.start && *e <= rhs_span.end)
+            .collect();
+        if inner.is_empty() {
+            return original.to_string();
+        }
+        // Outermost-only: AST spans nest rather than partially overlap,
+        // and an inner edit's text is already folded into the enclosing
+        // one (children are pushed first).
+        inner.sort_by_key(|(s, e, _)| (*s, std::cmp::Reverse(*e)));
+        let mut kept: Vec<&Edit> = Vec::new();
+        for edit in inner {
+            if kept.last().is_some_and(|last| edit.1 <= last.1) {
+                continue;
+            }
+            kept.push(edit);
+        }
+        kept.sort_by_key(|r| std::cmp::Reverse(r.0));
+        let mut out = original.to_string();
+        for (s, e, rewrite) in kept {
+            out.replace_range(
+                (*s as usize) - rhs_start..(*e as usize) - rhs_start,
+                rewrite,
+            );
+        }
+        out
+    }
 }
 
 impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
@@ -247,6 +327,9 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
         }
         self.read_replacements
             .push((ident.span.start, ident.span.end, format!("$.get({})", name)));
+        if self.in_place {
+            self.sites.reads.insert((ident.span.start, ident.span.end));
+        }
     }
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
@@ -273,7 +356,11 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
         }
 
         let rhs_span = expr.right.span();
-        let rhs_text = self.rhs_text_with_inner_reads(rhs_span);
+        let rhs_text = if self.in_place {
+            self.rhs_text_with_inner_edits(rhs_span)
+        } else {
+            self.rhs_text_with_inner_reads(rhs_span)
+        };
 
         match expr.operator {
             AssignmentOperator::Assign => {
@@ -303,6 +390,11 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
                 };
                 self.assigns_replacements
                     .push((expr.span.start, expr.span.end, rewrite));
+                if self.in_place {
+                    self.sites
+                        .assigns
+                        .insert((expr.span.start, expr.span.end), needs_proxy);
+                }
             }
             op => {
                 let op_str: &str = match op {
@@ -329,6 +421,11 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
                 );
                 self.assigns_replacements
                     .push((expr.span.start, expr.span.end, rewrite));
+                if self.in_place {
+                    self.sites
+                        .assigns
+                        .insert((expr.span.start, expr.span.end), false);
+                }
             }
         }
     }
@@ -358,6 +455,9 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
         };
         self.assigns_replacements
             .push((expr.span.start, expr.span.end, rewrite));
+        if self.in_place {
+            self.sites.updates.insert((expr.span.start, expr.span.end));
+        }
     }
 
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
@@ -396,6 +496,11 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
                 prop.span.end,
                 format!("{}: $.get({})", name, name),
             ));
+            if self.in_place {
+                self.sites
+                    .shorthands
+                    .insert((prop.span.start, prop.span.end));
+            }
             self.skip(value_ident);
             walk::walk_object_property(self, prop);
             return;
@@ -424,7 +529,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let count; let total; $.set(total, $.get(count));");
+        assert_eq!(out, "let count;\nlet total;\n\n$.set(total, $.get(count));");
     }
 
     #[test]
@@ -440,7 +545,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            "let count; let total; $.set(total, $.get(total) + $.get(count));"
+            "let count;\nlet total;\n\n$.set(total, $.get(total) + $.get(count));"
         );
     }
 
@@ -455,7 +560,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let count; let r = $.get(count) + 1;");
+        assert_eq!(out, "let count;\nlet r = $.get(count) + 1;");
     }
 
     #[test]
@@ -469,7 +574,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let count; $.update(count);");
+        assert_eq!(out, "let count;\n\n$.update(count);");
     }
 
     #[test]
@@ -483,7 +588,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let count; let o = { count: $.get(count) };");
+        assert_eq!(out, "let count;\nlet o = { count: $.get(count) };");
     }
 
     #[test]
@@ -514,7 +619,7 @@ mod tests {
             &ssv(&["count"]),
         )
         .unwrap();
-        assert_eq!(out, "let count; $.set(count, 5);");
+        assert_eq!(out, "let count;\n\n$.set(count, 5);");
     }
 
     #[test]
@@ -530,7 +635,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            "let outer; let inner; $.set(outer, ($.set(inner, 1)));"
+            "let outer;\nlet inner;\n\n$.set(outer, $.set(inner, 1));"
         );
     }
 
@@ -539,7 +644,7 @@ mod tests {
         let out =
             transform_state_pipeline_ast("let x; x = { a: 1 };", &ssv(&["x"]), &[], true, &[], &[])
                 .unwrap();
-        assert_eq!(out, "let x; $.set(x, { a: 1 }, true);");
+        assert_eq!(out, "let x;\n\n$.set(x, { a: 1 }, true);");
     }
 
     #[test]
@@ -553,7 +658,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let x; $.set(x, { a: 1 });");
+        assert_eq!(out, "let x;\n\n$.set(x, { a: 1 });");
     }
 
     #[test]
@@ -609,7 +714,231 @@ mod tests {
         assert!(out.contains("$.update(count);"));
         // Array literal with multiple state-var reads
         assert!(out.contains("$.set(items, [$.get(count), $.get(total)]"));
-        // Shadow preserved
-        assert!(out.contains("function inner(count) { count = 99; }"));
+        // Shadow preserved — the assignment inside `inner` is left alone, whatever
+        // line the printer puts it on.
+        assert!(out.contains("count = 99;"));
+        assert!(!out.contains("$.set(count, 99)"));
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static STATE_PIPELINE_IN_PLACE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_state_pipeline_ast`].
+///
+/// The splice path needs a fixed point because a wrap emitted for an outer
+/// assignment hides the inner ones behind `innermost_only`; post-order
+/// mutation composes instead, so one walk suffices. Deciding a site still
+/// needs a [`Semantic`], which borrows the program immutably, hence the
+/// collect-then-rewrite split.
+fn transform_state_pipeline_in_place(
+    source: &str,
+    state_vars: &[String],
+    raw_state_vars: &[String],
+    is_runes: bool,
+    non_proxy_vars: &[String],
+    effective_read_names: &[String],
+) -> Option<String> {
+    ast_rewrite::with_program_mut(
+        &STATE_PIPELINE_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |allocator, program| {
+            let sites = {
+                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+                let semantic = &semantic_ret.semantic;
+                let state_var_symbols = find_state_var_symbols(semantic, state_vars);
+                let mut visitor = PipelineVisitor {
+                    source,
+                    semantic,
+                    state_vars,
+                    raw_state_vars,
+                    is_runes,
+                    non_proxy_vars,
+                    effective_read_names,
+                    state_var_symbols,
+                    read_replacements: Vec::new(),
+                    assigns_replacements: Vec::new(),
+                    skip_spans: FxHashSet::default(),
+                    in_place: true,
+                    sites: Sites::default(),
+                };
+                visitor.visit_program(program);
+                visitor.sites
+            };
+            if sites.is_empty() {
+                return false;
+            }
+            let mut rewriter = PipelineRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                sites,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+enum CompoundOp {
+    Binary(BinaryOperator),
+    Logical(LogicalOperator),
+}
+
+/// The compound operators this pass rewrites — narrower than the shared
+/// helper, which also covers bitwise and shift forms the text path leaves
+/// alone. `None` covers plain `=` as well as anything unsupported; the
+/// site map decided eligibility already, so both are safe here.
+fn compound_op(op: AssignmentOperator) -> Option<CompoundOp> {
+    Some(match op {
+        AssignmentOperator::Addition => CompoundOp::Binary(BinaryOperator::Addition),
+        AssignmentOperator::Subtraction => CompoundOp::Binary(BinaryOperator::Subtraction),
+        AssignmentOperator::Multiplication => CompoundOp::Binary(BinaryOperator::Multiplication),
+        AssignmentOperator::Division => CompoundOp::Binary(BinaryOperator::Division),
+        AssignmentOperator::Remainder => CompoundOp::Binary(BinaryOperator::Remainder),
+        AssignmentOperator::Exponential => CompoundOp::Binary(BinaryOperator::Exponential),
+        AssignmentOperator::LogicalNullish => CompoundOp::Logical(LogicalOperator::Coalesce),
+        AssignmentOperator::LogicalAnd => CompoundOp::Logical(LogicalOperator::And),
+        AssignmentOperator::LogicalOr => CompoundOp::Logical(LogicalOperator::Or),
+        _ => return None,
+    })
+}
+
+struct PipelineRewriter<'a> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    sites: Sites,
+    changed: bool,
+}
+
+impl<'a> PipelineRewriter<'a> {
+    fn state_read(&self, name: &str) -> Expression<'a> {
+        self.b.call("$.get", vec![self.b.id(name)])
+    }
+
+    fn rewrite_read(&mut self, expr: &mut Expression<'a>) {
+        let Expression::Identifier(id) = &*expr else {
+            return;
+        };
+        if !self.sites.reads.contains(&(id.span.start, id.span.end)) {
+            return;
+        }
+        let name = id.name;
+        *expr = self.state_read(name.as_str());
+        self.changed = true;
+    }
+
+    fn rewrite_assignment(&mut self, expr: &mut Expression<'a>) {
+        let (needs_proxy, name, operator) = {
+            let Expression::AssignmentExpression(assign) = &*expr else {
+                return;
+            };
+            let Some(&needs_proxy) = self
+                .sites
+                .assigns
+                .get(&(assign.span.start, assign.span.end))
+            else {
+                return;
+            };
+            let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left else {
+                return;
+            };
+            (needs_proxy, id.name, assign.operator)
+        };
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        let Expression::AssignmentExpression(assign) = taken else {
+            unreachable!("checked above")
+        };
+        let right = assign.unbox().right;
+        let value = match compound_op(operator) {
+            None => right,
+            Some(CompoundOp::Binary(op)) => {
+                self.b.binary(op, self.state_read(name.as_str()), right)
+            }
+            Some(CompoundOp::Logical(op)) => {
+                self.b.logical(op, self.state_read(name.as_str()), right)
+            }
+        };
+        let mut args = vec![self.b.id(name.as_str()), value];
+        if needs_proxy {
+            args.push(self.b.bool(true));
+        }
+        *expr = self.b.call("$.set", args);
+        self.changed = true;
+    }
+
+    fn rewrite_update(&mut self, expr: &mut Expression<'a>) {
+        let (name, prefix, decrement) = {
+            let Expression::UpdateExpression(update) = &*expr else {
+                return;
+            };
+            if !self
+                .sites
+                .updates
+                .contains(&(update.span.start, update.span.end))
+            {
+                return;
+            }
+            let SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &update.argument else {
+                return;
+            };
+            (
+                id.name,
+                update.prefix,
+                update.operator == UpdateOperator::Decrement,
+            )
+        };
+
+        let callee = if prefix { "$.update_pre" } else { "$.update" };
+        let mut args = vec![self.b.id(name.as_str())];
+        if decrement {
+            args.push(
+                self.b
+                    .unary(UnaryOperator::UnaryNegation, self.b.number(1.0)),
+            );
+        }
+        *expr = self.b.call(callee, args);
+        self.changed = true;
+    }
+}
+
+impl<'a> oxc_ast_visit::VisitMut<'a> for PipelineRewriter<'a> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        match &*expr {
+            Expression::Identifier(_) => self.rewrite_read(expr),
+            Expression::AssignmentExpression(_) => self.rewrite_assignment(expr),
+            Expression::UpdateExpression(_) => self.rewrite_update(expr),
+            _ => {}
+        }
+    }
+
+    fn visit_object_property(&mut self, prop: &mut ObjectProperty<'a>) {
+        oxc_ast_visit::walk_mut::walk_object_property(self, prop);
+
+        if !self
+            .sites
+            .shorthands
+            .contains(&(prop.span.start, prop.span.end))
+        {
+            return;
+        }
+        let PropertyKey::StaticIdentifier(key) = &prop.key else {
+            return;
+        };
+        let name = key.name;
+        // esrap re-derives shorthand from key/value identity, so the value
+        // replacement is what expands the property.
+        prop.shorthand = false;
+        prop.value = self.state_read(name.as_str());
+        self.changed = true;
     }
 }

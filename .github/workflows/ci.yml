@@ -62,6 +62,36 @@ jobs:
         working-directory: apps/playground
         run: pnpm install --frozen-lockfile --lockfile-only
 
+  lint-types-lock:
+    name: Lint-types lockfile
+    # `crates/rsvelte_lint_types` is its own Cargo workspace, so nothing in the
+    # root workspace re-resolves its lock and any in-repo crate version bump
+    # staleifies it silently. The only job that consumes it (type-aware-lint,
+    # `--locked`) is path-filtered to the lint crates, so the breakage lands on
+    # an unrelated later PR. Resolve-only — no compilation, no target dir.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Checkout corsa-bind submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/corsa-bind
+
+      - uses: ./.github/actions/setup-rust
+
+      # Read-only reuse of the type-aware-lint workspace cache for ~/.cargo/git
+      # (the oxc patch source); a miss only costs a fetch.
+      - name: Restore cargo registry + git cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: crates/rsvelte_lint_types
+          save-if: 'false'
+
+      - name: Check rsvelte_lint_types lockfile is in sync
+        run: node scripts/ci/check-lint-types-lock.mjs --require-resolve
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest

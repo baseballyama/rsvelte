@@ -450,7 +450,16 @@ pub(super) fn push_bare_expression(
             // keeps the expanded-arg spacing: `fn( a, b )`.
             collapsed
         } else {
-            formatted
+            // A block body (e.g. `() => { stmt; }`) always prints multi-line
+            // regardless of width, and `removeLines` can't collapse real statements
+            // onto one line either — it stays broken, but nested at the header's
+            // own depth rather than OXC's column-0 output.
+            let cont_indent = if options.js.indent_style.is_tab() {
+                "\t".repeat(depth)
+            } else {
+                " ".repeat(depth * indent_width)
+            };
+            crate::reindent::reindent(&formatted, &cont_indent, true)
         }
     } else {
         formatted

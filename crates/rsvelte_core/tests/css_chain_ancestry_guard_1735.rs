@@ -117,17 +117,34 @@ fn no_snippet_ancestor_chain_still_evaluated() {
     assert_pruned(&pruned);
 }
 
-/// Known limitation (issue #1735): the official compiler prunes this rule
-/// because the only render site of the `.a` pair is `<section>`, not `.foo`.
-/// rsvelte's `dom_structure` has no `{@render}`-site model, so the prune check
-/// stays conservative and keeps the rule. This is a pre-existing over-keep, not
-/// a regression from the `Chain` resolution — the same output is produced with
-/// the `Chain` path disabled entirely.
+/// The only render site of the `.a` pair is `<section>`, not `.foo`, so the
+/// ancestor constraint can never hold and the rule is pruned.
 #[test]
-fn snippet_rendered_under_mismatched_ancestor_over_kept() {
+fn snippet_rendered_under_mismatched_ancestor_pruned() {
     let out = css("<div class=\"foo\"><span>irrelevant</span></div>\n\
          {#snippet pair()}\n  <div class=\"a\"></div><div class=\"a\"></div>\n{/snippet}\n\
          <section>\n  {@render pair()}\n</section>\n\
          <style>.foo > .a { & + & { color: red; } }</style>");
+    assert_pruned(&out);
+}
+
+/// The same mismatch without any `&`/sibling chain: a lone snippet-declared
+/// `.a` rendered under `<section>` cannot satisfy `.foo > .a`.
+#[test]
+fn snippet_render_site_ancestry_simple_chain_pruned() {
+    let out = css("<div class=\"foo\"><span>irrelevant</span></div>\n\
+         {#snippet one()}\n  <div class=\"a\"></div>\n{/snippet}\n\
+         <section>\n  {@render one()}\n</section>\n\
+         <style>.foo > .a { color: red; }</style>");
+    assert_pruned(&out);
+}
+
+/// …but when a render site *is* under `.foo`, the union of sites keeps it.
+#[test]
+fn snippet_render_site_union_keeps_matching_site() {
+    let out = css("<div class=\"foo\">{@render one()}</div>\n\
+         {#snippet one()}\n  <div class=\"a\"></div>\n{/snippet}\n\
+         <section>\n  {@render one()}\n</section>\n\
+         <style>.foo > .a { color: red; }</style>");
     assert_kept(&out);
 }

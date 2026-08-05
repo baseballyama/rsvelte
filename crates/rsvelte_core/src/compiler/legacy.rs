@@ -127,7 +127,7 @@ impl Utf8ToUtf16 {
     /// (column measured from the line start). The precomputed per-byte table +
     /// binary search over line starts make this O(log lines), so converting many
     /// warning positions costs O(warnings) rather than O(sum of byte offsets).
-    pub(crate) fn position(&self, byte_offset: usize) -> (usize, usize, usize) {
+    pub fn position(&self, byte_offset: usize) -> (usize, usize, usize) {
         let character = self.convert(byte_offset);
         // 1-based line = number of line starts at or before the offset; the
         // first entry is 0, so this is always >= 1.

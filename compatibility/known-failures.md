@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 306 entries)
+## Client dev (`known-failures.client-dev.json`, 91 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -58,8 +58,41 @@ reason. CSS is compared for this target too, and is clean: 0 css-mismatches.
 The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
 #2029, #2030, #2039, #2040, and the #2021 series) took it to 896, #2116
 (legacy instance-script instrumentation) to 639, #2090 (module-script
-`await` instrumentation) to 427, and #2028 (`console.*` wrapping) to 306 — all
-with no regression on `client` or `server`, both of which are empty.
+`await` instrumentation) to 427, #2028 (`console.*` wrapping) to 306, #2027
+(ownership validation on `bind:` member mutations) to 284, #2231 (the same
+validation on member assignments inside `$effect`) to 281, and the legacy
+each-block `bind:` accessor shape (named `function get()` / `function
+set($$value)` instead of arrows) to 234, the residual `$.tag` tail
+(uninitialized legacy state without a trailing semicolon) to 224, and #2089 (the
+same ownership validation on assignments and update expressions written in
+template expressions, which are converted through the typed `JsNode` path) to
+203, and the legacy half of the same validation (`prop_mutation_vars` was
+gated on `analysis.runes`, so no `export let` prop member mutation in an
+instance script was ever wrapped) to 187 — all with no regression on `client`
+or `server`, both of which are empty. Making the Phase-3 in-place path the one
+that ships took it to 186: the text path dropped the `;` after a state
+assignment that an `await` followed, so the two ran together into a call chain.
+The dev eager read of a snippet parameter that carries a default value
+(`{#snippet item(id = expr)}` — the plain-identifier parameter took a code path
+that skipped the `$.get(id);` upstream emits so `Cannot access x before
+initialization` still throws) took it to 180. The `bind:this={obj.foo}` setter
+took it to 133: upstream builds that setter by visiting a synthesized
+`obj.foo = $$value` assignment, so it reaches `validate_mutation()`
+(`shared/utils.js:300`), whereas rsvelte built it directly and so emitted
+neither the wrapper nor the preamble. Eight of the 47 cleared entries are that
+fix; the rest were already passing and had simply not been re-measured since the
+PRs that fixed them.
+
+Seven more dev fixes took it to 91: arrow-only event-handler naming
+(`shared/events.js` names a handler only when it is an
+`ArrowFunctionExpression`, so a bubble handler no longer burns a
+`scope.generate()` slot), the `$.tag` label for a hand-written accessor over a
+private field, `state.filename` (`analysis.filename` held only the basename, so
+every dev source location was short), the `;` a wrapped whole-statement `await`
+needs before the statement ASI used to separate, the quote style of the
+`console.*` wrap's method name, the prop-mutation locator consuming a match
+written inside a comment or a string, and the comments leading a `$:` statement
+that has a surviving successor.
 
 ### How the counts below are derived
 
@@ -75,16 +108,43 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| ownership mutation validation | 105 | 2 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
-| `$.tag()` / `$.tag_proxy()` | 24 | 0 | `visitors/VariableDeclaration.js` | #2021 |
+| `$.assign` / `$.assign_async` | 24 | 2 | `visitors/AssignmentExpression.js` | #2064 |
+| signal read/write (`$.get` / `$.set` / `$.update`) | 7 | 0 | `visitors/shared/utils.js` | #2064 |
 | equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
+| ownership mutation validation | 2 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
+| `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-123 entries are attributed to a cluster; the remaining **183** show no
-difference in any dev helper and are the formatting / long-tail residue tracked
-in #2064 (JSDoc dropped, the legacy `bind:` `function get()/set()` shape,
-`$.assign`, `$$css`).
+The ownership row splits into two halves: entries missing the
+`$.create_ownership_validator($$props)` preamble entirely, and entries that have
+it but under-emit call sites. The preamble half is now empty; both survivors
+emit their `$$ownership_validator.binding(...)` calls and are missing exactly one
+`$$ownership_validator.mutation(...)` each.
+
+46 entries are attributed to a cluster; the remaining **45** show no
+difference in any dev helper: 19 are comment placement, 18 are the CSS
+sourcemap `$$css`/`$css` carries in dev, 4 are dev label / path-element text,
+2 are redundant parentheses and 2 are a `$.trace` label's line:column. All are
+tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
+entries of that residue and is fixed: `build_each_block_accessor_parts` now
+hands the element `bind:` path the unthunked getter body plus the setter body,
+so `dev` can emit upstream's named accessors (`BindDirective.js:46-54`). The
+component `bind:` path keeps consuming the same bodies for its object-literal
+`get`/`set` methods.
+
+### What is left of the `$.assign` row
+
+`$.assign(object, 'prop', operator, value, location)` is upstream's dev warning
+for a coerced-away proxy (`AssignmentExpression.js:170-236`): it fires only when
+the assignment's *value* is used (`path.at(-1) !== 'ExpressionStatement'`), the
+operator is non-coercive, and the right-hand side is not a known primitive.
+rsvelte emits it from the template paths (`expression_converter`, `attribute`)
+but has no collector on the instance / module script paths, so a `(obj.prop =
+value)` written inside a script — most often inside a `new Promise((resolve) =>
+…)` — stays bare. The location argument is what makes this more than a copy of
+`instance_dev_tail_ast`'s other collectors: it is a position in the *original*
+`.svelte` source, and those passes run over already-settled transform output.
 
 ### What is left of the equality and await rows
 
@@ -114,6 +174,22 @@ template expressions rsvelte constant-folds (`{1 === 1}` → `"true"`), and one 
 `$props()` destructuring default that the runes AST pass emits as generated
 `$.fallback(...)` text and never re-visits. Both are #2064 long-tail.
 
+### What is left of the `$.tag()` row
+
+The #2021 series covered every declaration shape reachable from the legacy and
+runes script passes; the last one was an uninitialized legacy source with no
+trailing semicolon (`let sub` on its own line, which is what a `bind:this`
+target or a stripped TypeScript annotation leaves), whose emitter built the
+`$.mutable_source()` call without the dev label.
+
+The 2 remaining under-emits are both `$.tag_proxy` and neither is a labelling
+gap. One is a `$state(…)` declared *inside a template event handler*, which the
+declarator tag pass never sees because it walks script statements, not template
+expressions. The other is `$state(a === b)`: upstream calls `should_proxy` on
+the **already-visited** initialiser, so the dev-only `$.strict_equals(…)`
+rewrite turns a `BinaryExpression` (never proxied) into a `CallExpression`
+(proxied), and rsvelte decides before that rewrite. Both are #2064 long-tail.
+
 ### What is left of the `console.*` row
 
 The row was 68 under / 73 over: two ad-hoc predicates decided the wrap, and
@@ -128,6 +204,23 @@ component declares that name exactly once. `<script module>`'s `foo` next to the
 instance script's `foo`, and a `$state` `method` next to an `{#each}`-destructured
 `method`, therefore stay conservative. Resolving them needs a scope-carrying
 rewrite of the script path — #2064 long-tail.
+
+### What is left of the ownership row
+
+The 2 remaining under-emits are both `bind:this={prop[expr]}` on an element
+inside an `{#each}`: the setter upstream builds is
+`($$value, j) => $$ownership_validator.mutation(null, ['divs', j], …)`, whose
+path tail is the each-block index *expression*, not a literal member name.
+rsvelte's `bind:this` path wraps only the non-parameterised setter shape, so the
+each-scoped one falls through — #2064 long-tail.
+
+### What is left of the signal read/write row
+
+The 7 under-emits are all a computed path element inside an already-emitted
+`$$ownership_validator.mutation(...)`. Upstream builds that element through the
+binding's own read transform (`transform?.read ? transform.read(left.property) :
+left.property`, `shared/utils.js`), so a slot-let / each-block index arrives as
+`$.get(index)` and a store as `prop()`; rsvelte pushes the bare identifier.
 
 **#1981 is confirmed absent.** The run contains zero
 `$$ownership_validator.binding(` divergences, so the #1989 fix holds across the

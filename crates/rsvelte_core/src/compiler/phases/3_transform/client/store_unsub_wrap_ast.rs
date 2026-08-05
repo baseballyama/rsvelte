@@ -34,6 +34,7 @@ use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
+use oxc_span::Span;
 
 use super::ast_rewrite::{self, Edit};
 
@@ -47,6 +48,17 @@ thread_local! {
 /// Returns `None` when there's nothing to rewrite or the source
 /// fails to parse.
 pub fn transform_store_unsub_wrap_ast(
+    source: &str,
+    state_vars: &[String],
+    store_sub_vars: &[String],
+) -> Option<String> {
+    let spliced = || transform_store_unsub_wrap_spliced(source, state_vars, store_sub_vars);
+    ast_rewrite::dual_run::resolve("store_unsub_wrap_ast:inplace", source, spliced, || {
+        transform_store_unsub_wrap_in_place(source, state_vars, store_sub_vars)
+    })
+}
+
+fn transform_store_unsub_wrap_spliced(
     source: &str,
     state_vars: &[String],
     store_sub_vars: &[String],
@@ -150,6 +162,109 @@ impl<'a, 'ast> Visit<'ast> for StoreUnsubWrapCollector<'a> {
         );
         self.replacements
             .push((call.span.start, call.span.end, rewrite));
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_STORE_UNSUB_WRAP_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_store_unsub_wrap_ast`].
+pub(crate) fn transform_store_unsub_wrap_in_place(
+    source: &str,
+    state_vars: &[String],
+    store_sub_vars: &[String],
+) -> Option<String> {
+    if state_vars.is_empty() || store_sub_vars.is_empty() {
+        return None;
+    }
+    memchr::memmem::find(source.as_bytes(), b"$.set(")?;
+
+    ast_rewrite::with_program_mut(
+        &MODULE_STORE_UNSUB_WRAP_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let mut rewriter = StoreUnsubWrapRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                state_vars,
+                store_sub_vars,
+                skip_set_spans: Vec::new(),
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct StoreUnsubWrapRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    state_vars: &'b [String],
+    store_sub_vars: &'b [String],
+    skip_set_spans: Vec<Span>,
+    changed: bool,
+}
+
+impl<'a, 'b> StoreUnsubWrapRewriter<'a, 'b> {
+    fn note_existing_wrap(&mut self, expr: &Expression<'a>) {
+        if let Expression::CallExpression(call) = expr
+            && call.arguments.len() == 3
+            && StoreUnsubWrapCollector::callee_is_dollar_member(&call.callee, "store_unsub")
+            && let Argument::CallExpression(inner_set) = &call.arguments[0]
+            && StoreUnsubWrapCollector::callee_is_dollar_member(&inner_set.callee, "set")
+            && let Some(Argument::Identifier(arg0)) = inner_set.arguments.first()
+            && self.state_vars.iter().any(|s| s == arg0.name.as_str())
+        {
+            self.skip_set_spans.push(inner_set.span);
+        }
+    }
+
+    /// The `$var` store-sub name for a `$.set` target, when one exists.
+    fn store_sub_of(&self, state_name: &str) -> Option<String> {
+        if !self.state_vars.iter().any(|s| s == state_name) {
+            return None;
+        }
+        let store_sub_name = format!("${}", state_name);
+        self.store_sub_vars
+            .iter()
+            .any(|s| s == &store_sub_name)
+            .then_some(store_sub_name)
+    }
+}
+
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StoreUnsubWrapRewriter<'a, 'b> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        self.note_existing_wrap(expr);
+        // Children first, so a nested `$.set` is wrapped before its enclosing
+        // one — what the splice path's fixed-point loop was reaching for.
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Expression::CallExpression(call) = &*expr else {
+            return;
+        };
+        if self.skip_set_spans.contains(&call.span)
+            || !StoreUnsubWrapCollector::callee_is_dollar_member(&call.callee, "set")
+        {
+            return;
+        }
+        let Some(Argument::Identifier(state_id)) = call.arguments.first() else {
+            return;
+        };
+        let Some(store_sub_name) = self.store_sub_of(state_id.name.as_str()) else {
+            return;
+        };
+
+        let taken = std::mem::replace(expr, self.b.void0());
+        *expr = self.b.call(
+            "$.store_unsub",
+            vec![taken, self.b.string(&store_sub_name), self.b.id("$$stores")],
+        );
+        self.changed = true;
     }
 }
 

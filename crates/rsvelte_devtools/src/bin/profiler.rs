@@ -1,5 +1,23 @@
 //! Development profiler for compiler performance and detailed metrics.
 //!
+//! The per-phase numbers are not the production split. This binary calls
+//! `analyze_component` and `transform_component` directly rather than going
+//! through `Toolchain::prepare` + `PreparedComponent::compile`, which diverges
+//! from the shipped compiler in three ways:
+//!
+//! - the retained script the production path hands over already parsed is not
+//!   threaded through, so a parse the shipped compiler does not perform lands
+//!   in the measurement
+//! - TypeScript removal and `<svelte:options>` merging are never called, so
+//!   that work is missing from the denominator
+//! - arguments such as `include_sourcemap_content` are fixed at values the
+//!   production entry does not use
+//!
+//! So `--phase` and the phase shares in `--output json` cannot support a claim
+//! of the form "parse : analyze : transform = X : Y : Z". Sampling profilers
+//! (samply, Instruments) over this binary are unaffected: those rank hot
+//! functions within one binary and do not assume the path matches production.
+//!
 //! Usage:
 //!
 //! ```text

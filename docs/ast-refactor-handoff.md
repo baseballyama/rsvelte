@@ -55,6 +55,193 @@ esrap 印字は corpus 25.1µs/file、svelte-rs の `oxc_codegen` は 8.1µs/fil
 
 **M0 を飛ばして M1 に入ることは禁止**（§5 の「220 件回帰 ×2」を再演するため）。
 
+### ★ M1 再開（2026-08-02、ユーザー指示）— 保留は解除された ★
+
+以下の「保留中」節は**歴史的経緯**として残す。現状は再開済みで、判断が 3 つ変わっている。
+
+**1. `innermost_only` のネスト解決は設計項目ごと消滅した。** 保留時に「M1 で唯一設計が固まって
+いない、200〜400 行の新規設計が要る」と書いたが、これは**編集収集モデルを維持したまま
+`&mut Program` に載せる**前提での見積りだった。実際の置換は
+
+```rust
+let outer_text = &self.source[expr.span.start as usize..expr.span.end as usize];
+let mutate = format!("$.mutate({}, {})", root_name, outer_text);
+```
+
+= **現在のノードのテキストを丸ごと埋め込む wrap**。だから内側が先に確定している必要があり、
+`innermost_only` + fixed-point で順序を作っていた。in-place では「部分木を move する」だけなので、
+**子を訪問してから親を書き換える（post-order）と合成が自動成立する**。load-bearing 12 本のうち
+legacy_state_member_mutate / prop_assign / state_set_reactive / store_assign / reactive_update の
+5 本で置換の形を実地確認済み。
+
+**2. `skip_assignment_spans` も同じくテキストモデルの副産物。** 既存版は
+`$.mutate(var, <assign>)` の形を検出して内側の代入をスキップすることで、fixed-point の再走査に
+対する冪等性を確保していた。in-place では**この走査で作った wrap を再訪しない**ため、
+**入力に元から存在する wrap の検出だけ**が残る（他パスが先に `$.mutate` を出している場合）。
+
+**3. 置換は常に部分木から作れるとは限らない。** `legacy_state_member_mutate` の
+`invalidate_bodies` は呼び出し元が渡す `FxHashMap<String, String>` の**任意 JS テキスト**で、
+現在のプログラムの部分木ではない。**同じ arena にパースしてから move する**必要がある
+（既存パターン: `js_ast/to_oxc.rs:1176` の `allocator.alloc_str(text)` → `Parser::new(allocator, …)`）。
+このため `with_program_mut` は `&Allocator` も渡す。
+
+#### 移植の形（(2) フェーズ中は本番を切り替えない）
+
+各パスは移植後も **production ではテキスト経路の結果を返す**。`&mut Program` 経路は
+`RSVELTE_AST_DUAL_RUN` 下でのみ走り、`dual_run::compare_pass` が両者を突き合わせる。
+理由: splice 出力は**触っていない領域の元の整形を保つ**のに対し esrap 印字は全体を再整形するため、
+1 本だけ本番切り替えすると中間テキストが変わり下流の `parse_chunk` に波及する。
+**最終フリップだけが不可分**という既存の設計判断と一致する。
+
+`compare_pass` は両側を `normalize`（= `esrap(parse(x))`）に 1 回ずつ通す。esrap の整形が相殺され、
+パスの挙動差だけが残る。**2 経路は適用順序が違う**（collect-then-splice vs post-order in-place）ので、
+順序依存のパスを検出するのがこの比較の役目。**ミスマッチを「順序差だから正当」と説明してはいけない。**
+
+#### 進捗
+
+| | 状態 |
+|---|---|
+| ドライバ `with_program_mut` + `dual_run::compare_pass` | 完了（`fcf59761`） |
+| 1/12 `legacy_state_member_mutate`（443 行・splice 26） | 移植完了（`890dd622`）、dual-run 検証中 |
+| 残り 11 本 | 純 wrap から順に。`state_pipeline`（read-wrap 同時収集）と `state_assigns_combined`（最多 splice 152）は最後 |
+
+着手順は**公式フィクスチャの踏み方**に合わせる。`prop_source_reads` は splice 0 の parse-only なので
+load-bearing 12 本に入らない（flowbite 基準の module_state_runes 先行案も公式で 0 回なので棄却済み）。
+
+---
+
+### （歴史）M1 は保留中（2026-08-01 決定）
+
+**決定**: client の pure-AST 化（M1〜M3）は**保留**。先に esrap 最適化（M4 相当）と analyze の走査融合を
+取り、残ギャップを確定させてから (3) の規模を再交渉する。**中止ではない** — (3) は 1.0x 到達の
+最終必須ピースであり、以下の資産はそのために保全してある。
+
+**理由**（すべて実測）:
+- (3) の実価値は **13〜17µs/file**。対して esrap 最適化は **10〜13µs** で、**効果は同等・リスクとコストは 1 桁低い**
+  （出力不変の内部最適化なので失敗すれば revert するだけ。(3) は 12 本 4,000 行の移植 + 不可分な切り替え）
+- **esrap 27.7µs は単一で最大の未着手項目**。perf-loop の「上位から攻める」に反して後回しにしていた
+- 逆転（svelte-rs 84.9µs 未満）の必須条件は **analyze が svelte-rs の 36.3µs を下回ること**。
+  そこを先に確定させたほうが (3) への投資判断の精度が上がる
+
+**再開条件**: esrap 最適化と analyze 融合の完了後、残ギャップを再測して (3) の規模を再交渉する。
+
+**再開時に最初に解くべき未設計課題**: `innermost_only` のネスト編集解決。現状は「テキストに書き戻して
+再パースする」ことで暗黙に成立しているが、`&mut Program` 化するとその正規化が消える。12 本すべてに
+触る横断変更で 200〜400 行の新規設計が要る。**ここが M1 で唯一設計が固まっていない部分。**
+
+**保全済みの資産**（ブランチ `feat/client-ast-m1`、main 直上）:
+- `RSVELTE_AST_DUAL_RUN` ハーネス（`shared/ast_rewrite.rs`）— パス別の再パース数 / splice 数 /
+  esrap 正規化の冪等性を計測。未設定時はオーバーヘッドゼロ、production 出力は不変
+- 本ドキュメントの計測記録（下記）。**再開する人は計測をやり直す必要がない**
+
+---
+
+### M1 着手時の調査（2026-08-01）— 見積りが下がる方向の発見
+
+M1 を「`server/ast/script.rs` を写経して意味論を移植し直す」と想定していたが、**client 側の意味論は
+すでに AST 形で移植済み**だった。`client/*_ast.rs` は **37 本・13,010 行**あり、**37 本すべてが
+`&str -> Option<String>`**、すなわち `shared/ast_rewrite.rs` の
+「パース → `Visit` で `(start, end, replacement)` を収集 → ソース文字列に `replace_range`」型である。
+
+つまり M1 で作り直すのは**意味論ではなく配管**:
+
+- 現状: 1 パスごとに「script をパース → 編集を収集 → テキストに戻す」。適用パス数だけ
+  **パースとシリアライズを往復**する（`ast_rewrite.rs` のドキュメント自身が
+  「Every `transform_*_ast` pass in this directory follows the same shape」と明記）
+- M1 後: script を **1 回だけ**パースし、37 本の collector を `VisitMut` で **同じ `Program` に対して
+  in-place 適用**、最後に esrap で 1 回印字
+
+これは §4 の「read-wrapping は単一パスでしかできない」とも一致する。既存 collector が持つ判定ロジック
+（例: `state_reads_ast.rs` の 14 行の対応表 — `$.get(count)` 済み / `$.set` の第 1 引数 / property key /
+shorthand / shadow の各ガード）は**そのまま再利用でき、再導出は不要**。
+
+したがって M1 の risk は「意味論の移植ミス」より「**37 本を 1 つの Program に載せ替える際の適用順序**」に
+移る。順序は現在テキストの逐次適用が暗黙に決めているので、**移行時に順序を明示的に固定する**こと。
+
+進め方（更新）:
+1. `ast_rewrite.rs` に `with_program_mut`（`&mut Program` を渡す）を足す。既存の splice 版は残す
+2. パスを 1 本ずつ `&mut Program` 版に移す。**移行中は「まとめて 1 回の切り替え」制約に抵触しない** —
+   各パスは独立で、テキスト経路と AST 経路の出力が同じである限り oracle 差分は 0 のまま
+3. 全パスが `&mut Program` になった時点で、初めて「1 回パース → 全パス適用 → 1 回印字」に配管を繋ぐ。
+   **この最後の 1 手だけが不可分**
+
+#### client の `*_ast.rs` 台帳（37 本 / 13,010 行、2026-08-01 時点）
+
+**呼び出し元でクラスタ化される** — 各クラスタは独立に `&mut Program` 化できる。行数の大きい順:
+
+| クラスタ（呼び出し元） | パス | 合計行 |
+|---|---|---|
+| **class_transforms.rs**（private class field 系） | private_class_assign 753 / private_field_assign 414 / private_member_read_wrap 369 / private_v_suffix 368 / private_read_wrap 349 / private_member_mutate_root 266 / effect_rune 224 | 2,743 |
+| **mod.rs 直下**（instance script 本体） | state_reads 656 / state_pipeline 615 / read_only_props 482 / console_dev 389 / strict_equals 290 / derived_by 159 / local_assign 207 / strip_rune_generics 194 / module_state_runes 117 | 3,109 |
+| **store_transforms.rs** | store_assign 436 / store_member_mutate 381 / store_update 272 | 1,089 |
+| **state_transforms.rs** | prop_assign 331 / prop_member_mutate 497 / store_unsub_wrap 300 | 1,128 |
+| **reactive_transforms.rs** | state_set_reactive 280 / reactive_update 303 / state_member_mutate 328 | 911 |
+| **rune_transforms.rs** | tag_declarator 354 / tag_class_field 641 | 995 |
+| **props_transforms.rs** | prop_source_reads 641 / rest_prop_member_access 262 | 903 |
+| **module_state_runes_ast.rs** | state_call 300 / state_raw_frozen 290 / state_snapshot 176 | 766 |
+| その他 | destructure_transforms 経由 legacy_state_member_mutate 443 / module_dev_tail 179 / ast_state_transform 経由 inspect_rune 194 / 未使用 class_body 59 | 875 |
+
+`transform_instance_script_for_visitors` 本体から直接呼ばれる順序（テキストの逐次適用が現在暗黙に決めている順）:
+`state_assigns_combined` → `state_pipeline` → `prop_source_reads` → `read_only_props` → `console_dev` →
+`strict_equals` → `inspect_rune`。**移行時はこの順序を明示的に固定すること**（§4 の冪等性問題は順序に依存する）。
+
+移行の着手順（独立性が高い＝安全な順）:
+1. **module_state_runes クラスタ**（766 行 / 呼び出し元 1 つ / module script 専用でコンポーネント経路に影響しない）
+2. **class_transforms クラスタ**（2,743 行 / private field は他と名前空間が重ならない）
+3. store / props / reactive / state の各クラスタ
+4. 最後に **mod.rs 直下の 9 本**（`state_reads` を含む＝§4 の本丸）
+
+#### 台帳の更新（2026-08-01 後半）— 実測で 12 本まで絞れた
+
+三つのコーパスで「どのパスが実際に走るか」を計測した（`RSVELTE_AST_DUAL_RUN=1`）。
+
+| コーパス | ファイル | 再パース | splice |
+|---|---|---|---|
+| flowbite（実アプリ・runes） | 1,296 | 120（0.09/file） | 13 |
+| **公式 Svelte フィクスチャ** | 4,459 | 4,470（1.0/file） | **397** |
+| compatibility/pattern-corpus | 79 | 6 | 0 |
+
+**flowbite だけを見て範囲を決めてはいけない。** flowbite は runes のみで legacy `$:` / store /
+props をほぼ踏まないため 3 本しか動かないが、**バイト同一ゲートである公式フィクスチャは 22 本を起動する**。
+
+**parse と splice を区別すること。** parse だけのパスは「変更なし」と判断できればよく、(3) の配管時に
+`None` を返してフォールバックさせられる。**実際に編集を出す 12 本だけが load-bearing**:
+
+```
+state_assigns_combined 152 / prop_assign 83 / state_set_reactive 35
+legacy_state_member_mutate 26 / store_assign 19 / store_unsub_wrap 16
+prop_member_mutate 10 / reactive_update 10 / state_pipeline 8
+store_update 7 / store_member_mutate 7 / private_class_assign 1
+```
+→ 移植対象は **37 本 13,010 行 → 12 本 約 4,000 行**。着手順は公式フィクスチャの踏み方に合わせ
+legacy / props / store クラスタから（flowbite 基準の module_state_runes 先行案は公式で 0 回なので棄却）。
+
+`state_reads_ast` は 844 parses で splice 0。編集が `ast_state_transform` の統合パスに吸収されている
+と見られる。**(3) の設計時に吸収先を確認すること。**
+
+esrap 正規化の冪等性は 3 コーパス通算 410 件の splice 出力すべてで成立（ミスマッチ 0）。
+
+#### (3) の実価値（2026-08-01、マージ済み main・静穏環境で再測）
+
+```
+TOTAL 200.69µs/file        script_text 27.76 / js_codegen 39.55 / template_fragment 37.82
+transform_instance_script_for_visitors  inclusive 30.9µs / self 3.7µs
+Cx::parse_chunk                         inclusive  7.5µs（うち script 本体 79.8% ≈ 6.0µs）
+```
+
+**(3) が消せるのは 13〜17µs**（parse_chunk の script 分 6.0 + to_oxc の script 分 3〜4 +
+テキスト生成/splice 往復 3〜5 + script-text 自時間の文字列処理 1〜2）。
+
+**(3) では消えない**: AST 変換本体（rune lowering・read wrapping・代入 lowering）は表現が変わるだけで
+仕事量は同じ。esrap 印字 27.7µs は M4、Phase1/2 のパース 8.1µs は正当なパース。
+
+**追加リスク**: `innermost_only` のネスト編集解決は現在「テキストに書き戻して再パース」で成立している。
+AST 化するとその正規化が消えるため自前で持つ必要があり、12 本すべてに触る横断変更で 200〜400 行の
+新規設計を要する。**M1 で最も設計が固まっていない部分。**
+
+
+
+
 撤退条件を暦日でなく**作業セッション数**で数えるのは、この作業がエージェントのセッション単位で進み、
 実時間の経過が進捗と対応しないため。1 セッション = oracle 差分を 1 回以上測って記録した単位とする。
 

@@ -1,0 +1,17 @@
+# Own workspace: this crate only ever builds for `wasm32-wasip2`, so it must
+# stay out of the root workspace's host-targeted build/clippy/test runs.
+[workspace]
+
+[package]
+name = "zed_rsvelte"
+version = "0.0.1"
+edition = "2024"
+publish = false
+license = "MIT"
+
+[lib]
+path = "src/rsvelte.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "0.7.0"

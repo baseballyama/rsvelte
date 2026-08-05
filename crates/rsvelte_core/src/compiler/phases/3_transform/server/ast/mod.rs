@@ -1462,7 +1462,16 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
     }
 
     let mut program = b.program(program_body);
+    // `main`'s `record_esrap_server` timed the bare `rsvelte_esrap::print` that
+    // used to stand here. Comment preservation replaces that call, so the timer
+    // moves onto its replacement rather than being dropped: the site is the
+    // same one, and leaving it untimed would silently empty a bucket that the
+    // esrap breakdown still reports.
+    let _t = crate::compiler::phases::phase3_transform::profile::timer_start();
     let code = comments::print_with_comments(&mut program, &state.comments, allocator);
+    crate::compiler::phases::phase3_transform::profile::record_esrap_server(
+        crate::compiler::phases::phase3_transform::profile::timer_elapsed(_t),
+    );
     comment_stats::dump();
     Some(code)
 }

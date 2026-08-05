@@ -11,6 +11,7 @@ mod common;
 // small CI runners. `common::test_thread_pool()` provides a bounded pool ready
 // for use once the hypothesis is verified locally.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -41,7 +42,6 @@ struct Position {
 
 /// Expected warning from warnings.json.
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct ExpectedWarning {
     code: String,
     message: String,
@@ -148,7 +148,14 @@ fn load_validator_fixture(sample_dir: &Path) -> Result<ValidatorFixture, SkipRea
     let expected_warnings: Vec<ExpectedWarning> = if warnings_path.exists() {
         let content = read_fixture_file(&warnings_path)
             .ok_or(SkipReason::MissingInput("readable warnings.json"))?;
-        serde_json::from_str(&content).unwrap_or_default()
+        // A malformed warnings.json must fail loudly, not silently become "expect
+        // zero warnings" — that would make the fixture pass trivially either way.
+        serde_json::from_str(&content).unwrap_or_else(|e| {
+            panic!(
+                "{}: warnings.json is not valid JSON: {e}",
+                warnings_path.display()
+            )
+        })
     } else {
         Vec::new()
     };
@@ -179,6 +186,27 @@ struct TestResult {
     skipped: bool,
     warnings_matched: usize,
     warnings_expected: usize,
+}
+
+/// Mirrors upstream `test.ts`'s ordered `assert.deepEqual` over
+/// `{code, message, start, end}` warning arrays.
+fn warnings_match(
+    actual: &[rsvelte_core::compiler::Warning],
+    expected: &[ExpectedWarning],
+) -> bool {
+    if actual.len() != expected.len() {
+        return false;
+    }
+    actual.iter().zip(expected.iter()).all(|(a, e)| {
+        a.code == e.code
+            && common::strip_error_link(&a.message) == e.message
+            && a.start
+                .as_ref()
+                .is_some_and(|p| p.line as u32 == e.start.line && p.column as u32 == e.start.column)
+            && a.end
+                .as_ref()
+                .is_some_and(|p| p.line as u32 == e.end.line && p.column as u32 == e.end.column)
+    })
 }
 
 /// Run a single validator test.
@@ -238,29 +266,46 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                         };
                     }
 
-                    // Check warnings
-                    // For now, we just check if the expected warnings count matches
-                    // TODO: Implement proper warning comparison with code, message, and position
-                    let actual_warnings_count = result.warnings.len();
+                    // Check warnings: upstream compares the full ordered array
+                    // (code, stripped message, start/end position), not just a count.
                     let expected_warnings_count = fixture.expected_warnings.len();
 
-                    if actual_warnings_count == expected_warnings_count {
+                    if warnings_match(&result.warnings, &fixture.expected_warnings) {
                         TestResult {
                             name: fixture.name.clone(),
                             passed: true,
                             error_message: None,
                             skipped: false,
-                            warnings_matched: actual_warnings_count,
+                            warnings_matched: result.warnings.len(),
                             warnings_expected: expected_warnings_count,
                         }
                     } else {
-                        // Debug: print actual warnings for failing tests
                         let mut detail = format!(
-                            "Expected {} warnings, got {}. Actual warnings:\n",
-                            expected_warnings_count, actual_warnings_count
+                            "Expected {} warnings, got {}.\n",
+                            expected_warnings_count,
+                            result.warnings.len()
                         );
                         for w in &result.warnings {
-                            let _ = writeln!(detail, "  [{}] {}", w.code, w.message);
+                            let _ = writeln!(
+                                detail,
+                                "  actual:   [{}] {} @ {:?}..{:?}",
+                                w.code,
+                                common::strip_error_link(&w.message),
+                                w.start.as_ref().map(|p| (p.line, p.column)),
+                                w.end.as_ref().map(|p| (p.line, p.column)),
+                            );
+                        }
+                        for w in &fixture.expected_warnings {
+                            let _ = writeln!(
+                                detail,
+                                "  expected: [{}] {} @ {}:{}..{}:{}",
+                                w.code,
+                                w.message,
+                                w.start.line,
+                                w.start.column,
+                                w.end.line,
+                                w.end.column,
+                            );
                         }
                         TestResult {
                             name: fixture.name.clone(),
@@ -275,7 +320,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                 Err(e) => {
                     // Check if we expected an error
                     if let Some(expected_error) = &fixture.expected_error {
-                        let verdict = check_validator_error(expected_error, &e);
+                        let verdict = check_validator_error(expected_error, &e, &input);
                         return match validator_error_result(&fixture.name, verdict) {
                             Ok(()) => TestResult {
                                 name: fixture.name.clone(),
@@ -370,8 +415,59 @@ fn test_validator() {
         );
     }
 
-    // Assert that all validator tests pass
-    assert_eq!(failed, 0, "{} validator tests failed", failed);
+    // Shrink-only ratchet: warnings/errors are now compared by full
+    // upstream-parity shape (code/message/span), not just count, so any
+    // divergence must be either fixed or justified here rather than
+    // silently accepted by loosening the assertion above.
+    let known: Vec<String> = load_ratchet("validator-known-failures.json");
+    let known_set: BTreeSet<&str> = known.iter().map(String::as_str).collect();
+    let failing: BTreeSet<&str> = results
+        .iter()
+        .filter(|r| !r.passed && !r.skipped)
+        .map(|r| r.name.as_str())
+        .collect();
+
+    let regressions: Vec<&str> = failing.difference(&known_set).copied().collect();
+    let fixed: Vec<&str> = known_set.difference(&failing).copied().collect();
+
+    if !fixed.is_empty() {
+        println!(
+            "\n{} ratchet entries now pass — shrink compatibility/validator-known-failures.json \
+             (and compatibility/validator-known-failures.md):",
+            fixed.len()
+        );
+        for id in &fixed {
+            println!("  {id}");
+        }
+    }
+
+    if !regressions.is_empty() {
+        println!(
+            "\n{} validator failures not in compatibility/validator-known-failures.json:",
+            regressions.len()
+        );
+        for id in &regressions {
+            println!("  {id}");
+        }
+    }
+
+    assert!(
+        regressions.is_empty(),
+        "{} validator regressions (not in compatibility/validator-known-failures.json)",
+        regressions.len()
+    );
+}
+
+fn compatibility_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../compatibility")
+}
+
+fn load_ratchet(file: &str) -> Vec<String> {
+    let path = compatibility_dir().join(file);
+    let text = fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
+    serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("failed to parse {}: {e}", path.display()))
 }
 
 /// List all available validator fixtures.

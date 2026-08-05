@@ -69,10 +69,7 @@ fn main() {
         bytes as f64 / 1e6
     );
 
-    let opts = rsvelte_esrap::PrintOptions {
-        keep_empty_statements: true,
-        ..Default::default()
-    };
+    let opts = rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
 
     // Sampler target: loop until the deadline so a CPU profile attributes
     // essentially everything to the printer.
@@ -80,7 +77,7 @@ fn main() {
         let deadline = Instant::now() + Duration::from_secs(secs as u64);
         while Instant::now() < deadline {
             for (program, code) in programs.iter().zip(&generated) {
-                std::hint::black_box(rsvelte_esrap::print_with_map_opts(program, code, &opts));
+                std::hint::black_box(rsvelte_esrap::print_with_map(program, code, &opts));
             }
         }
         return;
@@ -91,7 +88,7 @@ fn main() {
     for _ in 0..reps {
         let start = Instant::now();
         for (program, code) in programs.iter().zip(&generated) {
-            std::hint::black_box(rsvelte_esrap::print_with_map_opts(program, code, &opts));
+            std::hint::black_box(rsvelte_esrap::print_with_map(program, code, &opts));
         }
         with_map.push(start.elapsed());
 
@@ -103,7 +100,7 @@ fn main() {
     }
 
     println!("# rsvelte_esrap print — {reps} interleaved passes");
-    report("print_with_map_opts", &mut with_map, bytes);
+    report("print_with_map", &mut with_map, bytes);
     report("print_with", &mut no_map, bytes);
 }
 

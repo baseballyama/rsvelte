@@ -5,8 +5,8 @@ use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
-use crate::svelte2tsx::template::utils::expr::get_expression_text;
-use crate::svelte2tsx::template::walk::process_fragment_inplace;
+use crate::svelte2tsx::template::nodes::special_element::process_fragment_trimmed;
+use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 /// Hoist `{#snippet}` blocks to the top of their containing block/element.
 ///
@@ -98,6 +98,30 @@ pub(crate) fn handle_snippet_block_as_component_prop(
     handle_snippet_block_inner(block, source, options, str, counter, true, depth);
 }
 
+/// Upstream reaches the standalone form through `transform()`, which turns the
+/// gap in front of the moved name into one space and then collapses whatever is
+/// left before `}` into a second one — so a snippet whose header ends flush
+/// against `}` gets a single space and every other shape gets two.
+fn opener_pad(block: &SnippetBlock, source: &str) -> &'static str {
+    let anchor = block
+        .parameters
+        .last()
+        .or(Some(&block.expression))
+        .and_then(get_expression_range)
+        .map(|(_, end)| end as usize);
+    let Some(mut kept_end) = anchor else {
+        return " ";
+    };
+    let Some(rel) = source.get(kept_end..).and_then(|rest| rest.find('}')) else {
+        return " ";
+    };
+    let close = kept_end + rel + 1;
+    if kept_end < close - 1 {
+        kept_end += 1;
+    }
+    if close - kept_end >= 2 { "  " } else { " " }
+}
+
 pub(crate) fn handle_snippet_block_inner(
     block: &SnippetBlock,
     source: &str,
@@ -160,20 +184,19 @@ pub(crate) fn handle_snippet_block_inner(
             name_text, params_text
         )
     } else if use_ts_syntax {
-        // Single leading space (the overwrite replaces `{#snippet ` whose leading
-        // `{` becomes the space) — matches official; oxfmt normalises it for
-        // valid output, but a top-level-await component is emitted raw.
         format!(
-            " const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
-            name_text, type_params_str, params_text
+            "{}const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            opener_pad(block, source),
+            name_text,
+            type_params_str,
+            params_text
         )
     } else {
-        // JSDoc emission uses one fewer leading space (the `/** @returns */`
-        // marker takes the visual slot otherwise occupied by the TS `:` and
-        // its surrounding `/*Ωignore*/` comments).
         format!(
-            " const {}/*\u{03A9}ignore_position\u{03A9}*/ = /** @returns {{ReturnType<import('svelte').Snippet>}} */ ({}) => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
-            name_text, params_text
+            "{}const {}/*\u{03A9}ignore_position\u{03A9}*/ = /** @returns {{ReturnType<import('svelte').Snippet>}} */ ({}) => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            opener_pad(block, source),
+            name_text,
+            params_text
         )
     };
     let closing = if as_component_prop {
@@ -191,7 +214,7 @@ pub(crate) fn handle_snippet_block_inner(
         // enclosing component's slot scope, so a `let:`/`slot=` inside the body
         // is a plain attribute rather than a `$$slot_def` consumer.
         let saved_slot = counter.slot_inst.take();
-        process_fragment_inplace(&block.body, source, options, str, counter, 0);
+        process_fragment_trimmed(&block.body.nodes, source, options, str, counter, 0);
         counter.slot_inst = saved_slot;
 
         let body_end = block.body.nodes.last().unwrap().end();

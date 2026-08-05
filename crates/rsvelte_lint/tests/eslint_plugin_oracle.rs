@@ -69,6 +69,10 @@ const NO_FIXTURE_RULES: &[&str] = &[
     // upstream eslint-plugin-svelte fixture dir. Covered by the inline
     // `crate::rules::no_companion_module` unit tests.
     "svelte/no-companion-module-shadow",
+    // `no-unused-vars` is an rsvelte-only rule (issue #1732): eslint-plugin-svelte
+    // has no such rule (upstream defers to ESLint core, which cannot see template
+    // reads). Covered by the inline `crate::rules::no_unused_vars` unit tests.
+    "svelte/no-unused-vars",
 ];
 
 /// Meta-rules whose findings come from the whole-component compile / source-scan

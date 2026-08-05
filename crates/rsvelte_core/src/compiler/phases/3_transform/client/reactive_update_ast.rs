@@ -37,6 +37,7 @@ use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
+use oxc_syntax::operator::UnaryOperator;
 use oxc_syntax::operator::UpdateOperator;
 
 use super::ast_rewrite::{self, Edit};
@@ -49,6 +50,20 @@ thread_local! {
 /// reactive-state variables. Returns `None` when there's nothing
 /// to rewrite or the source fails to parse.
 pub fn transform_reactive_update_ast(
+    source: &str,
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> Option<String> {
+    let spliced = || {
+        transform_reactive_update_spliced(source, prop_vars, state_vars, non_reactive_state_vars)
+    };
+    ast_rewrite::dual_run::resolve("reactive_update_ast:inplace", source, spliced, || {
+        transform_reactive_update_in_place(source, prop_vars, state_vars, non_reactive_state_vars)
+    })
+}
+
+fn transform_reactive_update_spliced(
     source: &str,
     prop_vars: &[String],
     state_vars: &[String],
@@ -97,17 +112,20 @@ enum Kind {
     State,
 }
 
-impl<'a> ReactiveUpdateCollector<'a> {
-    fn classify(&self, name: &str) -> Option<Kind> {
-        if self.prop_vars.iter().any(|p| p == name) {
-            Some(Kind::Prop)
-        } else if self.state_vars.iter().any(|s| s == name)
-            && !self.non_reactive_state_vars.iter().any(|s| s == name)
-        {
-            Some(Kind::State)
-        } else {
-            None
-        }
+fn classify(
+    name: &str,
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> Option<Kind> {
+    if prop_vars.iter().any(|p| p == name) {
+        Some(Kind::Prop)
+    } else if state_vars.iter().any(|s| s == name)
+        && !non_reactive_state_vars.iter().any(|s| s == name)
+    {
+        Some(Kind::State)
+    } else {
+        None
     }
 }
 
@@ -121,7 +139,12 @@ impl<'a, 'ast> Visit<'ast> for ReactiveUpdateCollector<'a> {
             return;
         };
         let name = id.name.as_str();
-        let Some(kind) = self.classify(name) else {
+        let Some(kind) = classify(
+            name,
+            self.prop_vars,
+            self.state_vars,
+            self.non_reactive_state_vars,
+        ) else {
             return;
         };
 
@@ -259,7 +282,7 @@ mod tests {
         let out =
             transform_reactive_update_ast("a++; b--; ++c;", &ssv(&["a"]), &ssv(&["b", "c"]), &[])
                 .unwrap();
-        assert_eq!(out, "$.update_prop(a); $.update(b, -1); $.update_pre(c);");
+        assert_eq!(out, "$.update_prop(a);\n$.update(b, -1);\n$.update_pre(c);");
     }
 
     #[test]
@@ -291,7 +314,10 @@ mod tests {
         .unwrap();
         // The loop counter `i` is not a prop/state var → untouched.
         // `x++` in the body → rewritten.
-        assert_eq!(out, "for (let i = 0; i < 10; i++) { $.update_prop(x); }");
+        assert_eq!(
+            out,
+            "for (let i = 0; i < 10; i++) {\n\t$.update_prop(x);\n}"
+        );
     }
 
     #[test]
@@ -299,5 +325,96 @@ mod tests {
         let out = transform_reactive_update_ast("foo(x++, y--);", &ssv(&["x"]), &ssv(&["y"]), &[])
             .unwrap();
         assert_eq!(out, "foo($.update_prop(x), $.update(y, -1));");
+    }
+}
+
+// ── in-place port ──────────────────────────────────────────────────────
+
+thread_local! {
+    static MODULE_REACTIVE_UPDATE_IN_PLACE_ALLOC: RefCell<Allocator> =
+        RefCell::new(Allocator::default());
+}
+
+/// In-place equivalent of [`transform_reactive_update_ast`].
+pub(crate) fn transform_reactive_update_in_place(
+    source: &str,
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> Option<String> {
+    if prop_vars.is_empty() && state_vars.is_empty() {
+        return None;
+    }
+    let bytes = source.as_bytes();
+    if memchr::memmem::find(bytes, b"++").is_none() && memchr::memmem::find(bytes, b"--").is_none()
+    {
+        return None;
+    }
+
+    ast_rewrite::with_program_mut(
+        &MODULE_REACTIVE_UPDATE_IN_PLACE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |allocator, program| {
+            let mut rewriter = ReactiveUpdateRewriter {
+                b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                prop_vars,
+                state_vars,
+                non_reactive_state_vars,
+                changed: false,
+            };
+            oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            rewriter.changed
+        },
+    )
+}
+
+struct ReactiveUpdateRewriter<'a, 'b> {
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    prop_vars: &'b [String],
+    state_vars: &'b [String],
+    non_reactive_state_vars: &'b [String],
+    changed: bool,
+}
+
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for ReactiveUpdateRewriter<'a, 'b> {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        let Expression::UpdateExpression(update) = &*expr else {
+            return;
+        };
+        let SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &update.argument else {
+            return;
+        };
+        let name = id.name.as_str();
+        let Some(kind) = classify(
+            name,
+            self.prop_vars,
+            self.state_vars,
+            self.non_reactive_state_vars,
+        ) else {
+            return;
+        };
+        let name = name.to_string();
+
+        let callee = match (kind, update.prefix) {
+            (Kind::Prop, false) => "$.update_prop",
+            (Kind::Prop, true) => "$.update_pre_prop",
+            (Kind::State, false) => "$.update",
+            (Kind::State, true) => "$.update_pre",
+        };
+        let decrement = matches!(update.operator, UpdateOperator::Decrement);
+
+        let mut args = vec![self.b.id(name.as_str())];
+        if decrement {
+            args.push(
+                self.b
+                    .unary(UnaryOperator::UnaryNegation, self.b.number(1.0)),
+            );
+        }
+        *expr = self.b.call(callee, args);
+        self.changed = true;
     }
 }

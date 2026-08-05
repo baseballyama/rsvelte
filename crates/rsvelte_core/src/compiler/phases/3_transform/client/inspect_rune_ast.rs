@@ -187,7 +187,7 @@ mod tests {
             "default inspector was rewritten: {out}"
         );
         assert!(
-            out.contains(r#"console.log(...$.log_if_contains_state("log", b));"#),
+            out.contains(r#"console.log(...$.log_if_contains_state('log', b));"#),
             "the user's own console call should still be wrapped: {out}"
         );
     }

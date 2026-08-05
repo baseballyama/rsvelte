@@ -1,0 +1,15 @@
+id = "rsvelte"
+name = "rsvelte"
+description = "Svelte support powered by the rsvelte language server (Rust formatter + linter)"
+version = "0.0.1"
+schema_version = 1
+authors = ["baseballyama <baseballyama1992@gmail.com>"]
+repository = "https://github.com/baseballyama/rsvelte"
+
+[language_servers.rsvelte-language-server]
+name = "rsvelte Language Server"
+language = "Svelte"
+
+[grammars.svelte]
+repository = "https://github.com/tree-sitter-grammars/tree-sitter-svelte"
+commit = "3f06f705410683adb17d146b5eca28c62fe81ba6"

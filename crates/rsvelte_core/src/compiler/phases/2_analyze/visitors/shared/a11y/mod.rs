@@ -231,8 +231,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                                 || is_presentation_role(current_role))
                         {
                             warnings.push(w::a11y_no_interactive_element_to_noninteractive_role(
-                                current_role,
                                 &node.name,
+                                current_role,
                             ));
                         }
 
@@ -248,16 +248,16 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                                 if !exceptions.contains(&current_role) {
                                     warnings.push(
                                         w::a11y_no_noninteractive_element_to_interactive_role(
-                                            current_role,
                                             &node.name,
+                                            current_role,
                                         ),
                                     );
                                 }
                             } else {
                                 warnings.push(
                                     w::a11y_no_noninteractive_element_to_interactive_role(
-                                        current_role,
                                         &node.name,
+                                        current_role,
                                     ),
                                 );
                             }
@@ -949,24 +949,18 @@ fn warn_missing_attribute(
     context: Option<&str>,
 ) {
     let name = context.unwrap_or(element_name);
-    let article = if attributes.len() == 1 {
-        if attributes[0] == "href" || REGEX_STARTS_WITH_VOWEL.is_match(attributes[0]) {
-            "an"
-        } else {
-            "a"
-        }
+    let article = if attributes[0] == "href" || REGEX_STARTS_WITH_VOWEL.is_match(attributes[0]) {
+        "an"
     } else {
-        ""
+        "a"
     };
 
     let sequence = if attributes.len() == 1 {
         attributes[0].to_string()
-    } else if attributes.len() == 2 {
-        format!("{} or {}", attributes[0], attributes[1])
     } else {
         let last = attributes.last().unwrap();
         let rest = &attributes[..attributes.len() - 1];
-        format!("{}, or {}", rest.join(", "), last)
+        format!("{} or {}", rest.join(", "), last)
     };
 
     warnings.push(w::a11y_missing_attribute(name, article, &sequence));
@@ -977,6 +971,12 @@ fn warn_missing_attribute(
 /// - ["a"] -> "a"
 /// - ["a", "b"] -> "a or b"
 /// - ["a", "b", "c"] -> "a, b or c"
+fn quoted_value_list(values: &[&str]) -> String {
+    let quoted: Vec<String> = values.iter().map(|v| format!("\"{}\"", v)).collect();
+    let refs: Vec<&str> = quoted.iter().map(String::as_str).collect();
+    list(&refs, "or")
+}
+
 fn list(strings: &[&str], conjunction: &str) -> String {
     match strings.len() {
         0 => String::new(),
@@ -1059,21 +1059,17 @@ fn validate_aria_attribute_value(
             }
             AriaPropertyType::Token => {
                 if let Some(valid_values) = schema.values {
-                    let values_list: Vec<String> =
-                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
                     warnings.push(w::a11y_incorrect_aria_attribute_type_token(
                         name,
-                        &values_list.join(", "),
+                        &quoted_value_list(valid_values),
                     ));
                 }
             }
             AriaPropertyType::TokenList => {
                 if let Some(valid_values) = schema.values {
-                    let values_list: Vec<String> =
-                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
                     warnings.push(w::a11y_incorrect_aria_attribute_type_tokenlist(
                         name,
-                        &values_list.join(", "),
+                        &quoted_value_list(valid_values),
                     ));
                 }
             }
@@ -1128,11 +1124,9 @@ fn validate_aria_attribute_value(
                     .iter()
                     .any(|v| v.to_lowercase() == lowercase_value)
                 {
-                    let values_list: Vec<String> =
-                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
                     warnings.push(w::a11y_incorrect_aria_attribute_type_token(
                         name,
-                        &values_list.join(", "),
+                        &quoted_value_list(valid_values),
                     ));
                 }
             }
@@ -1149,11 +1143,9 @@ fn validate_aria_attribute_value(
                     })
                     .collect();
                 if !invalid_tokens.is_empty() {
-                    let values_list: Vec<String> =
-                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
                     warnings.push(w::a11y_incorrect_aria_attribute_type_tokenlist(
                         name,
-                        &values_list.join(", "),
+                        &quoted_value_list(valid_values),
                     ));
                 }
             }

@@ -24,7 +24,7 @@ fn message_matches_official_wording() {
 
     let err = result.expect_err("top-level <svelte:self> must be rejected");
     match err {
-        CompileError::Analysis(AnalysisError::ValidationWithCode { code, message }) => {
+        CompileError::Analysis(AnalysisError::ValidationWithCode { code, message, .. }) => {
             assert_eq!(code, "svelte_self_invalid_placement");
             assert_eq!(message, EXPECTED_MESSAGE);
         }

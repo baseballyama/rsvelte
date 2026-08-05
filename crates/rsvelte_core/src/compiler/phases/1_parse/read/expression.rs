@@ -6860,63 +6860,47 @@ fn convert_parsed_program<'ast>(
         // output.
         let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
         let body: Vec<JsNode> = if has_comments && has_ignore {
-            let mut comment_idx = 0;
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
-            // Pre-compute comment entries (absolute positions + Value) once, used for
-            // distributing comments onto nested statement bodies.
             let comment_entries: Vec<CommentEntry> = all_comments
                 .iter()
                 .map(|comment| {
-                    let comment_start = offset + comment.span.start as usize;
-                    let comment_end = offset + comment.span.end as usize;
+                    let raw_text = content
+                        .get(comment.span.start as usize..comment.span.end as usize)
+                        .unwrap_or("");
                     CommentEntry {
-                        start: comment_start as u32,
-                        end: comment_end as u32,
-                        value: build_comment_value(comment, content, offset),
+                        start: offset as u32 + comment.span.start,
+                        text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
                     }
                 })
                 .collect();
 
-            for stmt in program.body.iter() {
+            let mut attacher = CommentAttacher {
+                comments: &comment_entries,
+                next: 0,
+                content,
+                offset: offset as u32,
+                map: &mut ignore_comment_map,
+            };
+            let last_index = program.body.len().saturating_sub(1);
+
+            for (index, stmt) in program.body.iter().enumerate() {
                 if let Some(stmt_node) =
                     convert_statement_for_program(arena, stmt, offset, line_offsets)
                 {
-                    let stmt_start = stmt.span().start;
-
-                    // Collect comments that appear before this statement (its own leading
-                    // comments).
-                    let mut stmt_leading = Vec::new();
-                    while comment_idx < all_comments.len()
-                        && all_comments[comment_idx].span.end <= stmt_start
-                    {
-                        let comment = all_comments[comment_idx];
-                        stmt_leading.push(build_comment_value(comment, content, offset));
-                        comment_idx += 1;
-                    }
-
-                    // Skip comments that are inside the statement
-                    while comment_idx < all_comments.len()
-                        && all_comments[comment_idx].span.start < stmt.span().end
-                    {
-                        comment_idx += 1;
-                    }
-
-                    // Reproduce the exact comment-attachment the old code used (own leading
-                    // comments + nested distribution) on a throwaway Value, then harvest
-                    // svelte-ignore texts into the map. The statement itself stays TYPED.
-                    if !stmt_leading.is_empty() || !comment_entries.is_empty() {
-                        let mut val = stmt_node.to_value();
-                        if !stmt_leading.is_empty()
-                            && let Value::Object(ref mut obj) = val
-                        {
-                            obj.set_field("leadingComments", Value::Array(stmt_leading));
-                        }
-                        distribute_comments_to_node(&mut val, &comment_entries);
-                        harvest_ignore_comments(&val, &mut ignore_comment_map);
-                    }
-
+                    attacher.visit(
+                        &stmt_node.to_value(),
+                        Some(ParentInfo {
+                            end: Some(end as u32),
+                            is_last_in_body: index == last_index,
+                        }),
+                    );
                     body_nodes.push(stmt_node);
+                } else {
+                    // Type-only statements have no typed node. Upstream binds the
+                    // comments in and before them to TS nodes whose subtree Phase 2
+                    // never visits, so they must not reach the next statement either.
+                    attacher.skip_past(offset as u32 + stmt.span().end);
                 }
             }
 
@@ -7009,161 +6993,168 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
     Value::Object(comment_obj)
 }
 
-/// Walk a comment-annotated statement `Value` (after `distribute_comments_to_node`)
-/// and harvest every `svelte-ignore` leading-comment text into `map`, keyed by the
-/// owning node's absolute `start` offset.
-///
-/// Only `svelte-ignore` comments are kept (the sole Phase-2 consumer of statement-level
-/// `leadingComments`); a comment is a candidate when its value text — after leading
-/// whitespace — begins with `svelte-ignore` (a strict superset of the analyze-side
-/// `^\s*svelte-ignore\s` match, so nothing relevant is dropped and non-matching texts
-/// that survive simply extract to zero codes downstream).
-fn harvest_ignore_comments(node: &Value, map: &mut Vec<(u32, Vec<CompactString>)>) {
-    let Value::Object(obj) = node else {
-        return;
-    };
-
-    if let Some(Value::Array(comments)) = obj.get("leadingComments")
-        && let Some(start) = obj.get("start").and_then(|s| s.as_u64())
-    {
-        let kept: Vec<CompactString> = comments
-            .iter()
-            .filter_map(|c| c.get("value").and_then(|v| v.as_str()))
-            .filter(|v| v.trim_start().starts_with("svelte-ignore"))
-            .map(CompactString::from)
-            .collect();
-        if !kept.is_empty() {
-            map.push((start as u32, kept));
-        }
-    }
-
-    // Recurse into every nested object / array so nested `svelte-ignore` comments
-    // (attached by `distribute_comments_to_node`) are harvested too.
-    for value in obj.values() {
-        match value {
-            Value::Object(_) => harvest_ignore_comments(value, map),
-            Value::Array(items) => {
-                for item in items {
-                    harvest_ignore_comments(item, map);
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-/// A pre-computed comment entry with positions extracted to avoid repeated Value lookups.
+/// A pre-computed comment entry: absolute start offset plus the comment text with
+/// its `//` / `/* */` delimiters stripped.
 struct CommentEntry {
     start: u32,
-    end: u32,
-    value: Value,
+    text: CompactString,
 }
 
-/// Recursively walk a node and distribute comments to any nested statement bodies.
+/// What the walk needs to know about a node's parent to decide trailing-comment
+/// ownership, mirroring the `path.at(-1)` lookups in upstream `add_comments`.
+struct ParentInfo {
+    end: Option<u32>,
+    is_last_in_body: bool,
+}
+
+/// Port of `add_comments` from `phases/1-parse/acorn.js`, reduced to the only
+/// consumer rsvelte has for JS comment attachment: `svelte-ignore` suppression.
 ///
-/// This function operates entirely in-place: it never clones statement Values.
-/// Comments are attached by inserting `leadingComments` directly into existing
-/// statement Map objects via mutable references.
-/// Distribute comments to nested statement bodies. Returns `true` if any
-/// `leadingComments` field was actually inserted (i.e. the node was mutated).
-fn distribute_comments_to_node(node: &mut Value, comments: &[CommentEntry]) -> bool {
-    let Some(obj) = node.as_object_mut() else {
-        return false;
-    };
-    let mut modified = false;
+/// Upstream walks the ESTree tree generically and gives every comment to the first
+/// node (in pre-order) that starts after it, unless a preceding node claims it as a
+/// trailing comment first. Rather than materializing `leadingComments` we record the
+/// `svelte-ignore` texts directly, keyed by the owning node's absolute start offset —
+/// the key Phase 2 looks up while walking the typed AST.
+struct CommentAttacher<'a> {
+    comments: &'a [CommentEntry],
+    next: usize,
+    content: &'a str,
+    offset: u32,
+    map: &'a mut Vec<(u32, Vec<CompactString>)>,
+}
 
-    let node_type = obj
-        .get("type")
-        .and_then(|t| t.as_str())
-        .unwrap_or("")
-        .to_string();
+impl CommentAttacher<'_> {
+    fn visit(&mut self, node: &Value, parent: Option<ParentInfo>) {
+        let Some(obj) = node.as_object() else {
+            return;
+        };
+        let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
 
-    // For nodes that contain statement bodies, distribute comments to those bodies.
-    // These are the fields that contain arrays of statements.
-    let body_fields: &[&str] = match node_type.as_str() {
-        "BlockStatement" | "Program" => &["body"],
-        "SwitchCase" => &["consequent"],
-        "SwitchStatement" => &["cases"],
-        "TryStatement" => &["block", "handler", "finalizer"],
-        _ => &[],
-    };
+        if let Some(start) = start {
+            while self
+                .comments
+                .get(self.next)
+                .is_some_and(|comment| comment.start < start)
+            {
+                self.record_leading(start, self.next);
+                self.next += 1;
+            }
+        }
 
-    for &field in body_fields {
-        if let Some(stmts) = obj.get_mut(field).and_then(|v| v.as_array_mut()) {
-            let mut prev_end: u32 = 0;
-            for stmt in stmts.iter_mut() {
-                if let Some(stmt_obj) = stmt.as_object_mut() {
-                    // Check if this statement doesn't already have leadingComments
-                    if !stmt_obj.contains_key("leadingComments") {
-                        let stmt_start =
-                            stmt_obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+        // Only these parents let their last child swallow the comments that follow it.
+        let last_body_field = match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+            "Program" | "BlockStatement" => Some("body"),
+            "ArrayExpression" => Some("elements"),
+            "ObjectExpression" => Some("properties"),
+            _ => None,
+        };
 
-                        // Use binary search to find the first comment that could be relevant
-                        // (comment.end > prev_end). Comments are sorted by position.
-                        let search_start = comments.partition_point(|c| c.end <= prev_end);
-
-                        let mut leading = Vec::new();
-                        for comment in &comments[search_start..] {
-                            // Once comment end exceeds statement start, no more matches
-                            if comment.end > stmt_start {
-                                break;
-                            }
-                            // Comment must start after previous statement end
-                            if comment.start >= prev_end {
-                                leading.push(comment.value.clone());
-                            }
-                        }
-
-                        if !leading.is_empty() {
-                            stmt_obj.set_field("leadingComments", Value::Array(leading));
-                            modified = true;
+        for (field, value) in obj {
+            if matches!(
+                field.as_str(),
+                "leadingComments" | "trailingComments" | "comments"
+            ) {
+                continue;
+            }
+            match value {
+                Value::Object(_) => {
+                    if is_estree_node(value) {
+                        self.visit(
+                            value,
+                            Some(ParentInfo {
+                                end,
+                                is_last_in_body: false,
+                            }),
+                        );
+                    }
+                }
+                Value::Array(items) => {
+                    let last = items.len().saturating_sub(1);
+                    for (index, item) in items.iter().enumerate() {
+                        if is_estree_node(item) {
+                            self.visit(
+                                item,
+                                Some(ParentInfo {
+                                    end,
+                                    is_last_in_body: last_body_field == Some(field.as_str())
+                                        && index == last,
+                                }),
+                            );
                         }
                     }
-
-                    // Track prev_end for the next iteration
-                    prev_end = stmt_obj.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
                 }
+                _ => {}
             }
+        }
+
+        self.claim_trailing(end, parent.as_ref());
+    }
+
+    /// Discard every comment that starts before `end` without recording it.
+    fn skip_past(&mut self, end: u32) {
+        while self
+            .comments
+            .get(self.next)
+            .is_some_and(|comment| comment.start < end)
+        {
+            self.next += 1;
         }
     }
 
-    // Recurse into child nodes that might contain nested bodies.
-    // We use &str slices to avoid String allocations.
-    let child_fields: &[&str] = match node_type.as_str() {
-        "FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression" => &["body"],
-        "IfStatement" => &["consequent", "alternate"],
-        "ForStatement" | "ForInStatement" | "ForOfStatement" | "WhileStatement"
-        | "DoWhileStatement" => &["body"],
-        "TryStatement" => &["block", "handler", "finalizer"],
-        "CatchClause" => &["body"],
-        "WithStatement" => &["body"],
-        "LabeledStatement" => &["body"],
-        "SwitchStatement" => &["cases"],
-        "SwitchCase" => &["consequent"],
-        "BlockStatement" | "Program" => &["body"],
-        "ExportNamedDeclaration" | "ExportDefaultDeclaration" => &["declaration"],
-        "VariableDeclaration" => &["declarations"],
-        "ClassDeclaration" | "ClassExpression" => &["body"],
-        "ClassBody" => &["body"],
-        "MethodDefinition" | "PropertyDefinition" => &["value"],
-        _ => &[],
-    };
+    /// Let this node claim the comments that follow it, so they cannot become leading
+    /// comments of a later node.
+    fn claim_trailing(&mut self, end: Option<u32>, parent: Option<&ParentInfo>) {
+        let Some(comment) = self.comments.get(self.next) else {
+            return;
+        };
+        let parent_end = parent.and_then(|p| p.end);
+        if matches!((end, parent_end), (Some(e), Some(pe)) if e == pe) {
+            return;
+        }
 
-    for &field in child_fields {
-        if let Some(child) = obj.get_mut(field) {
-            if child.is_array() {
-                if let Some(items) = child.as_array_mut() {
-                    for item in items {
-                        modified |= distribute_comments_to_node(item, comments);
-                    }
+        if parent.is_some_and(|p| p.is_last_in_body) {
+            while let Some(comment) = self.comments.get(self.next) {
+                if parent_end.is_some_and(|pe| comment.start >= pe) {
+                    break;
                 }
-            } else if child.is_object() {
-                modified |= distribute_comments_to_node(child, comments);
+                self.next += 1;
             }
+        } else if let Some(end) = end
+            && end <= comment.start
+            && self.is_separator_slice(end, comment.start)
+        {
+            self.next += 1;
         }
     }
 
-    modified
+    /// `/^[,) \t]*$/` over the source between a node's end and a comment's start.
+    fn is_separator_slice(&self, from: u32, to: u32) -> bool {
+        let from = from.saturating_sub(self.offset) as usize;
+        let to = to.saturating_sub(self.offset) as usize;
+        self.content
+            .get(from..to)
+            .is_some_and(|slice| slice.chars().all(|c| matches!(c, ',' | ')' | ' ' | '\t')))
+    }
+
+    fn record_leading(&mut self, start: u32, index: usize) {
+        let text = self.comments[index].text.clone();
+        if !text.trim_start().starts_with("svelte-ignore") {
+            return;
+        }
+        match self.map.last_mut() {
+            Some(entry) if entry.0 == start => entry.1.push(text),
+            _ => self.map.push((start, vec![text])),
+        }
+    }
+}
+
+/// Zimmerframe treats any object carrying a string `type` as a node; mirror that.
+fn is_estree_node(value: &Value) -> bool {
+    value
+        .as_object()
+        .and_then(|obj| obj.get("type"))
+        .is_some_and(|t| t.is_string())
 }
 
 /// Convert a statement to JSON value (for program context, no -1 offset adjustment).

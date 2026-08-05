@@ -1,0 +1,23 @@
+{
+  "name": "@rsvelte/language-server-win32-x64-msvc",
+  "version": "0.3.0",
+  "description": "Prebuilt rsvelte-language-server binary for win32-x64 (msvc)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/language-server-win32-x64-msvc"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "rsvelte-language-server.exe"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
