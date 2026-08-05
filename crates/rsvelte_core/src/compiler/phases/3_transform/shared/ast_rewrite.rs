@@ -684,16 +684,22 @@ pub mod dual_run {
 
     thread_local! {
         /// `(terminators dropped, of those the ones that changed what follows,
-        /// of those the ones that could not be checked)`. Counted unconditionally:
-        /// a counter that only runs under a flag cannot answer "does this happen
-        /// in production".
+        /// of those the ones that could not be checked)`.
         static TERMINATION: std::cell::Cell<(u32, u32, u32)> =
             const { std::cell::Cell::new((0, 0, 0)) };
     }
 
     /// Record one dropped terminator, and whether dropping it changed how the
     /// text after the fragment binds.
+    ///
+    /// Under the gate only: this re-parses both forms, and the question it was
+    /// added to answer — does a shipped fragment ever rebind what follows it —
+    /// has been answered over the corpus. It stays so the same question can be
+    /// asked again when the in-place path takes on more passes.
     pub(super) fn count_termination(source: &str, printed: &str) {
+        if !enabled() {
+            return;
+        }
         let before = statements_with_following_text(source);
         let after = statements_with_following_text(printed);
         let unchecked = before.is_none() || after.is_none();
