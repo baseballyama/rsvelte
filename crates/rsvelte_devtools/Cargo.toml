@@ -19,7 +19,6 @@ native = [
 jemalloc = ["dep:tikv-jemallocator"]
 mimalloc-alloc = ["dep:mimalloc"]
 pprof = ["dep:pprof"]
-measure-json = ["rsvelte_core/measure-json"]
 measure-await = ["rsvelte_core/measure-await"]
 measure-slot-key = ["rsvelte_core/measure-slot-key"]
 measure-module-source = ["rsvelte_core/measure-module-source"]

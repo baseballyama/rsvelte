@@ -27,9 +27,6 @@ crate-type = ["rlib"]
 default = []
 parallel = ["dep:rayon"]
 trace-fastpath = []
-# Repository-local instrumentation: count the `serde_json::Value` that the lazy
-# expression cache materializes. Off by default and zero-cost when off.
-measure-json = []
 # Repository-local instrumentation: replay the pre-refactor `await` scanner so
 # the `String` allocations it performed can be counted. Off by default.
 measure-await = []
