@@ -24,8 +24,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, has_dynamic_children, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_render_statement_with_memoizer, build_template_chunk, build_template_effect,
-    expression_has_reactive_state,
+    build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -898,6 +897,17 @@ pub fn visit_regular_element(
     } else {
         None
     };
+    // Upstream `memoizer: has_declarations ? new Memoizer() : state.memoizer` —
+    // a declaring element's block owns the `$0`/`$1` bindings its children memoize.
+    let saved_memoizer = if has_declarations {
+        let child_memoizer = Memoizer::with_parent_conflicts(&context.state.memoizer);
+        Some(std::mem::replace(
+            &mut context.state.memoizer,
+            child_memoizer,
+        ))
+    } else {
+        None
+    };
 
     // When this element introduces declarations, switch `state.scope` to the
     // element's Phase-2 child scope (keyed by `element.start` in
@@ -1297,6 +1307,11 @@ pub fn visit_regular_element(
     let child_update = std::mem::take(&mut context.state.update);
     let child_after_update = std::mem::take(&mut context.state.after_update);
     let child_consts = std::mem::take(&mut context.state.consts);
+    // Captured before the parent memoizer is restored: the block below binds these
+    // as the `template_effect` parameters that `child_update` already references.
+    let child_memo_params = context.state.memoizer.get_params();
+    let child_memo_sync = context.state.memoizer.sync_values(&context.arena);
+    let child_memo_async = context.state.memoizer.async_values(&context.arena);
     // Take the child's async_consts group (if any) and build its
     // `var promises_N = $.run([…thunks])` declaration, mirroring
     // `fragment.rs`. Emitted into the block after the consts, before init.
@@ -1335,6 +1350,9 @@ pub fn visit_regular_element(
     context.state.shadowed_prop_names = saved_shadowed_props;
     if has_declarations {
         context.state.async_consts = saved_async_consts;
+    }
+    if let Some(saved) = saved_memoizer {
+        context.state.memoizer = saved;
     }
     // For a transparent fragment (no DeclarationTag), child consts (e.g. legacy
     // `{@const}` that bubbled up from a nested transparent element) flow back to
@@ -1400,27 +1418,19 @@ pub fn visit_regular_element(
                     Some(b::array(exprs))
                 }
             };
-            if block_blockers.is_some() {
-                block_body.push(b::stmt(
+            // A single expression-statement update collapses to the concise
+            // `() => stmt` arrow; only a multi-statement body uses a block.
+            block_body.push(b::stmt(
+                &context.arena,
+                build_render_statement_with_memoizer(
                     &context.arena,
-                    build_render_statement_with_memoizer(
-                        &context.arena,
-                        child_update,
-                        vec![],
-                        None,
-                        None,
-                        block_blockers,
-                    ),
-                ));
-            } else {
-                // A single expression-statement update collapses to the concise
-                // `() => stmt` arrow (写经 upstream `build_template`); only a
-                // multi-statement body uses a block. `build_template_effect`
-                // applies that decision — previously this branch always emitted a
-                // block body, diverging for a lone `set_text` inside a
-                // DeclarationTag scope (`{let dt = …}{typeof dt}`).
-                block_body.push(build_template_effect(&context.arena, child_update, None));
-            }
+                    child_update,
+                    child_memo_params,
+                    child_memo_sync,
+                    child_memo_async,
+                    block_blockers,
+                ),
+            ));
         }
 
         block_body.extend(child_after_update);
