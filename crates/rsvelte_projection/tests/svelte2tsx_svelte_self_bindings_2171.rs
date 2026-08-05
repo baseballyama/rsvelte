@@ -68,13 +68,33 @@ fn svelte_self_snippet_children_become_props() {
 }
 
 #[test]
-fn svelte_self_slot_lets_keep_the_slot_path() {
-    // `let:` scoping owns the children, so snippets stay plain block children.
+fn svelte_self_let_snippet_is_still_demoted_to_a_prop() {
+    // Official demotes a `{#snippet}` child to a component prop even when `let:`
+    // is present — the two transformations are independent and both apply (#2171).
     let code = convert(
         "<svelte:self let:item>\n{#snippet foo(a)}<p>{a}</p>{/snippet}\n{item}\n</svelte:self>\n",
     );
     assert!(
-        !code.contains("$$prop_def"),
-        "the let: path must not demote snippets, got:\n{code}"
+        code.contains("const {foo} = $$_svelteself0.$$prop_def;"),
+        "the let: path must still demote snippets, got:\n{code}"
+    );
+    assert!(
+        code.contains("$$_svelteself0.$$slot_def.default;"),
+        "the let: destructure must still be emitted, got:\n{code}"
+    );
+}
+
+#[test]
+fn named_component_let_snippet_is_demoted_to_a_prop() {
+    // Not a `<svelte:self>`-only gap: any inline component's `{#snippet}` child
+    // is demoted to a prop even with `let:` present, mirroring official (#2171).
+    let code = convert("<Foo let:item>\n{#snippet foo(a)}<p>{a}</p>{/snippet}\n{item}\n</Foo>\n");
+    assert!(
+        code.contains("const {foo} = $$_ooF0.$$prop_def;"),
+        "the let: path must still demote snippets, got:\n{code}"
+    );
+    assert!(
+        code.contains("$$_ooF0.$$slot_def.default;"),
+        "the let: destructure must still be emitted, got:\n{code}"
     );
 }
