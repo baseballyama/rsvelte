@@ -104,6 +104,7 @@
     "svelte/no-unknown-style-directive-property": "warn",
     "svelte/no-unnecessary-state-wrap": "warn",
     "svelte/no-unused-class-name": "warn",
+    "svelte/no-unused-vars": "warn",
     "svelte/no-useless-children-snippet": "warn",
     "svelte/no-useless-mustaches": "warn",
     "svelte/node_invalid_placement_ssr": "warn",
