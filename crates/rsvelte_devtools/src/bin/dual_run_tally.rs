@@ -42,7 +42,13 @@ fn main() {
         Path::new,
     );
     let mut files = Vec::new();
-    collect(root, &mut files);
+    // A single file is the unit a divergence gets attributed to, so the same
+    // driver has to accept one directly.
+    if root.is_file() {
+        files.push(root.to_path_buf());
+    } else {
+        collect(root, &mut files);
+    }
     files.sort();
     if files.is_empty() {
         eprintln!("no .svelte fixtures under {}", root.display());
