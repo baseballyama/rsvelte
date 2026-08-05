@@ -59,16 +59,7 @@ fn collect(dir: &Path, files: &mut Vec<String>) {
     }
 }
 
-#[cfg(not(feature = "pprof"))]
 fn main() {
-    eprintln!("build with --features pprof");
-    std::process::exit(2);
-}
-
-#[cfg(feature = "pprof")]
-fn main() {
-    use std::collections::{HashMap, HashSet};
-
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut dirs: Vec<PathBuf> = Vec::new();
     let mut iters = 1usize;
@@ -118,12 +109,14 @@ fn main() {
         modes.len()
     );
 
+    #[cfg(feature = "pprof")]
     let guard = pprof::ProfilerGuardBuilder::default()
         .frequency(1000)
         .blocklist(&["libc", "libgcc", "pthread", "vdso"])
         .build()
         .expect("guard");
 
+    let started = std::time::Instant::now();
     let mut sink = 0usize;
     for _ in 0..iters {
         for content in &files {
@@ -140,9 +133,23 @@ fn main() {
             }
         }
     }
-    let report = guard.report().build().expect("report");
-    eprintln!("[share] sink={sink}");
+    eprintln!(
+        "[share] sink={sink} workload wall time {:.2}s",
+        started.elapsed().as_secs_f64()
+    );
+    #[cfg(feature = "pprof")]
+    report_shares(&guard, files.len(), top);
+    let _ = top;
+}
 
+/// Aggregate the in-process sampler into self / inclusive shares. Only usable
+/// when the sampler actually keeps up — check the printed sample rate against
+/// the workload wall time before trusting the shares.
+#[cfg(feature = "pprof")]
+fn report_shares(guard: &pprof::ProfilerGuard<'_>, file_count: usize, top: usize) {
+    use std::collections::{HashMap, HashSet};
+
+    let report = guard.report().build().expect("report");
     let mut incl: HashMap<String, isize> = HashMap::new();
     let mut selfc: HashMap<String, isize> = HashMap::new();
     let mut total: isize = 0;
@@ -171,7 +178,7 @@ fn main() {
         .max()
         .unwrap_or(0);
     println!("total samples (denominator): {total}");
-    println!("files: {}", files.len());
+    println!("files: {file_count}");
     println!(
         "CALIBRATION rsvelte_esrap::print inclusive: {:.2}% (expected 12.3-12.4%)",
         100.0 * printer as f64 / denom
