@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 20 entries)
+## Client dev (`known-failures.client-dev.json`, 18 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -137,6 +137,12 @@ took it to 20. That half of upstream's condition had no equivalent there, so a
 bare assignment statement inside an `{@attach}` block body was wrapped even
 though its value is discarded.
 
+Restricting the component-prop exemption to a component that is a `Fragment`
+child took it to 18. Upstream spells it `path.at(-2) === 'Component' &&
+path.at(-3) === 'Fragment'`, and an element's children are the one container it
+does not visit through a `Fragment` node, so a component nested in an element
+keeps the wrap.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -151,7 +157,6 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| `$.assign` / `$.assign_async` | 2 | 2 | `visitors/AssignmentExpression.js` | #2064 |
 | equality instrumentation | 1 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | ownership mutation validation | 2 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
@@ -168,7 +173,12 @@ The signal read/write row is now empty: `$state` reassignment is resolved per
 binding rather than per name, so same-named `$state` locals in sibling scopes no
 longer share one classification and lose their `$.state(...)` wrapper.
 
-12 entries are attributed to a cluster; the remaining **8** show no
+The `$.assign` row is now empty too: its condition is fully ported, including
+the two halves that had no equivalent on the JSON expression path (the value
+must be used, and the component-prop exemption only covers a component that is
+a `Fragment` child).
+
+10 entries are attributed to a cluster; the remaining **8** show no
 difference in any dev helper: 2 are a `$.trace` label's line:column, 2 are
 redundant parentheses around an ownership wrapper, 1 is a statement missing
 from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own mapping in a
@@ -179,19 +189,6 @@ hands the element `bind:` path the unthunked getter body plus the setter body,
 so `dev` can emit upstream's named accessors (`BindDirective.js:46-54`). The
 component `bind:` path keeps consuming the same bodies for its object-literal
 `get`/`set` methods.
-
-### What is left of the `$.assign` row
-
-`$.assign(object, 'prop', operator, value, location)` is upstream's dev warning
-for a coerced-away proxy (`AssignmentExpression.js:170-236`): it fires only when
-the assignment's *value* is used (`path.at(-1) !== 'ExpressionStatement'`), the
-operator is non-coercive, and the right-hand side is not a known primitive.
-rsvelte emits it from the template paths (`expression_converter`, `attribute`)
-but has no collector on the instance / module script paths, so a `(obj.prop =
-value)` written inside a script — most often inside a `new Promise((resolve) =>
-…)` — stays bare. The location argument is what makes this more than a copy of
-`instance_dev_tail_ast`'s other collectors: it is a position in the *original*
-`.svelte` source, and those passes run over already-settled transform output.
 
 ### What is left of the equality and await rows
 

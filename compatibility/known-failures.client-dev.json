@@ -1,8 +1,6 @@
 [
 	"flowbite-svelte/src/routes/utils/CompoAttributesViewer.svelte",
 	"skeleton/packages/skeleton-svelte/src/components/portal/anatomy/root.svelte",
-	"skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/Controls.svelte",
-	"skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsColors.svelte",
 	"svar-core/site/src/Demo.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelComponentSpecific/PropertyPanelChoiceCheckboxRadioSpecific.svelte",
 	"svelte-form-builder/src/lib/Form/PropertyPanel/PropertyPanelTooltip.svelte",
