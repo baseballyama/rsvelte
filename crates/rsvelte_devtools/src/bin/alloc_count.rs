@@ -18,6 +18,9 @@ static SMALL: AtomicU64 = AtomicU64::new(0);
 
 struct Counting;
 
+// SAFETY: every method forwards to `System` with the layout it was given,
+// adding only relaxed counter arithmetic, so the allocator contract is exactly
+// `System`'s.
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         ALLOCS.fetch_add(1, Ordering::Relaxed);
@@ -25,10 +28,12 @@ unsafe impl GlobalAlloc for Counting {
         if layout.size() <= 64 {
             SMALL.fetch_add(1, Ordering::Relaxed);
         }
+        // SAFETY: `layout` is the caller's, passed through unchanged.
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        // SAFETY: `ptr` came from `System.alloc` with this same `layout`.
         unsafe { System.dealloc(ptr, layout) }
     }
 
@@ -38,6 +43,8 @@ unsafe impl GlobalAlloc for Counting {
             new_size.saturating_sub(layout.size()) as u64,
             Ordering::Relaxed,
         );
+        // SAFETY: `ptr` came from `System` with this `layout`, and `new_size` is
+        // the caller's.
         unsafe { System.realloc(ptr, layout, new_size) }
     }
 }

@@ -66,18 +66,25 @@ impl Sampling {
     }
 }
 
+// SAFETY: every method forwards to `System` with the layout it was given,
+// adding only sampling bookkeeping, so the allocator contract is exactly
+// `System`'s.
 unsafe impl GlobalAlloc for Sampling {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         Self::maybe_record(layout.size());
+        // SAFETY: `layout` is the caller's, passed through unchanged.
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        // SAFETY: `ptr` came from `System.alloc` with this same `layout`.
         unsafe { System.dealloc(ptr, layout) }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         Self::maybe_record(new_size.saturating_sub(layout.size()));
+        // SAFETY: `ptr` came from `System` with this `layout`, and `new_size` is
+        // the caller's.
         unsafe { System.realloc(ptr, layout, new_size) }
     }
 }
