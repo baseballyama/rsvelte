@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 22 entries)
+## Client dev (`known-failures.client-dev.json`, 20 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -132,6 +132,11 @@ place. A custom element gets the map too: upstream's gate is `dev &&
 inject_styles && css.code`, which `$css.code` satisfies like any other injected
 stylesheet.
 
+Honouring `path.at(-1) !== 'ExpressionStatement'` on the JSON expression path
+took it to 20. That half of upstream's condition had no equivalent there, so a
+bare assignment statement inside an `{@attach}` block body was wrapped even
+though its value is discarded.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -163,7 +168,7 @@ The signal read/write row is now empty: `$state` reassignment is resolved per
 binding rather than per name, so same-named `$state` locals in sibling scopes no
 longer share one classification and lose their `$.state(...)` wrapper.
 
-14 entries are attributed to a cluster; the remaining **8** show no
+12 entries are attributed to a cluster; the remaining **8** show no
 difference in any dev helper: 2 are a `$.trace` label's line:column, 2 are
 redundant parentheses around an ownership wrapper, 1 is a statement missing
 from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own mapping in a
