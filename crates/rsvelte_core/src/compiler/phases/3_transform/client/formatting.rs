@@ -838,7 +838,12 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
 
     // Use thread-local allocator to avoid repeated allocation overhead
     let code = with_normalize_allocator(|allocator| {
+        let _pt = super::super::profile::timer_start();
         let parsed = Parser::new(allocator, &protected, SourceType::mjs()).parse();
+        super::super::profile::record_direct_parse(
+            super::super::profile::timer_elapsed(_pt),
+            protected.len(),
+        );
         if !parsed.diagnostics.is_empty() {
             return js.to_string();
         }

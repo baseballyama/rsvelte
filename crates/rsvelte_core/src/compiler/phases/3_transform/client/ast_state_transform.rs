@@ -4370,7 +4370,12 @@ pub(super) fn transform_state_vars_ast(
 
     with_ast_transform_allocator(|alloc| {
         let source_type = SourceType::mjs();
+        let _pt = super::super::profile::timer_start();
         let parsed = Parser::new(alloc, script, source_type).parse();
+        super::super::profile::record_direct_parse(
+            super::super::profile::timer_elapsed(_pt),
+            script.len(),
+        );
 
         if parsed.panicked || !parsed.diagnostics.is_empty() {
             // Parse error - fall back to text-based transform

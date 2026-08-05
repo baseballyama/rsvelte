@@ -2061,7 +2061,12 @@ fn ast_expr_is_simple(value: &str, analysis: &ComponentAnalysis) -> Option<bool>
     let alloc = Allocator::default();
     // Wrap in parens so an object literal (`{...}`) parses as an expression, not a block.
     let src = format!("({})", value.trim());
+    let _pt = super::super::profile::timer_start();
     let parsed = Parser::new(&alloc, &src, SourceType::mjs()).parse();
+    super::super::profile::record_direct_parse(
+        super::super::profile::timer_elapsed(_pt),
+        src.len(),
+    );
     if parsed.panicked || !parsed.diagnostics.is_empty() {
         return None;
     }
@@ -2096,7 +2101,12 @@ fn ast_should_proxy(value: &str, analysis: Option<&ComponentAnalysis>) -> Option
     let alloc = Allocator::default();
     // Wrap in parens so an object literal (`{...}`) parses as an expression.
     let src = format!("({})", value.trim());
+    let _pt = super::super::profile::timer_start();
     let parsed = Parser::new(&alloc, &src, SourceType::mjs()).parse();
+    super::super::profile::record_direct_parse(
+        super::super::profile::timer_elapsed(_pt),
+        src.len(),
+    );
     if parsed.panicked || !parsed.diagnostics.is_empty() {
         return None;
     }

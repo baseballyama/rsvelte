@@ -150,11 +150,19 @@ pub struct ReparseBreakdown {
     pub calls: u64,
     /// Summed `source.len()` over every call.
     pub bytes: u64,
+    /// The same three numbers for passes that build a `Parser` themselves
+    /// instead of going through the shared driver. Kept apart so the driver's
+    /// count is never mistaken for the whole re-parse cost.
+    pub direct_parse: Duration,
+    pub direct_calls: u64,
+    pub direct_bytes: u64,
 }
 
 thread_local! {
     static REPARSE: Cell<(Duration, Duration, u64, u64)> =
         const { Cell::new((Duration::ZERO, Duration::ZERO, 0, 0)) };
+    static REPARSE_DIRECT: Cell<(Duration, u64, u64)> =
+        const { Cell::new((Duration::ZERO, 0, 0)) };
 
     static VISIT_PROGRAM: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static SCRIPT_TEXT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
@@ -194,13 +202,25 @@ pub fn record_reparse(parse: Duration, visit: Duration, bytes: usize) {
     });
 }
 
+#[inline]
+pub fn record_direct_parse(parse: Duration, bytes: usize) {
+    REPARSE_DIRECT.with(|c| {
+        let (p, n, b) = c.get();
+        c.set((p + parse, n + 1, b + bytes as u64));
+    });
+}
+
 pub fn take_reparse_breakdown() -> ReparseBreakdown {
     let (parse, visit, calls, bytes) = REPARSE.replace((Duration::ZERO, Duration::ZERO, 0, 0));
+    let (direct_parse, direct_calls, direct_bytes) = REPARSE_DIRECT.replace((Duration::ZERO, 0, 0));
     ReparseBreakdown {
         parse,
         visit,
         calls,
         bytes,
+        direct_parse,
+        direct_calls,
+        direct_bytes,
     }
 }
 

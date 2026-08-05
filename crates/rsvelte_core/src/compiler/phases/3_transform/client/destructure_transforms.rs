@@ -1162,6 +1162,7 @@ pub(super) fn string_is_simple_expression(s: &str) -> bool {
     let allocator = Allocator::default();
     // Parenthesised so a leading `{` parses as an object literal, not a block.
     let wrapped = format!("({})", trimmed);
+    let _pt = super::super::profile::timer_start();
     let ret = Parser::new(
         &allocator,
         &wrapped,
@@ -1172,6 +1173,10 @@ pub(super) fn string_is_simple_expression(s: &str) -> bool {
         ..ParseOptions::default()
     })
     .parse();
+    super::super::profile::record_direct_parse(
+        super::super::profile::timer_elapsed(_pt),
+        wrapped.len(),
+    );
     if !ret.diagnostics.is_empty() || ret.program.body.len() != 1 {
         return false;
     }
@@ -1189,12 +1194,17 @@ pub(super) fn string_is_simple_expression(s: &str) -> bool {
 pub(super) fn literal_key_value(source: &str) -> Option<String> {
     let allocator = Allocator::default();
     let wrapped = format!("({})", source.trim());
+    let _pt = super::super::profile::timer_start();
     let ret = Parser::new(&allocator, &wrapped, SourceType::mjs())
         .with_options(ParseOptions {
             preserve_parens: false,
             ..ParseOptions::default()
         })
         .parse();
+    super::super::profile::record_direct_parse(
+        super::super::profile::timer_elapsed(_pt),
+        wrapped.len(),
+    );
     if !ret.diagnostics.is_empty() || ret.program.body.len() != 1 {
         return None;
     }

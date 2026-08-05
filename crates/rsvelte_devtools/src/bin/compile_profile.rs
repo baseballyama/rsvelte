@@ -326,16 +326,26 @@ fn report_reparse(
             acc.visit += r.visit;
             acc.calls += r.calls;
             acc.bytes += r.bytes;
+            acc.direct_parse += r.direct_parse;
+            acc.direct_calls += r.direct_calls;
+            acc.direct_bytes += r.direct_bytes;
             acc
         },
     );
     println!(
-        "  ast_rewrite reparse: {:7.2}ms ({:5.1}%) parse, {:7.2}ms ({:5.1}%) visit | {} calls",
+        "  reparse (driver):    {:7.2}ms ({:5.1}%) parse, {:7.2}ms ({:5.1}%) visit | {} calls",
         ms(sum.parse),
         ms(sum.parse) / total_ms * 100.0,
         ms(sum.visit),
         ms(sum.visit) / total_ms * 100.0,
         sum.calls
+    );
+    println!(
+        "  reparse (direct):    {:7.2}ms ({:5.1}%) parse | {} calls, {} bytes",
+        ms(sum.direct_parse),
+        ms(sum.direct_parse) / total_ms * 100.0,
+        sum.direct_calls,
+        sum.direct_bytes
     );
 
     rows.sort_by_key(|&(bytes, ..)| bytes);
@@ -351,9 +361,12 @@ fn report_reparse(
         let chunk = &rows[n * q / 4..n * (q + 1) / 4];
         let files = chunk.len() as f64;
         let src: u64 = chunk.iter().map(|&(b, ..)| b as u64).sum();
-        let calls: u64 = chunk.iter().map(|(_, _, r)| r.calls).sum();
-        let bytes: u64 = chunk.iter().map(|(_, _, r)| r.bytes).sum();
-        let parse: f64 = chunk.iter().map(|(_, _, r)| ms(r.parse)).sum();
+        let calls: u64 = chunk.iter().map(|(_, _, r)| r.calls + r.direct_calls).sum();
+        let bytes: u64 = chunk.iter().map(|(_, _, r)| r.bytes + r.direct_bytes).sum();
+        let parse: f64 = chunk
+            .iter()
+            .map(|(_, _, r)| ms(r.parse) + ms(r.direct_parse))
+            .sum();
         let visit: f64 = chunk.iter().map(|(_, _, r)| ms(r.visit)).sum();
         let p3: f64 = chunk.iter().map(|&(_, d, _)| ms(d)).sum();
         println!(

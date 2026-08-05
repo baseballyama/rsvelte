@@ -2652,7 +2652,9 @@ pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
     #[cfg(test)]
     MODULE_COMMENT_REPARSES.with(|count| count.set(count.get() + 1));
     let allocator = Allocator::default();
+    let _pt = super::profile::timer_start();
     let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
+    super::profile::record_direct_parse(super::profile::timer_elapsed(_pt), src.len());
     if !ret.diagnostics.is_empty() {
         return src.to_string();
     }

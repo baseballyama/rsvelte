@@ -224,12 +224,17 @@ fn single_pass(
             ast_rewrite::dual_run::current_or(file!()),
             source.len(),
         );
+        let _pt = super::super::profile::timer_start();
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
             .with_options(ParseOptions {
                 allow_return_outside_function: true,
                 ..ParseOptions::default()
             })
             .parse();
+        super::super::profile::record_direct_parse(
+            super::super::profile::timer_elapsed(_pt),
+            source.len(),
+        );
 
         const CLASS_PREFIX: &str = "class _Dummy_ {\n";
         let (parse_str_owned, span_offset): (Option<String>, u32) =
@@ -250,12 +255,17 @@ fn single_pass(
                 ast_rewrite::dual_run::current_or(file!()),
                 parse_str.len(),
             );
+            let _pt = super::super::profile::timer_start();
             let ret = Parser::new(&allocator, parse_str, SourceType::mjs())
                 .with_options(ParseOptions {
                     allow_return_outside_function: true,
                     ..ParseOptions::default()
                 })
                 .parse();
+            super::super::profile::record_direct_parse(
+                super::super::profile::timer_elapsed(_pt),
+                parse_str.len(),
+            );
             if !ret.diagnostics.is_empty() {
                 *cell.borrow_mut() = allocator;
                 return None;
