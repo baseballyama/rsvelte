@@ -614,8 +614,16 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// `emit_export_named`), so we set `raw` to the exact `'source'` spelling to
     /// make esrap reproduce it byte-for-byte regardless of quote options.
     fn module_source(&self, source: &str) -> oxc_ast::ast::StringLiteral<'a> {
-        let raw = self.str(&format!("'{source}'"));
-        StringLiteral::new(SPAN, self.str(source), Some(raw.into()), &self.ab)
+        #[cfg(feature = "measure-module-source")]
+        crate::measure_module_source::record(source.len());
+        // The quoted spelling is built straight into the arena and the unquoted
+        // value is a subslice of it, so neither string is copied twice.
+        let raw = oxc_allocator::StringBuilder::from_strs_array_in(
+            ["'", source, "'"],
+            self.ab.allocator(),
+        )
+        .into_str();
+        StringLiteral::new(SPAN, &raw[1..raw.len() - 1], Some(raw.into()), &self.ab)
     }
 
     /// Build a `ModuleExportName::IdentifierName` from a plain name.

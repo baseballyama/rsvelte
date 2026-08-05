@@ -691,8 +691,8 @@ fn clean_node_list<'a, L: NodeList<'a>>(
         None
     };
 
-    // Pre-allocate based on input size
-    let mut hoisted: Vec<Cow<'a, TemplateNode<'a>>> = Vec::with_capacity(nodes.count().min(8));
+    // Nothing is hoisted in ~98% of calls, so only `regular` is pre-allocated.
+    let mut hoisted: Vec<Cow<'a, TemplateNode<'a>>> = Vec::new();
     let mut regular: Vec<Cow<'a, TemplateNode<'a>>> = Vec::with_capacity(nodes.count());
 
     // Helper: process a single node into hoisted or regular
@@ -732,6 +732,9 @@ fn clean_node_list<'a, L: NodeList<'a>>(
             process_node(Cow::Borrowed(nodes.get(i)));
         }
     }
+
+    #[cfg(feature = "measure-hoisted")]
+    crate::measure_hoisted::record(nodes.count(), hoisted.len());
 
     // Whitespace trimming (unless preserve_whitespace is set)
     let mut trimmed = if preserve_whitespace {
