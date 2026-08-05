@@ -3474,6 +3474,144 @@ fn extract_shadowed_state_names(script: &str) -> rustc_hash::FxHashSet<String> {
         .cloned()
         .collect()
 }
+/// Every identifier in `script` that is written to, found in one pass.
+///
+/// Replaces asking `is_variable_reassigned_in_text` once per variable, which
+/// walked the whole script per variable. Both routes run the same
+/// per-occurrence predicate, so the answers agree by construction.
+fn index_reassigned_vars(script: &str) -> rustc_hash::FxHashSet<&str> {
+    let bytes = script.as_bytes();
+    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+    let mut found: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+    let mut i = 0;
+    while i < bytes.len() {
+        if !is_ident(bytes[i]) || (i > 0 && is_ident(bytes[i - 1])) {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < bytes.len() && is_ident(bytes[i]) {
+            i += 1;
+        }
+        let name = &script[start..i];
+        if !found.contains(name) && is_reassignment_at(script, start, i - start) {
+            found.insert(name);
+        }
+    }
+    found
+}
+
+/// Every identifier declared as `const <name> = $state(` (or `.raw(` /
+/// `.frozen(`), found in one pass.
+///
+/// Matches the three `contains` calls it replaces byte for byte, including
+/// their indifference to what precedes `const`: the caller's pattern was a
+/// plain substring, so `aconst x = $state(` satisfied it and still does.
+fn index_const_state_decls(script: &str) -> rustc_hash::FxHashSet<&str> {
+    let bytes = script.as_bytes();
+    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+    let mut found: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+    for suffix in [" = $state(", " = $state.raw(", " = $state.frozen("] {
+        let mut from = 0;
+        while let Some(rel) = memmem::find(&bytes[from..], suffix.as_bytes()) {
+            let at = from + rel;
+            let mut name_start = at;
+            while name_start > 0 && is_ident(bytes[name_start - 1]) {
+                name_start -= 1;
+            }
+            if name_start < at && name_start >= 6 && &script[name_start - 6..name_start] == "const "
+            {
+                found.insert(&script[name_start..at]);
+            }
+            from = at + 1;
+        }
+    }
+    found
+}
+
+/// Whether the identifier occupying `abs_pos .. abs_pos + var_len` is written
+/// to rather than merely read.
+///
+/// Split out so the per-variable scan and the one-pass index below apply the
+/// same predicate: an index that answered a slightly different question would
+/// change the output, and the difference would be invisible in the counters.
+fn is_reassignment_at(script: &str, abs_pos: usize, var_len: usize) -> bool {
+    let bytes = script.as_bytes();
+    let after_pos = abs_pos + var_len;
+    // Check if this is a reassignment (not member mutation)
+    // Look at what comes after the variable name (skip whitespace)
+    let mut j = after_pos;
+    while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+        j += 1;
+    }
+
+    if j < bytes.len() {
+        let next_char = bytes[j];
+        // Check for assignment operators: =, +=, -=, *=, /=, %=, etc.
+        // But NOT == or => or =>{
+        if next_char == b'=' {
+            // Make sure it's not == or =>
+            if j + 1 < bytes.len() && bytes[j + 1] != b'=' && bytes[j + 1] != b'>' {
+                // Check that before the var, there's no `.` (which would mean member access)
+                if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                    // This is `x = ...` which is a declaration or reassignment.
+                    // Check if it's the declaration itself (let x = $state(...))
+                    // by looking backwards for `let `, `const `, or `var `
+                    let before_text = &script[..abs_pos];
+                    let trimmed_before = before_text.trim_end();
+                    if trimmed_before.ends_with("let")
+                        || trimmed_before.ends_with("const")
+                        || trimmed_before.ends_with("var")
+                    {
+                        // This is the declaration, not a reassignment
+                    } else {
+                        return true;
+                    }
+                }
+            }
+        } else if (next_char == b'+'
+            || next_char == b'-'
+            || next_char == b'*'
+            || next_char == b'/'
+            || next_char == b'%'
+            || next_char == b'&'
+            || next_char == b'|'
+            || next_char == b'^')
+            && j + 1 < bytes.len()
+            && bytes[j + 1] == b'='
+        {
+            // Compound assignment: +=, -=, *=, /=, %=, &=, |=, ^=
+            if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                return true;
+            }
+        } else if next_char == b'+' && j + 1 < bytes.len() && bytes[j + 1] == b'+' {
+            // x++ postfix increment
+            if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                return true;
+            }
+        } else if next_char == b'-' && j + 1 < bytes.len() && bytes[j + 1] == b'-' {
+            // x-- postfix decrement
+            if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
+                return true;
+            }
+        }
+    }
+
+    // Also check for prefix ++/-- before the variable
+    if abs_pos >= 2 {
+        let mut k = abs_pos - 1;
+        while k > 0 && bytes[k].is_ascii_whitespace() {
+            k -= 1;
+        }
+        if k > 0 && bytes[k] == b'+' && bytes[k - 1] == b'+' {
+            return true;
+        }
+        if k > 0 && bytes[k] == b'-' && bytes[k - 1] == b'-' {
+            return true;
+        }
+    }
+    false
+}
 
 /// Extract local reactive variable names from script content.
 /// These are variables declared with $state() or $derived() inside functions
@@ -3511,79 +3649,8 @@ pub(super) fn is_variable_reassigned_in_text(script: &str, var_name: &str) -> bo
                 !next.is_ascii_alphanumeric() && next != b'_' && next != b'$'
             };
 
-            if before_ok && after_ok {
-                // Check if this is a reassignment (not member mutation)
-                // Look at what comes after the variable name (skip whitespace)
-                let mut j = after_pos;
-                while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                    j += 1;
-                }
-
-                if j < bytes.len() {
-                    let next_char = bytes[j];
-                    // Check for assignment operators: =, +=, -=, *=, /=, %=, etc.
-                    // But NOT == or => or =>{
-                    if next_char == b'=' {
-                        // Make sure it's not == or =>
-                        if j + 1 < bytes.len() && bytes[j + 1] != b'=' && bytes[j + 1] != b'>' {
-                            // Check that before the var, there's no `.` (which would mean member access)
-                            if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
-                                // This is `x = ...` which is a declaration or reassignment.
-                                // Check if it's the declaration itself (let x = $state(...))
-                                // by looking backwards for `let `, `const `, or `var `
-                                let before_text = &script[..abs_pos];
-                                let trimmed_before = before_text.trim_end();
-                                if trimmed_before.ends_with("let")
-                                    || trimmed_before.ends_with("const")
-                                    || trimmed_before.ends_with("var")
-                                {
-                                    // This is the declaration, not a reassignment
-                                } else {
-                                    return true;
-                                }
-                            }
-                        }
-                    } else if (next_char == b'+'
-                        || next_char == b'-'
-                        || next_char == b'*'
-                        || next_char == b'/'
-                        || next_char == b'%'
-                        || next_char == b'&'
-                        || next_char == b'|'
-                        || next_char == b'^')
-                        && j + 1 < bytes.len()
-                        && bytes[j + 1] == b'='
-                    {
-                        // Compound assignment: +=, -=, *=, /=, %=, &=, |=, ^=
-                        if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
-                            return true;
-                        }
-                    } else if next_char == b'+' && j + 1 < bytes.len() && bytes[j + 1] == b'+' {
-                        // x++ postfix increment
-                        if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
-                            return true;
-                        }
-                    } else if next_char == b'-' && j + 1 < bytes.len() && bytes[j + 1] == b'-' {
-                        // x-- postfix decrement
-                        if abs_pos == 0 || bytes[abs_pos - 1] != b'.' {
-                            return true;
-                        }
-                    }
-                }
-
-                // Also check for prefix ++/-- before the variable
-                if abs_pos >= 2 {
-                    let mut k = abs_pos - 1;
-                    while k > 0 && bytes[k].is_ascii_whitespace() {
-                        k -= 1;
-                    }
-                    if k > 0 && bytes[k] == b'+' && bytes[k - 1] == b'+' {
-                        return true;
-                    }
-                    if k > 0 && bytes[k] == b'-' && bytes[k - 1] == b'-' {
-                        return true;
-                    }
-                }
+            if before_ok && after_ok && is_reassignment_at(script, abs_pos, var_len) {
+                return true;
             }
 
             i = abs_pos + 1;
@@ -4558,6 +4625,26 @@ fn transform_instance_script_for_visitors(
                 .and_then(|&idx| analysis.root.bindings.get(idx))
                 .is_some_and(|b| b.reassigned)
     };
+    // One pass each, shared by both loops below. Asking per variable walked
+    // the whole script once per variable, which is where this stage's cost
+    // grew faster than the script did.
+    let const_state_decls = index_const_state_decls(&script_rest);
+    let reassigned_in_text = index_reassigned_vars(&script_rest);
+    if super::profile::index_oracle_enabled() {
+        for (var, ..) in &local_reactive_vars {
+            super::profile::record_index_oracle(
+                reassigned_in_text.contains(var.as_str())
+                    == is_variable_reassigned_in_text(&script_rest, var),
+            );
+            let pattern = format!("const {}", var);
+            super::profile::record_index_oracle(
+                const_state_decls.contains(var.as_str())
+                    == (script_rest.contains(&format!("{} = $state(", pattern))
+                        || script_rest.contains(&format!("{} = $state.raw(", pattern))
+                        || script_rest.contains(&format!("{} = $state.frozen(", pattern))),
+            );
+        }
+    }
     for (var, is_const, is_state) in &local_reactive_vars {
         // Skip top-level bindings - they are already handled by the analysis-based
         // state_vars and non_reactive_state_vars collections above. The text-based
@@ -4593,15 +4680,11 @@ fn transform_instance_script_for_visitors(
         // $derived vars are never non-reactive (they always need $.get()).
         let is_non_reactive = if analysis.immutable && *is_state {
             if *is_const {
-                let state_pattern = format!("const {}", var);
-                !is_reassigned_or_accessor_state(var)
-                    && (script_rest.contains(&format!("{} = $state(", state_pattern))
-                        || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
-                        || script_rest.contains(&format!("{} = $state.frozen(", state_pattern)))
+                !is_reassigned_or_accessor_state(var) && const_state_decls.contains(var.as_str())
             } else {
                 // let/var $state: check if the variable is actually reassigned in the script.
                 // Member mutations (x.foo = ...) do NOT count as reassignment.
-                !is_variable_reassigned_in_text(&script_rest, var)
+                !reassigned_in_text.contains(var.as_str())
             }
         } else {
             false
@@ -4671,13 +4754,10 @@ fn transform_instance_script_for_visitors(
             if *is_state {
                 let is_not_reassigned = if *is_const {
                     // const vars are never reassigned
-                    let state_pattern = format!("const {}", var);
-                    script_rest.contains(&format!("{} = $state(", state_pattern))
-                        || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
-                        || script_rest.contains(&format!("{} = $state.frozen(", state_pattern))
+                    const_state_decls.contains(var.as_str())
                 } else {
                     // let/var: check text for actual reassignment
-                    !is_variable_reassigned_in_text(&script_rest, var)
+                    !reassigned_in_text.contains(var.as_str())
                 };
                 if is_not_reassigned && !non_reactive_state_vars.contains(var) {
                     non_reactive_state_vars.push(var.clone());

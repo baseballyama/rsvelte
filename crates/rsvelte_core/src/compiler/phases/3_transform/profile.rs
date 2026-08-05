@@ -507,3 +507,38 @@ pub fn take_breakdown() -> Phase3Breakdown {
         codegen: CODEGEN.with(|c| c.replace(Duration::ZERO)),
     }
 }
+
+/// Agreement between the one-pass indices and the per-variable scans they
+/// replace.
+///
+/// The indices answer the same questions a different way, so "tests pass" is
+/// not evidence they agree -- a no-op would pass too. Under
+/// `RSVELTE_INDEX_ORACLE` both routes run and every answer is compared, which
+/// gives the comparison a denominator instead of only a failure count.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct IndexOracle {
+    pub checks: u64,
+    pub mismatches: u64,
+}
+
+thread_local! {
+    static INDEX_ORACLE: Cell<(u64, u64)> = const { Cell::new((0, 0)) };
+}
+
+pub fn index_oracle_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RSVELTE_INDEX_ORACLE").is_some())
+}
+
+#[inline]
+pub fn record_index_oracle(agrees: bool) {
+    INDEX_ORACLE.with(|c| {
+        let (checks, mismatches) = c.get();
+        c.set((checks + 1, mismatches + u64::from(!agrees)));
+    });
+}
+
+pub fn take_index_oracle() -> IndexOracle {
+    let (checks, mismatches) = INDEX_ORACLE.replace((0, 0));
+    IndexOracle { checks, mismatches }
+}
