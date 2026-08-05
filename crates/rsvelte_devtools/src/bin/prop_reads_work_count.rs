@@ -10,11 +10,15 @@
 //!   --features measure-prop-reads
 //! ```
 
+#[cfg(feature = "measure-prop-reads")]
 use std::fs;
+#[cfg(feature = "measure-prop-reads")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "measure-prop-reads")]
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
+#[cfg(feature = "measure-prop-reads")]
 fn collect(dir: &Path, files: &mut Vec<String>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
@@ -35,6 +39,7 @@ fn collect(dir: &Path, files: &mut Vec<String>) {
     }
 }
 
+#[cfg(feature = "measure-prop-reads")]
 const DEFAULT_CORPORA: &[&str] = &[
     "compatibility/sources",
     "submodules/flowbite-svelte",

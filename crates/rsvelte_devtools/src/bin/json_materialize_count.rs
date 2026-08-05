@@ -10,11 +10,15 @@
 //!   --features measure-json
 //! ```
 
+#[cfg(feature = "measure-json")]
 use std::fs;
+#[cfg(feature = "measure-json")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "measure-json")]
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
+#[cfg(feature = "measure-json")]
 fn collect(dir: &Path, files: &mut Vec<(PathBuf, String)>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
