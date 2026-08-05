@@ -13,11 +13,15 @@
 //!   --features measure-module-source
 //! ```
 
+#[cfg(feature = "measure-module-source")]
 use std::fs;
+#[cfg(feature = "measure-module-source")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "measure-module-source")]
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
+#[cfg(feature = "measure-module-source")]
 fn collect(dir: &Path, files: &mut Vec<(PathBuf, String)>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;

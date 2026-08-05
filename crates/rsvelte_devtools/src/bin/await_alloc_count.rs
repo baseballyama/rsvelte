@@ -13,11 +13,15 @@
 //!   --features measure-await
 //! ```
 
+#[cfg(feature = "measure-await")]
 use std::fs;
+#[cfg(feature = "measure-await")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "measure-await")]
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
+#[cfg(feature = "measure-await")]
 fn collect(dir: &Path, files: &mut Vec<(PathBuf, String)>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;

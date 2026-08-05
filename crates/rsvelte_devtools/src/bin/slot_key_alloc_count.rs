@@ -12,11 +12,15 @@
 //!   --features measure-slot-key
 //! ```
 
+#[cfg(feature = "measure-slot-key")]
 use std::fs;
+#[cfg(feature = "measure-slot-key")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "measure-slot-key")]
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
+#[cfg(feature = "measure-slot-key")]
 fn collect(dir: &Path, files: &mut Vec<(PathBuf, String)>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;

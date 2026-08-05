@@ -13,11 +13,15 @@
 //!   --features measure-hoisted
 //! ```
 
+#[cfg(feature = "measure-hoisted")]
 use std::fs;
+#[cfg(feature = "measure-hoisted")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "measure-hoisted")]
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
+#[cfg(feature = "measure-hoisted")]
 fn collect(dir: &Path, files: &mut Vec<(PathBuf, String)>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
