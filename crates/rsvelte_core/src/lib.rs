@@ -70,10 +70,12 @@ pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewr
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::work()
 }
 
-/// How many fragments came back without the terminator the printer added, for
-/// the Phase-3 in-place path.
+/// `(terminators dropped, of those the ones the gate could not check)` for the
+/// Phase-3 in-place path. A fragment that does not stand alone parses to `None`
+/// on both sides, which the gate reads as agreement, so the second number is
+/// the part of the denominator nothing verified.
 #[doc(hidden)]
-pub fn ast_rewrite_termination_counts() -> u32 {
+pub fn ast_rewrite_termination_counts() -> (u32, u32) {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::termination_counts()
 }
 #[cfg(feature = "parallel")]

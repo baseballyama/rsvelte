@@ -85,10 +85,9 @@ fn main() {
     println!("total mismatches: {total_mismatches}");
     println!("total unverified: {total_unverified}");
 
-    println!(
-        "\nterminators dropped: {}",
-        rsvelte_core::ast_rewrite_termination_counts()
-    );
+    let (pops, unchecked) = rsvelte_core::ast_rewrite_termination_counts();
+    println!("\nterminators dropped:                {pops}");
+    println!("of those, the gate could not check: {unchecked}");
     if total_unverified > 0 {
         println!("\nunverified by pass:");
         for (pass, _, _, _, unverified) in tally.iter().filter(|e| e.4 > 0) {

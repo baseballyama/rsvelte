@@ -140,11 +140,12 @@ fn keep_fragment_termination(source: &str, printed: &mut String) {
         return;
     }
     let shortened = &printed[..printed.len() - 1];
-    if statements_with_following_text(source) != statements_with_following_text(shortened) {
+    let before = statements_with_following_text(source);
+    if before != statements_with_following_text(shortened) {
         return;
     }
     printed.truncate(printed.len() - 1);
-    dual_run::count_termination();
+    dual_run::count_termination(before.is_none());
 }
 
 /// How many statements a fragment is once text follows it, or `None` when the
@@ -683,19 +684,31 @@ pub mod dual_run {
     }
 
     thread_local! {
-        /// How many fragments came back without the terminator the printer added.
-        /// Whether dropping it changed what follows is not counted: the drop only
-        /// happens when it does not, so the answer is fixed at zero.
-        static TERMINATION: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+        /// `(terminators dropped, of those the ones the gate could not check)`.
+        ///
+        /// Whether dropping a terminator changed what follows is not counted:
+        /// the drop only happens when it does not, so that answer is fixed at
+        /// zero and counting it would only re-parse what the gate just parsed.
+        /// How often the gate had nothing to compare is not fixed — a fragment
+        /// that does not stand alone parses to `None` on both sides, which the
+        /// gate reads as agreement and drops on — so that stays.
+        static TERMINATION: std::cell::Cell<(u32, u32)> =
+            const { std::cell::Cell::new((0, 0)) };
     }
 
-    /// Record one dropped terminator.
-    pub(super) fn count_termination() {
-        TERMINATION.with(|t| t.set(t.get() + 1));
+    /// Record one dropped terminator, and whether the gate had two parses to
+    /// compare or two `None`s. The caller passes what it already parsed.
+    pub(super) fn count_termination(unchecked: bool) {
+        TERMINATION.with(|t| {
+            let (pops, unverifiable) = t.get();
+            t.set((pops + 1, unverifiable + u32::from(unchecked)));
+        });
     }
 
-    /// How many fragments came back without the terminator the printer added.
-    pub fn termination_counts() -> u32 {
+    /// `(terminators dropped, of those the ones the gate could not check)`. The
+    /// first is the denominator; the second says how much of it the gate's
+    /// check could not speak for.
+    pub fn termination_counts() -> (u32, u32) {
         TERMINATION.with(std::cell::Cell::get)
     }
 
