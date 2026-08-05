@@ -119,6 +119,11 @@ pub fn with_program_mut(
 /// `;` itself. Splicing preserved that because it never rewrote bytes outside
 /// an edit span; printing a throwaway `Program` terminates every statement, so
 /// the fragment comes back with a `;` its caller then doubles.
+///
+/// This has to be decided per input rather than per call site: a single call
+/// site is reached through several outer callers, and terminated and
+/// unterminated fragments both arrive there, so no static per-site declaration
+/// can express the convention.
 fn keep_fragment_termination(source: &str, printed: &mut String) {
     if printed.ends_with(';') && !source.trim_end().ends_with(';') {
         printed.pop();
