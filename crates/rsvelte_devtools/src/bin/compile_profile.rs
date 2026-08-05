@@ -309,6 +309,12 @@ fn main() {
         st.entries_outside_parent
     );
     report_reparse(&mut rows, ms(total));
+    if let Some(path) = std::env::args()
+        .position(|a| a == "--dump-rows")
+        .and_then(|i| std::env::args().nth(i + 1))
+    {
+        dump_rows(&scaling, &path);
+    }
     report_scaling(&scaling, "script bytes", |r| r.script_bytes as f64);
     report_scaling(&scaling, "rune count", |r| r.runes as f64);
     println!(
@@ -346,6 +352,36 @@ fn main() {
         "Throughput:          {:.1} MB/s",
         total_bytes as f64 / total.as_secs_f64() / 1_000_000.0
     );
+}
+
+/// Writes the per-file rows the scaling table is aggregated from.
+///
+/// Every refit -- excluding zero rows, restricting to a quartile range, fitting
+/// all buckets on one common file set -- is a question about which rows enter
+/// which fit, and none of them can be asked of the printed table. Dumping the
+/// rows once makes those refits cost nothing.
+fn dump_rows(rows: &[ScalingRow], path: &str) {
+    let ns = |d: std::time::Duration| d.as_nanos();
+    let mut out = String::from(
+        "script_bytes,runes,ensure_script,analyze,script_text,template,codegen,transform\n",
+    );
+    for r in rows {
+        out.push_str(&format!(
+            "{},{},{},{},{},{},{},{}\n",
+            r.script_bytes,
+            r.runes,
+            ns(r.ensure_script),
+            ns(r.analyze),
+            ns(r.script_text),
+            ns(r.template),
+            ns(r.codegen),
+            ns(r.transform)
+        ));
+    }
+    match std::fs::write(path, out) {
+        Ok(()) => println!("\n  wrote {} rows to {path}", rows.len()),
+        Err(e) => eprintln!("could not write {path}: {e}"),
+    }
 }
 
 struct ScalingRow {
@@ -448,9 +484,11 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
     let mut order: Vec<usize> = (0..rows.len()).collect();
     order.sort_by(|&a, &b| predictor(&rows[a]).total_cmp(&predictor(&rows[b])));
     println!(
-        "    {:<12} {:>8} {:>8} {:>8} {:>8} | {:>7} {:>7} {:>6}",
-        "bucket", "Q1 ms/f", "Q2 ms/f", "Q3 ms/f", "Q4 ms/f", "share", "exp", "c_b"
+        "    {:<12} {:>8} {:>8} {:>8} {:>8} | {:>7} {:>7} {:>6} {:>6}",
+        "bucket", "Q1 ms/f", "Q2 ms/f", "Q3 ms/f", "Q4 ms/f", "share", "exp", "c_b", "fitted"
     );
+    // `log_slope` drops rows whose time is zero, so each bucket is fitted on its
+    // own subpopulation; without this count the five exponents look commensurable.
     let mut c_sum = 0.0;
     for (name, get) in buckets {
         let mut cells = [0.0f64; 4];
@@ -461,18 +499,19 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
         }
         let share = rows.iter().map(|r| ms(get(r))).sum::<f64>() / total_all.max(f64::MIN_POSITIVE);
         let pts: Vec<(f64, f64)> = rows.iter().map(|r| (predictor(r), ms(get(r)))).collect();
-        let (exp, _) = log_slope(&pts);
+        let (exp, fitted) = log_slope(&pts);
         let c_b = share * exp;
         c_sum += c_b;
         println!(
-            "    {name:<12} {:>8.4} {:>8.4} {:>8.4} {:>8.4} | {:>6.1}% {:>7.3} {:>6.3}",
+            "    {name:<12} {:>8.4} {:>8.4} {:>8.4} {:>8.4} | {:>6.1}% {:>7.3} {:>6.3} {:>6}",
             cells[0],
             cells[1],
             cells[2],
             cells[3],
             share * 100.0,
             exp,
-            c_b
+            c_b,
+            fitted
         );
     }
     let total_pts: Vec<(f64, f64)> = rows
