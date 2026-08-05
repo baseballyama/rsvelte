@@ -132,7 +132,30 @@ pub struct ScriptTextBreakdown {
     pub parent_calls: u64,
 }
 
+/// The `*_ast` rewrite passes all reach the parser through one choke point,
+/// [`super::shared::ast_rewrite::with_program`], so counting there covers every
+/// pass at once.
+///
+/// `bytes` is the load-independent quantity: it is the total source length
+/// handed to the parser across a compile, so `bytes / file_len` says how many
+/// times over the pipeline re-reads the same script. A ratio that grows with
+/// file size is superlinear re-parsing; a flat ratio is a constant factor.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct ReparseBreakdown {
+    /// Time inside `Parser::parse` only.
+    pub parse: Duration,
+    /// Time inside the visitor closure, i.e. everything the pass does with the
+    /// program once it exists.
+    pub visit: Duration,
+    pub calls: u64,
+    /// Summed `source.len()` over every call.
+    pub bytes: u64,
+}
+
 thread_local! {
+    static REPARSE: Cell<(Duration, Duration, u64, u64)> =
+        const { Cell::new((Duration::ZERO, Duration::ZERO, 0, 0)) };
+
     static VISIT_PROGRAM: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static SCRIPT_TEXT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static TEMPLATE_FRAGMENT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
@@ -161,6 +184,24 @@ thread_local! {
     static ESRAP_PIPE: Cell<(Duration, Duration, u64)> =
         const { Cell::new((Duration::ZERO, Duration::ZERO, 0)) };
     static ESRAP_NORMALIZE: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
+}
+
+#[inline]
+pub fn record_reparse(parse: Duration, visit: Duration, bytes: usize) {
+    REPARSE.with(|c| {
+        let (p, v, n, b) = c.get();
+        c.set((p + parse, v + visit, n + 1, b + bytes as u64));
+    });
+}
+
+pub fn take_reparse_breakdown() -> ReparseBreakdown {
+    let (parse, visit, calls, bytes) = REPARSE.replace((Duration::ZERO, Duration::ZERO, 0, 0));
+    ReparseBreakdown {
+        parse,
+        visit,
+        calls,
+        bytes,
+    }
 }
 
 #[inline]

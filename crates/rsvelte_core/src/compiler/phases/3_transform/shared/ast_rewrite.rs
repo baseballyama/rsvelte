@@ -54,14 +54,22 @@ pub fn with_program<R>(
     );
     arena.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
+        let parse_start = super::super::profile::timer_start();
         let parsed = Parser::new(&allocator, source, source_type)
             .with_options(parse_options)
             .parse();
+        let parse_time = super::super::profile::timer_elapsed(parse_start);
+        let visit_start = super::super::profile::timer_start();
         let out = if parsed.diagnostics.is_empty() {
             f(&parsed.program)
         } else {
             None
         };
+        super::super::profile::record_reparse(
+            parse_time,
+            super::super::profile::timer_elapsed(visit_start),
+            source.len(),
+        );
         *cell.borrow_mut() = allocator;
         out
     })

@@ -129,9 +129,16 @@ fn main() {
     // Reset Phase 3 sub-phase counters in case warmup left non-zero state.
     let _ = profile::take_breakdown();
 
+    let _ = profile::take_reparse_breakdown();
+    // Per-file rows, so re-parse cost can be read against file size instead of
+    // only as one corpus-wide average.
+    let mut rows: Vec<(usize, std::time::Duration, profile::ReparseBreakdown)> =
+        Vec::with_capacity(files.len());
+
     // Measure Phase 3 (Transform)
     let start = Instant::now();
     for (i, (_, content)) in files.iter().enumerate() {
+        let file_start = Instant::now();
         if let (Some(ast), Some(Some(analysis))) = (&asts[i], analyses.get(i)) {
             // SAFETY: `ast` is held in `asts[i]` for the duration of this
             // loop iteration; the serialize arena pointer is cleared before
@@ -141,6 +148,11 @@ fn main() {
             let _ = transform_component(analysis, ast, content, &compile_opts);
             rsvelte_core::ast::arena::clear_serialize_arena();
         }
+        rows.push((
+            content.len(),
+            file_start.elapsed(),
+            profile::take_reparse_breakdown(),
+        ));
     }
     let transform_time = start.elapsed();
     let transform_breakdown = profile::take_breakdown();
@@ -258,6 +270,7 @@ fn main() {
         st.parent_calls,
         st.calls
     );
+    report_reparse(&mut rows, ms(total));
     println!(
         "  Template fragment:   {:7.2}ms ({:5.1}%)",
         ms(template_fragment),
@@ -293,6 +306,67 @@ fn main() {
         "Throughput:          {:.1} MB/s",
         total_bytes as f64 / total.as_secs_f64() / 1_000_000.0
     );
+}
+
+/// Re-parse cost overall and per file-size quartile.
+///
+/// The deterministic column is `bytes/file`: how many times over the pass
+/// pipeline hands the same script back to the parser. It needs no quiet machine,
+/// so it answers "constant factor or superlinear" independently of the timings
+/// next to it.
+fn report_reparse(
+    rows: &mut [(usize, std::time::Duration, profile::ReparseBreakdown)],
+    total_ms: f64,
+) {
+    let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
+    let sum: profile::ReparseBreakdown = rows.iter().fold(
+        profile::ReparseBreakdown::default(),
+        |mut acc, (_, _, r)| {
+            acc.parse += r.parse;
+            acc.visit += r.visit;
+            acc.calls += r.calls;
+            acc.bytes += r.bytes;
+            acc
+        },
+    );
+    println!(
+        "  ast_rewrite reparse: {:7.2}ms ({:5.1}%) parse, {:7.2}ms ({:5.1}%) visit | {} calls",
+        ms(sum.parse),
+        ms(sum.parse) / total_ms * 100.0,
+        ms(sum.visit),
+        ms(sum.visit) / total_ms * 100.0,
+        sum.calls
+    );
+
+    rows.sort_by_key(|&(bytes, ..)| bytes);
+    let n = rows.len();
+    if n < 4 {
+        return;
+    }
+    println!(
+        "    {:<9} {:>6} {:>9} {:>8} {:>10} {:>9} {:>9}",
+        "quartile", "files", "med bytes", "calls/f", "reparse/f", "parse%P3", "visit%P3"
+    );
+    for q in 0..4 {
+        let chunk = &rows[n * q / 4..n * (q + 1) / 4];
+        let files = chunk.len() as f64;
+        let src: u64 = chunk.iter().map(|&(b, ..)| b as u64).sum();
+        let calls: u64 = chunk.iter().map(|(_, _, r)| r.calls).sum();
+        let bytes: u64 = chunk.iter().map(|(_, _, r)| r.bytes).sum();
+        let parse: f64 = chunk.iter().map(|(_, _, r)| ms(r.parse)).sum();
+        let visit: f64 = chunk.iter().map(|(_, _, r)| ms(r.visit)).sum();
+        let p3: f64 = chunk.iter().map(|&(_, d, _)| ms(d)).sum();
+        println!(
+            "    Q{:<8} {:>6} {:>9} {:>8.1} {:>9.2}x {:>8.1}% {:>8.1}%",
+            q + 1,
+            chunk.len(),
+            chunk[chunk.len() / 2].0,
+            calls as f64 / files,
+            bytes as f64 / src.max(1) as f64,
+            parse / p3.max(f64::MIN_POSITIVE) * 100.0,
+            visit / p3.max(f64::MIN_POSITIVE) * 100.0,
+        );
+    }
 }
 
 /// The six shipped projects, picked so this population is byte-for-byte the one
