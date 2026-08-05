@@ -1,7 +1,6 @@
 [
 	"flowbite-svelte/src/routes/utils/CompoAttributesViewer.svelte",
 	"skeleton/packages/skeleton-svelte/src/components/portal/anatomy/root.svelte",
-	"svar-core/site/src/Demo.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/MultiSelect.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/07-$inspect.md/3.svelte",
 	"svelte/documentation/docs/02-runes/07-$inspect.md/3.svelte",
@@ -10,7 +9,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/destructure-async-assignments/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-delegation-6/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/state-in-template/main.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-minify/main.svelte",
 	"svelthree/src/lib/components/WebGLRenderer.svelte"
 ]

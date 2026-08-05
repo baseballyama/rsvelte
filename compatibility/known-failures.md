@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 14 entries)
+## Client dev (`known-failures.client-dev.json`, 12 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -154,6 +154,13 @@ Validating every prop-rooted `bind:` setter mutation took it to 14.
 mutation itself is wrapped, so a runes non-bindable prop — which assigns the
 member directly, with no `prop(…, true)` call around it — needs the wrap too.
 
+Labelling every proxied `$state` initializer took it to 12.
+`create_state_declarator` decides on the **visited** expression, so in dev an
+`a === b` initializer has already become a `$.strict_equals(...)` call and
+therefore proxies (an arithmetic `BinaryExpression` still does not); and a
+`$state` declared inside a template handler body reaches the expression
+converter, which had no way back to the declarator's name.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -170,7 +177,6 @@ each side, which separates the two directions and cannot be fooled by order:
 |---|---:|---:|---|---|
 | equality instrumentation | 1 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
-| `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
 The ownership row is now empty as well: the preamble half went first, then the
@@ -186,7 +192,7 @@ the two halves that had no equivalent on the JSON expression path (the value
 must be used, and the component-prop exemption only covers a component that is
 a `Fragment` child).
 
-8 entries are attributed to a cluster; the remaining **6** show no
+6 entries are attributed to a cluster; the remaining **6** show no
 difference in any dev helper: 2 are a `$.trace` label's line:column, 1 is a
 statement missing from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own
 mapping in a minified stylesheet and 2 are one-off shapes (an `$.assign`
