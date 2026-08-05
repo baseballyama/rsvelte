@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 18 entries)
+## Client dev (`known-failures.client-dev.json`, 16 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -143,6 +143,12 @@ path.at(-3) === 'Fragment'`, and an element's children are the one container it
 does not visit through a `Fragment` node, so a component nested in an element
 keeps the wrap.
 
+Nesting the legacy `$.invalidate_inner_signals` sequence inside the ownership
+wrap took it to 16. Upstream builds that sequence in `build_assignment` and
+hands the result to `validate_mutation`, so it is the wrap's third argument;
+rsvelte's text pass matched only the `prop(...)` call and left the sequence
+around the wrap instead.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -178,12 +184,11 @@ the two halves that had no equivalent on the JSON expression path (the value
 must be used, and the component-prop exemption only covers a component that is
 a `Fragment` child).
 
-10 entries are attributed to a cluster; the remaining **8** show no
-difference in any dev helper: 2 are a `$.trace` label's line:column, 2 are
-redundant parentheses around an ownership wrapper, 1 is a statement missing
-from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own mapping in a
-minified stylesheet and 2 are one-off shapes (an `$.assign` location, an
-`$.assign_async` wrap). All are tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
+10 entries are attributed to a cluster; the remaining **6** show no
+difference in any dev helper: 2 are a `$.trace` label's line:column, 1 is a
+statement missing from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own
+mapping in a minified stylesheet and 2 are one-off shapes (an `$.assign`
+location, an `$.assign_async` wrap). All are tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
 entries of that residue and is fixed: `build_each_block_accessor_parts` now
 hands the element `bind:` path the unthunked getter body plus the setter body,
 so `dev` can emit upstream's named accessors (`BindDirective.js:46-54`). The
