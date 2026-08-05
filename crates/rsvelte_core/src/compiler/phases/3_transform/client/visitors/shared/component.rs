@@ -1852,21 +1852,17 @@ fn process_bind_directive<'a>(
                     )]
                 }
             } else {
-                // Root is not state or prop - check if it has a transform
-                let has_transform = transform.is_some_and(|t| t.read.is_some());
-                if has_transform {
-                    let assignment = b::assign(
+                // Upstream falls through to `context.next()`, which visits the whole
+                // assignment target — inner references (an each-block thunk in a
+                // computed key) carry read transforms even when the root has none.
+                vec![b::stmt(
+                    &context.arena,
+                    b::assign(
                         &context.arena,
                         transformed_expression.clone(),
                         b::id("$$value"),
-                    );
-                    vec![b::stmt(&context.arena, assignment)]
-                } else {
-                    vec![b::stmt(
-                        &context.arena,
-                        b::assign(&context.arena, raw_expression.clone(), b::id("$$value")),
-                    )]
-                }
+                    ),
+                )]
             }
         } else {
             vec![b::stmt(
