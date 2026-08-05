@@ -6685,24 +6685,24 @@ fn transform_shadowed_local_state_vars(script: &str, shadowed_vars: &[String]) -
 
 /// The `$.…(` markers whose declarations [`transform_shadowed_local_state_vars`]
 /// rewrites, crossed with [`SHADOWED_DECL_KEYWORDS`] to form the twelve shapes.
-const SHADOWED_DECL_MARKERS: [&str; 4] = [
-    " = $.state(",
-    " = $.derived(",
-    " = $.state.raw(",
-    " = $.derived.by(",
-];
+const SHADOWED_DECL_MARKERS: [&str; 4] =
+    ["$.state(", "$.derived(", "$.state.raw(", "$.derived.by("];
 
 const SHADOWED_DECL_KEYWORDS: [&str; 3] = ["let ", "var ", "const "];
+
+/// In dev the label wrap sits between the `=` and the rune call, so every
+/// declaration probe has to look through it.
+const SHADOWED_DECL_TAG_WRAPPERS: [&str; 2] = ["$.tag(", "$.tag_proxy("];
 
 const SHADOWED_DECL_SHAPE_COUNT: usize = SHADOWED_DECL_MARKERS.len() * SHADOWED_DECL_KEYWORDS.len();
 
 /// First offset of each `<kw> N = $.…(` declaration shape, keyed by `N`.
 ///
 /// The twelve shapes are `let` / `var` / `const` crossed with
-/// [`SHADOWED_DECL_MARKERS`], indexed in the order the original per-variable
-/// `format!` probes used. `N` is the space-delimited token before the marker and
-/// the keyword is matched as a raw substring (no left word boundary), so each
-/// entry is exactly what `result.find(<kw> N = $.…()` would have returned.
+/// [`SHADOWED_DECL_MARKERS`], optionally through a
+/// [`SHADOWED_DECL_TAG_WRAPPERS`] wrap. `N` is the space-delimited token before
+/// the `=` and the keyword is matched as a raw substring (no left word
+/// boundary).
 fn index_shadowed_decls(
     script: &str,
 ) -> rustc_hash::FxHashMap<String, [Option<u32>; SHADOWED_DECL_SHAPE_COUNT]> {
@@ -6710,11 +6710,21 @@ fn index_shadowed_decls(
         rustc_hash::FxHashMap::default();
     for (marker_idx, marker) in SHADOWED_DECL_MARKERS.iter().enumerate() {
         for pos in memmem::find_iter(script.as_bytes(), marker.as_bytes()) {
-            let Some(space) = script[..pos].rfind(' ') else {
+            let mut before = &script[..pos];
+            for wrapper in SHADOWED_DECL_TAG_WRAPPERS {
+                if let Some(stripped) = before.strip_suffix(wrapper) {
+                    before = stripped;
+                    break;
+                }
+            }
+            let Some(before) = before.strip_suffix(" = ") else {
+                continue;
+            };
+            let Some(space) = before.rfind(' ') else {
                 continue;
             };
             let name_start = space + 1;
-            if name_start == pos {
+            if name_start == before.len() {
                 continue;
             }
             let head = &script[..name_start];
@@ -6727,7 +6737,7 @@ fn index_shadowed_decls(
             let shape = keyword * 2 + marker_idx % 2 + if marker_idx >= 2 { 6 } else { 0 };
             let pattern_start = (name_start - SHADOWED_DECL_KEYWORDS[keyword].len()) as u32;
             let entry = map
-                .entry(script[name_start..pos].to_string())
+                .entry(before[name_start..].to_string())
                 .or_insert([None; SHADOWED_DECL_SHAPE_COUNT]);
             if entry[shape].is_none_or(|first| pattern_start < first) {
                 entry[shape] = Some(pattern_start);
@@ -6854,11 +6864,7 @@ fn apply_local_set_transforms(func_body: &str, var_name: &str) -> String {
         let trimmed = line.trim();
 
         // Skip declaration lines
-        if trimmed.contains(&format!("let {} = $.state(", var_name))
-            || trimmed.contains(&format!("var {} = $.state(", var_name))
-            || trimmed.contains(&format!("let {} = $.derived(", var_name))
-            || trimmed.contains(&format!("var {} = $.derived(", var_name))
-        {
+        if declares_local_rune(trimmed, var_name) {
             lines.push(line.to_string());
             continue;
         }
@@ -6868,6 +6874,24 @@ fn apply_local_set_transforms(func_body: &str, var_name: &str) -> String {
     }
 
     lines.join("\n")
+}
+
+/// Whether `line` is `var_name`'s own signal declaration, with or without the
+/// dev label wrap around the rune call.
+fn declares_local_rune(line: &str, var_name: &str) -> bool {
+    ["let ", "var "].iter().any(|keyword| {
+        let head = format!("{keyword}{var_name} = ");
+        line.match_indices(head.as_str()).any(|(pos, _)| {
+            let mut rest = &line[pos + head.len()..];
+            for wrapper in SHADOWED_DECL_TAG_WRAPPERS {
+                if let Some(stripped) = rest.strip_prefix(wrapper) {
+                    rest = stripped;
+                    break;
+                }
+            }
+            rest.starts_with("$.state(") || rest.starts_with("$.derived(")
+        })
+    })
 }
 
 /// Transform `varName = expr` to `$.set(varName, expr, true)` in a line.

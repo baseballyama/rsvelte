@@ -186,6 +186,15 @@ fn is_state_var_init_expression(expr: &oxc_ast::ast::Expression) -> bool {
     let Expression::CallExpression(call) = expr else {
         return false;
     };
+    // In dev the label wrap sits between the `=` and the rune call.
+    if let Expression::StaticMemberExpression(member) = &call.callee
+        && let Expression::Identifier(obj) = &member.object
+        && obj.name == "$"
+        && matches!(member.property.name.as_str(), "tag" | "tag_proxy")
+        && let Some(inner) = call.arguments.first().and_then(|arg| arg.as_expression())
+    {
+        return is_state_var_init_expression(inner);
+    }
     match &call.callee {
         // Raw rune forms: `$state(...)` / `$derived(...)`.
         Expression::Identifier(id) => matches!(id.name.as_str(), "$state" | "$derived"),
