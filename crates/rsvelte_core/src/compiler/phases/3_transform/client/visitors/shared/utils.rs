@@ -3532,7 +3532,10 @@ fn get_literal_value_json(
         // `duration ? format(duration) : '--:--'` with `duration === 0`). Mirror
         // that ordering here by refusing to fold any expression whose
         // `has_call` flag is set, so the chunk falls through to memoization.
-        // This subsumes the per-`Math.*` state-arg guard below.
+        // This subsumes the per-`Math.*` state-arg guard below. The depth guard
+        // keeps it to the template expression: `has_call` is that expression's
+        // metadata, and `scope.evaluate` never consults it when it recurses into
+        // a binding's initializer.
         if matches!(
             expr_type,
             "CallExpression"
@@ -3544,7 +3547,8 @@ fn get_literal_value_json(
                 | "MemberExpression"
                 | "SequenceExpression"
                 | "ChainExpression"
-        ) && has_call_json(jv, context)
+        ) && INITIAL_EVAL_DEPTH.with(|d| d.get()) == 0
+            && has_call_json(jv, context)
         {
             return None;
         }
@@ -5564,6 +5568,58 @@ fn arg_contains_state_or_raw_state_binding(
     }
 }
 
+/// Upstream's `dependencies.size > 0` term of the `has_call` rule: Phase 2 adds
+/// every resolved identifier reference to `expression.dependencies`, so a call
+/// with a pure callee is still reactive when the expression reads any binding —
+/// even one whose value is a compile-time-known constant.
+fn references_any_binding_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "Identifier" => obj
+            .get("name")
+            .and_then(|v| v.as_str())
+            .is_some_and(|name| context.state.get_binding(name).is_some()),
+        // A non-computed member/key names a property, not a reference.
+        "MemberExpression" | "Property" => {
+            let (value_key, name_key) = if expr_type == "MemberExpression" {
+                ("object", "property")
+            } else {
+                ("value", "key")
+            };
+            if let Some(value) = obj.get(value_key)
+                && references_any_binding_json(value, context)
+            {
+                return true;
+            }
+            obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
+                && obj
+                    .get(name_key)
+                    .is_some_and(|name| references_any_binding_json(name, context))
+        }
+        _ => {
+            for (_key, val) in obj {
+                if val.is_object() && references_any_binding_json(val, context) {
+                    return true;
+                }
+                if let Some(arr) = val.as_array()
+                    && arr
+                        .iter()
+                        .any(|item| references_any_binding_json(item, context))
+                {
+                    return true;
+                }
+            }
+            false
+        }
+    }
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// Returns true for calls that have reactive dependencies, matching the official Svelte compiler
 /// behavior from CallExpression.js:
@@ -5602,6 +5658,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             // argument is a $state variable still gets has_call=true upstream.
             has_reactive_state_json(json_value, context)
                 || arg_contains_state_or_raw_state_binding(json_value, context)
+                || references_any_binding_json(json_value, context)
         }
         "MemberExpression" => {
             if let Some(object) = obj.get("object")
