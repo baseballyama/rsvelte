@@ -100,13 +100,29 @@ pub struct ScriptTextBreakdown {
     pub prenormalize: Duration,
     /// Gathering reactive / proxy / prop variable sets from the script text.
     pub collect_vars: Duration,
-    /// The line-by-line accumulation loop.
+    /// The line-by-line accumulation loop, `process_accumulated` included.
     pub line_loop: Duration,
+    /// The part of `line_loop` spent transforming completed statements; the
+    /// remainder is the loop's own per-line scanning.
+    pub process_accumulated: Duration,
+    /// Completed statements handed to the processor.
+    pub statements: u64,
+    /// `transform_client_runes_with_skip_and_state`, the per-statement rune rewrite.
+    pub runes: Duration,
+    /// The legacy `$:` reactive-statement branch.
+    pub reactive_stmt: Duration,
+    pub reactive_calls: u64,
     /// Reactive-statement append plus the runes-mode AST transforms.
     pub ast_transforms: Duration,
     /// Shadowed-local post-pass and dev-mode instrumentation.
     pub post_passes: Duration,
+    /// Calls that reached the staged region (i.e. did not take an early out).
     pub calls: u64,
+    /// Every entry into the staged function, early outs included.
+    pub entries: u64,
+    /// Every `record_script_text`. Must equal `entries`, or some staged work
+    /// ran outside the parent timer and the stage sum cannot be compared to it.
+    pub parent_calls: u64,
 }
 
 thread_local! {
@@ -123,6 +139,13 @@ thread_local! {
     static ST_AST_TRANSFORMS: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_POST_PASSES: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_CALLS: Cell<u64> = const { Cell::new(0) };
+    static ST_ENTRIES: Cell<u64> = const { Cell::new(0) };
+    static ST_PROCESS_ACCUMULATED: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_STATEMENTS: Cell<u64> = const { Cell::new(0) };
+    static ST_RUNES: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_REACTIVE_STMT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_REACTIVE_CALLS: Cell<u64> = const { Cell::new(0) };
+    static ST_PARENT_CALLS: Cell<u64> = const { Cell::new(0) };
 
     static ESRAP_CLIENT_SPLIT: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
     static ESRAP_CLIENT_MAP: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
@@ -217,6 +240,12 @@ pub fn record_visit_program(d: Duration) {
 #[inline]
 pub fn record_script_text(d: Duration) {
     SCRIPT_TEXT.with(|c| c.set(c.get() + d));
+    ST_PARENT_CALLS.with(|c| c.set(c.get() + 1));
+}
+
+#[inline]
+pub fn record_st_entry() {
+    ST_ENTRIES.with(|c| c.set(c.get() + 1));
 }
 
 #[inline]
@@ -237,6 +266,32 @@ pub fn record_css_render(d: Duration) {
 #[inline]
 pub fn record_codegen(d: Duration) {
     CODEGEN.with(|c| c.set(c.get() + d));
+}
+
+/// Records into [`ScriptTextBreakdown::process_accumulated`] on drop, so the
+/// statement processor's many early returns all get counted.
+pub struct ProcessAccumulatedGuard(pub TimerStart);
+
+impl Drop for ProcessAccumulatedGuard {
+    fn drop(&mut self) {
+        ST_PROCESS_ACCUMULATED.with(|c| c.set(c.get() + timer_elapsed(self.0)));
+        ST_STATEMENTS.with(|c| c.set(c.get() + 1));
+    }
+}
+
+#[inline]
+pub fn record_st_runes(d: Duration) {
+    ST_RUNES.with(|c| c.set(c.get() + d));
+}
+
+/// Records the legacy `$:` branch on drop, which returns from several points.
+pub struct ReactiveStmtGuard(pub TimerStart);
+
+impl Drop for ReactiveStmtGuard {
+    fn drop(&mut self) {
+        ST_REACTIVE_STMT.with(|c| c.set(c.get() + timer_elapsed(self.0)));
+        ST_REACTIVE_CALLS.with(|c| c.set(c.get() + 1));
+    }
 }
 
 #[inline]
@@ -273,6 +328,13 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         ast_transforms: ST_AST_TRANSFORMS.with(|c| c.replace(Duration::ZERO)),
         post_passes: ST_POST_PASSES.with(|c| c.replace(Duration::ZERO)),
         calls: ST_CALLS.with(|c| c.replace(0)),
+        process_accumulated: ST_PROCESS_ACCUMULATED.with(|c| c.replace(Duration::ZERO)),
+        statements: ST_STATEMENTS.with(|c| c.replace(0)),
+        runes: ST_RUNES.with(|c| c.replace(Duration::ZERO)),
+        reactive_stmt: ST_REACTIVE_STMT.with(|c| c.replace(Duration::ZERO)),
+        reactive_calls: ST_REACTIVE_CALLS.with(|c| c.replace(0)),
+        entries: ST_ENTRIES.with(|c| c.replace(0)),
+        parent_calls: ST_PARENT_CALLS.with(|c| c.replace(0)),
     }
 }
 

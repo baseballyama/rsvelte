@@ -4319,6 +4319,7 @@ fn transform_instance_script_for_visitors(
     retained_program: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
     source_projection: Option<&ScriptProjection>,
 ) -> String {
+    super::profile::record_st_entry();
     if script.is_empty() {
         return String::new();
     }
@@ -5212,6 +5213,9 @@ fn transform_instance_script_for_visitors(
         if accumulated.is_empty() {
             return;
         }
+        // Timed from here so the loop's own line scanning is what remains.
+        let _stmt_start = super::profile::timer_start();
+        let _guard = super::profile::ProcessAccumulatedGuard(_stmt_start);
 
         // Join all accumulated lines into a single statement
         let statement = accumulated.join("\n");
@@ -5220,6 +5224,8 @@ fn transform_instance_script_for_visitors(
         // Handle $: reactive statements in legacy (non-runes) mode
         // Transform `$: c = a + b;` to `$.legacy_pre_effect(() => (...deps), () => { c(a() + b()); })`
         if !analysis.runes && first_line_trimmed.starts_with("$:") {
+            let _reactive_start = super::profile::timer_start();
+            let _reactive_guard = super::profile::ReactiveStmtGuard(_reactive_start);
             // Extract assignment targets and dependencies from the raw statement
             // for topological sorting (matching official compiler's order_reactive_statements)
             let (assigned_vars, dep_vars) = extract_reactive_statement_deps(
@@ -5431,6 +5437,7 @@ fn transform_instance_script_for_visitors(
             .unwrap_or(first_line_trimmed);
 
         // Transform runes ($state, $derived, $effect, $props)
+        let _runes_start = super::profile::timer_start();
         let mut transformed = transform_client_runes_with_skip_and_state(
             &statement,
             non_reactive_state_vars,
@@ -5444,6 +5451,7 @@ fn transform_instance_script_for_visitors(
             store_sub_vars,
             read_only_props,
         );
+        super::profile::record_st_runes(super::profile::timer_elapsed(_runes_start));
 
         // In dev mode, if the previous output line carries a
         // `<!-- svelte-ignore state_snapshot_uncloneable -->` comment,

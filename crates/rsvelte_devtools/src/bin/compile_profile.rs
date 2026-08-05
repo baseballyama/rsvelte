@@ -215,13 +215,37 @@ fn main() {
         ("prenormalize", st.prenormalize),
         ("collect_vars", st.collect_vars),
         ("line_loop", st.line_loop),
+        ("  process_accum", st.process_accumulated),
+        ("    runes_xform", st.runes),
+        ("    reactive_stmt", st.reactive_stmt),
+        (
+            "    pa_rest",
+            st.process_accumulated
+                .saturating_sub(st.runes)
+                .saturating_sub(st.reactive_stmt),
+        ),
+        (
+            "  line_scan",
+            st.line_loop.saturating_sub(st.process_accumulated),
+        ),
         ("ast_transforms", st.ast_transforms),
         ("post_passes", st.post_passes),
         ("prologue+earlyout", st_other),
     ] {
         println!("    {label:<18} {:7.2}ms ({:5.1}%)", ms(d), pct(d));
     }
-    println!("    (instrumented calls: {})", st.calls);
+    println!("    (statements processed: {})", st.statements);
+    let st_sum =
+        st.prenormalize + st.collect_vars + st.line_loop + st.ast_transforms + st.post_passes;
+    println!(
+        "    SELF-CHECK sum {:.2}ms vs parent {:.2}ms ({:+.2}ms) | entries {} parent_calls {} staged {}",
+        ms(st_sum),
+        ms(script_text),
+        ms(st_sum) - ms(script_text),
+        st.entries,
+        st.parent_calls,
+        st.calls
+    );
     println!(
         "  Template fragment:   {:7.2}ms ({:5.1}%)",
         ms(template_fragment),
