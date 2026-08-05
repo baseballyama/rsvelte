@@ -92,8 +92,14 @@ fn main() {
     let resolve_lazy_time = start.elapsed();
 
     // Phase 2b: ensure_script_parsed for instance + module scripts (OXC)
+    //
+    // Timed per file as well as in total: it is the one bucket driven directly
+    // by script bytes, so it is the reference the other buckets' scaling is
+    // read against.
     let start = Instant::now();
+    let mut ensure_per_file: Vec<std::time::Duration> = Vec::with_capacity(files.len());
     for (i, (_, content)) in files.iter().enumerate() {
+        let file_start = Instant::now();
         if let Some(ref mut ast) = asts[i] {
             let line_offsets = compute_line_offsets(content, false);
             // SAFETY: same lifetime invariant as 2a.
@@ -106,6 +112,7 @@ fn main() {
             }
             rsvelte_core::ast::arena::clear_serialize_arena();
         }
+        ensure_per_file.push(file_start.elapsed());
     }
     let ensure_script_time = start.elapsed();
 
@@ -166,6 +173,7 @@ fn main() {
         let (script_bytes, runes) = script_shape(asts[i].as_ref(), content);
         scaling.push(ScalingRow {
             script_bytes,
+            ensure_script: ensure_per_file.get(i).copied().unwrap_or_default(),
             runes,
             analyze: analyze_per_file.get(i).copied().unwrap_or_default(),
             script_text: b.script_text_transform,
@@ -386,6 +394,7 @@ fn dump_rows(rows: &[ScalingRow], path: &str) {
 
 struct ScalingRow {
     script_bytes: usize,
+    ensure_script: std::time::Duration,
     runes: usize,
     analyze: std::time::Duration,
     script_text: std::time::Duration,
@@ -472,7 +481,8 @@ fn log_slope(points: &[(f64, f64)]) -> (f64, usize) {
 /// the other compiler's bucket split, which we do not have.
 fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -> f64) {
     let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
-    let buckets: [(&str, fn(&ScalingRow) -> std::time::Duration); 4] = [
+    let buckets: [(&str, fn(&ScalingRow) -> std::time::Duration); 5] = [
+        ("ensure_script", |r| r.ensure_script),
         ("Analyze", |r| r.analyze),
         ("script_text", |r| r.script_text),
         ("template", |r| r.template),
