@@ -616,7 +616,8 @@ fn dollar_param_body_range(
 /// A ternary consequent (`cond ? $x : y`) is also `$x` followed by `:`, but `$x`
 /// there is a real reference, not a property key. Such a `$x` is preceded
 /// (ignoring whitespace) by `?`, which never precedes a property key in a runtime
-/// object literal, so we exclude it (issue #1229).
+/// object literal, so we exclude it (issue #1229). A `switch` case test
+/// (`case $x:`) is excluded for the same reason.
 fn is_dollar_ident_object_property_key(
     chars: &[char],
     ident_start: usize,
@@ -648,6 +649,17 @@ fn is_dollar_ident_object_property_key(
         }
         if k >= 0 && chars[k as usize] == '?' {
             return false;
+        }
+        // Exclude a `switch` case test: `case $x:` is a value expression, not a
+        // property key.
+        if k >= 3 {
+            let pos = k as usize;
+            if chars[pos - 3..=pos].iter().collect::<String>() == "case" {
+                let before = if pos >= 4 { chars[pos - 4] } else { ' ' };
+                if !before.is_alphanumeric() && before != '_' && before != '$' {
+                    return false;
+                }
+            }
         }
         return true;
     }

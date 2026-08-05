@@ -1415,7 +1415,39 @@ pub fn apply_transforms_to_expression_with_shadowed(
             })
         }
 
-        // Expressions that don't need transformation
+        JsExpr::Class(class) => {
+            // The class binding name is in scope inside its own body.
+            let mut class_scope = local_scope.clone();
+            if let Some(id) = &class.id {
+                class_scope.add_shadowed(id.to_string());
+            }
+            JsExpr::Class(JsClassExpression {
+                id: class.id.clone(),
+                super_class: class.super_class.map(|sc| {
+                    context
+                        .arena
+                        .alloc_expr(apply_transforms_to_expression_with_shadowed(
+                            context.arena.get_expr(sc),
+                            context,
+                            &class_scope,
+                        ))
+                }),
+                body: JsClassBody {
+                    body: class
+                        .body
+                        .body
+                        .iter()
+                        .map(|member| {
+                            apply_transforms_to_class_member(member, context, &class_scope)
+                        })
+                        .collect(),
+                },
+            })
+        }
+
+        // Expressions that don't need transformation. `Chain` and `Void` are only
+        // ever synthesized by the builders around already-transformed subtrees,
+        // never produced from user source, so recursing would transform twice.
         JsExpr::Literal(_)
         | JsExpr::This
         | JsExpr::Super
@@ -1423,7 +1455,6 @@ pub fn apply_transforms_to_expression_with_shadowed(
         | JsExpr::ImportExpression { .. }
         | JsExpr::Raw(_)
         | JsExpr::OpaqueIdentifier(_)
-        | JsExpr::Class(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => expr.clone(),
 
@@ -1626,6 +1657,88 @@ fn transform_computed_indices_only(
     }
 }
 
+/// Apply transforms to a class member (field initializer, method, static block).
+fn apply_transforms_to_class_member(
+    member: &JsClassMember,
+    context: &ComponentContext,
+    local_scope: &LocalScope,
+) -> JsClassMember {
+    let transform_key = |key: &JsPropertyKey, computed: bool| match key {
+        JsPropertyKey::Computed(key_expr) if computed => {
+            JsPropertyKey::Computed(context.arena.alloc_expr(
+                apply_transforms_to_expression_with_shadowed(
+                    context.arena.get_expr(*key_expr),
+                    context,
+                    local_scope,
+                ),
+            ))
+        }
+        other => other.clone(),
+    };
+
+    match member {
+        JsClassMember::Method(method) => {
+            let mut method_scope = local_scope.clone();
+            for param in &method.value.params {
+                extract_pattern_names_to_scope(param, &mut method_scope);
+            }
+            register_block_local_vars(&method.value.body.body, &context.arena, &mut method_scope);
+            JsClassMember::Method(JsMethodDefinition {
+                key: transform_key(&method.key, method.computed),
+                value: JsFunctionExpression {
+                    id: method.value.id.clone(),
+                    params: method.value.params.clone(),
+                    body: JsBlockStatement {
+                        body: method
+                            .value
+                            .body
+                            .body
+                            .iter()
+                            .map(|s| {
+                                apply_transforms_to_statement_with_shadowed(
+                                    s,
+                                    context,
+                                    &method_scope,
+                                )
+                            })
+                            .collect(),
+                    },
+                    is_async: method.value.is_async,
+                    is_generator: method.value.is_generator,
+                },
+                kind: method.kind,
+                computed: method.computed,
+                is_static: method.is_static,
+            })
+        }
+        JsClassMember::Property(prop) => JsClassMember::Property(JsPropertyDefinition {
+            key: transform_key(&prop.key, prop.computed),
+            value: prop.value.map(|v| {
+                context
+                    .arena
+                    .alloc_expr(apply_transforms_to_expression_with_shadowed(
+                        context.arena.get_expr(v),
+                        context,
+                        local_scope,
+                    ))
+            }),
+            computed: prop.computed,
+            is_static: prop.is_static,
+        }),
+        JsClassMember::StaticBlock(block) => {
+            let mut block_scope = local_scope.clone();
+            register_block_local_vars(&block.body, &context.arena, &mut block_scope);
+            JsClassMember::StaticBlock(JsBlockStatement {
+                body: block
+                    .body
+                    .iter()
+                    .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
+                    .collect(),
+            })
+        }
+    }
+}
+
 /// Apply transforms to a statement recursively with local scope tracking.
 fn apply_transforms_to_statement_with_shadowed(
     stmt: &JsStatement,
@@ -1791,6 +1904,46 @@ fn apply_transforms_to_statement_with_shadowed(
                 test: transformed_test,
                 update: transformed_update,
                 body: transformed_body,
+            })
+        }
+
+        JsStatement::Switch(switch_stmt) => {
+            // All cases share one lexical scope, so `let`/`const` declared in any
+            // consequent shadows outer transforms for the whole switch body.
+            let mut switch_scope = local_scope.clone();
+            for case in &switch_stmt.cases {
+                register_block_local_vars(&case.consequent, &context.arena, &mut switch_scope);
+            }
+            let transform_in_switch = |e: &JsExpr| {
+                apply_transforms_to_expression_with_shadowed(e, context, &switch_scope)
+            };
+            JsStatement::Switch(JsSwitchStatement {
+                // The discriminant is evaluated in the enclosing scope.
+                discriminant: context.arena.alloc_expr(transform_expr(
+                    context.arena.get_expr(switch_stmt.discriminant),
+                )),
+                cases: switch_stmt
+                    .cases
+                    .iter()
+                    .map(|case| JsSwitchCase {
+                        test: case.test.map(|t| {
+                            context
+                                .arena
+                                .alloc_expr(transform_in_switch(context.arena.get_expr(t)))
+                        }),
+                        consequent: case
+                            .consequent
+                            .iter()
+                            .map(|s| {
+                                apply_transforms_to_statement_with_shadowed(
+                                    s,
+                                    context,
+                                    &switch_scope,
+                                )
+                            })
+                            .collect(),
+                    })
+                    .collect(),
             })
         }
 
