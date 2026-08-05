@@ -326,6 +326,17 @@ fn main() {
     }
     report_scaling(&scaling, "script bytes", |r| r.script_bytes as f64);
     report_scaling(&scaling, "rune count", |r| r.runes as f64);
+    let oracle = profile::take_index_oracle();
+    println!(
+        "  index oracle: {} checks, {} mismatches{}",
+        oracle.checks,
+        oracle.mismatches,
+        if oracle.checks == 0 {
+            " (set RSVELTE_INDEX_ORACLE to run it)"
+        } else {
+            ""
+        }
+    );
     println!(
         "  Template fragment:   {:7.2}ms ({:5.1}%)",
         ms(template_fragment),

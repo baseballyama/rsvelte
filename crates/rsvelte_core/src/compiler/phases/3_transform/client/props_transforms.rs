@@ -2910,7 +2910,7 @@ pub(super) fn wrap_prop_mutation_validation(
         // This handles the case where transform_prop_assignments skips member mutation wrapping in runes mode.
         let runes_prefix = format!("{}().", var_name);
         let mut runes_search_from = 0;
-        let mut loc_cursor = memchr::memmem::find(source.as_bytes(), b"<script").unwrap_or(0);
+        let mut sites = PropMutationSites::collect(source, var_name);
 
         while runes_search_from < result.len() {
             let Some(prefix_rel) = result[runes_search_from..].find(&runes_prefix) else {
@@ -3080,15 +3080,10 @@ pub(super) fn wrap_prop_mutation_validation(
                 .trim_end()
                 .to_string();
 
-            // Each mutation reports its own source position, so consume them in order.
-            let (line_num, col_num) =
-                match find_prop_mutation_location_from(source, var_name, loc_cursor) {
-                    Some((line, col, next)) => {
-                        loc_cursor = next;
-                        (line, col)
-                    }
-                    None => find_prop_mutation_location(source, var_name),
-                };
+            // Each mutation reports its own source position.
+            let (line_num, col_num) = sites
+                .take(static_member_names(&path_parts).as_deref())
+                .unwrap_or_else(|| find_prop_mutation_location(source, var_name));
 
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
@@ -3320,15 +3315,10 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
 
-            // Each mutation reports its own source position, so consume them in order.
-            let (line_num, col_num) =
-                match find_prop_mutation_location_from(source, var_name, loc_cursor) {
-                    Some((line, col, next)) => {
-                        loc_cursor = next;
-                        (line, col)
-                    }
-                    None => find_prop_mutation_location(source, var_name),
-                };
+            // Each mutation reports its own source position.
+            let (line_num, col_num) = sites
+                .take(static_member_names(&path_parts).as_deref())
+                .unwrap_or_else(|| find_prop_mutation_location(source, var_name));
 
             // Build the path array
             let path_array = format!("[{}]", path_parts.join(", "));
@@ -3359,48 +3349,81 @@ pub(super) fn wrap_prop_mutation_validation(
     result
 }
 
-/// Find the next prop mutation of `var_name` at or after `from`, returning its
-/// line/column plus the offset to resume scanning from.
-pub(super) fn find_prop_mutation_location_from(
-    source: &str,
-    var_name: &str,
-    from: usize,
-) -> Option<(usize, usize, usize)> {
-    let bytes = source.as_bytes();
-    let mut search = from;
+/// The source mutations of one prop, in source order, each with the member
+/// names it writes (`None` once any element is computed).
+pub(super) struct PropMutationSites {
+    sites: Vec<(usize, usize, Option<Vec<String>>, bool)>,
+}
 
-    while search < source.len() {
-        let rel = memchr::memmem::find(&bytes[search..], var_name.as_bytes())?;
-        let start = search + rel;
-        let end = start + var_name.len();
-        search = end;
-
-        // `light.foo = value` written inside a comment or a string is not the
-        // mutation being located, and consuming it here shifts every later
-        // mutation onto the wrong position.
-        if !is_in_code(source, from, start) {
-            continue;
-        }
-
-        if start > 0 {
-            let prev = bytes[start - 1] as char;
-            if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == '.' {
+impl PropMutationSites {
+    pub(super) fn collect(source: &str, var_name: &str) -> Self {
+        let mut sites = Vec::new();
+        let mut cursor = memchr::memmem::find(source.as_bytes(), b"<script").unwrap_or(0);
+        let bytes = source.as_bytes();
+        let mut search = cursor;
+        while search < source.len() {
+            let Some(rel) = memchr::memmem::find(&bytes[search..], var_name.as_bytes()) else {
+                break;
+            };
+            let start = search + rel;
+            let end = start + var_name.len();
+            search = end;
+            if !is_in_code(source, cursor, start) {
                 continue;
             }
+            if start > 0 {
+                let prev = bytes[start - 1] as char;
+                if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == '.' {
+                    continue;
+                }
+            }
+            if end >= source.len() || (bytes[end] != b'.' && bytes[end] != b'[') {
+                continue;
+            }
+            if let Some((after, chain)) = scan_member_chain_names(bytes, end)
+                && is_mutation_operator(bytes, after)
+            {
+                let (line, col) =
+                    crate::compiler::phases::phase3_transform::utils::locate_in_source(
+                        source, start,
+                    );
+                sites.push((line, col, chain, false));
+                cursor = end;
+            }
         }
-        if end >= source.len() || (bytes[end] != b'.' && bytes[end] != b'[') {
-            continue;
-        }
-        if let Some(after) = scan_member_chain(bytes, end)
-            && is_mutation_operator(bytes, after)
-        {
-            let (line, col) =
-                crate::compiler::phases::phase3_transform::utils::locate_in_source(source, start);
-            return Some((line, col, end));
-        }
+        Self { sites }
     }
 
-    None
+    /// The next unconsumed site writing `chain`. Matching on the member names
+    /// rather than on position is what keeps a moved statement — a `$:` body
+    /// becomes a `legacy_pre_effect` at the end of the output — from taking the
+    /// location of whichever mutation happens to be printed before it.
+    pub(super) fn take(&mut self, chain: Option<&[String]>) -> Option<(usize, usize)> {
+        let matching = self.sites.iter().position(|(_, _, site_chain, used)| {
+            !used
+                && match (chain, site_chain) {
+                    (Some(want), Some(have)) => want == have.as_slice(),
+                    _ => false,
+                }
+        });
+        let index = matching.or_else(|| self.sites.iter().position(|s| !s.3))?;
+        self.sites[index].3 = true;
+        Some((self.sites[index].0, self.sites[index].1))
+    }
+}
+
+/// The member names `'a'`-quoted by the path builders, or `None` when any
+/// element is a computed access that cannot be compared by name.
+fn static_member_names(path_parts: &[String]) -> Option<Vec<String>> {
+    path_parts[1..]
+        .iter()
+        .map(|part| {
+            part.strip_prefix('\'')
+                .and_then(|p| p.strip_suffix('\''))
+                .filter(|p| !p.contains('\''))
+                .map(str::to_string)
+        })
+        .collect()
 }
 
 /// Whether `target` sits in code rather than inside a comment or a string /
@@ -3471,14 +3494,16 @@ fn is_in_code(source: &str, from: usize, target: usize) -> bool {
     state == S::Code
 }
 
-/// Advance past `.name` / `[expr]` accessors, returning the offset just after the chain.
-fn scan_member_chain(bytes: &[u8], mut pos: usize) -> Option<usize> {
+/// Advance past `.name` / `[expr]` accessors, returning the offset just after
+/// the chain plus the names it reads — `None` once a computed access appears.
+fn scan_member_chain_names(bytes: &[u8], mut pos: usize) -> Option<(usize, Option<Vec<String>>)> {
+    let mut names = Some(Vec::new());
     loop {
         while pos < bytes.len() && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
             pos += 1;
         }
         if pos >= bytes.len() {
-            return Some(pos);
+            return Some((pos, names));
         }
         match bytes[pos] {
             b'.' => {
@@ -3498,8 +3523,12 @@ fn scan_member_chain(bytes: &[u8], mut pos: usize) -> Option<usize> {
                 if pos == ident_start {
                     return None;
                 }
+                if let Some(names) = names.as_mut() {
+                    names.push(String::from_utf8_lossy(&bytes[ident_start..pos]).into_owned());
+                }
             }
             b'[' => {
+                names = None;
                 let mut depth = 0usize;
                 while pos < bytes.len() {
                     match bytes[pos] {
@@ -3519,7 +3548,7 @@ fn scan_member_chain(bytes: &[u8], mut pos: usize) -> Option<usize> {
                     return None;
                 }
             }
-            _ => return Some(pos),
+            _ => return Some((pos, names)),
         }
     }
 }

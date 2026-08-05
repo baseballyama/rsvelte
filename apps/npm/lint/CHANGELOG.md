@@ -1,5 +1,34 @@
 # @rsvelte/lint
 
+## 0.10.5
+
+### Patch Changes
+
+- 0279808: Client source maps no longer anchor the instance script at the byte immediately
+  after `<script>`. That byte is the newline ending the `<script>` line, so every
+  segment derived from the script chunk resolved to a column past the end of that
+  line and broke downstream consumers resolving a frame. The chunk is now anchored
+  at the script's first non-whitespace byte, which cuts out-of-range client
+  segments by 46% across the official sourcemap samples. Generated code is
+  unchanged — the offset only feeds the map.
+- 67067b0: CSS pruning now models `{@render}` call sites. A `{#snippet}`-declared element's
+  real DOM ancestors are the union of the ancestors of every site that renders the
+  snippet, not its lexical parent chain, so rules such as `.foo > .a { … }` whose
+  `.a` only ever appears in a snippet rendered under a different ancestor are
+  marked unused like the official compiler does. Previously the structural ancestor
+  check bailed out entirely whenever the component contained a snippet.
+- f016d18: Add `svelte/no-unused-vars`, a Svelte-aware unused-variable rule for component
+  scripts. ESLint core's `no-unused-vars` and oxlint both stop at the `.svelte`
+  boundary, so top-level `<script>` bindings went unchecked unless a project kept
+  a Svelte-aware ESLint around. The rule reads the compiler's Phase-2 scope tree,
+  so template reads, `$store` auto-subscriptions and `bind:` targets all count as
+  uses. It is deliberately conservative: only top-level module/instance-script
+  declarations are judged, and props (`export let`, `$props()` destructuring,
+  `$$props`/`$$restProps`/`$$slots`), exported declarations, reactive `$:`
+  declarations, reassigned/mutated bindings, and names that occur anywhere else
+  in the source (covering TypeScript type positions the scope tree does not
+  record) are never reported.
+
 ## 0.10.4
 
 ## 0.10.3

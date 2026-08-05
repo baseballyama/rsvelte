@@ -1912,7 +1912,9 @@ fn build_getter_setter_with_primitive(
                             // Official sets this before building the path, so an unbuildable
                             // path still emits the `$$ownership_validator` preamble.
                             context.state.needs_mutation_validation.set(true);
-                            build_ast_member_path(original_expr)
+                            build_ast_member_path(original_expr, &|name: &str| {
+                                read_computed_path_element(name, context)
+                            })
                         } else {
                             None
                         };
@@ -2805,9 +2807,12 @@ fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
 // Mirrors validate_mutation()'s path-building while-loop (shared/utils.js): any property that
 // isn't a plain Literal/Identifier (e.g. `obj[a.b]`) aborts the whole wrap rather than skipping
 // just that segment, so we return None here and the caller must leave the mutation unwrapped.
-fn build_ast_member_path(expr: &Expression) -> Option<Vec<JsExpr>> {
+fn build_ast_member_path(
+    expr: &Expression,
+    read_computed: &dyn Fn(&str) -> JsExpr,
+) -> Option<Vec<JsExpr>> {
     let mut path = Vec::new();
-    build_ast_member_path_recursive(expr.as_json(), &mut path).then_some(path)
+    build_ast_member_path_recursive(expr.as_json(), &mut path, read_computed).then_some(path)
 }
 
 /// `validate_mutation()` applied to the setter synthesized for `bind:this={obj.foo}`.
@@ -2837,7 +2842,11 @@ fn validate_bind_this_mutation(
     // Official sets this before building the path, so an unbuildable path still
     // emits the `$$ownership_validator` preamble.
     context.state.needs_mutation_validation.set(true);
-    let Some(path) = build_ast_member_path(expression) else {
+    // Identity, not `read_computed_path_element`: `build_bind_this` hands the
+    // setter its own parameters, so an each-block index reaches this path as a
+    // plain binding rather than through its outer signal transform.
+    let Some(path) = build_ast_member_path(expression, &|name| JsExpr::Identifier(name.into()))
+    else {
         return set;
     };
 
@@ -2857,7 +2866,25 @@ fn validate_bind_this_mutation(
     )
 }
 
-fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExpr>) -> bool {
+/// A computed path element is a *read* of that binding, so it carries the same
+/// transform an ordinary reference would (`$.get(i)` for an each-block index,
+/// `store()` for a store).
+fn read_computed_path_element(name: &str, context: &ComponentContext) -> JsExpr {
+    let id = JsExpr::Identifier(name.into());
+    match context.state.transform.get(name) {
+        Some(transform) => match transform.read {
+            Some(read_fn) => read_fn(&context.arena, id),
+            None => id,
+        },
+        None => id,
+    }
+}
+
+fn build_ast_member_path_recursive(
+    val: &serde_json::Value,
+    path: &mut Vec<JsExpr>,
+    read_computed: &dyn Fn(&str) -> JsExpr,
+) -> bool {
     let obj = match val.as_object() {
         Some(o) => o,
         None => return true,
@@ -2866,7 +2893,7 @@ fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExp
         Some("MemberExpression") => {
             // Recurse into object first
             if let Some(object) = obj.get("object")
-                && !build_ast_member_path_recursive(object, path)
+                && !build_ast_member_path_recursive(object, path, read_computed)
             {
                 return false;
             }
@@ -2888,7 +2915,7 @@ fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExp
                 "Identifier" => {
                     if let Some(name) = prop_obj.get("name").and_then(|n| n.as_str()) {
                         if computed {
-                            path.push(b::id(name));
+                            path.push(read_computed(name));
                         } else {
                             path.push(b::string(name));
                         }

@@ -1,5 +1,153 @@
 # @rsvelte/compiler
 
+## 0.10.5
+
+### Patch Changes
+
+- 87bc75c: fix(compiler): honour analysis-phase `svelte-ignore` for await instrumentation.
+  The dev-mode `$.track_reactivity_loss` rewrite recognised
+  `svelte-ignore await_reactivity_loss` by scanning the lines above the `await`,
+  so it missed every form upstream honours through the analysis-phase ignore
+  stack: a comment on an enclosing node, a comment on a multi-line statement whose
+  `await` lands on a later line, and a same-line block comment. The suppression is
+  now computed the way upstream's acorn comment attachment plus `ignore_map` does
+  — a leading comment binds to the outermost node that starts after it and the
+  whole subtree of that node inherits the ignore.
+- bc20a4b: Dev-mode client output now applies ownership validation to `bind:this={obj.foo}` targets whose root is a prop. Upstream builds the `bind:this` setter by visiting a synthesized `obj.foo = $$value` assignment, so it flows through `validate_mutation()`; rsvelte built that setter directly and therefore emitted neither `$$ownership_validator.mutation(...)` nor the `$.create_ownership_validator($$props)` preamble. As upstream does, the flag that emits the preamble is set before the property path is built, so a target with an unbuildable path (e.g. `bind:this={parents[config.testcase]}`) still gets the preamble.
+- 71d05a9: Fix a changeset that named the non-existent package `@rsvelte/check` instead of
+  `@rsvelte/svelte-check`, which broke the Release workflow's release-plan assembly
+  on `main` and blocked every release. The Changeset CI gate now validates that
+  every package named in a pending changeset actually exists in the pnpm workspace,
+  so this class of typo fails on the PR instead of on `main`.
+- 0279808: Client source maps no longer anchor the instance script at the byte immediately
+  after `<script>`. That byte is the newline ending the `<script>` line, so every
+  segment derived from the script chunk resolved to a column past the end of that
+  line and broke downstream consumers resolving a frame. The chunk is now anchored
+  at the script's first non-whitespace byte, which cuts out-of-range client
+  segments by 46% across the official sourcemap samples. Generated code is
+  unchanged — the offset only feeds the map.
+- 67067b0: CSS pruning now models `{@render}` call sites. A `{#snippet}`-declared element's
+  real DOM ancestors are the union of the ancestors of every site that renders the
+  snippet, not its lexical parent chain, so rules such as `.foo > .a { … }` whose
+  `.a` only ever appears in a snippet rendered under a different ancestor are
+  marked unused like the official compiler does. Previously the structural ancestor
+  check bailed out entirely whenever the component contained a snippet.
+- 6c0438e: Class-field lowering no longer reads a `}`, `)` or `;` that appears inside a
+  comment or a literal as code. Two failure modes are fixed.
+
+  **Unparseable output.** A `#private` `$state` field assigned from an
+  object/array literal that contains a `//` line comment closed the injected
+  `$.set(` at the comment's offset — `$.set(this.#x, {\na: s,)// c` — and
+  Vite/Rolldown rejected the module with `Parse failure: Unexpected token`. The
+  scanner that locates the end of the assigned value treated a `//` at _any_
+  bracket depth as the statement's trailing comment, and four sibling scans in the
+  method paths took the first `;` anywhere at all, including inside a comment, a
+  string or a nested function body.
+
+  **Silent content loss.** On the server target the class body's closing brace was
+  found with a bare character loop, so a `}` written inside a comment (`// returns
+{ ok, err }`) closed the class early and _every member after it was dropped from
+  the output_ — no error, no warning, just a class missing its methods. The client
+  member scan had the same defect one level down and split a method in two at such
+  a comment.
+
+  A fifth site: the server treated a class member as a block only when its line
+  had a `(`, so a `static { … }` initialization block was never recognised and its
+  body was emitted line by line as class fields — each with a `;` appended,
+  comment lines included.
+
+  All of these scanners now share `shared::js_scan::skip_opaque`, which steps over
+  strings, template literals, regex literals and both comment forms in one place;
+  a regex such as `{ a: /[});]+/g }` was mis-parsed on every target even with no
+  comment involved.
+
+  Class lowering also printed its synthesized members at a hard-coded one-level
+  indentation, which assumed the class sat one tab deep inside a component
+  `<script>`. A top-level `class` in a `.svelte.js` module came out with its
+  fields, accessors, constructor and closing brace one tab too deep. Synthesized
+  members now follow the class's own source indentation, and a grouped multi-line
+  constructor statement keeps the relative indentation of its continuation lines
+  instead of being flattened to column 0.
+
+- 34d5204: Name only arrow-function event handlers in dev mode, matching the official compiler's `dev && handler.type === 'ArrowFunctionExpression'` guard. Naming a non-arrow handler consumed a `scope.generate()` slot, which shifted every later identifier sharing the prefix — including element variables, since `<input on:input>` draws `input` from the same counter.
+- 4484631: Emit the dev `$.assign(...)` proxy-coercion warning for a member assignment written in an instance script, not only in a template expression
+- 88daef1: Dev-mode client output now wraps member assignments used in value position with `$.assign(object, "prop", operator, rhs, location)`, the stale-assignment-value warning helper. Template expressions and other typed `JsNode` conversions never reached the JSON assignment converter where this wrap lived, so `key.foo = resolve` inside e.g. `new Promise((r) => (key.foo = r))` shipped unwrapped. The location string now also uses the `rootDir`-relative compile filename instead of its basename, matching upstream's `locate_node`.
+- 5a7a012: Keep the dev-mode `await` instrumentation from swallowing the next statement, and single-quote the console method name. `(await $.track_reactivity_loss(x))()` can continue a line where the bare `await x` it replaced could not, so a source relying on ASI folded the following statement into a call; and the method name reaches `$.log_if_contains_state` as a plain literal, which esrap prints single-quoted.
+- 7833ada: Label a `$.tag` on an anonymous class expression `[class]` like upstream, and keep the public name when a constructor-assigned public field is lowered to a private backing
+- 44069dd: Report the field name as written in dev-mode class `$.tag()` labels. A public `count = $state(0)` is lowered to a private backing field plus an accessor pair, so the label has to be recovered from the accessor rather than read off the backing field — otherwise a public `count` reported `Counter.#_count` and a genuinely private `#count` lost its `#`.
+- fca6ab6: Dev-mode client output now emits named `function get()` / `function set($$value)`
+  accessors for legacy `bind:` directives on elements inside an `{#each}` block,
+  matching the official compiler. Upstream's `BindDirective` visitor picks the
+  named-function shape whenever `dev` is set (so `$inspect(...)` stack traces name
+  the accessor), and only falls back to `() => …` / `($$value) => …` arrows in
+  prod; rsvelte's each-block-aware accessor builder always produced the prod
+  arrows, so 47 corpus files diverged in dev mode.
+- 35f4093: Stop constant-folding an equality comparison in dev mode. Upstream evaluates the _converted_ expression, and in dev the `BinaryExpression` visitor has already rewritten `===` / `!==` / `==` / `!=` into a `$.strict_equals` / `$.equals` call, so `{1 === 1}` stays a call instead of folding to the literal `'true'`.
+- 4a01be3: Use the whole `rootDir`-relative filename in dev-mode location strings. `ComponentAnalysis::filename` held only the basename, so `$inspect.trace()` labels and `$.assign()` locations reported `main.svelte` where the official compiler reports the full path (with `/` sanitized to `/​`).
+- 052eb2f: refactor(esrap): drop `rsvelte_esrap` public API that nothing calls. The
+  synthetic-comment hook, `QuoteStyle`, `PrintOptions::with_quote`,
+  `PrintOptions::with_indent` and `print_with_map_opts` are removed; each removed
+  option's default becomes the only behaviour, and the defaults are unchanged, so
+  printed output is identical. `rsvelte_esrap` is released as 0.10.0 (removing
+  public items is breaking) and `rsvelte_core` pins the new exact requirement.
+- f0f6d4e: Client transform no longer rescans the whole instance script once per reactive
+  variable. The two loops over the local reactive variables each asked the same two
+  questions per variable — whether it is declared as `const … = $state(…)` and
+  whether it is reassigned — and every answer walked the entire script, so the cost
+  grew as variables times script length. Both answers are now built in one pass and
+  read from an index. Output is unchanged.
+- 9f9eaff: Keep the comments leading a `$:` statement when another statement follows it. The reactive statement is replaced by a synthesized `$.legacy_pre_effect(...)` call, but esrap still prints its leading comments as trivia of the next surviving statement — they only vanish when nothing follows.
+- ecb62ec: Dev-mode client output now applies ownership validation to prop member mutations in **legacy** (`export let`) components, e.g. `item.name = 1` inside an instance-script function or a `$:` block. The collection that drives the wrapper was gated on `analysis.runes`, so no legacy component ever emitted `$$ownership_validator.mutation(...)` — nor the `$.create_ownership_validator($$props)` preamble that goes with it. The emitted alias argument now mirrors upstream too: `prop_alias` is only ever set from a `$props()` destructuring key, so legacy props report `null`, and the reported path always starts with the local binding name rather than the alias.
+- a62f685: Pass a `null` prop alias to `$$ownership_validator.mutation(...)` for legacy `export let` props in dev mode, matching the official compiler — the alias is only ever set from a `$props()` destructuring key, so falling back to the variable name diverged for every legacy component.
+- be4ba0f: Read a computed ownership-path element through its transform in dev, so a slot-let / each-block index reaches `$$ownership_validator.mutation` as `$.get(index)` and a store as `store()`
+- 2dbaba7: Match each dev ownership mutation to its own source position by member path, so a `$:` statement moved into a `legacy_pre_effect` no longer takes the line:column of whichever mutation prints before it
+- 6171d26: Skip comments and string literals when locating a prop mutation for `$$ownership_validator.mutation(...)`. A `light.foo = value` written inside a comment was consumed as a real mutation, reporting a position that is not a mutation at all and shifting every later mutation onto the wrong one.
+- 07d827f: Dev-mode client output now eagerly reads a snippet parameter that has a default value, e.g. `{#snippet item(id = default_arg())}` now emits `$.get(id);` right after `let id = $.derived_safe_equal(() => $.fallback($$arg0?.(), default_arg, true))`. Upstream emits that read so a default expression referencing a not-yet-initialized binding still throws `Cannot access x before initialization` in dev. rsvelte only emitted it for destructured snippet parameters; the plain `name = default` parameter took a separate code path that skipped it.
+- 560a5e7: fix(compiler): honour `svelte-ignore` comments inside object and array literals.
+  Phase 1 distributed script comments through a hand-maintained allowlist of
+  statement-body fields (`BlockStatement`, `SwitchStatement`, `VariableDeclaration`,
+  `ClassBody`, …), so a `// svelte-ignore` in front of an object-literal property,
+  an array element or a call argument bound to nothing and suppressed nothing —
+  producing warning noise the author had no way to silence. Comment attachment now
+  mirrors upstream `add_comments` (`phases/1-parse/acorn.js`): the walk is generic
+  and positional, a comment binds to the first node in pre-order that starts after
+  it, and that node's whole subtree inherits the ignore. Upstream's trailing-comment
+  rules are ported with it, so a comment after the last element of a block or literal,
+  or one separated from the previous node by only `,`/`)`/spaces, still belongs to
+  the node before it and does not over-suppress the node after it.
+- 5ddb700: An inline component's direct `{#snippet}` child is now demoted to a component
+  prop even when the component also carries a `let:` directive or has other
+  named-slot children, matching official svelte2tsx. rsvelte previously gated
+  the snippet-to-prop relocation off whenever `let:` (or a named-slot child) was
+  present and fell back to emitting the snippet as a standalone block-scoped
+  `const foo = …` declaration instead — official always demotes the snippet and
+  independently emits the `let:` / named-slot `$$slot_def` destructure alongside
+  it. Applies to named components, `<svelte:component>`, and `<svelte:self>`.
+- 6162f60: Client output now applies the read/store transforms inside `switch` statements
+  and class expressions. A `{#each}` item read used as a `switch` discriminant
+  (`switch (item.value)`), as a `case` test (`case item.value:`), as a class
+  expression field initializer (`class { f = item.value }`) or as a class
+  expression computed method key (`class { [item.value]() {} }`) was emitted
+  against the raw signal instead of `$.get(item)`, so the value was `undefined`
+  and no `case` ever matched — silently, in production builds as well as dev. The
+  recursive transform walk had no `switch` arm (the catch-all cloned the statement
+  verbatim) and listed class expressions among the terminal "nothing to transform"
+  nodes. Because that same walk marks the each-index binding as used and registers
+  store getters, the omission also dropped the `i` parameter from the `$.each`
+  callback and skipped the `$.store_get` getter whenever the binding was read only
+  from one of those positions, turning an undefined `$store` read into a
+  `ReferenceError`. Separately, the store-subscription pre-scan classified any
+  `$store` followed by `:` as an object property key, which misfired on
+  `case $store:`; a `case` test is now recognised as a value expression.
+- 7ea35c3: Dev-mode client output now labels uninitialized legacy state declarations that
+  are not terminated by a semicolon (`let sub` followed by a newline, which is
+  what a TypeScript-annotation strip or a bare `bind:this` target leaves behind)
+  with `$.tag($.mutable_source(), "sub")`, matching the official compiler.
+  rsvelte's legacy state lowering tagged the `let x = init` and `let x;` shapes
+  but the no-semicolon branch built the `$.mutable_source()` call directly and
+  skipped the dev label.
+- aba6843: Dev-mode client output now applies ownership validation to prop mutations written inside template expressions, e.g. `<button onclick={() => { listEl.style.overflow = "hidden"; }}>`. Event-handler bodies and other template expressions are converted through the typed `JsNode` path, which never reached the JSON assignment converter where `$$ownership_validator.mutation(...)` was applied — so those mutations shipped unvalidated and the `$.create_ownership_validator($$props)` preamble was dropped along with them. Assignments and update expressions (`obj.count++`) in that path are now wrapped, honouring `svelte-ignore ownership_invalid_mutation`.
+
 ## 0.10.4
 
 ### Patch Changes

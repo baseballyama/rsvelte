@@ -67,3 +67,32 @@ fn each_mutation_reports_its_own_source_location() {
         "expected the second mutation at 7:2, got:\n{out}"
     );
 }
+
+/// Legacy `$:` statements are emitted in dependency order, so the mutation
+/// emitted first is not the one written first: each wrapper must carry the
+/// location of *its own* member path.
+#[test]
+fn regrouped_reactive_mutations_keep_their_own_location() {
+    let src = r#"<script>
+	export let obj;
+	export let a;
+	let mid;
+	let tmp;
+	$: obj.alpha = mid;
+	$: mid = tmp;
+	$: {
+		obj.beta = a;
+		tmp = a;
+	}
+</script>
+"#;
+    let out = compile_client_dev(src);
+    assert!(
+        out.contains("['obj', 'beta'], obj(obj().beta = a(), true), 9, 2)"),
+        "expected the `beta` mutation at 9:2, got:\n{out}"
+    );
+    assert!(
+        out.contains("['obj', 'alpha'], obj(obj().alpha = $.get(mid), true), 6, 4)"),
+        "expected the `alpha` mutation at 6:4, got:\n{out}"
+    );
+}

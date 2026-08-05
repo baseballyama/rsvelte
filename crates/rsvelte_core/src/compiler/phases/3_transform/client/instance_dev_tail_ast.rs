@@ -30,6 +30,32 @@ thread_local! {
     static INSTANCE_DEV_TAIL_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
 
+/// `obj.prop = value` → `$.assign(...)` over a settled instance script, for
+/// both modes: upstream's `AssignmentExpression` visitor has no legacy/runes
+/// split, and rsvelte's runes AST pass does not carry this rewrite either.
+pub(super) fn transform_instance_dev_assign_tail(
+    source: &str,
+    analysis: &ComponentAnalysis,
+) -> Option<String> {
+    if !super::assign_dev_ast::source_has_assignment(source) {
+        return None;
+    }
+    ast_rewrite::rewrite_batched(
+        &INSTANCE_DEV_TAIL_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |program, src| {
+            super::assign_dev_ast::collect_assign_edits(
+                program,
+                src,
+                &analysis.source,
+                &analysis.filename,
+            )
+        },
+    )
+}
+
 /// Instrument a settled **legacy** instance script for dev mode. Returns `None`
 /// when neither rewrite has anything to do, when the script fails to parse
 /// (a malformed intermediate is not this pass's to surface), or when no edit

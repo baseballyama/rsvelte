@@ -4680,27 +4680,31 @@ fn update_member_brace_depth(
     paren: &mut i32,
     param_brace: &mut i32,
 ) -> bool {
-    let mut in_str = false;
-    let mut str_ch = ' ';
+    let bytes = line.as_bytes();
     let mut closed = false;
-    for ch in line.chars() {
-        if in_str {
-            if ch == str_ch {
-                in_str = false;
+    let mut prev: Option<u8> = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        // Brackets inside a comment or literal are text: counting them closed a
+        // method body early at a `// … } …` comment and dropped every member
+        // after it (#2253).
+        if let Some((next, is_comment)) =
+            crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque(bytes, i, prev)
+        {
+            if !is_comment {
+                prev = Some(b'x');
             }
+            i = next;
             continue;
         }
+        let ch = bytes[i];
         match ch {
-            '\'' | '"' | '`' => {
-                in_str = true;
-                str_ch = ch;
-            }
-            '(' | '[' => *paren += 1,
-            ')' | ']' => *paren -= 1,
-            '{' if *paren > 0 => *param_brace += 1,
-            '}' if *paren > 0 => *param_brace -= 1,
-            '{' if *paren == 0 => *depth += 1,
-            '}' if *paren == 0 => {
+            b'(' | b'[' => *paren += 1,
+            b')' | b']' => *paren -= 1,
+            b'{' if *paren > 0 => *param_brace += 1,
+            b'}' if *paren > 0 => *param_brace -= 1,
+            b'{' if *paren == 0 => *depth += 1,
+            b'}' if *paren == 0 => {
                 if *param_brace > 0 {
                     // This `}` closes a brace that was opened inside a param list
                     // (e.g. the `{...}` destructure in `constructor({a,b}) {`).
@@ -4715,6 +4719,10 @@ fn update_member_brace_depth(
             }
             _ => {}
         }
+        if !ch.is_ascii_whitespace() {
+            prev = Some(ch);
+        }
+        i += 1;
     }
     closed
 }
@@ -4890,22 +4898,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let class_header = &after_class[..brace_pos + 1];
 
     let class_body_start = class_pos + brace_pos + 1;
-    let mut brace_depth = 1;
-    let mut class_body_end = class_body_start;
-
-    for (i, c) in script[class_body_start..].char_indices() {
-        match c {
-            '{' => brace_depth += 1,
-            '}' => {
-                brace_depth -= 1;
-                if brace_depth == 0 {
-                    class_body_end = class_body_start + i;
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
+    // Lexically aware match: a `}` inside a comment, string, template or regex
+    // (e.g. `// returns { ok }`) must not close the class body and silently
+    // delete every member after it (#2253).
+    let class_body_end = crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+        script,
+        class_body_start,
+        '{',
+    )
+    .unwrap_or(class_body_start);
 
     // The member scan below is line-based, so members sharing a physical line
     // must first be broken apart or everything after the first one is dropped
@@ -5319,7 +5320,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             && !trimmed.starts_with("//")
             && !trimmed.starts_with("/*");
 
-        if is_method_start {
+        // A `static { … }` initialization block has no parameter list, so the
+        // method test above (which needs a `(`) never fired and the block's body
+        // was emitted line by line as fields — each with a `;` appended, comment
+        // lines included.
+        let is_static_block_start = trimmed
+            .strip_prefix("static")
+            .is_some_and(|rest| rest.trim_start().starts_with('{'));
+
+        if is_method_start || is_static_block_start {
             in_block = true;
             block_is_arrow_fn = false;
             block_depth = 0;

@@ -11,6 +11,7 @@ use crate::ast::js::Expression;
 use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::console_wrap;
+use crate::compiler::phases::phase3_transform::client::destructure_transforms::string_expr_has_toplevel_await;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::ExprId;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -834,7 +835,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let body_node = pa.get_js_node(*body);
             let body_is_assignment = body_node.node_type() == Some("AssignmentExpression");
             let saved_arrow_level = context.state.event_handler_arrow_body_level;
-            if context.state.in_event_attribute_handler && body_is_assignment {
+            if (context.state.in_event_attribute_handler || context.state.in_component_attribute)
+                && body_is_assignment
+            {
                 context.state.event_handler_arrow_body_level = 1;
             }
 
@@ -954,6 +957,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let left_node = pa.get_js_node(*left);
             let right_node = pa.get_js_node(*right);
 
+            // Consumed here so nested assignments see the sub-expression position.
+            let is_statement = std::mem::take(&mut context.state.assignment_is_statement);
+
             // Collected before conversion: the transforms below rewrite the LHS
             // (`x` -> `x()`), which erases the shape the validator path needs.
             let ownership_info = check_ownership_validation_typed(*start, left_node, context);
@@ -1048,6 +1054,16 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 context,
             ) {
                 transformed
+            } else if let Some(wrapped) = try_dev_assign_wrap_typed(
+                operator_str,
+                left_node,
+                right_node,
+                &conv_left,
+                &conv_right,
+                is_statement,
+                context,
+            ) {
+                wrapped
             } else {
                 JsExpr::Assignment(JsAssignmentExpression {
                     operator: assign_op,
@@ -3061,7 +3077,9 @@ fn convert_arrow_function(
                 Some("AssignmentExpression")
             );
             let saved_level = context.state.event_handler_arrow_body_level;
-            if context.state.in_event_attribute_handler && body_is_assignment {
+            if (context.state.in_event_attribute_handler || context.state.in_component_attribute)
+                && body_is_assignment
+            {
                 context.state.event_handler_arrow_body_level = 1;
             }
             let __tmp = convert_json_value(&Value::Object(body_obj.clone()), context);
@@ -4991,6 +5009,141 @@ fn is_known_primitive_json(value: Option<&Value>) -> bool {
     }
 }
 
+/// Mirrors upstream `sanitize_location`.
+fn sanitized_location_filename(context: &ComponentContext) -> String {
+    context
+        .state
+        .analysis
+        .location_filename
+        .replace('/', "/\u{200b}")
+}
+
+/// Typed twin of `is_known_primitive_json`, mirroring `scope.evaluate(right).is_primitive`.
+fn is_known_primitive_jsnode(node: &JsNode, pa: &ParseArena) -> bool {
+    match node {
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. } => {
+            is_known_primitive_jsnode(pa.get_js_node(*expression), pa)
+        }
+        JsNode::Identifier { name, .. } => name.as_str() == "undefined",
+        _ => matches!(
+            node.node_type(),
+            Some("Literal" | "UnaryExpression" | "BinaryExpression" | "TemplateLiteral")
+        ),
+    }
+}
+
+/// Dev-mode `$.assign(object, 'prop', op, rhs, location)` wrap for member
+/// assignments in value position, warning when the previous value was state.
+///
+/// Reference: AssignmentExpression.js `build_assignment` in the official compiler.
+#[allow(clippy::too_many_arguments)]
+fn try_dev_assign_wrap_typed(
+    operator: &str,
+    left_node: &JsNode,
+    right_node: &JsNode,
+    conv_left: &JsExpr,
+    conv_right: &JsExpr,
+    is_statement: bool,
+    context: &mut ComponentContext,
+) -> Option<JsExpr> {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    if !context.state.dev
+        || is_statement
+        || !is_non_coercive_operator(operator)
+        || context.state.in_bind_directive
+        || context.state.event_handler_arrow_body_level > 0
+    {
+        return None;
+    }
+
+    let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: same reborrow as the caller — `parse_arena` outlives this borrow.
+    let pa: &ParseArena = unsafe { &*pa };
+
+    if is_known_primitive_jsnode(right_node, pa) {
+        return None;
+    }
+
+    let (left_start, computed) = match left_node {
+        JsNode::MemberExpression {
+            start, computed, ..
+        } => (*start, *computed),
+        _ => return None,
+    };
+
+    let (obj_expr, property_expr) = match conv_left {
+        JsExpr::Member(m) => {
+            let obj = context.arena.get_expr(m.object).clone();
+            let prop = match &m.property {
+                JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
+                JsMemberProperty::Identifier(name) if computed => b::id(name.as_str()),
+                JsMemberProperty::Identifier(name) => b::string(name.clone()),
+                JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
+            };
+            (obj, prop)
+        }
+        _ => return None,
+    };
+
+    let needs_lazy_getter = operator != "=";
+    let needs_async = needs_lazy_getter
+        && right_node
+            .start()
+            .zip(right_node.end())
+            .and_then(|(s, e)| {
+                context
+                    .state
+                    .analysis
+                    .source
+                    .get(s as usize..e as usize)
+                    .map(string_expr_has_toplevel_await)
+            })
+            .unwrap_or(false);
+
+    let rhs = if needs_lazy_getter {
+        if needs_async {
+            b::async_arrow(&context.arena, vec![], conv_right.clone())
+        } else {
+            b::arrow(&context.arena, vec![], conv_right.clone())
+        }
+    } else {
+        conv_right.clone()
+    };
+
+    let source = &context.state.analysis.source;
+    let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
+        source,
+        left_start as usize,
+    );
+    let location = format!("{}:{line}:{col}", sanitized_location_filename(context));
+
+    let callee = if needs_async {
+        "$.assign_async"
+    } else {
+        "$.assign"
+    };
+    let call = b::call(
+        &context.arena,
+        b::member_path(&context.arena, callee),
+        vec![
+            obj_expr,
+            property_expr,
+            b::string(operator),
+            rhs,
+            b::string(&location),
+        ],
+    );
+
+    Some(if needs_async {
+        b::await_expr(&context.arena, call)
+    } else {
+        call
+    })
+}
+
 /// Try to transform a coercive assignment (e.g., `object.items ??= []`) into
 /// `$.assign_nullish(object, 'items', [], location)` for dev mode proxy warnings.
 ///
@@ -5984,8 +6137,11 @@ fn convert_expression_statement_child_typed(
                 return result;
             }
         }
+        context.state.assignment_is_statement = true;
     }
-    convert_js_node(node, context)
+    let result = convert_js_node(node, context);
+    context.state.assignment_is_statement = false;
+    result
 }
 
 /// Convert a single statement from a JsNode.

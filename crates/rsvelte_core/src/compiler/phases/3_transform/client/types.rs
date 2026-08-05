@@ -1887,6 +1887,16 @@ pub struct ComponentClientTransformState<'a> {
     /// Used to skip coercive assignment transforms ($.assign_nullish, etc.) for bind setters.
     pub in_bind_directive: bool,
 
+    /// Set while converting a component attribute / `on:` directive value: upstream
+    /// exempts every such arrow body from the `$.assign` wrap, not just event ones.
+    pub in_component_attribute: bool,
+
+    /// One-shot token mirroring upstream's `path.at(-1) !== 'ExpressionStatement'`
+    /// guard: set just before converting the direct expression child of an
+    /// `ExpressionStatement`, consumed (and cleared) by the assignment visitor so
+    /// nested assignments do not inherit it.
+    pub assignment_is_statement: bool,
+
     /// Flag indicating if we're inside an event attribute handler (e.g., onclick={() => ...}).
     /// Used to track the event handler context so that the expression converter can skip
     /// coercive assignment transforms for the direct body of event handler arrow functions.
@@ -2192,6 +2202,8 @@ impl<'a> ComponentClientTransformState<'a> {
             snippet_names: ImHashSet::new(),
             in_direct_assignment_lhs: false,
             in_bind_directive: false,
+            in_component_attribute: false,
+            assignment_is_statement: false,
             in_event_attribute_handler: false,
             event_handler_arrow_body_level: 0,
             is_controlled_each: false,

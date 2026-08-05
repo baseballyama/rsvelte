@@ -8,15 +8,16 @@
 //! per-file instrumentation overhead is ~100–200ns, negligible against
 //! Phase 3's ~60µs/file budget.
 //!
-//! Only `rsvelte_devtools/bin/compile_profile.rs` consumes these timers today.
+//! Only the native profiling binaries read these accumulators back — the
+//! compile pipeline never does, so the timers cannot affect compiler output.
 
 use std::cell::Cell;
 use std::time::Duration;
 
 // `std::time::Instant::now()` traps on `wasm32-unknown-unknown` (no system
 // clock — see std::sys::time::unsupported). The profile instrumentation
-// below is consumed only by native devtools (`rsvelte_devtools/bin/compile_profile.rs`), but
-// the call sites live in shared compile paths, so the Instant calls would
+// below is consumed only by the native profiling binaries, but the call
+// sites live in shared compile paths, so the Instant calls would
 // fire from the WASM playground and crash the page. Provide a WASM-safe
 // shim that returns a unit "instant" with a zero-cost elapsed so the
 // instrumented sites stay compile-target-portable without #[cfg] noise.
@@ -506,4 +507,39 @@ pub fn take_breakdown() -> Phase3Breakdown {
         css_render: CSS_RENDER.with(|c| c.replace(Duration::ZERO)),
         codegen: CODEGEN.with(|c| c.replace(Duration::ZERO)),
     }
+}
+
+/// Agreement between the one-pass indices and the per-variable scans they
+/// replace.
+///
+/// The indices answer the same questions a different way, so "tests pass" is
+/// not evidence they agree -- a no-op would pass too. Under
+/// `RSVELTE_INDEX_ORACLE` both routes run and every answer is compared, which
+/// gives the comparison a denominator instead of only a failure count.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct IndexOracle {
+    pub checks: u64,
+    pub mismatches: u64,
+}
+
+thread_local! {
+    static INDEX_ORACLE: Cell<(u64, u64)> = const { Cell::new((0, 0)) };
+}
+
+pub fn index_oracle_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RSVELTE_INDEX_ORACLE").is_some())
+}
+
+#[inline]
+pub fn record_index_oracle(agrees: bool) {
+    INDEX_ORACLE.with(|c| {
+        let (checks, mismatches) = c.get();
+        c.set((checks + 1, mismatches + u64::from(!agrees)));
+    });
+}
+
+pub fn take_index_oracle() -> IndexOracle {
+    let (checks, mismatches) = INDEX_ORACLE.replace((0, 0));
+    IndexOracle { checks, mismatches }
 }
