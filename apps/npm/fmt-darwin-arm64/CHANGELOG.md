@@ -1,5 +1,7 @@
 # @rsvelte/fmt-darwin-arm64
 
+## 0.7.7
+
 ## 0.7.6
 
 ## 0.7.5
