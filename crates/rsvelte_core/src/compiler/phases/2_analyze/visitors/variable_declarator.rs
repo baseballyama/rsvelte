@@ -965,7 +965,8 @@ fn init_needs_expr_json(init: &JsNode) -> bool {
         JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
         JsNode::BinaryExpression { .. }
         | JsNode::UnaryExpression { .. }
-        | JsNode::ConditionalExpression { .. } => true,
+        | JsNode::ConditionalExpression { .. }
+        | JsNode::CallExpression { .. } => true,
         _ => false,
     }
 }

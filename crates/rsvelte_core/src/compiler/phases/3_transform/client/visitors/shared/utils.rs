@@ -3655,6 +3655,23 @@ fn get_literal_value_json(
                     }
                 }
 
+                // A non-literal initializer is kept as AST JSON rather than in
+                // `initial`; upstream's `scope.evaluate` recurses into the init
+                // node whatever its shape, so mirror that before giving up.
+                {
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                    if binding.initial.is_none()
+                        && !matches!(binding.kind, BindingKind::Derived)
+                        && INITIAL_EVAL_DEPTH.with(|d| d.get()) < MAX_INITIAL_EVAL_DEPTH
+                        && let Some(init_json) = binding.init_expr_json_parsed()
+                    {
+                        INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
+                        let folded = get_literal_value_json(init_json, context);
+                        INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
+                        return folded;
+                    }
+                }
+
                 // Check if we have a known initial value (stored as source string)
                 let init = binding.initial.as_ref()?;
                 // Parse simple string literals like 'world' or "world"
@@ -3797,6 +3814,13 @@ fn get_literal_value_json(
             _ => None,
         }
     }
+}
+
+const MAX_INITIAL_EVAL_DEPTH: u8 = 8;
+
+thread_local! {
+    /// Caps mutually-referential initializers (`const a = b; const b = a;`).
+    static INITIAL_EVAL_DEPTH: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
 }
 
 /// Format an `f64` the way JS `String(n)` would for a known constant fold:

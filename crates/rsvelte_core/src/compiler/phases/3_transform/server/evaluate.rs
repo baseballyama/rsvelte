@@ -1075,6 +1075,14 @@ impl<'a> EvalCtx<'a> {
             if matches!(binding.kind, Normal) && self.binding_initial_is_props_id(&binding.name) {
                 return Evaluation::single(EvalValue::StringMarker);
             }
+            // A non-literal initializer is kept as AST JSON instead; upstream's
+            // `scope.evaluate` recurses into the init node whatever its shape.
+            if !matches!(binding.kind, Derived)
+                && depth < MAX_DEPTH
+                && let Some(init_json) = binding.init_expr_json_parsed()
+            {
+                return self.evaluate_estree(init_json, depth + 1);
+            }
             return Evaluation::unknown();
         };
 
