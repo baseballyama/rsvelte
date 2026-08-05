@@ -7,11 +7,13 @@
 //! crate (sourcemap assembly). Both numbers must come from the same run to be
 //! comparable, so this stays off unless the env var is set.
 //!
-//! DUPLICATE — do not extend both. `EsrapBreakdown` on the (unmerged) branch
-//! `dropped/evaluate-memo-c6c14906` instruments the same six print sites with
-//! call counts and a wasm-safe shim, consumed by
-//! `rsvelte_devtools/src/bin/esrap_share.rs`. Neither that struct nor that
-//! binary is in `main`; if either is ever revived, delete this module rather
+//! DUPLICATE — do not extend both. `EsrapBreakdown` (commit `ccb07fa0`, live on
+//! the in-progress branch `refactor/esrap-dead-api`; the same commit also sits
+//! on `dropped/evaluate-memo-c6c14906` and four `origin/backup/*` refs)
+//! instruments the same six print sites with call counts and a wasm-safe shim,
+//! consumed by `rsvelte_devtools/src/bin/esrap_share.rs`. It is where the "esrap
+//! 12.53% of compile" calibration point came from. Neither that struct nor that
+//! binary is in `main` yet; when that branch lands, delete this module rather
 //! than maintaining two sets of numbers. (`profile.rs` in `main` is a different
 //! thing: `Phase3Breakdown`, sub-phases rather than print sites.)
 
