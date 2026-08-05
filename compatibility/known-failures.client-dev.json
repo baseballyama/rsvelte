@@ -4,8 +4,6 @@
 	"svar-core/site/src/Demo.svelte",
 	"svelte-ux/packages/svelte-ux/src/lib/components/MultiSelect.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/07-$inspect.md/3.svelte",
-	"svelte.dev/apps/svelte.dev/src/routes/tutorial/[...slug]/Controls.svelte",
-	"svelte.dev/packages/repl/src/lib/Input/ComponentSelector.svelte",
 	"svelte/documentation/docs/02-runes/07-$inspect.md/3.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/module-context-export/Foo.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/assignment-value-stale-lazy-rhs-async/main.svelte",
