@@ -33,7 +33,9 @@ use oxc_span::{GetSpan, SourceType};
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 use super::ast_rewrite::{self, Edit};
-use super::console_wrap::{CONSOLE_METHODS, shape_can_be_unknown};
+use super::console_wrap::{
+    CONSOLE_METHODS, LocalConsts, collect_local_consts, shape_can_be_unknown,
+};
 
 thread_local! {
     static MODULE_CONSOLE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -115,6 +117,7 @@ pub(super) fn collect_console_edits(
     let mut collector = ConsoleCollector {
         source,
         analysis,
+        locals: collect_local_consts(program, analysis),
         replacements: Vec::new(),
     };
     collector.visit_program(program);
@@ -124,6 +127,7 @@ pub(super) fn collect_console_edits(
 struct ConsoleCollector<'src> {
     source: &'src str,
     analysis: Option<&'src ComponentAnalysis>,
+    locals: LocalConsts,
     replacements: Vec<Edit>,
 }
 
@@ -167,7 +171,7 @@ impl<'a, 'src> Visit<'a> for ConsoleCollector<'src> {
         if !call
             .arguments
             .iter()
-            .any(|arg| arg_can_be_unknown(arg, self.analysis))
+            .any(|arg| arg_can_be_unknown(arg, self.analysis, &self.locals))
         {
             return;
         }
@@ -264,12 +268,16 @@ fn args_contain_unwrapped_console_call(s: &str) -> bool {
 
 /// Upstream's per-argument half of the wrap test: a `SpreadElement` always
 /// forces the wrap, everything else goes through the shape lattice.
-fn arg_can_be_unknown(arg: &Argument<'_>, analysis: Option<&ComponentAnalysis>) -> bool {
+fn arg_can_be_unknown(
+    arg: &Argument<'_>,
+    analysis: Option<&ComponentAnalysis>,
+    locals: &LocalConsts,
+) -> bool {
     match arg {
         Argument::SpreadElement(_) => true,
         _ => arg
             .as_expression()
-            .is_none_or(|expr| shape_can_be_unknown(expr, analysis)),
+            .is_none_or(|expr| shape_can_be_unknown(expr, analysis, Some(locals))),
     }
 }
 
@@ -300,6 +308,26 @@ mod tests {
             );
             assert_eq!(out, expected, "method {method}");
         }
+    }
+
+    #[test]
+    fn skips_identifier_bound_to_a_nested_const_template_literal() {
+        let src = "export const f = (a) => {\n\tconst m = `x ${a}`;\n\tconsole.log(m);\n};";
+        assert!(transform_console_calls_dev_ast_for_test(src, false).is_none());
+    }
+
+    #[test]
+    fn wraps_identifier_whose_const_initializer_is_itself_unknown() {
+        let src = "export const f = (a) => {\n\tconst m = a.b;\n\tconsole.log(m);\n};";
+        let out = transform_console_calls_dev_ast_for_test(src, false).unwrap();
+        assert!(out.contains("$.log_if_contains_state('log', m)"));
+    }
+
+    #[test]
+    fn wraps_identifier_declared_more_than_once() {
+        let src = "const m = `x`;\nexport const f = (m) => {\n\tconsole.log(m);\n};";
+        let out = transform_console_calls_dev_ast_for_test(src, false).unwrap();
+        assert!(out.contains("$.log_if_contains_state('log', m)"));
     }
 
     #[test]

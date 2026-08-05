@@ -19,6 +19,11 @@
 //! operator branch that upstream resolves to a `STRING` / `NUMBER` / boolean
 //! value set without consulting a binding.
 
+use oxc_ast::ast::{
+    BindingIdentifier, BindingPattern, Program, VariableDeclarationKind, VariableDeclarator,
+};
+use oxc_ast_visit::{Visit, walk};
+use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -68,14 +73,87 @@ pub(super) fn args_need_wrap(args: &[Value], analysis: &ComponentAnalysis) -> bo
     })
 }
 
+/// The generated program's own `const` declarations, indexed by name.
+///
+/// `analysis` only carries root / instance / template bindings, so a name bound
+/// inside a nested function — the common case in a `.svelte.(js|ts)` module —
+/// resolves nowhere and errs toward `UNKNOWN`. Upstream's `scope.get(name)`
+/// reaches it, so the text passes rebuild the same reach from the parsed
+/// program.
+#[derive(Default)]
+pub(super) struct LocalConsts {
+    /// Names declared exactly once in the whole program by a `const` declarator
+    /// with an initializer, mapped to that initializer's verdict. A name
+    /// declared more than once is absent: the text alone cannot say which
+    /// declaration a reference reaches.
+    verdicts: FxHashMap<String, bool>,
+}
+
+pub(super) fn collect_local_consts(
+    program: &Program<'_>,
+    analysis: Option<&ComponentAnalysis>,
+) -> LocalConsts {
+    let mut collector = ConstCollector {
+        analysis,
+        counts: FxHashMap::default(),
+        verdicts: FxHashMap::default(),
+    };
+    collector.visit_program(program);
+    let ConstCollector {
+        counts,
+        mut verdicts,
+        ..
+    } = collector;
+    verdicts.retain(|name, _| counts.get(name) == Some(&1));
+    LocalConsts { verdicts }
+}
+
+struct ConstCollector<'an> {
+    analysis: Option<&'an ComponentAnalysis>,
+    counts: FxHashMap<String, u32>,
+    verdicts: FxHashMap<String, bool>,
+}
+
+impl<'a> Visit<'a> for ConstCollector<'_> {
+    fn visit_binding_identifier(&mut self, it: &BindingIdentifier<'a>) {
+        *self.counts.entry(it.name.to_string()).or_insert(0) += 1;
+    }
+
+    fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
+        walk::walk_variable_declarator(self, it);
+        if !matches!(it.kind, VariableDeclarationKind::Const) {
+            return;
+        }
+        let BindingPattern::BindingIdentifier(id) = &it.id else {
+            return;
+        };
+        let Some(init) = &it.init else {
+            return;
+        };
+        // No `locals` while building the index: a chained `const a = b` stays
+        // unresolved rather than depending on visit order.
+        self.verdicts.insert(
+            id.name.to_string(),
+            shape_can_be_unknown(init, self.analysis, None),
+        );
+    }
+}
+
 /// Whether a bare identifier left in generated code can still evaluate to
-/// `UNKNOWN`. Resolution is restricted to names the component declares exactly
-/// once: with a shadowing declaration in play, the generated text alone cannot
-/// say which of them this reference reaches, and guessing could suppress a wrap
-/// upstream emits.
-fn identifier_can_be_unknown(name: &str, analysis: Option<&ComponentAnalysis>) -> bool {
+/// `UNKNOWN`. Resolution is restricted to names declared exactly once: with a
+/// shadowing declaration in play, the generated text alone cannot say which of
+/// them this reference reaches, and guessing could suppress a wrap upstream
+/// emits.
+fn identifier_can_be_unknown(
+    name: &str,
+    analysis: Option<&ComponentAnalysis>,
+    locals: Option<&LocalConsts>,
+) -> bool {
     if name == "undefined" {
         return false;
+    }
+    if let Some(&verdict) = locals.and_then(|l| l.verdicts.get(name)) {
+        return verdict;
     }
     let Some(analysis) = analysis else {
         return true;
@@ -100,11 +178,12 @@ fn identifier_can_be_unknown(name: &str, analysis: Option<&ComponentAnalysis>) -
 pub(super) fn shape_can_be_unknown(
     expr: &oxc_ast::ast::Expression<'_>,
     analysis: Option<&ComponentAnalysis>,
+    locals: Option<&LocalConsts>,
 ) -> bool {
     use oxc_ast::ast::Expression as E;
     use oxc_syntax::operator::UnaryOperator;
 
-    let recur = |e: &E<'_>| shape_can_be_unknown(e, analysis);
+    let recur = |e: &E<'_>| shape_can_be_unknown(e, analysis, locals);
     match expr {
         E::StringLiteral(_)
         | E::NumericLiteral(_)
@@ -117,7 +196,7 @@ pub(super) fn shape_can_be_unknown(
         | E::ArrowFunctionExpression(_)
         | E::FunctionExpression(_)
         | E::ClassExpression(_) => false,
-        E::Identifier(id) => identifier_can_be_unknown(&id.name, analysis),
+        E::Identifier(id) => identifier_can_be_unknown(&id.name, analysis, locals),
         E::UnaryExpression(u) => !matches!(
             u.operator,
             UnaryOperator::LogicalNot
@@ -139,7 +218,7 @@ pub(super) fn shape_can_be_unknown(
         // has already evaluated the original `BinaryExpression` to `{true,
         // false}`, and reads of a `$state` declaration to `$.get(name)`.
         E::CallExpression(call) => match state_read_operand(call) {
-            Some(name) => identifier_can_be_unknown(name, analysis),
+            Some(name) => identifier_can_be_unknown(name, analysis, locals),
             None => !is_never_unknown_call(&call.callee),
         },
         _ => true,
