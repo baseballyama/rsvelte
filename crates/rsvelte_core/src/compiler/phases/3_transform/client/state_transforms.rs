@@ -1781,11 +1781,17 @@ pub(super) fn transform_legacy_state_declarations(
                         matched = true;
                         break;
                     }
-                    let replacement = if immutable {
-                        format!("{} {} = $.mutable_source(void 0, true)", keyword, var)
+                    let call = if immutable {
+                        "$.mutable_source(void 0, true)".to_string()
                     } else {
-                        format!("{} {} = $.mutable_source()", keyword, var)
+                        "$.mutable_source()".to_string()
                     };
+                    let replacement = format!(
+                        "{} {} = {}",
+                        keyword,
+                        var,
+                        tag_legacy_source(call, var, dev)
+                    );
                     result = format!("{}{}{}", &result[..pos], replacement, &result[after_pos..]);
                     matched = true;
                     break;

@@ -7,6 +7,7 @@
 //! that every one of those scripts walks, so the rewrite itself is one piece of
 //! logic here too; only the batch it rides in differs per script kind.
 
+use oxc_ast::AstKind;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
@@ -39,38 +40,74 @@ fn is_track_reactivity_loss_call(expr: &Expression<'_>) -> bool {
         && matches!(&member.object, Expression::Identifier(id) if id.name == "$")
 }
 
-/// True when the statement enclosing `offset` is preceded by a `svelte-ignore`
-/// comment naming `await_reactivity_loss`. Upstream reads this off the
-/// analysis-phase ignore stack; these passes rewrite source spans, so they read
-/// the same comment back out of the script text.
-pub(super) fn await_reactivity_loss_ignored(source: &str, offset: u32, is_runes: bool) -> bool {
-    // Start from the top of the await's own line: the statement text to its
-    // left is not a comment and would end the scan immediately.
-    let offset = source[..offset as usize].rfind('\n').map_or(0, |nl| nl + 1);
-    let before = &source[..offset];
-    for line in before.lines().rev() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        let Some(comment) = line
-            .strip_prefix("//")
-            .or_else(|| line.strip_prefix("/*").map(|c| c.trim_end_matches("*/")))
-        else {
-            // The first non-comment line above is the start of the
-            // statement itself; anything earlier cannot annotate it.
-            return false;
-        };
-        // A run of comments can carry several `svelte-ignore` lines, so keep
-        // looking when this one names other codes.
-        if crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(comment, is_runes)
+/// Source spans whose whole subtree carries a `svelte-ignore
+/// await_reactivity_loss`, mirroring upstream's analysis-phase ignore stack:
+/// a leading comment binds to the outermost node starting after it, and every
+/// descendant of that node inherits the ignore — so one interval per annotated
+/// node is all the stack ever expresses.
+#[derive(Default)]
+pub(super) struct AwaitIgnoreRanges(Vec<(u32, u32)>);
+
+impl AwaitIgnoreRanges {
+    pub(super) fn contains(&self, offset: u32) -> bool {
+        self.0
             .iter()
-            .any(|c| c == "await_reactivity_loss")
-        {
-            return true;
+            .any(|&(start, end)| offset >= start && offset < end)
+    }
+}
+
+pub(super) fn collect_await_ignore_ranges(
+    program: &Program<'_>,
+    source: &str,
+    is_runes: bool,
+) -> AwaitIgnoreRanges {
+    let mut scan = IgnoreScan {
+        comments: &program.comments,
+        cursor: 0,
+        source,
+        is_runes,
+        ranges: Vec::new(),
+    };
+    scan.visit_program(program);
+    AwaitIgnoreRanges(scan.ranges)
+}
+
+struct IgnoreScan<'src, 'c> {
+    comments: &'c [Comment],
+    cursor: usize,
+    source: &'src str,
+    is_runes: bool,
+    ranges: Vec<(u32, u32)>,
+}
+
+impl<'a> Visit<'a> for IgnoreScan<'_, '_> {
+    fn enter_node(&mut self, kind: AstKind<'a>) {
+        let span = kind.span();
+        let mut ignored = false;
+        // Pre-order arrival makes every still-unconsumed comment before this
+        // node's start one of its leading comments, as upstream's acorn
+        // attachment pass computes them.
+        while let Some(comment) = self.comments.get(self.cursor) {
+            if comment.span.start >= span.start {
+                break;
+            }
+            self.cursor += 1;
+            let content = comment.content_span();
+            let text = &self.source[content.start as usize..content.end as usize];
+            if crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
+                text,
+                self.is_runes,
+            )
+            .iter()
+            .any(|code| code == "await_reactivity_loss")
+            {
+                ignored = true;
+            }
+        }
+        if ignored {
+            self.ranges.push((span.start, span.end));
         }
     }
-    false
 }
 
 /// Collect the `await X` → `(await $.track_reactivity_loss(X))()` edits from a
@@ -84,7 +121,7 @@ pub(super) fn collect_await_reactivity_loss_edits(
 ) -> Vec<Edit> {
     let mut collector = AwaitCollector {
         source,
-        is_runes,
+        ignored: collect_await_ignore_ranges(program, source, is_runes),
         edits: Vec::new(),
     };
     collector.visit_program(program);
@@ -93,7 +130,7 @@ pub(super) fn collect_await_reactivity_loss_edits(
 
 struct AwaitCollector<'src> {
     source: &'src str,
-    is_runes: bool,
+    ignored: AwaitIgnoreRanges,
     edits: Vec<Edit>,
 }
 
@@ -101,9 +138,7 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
     fn visit_await_expression(&mut self, expr: &AwaitExpression<'a>) {
         walk::walk_await_expression(self, expr);
 
-        if is_track_reactivity_loss_call(&expr.argument)
-            || await_reactivity_loss_ignored(self.source, expr.span.start, self.is_runes)
-        {
+        if is_track_reactivity_loss_call(&expr.argument) || self.ignored.contains(expr.span.start) {
             return;
         }
 

@@ -1780,6 +1780,35 @@ fn process_bind_directive<'a>(
                 let wrapped = crate::compiler::phases::phase3_transform::client::visitors::expression_converter::wrap_with_legacy_invalidate(
                     call, &root_name, context,
                 );
+                // Dev mode: wrap prop member mutations with the ownership validator too,
+                // mirroring the generic AssignmentExpression path (validate_mutation in
+                // utils.js), since bind: directives never flow through that visitor.
+                let mutation_ignored = ignored_codes
+                    .iter()
+                    .any(|c| c == "ownership_invalid_mutation");
+                let wrapped = if context.state.dev && !mutation_ignored {
+                    if let Some((prop_alias, path, source_loc)) =
+                        crate::compiler::phases::phase3_transform::client::visitors::expression_converter::check_ownership_validation(
+                            Some(bind.expression.as_json()),
+                            context,
+                        )
+                    {
+                        let mut args = vec![b::string(&prop_alias), b::array(path), wrapped];
+                        if let Some((line, col)) = source_loc {
+                            args.push(b::literal_number(line as f64));
+                            args.push(b::literal_number(col as f64));
+                        }
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$$ownership_validator.mutation"),
+                            args,
+                        )
+                    } else {
+                        wrapped
+                    }
+                } else {
+                    wrapped
+                };
                 vec![b::stmt(&context.arena, wrapped)]
             } else if is_state {
                 if context.state.analysis.runes {

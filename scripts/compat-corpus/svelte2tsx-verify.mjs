@@ -80,6 +80,16 @@ const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 
 	(e) => e.kind === 'component'
 );
 
+// A near-empty manifest (partial checkout, failed collect) would make the
+// comparison below pass vacuously instead of catching a real regression.
+const MIN_MANIFEST_ENTRIES = 1000;
+if (manifest.length < MIN_MANIFEST_ENTRIES) {
+	console.error(
+		`[svelte2tsx-verify] only ${manifest.length} component entries in manifest.json (expected >= ${MIN_MANIFEST_ENTRIES}); run \`node scripts/compat-corpus/collect.mjs\` first`,
+	);
+	process.exit(2);
+}
+
 // map.json carries the generated line lengths the mappings were built against,
 // so this gate never reads index.tsx — which oxfmt rewrites in place, leaving it
 // inconsistent with the map on any later re-run.

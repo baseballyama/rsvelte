@@ -120,6 +120,68 @@ fn svelte_ignore_suppresses_the_wrap() {
     }
 }
 
+/// Upstream attaches a leading comment to the outermost node that starts after
+/// it and inherits the ignore through that node's whole subtree, so a comment on
+/// an enclosing declaration suppresses every `await` inside it.
+#[test]
+fn svelte_ignore_on_an_ancestor_node_suppresses_the_wrap() {
+    let out = compile_svelte_js(
+        "// svelte-ignore await_reactivity_loss\nexport async function f() {\n\tconst r = await g();\n\treturn r;\n}",
+        true,
+    );
+    assert!(
+        !out.contains("$.track_reactivity_loss"),
+        "expected the ancestor-level ignore to suppress the wrap. Got:\n{out}"
+    );
+}
+
+/// The `await` lands several lines below the comment because the annotated
+/// statement spans multiple lines.
+#[test]
+fn svelte_ignore_on_a_multiline_statement_suppresses_the_wrap() {
+    let out = compile_svelte_js(
+        "export async function f() {\n\t// svelte-ignore await_reactivity_loss\n\tconst r = [\n\t\tawait g()\n\t];\n\treturn r;\n}",
+        true,
+    );
+    assert!(
+        !out.contains("$.track_reactivity_loss"),
+        "expected the multi-line statement's ignore to suppress the wrap. Got:\n{out}"
+    );
+}
+
+#[test]
+fn same_line_block_comment_svelte_ignore_suppresses_the_wrap() {
+    for src in [
+        "export async function f() {\n\tconst r = /* svelte-ignore await_reactivity_loss */ await g();\n\treturn r;\n}",
+        "export async function f() {\n\t/* svelte-ignore await_reactivity_loss */ const r = await g();\n\treturn r;\n}",
+    ] {
+        let out = compile_svelte_js(src, true);
+        assert!(
+            !out.contains("$.track_reactivity_loss"),
+            "expected the same-line block comment to suppress the wrap. In:\n{src}\nGot:\n{out}"
+        );
+    }
+}
+
+/// The same three forms through the runes instance-script path, which reaches
+/// the rewrite from `ast_state_transform` rather than a tail batch.
+#[test]
+fn instance_script_honours_the_ancestor_and_block_comment_forms() {
+    for script in [
+        "// svelte-ignore await_reactivity_loss\n\tasync function f() {\n\t\treturn await g();\n\t}",
+        "\tasync function f() {\n\t\t// svelte-ignore await_reactivity_loss\n\t\tconst r = [\n\t\t\tawait g()\n\t\t];\n\t\treturn r;\n\t}",
+        "\tasync function f() {\n\t\tconst r = /* svelte-ignore await_reactivity_loss */ await g();\n\t\treturn r;\n\t}",
+    ] {
+        let src =
+            format!("<script>\n\tlet count = $state(0);\n{script}\n</script>\n\n<p>{{count}}</p>");
+        let out = compile_component(&src, true);
+        assert!(
+            !out.contains("$.track_reactivity_loss"),
+            "expected the ignore to suppress the wrap. In:\n{src}\nGot:\n{out}"
+        );
+    }
+}
+
 #[test]
 fn svelte_ignore_naming_other_codes_does_not_suppress() {
     let out = compile_svelte_js(

@@ -1191,10 +1191,6 @@ pub(super) fn try_fix_pre_child_open_tags(
             if !open.ends_with('>') {
                 continue;
             }
-            // Has no attributes — nothing to break.
-            if !open.contains(' ') {
-                continue;
-            }
             let line_start = out[..cs].rfind('\n').map_or(0, |i| i + 1);
             // Measure the full line (from start through the first `\n` after
             // the open-tag `>`, i.e. including the content that follows `>`).
@@ -1206,9 +1202,23 @@ pub(super) fn try_fix_pre_child_open_tags(
             // multiple lines (its content has a newline) OR the glued open-tag
             // line overflows — a short single-line child (`<code class="x">y</code>`)
             // stays glued.
-            let content_multiline = out.get(open_end..ce).is_some_and(|c| c.contains('\n'));
+            let content = out.get(open_end..ce).unwrap_or("");
+            let content_multiline = content.contains('\n');
             if line.visual_width(tw) <= line_width && !content_multiline {
                 continue; // fits on one line and single-line content — no action
+            }
+            let has_attributes = open.contains(' ');
+            if !has_attributes {
+                // An attribute-free open tag only breaks because its first child
+                // borrows the `>`, which needs an inline tag whose content is
+                // leading-whitespace-sensitive; overflow alone is handled by
+                // `fix_pre_hugged_first_line`.
+                if !content_multiline
+                    || is_block_display(child_name)
+                    || content.starts_with([' ', '\t', '\r', '\n'])
+                {
+                    continue;
+                }
             }
             // Drop `>` to a new indented line.  The indent sits two levels
             // deeper than `<pre>`'s own indent (one for the child element, one

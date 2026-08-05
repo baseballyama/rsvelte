@@ -199,17 +199,16 @@ pub(crate) fn handle_component(
     // passed as *implicit props* (`props: { name: (params) => … }`), not as
     // standalone `const name = …` declarations, so that TypeScript both
     // satisfies required snippet props and contextually types the snippet's
-    // parameters from the prop's `Snippet<[T]>` type (#780). This relocation is
-    // only wired through the simple-children path; when the component also uses
-    // `let:` / named slots the children go through `process_component_children_with_slots`,
-    // which owns its own block scoping, so the snippets stay standalone there.
-    let use_snippet_props =
-        !(has_lets || children_have_named_slots || children_have_default_slot_lets)
-            && comp
-                .fragment
-                .nodes
-                .iter()
-                .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+    // parameters from the prop's `Snippet<[T]>` type (#780). Official demotes a
+    // snippet child unconditionally (`parentComponent` in `htmlxtojsx_v2/index.ts`
+    // checks only "is this a direct child of an InlineComponent", never `let:` /
+    // named-slot presence), so this relocation always applies alongside — not
+    // instead of — the `let:` / named-slot children processing below (#2171).
+    let use_snippet_props = comp
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::SnippetBlock(s) if s.start < s.end));
 
     // An instance variable is needed when:
     // - there are on: directives
@@ -364,23 +363,16 @@ pub(crate) fn handle_component(
 
     // Handle children with slot awareness
     let mut deferred_slot_close = false;
-    if has_lets || children_have_named_slots || children_have_default_slot_lets {
-        // Process children with slot scoping
-        deferred_slot_close = process_component_children_with_slots(
-            &comp.attributes,
-            &comp.fragment,
-            comp.end,
-            &inst_var,
-            has_lets,
-            source,
-            options,
-            str,
-            counter,
-            depth + 1,
-        );
-    } else if use_snippet_props {
-        // Process children, turning each direct `{#snippet}` child into an
-        // implicit prop relocated into the still-open `props: { … }` object.
+    if use_snippet_props {
+        // Every direct `{#snippet}` child is demoted to an implicit prop
+        // relocated into the still-open `props: { … }` object, unconditionally —
+        // mirrors official, which never gates this on `let:` / named-slot
+        // presence (#2171). Any remaining (non-snippet) children still need the
+        // `let:` / named-slot slot-scoping below, so they're left untouched here
+        // when that's needed and handed to `process_component_children_with_slots`
+        // afterward instead of being processed inline.
+        let needs_slot_pass =
+            has_lets || children_have_named_slots || children_have_default_slot_lets;
         //
         // `move_range(s.start, s.end, anchor)` detaches the transformed snippet
         // chunk and re-links it immediately before the chunk that *starts* at
@@ -409,7 +401,7 @@ pub(crate) fn handle_component(
                     str.move_range(s.start, s.end, anchor);
                 }
                 last_snippet_end = Some(s.end);
-            } else {
+            } else if !needs_slot_pass {
                 // Children of a component are at depth+1 (this component is the ancestor)
                 process_node_inplace(node, source, options, str, counter, depth + 1);
             }
@@ -430,7 +422,23 @@ pub(crate) fn handle_component(
                 inst_var
             )
         };
-        let closing = format!("{trailer_lit}{prop_def_suffix}");
+        // When the component also has its own `let:` directives, the
+        // `$$slot_def.default` destructure is appended right here (mirrors
+        // official's `snippetPropVariablesDeclaration` immediately followed by
+        // `defaultSlotLetTransformation`), rather than left to
+        // `process_component_children_with_slots` — which would otherwise try to
+        // insert it at the fragment's first child, landing inside the (now moved)
+        // snippet chunk if that snippet was the first child.
+        let own_default_let_open = if has_lets {
+            format!(
+                "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+                build_let_destructure_string(&comp.attributes, source),
+                inst_var
+            )
+        } else {
+            String::new()
+        };
+        let closing = format!("{trailer_lit}{prop_def_suffix}{own_default_let_open}");
         // Close the props object right after the last relocated snippet.
         match last_snippet_end {
             Some(end) => {
@@ -442,6 +450,39 @@ pub(crate) fn handle_component(
                 str.prepend_right(opening_tag_end, &closing);
             }
         }
+        if needs_slot_pass {
+            // Process the remaining (non-snippet) children with slot scoping;
+            // the default-slot-let block was already opened above, so tell it
+            // not to open another one.
+            deferred_slot_close = process_component_children_with_slots(
+                &comp.attributes,
+                &comp.fragment,
+                comp.end,
+                &inst_var,
+                has_lets,
+                false,
+                source,
+                options,
+                str,
+                counter,
+                depth + 1,
+            );
+        }
+    } else if has_lets || children_have_named_slots || children_have_default_slot_lets {
+        // Process children with slot scoping
+        deferred_slot_close = process_component_children_with_slots(
+            &comp.attributes,
+            &comp.fragment,
+            comp.end,
+            &inst_var,
+            has_lets,
+            true,
+            source,
+            options,
+            str,
+            counter,
+            depth + 1,
+        );
     } else {
         // Simple children processing: this component is now an ancestor → depth+1.
         process_fragment_inplace(&comp.fragment, source, options, str, counter, depth + 1);
@@ -622,16 +663,15 @@ pub(crate) fn handle_svelte_component(
     // (named-slot children anywhere in blocks, or default-slot `let:` receivers).
     let children_have_named_slots = has_named_slot_children(&comp.fragment);
     let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment);
-    // Direct `{#snippet}` children become implicit props (mirroring
-    // `handle_component`), but only on the simple-children path — the slot paths
-    // own their own block scoping.
-    let use_snippet_props =
-        !(has_lets_scomp || children_have_named_slots || children_have_default_slot_lets)
-            && comp
-                .fragment
-                .nodes
-                .iter()
-                .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+    // Direct `{#snippet}` children become implicit props unconditionally
+    // (mirroring `handle_component` — official never gates this on `let:` /
+    // named-slot presence, #2171), applying alongside whichever children-path
+    // (slot-scoped or simple) the rest of the children take.
+    let use_snippet_props = comp
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::SnippetBlock(s) if s.start < s.end));
     let needs_inst = has_events
         || has_lets_scomp
         || has_binds
@@ -676,14 +716,20 @@ pub(crate) fn handle_svelte_component(
 
     // Slot let-forwarding: `{const { $$_$$, prop, } = inst.$$slot_def.default; $$_$$;`
     // Mirrors `defaultSlotLetTransformation` in the JS reference's
-    // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
-    if has_lets_scomp {
-        let destructure = build_let_destructure_string(&comp.attributes, source);
-        let _ = write!(
-            opener,
+    // `htmlxtojsx_v2/nodes/InlineComponent.ts`. When the snippet-props path also
+    // applies, this text is appended after the relocated props close instead (see
+    // below) so it lands after — not inside — the still-open props object.
+    let own_default_let_open = if has_lets_scomp {
+        format!(
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-            destructure, inst_var
-        );
+            build_let_destructure_string(&comp.attributes, source),
+            inst_var
+        )
+    } else {
+        String::new()
+    };
+    if !use_snippet_props {
+        opener.push_str(&own_default_let_open);
     }
 
     str.overwrite(comp.start, opening_tag_end, &opener);
@@ -693,21 +739,16 @@ pub(crate) fn handle_svelte_component(
     // component's (`$$slot_def.default` / `$$slot_def["x"]` blocks); the
     // component's OWN `let:` block is already in `opener` above, so the helper
     // is told not to emit it again.
-    let deferred_slot_close = if children_have_named_slots || children_have_default_slot_lets {
-        process_component_children_with_slots(
-            &comp.attributes,
-            &comp.fragment,
-            comp.end,
-            &inst_var,
-            false,
-            source,
-            options,
-            str,
-            counter,
-            depth + 1,
-        )
-    } else if use_snippet_props {
-        let prev_slot = counter.slot_inst.replace(inst_var.clone());
+    let deferred_slot_close = if use_snippet_props {
+        // A direct `{#snippet}` child is always demoted to a prop, regardless of
+        // `let:` / named-slot children (#2171); any remaining children still need
+        // slot-scoping, handled below instead of inline when that applies.
+        let needs_slot_pass = children_have_named_slots || children_have_default_slot_lets;
+        let prev_slot = if needs_slot_pass {
+            None
+        } else {
+            Some(counter.slot_inst.replace(inst_var.clone()))
+        };
         let mut anchor = opening_tag_end;
         let mut last_snippet_end: Option<u32> = None;
         let mut snippet_names: Vec<String> = Vec::new();
@@ -726,11 +767,13 @@ pub(crate) fn handle_svelte_component(
                     str.move_range(s.start, s.end, anchor);
                 }
                 last_snippet_end = Some(s.end);
-            } else {
+            } else if !needs_slot_pass {
                 process_node_inplace(node, source, options, str, counter, depth + 1);
             }
         }
-        counter.slot_inst = prev_slot;
+        if let Some(prev) = prev_slot {
+            counter.slot_inst = prev;
+        }
         let prop_def_suffix = if snippet_names.is_empty() {
             String::new()
         } else {
@@ -740,7 +783,7 @@ pub(crate) fn handle_svelte_component(
                 inst_var
             )
         };
-        let closing = format!("{trailer_lit}{prop_def_suffix}");
+        let closing = format!("{trailer_lit}{prop_def_suffix}{own_default_let_open}");
         match last_snippet_end {
             Some(end) => {
                 str.append_left(end, &closing);
@@ -749,7 +792,37 @@ pub(crate) fn handle_svelte_component(
                 str.prepend_right(opening_tag_end, &closing);
             }
         }
-        false
+        if needs_slot_pass {
+            process_component_children_with_slots(
+                &comp.attributes,
+                &comp.fragment,
+                comp.end,
+                &inst_var,
+                false,
+                true,
+                source,
+                options,
+                str,
+                counter,
+                depth + 1,
+            )
+        } else {
+            false
+        }
+    } else if children_have_named_slots || children_have_default_slot_lets {
+        process_component_children_with_slots(
+            &comp.attributes,
+            &comp.fragment,
+            comp.end,
+            &inst_var,
+            false,
+            true,
+            source,
+            options,
+            str,
+            counter,
+            depth + 1,
+        )
     } else {
         // Mark the slot context so `slot="x"` children nested in control-flow
         // blocks still lower to `inst.$$slot_def["x"]`.
@@ -925,15 +998,15 @@ pub(crate) fn handle_svelte_self(
     // `$$slot_def`, which forces the `const $$_svelteselfN = …` form.
     let children_have_named_slots = has_named_slot_children(&el.fragment);
     let children_have_default_slot_lets = has_default_slot_let_children(&el.fragment);
-    // Direct `{#snippet}` children become implicit props, but only on the simple
-    // children path — the slot paths own their own block scoping.
-    let use_snippet_props =
-        !(has_lets || children_have_named_slots || children_have_default_slot_lets)
-            && el
-                .fragment
-                .nodes
-                .iter()
-                .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+    // Direct `{#snippet}` children become implicit props unconditionally
+    // (mirroring `handle_component` — official never gates this on `let:` /
+    // named-slot presence, #2171), applying alongside whichever children-path
+    // (slot-scoped or simple) the rest of the children take.
+    let use_snippet_props = el
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::SnippetBlock(s) if s.start < s.end));
     let has_bindings = el
         .attributes
         .iter()
@@ -993,17 +1066,23 @@ pub(crate) fn handle_svelte_self(
     // `let:` directives become a `{const { $$_$$, name, ... } = inst.$$slot_def.default; $$_$$;`
     // block right after the create call, with a matching `}` at the end.
     // Mirrors the JS reference's `defaultSlotLetTransformation` in
-    // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
-    if has_lets {
+    // `htmlxtojsx_v2/nodes/InlineComponent.ts`. When the snippet-props path also
+    // applies, this text is appended after the relocated props close instead (see
+    // below) so it lands after — not inside — the still-open props object.
+    let own_default_let_open = if has_lets {
         let destructure = build_let_destructure_string(&el.attributes, source);
         let inst_name = var_name
             .as_ref()
             .expect("let: directive requires an instance variable name");
-        let _ = write!(
-            opener,
+        format!(
             "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
             destructure, inst_name
-        );
+        )
+    } else {
+        String::new()
+    };
+    if !use_snippet_props {
+        opener.push_str(&own_default_let_open);
     }
 
     if !has_closing_tag {
@@ -1022,27 +1101,19 @@ pub(crate) fn handle_svelte_self(
     // take the same lowering as a named component's (`$$slot_def.default` /
     // `$$slot_def["x"]` blocks); this node's OWN `let:` block is already in
     // `opener` above, so the helper is told not to emit it again.
-    let deferred_slot_close = if children_have_named_slots || children_have_default_slot_lets {
-        let inst_var = var_name
-            .as_deref()
-            .expect("slot-consuming children require an instance variable name");
-        process_component_children_with_slots(
-            &el.attributes,
-            &el.fragment,
-            el.end,
-            inst_var,
-            false,
-            source,
-            options,
-            str,
-            counter,
-            depth + 1,
-        )
-    } else if use_snippet_props {
+    let deferred_slot_close = if use_snippet_props {
+        // A direct `{#snippet}` child is always demoted to a prop, regardless of
+        // `let:` / named-slot children (#2171); any remaining children still need
+        // slot-scoping, handled below instead of inline when that applies.
         let inst_var = var_name
             .as_deref()
             .expect("snippet props require an instance variable name");
-        counter.slot_inst = var_name.clone();
+        let needs_slot_pass = children_have_named_slots || children_have_default_slot_lets;
+        if needs_slot_pass {
+            counter.slot_inst = None;
+        } else {
+            counter.slot_inst = var_name.clone();
+        }
         // A snippet already sitting at the anchor is in place — moving it would
         // be a forbidden self-move — so the anchor just advances past it.
         let mut anchor = opening_tag_end;
@@ -1061,7 +1132,7 @@ pub(crate) fn handle_svelte_self(
                     str.move_range(s.start, s.end, anchor);
                 }
                 last_snippet_end = Some(s.end);
-            } else {
+            } else if !needs_slot_pass {
                 process_node_inplace(node, source, options, str, counter, depth + 1);
             }
         }
@@ -1077,7 +1148,7 @@ pub(crate) fn handle_svelte_self(
                 inst_var
             )
         };
-        let closing = format!("{trailer_lit}{prop_def_suffix}");
+        let closing = format!("{trailer_lit}{prop_def_suffix}{own_default_let_open}");
         match last_snippet_end {
             Some(end) => {
                 str.append_left(end, &closing);
@@ -1086,7 +1157,40 @@ pub(crate) fn handle_svelte_self(
                 str.prepend_right(opening_tag_end, &closing);
             }
         }
-        false
+        if needs_slot_pass {
+            process_component_children_with_slots(
+                &el.attributes,
+                &el.fragment,
+                el.end,
+                inst_var,
+                false,
+                true,
+                source,
+                options,
+                str,
+                counter,
+                depth + 1,
+            )
+        } else {
+            false
+        }
+    } else if children_have_named_slots || children_have_default_slot_lets {
+        let inst_var = var_name
+            .as_deref()
+            .expect("slot-consuming children require an instance variable name");
+        process_component_children_with_slots(
+            &el.attributes,
+            &el.fragment,
+            el.end,
+            inst_var,
+            false,
+            true,
+            source,
+            options,
+            str,
+            counter,
+            depth + 1,
+        )
     } else {
         // Still publish the slot context (as `handle_svelte_component` does) so
         // a descendant that reaches for `$$slot_def` without being detected

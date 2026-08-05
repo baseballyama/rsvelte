@@ -5684,14 +5684,6 @@ fn transform_instance_script_for_visitors(
             transformed
         };
 
-        // Wrap prop member expression mutations with $$ownership_validator.mutation()
-        // Reference: validate_mutation() in shared/utils.js
-        let transformed = if !prop_mutation_vars.is_empty() {
-            wrap_prop_mutation_validation(&transformed, &prop_mutation_vars, &analysis.source)
-        } else {
-            transformed
-        };
-
         // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
         // to detect when state proxies are logged directly.
         // Reference: CallExpression.js in the official Svelte compiler.
@@ -6210,6 +6202,13 @@ fn transform_instance_script_for_visitors(
     // This must run regardless of runes mode.
     if !shadowed_local_reactive_vars.is_empty() {
         result = transform_shadowed_local_state_vars(&result, &shadowed_local_reactive_vars);
+    }
+
+    // Must run after the runes AST pass: it matches the post-transform `prop()` getter
+    // form, which does not exist yet while the per-statement pipeline is still running.
+    // Reference: validate_mutation() in shared/utils.js
+    if !prop_mutation_vars.is_empty() {
+        result = wrap_prop_mutation_validation(&result, &prop_mutation_vars, &analysis.source);
     }
 
     // Dev-mode equality / `await` instrumentation for legacy components. Upstream

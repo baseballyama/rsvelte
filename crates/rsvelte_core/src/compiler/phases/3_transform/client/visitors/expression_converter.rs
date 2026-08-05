@@ -944,6 +944,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
         // AssignmentExpression: direct JsNode handling (falls back to Value for destructuring/transforms)
         JsNode::AssignmentExpression {
+            start,
             operator,
             left,
             right,
@@ -952,6 +953,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let operator_str = operator.as_str();
             let left_node = pa.get_js_node(*left);
             let right_node = pa.get_js_node(*right);
+
+            // Collected before conversion: the transforms below rewrite the LHS
+            // (`x` -> `x()`), which erases the shape the validator path needs.
+            let ownership_info = check_ownership_validation_typed(*start, left_node, context);
 
             // Check if the LHS is a destructuring pattern (typed or Raw-wrapped)
             let left_is_pattern = matches!(
@@ -973,7 +978,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 if let Some(result) =
                     try_destructure_assignment(&left_val, Some(&right_val), context, false)
                 {
-                    return result;
+                    return wrap_with_ownership_mutation(ownership_info, result, context);
                 }
             }
 
@@ -1034,7 +1039,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             // Pre-compute proxy decision from the JsNode directly (no JSON serialization)
             let should_proxy = Some(should_proxy_jsnode(right_node, pa, context));
 
-            if let Some(transformed) = try_transform_assignment(
+            let result = if let Some(transformed) = try_transform_assignment(
                 operator_str,
                 &conv_left,
                 &conv_right,
@@ -1042,18 +1047,21 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 original_root_name.as_deref(),
                 context,
             ) {
-                return transformed;
-            }
+                transformed
+            } else {
+                JsExpr::Assignment(JsAssignmentExpression {
+                    operator: assign_op,
+                    left: context.arena.alloc_expr(conv_left),
+                    right: context.arena.alloc_expr(conv_right),
+                })
+            };
 
-            JsExpr::Assignment(JsAssignmentExpression {
-                operator: assign_op,
-                left: context.arena.alloc_expr(conv_left),
-                right: context.arena.alloc_expr(conv_right),
-            })
+            wrap_with_ownership_mutation(ownership_info, result, context)
         }
 
         // UpdateExpression: direct JsNode handling
         JsNode::UpdateExpression {
+            start,
             operator,
             prefix,
             argument,
@@ -1061,6 +1069,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         } => {
             let operator_str = operator.as_str();
             let prefix = *prefix;
+            let node_start = *start;
 
             let update_op = match operator_str {
                 "++" => JsUpdateOp::Increment,
@@ -1089,6 +1098,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             // Check if the argument is a direct MemberExpression with Identifier object
             let is_direct_member_update = is_direct_member_with_identifier(arg_node, pa);
 
+            let ownership_info = check_ownership_validation_typed(node_start, arg_node, context);
+
             let saved_flag = context.state.in_direct_assignment_lhs;
             if is_direct_member_update {
                 context.state.in_direct_assignment_lhs = true;
@@ -1101,20 +1112,22 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             context.state.in_direct_assignment_lhs = saved_flag;
 
-            if let Some(transformed) = try_transform_update(
+            let result = if let Some(transformed) = try_transform_update(
                 update_op,
                 prefix,
                 context.arena.get_expr(conv_argument),
                 context,
             ) {
-                return transformed;
-            }
+                transformed
+            } else {
+                JsExpr::Update(JsUpdateExpression {
+                    operator: update_op,
+                    argument: conv_argument,
+                    prefix,
+                })
+            };
 
-            JsExpr::Update(JsUpdateExpression {
-                operator: update_op,
-                argument: conv_argument,
-                prefix,
-            })
+            wrap_with_ownership_mutation(ownership_info, result, context)
         }
 
         // ObjectPattern / ArrayPattern: direct JsNode handling via typed path
@@ -4419,7 +4432,6 @@ fn convert_assignment_expression(
     // Wrap with ownership validation if needed
     if let Some((prop_alias, path, source_loc)) = ownership_info {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-        context.state.needs_mutation_validation.set(true);
         let mut args = vec![b::string(&prop_alias), b::array(path), result];
         if let Some((line, col)) = source_loc {
             args.push(b::literal_number(line as f64));
@@ -4437,7 +4449,7 @@ fn convert_assignment_expression(
 
 /// Check if a JSON AST node has a `svelte-ignore` leading comment with the given code.
 /// This checks the `leadingComments` array for comments containing `svelte-ignore <code>`.
-fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
+pub(crate) fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
     if let Some(Value::Array(comments)) = obj.get("leadingComments") {
         for comment in comments {
             if let Some(value) = comment
@@ -4455,7 +4467,7 @@ fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
 
 /// Check if a JSON AST node has a `svelte-ignore` leading comment with the given code,
 /// also checking the source code directly for comments not attached in the JSON AST.
-fn is_svelte_ignored_with_source(
+pub(crate) fn is_svelte_ignored_with_source(
     obj: &serde_json::Map<String, Value>,
     code: &str,
     source: &str,
@@ -4469,57 +4481,62 @@ fn is_svelte_ignored_with_source(
     // This handles comments inside template expressions (arrow bodies) that
     // aren't attached as leadingComments by our parser
     if let Some(start) = obj.get("start").and_then(|s| s.as_u64()) {
-        let start = start as usize;
-        if start > 0 && start <= source.len() {
-            // Look backwards from the start position, searching within a reasonable window
-            // We look at up to 500 chars before the node to find preceding comments
-            let search_start_byte = start.saturating_sub(500);
-            // Ensure we're at a valid char boundary
-            let search_start = if source.is_char_boundary(search_start_byte) {
-                search_start_byte
-            } else {
-                source[..search_start_byte]
-                    .char_indices()
-                    .next_back()
-                    .map_or(0, |(i, _)| i)
-            };
-            let start = if source.is_char_boundary(start) {
-                start
-            } else {
-                source[..start]
-                    .char_indices()
-                    .next_back()
-                    .map_or(0, |(i, _)| i)
-            };
-            let before = &source[search_start..start];
+        return is_svelte_ignored_before_offset(start as usize, code, source);
+    }
+    false
+}
 
-            // Check for JS-style svelte-ignore comments: // svelte-ignore <code>
-            // Find the last line comment before this node
-            for line in before.lines().rev() {
-                let trimmed = line.trim();
-                if trimmed.is_empty() {
-                    continue;
-                }
-                // Check for // svelte-ignore
-                if let Some(comment_start) = trimmed.rfind("//") {
-                    let comment_text = &trimmed[comment_start + 2..];
-                    if comment_has_svelte_ignore(comment_text, code) {
-                        return true;
-                    }
-                }
-                // Only check the immediately preceding non-empty content
-                break;
+/// Scan the source immediately before `start` for a `svelte-ignore <code>` comment.
+pub(crate) fn is_svelte_ignored_before_offset(start: usize, code: &str, source: &str) -> bool {
+    if start > 0 && start <= source.len() {
+        // Look backwards from the start position, searching within a reasonable window
+        // We look at up to 500 chars before the node to find preceding comments
+        let search_start_byte = start.saturating_sub(500);
+        // Ensure we're at a valid char boundary
+        let search_start = if source.is_char_boundary(search_start_byte) {
+            search_start_byte
+        } else {
+            source[..search_start_byte]
+                .char_indices()
+                .next_back()
+                .map_or(0, |(i, _)| i)
+        };
+        let start = if source.is_char_boundary(start) {
+            start
+        } else {
+            source[..start]
+                .char_indices()
+                .next_back()
+                .map_or(0, |(i, _)| i)
+        };
+        let before = &source[search_start..start];
+
+        // Check for JS-style svelte-ignore comments: // svelte-ignore <code>
+        // Find the last line comment before this node
+        for line in before.lines().rev() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
             }
-
-            // Check for HTML-style svelte-ignore comments: <!-- svelte-ignore <code> -->
-            if let Some(comment_end) = memchr::memmem::rfind(before.as_bytes(), b"-->")
-                && let Some(comment_start) =
-                    memchr::memmem::rfind(&before.as_bytes()[..comment_end], b"<!--")
-            {
-                let comment_text = &before[comment_start + 4..comment_end];
+            // Check for // svelte-ignore
+            if let Some(comment_start) = trimmed.rfind("//") {
+                let comment_text = &trimmed[comment_start + 2..];
                 if comment_has_svelte_ignore(comment_text, code) {
                     return true;
                 }
+            }
+            // Only check the immediately preceding non-empty content
+            break;
+        }
+
+        // Check for HTML-style svelte-ignore comments: <!-- svelte-ignore <code> -->
+        if let Some(comment_end) = memchr::memmem::rfind(before.as_bytes(), b"-->")
+            && let Some(comment_start) =
+                memchr::memmem::rfind(&before.as_bytes()[..comment_end], b"<!--")
+        {
+            let comment_text = &before[comment_start + 4..comment_end];
+            if comment_has_svelte_ignore(comment_text, code) {
+                return true;
             }
         }
     }
@@ -4545,7 +4562,7 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
 /// Check if an assignment expression's LHS is a member expression targeting a prop,
 /// and if so, return the ownership validation info (prop_alias, path array, optional source location).
 /// This works on the original JSON AST before transforms are applied.
-fn check_ownership_validation(
+pub(crate) fn check_ownership_validation(
     left_json: Option<&Value>,
     context: &ComponentContext,
 ) -> Option<(String, Vec<JsExpr>, Option<(usize, usize)>)> {
@@ -4570,8 +4587,12 @@ fn check_ownership_validation(
         return None;
     }
 
+    // Official sets this before building the path, so an unbuildable path still
+    // emits the `$$ownership_validator` preamble.
+    context.state.needs_mutation_validation.set(true);
+
     // Build the property path
-    let path = build_member_path_from_json(left_val, context);
+    let path = build_member_path_from_json(left_val, context)?;
 
     let prop_alias = binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
 
@@ -4587,6 +4608,49 @@ fn check_ownership_validation(
     });
 
     Some((prop_alias, path, source_loc))
+}
+
+/// Typed-path counterpart of `check_ownership_validation` for mutation targets that
+/// never reach the JSON converter (event-handler bodies and other template expressions).
+fn check_ownership_validation_typed(
+    node_start: u32,
+    target: &JsNode,
+    context: &ComponentContext,
+) -> Option<(String, Vec<JsExpr>, Option<(usize, usize)>)> {
+    if !context.state.dev || !matches!(target, JsNode::MemberExpression { .. }) {
+        return None;
+    }
+    if is_svelte_ignored_before_offset(
+        node_start as usize,
+        "ownership_invalid_mutation",
+        &context.state.analysis.source,
+    ) {
+        return None;
+    }
+    let target_value = target.to_value();
+    check_ownership_validation(Some(&target_value), context)
+}
+
+/// Wrap `expression` in `$$ownership_validator.mutation(...)` using previously collected info.
+fn wrap_with_ownership_mutation(
+    info: Option<(String, Vec<JsExpr>, Option<(usize, usize)>)>,
+    expression: JsExpr,
+    context: &ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+    let Some((prop_alias, path, source_loc)) = info else {
+        return expression;
+    };
+    let mut args = vec![b::string(&prop_alias), b::array(path), expression];
+    if let Some((line, col)) = source_loc {
+        args.push(b::literal_number(line as f64));
+        args.push(b::literal_number(col as f64));
+    }
+    b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$$ownership_validator.mutation"),
+        args,
+    )
 }
 
 /// Get the start position of the root identifier in a member expression chain.
@@ -4611,7 +4675,9 @@ fn get_root_identifier_from_member_json(val: &Value) -> Option<String> {
 
 /// Build the property path array from a JSON member expression.
 /// Returns [root_name, prop1, prop2, ...] for obj.prop1.prop2.
-fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Vec<JsExpr> {
+/// A property that is neither an `Identifier` nor a `Literal` (e.g. `obj[a.b]`) aborts the
+/// whole validation, matching `validate_mutation`'s `else { return expression; }` branch.
+fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Option<Vec<JsExpr>> {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     let mut path = Vec::new();
@@ -4656,6 +4722,8 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Vec<J
                                 path.push(b::string(s));
                             }
                         }
+                    } else {
+                        return None;
                     }
                 }
 
@@ -4674,7 +4742,7 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Vec<J
     }
 
     path.reverse();
-    path
+    Some(path)
 }
 
 /// Try to apply reactive transformations to an assignment expression.
@@ -6152,7 +6220,6 @@ fn convert_update_expression(
     // Wrap with ownership validation if needed
     if let Some((prop_alias, path, source_loc)) = ownership_info {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-        context.state.needs_mutation_validation.set(true);
         let mut args = vec![b::string(&prop_alias), b::array(path), result];
         if let Some((line, col)) = source_loc {
             args.push(b::literal_number(line as f64));

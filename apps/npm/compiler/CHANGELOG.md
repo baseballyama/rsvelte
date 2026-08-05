@@ -1,5 +1,66 @@
 # @rsvelte/compiler
 
+## 0.10.4
+
+### Patch Changes
+
+- 44f6150: Dev-mode client output now wraps prop mutations that flow through a `bind:`
+  directive onto a member expression (e.g. `bind:value={object.prop}`) with the
+  ownership validator, matching the official compiler. Upstream achieves this by
+  synthesizing a real `AssignmentExpression` for the bind and routing it through
+  the generic assignment visitor, which calls `validate_mutation`; rsvelte's
+  `bind:` lowering builds the prop-mutation call directly and never went through
+  that visitor, so the `$$ownership_validator.mutation(...)` wrap — and the
+  `$$ownership_validator` preamble declaration it depends on — was silently
+  skipped for this path.
+- 6939249: fix(compiler): decide the non-reactive shadow per binding name. A destructuring
+  pattern can mix a reassigned `$state` binding with a never-reassigned
+  (non-reactive) sibling, but the client transform made that decision over the
+  whole pattern: `let [a, b] = $state([1, 2])` where only `a` is reassigned
+  registered both names in the program scope's shadow set, so every transform for
+  `a` was suppressed and `a++` was emitted verbatim instead of `$.update(a)`.
+  The decision now happens per binding name, matching official.
+- 5656f23: Two client destructuring-assignment fixes. A pattern whose only targets are member expressions off a `$state(...)` that resolves to a plain `$.proxy` (`({ b: o.p } = src)`) is no longer lowered through the reactive path: the "does this pattern touch anything reactive" check now consults the filtered set of names that actually became signals rather than every `$state` declaration, so the assignment stays verbatim like the official compiler leaves it. And in a runes script whose only reactive declarations are `$props()` — where the source-range transform runs instead of the text-based one — nested and renamed destructuring assignments (`({ a: { value } } = src)`) are now lowered instead of being emitted untransformed, so a nested prop leaf is written through its `value(...)` setter.
+- 62b250c: Client destructuring _assignments_ now expand nested patterns like the official compiler. `({ a: { b } } = src)` used to expand one level and leave the sub-pattern as another assignment, which the same transform then rewrote into a second `(($$value) => …)($$value.a)` IIFE; the expansion is now a port of upstream's recursive `extract_paths`, so every leaf is one flat assignment from its whole path (`$.set(b, $$value.a.b)`), a nested rest subtracts only its own level's keys, a default on a nested pattern becomes the base that sub-pattern reads from, and every array pattern — at any depth — contributes an `$$array` helper emitted before the assignments that read it. The surrounding shape follows the same upstream rule: the IIFE exists only when there is a helper or the right-hand side needs caching, and an uncached identifier right-hand side stays the IIFE parameter instead of being re-cached in `$$value`.
+- 23267de: Keep legacy `<script>` comments outside reactive statements: components using `$:`/`$store`/`$$props` no longer lose every comment from their instance script — only comments the official compiler also drops (those attached to a rewritten `$:` statement) are removed.
+- a07a013: Fix over-pruning of nested `&` sibling-combinator rules when an intermediate nesting level has a shape (a comma-separated selector list, a bare `:is()`/`:where()`, or a sibling combinator) that the ancestor-chain builder could not evaluate on its own. Previously a single unevaluable intermediate level made the whole ancestor chain bail to `None`, so a nested `&`'s sibling-combinator prune check (e.g. `& + &`) fell back to the empty compound matcher and the entire rule was pruned even when the ancestor constraint was actually satisfiable. The chain builder now resolves each level per branch — OR-ing across comma alternatives and expanding `:is()`/`:where()`, and verifying sibling combinators against the real sibling relationship — mirroring the official compiler's per-branch `NestingSelector` resolution, so only genuinely unsatisfiable rules are pruned.
+- 682a6bb: Detect `$$Slots` / `$$Events` / `$$Props` interface and type-alias declarations in svelte2tsx output even when nested inside a function, block, or class body — matching official svelte2tsx's fully recursive instance-script walk instead of only scanning top-level statements.
+- 44f6150: fix(compiler): wrap ownership-validated prop mutations that carry an extra
+  parenthesis. In dev-mode client output, a `prop(prop().member = value, true)`
+  mutation call can have its inner assignment wrapped in one extra pair of
+  parens when the compiler emits it as an expression result rather than a bare
+  statement (`prop((prop().member = value), true)`). The text-based ownership
+  mutation wrapper matched the unparenthesized shape only, so this variant
+  silently skipped the `$.create_ownership_validator(...).mutation(...)` wrap.
+- ddf91d3: Dev-mode client output now applies ownership validation to member-expression mutations of a `$props()` prop, e.g. `$effect(() => { listEl.style.overflow = "hidden"; })`. In runes mode a prop read only becomes the `listEl()` getter call in the post-loop AST pass, but the `$$ownership_validator.mutation(...)` wrapper was applied earlier, inside the per-statement text pipeline, where its matcher could not yet see that form — so every such mutation shipped unvalidated and the `$.create_ownership_validator($$props)` preamble was dropped with it. The wrapper now runs once over the finished instance script, and each mutation resolves its own line/column instead of every occurrence reusing the first one's position.
+- cc54f59: fix(svelte2tsx): skip identifiers in a slot expression's computed object key. A
+  bare-identifier computed key (`{ [item]: 1 }`) was resolved through the
+  `{#each}`/`let:` scope like any other identifier, but official's
+  `resolveExpression` never substitutes a key position at all — it only
+  descends into a compound key expression (`{ [item + 1]: 1 }`), whose nested
+  identifiers resolve normally because the key slot there is not an
+  `Identifier` node.
+- e703fd2: Apply `remove_surrounding_whitespace_nodes` to `{#snippet}` bodies and reproduce upstream's opener gap for the standalone snippet form, and route `<svelte:boundary slot="x">` inside a component through the `$$slot_def[...]` wrapper so the generated TSX matches official svelte2tsx.
+- d1ca60c: Demote `<svelte:component>`'s direct `{#snippet}` children to implicit props, like a named component's and `<svelte:self>`'s. They were emitted as standalone `const foo = (a) => …` declarations, so TypeScript could not contextually type the snippet parameters from the target component's props; they now move into the `props: { … }` object anchored by a `$$prop_def` destructure. The `let:` / named-slot paths keep their own block scoping and are unaffected.
+- faeba67: Route `<svelte:options>`'s opener gap through the shared `opener_spacing` helper so the generated TSX matches official svelte2tsx exactly, including bare boolean attributes like `<svelte:options runes />`.
+- c86c2e5: Transform `<svelte:self>` `bind:` directives and `{#snippet}` children like a named component's: two-way bindings now emit a plain prop plus the `$$bindings` marker and setter type-widener instead of the DOM `"bind:value"` form, `bind:this` assigns the component instance, and direct snippet children are demoted to props anchored by a `$$prop_def` destructure.
+- 50c3fd0: fix(svelte2tsx): drop the trailing space after `<svelte:self>`'s generated
+  `$on(...)` calls. `handle_svelte_self` reimplemented event-call emission
+  with a bespoke loop that appended `'); '` instead of `');'`, diverging from
+  official's `InlineComponent.addEvent` and from rsvelte's own
+  `handle_component`, which already reuses the shared `build_on_calls` helper.
+  `handle_svelte_self` now calls the same helper.
+- 57b8766: Align several validator/a11y diagnostic message bodies with the official compiler. The
+  element name and the ARIA role were swapped in
+  `a11y_no_interactive_element_to_noninteractive_role` and
+  `a11y_no_noninteractive_element_to_interactive_role`; the "did you mean" suggestions for
+  unknown ARIA attributes and roles are now full sentences; `a11y_missing_attribute` picks
+  its article and joins candidates like upstream; ARIA token / token-list values are quoted
+  and joined with `or`; an invalid node placement under the immediate parent is now worded
+  "cannot be a (direct) child of" instead of "cannot be a descendant of"; and reactive
+  declarations in a module script report that they "only exist" at the top level of the
+  instance script.
+
 ## 0.10.3
 
 ### Patch Changes

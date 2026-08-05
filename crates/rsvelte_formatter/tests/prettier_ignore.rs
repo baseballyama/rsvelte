@@ -64,6 +64,51 @@ fn ignore_before_overflowing_open_tag_stays_verbatim() {
     assert_parity(source, expected);
 }
 
+// An ignore comment glued to an inline node is one verbatim atom of the prose,
+// so the fill must keep running across it instead of ending the run there.
+// Asserted structurally, not byte-exactly: rsvelte's wrap columns for prose
+// around ANY inline child still differ from the prettier oracle, and that gap
+// reproduces with a plain `<b>` and no ignore comment at all.
+fn assert_fill_flows_across(source: &str, atom: &str, first_word: &str, last_word: &str) {
+    let out = format(source, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains(atom),
+        "ignored node must stay verbatim:\n{out}"
+    );
+    assert!(
+        !out.lines()
+            .any(|l| l.contains(first_word) && l.contains(last_word)),
+        "prose must reflow across the ignored node:\n{out}"
+    );
+    assert_eq!(
+        format(&out, &FormatOptions::default()).expect("format ok"),
+        out,
+        "formatting must be idempotent"
+    );
+}
+
+#[test]
+fn prose_wraps_across_ignored_inline_node() {
+    let source = "<p>alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon <!-- prettier-ignore --><b>x   y</b> tail words here that keep going on and on for a while longer</p>\n";
+    assert_fill_flows_across(
+        source,
+        "<!-- prettier-ignore --><b>x   y</b>",
+        "alpha",
+        "longer",
+    );
+}
+
+#[test]
+fn prose_after_ignored_inline_node_wraps() {
+    let source = "<p>Lead in text <!-- prettier-ignore --><span   class=\"x\">kept</span> then a very long stretch of prose that must be wrapped by the fill algorithm at the print width.</p>\n";
+    assert_fill_flows_across(
+        source,
+        "<!-- prettier-ignore --><span   class=\"x\">kept</span>",
+        "Lead",
+        "width.",
+    );
+}
+
 #[test]
 fn ignore_inside_pre_sub_format_stays_verbatim() {
     // #2068 (sub-issue 3): the `<pre>` hybrid sub-format's final re-indent pass

@@ -331,6 +331,7 @@ pub(crate) fn process_component_children_with_slots(
     node_end: u32,
     inst_var: &str,
     has_lets: bool,
+    open_default_slot_block: bool,
     source: &str,
     options: &Svelte2TsxOptions,
     str: &mut MagicString<'_>,
@@ -340,10 +341,18 @@ pub(crate) fn process_component_children_with_slots(
     // The component's OWN `let:` directives open a single `$$slot_def.default`
     // block before the first child; it stays open across every child (named-slot
     // children nest their own `$$slot_def["…"]` block inside it) and is closed
-    // after the last one.
+    // after the last one. When a direct `{#snippet}` child was already demoted to
+    // a component prop, the caller emits this opening text itself right after the
+    // relocated prop (mirrors official's `snippetPropVariablesDeclaration` then
+    // `defaultSlotLetTransformation` ordering) — signalled via `open_default_slot_block`
+    // — since inserting it at `first_node.start()` here would land inside the
+    // moved snippet chunk if that snippet happens to be the fragment's first node.
     let mut prev_end: Option<u32> = None;
 
-    if has_lets && let Some(first_node) = fragment.nodes.first() {
+    if has_lets
+        && open_default_slot_block
+        && let Some(first_node) = fragment.nodes.first()
+    {
         str.append_left_fmt(
             first_node.start(),
             format_args!(
@@ -355,6 +364,15 @@ pub(crate) fn process_component_children_with_slots(
     }
 
     for node in &fragment.nodes {
+        // A direct `{#snippet}` child is always demoted to a component prop by
+        // the caller (mirrors official's unconditional `parentComponent` check),
+        // never processed as slot-scoped content, so it takes no part here beyond
+        // marking its end for the block-close position below.
+        if matches!(node, TemplateNode::SnippetBlock(s) if s.start < s.end) {
+            prev_end = Some(node.end());
+            continue;
+        }
+
         let is_named_slot = match node {
             TemplateNode::RegularElement(el) => slot_attr_static_name(&el.attributes).is_some(),
             TemplateNode::Component(child_comp) => {

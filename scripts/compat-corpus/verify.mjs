@@ -167,6 +167,16 @@ if (!NO_FMT) {
 
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
 
+// A near-empty manifest (partial checkout, failed collect) would make the
+// comparison below pass vacuously instead of catching a real regression.
+const MIN_MANIFEST_ENTRIES = 1000;
+if (manifest.length < MIN_MANIFEST_ENTRIES) {
+	console.error(
+		`[verify] only ${manifest.length} entries in manifest.json (expected >= ${MIN_MANIFEST_ENTRIES}); run \`node scripts/compat-corpus/collect.mjs\` first`,
+	);
+	process.exit(2);
+}
+
 const counts = {
 	match: 0,
 	'error-parity': 0,

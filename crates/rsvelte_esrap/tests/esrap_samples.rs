@@ -124,6 +124,11 @@ fn esrap_samples_match() {
     let mut passed = 0;
     let samples = collect_samples(&dir);
     let total = samples.len();
+    assert!(
+        total > 0,
+        "no esrap samples found under {} — upstream layout changed?",
+        dir.display()
+    );
 
     for sample in &samples {
         if let Some(only) = &only
