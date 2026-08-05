@@ -103,10 +103,34 @@ if (args.includes('--worker')) {
 				kind === 'component'
 					? compiler.compile(source, options)
 					: compiler.compileModule(source, options);
-			return { js: result.js?.code ?? '', css: result.css?.code ?? null };
+			return {
+				js: result.js?.code ?? '',
+				css: result.css?.code ?? null,
+				warnings: normalizeWarnings(result.warnings),
+			};
 		} catch (e) {
 			return { error: errorInfo(e) };
 		}
+	}
+
+	// A warning is compared as (code, line, column). The message text is not
+	// part of the contract — it is prose and upstream rewords it — but the
+	// position is: editors and CLIs place a diagnostic from `start`. rsvelte
+	// leaves `start` undefined at many emission sites, which is why position is
+	// captured (and ratcheted) rather than dropped.
+	function normalizeWarnings(warnings) {
+		return (warnings ?? [])
+			.map((w) => ({
+				code: w.code ?? null,
+				line: w.start?.line ?? null,
+				column: w.start?.column ?? null,
+			}))
+			.sort(
+				(a, b) =>
+					String(a.code).localeCompare(String(b.code)) ||
+					(a.line ?? -1) - (b.line ?? -1) ||
+					(a.column ?? -1) - (b.column ?? -1),
+			);
 	}
 
 	function compileAll(compiler, kind, source, id) {
@@ -117,6 +141,7 @@ if (args.includes('--worker')) {
 		const dir = path.join(baseDir, id);
 		fs.mkdirSync(dir, { recursive: true });
 		const errors = {};
+		const warnings = {};
 		for (const [target, r] of results) {
 			if (r.error) {
 				errors[target.key] = r.error;
@@ -126,6 +151,12 @@ if (args.includes('--worker')) {
 			if (target.css && r.css != null) {
 				fs.writeFileSync(path.join(dir, `${target.key}.css`), r.css);
 			}
+			// Only entries that actually warn get a file; absence means "compiled
+			// with no warnings", which verify.mjs reads as the empty list.
+			if (r.warnings.length) warnings[target.key] = r.warnings;
+		}
+		if (Object.keys(warnings).length) {
+			fs.writeFileSync(path.join(dir, 'warnings.json'), JSON.stringify(warnings, null, '\t') + '\n');
 		}
 		if (Object.keys(errors).length) {
 			fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(errors, null, '\t') + '\n');

@@ -71,6 +71,16 @@ maps are segmented too differently to diff (byte, decoded-set and lookup-equalit
 than equal to official's — using official only to calibrate the invariants. See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md).
 
+The same `verify.mjs` run also gates compiler **warnings** — `(code, line, column)` per entry —
+on ratchets of their own (`warning-known-failures.{client,server,client-dev}.json` and
+`warning-position-known-failures.*`, justified in `compatibility/warning-known-failures.md`).
+Codes and positions ratchet separately: a wrong set of codes is a semantic bug, a wrong position
+is one systemic cause, and folded together the larger position backlog would hide every semantic
+regression. Until #2281 the pipeline discarded `result.warnings` entirely, so this whole class was
+invisible **by construction, at any corpus size** — that is how #2256 shipped while the corpus
+scored the very entry that reproduces it as `MATCH`. When adding a gate, ask what the oracle does
+not look at, not only what the input does not contain.
+
 **Corpus artifacts clean themselves up.** A full run writes ~0.57 GiB of regenerable trees per
 checkout (`sources/` 60 MiB, `expected/` 254 MiB, `actual/` 254 MiB), and N parallel agent
 worktrees each hold a set — this filled the dev machine's disk twice. `verify.mjs` therefore
@@ -82,7 +92,7 @@ this checkout and every `.claude/worktrees/*` sibling — never the checked-in `
 ratchets. Because a verify against an absent tree would score every entry `match`, `verify.mjs`
 asserts ≥99% of manifest entries have compiled output before comparing, and refuses
 `--update-baseline` below 12000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
-every baseline id it did not measure).
+every baseline id it did not measure) — `--update-warning-baseline` is held to the same floor.
 
 The svelte-check diagnostic-parity gate is the odd one out: its unit is a **type-checked project**,
 not per-file text, so module resolution / workspace layout / the `.d.ts` environment are observable

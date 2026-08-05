@@ -82,8 +82,47 @@ if (reconcile) {
 	}
 }
 
+// The warning ratchets (verify.mjs, #2281) get the same header-count guard.
+// Their doc groups entries by cause rather than listing them, so only the
+// per-file header count is asserted — the same invariant, minus the client-dev
+// reconciliation sentence which has no counterpart there.
+const WARNING_MD_PATH = path.join(CORPUS, 'warning-known-failures.md');
+if (fs.existsSync(WARNING_MD_PATH)) {
+	const warningMd = fs.readFileSync(WARNING_MD_PATH, 'utf8');
+	// The doc heads each section with the `<target>` placeholder and one count,
+	// because every target file holds the same entries (warnings are computed in
+	// Phase 1/2, before the target is chosen). So the count is asserted against
+	// EVERY target's file — which also catches the day that stops being true.
+	for (const prefix of ['warning-known-failures', 'warning-position-known-failures']) {
+		const re = new RegExp('`' + prefix.replace(/-/g, '\\-') + '\\.<target>\\.json`,\\s*([\\d,]+)\\s+entr(?:y|ies)');
+		const m = warningMd.match(re);
+		if (!m) {
+			console.error(`[known-failures-md-check] could not find the entry count for \`${prefix}.<target>.json\` in warning-known-failures.md`);
+			failed = true;
+			continue;
+		}
+		const headerCount = Number(m[1].replace(/,/g, ''));
+		for (const target of TARGETS) {
+			const file = `${prefix}.${target}.json`;
+			const p = path.join(CORPUS, file);
+			if (!fs.existsSync(p)) {
+				console.error(`[known-failures-md-check] missing ratchet ${file}`);
+				failed = true;
+				continue;
+			}
+			const actual = JSON.parse(fs.readFileSync(p, 'utf8')).length;
+			if (headerCount !== actual) {
+				console.error(
+					`[known-failures-md-check] warning-known-failures.md says ${headerCount} entries for \`${prefix}.<target>.json\`, but ${file} has ${actual}`,
+				);
+				failed = true;
+			}
+		}
+	}
+}
+
 if (failed) {
-	console.error('\n[known-failures-md-check] update compatibility/known-failures.md to match the JSON ratchets above.');
+	console.error('\n[known-failures-md-check] update the known-failures docs to match the JSON ratchets above.');
 	process.exit(1);
 }
-console.log('[known-failures-md-check] known-failures.md counts match the JSON ratchets.');
+console.log('[known-failures-md-check] known-failures docs match the JSON ratchets.');

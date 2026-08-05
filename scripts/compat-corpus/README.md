@@ -157,6 +157,23 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
    ratchet below (fmt, svelte2tsx + its map, lint, check, check-e2e, and the
    Rust `sourcemaps_gate`) enforces the same two-sided rule.
 
+`verify.mjs` also gates compiler **warnings**, on separate ratchets that no
+output flag can touch. `compile.mjs` records each warning as `(code, line,
+column)` in `warnings.json`; `verify.mjs` compares them in two independent
+dimensions:
+
+| Verdict | Meaning | Ratchet |
+|---|---|---|
+| `warning-code-mismatch` | the multiset of warning codes differs — rsvelte warns where upstream does not, or is silent where it warns | `warning-known-failures.<target>.json` |
+| `warning-position-mismatch` | codes agree, a `(line, column)` does not — usually rsvelte attaching no span at that emission site | `warning-position-known-failures.<target>.json` |
+
+Warning comparison needs no normalization, so it is meaningful under `--no-fmt`;
+`--update-warning-baseline` rewrites only the warning ratchets, so a `--no-fmt`
+run (which inflates JS failures) can seed them safely. See
+[compatibility/warning-known-failures.md](../../compatibility/warning-known-failures.md)
+— including why this gate did not exist until #2281, and the corpus entry that
+proved it was needed.
+
 The compared targets (their `generate` / `dev` options, whether CSS is compared,
 and which baseline file they ratchet against) are declared once in
 `targets.mjs`; `compile.mjs` / `verify.mjs` / `one.mjs` / `cluster.mjs` all

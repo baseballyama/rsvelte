@@ -10,13 +10,44 @@
  *   - dev       the `dev` compile option
  *   - css       whether CSS output is compared for this target
  *   - baseline  the ratchet file (relative to compatibility/) for this target
+ *   - warningBaseline / warningPositionBaseline
+ *               the two warning-parity ratchets (see verify.mjs). Warnings are
+ *               gated separately from output so a warning divergence can never
+ *               move an output ratchet, and the two warning failure modes get
+ *               independent burn-downs: a wrong *set of codes* is a semantic
+ *               bug, a wrong *position* is one systemic cause (emission sites
+ *               that attach no span) and would otherwise bury the semantic one.
  */
 export const TARGETS = [
-	{ key: 'client', generate: 'client', dev: false, css: true, baseline: 'known-failures.client.json' },
-	{ key: 'server', generate: 'server', dev: false, css: false, baseline: 'known-failures.server.json' },
+	{
+		key: 'client',
+		generate: 'client',
+		dev: false,
+		css: true,
+		baseline: 'known-failures.client.json',
+		warningBaseline: 'warning-known-failures.client.json',
+		warningPositionBaseline: 'warning-position-known-failures.client.json',
+	},
+	{
+		key: 'server',
+		generate: 'server',
+		dev: false,
+		css: false,
+		baseline: 'known-failures.server.json',
+		warningBaseline: 'warning-known-failures.server.json',
+		warningPositionBaseline: 'warning-position-known-failures.server.json',
+	},
 	// `dev: true` gates 18 client codegen files plus the CSS transform (empty
 	// rules survive pruning in dev), so dev CSS is compared too.
-	{ key: 'client-dev', generate: 'client', dev: true, css: true, baseline: 'known-failures.client-dev.json' },
+	{
+		key: 'client-dev',
+		generate: 'client',
+		dev: true,
+		css: true,
+		baseline: 'known-failures.client-dev.json',
+		warningBaseline: 'warning-known-failures.client-dev.json',
+		warningPositionBaseline: 'warning-position-known-failures.client-dev.json',
+	},
 ];
 
 export const TARGET_KEYS = TARGETS.map((t) => t.key);
