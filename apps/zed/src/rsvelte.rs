@@ -2,9 +2,7 @@ use std::collections::HashSet;
 use std::env;
 use std::path::PathBuf;
 
-use zed_extension_api::{
-    self as zed, LanguageServerId, Result, serde_json, settings::LspSettings,
-};
+use zed_extension_api::{self as zed, LanguageServerId, Result, serde_json, settings::LspSettings};
 
 const SERVER_NAME: &str = "rsvelte-language-server";
 const PACKAGE_NAME: &str = "@rsvelte/language-server";
