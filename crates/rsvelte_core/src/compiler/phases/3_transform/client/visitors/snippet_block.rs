@@ -701,9 +701,20 @@ fn process_assignment_pattern(
 
         let pattern = b::id_pattern(&arg_alias);
 
+        let mut declarations = vec![decl];
+        // eager read so `Cannot access x before initialization` still throws in dev
+        if context.state.dev {
+            let read_call = b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![b::id(name)],
+            );
+            declarations.push(b::stmt(&context.arena, read_call));
+        }
+
         return Some(ParameterInfo {
             pattern,
-            declarations: vec![decl],
+            declarations,
         });
     }
 
