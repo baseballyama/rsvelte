@@ -139,6 +139,24 @@ qualifies for `map-parity` and reports its resolution loss: 8 official segments,
 `EXPECTED_IDENTICAL_OUTPUTS` rises 55 → 56 in the same commit. Nothing else
 moved: no anchor changed, and no existing budget grew.
 
+### Third catch: instance-script chunk anchor
+
+The instance script chunk was anchored at `ScriptContent::start` — the byte
+immediately after `<script>`, i.e. the newline ending that line. Every segment
+derived from it therefore resolved to a column past the end of the `<script>`
+line. Anchoring the chunk at the script's first non-whitespace byte instead
+halved `out-of-range` and produced the first non-zero client `exact` count this
+gate has ever recorded; generated code is unchanged (the offset only feeds the
+map).
+
+| | before | after |
+|---|---|---|
+| client `out-of-range` segments | 37 | **19** |
+| samples with an `out-of-range` budget | 16 | **14** |
+| client official segments reproduced | 0 / 488 | **9 / 488** |
+| client `wrong` segments | 81 | **72** |
+| ratchet entries | 75 | **73** |
+
 ## Root cause
 
 The client entries all share one cause, tracked in issue #1781: the client AST
@@ -148,6 +166,18 @@ arithmetic then accumulates on top of that single anchor. Individual nodes insid
 a chunk lose their own provenance, which produces both symptoms at once —
 segments that no longer exist (`missing`, the resolution loss) and segments that
 address a column past the end of the anchor's line (`out-of-range`).
+
+Two findings from the #1781 burndown sharpen this. First, the official map's
+segments are overwhelmingly *identifier and literal* start/end pairs, emitted by
+esrap's `Context.write(content, node)`; `rsvelte_esrap` only emits anchors from
+`Printer::write_source_keyword`, so it has none of them and reproduces 0 / 488
+client segments. Second, adding those anchors does not help yet: a comment-free
+chunk is parsed in place (`to_oxc.rs::parse_chunk`), so its node spans are
+*chunk-local* byte offsets that the printer then reads as offsets into the
+original `.svelte` file. Chunk-local offsets and real source offsets share one
+number space with nothing to tell them apart, so per-node anchors resolve to
+unrelated positions. Per-node client resolution needs the spans to become real
+first — the Wave-4 migration below — not a printer change.
 
 Resolution is expected to fall out of the Wave-4 script AST-visitor migration:
 once `Raw` / `RawMapped` chunks are gone and every oxc node carries a real span,
@@ -179,6 +209,6 @@ No entry is accepted as correct behaviour; all are burndown targets.
   segments. Client counts (4–52) are dominated by `missing`; server counts (4–13)
   are mostly `missing`-only, except `preprocessed-styles` and
   `source-map-generator`, which contribute the 7 server `wrong` segments.
-- **`out-of-range` (16)** — 1–4 segments per client map. These are the segments
+- **`out-of-range` (14)** — 1–3 segments per client map. These are the segments
   that break downstream consumers outright (a devtools frame resolving past the
   end of a line), so this is the budget to burn down first.

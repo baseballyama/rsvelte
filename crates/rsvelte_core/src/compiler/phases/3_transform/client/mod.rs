@@ -1230,7 +1230,13 @@ fn transform_client_with_visitors(
         // content is always emitted at the function body level.
         let script_indent = 1usize;
         let trimmed = transformed_script.trim();
-        let script_source_offset = content.start;
+        // `content.start` is the byte right after `<script>`, which resolves to a
+        // column past the end of that line; anchor the chunk at its first token.
+        let script_source_offset = source
+            .get(content.start as usize..content.end as usize)
+            .map_or(content.start, |text| {
+                content.start + (text.len() - text.trim_start().len()) as u32
+            });
         if !trimmed.is_empty() {
             // Apply async body transformation if experimental.async is enabled
             // This splits the instance script at the first top-level `await`
