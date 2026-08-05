@@ -3354,6 +3354,13 @@ pub(super) fn find_prop_mutation_location_from(
         let end = start + var_name.len();
         search = end;
 
+        // `light.foo = value` written inside a comment or a string is not the
+        // mutation being located, and consuming it here shifts every later
+        // mutation onto the wrong position.
+        if !is_in_code(source, from, start) {
+            continue;
+        }
+
         if start > 0 {
             let prev = bytes[start - 1] as char;
             if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == '.' {
@@ -3373,6 +3380,74 @@ pub(super) fn find_prop_mutation_location_from(
     }
 
     None
+}
+
+/// Whether `target` sits in code rather than inside a comment or a string /
+/// template literal. `from` must itself be a code offset — the scan starts
+/// there in the code state, so callers pass the previous confirmed match.
+fn is_in_code(source: &str, from: usize, target: usize) -> bool {
+    #[derive(PartialEq)]
+    enum S {
+        Code,
+        Line,
+        Block,
+        Single,
+        Double,
+        Template,
+    }
+    let bytes = source.as_bytes();
+    let mut state = S::Code;
+    let mut i = from;
+    while i < target {
+        let c = bytes[i];
+        let next = bytes.get(i + 1).copied();
+        match state {
+            S::Code => match (c, next) {
+                (b'/', Some(b'/')) => {
+                    state = S::Line;
+                    i += 2;
+                    continue;
+                }
+                (b'/', Some(b'*')) => {
+                    state = S::Block;
+                    i += 2;
+                    continue;
+                }
+                (b'\'', _) => state = S::Single,
+                (b'"', _) => state = S::Double,
+                (b'`', _) => state = S::Template,
+                _ => {}
+            },
+            S::Line => {
+                if c == b'\n' {
+                    state = S::Code;
+                }
+            }
+            S::Block => {
+                if c == b'*' && next == Some(b'/') {
+                    state = S::Code;
+                    i += 2;
+                    continue;
+                }
+            }
+            S::Single | S::Double | S::Template => {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                let closer = match state {
+                    S::Single => b'\'',
+                    S::Double => b'"',
+                    _ => b'`',
+                };
+                if c == closer {
+                    state = S::Code;
+                }
+            }
+        }
+        i += 1;
+    }
+    state == S::Code
 }
 
 /// Advance past `.name` / `[expr]` accessors, returning the offset just after the chain.
