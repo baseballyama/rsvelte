@@ -8,15 +8,16 @@
 //! per-file instrumentation overhead is ~100–200ns, negligible against
 //! Phase 3's ~60µs/file budget.
 //!
-//! Only `rsvelte_devtools/bin/compile_profile.rs` consumes these timers today.
+//! Only the native profiling binaries read these accumulators back — the
+//! compile pipeline never does, so the timers cannot affect compiler output.
 
 use std::cell::Cell;
 use std::time::Duration;
 
 // `std::time::Instant::now()` traps on `wasm32-unknown-unknown` (no system
 // clock — see std::sys::time::unsupported). The profile instrumentation
-// below is consumed only by native devtools (`rsvelte_devtools/bin/compile_profile.rs`), but
-// the call sites live in shared compile paths, so the Instant calls would
+// below is consumed only by the native profiling binaries, but the call
+// sites live in shared compile paths, so the Instant calls would
 // fire from the WASM playground and crash the page. Provide a WASM-safe
 // shim that returns a unit "instant" with a zero-cost elapsed so the
 // instrumented sites stay compile-target-portable without #[cfg] noise.
