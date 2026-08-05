@@ -112,7 +112,9 @@ fn main() {
     // Phase 2c: analyze_component (visitors / scope build / store subs / …)
     let start = Instant::now();
     let mut analyses = Vec::with_capacity(files.len());
+    let mut analyze_per_file: Vec<std::time::Duration> = Vec::with_capacity(files.len());
     for (i, (_, content)) in files.iter().enumerate() {
+        let file_start = Instant::now();
         if let Some(ref mut ast) = asts[i] {
             // SAFETY: same lifetime invariant as 2a.
             unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
@@ -122,6 +124,7 @@ fn main() {
         } else {
             analyses.push(None);
         }
+        analyze_per_file.push(file_start.elapsed());
     }
     let analyze_visitor_time = start.elapsed();
     let analyze_time = resolve_lazy_time + ensure_script_time + analyze_visitor_time;
@@ -134,6 +137,8 @@ fn main() {
     // only as one corpus-wide average.
     let mut rows: Vec<(usize, std::time::Duration, profile::ReparseBreakdown)> =
         Vec::with_capacity(files.len());
+    let mut scaling: Vec<ScalingRow> = Vec::with_capacity(files.len());
+    let mut totals = profile::Phase3Breakdown::default();
 
     // Measure Phase 3 (Transform)
     let start = Instant::now();
@@ -148,14 +153,34 @@ fn main() {
             let _ = transform_component(analysis, ast, content, &compile_opts);
             rsvelte_core::ast::arena::clear_serialize_arena();
         }
+        let file_transform = file_start.elapsed();
+        // Drained per file for the scaling rows, so the corpus totals have to be
+        // accumulated here rather than read back after the loop.
+        let b = profile::take_breakdown();
+        totals.visit_program += b.visit_program;
+        totals.script_text_transform += b.script_text_transform;
+        totals.template_fragment += b.template_fragment;
+        totals.assembly_after_fragment += b.assembly_after_fragment;
+        totals.css_render += b.css_render;
+        totals.codegen += b.codegen;
+        let (script_bytes, runes) = script_shape(asts[i].as_ref(), content);
+        scaling.push(ScalingRow {
+            script_bytes,
+            runes,
+            analyze: analyze_per_file.get(i).copied().unwrap_or_default(),
+            script_text: b.script_text_transform,
+            template: b.template_fragment,
+            codegen: b.codegen,
+            transform: file_transform,
+        });
         rows.push((
             content.len(),
-            file_start.elapsed(),
+            file_transform,
             profile::take_reparse_breakdown(),
         ));
     }
     let transform_time = start.elapsed();
-    let transform_breakdown = profile::take_breakdown();
+    let transform_breakdown = totals;
     let script_text_breakdown = profile::take_script_text_breakdown();
 
     let total = parse_time + analyze_time + transform_time;
@@ -284,6 +309,8 @@ fn main() {
         st.entries_outside_parent
     );
     report_reparse(&mut rows, ms(total));
+    report_scaling(&scaling, "script bytes", |r| r.script_bytes as f64);
+    report_scaling(&scaling, "rune count", |r| r.runes as f64);
     println!(
         "  Template fragment:   {:7.2}ms ({:5.1}%)",
         ms(template_fragment),
@@ -318,6 +345,144 @@ fn main() {
     println!(
         "Throughput:          {:.1} MB/s",
         total_bytes as f64 / total.as_secs_f64() / 1_000_000.0
+    );
+}
+
+struct ScalingRow {
+    script_bytes: usize,
+    runes: usize,
+    analyze: std::time::Duration,
+    script_text: std::time::Duration,
+    template: std::time::Duration,
+    codegen: std::time::Duration,
+    transform: std::time::Duration,
+}
+
+/// Script size and rune count for one file.
+///
+/// Runes are counted textually inside the script tags rather than taken from
+/// the analysis, so the number means the same thing as the one a regression on
+/// source text would produce. `$$props` and `$$restProps` are not runes and are
+/// excluded by requiring a single leading `$`.
+fn script_shape(ast: Option<&rsvelte_core::ast::Root<'_>>, content: &str) -> (usize, usize) {
+    const RUNES: [&str; 7] = [
+        "$state",
+        "$derived",
+        "$props",
+        "$effect",
+        "$bindable",
+        "$inspect",
+        "$host",
+    ];
+    let Some(ast) = ast else {
+        return (0, 0);
+    };
+    let mut bytes = 0usize;
+    let mut runes = 0usize;
+    for script in [ast.instance.as_ref(), ast.module.as_ref()]
+        .into_iter()
+        .flatten()
+    {
+        let (start, end) = (script.start as usize, script.end as usize);
+        let Some(text) = content.get(start..end) else {
+            continue;
+        };
+        bytes += text.len();
+        for rune in RUNES {
+            let mut rest = text;
+            while let Some(pos) = rest.find(rune) {
+                let before_is_dollar = rest[..pos].ends_with('$');
+                let after = &rest[pos + rune.len()..];
+                // A rune is a call or a member access; `$stateful` is neither.
+                let looks_like_rune = after.starts_with('(')
+                    || after.starts_with('.')
+                    || after.trim_start().starts_with('(');
+                if !before_is_dollar && looks_like_rune {
+                    runes += 1;
+                }
+                rest = &rest[pos + rune.len()..];
+            }
+        }
+    }
+    (bytes, runes)
+}
+
+/// Ordinary least squares slope of `log(y)` on `log(x)`, i.e. the exponent.
+///
+/// Rows where either side is zero carry no exponent information and are
+/// dropped; the count that survived is reported so the slope is never read
+/// without knowing what it was fitted on.
+fn log_slope(points: &[(f64, f64)]) -> (f64, usize) {
+    let used: Vec<(f64, f64)> = points
+        .iter()
+        .filter(|&&(x, y)| x > 0.0 && y > 0.0)
+        .map(|&(x, y)| ((x + 1.0).ln(), y.ln()))
+        .collect();
+    let n = used.len();
+    if n < 3 {
+        return (f64::NAN, n);
+    }
+    let mx = used.iter().map(|p| p.0).sum::<f64>() / n as f64;
+    let my = used.iter().map(|p| p.1).sum::<f64>() / n as f64;
+    let num: f64 = used.iter().map(|&(x, y)| (x - mx) * (y - my)).sum();
+    let den: f64 = used.iter().map(|&(x, _)| (x - mx) * (x - mx)).sum();
+    (num / den, n)
+}
+
+/// Bucket shares and scaling exponents against one predictor.
+///
+/// The claim this supports is "rsvelte's own scaling sits in bucket X". It is
+/// not a claim about where the gap to another compiler sits: that would need
+/// the other compiler's bucket split, which we do not have.
+fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -> f64) {
+    let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
+    let buckets: [(&str, fn(&ScalingRow) -> std::time::Duration); 4] = [
+        ("Analyze", |r| r.analyze),
+        ("script_text", |r| r.script_text),
+        ("template", |r| r.template),
+        ("js_codegen", |r| r.codegen),
+    ];
+    let total_all: f64 = rows.iter().map(|r| ms(r.analyze) + ms(r.transform)).sum();
+    println!("\n  === scaling vs {label} (n = {}) ===", rows.len());
+
+    let mut order: Vec<usize> = (0..rows.len()).collect();
+    order.sort_by(|&a, &b| predictor(&rows[a]).total_cmp(&predictor(&rows[b])));
+    println!(
+        "    {:<12} {:>8} {:>8} {:>8} {:>8} | {:>7} {:>7} {:>6}",
+        "bucket", "Q1 ms/f", "Q2 ms/f", "Q3 ms/f", "Q4 ms/f", "share", "exp", "c_b"
+    );
+    let mut c_sum = 0.0;
+    for (name, get) in buckets {
+        let mut cells = [0.0f64; 4];
+        for (q, cell) in cells.iter_mut().enumerate() {
+            let chunk = &order[order.len() * q / 4..order.len() * (q + 1) / 4];
+            *cell =
+                chunk.iter().map(|&i| ms(get(&rows[i]))).sum::<f64>() / chunk.len().max(1) as f64;
+        }
+        let share = rows.iter().map(|r| ms(get(r))).sum::<f64>() / total_all.max(f64::MIN_POSITIVE);
+        let pts: Vec<(f64, f64)> = rows.iter().map(|r| (predictor(r), ms(get(r)))).collect();
+        let (exp, _) = log_slope(&pts);
+        let c_b = share * exp;
+        c_sum += c_b;
+        println!(
+            "    {name:<12} {:>8.4} {:>8.4} {:>8.4} {:>8.4} | {:>6.1}% {:>7.3} {:>6.3}",
+            cells[0],
+            cells[1],
+            cells[2],
+            cells[3],
+            share * 100.0,
+            exp,
+            c_b
+        );
+    }
+    let total_pts: Vec<(f64, f64)> = rows
+        .iter()
+        .map(|r| (predictor(r), ms(r.analyze) + ms(r.transform)))
+        .collect();
+    let (total_exp, used) = log_slope(&total_pts);
+    println!(
+        "    SELF-CHECK  sum c_b {c_sum:.3} vs total exponent {total_exp:.3} (fitted on {used} of {})",
+        rows.len()
     );
 }
 
