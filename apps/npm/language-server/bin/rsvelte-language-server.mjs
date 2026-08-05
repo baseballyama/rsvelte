@@ -46,11 +46,13 @@ if (override) {
 		const jsServer = join(pkgRoot, 'dist', 'server.mjs');
 		if (!existsSync(jsServer)) {
 			const { triple, pkgName } = platformPackage();
+			const why = forceJs
+				? 'RSVELTE_LANGUAGE_SERVER_JS=1 forced it.'
+				: triple
+					? `the native package "${pkgName}" isn't installed.\nTry reinstalling: npm install --include=optional ${pkgName}`
+					: `platform ${process.platform}-${process.arch} has no prebuilt binary.`;
 			console.error(
-				`[@rsvelte/language-server] No server to run: the JS fallback (${jsServer}) is missing and ` +
-					(triple
-						? `the native package "${pkgName}" isn't installed.\nTry reinstalling: npm install --include=optional ${pkgName}`
-						: `platform ${process.platform}-${process.arch} has no prebuilt binary.`),
+				`[@rsvelte/language-server] No server to run: the JS fallback (${jsServer}) is missing and ${why}`,
 			);
 			process.exit(1);
 		}
