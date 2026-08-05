@@ -271,12 +271,13 @@ fn main() {
         st.calls
     );
     println!(
-        "    NESTING nested {} | sites: main {} pub {} (sum {} vs entries {})",
+        "    NESTING nested {} | sites: main {} pub {} (sum {} vs entries {}) | in_function {:.2}ms",
         st.nested_entries,
         st.parent_site_main,
         st.parent_site_pub,
         st.parent_site_main + st.parent_site_pub,
-        st.entries
+        st.entries,
+        ms(st.in_function)
     );
     report_reparse(&mut rows, ms(total));
     println!(

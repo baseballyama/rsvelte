@@ -143,6 +143,11 @@ pub struct ScriptTextBreakdown {
     /// (or the reverse) cannot hide inside an equal total.
     pub parent_site_main: u64,
     pub parent_site_pub: u64,
+    /// Wall time inside the staged function, measured by the entry guard.
+    ///
+    /// Bounds the stage sum from above and the parent timer from below, so
+    /// when the two disagree this says which of them is wrong.
+    pub in_function: Duration,
 }
 
 /// The `*_ast` rewrite passes all reach the parser through one choke point,
@@ -199,6 +204,7 @@ thread_local! {
     static ST_PARENT_CALLS: Cell<u64> = const { Cell::new(0) };
     static ST_DEPTH: Cell<u64> = const { Cell::new(0) };
     static ST_NESTED_ENTRIES: Cell<u64> = const { Cell::new(0) };
+    static ST_IN_FUNCTION: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_PARENT_SITE_MAIN: Cell<u64> = const { Cell::new(0) };
     static ST_PARENT_SITE_PUB: Cell<u64> = const { Cell::new(0) };
 
@@ -339,7 +345,7 @@ pub fn record_parent_site(is_pub: bool) {
 
 /// Tracks how deep the staged function is on the stack, so a re-entrant call
 /// is counted rather than inferred.
-pub struct EntryGuard;
+pub struct EntryGuard(TimerStart);
 
 impl EntryGuard {
     #[expect(clippy::new_without_default, reason = "a guard is never defaulted")]
@@ -351,13 +357,15 @@ impl EntryGuard {
                 ST_NESTED_ENTRIES.with(|c| c.set(c.get() + 1));
             }
         });
-        Self
+        Self(timer_start())
     }
 }
 
 impl Drop for EntryGuard {
     fn drop(&mut self) {
         ST_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+        let elapsed = timer_elapsed(self.0);
+        ST_IN_FUNCTION.with(|c| c.set(c.get() + elapsed));
     }
 }
 
@@ -456,6 +464,7 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         nested_entries: ST_NESTED_ENTRIES.with(|c| c.replace(0)),
         parent_site_main: ST_PARENT_SITE_MAIN.with(|c| c.replace(0)),
         parent_site_pub: ST_PARENT_SITE_PUB.with(|c| c.replace(0)),
+        in_function: ST_IN_FUNCTION.with(|c| c.replace(Duration::ZERO)),
     }
 }
 
