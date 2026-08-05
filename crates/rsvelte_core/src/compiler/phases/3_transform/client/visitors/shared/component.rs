@@ -1795,7 +1795,13 @@ fn process_bind_directive<'a>(
                             context,
                         )
                     {
-                        let mut args = vec![b::string(&prop_alias), b::array(path), wrapped];
+                        let mut args = vec![
+                            crate::compiler::phases::phase3_transform::client::visitors::expression_converter::ownership_alias_literal(
+                                prop_alias,
+                            ),
+                            b::array(path),
+                            wrapped,
+                        ];
                         if let Some((line, col)) = source_loc {
                             args.push(b::literal_number(line as f64));
                             args.push(b::literal_number(col as f64));

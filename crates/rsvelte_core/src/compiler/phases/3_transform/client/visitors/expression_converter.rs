@@ -4432,7 +4432,7 @@ fn convert_assignment_expression(
     // Wrap with ownership validation if needed
     if let Some((prop_alias, path, source_loc)) = ownership_info {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-        let mut args = vec![b::string(&prop_alias), b::array(path), result];
+        let mut args = vec![ownership_alias_literal(prop_alias), b::array(path), result];
         if let Some((line, col)) = source_loc {
             args.push(b::literal_number(line as f64));
             args.push(b::literal_number(col as f64));
@@ -4565,7 +4565,7 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
 pub(crate) fn check_ownership_validation(
     left_json: Option<&Value>,
     context: &ComponentContext,
-) -> Option<(String, Vec<JsExpr>, Option<(usize, usize)>)> {
+) -> Option<(Option<String>, Vec<JsExpr>, Option<(usize, usize)>)> {
     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
     let left_val = left_json?;
@@ -4594,7 +4594,9 @@ pub(crate) fn check_ownership_validation(
     // Build the property path
     let path = build_member_path_from_json(left_val, context)?;
 
-    let prop_alias = binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
+    // Upstream passes `binding.prop_alias` straight through, so a legacy
+    // `export let` prop — which never gets one — reports `null`.
+    let prop_alias = binding.prop_alias.clone();
 
     // Get source location from the root identifier's start position
     let source_loc = get_root_start_position(left_val).and_then(|start| {
@@ -4616,7 +4618,7 @@ fn check_ownership_validation_typed(
     node_start: u32,
     target: &JsNode,
     context: &ComponentContext,
-) -> Option<(String, Vec<JsExpr>, Option<(usize, usize)>)> {
+) -> Option<(Option<String>, Vec<JsExpr>, Option<(usize, usize)>)> {
     if !context.state.dev || !matches!(target, JsNode::MemberExpression { .. }) {
         return None;
     }
@@ -4633,7 +4635,7 @@ fn check_ownership_validation_typed(
 
 /// Wrap `expression` in `$$ownership_validator.mutation(...)` using previously collected info.
 fn wrap_with_ownership_mutation(
-    info: Option<(String, Vec<JsExpr>, Option<(usize, usize)>)>,
+    info: Option<(Option<String>, Vec<JsExpr>, Option<(usize, usize)>)>,
     expression: JsExpr,
     context: &ComponentContext,
 ) -> JsExpr {
@@ -4641,7 +4643,11 @@ fn wrap_with_ownership_mutation(
     let Some((prop_alias, path, source_loc)) = info else {
         return expression;
     };
-    let mut args = vec![b::string(&prop_alias), b::array(path), expression];
+    let mut args = vec![
+        ownership_alias_literal(prop_alias),
+        b::array(path),
+        expression,
+    ];
     if let Some((line, col)) = source_loc {
         args.push(b::literal_number(line as f64));
         args.push(b::literal_number(col as f64));
@@ -4651,6 +4657,16 @@ fn wrap_with_ownership_mutation(
         b::member_path(&context.arena, "$$ownership_validator.mutation"),
         args,
     )
+}
+
+/// `$$ownership_validator.mutation`'s first argument: the prop alias, or `null`
+/// for a binding that has none (`b.literal(binding.prop_alias)` upstream).
+pub(crate) fn ownership_alias_literal(prop_alias: Option<String>) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+    match prop_alias {
+        Some(alias) => b::string(alias),
+        None => b::null(),
+    }
 }
 
 /// Get the start position of the root identifier in a member expression chain.
@@ -6220,7 +6236,7 @@ fn convert_update_expression(
     // Wrap with ownership validation if needed
     if let Some((prop_alias, path, source_loc)) = ownership_info {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-        let mut args = vec![b::string(&prop_alias), b::array(path), result];
+        let mut args = vec![ownership_alias_literal(prop_alias), b::array(path), result];
         if let Some((line, col)) = source_loc {
             args.push(b::literal_number(line as f64));
             args.push(b::literal_number(col as f64));

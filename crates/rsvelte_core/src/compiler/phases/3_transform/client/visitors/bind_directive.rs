@@ -1911,10 +1911,13 @@ fn build_getter_setter_with_primitive(
                             None
                         };
                     if let Some(path) = path {
-                        let prop_alias =
-                            binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
-                        let mut args =
-                            vec![b::string(&prop_alias), b::array(path), transformed_set];
+                        let mut args = vec![
+                            crate::compiler::phases::phase3_transform::client::visitors::expression_converter::ownership_alias_literal(
+                                binding.prop_alias.clone(),
+                            ),
+                            b::array(path),
+                            transformed_set,
+                        ];
                         // Add source location (line, column) if available
                         let start_pos = original_expr.start().map(|v| v as usize);
                         if let Some(start) = start_pos {
