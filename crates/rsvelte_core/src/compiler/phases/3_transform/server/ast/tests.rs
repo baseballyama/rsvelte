@@ -3841,8 +3841,8 @@ fn compile_both(source: &str) -> Outcome {
         server_component_ast(&analysis, ast, source, &options, &allocator)
     }));
     let new_out = match new_out {
-        Ok(Some(s)) => s,
-        Ok(None) => return Outcome::NewNone,
+        Ok(Ok(s)) => s,
+        Ok(Err(_)) => return Outcome::NewNone,
         Err(_) => return Outcome::Panic("new"),
     };
 

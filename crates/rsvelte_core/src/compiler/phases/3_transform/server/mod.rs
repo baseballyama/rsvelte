@@ -49,18 +49,13 @@ pub fn transform_server(
     // once with `rsvelte_esrap` — zero text post-processing. This replaced the
     // legacy text `ServerCodeGenerator` (deleted) after reaching byte-parity
     // across the curated runtime / `compiler_fixtures` / `ssr` suites and a net
-    // corpus improvement. The pipeline never returns `None` for a parseable
-    // component; a `None` (only on an internal assembly failure) surfaces as an
-    // error rather than silently falling back.
+    // corpus improvement. An internal assembly failure surfaces as an error
+    // rather than silently falling back.
     SERVER_OXC_ALLOCATOR.with(|cell| {
         let mut allocator = cell.borrow_mut();
         allocator.reset();
-        match ast::server_component_ast(analysis, ast, _source, options, &allocator) {
-            Some(code) => Ok(code),
-            None => Err(TransformError::CodeGen(
-                "server AST pipeline produced no output".to_string(),
-            )),
-        }
+        ast::server_component_ast(analysis, ast, _source, options, &allocator)
+            .map_err(TransformError::CodeGen)
     })
 }
 

@@ -1629,7 +1629,10 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
                             || rest_after.starts_with("catch\n")
                             || rest_after.starts_with("finally ")
                             || rest_after.starts_with("finally{")
-                            || rest_after.starts_with("finally\n");
+                            || rest_after.starts_with("finally\n")
+                            // `do { … } while (…)` — the `while` closes the `do`.
+                            || (starts_with_keyword(stmt_so_far, "do")
+                                && starts_with_keyword(rest_after, "while"));
                         // An `else` (or `else if`) following the closing brace of
                         // an `if` consequent continues the same statement — it
                         // must not be split off, or it becomes an orphan `else`
@@ -1667,7 +1670,14 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
         }
 
         // Semicolon at top level marks end of statement
-        if ch == b';' && brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 {
+        if ch == b';'
+            && brace_depth == 0
+            && paren_depth == 0
+            && bracket_depth == 0
+            // A brace-less `if (a) x = 1; else …` / `do x++; while (…)` keeps
+            // going: splitting here would orphan the `else` / `while` clause.
+            && !continues_after_semicolon(script, i + 1, script[stmt_start..=i].trim())
+        {
             let stmt = script[stmt_start..=i].trim().to_string();
             if !stmt.is_empty() {
                 statements.push(stmt);
@@ -1710,6 +1720,48 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
     }
 
     statements
+}
+
+/// True when `s` begins with the bare keyword `kw` (followed by a non-identifier
+/// character), rather than an identifier that merely starts with those letters.
+fn starts_with_keyword(s: &str, kw: &str) -> bool {
+    s.trim_start().strip_prefix(kw).is_some_and(|after| {
+        after.is_empty()
+            || after.starts_with(|c: char| !c.is_alphanumeric() && c != '_' && c != '$')
+    })
+}
+
+/// True when the token at `pos` continues the statement `stmt_so_far` that the
+/// top-level `;` just ended — a brace-less `if`/`else` chain, or the `while`
+/// clause of a brace-less `do`.
+fn continues_after_semicolon(script: &str, pos: usize, stmt_so_far: &str) -> bool {
+    let rest = script[pos.min(script.len())..].trim_start();
+    if starts_with_keyword(rest, "else") {
+        return true;
+    }
+    starts_with_keyword(stmt_so_far, "do") && starts_with_keyword(rest, "while")
+}
+
+/// True when `s` is a labeled statement (`outer: for (…) {…}`). Ruled out for a
+/// ternary, whose `:` can never follow the leading identifier directly.
+fn is_labeled_statement(s: &str) -> bool {
+    let s = s.trim_start();
+    let mut chars = s.char_indices();
+    let Some((_, first)) = chars.next() else {
+        return false;
+    };
+    if !(first.is_alphabetic() || first == '_' || first == '$') {
+        return false;
+    }
+    let mut end = s.len();
+    for (i, c) in chars {
+        if !(c.is_alphanumeric() || c == '_' || c == '$') {
+            end = i;
+            break;
+        }
+    }
+    let rest = s[end..].trim_start();
+    rest.starts_with(':') && !rest.starts_with("::")
 }
 
 /// Check if the text after position `pos` starts a new statement keyword.
@@ -1948,6 +2000,15 @@ fn is_expression_statement(s: &str) -> bool {
     {
         // "throw" is a statement, not an expression
         // But it CAN be wrapped in a block thunk
+        return false;
+    }
+    // A bare block, a `do`/`debugger` statement and a labeled statement are all
+    // statements only: thunking them as `() => void (…)` would not parse.
+    if s.starts_with('{')
+        || starts_with_keyword(s, "do")
+        || starts_with_keyword(s, "debugger")
+        || is_labeled_statement(s)
+    {
         return false;
     }
     true

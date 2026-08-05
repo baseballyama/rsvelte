@@ -223,6 +223,10 @@ pub struct ServerTransformState<'a> {
     /// Leading-comment regions registered by the script transform, replayed onto
     /// a synthetic buffer at print time. See [`comments`].
     pub comments: comments::ChunkRegistry,
+    /// Set when [`Self::reparse_program`] rejected text this compiler generated.
+    /// The instance body cannot be reconstructed after that, so assembly aborts
+    /// instead of shipping a component whose `<script>` silently did nothing.
+    pub reparse_failure: std::cell::RefCell<Option<String>>,
 }
 
 /// The render position saved by [`ServerTransformState::enter_template_scope`],
@@ -310,6 +314,7 @@ impl<'a> ServerTransformState<'a> {
             slot_let_shadows: Vec::new(),
             current_scope_index: analysis.root.instance_scope_index,
             comments: comments::ChunkRegistry::default(),
+            reparse_failure: std::cell::RefCell::new(None),
         }
     }
 
@@ -713,53 +718,28 @@ impl<'a> ServerTransformState<'a> {
     /// Re-parse a whole program `src` into the state allocator, returning ALL
     /// its top-level statements. Used by the async instance-body transform to
     /// rehome the sync/async-split TEXT (`var …; var $$promises = …`) emitted by
-    /// `transform_async_body` back into oxc statements. Returns an empty vec on
-    /// a parse failure.
+    /// `transform_async_body` back into oxc statements. Records a failure and
+    /// returns an empty vec on a parse failure.
     pub fn reparse_program(&self, src: &str) -> Vec<Statement<'a>> {
         let owned = self.allocator.alloc_str(src.trim());
         let ret =
             oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
         comment_stats::bump::REPARSE_PROGRAM_CALLS(1);
-        // `src` is our own generated text, so a rejection is a compiler bug and
-        // not a user error — and it erases the whole instance body. Two
-        // channels, because the two audiences want different things:
-        //
-        // * the test suite should fail, since that is where this is actionable.
-        //   CI runs `cargo nextest run --profile ci` (no `--release`), so
-        //   `debug_assertions` is on and this fires there.
-        // * a library consumer should not get stderr they cannot suppress, so
-        //   the release-build report sits behind an env var like the other
-        //   diagnostics on this path.
-        //
-        // Measured 0 rejections in 43 `reparse_program` calls over the official
-        // runtime corpus, so neither channel is expected to fire today. The
-        // point is that the next regression is not silent.
-        debug_assert!(
-            ret.diagnostics.is_empty(),
-            "server reparse_program rejected generated source ({} diagnostics); \
-             instance body dropped: {}",
-            ret.diagnostics.len(),
-            ret.diagnostics
-                .iter()
-                .map(|d| d.message.to_string())
-                .collect::<Vec<_>>()
-                .join("; ")
-        );
         if !ret.diagnostics.is_empty() {
             comment_stats::bump::REPARSE_PROGRAM_DIAG_DROPS(1);
-            if *REPARSE_PROGRAM_DEBUG {
-                let line = format!(
-                    "rsvelte: server reparse_program rejected generated source ({} diagnostics); \
-                     instance body dropped: {}\n",
-                    ret.diagnostics.len(),
-                    ret.diagnostics
-                        .iter()
-                        .map(|d| d.message.to_string())
-                        .collect::<Vec<_>>()
-                        .join("; ")
-                );
-                let _ = std::io::Write::write_all(&mut std::io::stderr().lock(), line.as_bytes());
-            }
+            // `src` is our own generated text, so a rejection is a compiler bug,
+            // and continuing would ship a component whose instance body silently
+            // did nothing — fail the compile in every build profile instead.
+            *self.reparse_failure.borrow_mut() = Some(format!(
+                "server async instance-body reparse rejected compiler-generated source \
+                 ({} diagnostics): {}",
+                ret.diagnostics.len(),
+                ret.diagnostics
+                    .iter()
+                    .map(|d| d.message.to_string())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ));
             return Vec::new();
         }
         ret.program.body.into_iter().collect()
@@ -994,15 +974,16 @@ fn should_inject_props_full(
 ///   (upstream lines 274-301) — these don't need the template, so they're real.
 /// - `export default function <Name>($$renderer, $$props) { <prologue> }`
 ///
-/// Returns `Some(printed_code)`, or `None` only if assembly is impossible
-/// (currently never — kept as `Option` to match the seam's future fallibility).
+/// Returns the printed code, or `Err(message)` when assembly is impossible —
+/// currently only when [`ServerTransformState::reparse_program`] rejected text
+/// this compiler generated.
 pub fn server_component_ast<'a>(
     analysis: &'a ComponentAnalysis,
     ast: &'a Root,
     source: &'a str,
     options: &'a CompileOptions,
     allocator: &'a Allocator,
-) -> Option<String> {
+) -> Result<String, String> {
     let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
 
     // Precompute the SSR constant-folding inputs (`constant_vars` /
@@ -1486,6 +1467,10 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
         program_body.insert(insert_at, filename_stmt);
     }
 
+    if let Some(message) = state.reparse_failure.borrow_mut().take() {
+        return Err(message);
+    }
+
     let mut program = b.program(program_body);
     // `main`'s `record_esrap_server` timed the bare `rsvelte_esrap::print` that
     // used to stand here. Comment preservation replaces that call, so the timer
@@ -1498,14 +1483,8 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
         crate::compiler::phases::phase3_transform::profile::timer_elapsed(_t),
     );
     comment_stats::dump();
-    Some(code)
+    Ok(code)
 }
-
-/// Report a `reparse_program` rejection on stderr in a release build. Off by
-/// default: this is a library, and a consumer cannot suppress what we write to
-/// their stderr. `debug_assert!` covers the case where someone can act on it.
-static REPARSE_PROGRAM_DEBUG: std::sync::LazyLock<bool> =
-    std::sync::LazyLock::new(|| std::env::var_os("RSVELTE_SERVER_REPARSE_DEBUG").is_some());
 
 #[cfg(test)]
 mod tests;
