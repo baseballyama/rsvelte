@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 42 entries)
+## Client dev (`known-failures.client-dev.json`, 39 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -132,7 +132,6 @@ each side, which separates the two directions and cannot be fooled by order:
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
 | `$.assign` / `$.assign_async` | 2 | 2 | `visitors/AssignmentExpression.js` | #2064 |
-| signal read/write (`$.get` / `$.set` / `$.update`) | 3 | 0 | `visitors/shared/utils.js` | #2064 |
 | equality instrumentation | 1 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | ownership mutation validation | 2 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
@@ -145,7 +144,11 @@ it but under-emit call sites. The preamble half is now empty; both survivors
 emit their `$$ownership_validator.binding(...)` calls and are missing exactly one
 `$$ownership_validator.mutation(...)` each.
 
-17 entries are attributed to a cluster; the remaining **25** show no
+The signal read/write row is now empty: `$state` reassignment is resolved per
+binding rather than per name, so same-named `$state` locals in sibling scopes no
+longer share one classification and lose their `$.state(...)` wrapper.
+
+14 entries are attributed to a cluster; the remaining **25** show no
 difference in any dev helper: 18 are the CSS sourcemap the `$$css`/`$css`
 payload carries in dev, 2 are a `$.trace` label's line:column, 2 are redundant
 parentheses around an ownership wrapper, 1 is a statement missing from a
