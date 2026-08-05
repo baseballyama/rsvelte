@@ -2474,6 +2474,7 @@ dependencies = [
 name = "rsvelte_devtools"
 version = "0.0.0"
 dependencies = [
+ "backtrace",
  "chrono",
  "codspeed-criterion-compat",
  "mimalloc",
