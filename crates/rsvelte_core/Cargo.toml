@@ -39,6 +39,9 @@ measure-slot-key = []
 # Repository-local instrumentation: count the quoted-module-source `String`
 # allocations the pre-refactor `module_source` performed. Off by default.
 measure-module-source = []
+# Repository-local instrumentation: record the `hoisted` length distribution in
+# `clean_node_list` so its pre-allocation can be judged. Off by default.
+measure-hoisted = []
 # Select the JavaScript entropy backend when the compiler is embedded in wasm.
 # Binding exports live in `rsvelte_lint_bindings`, not in this library.
 wasm-target = ["dep:getrandom", "getrandom/wasm_js"]

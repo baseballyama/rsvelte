@@ -733,6 +733,9 @@ fn clean_node_list<'a, L: NodeList<'a>>(
         }
     }
 
+    #[cfg(feature = "measure-hoisted")]
+    crate::measure_hoisted::record(nodes.count(), hoisted.len());
+
     // Whitespace trimming (unless preserve_whitespace is set)
     let mut trimmed = if preserve_whitespace {
         regular
