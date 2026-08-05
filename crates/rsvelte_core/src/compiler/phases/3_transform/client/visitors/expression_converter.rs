@@ -3736,7 +3736,17 @@ fn convert_expression_statement_child(expr_json: &Value, context: &mut Component
     {
         return result;
     }
-    convert_json_value(expr_json, context)
+    if expr_json
+        .as_object()
+        .and_then(|obj| obj.get("type"))
+        .and_then(|t| t.as_str())
+        == Some("AssignmentExpression")
+    {
+        context.state.assignment_is_statement = true;
+    }
+    let result = convert_json_value(expr_json, context);
+    context.state.assignment_is_statement = false;
+    result
 }
 
 /// Convert a statement node to JsStatement.
@@ -4283,6 +4293,9 @@ fn convert_assignment_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
+    // Taken here so a nested assignment converted while this one is in flight
+    // does not inherit it.
+    let is_statement = std::mem::take(&mut context.state.assignment_is_statement);
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("=");
 
     // Check if the LHS is a destructuring pattern (ArrayPattern or ObjectPattern).
@@ -4435,9 +4448,14 @@ fn convert_assignment_expression(
         context,
     ) {
         transformed
-    } else if let Some(coercive) =
-        try_coercive_assignment_transform(operator_str, obj, &left_expr, &right_expr, context)
-    {
+    } else if let Some(coercive) = try_coercive_assignment_transform(
+        operator_str,
+        obj,
+        &left_expr,
+        &right_expr,
+        is_statement,
+        context,
+    ) {
         coercive
     } else {
         JsExpr::Assignment(JsAssignmentExpression {
@@ -5153,12 +5171,14 @@ fn try_coercive_assignment_transform(
     obj: &serde_json::Map<String, Value>,
     left: &JsExpr,
     right: &JsExpr,
+    is_statement: bool,
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
-    // Only in dev mode
-    if !context.state.dev {
+    // Only in dev mode, and only when the value is used
+    // (`path.at(-1) !== 'ExpressionStatement'`).
+    if !context.state.dev || is_statement {
         return None;
     }
 
