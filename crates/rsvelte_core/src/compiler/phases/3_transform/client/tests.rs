@@ -1320,6 +1320,59 @@ export function useStore(pData) {
 }
 
 #[test]
+fn test_module_state_with_logical_and_gets_proxy() {
+    let source = r#"
+export function resource(initialValue, lazy) {
+  let loading = $state(initialValue === undefined && !lazy);
+  return { get loading() { return loading; } };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            filename: Some("test.svelte.js".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    assert!(
+        code.contains("$.proxy(initialValue === undefined && !lazy)"),
+        "$state(a && b) should be wrapped with $.proxy(): {}",
+        code
+    );
+}
+
+#[test]
+fn test_module_state_with_bitwise_and_no_proxy() {
+    // `&` is a BinaryExpression, which upstream `should_proxy` never proxies.
+    let source = r#"
+export function useFlags(a, b) {
+  let flags = $state(a & b);
+  return { get flags() { return flags; } };
+}
+"#;
+
+    let result = crate::compiler::compile_module(
+        source,
+        crate::compiler::ModuleCompileOptions {
+            filename: Some("test.svelte.js".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let code = &result.js.code;
+
+    assert!(
+        !code.contains("$.proxy("),
+        "$state(a & b) must not be wrapped with $.proxy(): {}",
+        code
+    );
+}
+
+#[test]
 fn test_module_state_literal_no_proxy() {
     // Ensure that simple literals are NOT wrapped with $.proxy()
     let source = r#"

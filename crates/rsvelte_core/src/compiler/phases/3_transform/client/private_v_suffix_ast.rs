@@ -22,7 +22,6 @@
 //!   `$.update_pre(` first-arg.
 //! - Assignment LHS (`this.#count = ...`).
 //! - Argument of an UpdateExpression (`this.#count++`).
-//! - `.object` of an enclosing member chain (`this.#count.foo`).
 //!
 //! `==` / `===` ARE wrapped (reads), matching text behaviour.
 //!
@@ -177,17 +176,15 @@ impl<'a, 'ast> Visit<'ast> for PrivateVSuffixCollector<'a> {
     }
 
     fn visit_static_member_expression(&mut self, member: &StaticMemberExpression<'ast>) {
-        if let Expression::PrivateFieldExpression(pf) = &member.object {
+        // Only `<qualified>.v` is skipped: that is this pass's own output, and the
+        // fixed-point loop re-parses it. Any other property (`this.#count.length`)
+        // is a read whose object still has to be wrapped.
+        if member.property.name == "v"
+            && let Expression::PrivateFieldExpression(pf) = &member.object
+        {
             self.push_skip(pf.as_ref());
         }
         walk::walk_static_member_expression(self, member);
-    }
-
-    fn visit_computed_member_expression(&mut self, member: &ComputedMemberExpression<'ast>) {
-        if let Expression::PrivateFieldExpression(pf) = &member.object {
-            self.push_skip(pf.as_ref());
-        }
-        walk::walk_computed_member_expression(self, member);
     }
 
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
@@ -232,6 +229,34 @@ mod tests {
             out,
             "let x = this.#count.v;\nrAF(() => $.get(this.#count));"
         );
+    }
+
+    #[test]
+    fn member_chain_read_appends_v_to_the_field() {
+        let src = "console.log(this.#count.length);";
+        let out = transform_private_v_suffix_ast(src, &ssv(&["this.#count"])).unwrap();
+        assert_eq!(out, "console.log(this.#count.v.length);");
+    }
+
+    #[test]
+    fn nested_function_member_chain_read_uses_get() {
+        let src = "rAF(() => this.#count.includes(k));";
+        let out = transform_private_v_suffix_ast(src, &ssv(&["this.#count"])).unwrap();
+        assert_eq!(out, "rAF(() => $.get(this.#count).includes(k));");
+    }
+
+    #[test]
+    fn computed_member_read_appends_v_to_the_field() {
+        let src = "let x = this.#count[0];";
+        let out = transform_private_v_suffix_ast(src, &ssv(&["this.#count"])).unwrap();
+        assert_eq!(out, "let x = this.#count.v[0];");
+    }
+
+    #[test]
+    fn member_write_target_appends_v_to_the_field() {
+        let src = "this.#count.length = 0;";
+        let out = transform_private_v_suffix_ast(src, &ssv(&["this.#count"])).unwrap();
+        assert_eq!(out, "this.#count.v.length = 0;");
     }
 
     #[test]

@@ -1677,10 +1677,10 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
-    // Logical expressions with || or ?? always need proxy.
+    // Logical expressions with ||, && or ?? always need proxy.
     // In the official Svelte compiler, LogicalExpression is not in the
     // should_proxy whitelist, so it always returns true regardless of operands.
-    // e.g., `pData ?? defaultValue`, `expr || fallback`
+    // e.g., `pData ?? defaultValue`, `expr || fallback`, `a === undefined && !b`
     if contains_top_level_logical(trimmed) {
         return true;
     }
@@ -1974,9 +1974,13 @@ pub(super) fn contains_top_level_logical(expr: &str) -> bool {
             b')' | b']' | b'}' if depth > 0 => {
                 depth -= 1;
             }
-            // Any top-level || or ?? means the expression is a LogicalExpression,
+            // Any top-level ||, && or ?? means the expression is a LogicalExpression,
             // which always needs proxy in the official Svelte compiler.
             b'|' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'|' => {
+                return true;
+            }
+            // A single `&` is a bitwise BinaryExpression, which never needs proxy.
+            b'&' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'&' => {
                 return true;
             }
             b'?' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'?' => {
