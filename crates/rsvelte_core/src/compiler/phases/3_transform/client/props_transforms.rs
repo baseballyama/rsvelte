@@ -93,15 +93,24 @@ fn is_arrow_param_binding(chars: &[char], var_start: usize, var_len: usize) -> b
 ///
 /// For example, `a + b` where `a` and `b` are props becomes `a() + b()`.
 pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
+    #[cfg(feature = "measure-prop-reads")]
+    crate::measure_prop_reads::record_call();
     if prop_vars.is_empty() {
+        #[cfg(feature = "measure-prop-reads")]
+        crate::measure_prop_reads::record_empty_props();
         return expr.to_string();
     }
 
     // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
     let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(expr, &var_set) {
+        #[cfg(feature = "measure-prop-reads")]
+        crate::measure_prop_reads::record_no_match();
         return expr.to_string();
     }
+
+    #[cfg(feature = "measure-prop-reads")]
+    crate::measure_prop_reads::record_slow(expr.chars().count(), prop_vars.len());
 
     let mut result = expr.to_string();
 
@@ -113,6 +122,8 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
 
         let mut new_result = String::with_capacity(result.len() * 2);
         let chars: Vec<char> = result.chars().collect();
+        #[cfg(feature = "measure-prop-reads")]
+        crate::measure_prop_reads::record_pass(chars.len());
         let mut i = 0;
 
         // Track whether we're inside a string literal to avoid transforming

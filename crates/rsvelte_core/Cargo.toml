@@ -42,6 +42,9 @@ measure-hoisted = []
 # Repository-local instrumentation: count the `serde_json::Value` that the lazy
 # expression cache materializes. Off by default and zero-cost when off.
 measure-json = []
+# Repository-local instrumentation: decompose the per-prop re-scan in
+# `transform_prop_reads_in_expr`. Off by default.
+measure-prop-reads = []
 # Select the JavaScript entropy backend when the compiler is embedded in wasm.
 # Binding exports live in `rsvelte_lint_bindings`, not in this library.
 wasm-target = ["dep:getrandom", "getrandom/wasm_js"]

@@ -34,6 +34,8 @@ pub mod measure_await;
 pub mod measure_hoisted;
 #[cfg(feature = "measure-module-source")]
 pub mod measure_module_source;
+#[cfg(feature = "measure-prop-reads")]
+pub mod measure_prop_reads;
 #[cfg(feature = "measure-slot-key")]
 pub mod measure_slot_key;
 pub mod toolchain;
