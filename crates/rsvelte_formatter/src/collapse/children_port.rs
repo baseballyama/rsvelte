@@ -309,7 +309,7 @@ pub(super) fn try_children_port(
 
     // Build the ElementLayout from the AST, recursively converting each child via
     // the faithful port (`node_to_child` bails on any unsupported child).
-    let attrs = build_attrs_concat(out, attributes)?;
+    let attrs = build_attrs_concat(out, attributes, options)?;
     let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
     for n in &fragment.nodes {
         children.push(node_to_child(out, n, line_width, options)?);

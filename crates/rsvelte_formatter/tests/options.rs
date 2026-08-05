@@ -46,6 +46,63 @@ fn single_attribute_per_line_default_off_stays_flat() {
     assert_eq!(out, "<div class=\"a\" id=\"b\" role=\"c\"></div>\n");
 }
 
+#[test]
+fn single_attribute_per_line_breaks_over_block_children() {
+    let opts = FormatOptions {
+        single_attribute_per_line: true,
+        ..FormatOptions::default()
+    };
+    for child in [
+        "{#if y}z{/if}",
+        "{@render kids()}",
+        "{#each xs as x}{x}{/each}",
+    ] {
+        let out = fmt(
+            &format!("<div class=\"a\" id=\"b\">\n  {child}\n</div>\n"),
+            &opts,
+        );
+        assert_eq!(
+            out,
+            format!("<div\n  class=\"a\"\n  id=\"b\"\n>\n  {child}\n</div>\n"),
+            "child: {child}"
+        );
+    }
+}
+
+#[test]
+fn single_attribute_per_line_breaks_script_and_style_tags() {
+    let opts = FormatOptions {
+        single_attribute_per_line: true,
+        ..FormatOptions::default()
+    };
+    let out = fmt(
+        "<script lang=\"ts\" module>\n  let a = 1;\n</script>\n",
+        &opts,
+    );
+    assert_eq!(
+        out,
+        "<script\n  lang=\"ts\"\n  module\n>\n  let a = 1;\n</script>\n"
+    );
+    let out = fmt(
+        "<style lang=\"postcss\" global>\n  a {\n    color: red;\n  }\n</style>\n",
+        &opts,
+    );
+    assert!(
+        out.starts_with("<style\n  lang=\"postcss\"\n  global\n>\n"),
+        "style tag not broken:\n{out}"
+    );
+}
+
+#[test]
+fn single_attribute_per_line_keeps_single_attr_script_inline() {
+    let opts = FormatOptions {
+        single_attribute_per_line: true,
+        ..FormatOptions::default()
+    };
+    let out = fmt("<script lang=\"ts\">\n  let a = 1;\n</script>\n", &opts);
+    assert_eq!(out, "<script lang=\"ts\">\n  let a = 1;\n</script>\n");
+}
+
 // ─── svelteAllowShorthand ────────────────────────────────────────────────
 
 #[test]

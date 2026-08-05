@@ -245,11 +245,15 @@ pub(crate) fn format_open_tag(
     let normalized = normalize_open_tag(tag);
     let line_width = options.js.line_width.value() as usize;
     let indent_width = options.js.indent_width.value() as usize;
-    let result = if normalized.len() > line_width {
-        // The normalized flat tag overflows the print width — wrap each
-        // attribute onto its own line at one level of indent (the top-level
-        // `<script>` / `<style>` block is always at depth 0).
-        wrap_script_open_tag(&normalized, indent_width).unwrap_or(normalized)
+    // The wrapped form puts each attribute on its own line at one level of indent
+    // (the top-level `<script>` / `<style>` block is always at depth 0). It is used
+    // when the flat tag overflows the print width, and — like prettier's
+    // `attributeLine` — whenever `singleAttributePerLine` meets >1 attribute.
+    let wrapped = wrap_script_open_tag(&normalized, indent_width);
+    let force_single_attr =
+        options.single_attribute_per_line && wrapped.as_ref().is_some_and(|(_, n)| *n > 1);
+    let result = if normalized.len() > line_width || force_single_attr {
+        wrapped.map_or(normalized, |(tag, _)| tag)
     } else {
         normalized
     };
@@ -269,8 +273,9 @@ pub(crate) fn format_open_tag(
 /// >
 /// ```
 ///
-/// Returns `None` when the tag can't be parsed (e.g. no attributes).
-fn wrap_script_open_tag(tag: &str, indent_width: usize) -> Option<String> {
+/// Returns the wrapped tag and its attribute count, or `None` when the tag can't
+/// be parsed (e.g. no attributes).
+fn wrap_script_open_tag(tag: &str, indent_width: usize) -> Option<(String, usize)> {
     // Strip the leading `<` and trailing `>`.
     let inner = tag.strip_prefix('<')?.strip_suffix('>')?;
     // Split tag name from attributes. Tag name is everything up to the first
@@ -338,7 +343,7 @@ fn wrap_script_open_tag(tag: &str, indent_width: usize) -> Option<String> {
         out.push_str(attr);
     }
     out.push_str("\n>");
-    Some(out)
+    Some((out, attrs.len()))
 }
 
 /// Normalize whitespace and quote styles in a `<script …>` / `<style …>` open

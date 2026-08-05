@@ -129,7 +129,7 @@ pub(super) fn build_inline_element_doc(
     options: &FormatOptions,
 ) -> Option<crate::doc::Doc> {
     use crate::children::{Child, ElementLayout, build_element_doc};
-    let attrs = build_attrs_concat(out, &e.attributes)?;
+    let attrs = build_attrs_concat(out, &e.attributes, options)?;
     let mut children: Vec<Child> = Vec::with_capacity(e.fragment.nodes.len());
     for n in &e.fragment.nodes {
         children.push(node_to_child(out, n, line_width, options)?);
@@ -155,7 +155,7 @@ pub(super) fn build_component_doc(
     options: &FormatOptions,
 ) -> Option<crate::doc::Doc> {
     use crate::children::{Child, ElementLayout, build_element_doc};
-    let attrs = build_attrs_concat(out, &c.attributes)?;
+    let attrs = build_attrs_concat(out, &c.attributes, options)?;
     let mut children: Vec<Child> = Vec::with_capacity(c.fragment.nodes.len());
     for n in &c.fragment.nodes {
         children.push(node_to_child(out, n, line_width, options)?);
@@ -184,11 +184,19 @@ pub(super) fn build_component_doc(
 pub(super) fn build_attrs_concat(
     out: &str,
     attrs: &[rsvelte_core::ast::template::Attribute],
+    options: &FormatOptions,
 ) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     if attrs.is_empty() {
         return Some(Doc::Text(String::new()));
     }
+    // prettier's `attributeLine`: `singleAttributePerLine` joins a multi-attribute
+    // tag with `hardline` instead of `line`, so the tag breaks regardless of width.
+    let sep = if options.single_attribute_per_line && attrs.len() > 1 {
+        Doc::Hardline
+    } else {
+        Doc::Line
+    };
     let mut parts: Vec<Doc> = Vec::with_capacity(attrs.len() * 2);
     for attr in attrs {
         let (as_, ae) = attribute_span(attr);
@@ -196,7 +204,7 @@ pub(super) fn build_attrs_concat(
         if atext.contains('\n') {
             return None;
         }
-        parts.push(Doc::Line);
+        parts.push(sep.clone());
         parts.push(Doc::Text(atext.to_string()));
     }
     Some(Doc::Concat(parts))
