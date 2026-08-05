@@ -73,6 +73,14 @@ jobs:
           echo "Found changeset(s):"
           echo "$added"
 
+      - name: Validate changeset package names
+        env:
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}
+        shell: bash
+        # A changeset naming a non-existent package passes review and only fails
+        # later, on main, where it blocks every release until fixed.
+        run: node scripts/release/check-changeset-package-names.mjs
+
       - name: Require consumer changesets for shared-core changes
         env:
           SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}

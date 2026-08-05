@@ -1,7 +1,7 @@
 ---
 "@rsvelte/compiler": patch
 "@rsvelte/lint": patch
-"@rsvelte/check": patch
+"@rsvelte/svelte-check": patch
 ---
 
 CSS pruning now models `{@render}` call sites. A `{#snippet}`-declared element's
