@@ -22,12 +22,12 @@
  *   - compatibility/known-failures.server.json      (SSR / server target)
  *   - compatibility/known-failures.client-dev.json  (CSR with `dev: true`)
  * Each lists the entry ids whose output diverges for that target. Verification
- * exits non-zero only when a (id, target) pair NOT in its baseline fails (a
- * regression) — known failures are tolerated and burned down over time (see
+ * exits non-zero when a (id, target) pair NOT in its baseline fails (a
+ * regression) AND when a baseline still lists a pair that now passes (a stale
+ * ratchet) — known failures are tolerated and burned down over time (see
  * compatibility/known-failures.md for the root-cause writeup of each entry).
- * When previously-known failures now pass, a reminder to shrink the relevant
- * baseline is printed (use --update-baseline to rewrite the files from current
- * results; `--update-baseline <target>` rewrites only that target's file).
+ * Both are fixed with --update-baseline, which rewrites the files from current
+ * results; `--update-baseline <target>` rewrites only that target's file.
  *
  * --from-report <path> skips normalization/comparison entirely and derives the
  * baselines from an existing report.json (e.g. downloaded from a CI run), so a
@@ -51,7 +51,8 @@ const ACTUAL = path.join(CORPUS, 'actual');
 
 const args = process.argv.slice(2);
 const NO_FMT = args.includes('--no-fmt');
-const MAX_PRINT = Number(args[args.indexOf('--max-print') + 1] || 20);
+// Without the flag the lookup lands on args[0], which is another flag: fall back.
+const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max-print') + 1]) || 20 : 20;
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
 const TARGETS = selectTargets(args);
@@ -338,13 +339,24 @@ const fixedByTarget = TARGET_KEYS.map((key) => [
 ]);
 const fixedKnown = fixedByTarget.reduce((n, [, ids]) => n + ids.length, 0);
 
+// A ratchet that still lists passing entries is stale, and staleness is fatal:
+// a large "now PASS" delta on the next PR is indistinguishable from noise, so a
+// real regression can hide inside it.
 if (fixedKnown) {
 	const breakdown = fixedByTarget.map(([key, ids]) => `${key} ${ids.length}`).join(', ');
-	console.log(`\n[verify] 🎉 ${fixedKnown} known failures now PASS (${breakdown}) — shrink the baselines:`);
+	console.log(`\n[verify] ❌ ${fixedKnown} baseline entries already PASS (${breakdown}) — the ratchet is stale.`);
+	let shown = 0;
+	for (const [key, ids] of fixedByTarget) {
+		for (const id of ids) {
+			if (shown++ >= MAX_PRINT) break;
+			console.log(`  - ${id} (${key})`);
+		}
+	}
+	if (fixedKnown > MAX_PRINT) console.log(`  … and ${fixedKnown - MAX_PRINT} more`);
 	// A target-scoped run only measured those targets, so the suggested rewrite
 	// must stay scoped too — otherwise it would empty the unmeasured baselines.
 	const scope = TARGET_KEYS.length === ALL_TARGET_KEYS.length ? '' : ` --targets ${TARGET_KEYS.join(',')}`;
-	console.log(`  node scripts/compat-corpus/verify.mjs --no-fmt${scope} --update-baseline`);
+	console.log(`\n  fix: node scripts/compat-corpus/verify.mjs --no-fmt${scope} --update-baseline`);
 }
 
 if (regressions.length) {
@@ -358,8 +370,9 @@ if (regressions.length) {
 			if (d.actual !== undefined) console.log(`        actual:   ${d.actual}`);
 		}
 	}
-	process.exit(1);
 }
+
+if (regressions.length || fixedKnown) process.exit(1);
 
 if (failures.length) {
 	const breakdown = TARGET_KEYS.map((key) => `${key} ${failsByTarget.get(key).size}`).join(', ');

@@ -216,13 +216,16 @@ function main() {
 		console.error(`\n[lint-verify] ❌ ${added.length} NEW divergence(s) from eslint-plugin-svelte:`);
 		for (const d of added.slice(0, SHOW)) console.error('  ' + d.replace(/\t/g, ' '));
 		if (added.length > SHOW) console.error(`  … and ${added.length - SHOW} more`);
-		process.exit(1);
 	}
+	// Staleness is fatal: a large "already fixed" delta on a later PR reads as
+	// normal noise, so a real regression can hide inside it.
 	if (removed.length > 0) {
-		console.log(
-			`[lint-verify] ✅ ${removed.length} divergence(s) fixed — run with --update to prune known-failures.json`
-		);
+		console.error(`\n[lint-verify] ❌ ${removed.length} ratchet entries no longer diverge — the ratchet is stale.`);
+		for (const d of removed.slice(0, SHOW)) console.error('  ' + d.replace(/\t/g, ' '));
+		if (removed.length > SHOW) console.error(`  … and ${removed.length - SHOW} more`);
+		console.error('\n  fix: node scripts/compat-corpus/lint-verify.mjs --update');
 	}
+	if (added.length > 0 || removed.length > 0) process.exit(1);
 	console.log('[lint-verify] ✅ no new divergences');
 }
 

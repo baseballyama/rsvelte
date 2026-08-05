@@ -147,10 +147,15 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
    `compatibility/known-failures.client.json` (CSR),
    `compatibility/known-failures.server.json` (SSR) and
    `compatibility/known-failures.client-dev.json` (CSR with `dev: true`) — all
-   checked in, all may only shrink. Exits non-zero only on a **regression** (a
-   `(id, target)` pair that diverges but is absent from that target's baseline).
+   checked in, all may only shrink. Exits non-zero on a **regression** (a
+   `(id, target)` pair that diverges but is absent from that target's baseline)
+   **and on a stale ratchet** (a baseline entry that already passes) — a PR that
+   fixes entries must re-baseline in the same PR, so a later PR never absorbs a
+   backlog of "now PASS" entries that a real regression could hide inside.
    `--update-baseline` rewrites every baseline from the current run;
-   `--update-baseline <target>` rewrites only that target's file.
+   `--update-baseline <target>` rewrites only that target's file. Every sibling
+   ratchet below (fmt, svelte2tsx + its map, lint, check, check-e2e, and the
+   Rust `sourcemaps_gate`) enforces the same two-sided rule.
 
 The compared targets (their `generate` / `dev` options, whether CSS is compared,
 and which baseline file they ratchet against) are declared once in

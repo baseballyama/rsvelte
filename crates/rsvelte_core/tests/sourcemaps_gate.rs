@@ -1020,7 +1020,7 @@ fn sourcemap_gate() {
 
     if !fixed.is_empty() {
         println!(
-            "\n🎉 {} ratchet entries now pass — shrink \
+            "\n❌ {} ratchet entries already pass — the ratchet is stale; shrink \
              compatibility/sourcemap-known-failures.json:",
             fixed.len()
         );
@@ -1047,5 +1047,11 @@ fn sourcemap_gate() {
         regressions.is_empty(),
         "{} source-map regressions (not in compatibility/sourcemap-known-failures.json)",
         regressions.len()
+    );
+    // A stale ratchet hides regressions inside a large, normal-looking "now pass" delta.
+    assert!(
+        fixed.is_empty(),
+        "{} stale entries in compatibility/sourcemap-known-failures.json (they already pass)",
+        fixed.len()
     );
 }

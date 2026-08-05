@@ -58,7 +58,9 @@ rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
 `scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
 plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
-may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. The
+may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
+ratchet is two-sided: a new failure **and** a listed entry that already passes both fail CI, so the PR
+that fixes entries must re-baseline in the same PR instead of leaving a backlog for a later one. The
 same directory holds three sibling shrink-only ratchets, each with per-entry justification in a paired
 `.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`), the
 svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), and the lint output-parity gate

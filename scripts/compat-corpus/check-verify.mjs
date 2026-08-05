@@ -272,13 +272,16 @@ function main() {
 		console.error(
 			`\n  (+ = rsvelte-only, - = official-only; details in ${path.relative(ROOT, REPORT)})`
 		);
-		process.exit(1);
 	}
+	// Staleness is fatal: a large "already fixed" delta on a later PR reads as
+	// normal noise, so a real regression can hide inside it.
 	if (removed.length > 0) {
-		console.log(
-			`[check-verify] ✅ ${removed.length} divergence(s) fixed — run with --update to prune check-known-failures.json`
-		);
+		console.error(`\n[check-verify] ❌ ${removed.length} ratchet entries no longer diverge — the ratchet is stale.`);
+		for (const d of removed.slice(0, SHOW)) console.error('  ' + d);
+		if (removed.length > SHOW) console.error(`  … and ${removed.length - SHOW} more`);
+		console.error('\n  fix: node scripts/compat-corpus/check-verify.mjs --update');
 	}
+	if (added.length > 0 || removed.length > 0) process.exit(1);
 	console.log('[check-verify] ✅ no new divergences');
 }
 

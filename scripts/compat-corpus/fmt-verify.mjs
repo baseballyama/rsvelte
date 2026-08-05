@@ -177,13 +177,22 @@ const baseline = new Set(
 );
 const failingIds = new Set(failures.map((f) => f.id));
 const regressions = failures.filter((f) => !baseline.has(f.id));
-const fixedKnown = [...baseline].filter((id) => !failingIds.has(id));
+// Entries with no oracle in this run were never compared (the carried-over
+// not-locally-checkable set), so they are not evidence of staleness.
+const fixedKnown = [...baseline].filter(
+  (id) => !failingIds.has(id) && fs.existsSync(path.join(ORACLE, id)),
+);
 
+// A stale ratchet hides regressions inside a large, normal-looking "now PASS"
+// delta on whichever later PR happens to re-measure, so it is fatal.
 if (fixedKnown.length) {
   console.log(
-    `\n[fmt-verify] 🎉 ${fixedKnown.length} known failures now PASS — shrink the baseline:`,
+    `\n[fmt-verify] ❌ ${fixedKnown.length} baseline entries already PASS — the ratchet is stale.`,
   );
-  console.log("  node scripts/compat-corpus/fmt-verify.mjs --update-baseline");
+  for (const id of fixedKnown.slice(0, MAX_PRINT)) console.log(`  - ${id}`);
+  if (fixedKnown.length > MAX_PRINT)
+    console.log(`  … and ${fixedKnown.length - MAX_PRINT} more`);
+  console.log("\n  fix: node scripts/compat-corpus/fmt-verify.mjs --update-baseline");
 }
 
 if (regressions.length) {
@@ -195,8 +204,9 @@ if (regressions.length) {
     if (f.detail?.expected !== undefined) console.log(`      oracle: ${f.detail.expected}`);
     if (f.detail?.actual !== undefined) console.log(`      actual: ${f.detail.actual}`);
   }
-  process.exit(1);
 }
+
+if (regressions.length || fixedKnown.length) process.exit(1);
 
 if (failures.length) {
   console.log(

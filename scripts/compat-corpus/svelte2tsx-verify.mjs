@@ -280,8 +280,8 @@ if (counts.match > 0 && mapCounts['map-valid'] + mapCounts['map-invalid'] === 0)
 
 /**
  * Ratchet `entries` against the checked-in baseline at `file`: report entries
- * that newly fail, and nudge to shrink the baseline when known ones now pass.
- * Returns true when there is a regression.
+ * that newly fail, and entries that already pass (a stale ratchet).
+ * Returns true when either makes the gate fail.
  */
 function ratchet(label, entries, file) {
 	const baseline = new Set(!STRICT && fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : []);
@@ -289,9 +289,13 @@ function ratchet(label, entries, file) {
 	const fixedKnown = [...baseline].filter((id) => !failingIds.has(id));
 	const regressions = entries.filter((f) => !baseline.has(f.id));
 
+	// Staleness is fatal: a big "now PASS" delta on a later PR looks like normal
+	// noise, so a real regression can hide inside it.
 	if (fixedKnown.length) {
-		console.log(`\n[s2t-verify] 🎉 ${fixedKnown.length} known ${label} failures now PASS — shrink the baseline:`);
-		console.log('  node scripts/compat-corpus/svelte2tsx-verify.mjs --no-fmt --update-baseline');
+		console.log(`\n[s2t-verify] ❌ ${fixedKnown.length} ${label} baseline entries already PASS — the ratchet is stale.`);
+		for (const id of fixedKnown.slice(0, MAX_PRINT)) console.log(`  - ${id}`);
+		if (fixedKnown.length > MAX_PRINT) console.log(`  … and ${fixedKnown.length - MAX_PRINT} more`);
+		console.log('\n  fix: node scripts/compat-corpus/svelte2tsx-verify.mjs --no-fmt --update-baseline');
 	}
 
 	if (regressions.length) {
@@ -308,6 +312,8 @@ function ratchet(label, entries, file) {
 		}
 		return true;
 	}
+
+	if (fixedKnown.length) return true;
 
 	if (entries.length) {
 		console.log(`\n[s2t-verify] ✅ no ${label} regressions (${entries.length} known failures remain)`);
