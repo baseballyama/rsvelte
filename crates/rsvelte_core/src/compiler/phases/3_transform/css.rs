@@ -925,7 +925,7 @@ fn emit_selector(
         output.push_str(produced);
         return;
     }
-    let src = css_source[from..to].as_bytes();
+    let src = &css_source.as_bytes()[from..to];
     if !src.is_ascii() {
         output.push_str(produced);
         return;
