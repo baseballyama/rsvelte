@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 186 entries)
+## Client dev (`known-failures.client-dev.json`, 180 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -72,6 +72,10 @@ instance script was ever wrapped) to 187 — all with no regression on `client`
 or `server`, both of which are empty. Making the Phase-3 in-place path the one
 that ships took it to 186: the text path dropped the `;` after a state
 assignment that an `await` followed, so the two ran together into a call chain.
+The dev eager read of a snippet parameter that carries a default value
+(`{#snippet item(id = expr)}` — the plain-identifier parameter took a code path
+that skipped the `$.get(id);` upstream emits so `Cannot access x before
+initialization` still throws) took it to 180.
 
 ### How the counts below are derived
 
@@ -93,7 +97,7 @@ each side, which separates the two directions and cannot be fooled by order:
 | `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-20 entries are attributed to a cluster; the remaining **166** show no
+20 entries are attributed to a cluster; the remaining **160** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (`$.assign`, `$$css`, `$.event` handler naming, constant-folded
 template expressions). The legacy `bind:` `function get()/set()` shape was 47
