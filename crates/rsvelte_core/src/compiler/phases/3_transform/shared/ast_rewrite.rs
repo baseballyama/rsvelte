@@ -558,9 +558,9 @@ mod tests {
 ///
 /// That basis is only sound if esrap normalisation is idempotent — otherwise
 /// `normalize` would keep moving and comparing across it would be meaningless.
-/// [`check_normalize_idempotent`] asserts that on every real pass output when
-/// `RSVELTE_AST_DUAL_RUN=1`, so the assumption is measured on the corpus
-/// before any pass depends on it.
+/// [`dual_run::check_normalize_idempotent`] asserts that on every real pass
+/// output when `RSVELTE_AST_DUAL_RUN=1`, so the assumption is measured on the
+/// corpus before any pass depends on it.
 pub mod dual_run {
     use super::*;
     use std::cell::RefCell as StdRefCell;
