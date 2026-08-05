@@ -1920,6 +1920,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 .and_then(|src| find_trace_source_location(before_block_post, src, default_label));
             match (source_pos, self.filename) {
                 (Some((line, col)), Some(filename)) => {
+                    // `locate_node()` runs the path through `sanitize_location()`.
+                    let filename = filename.replace('/', "/\u{200b}");
                     format!("() => '{} ({}:{}:{})'", default_label, filename, line, col)
                 }
                 _ => format!("() => '{}'", default_label),

@@ -1484,7 +1484,8 @@ pub struct ComponentAnalysis {
     /// Component name (derived from filename)
     pub name: String,
 
-    /// Original filename (e.g., "main.svelte") used for dev-mode source locations
+    /// Upstream's `state.filename`: slash-normalized and made `rootDir`-relative,
+    /// used verbatim in dev-mode source locations.
     pub filename: String,
 
     /// Whether the component uses runes
@@ -1664,30 +1665,7 @@ impl ComponentAnalysis {
             .filename
             .as_ref()
             .filter(|f| *f != "(unknown)")
-            .map(|f| {
-                // Only allocate if backslashes are present
-                let fname_owned;
-                let fname: &str = if f.contains('\\') {
-                    fname_owned = f.replace('\\', "/");
-                    &fname_owned
-                } else {
-                    f
-                };
-                if let Some(ref root_dir) = options.root_dir {
-                    // Only allocate if backslashes are present in root_dir
-                    let rd_owned;
-                    let rd: &str = if root_dir.contains('\\') {
-                        rd_owned = root_dir.replace('\\', "/");
-                        &rd_owned
-                    } else {
-                        root_dir
-                    };
-                    if let Some(stripped) = fname.strip_prefix(rd) {
-                        return stripped.trim_start_matches('/').to_string();
-                    }
-                }
-                fname.to_string()
-            })
+            .map(|f| normalize_filename(f, options.root_dir.as_deref()))
             .unwrap_or_else(|| "main.svelte".to_string());
         let filename_hash = crate::compiler::phases::phase3_transform::css::generate_raw_hash(
             &filename_hash_source,
@@ -1703,16 +1681,7 @@ impl ComponentAnalysis {
             filename: options
                 .filename
                 .as_ref()
-                .map(|f| {
-                    // Extract just the basename (e.g., "main.svelte" from "/path/to/main.svelte")
-                    f.rsplit('/')
-                        .next()
-                        .unwrap_or(f)
-                        .rsplit('\\')
-                        .next()
-                        .unwrap_or(f)
-                        .to_string()
-                })
+                .map(|f| normalize_filename(f, options.root_dir.as_deref()))
                 .unwrap_or_else(|| "Component".to_string()),
             runes: initial_runes,
             runes_explicitly_set: options.runes,
@@ -1965,6 +1934,32 @@ impl ComponentAnalysis {
         // TODO: Analyze for keyframes and :global selectors
         Ok(())
     }
+}
+
+/// Slash-normalize a filename and make it `root_dir`-relative.
+/// Matches `reset()` + `adjust()` in `compiler/state.js`.
+fn normalize_filename(filename: &str, root_dir: Option<&str>) -> String {
+    // Only allocate when backslashes are actually present.
+    let fname_owned;
+    let fname: &str = if filename.contains('\\') {
+        fname_owned = filename.replace('\\', "/");
+        &fname_owned
+    } else {
+        filename
+    };
+    if let Some(root_dir) = root_dir {
+        let rd_owned;
+        let rd: &str = if root_dir.contains('\\') {
+            rd_owned = root_dir.replace('\\', "/");
+            &rd_owned
+        } else {
+            root_dir
+        };
+        if let Some(stripped) = fname.strip_prefix(rd) {
+            return stripped.trim_start_matches('/').to_string();
+        }
+    }
+    fname.to_string()
 }
 
 /// Derive component name from filename.
