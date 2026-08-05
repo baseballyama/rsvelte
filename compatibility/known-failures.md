@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 234 entries)
+## Client dev (`known-failures.client-dev.json`, 224 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -62,8 +62,9 @@ The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
 (ownership validation on `bind:` member mutations) to 284, #2231 (the same
 validation on member assignments inside `$effect`) to 281, and the legacy
 each-block `bind:` accessor shape (named `function get()` / `function
-set($$value)` instead of arrows) to 234 — all with no regression on `client` or
-`server`, both of which are empty.
+set($$value)` instead of arrows) to 234, and the residual `$.tag` tail
+(uninitialized legacy state without a trailing semicolon) to 224 — all with no
+regression on `client` or `server`, both of which are empty.
 
 ### How the counts below are derived
 
@@ -79,13 +80,13 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| ownership mutation validation | 78 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
-| `$.tag()` / `$.tag_proxy()` | 26 | 0 | `visitors/VariableDeclaration.js` | #2021 |
+| ownership mutation validation | 72 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
 | equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
+| `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-94 entries are attributed to a cluster; the remaining **140** show no
+83 entries are attributed to a cluster; the remaining **141** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (`$.assign`, `$$css`, `$.event` handler naming, constant-folded
 template expressions). The legacy `bind:` `function get()/set()` shape was 47
@@ -122,6 +123,22 @@ The four equality residuals are likewise not instrumentation gaps: three are
 template expressions rsvelte constant-folds (`{1 === 1}` → `"true"`), and one is a
 `$props()` destructuring default that the runes AST pass emits as generated
 `$.fallback(...)` text and never re-visits. Both are #2064 long-tail.
+
+### What is left of the `$.tag()` row
+
+The #2021 series covered every declaration shape reachable from the legacy and
+runes script passes; the last one was an uninitialized legacy source with no
+trailing semicolon (`let sub` on its own line, which is what a `bind:this`
+target or a stripped TypeScript annotation leaves), whose emitter built the
+`$.mutable_source()` call without the dev label.
+
+The 2 remaining under-emits are both `$.tag_proxy` and neither is a labelling
+gap. One is a `$state(…)` declared *inside a template event handler*, which the
+declarator tag pass never sees because it walks script statements, not template
+expressions. The other is `$state(a === b)`: upstream calls `should_proxy` on
+the **already-visited** initialiser, so the dev-only `$.strict_equals(…)`
+rewrite turns a `BinaryExpression` (never proxied) into a `CallExpression`
+(proxied), and rsvelte decides before that rewrite. Both are #2064 long-tail.
 
 ### What is left of the `console.*` row
 
