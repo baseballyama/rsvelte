@@ -537,28 +537,10 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
 
                     // Extract class name from context
                     let before_text = &result[..abs_hash_pos];
-                    let class_name = extract_enclosing_class_name(before_text).unwrap_or("Unknown");
+                    // Upstream: `declaration.id?.name ?? '[class]'`.
+                    let class_name = extract_enclosing_class_name(before_text).unwrap_or("[class]");
 
-                    // Determine if this was originally a private field or a public field
-                    // that was converted to private by the compiler.
-                    // For compiler-converted public fields: a public field `fieldname = $state()`
-                    // gets converted to `#fieldname = $.state()` with getter/setter pair.
-                    // For originally private fields: `#fieldname = $state()` stays as
-                    // `#fieldname = $.state()` WITHOUT compiler-generated getter/setter.
-                    //
-                    // We distinguish by checking if the class has a PUBLIC field with the
-                    // same name that was converted. A getter pattern like `get fieldname()`
-                    // with `$.get(this.#fieldname)` exists for BOTH cases (user-written
-                    // or compiler-generated), so we need another approach:
-                    // Check if the class body contains a SETTER `set fieldname(value)` with
-                    // `$.set(this.#fieldname, ...)` - this is only generated for converted public fields.
-                    let setter_sig = format!("set {}(", field_name);
-                    let setter_body = format!("$.set(this.#{})", field_name);
-                    // Also check for a simpler setter pattern
-                    let setter_body2 = format!("$.set(this.#{},", field_name);
-                    let was_originally_public = result.contains(&setter_sig)
-                        && (result.contains(&setter_body) || result.contains(&setter_body2));
-                    let label = if was_originally_public {
+                    let label = if lowered_from_public(&result, &field_name, &field_name) {
                         format!("{}.{}", class_name, field_name)
                     } else {
                         format!("{}.#{}", class_name, field_name)
@@ -638,24 +620,14 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
 
                     // Extract class name from context (look for `class NAME {` before this position)
                     let before_text = &result[..abs_this_pos];
-                    let class_name = extract_enclosing_class_name(before_text).unwrap_or("Unknown");
+                    // Upstream: `declaration.id?.name ?? '[class]'`.
+                    let class_name = extract_enclosing_class_name(before_text).unwrap_or("[class]");
 
-                    // Build tag label: ClassName.#field or ClassName.field
-                    // If the field starts with # but has a compiler-generated getter, it was
-                    // originally a public field converted to private by the compiler.
-                    let label = if let Some(base_name) = field_name.strip_prefix('#') {
-                        let compiler_getter_pattern = format!(
-                            "get {}() {{ return $.get(this.{}); }}",
-                            base_name, field_name
-                        );
-                        let was_originally_public = result.contains(&compiler_getter_pattern);
-                        if was_originally_public {
-                            format!("{}.{}", class_name, base_name)
-                        } else {
-                            format!("{}.{}", class_name, field_name)
+                    let label = match field_name.strip_prefix('#') {
+                        Some(base) if lowered_from_public(&result, base, base) => {
+                            format!("{}.{}", class_name, base)
                         }
-                    } else {
-                        format!("{}.{}", class_name, field_name)
+                        _ => format!("{}.{}", class_name, field_name),
                     };
                     let tagged = format!("{}({}, '{}')", tag_fn, call_expr, label);
                     result = format!(
@@ -677,6 +649,50 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
     }
 
     result
+}
+
+/// Whether `#backing` is the lowering of a public `base = $state()` field, in
+/// which case the dev label keeps the public name (`get_name` runs on the
+/// *original* key). The tell is the setter the lowering generates, whose body
+/// is exactly `$.set(this.#backing, value[, true])` — a hand-written accessor
+/// over a genuinely private field does not have that shape.
+fn lowered_from_public(source: &str, base: &str, backing: &str) -> bool {
+    let signature = format!("set {}(value)", base);
+    let mut from = 0;
+    while let Some(rel) = source[from..].find(&signature) {
+        let after = from + rel + signature.len();
+        from = after;
+        let Some(open) = source[after..].find('{') else {
+            break;
+        };
+        let open = after + open;
+        let mut depth = 0usize;
+        let mut close = None;
+        for (i, c) in source[open..].char_indices() {
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(open + i + 1);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(close) = close else { break };
+        let compact: String = source[open..close]
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        if compact == format!("{{ $.set(this.#{}, value); }}", backing)
+            || compact == format!("{{ $.set(this.#{}, value, true); }}", backing)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 /// Extract the enclosing class name from the text before a given position.
