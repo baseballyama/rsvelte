@@ -189,6 +189,12 @@ pub fn unified_build_bind_this(
         context.state.transform.insert(name.to_string(), t);
     }
 
+    // Upstream builds the `bind:this` setter by visiting a synthesized `expr = $$value`
+    // assignment, so it passes through `validate_mutation()`; rsvelte builds it directly.
+    if context.state.dev && setter_expr.is_none() {
+        set = validate_bind_this_mutation(expression, set, context);
+    }
+
     // Apply optional chaining to getter MemberExpression nodes only
     if let JsExpr::Member(_) = &get {
         fn make_optional(
@@ -2802,6 +2808,53 @@ fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
 fn build_ast_member_path(expr: &Expression) -> Option<Vec<JsExpr>> {
     let mut path = Vec::new();
     build_ast_member_path_recursive(expr.as_json(), &mut path).then_some(path)
+}
+
+/// `validate_mutation()` applied to the setter synthesized for `bind:this={obj.foo}`.
+fn validate_bind_this_mutation(
+    expression: &Expression,
+    set: JsExpr,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    if !expression.is_member_expression() {
+        return set;
+    }
+    let Some(root_name) = get_ast_root_identifier(expression) else {
+        return set;
+    };
+    let Some(binding) = context.state.get_binding(&root_name) else {
+        return set;
+    };
+    if !matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+        return set;
+    }
+    let alias = crate::compiler::phases::phase3_transform::client::visitors::expression_converter::ownership_alias_literal(
+        binding.prop_alias.clone(),
+    );
+
+    // Official sets this before building the path, so an unbuildable path still
+    // emits the `$$ownership_validator` preamble.
+    context.state.needs_mutation_validation.set(true);
+    let Some(path) = build_ast_member_path(expression) else {
+        return set;
+    };
+
+    let mut args = vec![alias, b::array(path), set];
+    if let Some(start) = expression.start() {
+        let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
+            &context.state.analysis.source,
+            start as usize,
+        );
+        args.push(b::number(line as f64));
+        args.push(b::number(col as f64));
+    }
+    b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$$ownership_validator.mutation"),
+        args,
+    )
 }
 
 fn build_ast_member_path_recursive(val: &serde_json::Value, path: &mut Vec<JsExpr>) -> bool {
