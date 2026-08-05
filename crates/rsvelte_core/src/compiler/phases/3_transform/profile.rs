@@ -90,6 +90,25 @@ pub struct Phase3Breakdown {
     pub codegen: Duration,
 }
 
+/// One level below [`Phase3Breakdown::script_text_transform`], which is the
+/// largest Phase 3 bucket. The five stages are sequential and disjoint, so the
+/// difference between their sum and `script_text_transform` is the prologue
+/// plus the early-out paths.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct ScriptTextBreakdown {
+    /// Comment strip, class fields, comma split, arrow-paren strip.
+    pub prenormalize: Duration,
+    /// Gathering reactive / proxy / prop variable sets from the script text.
+    pub collect_vars: Duration,
+    /// The line-by-line accumulation loop.
+    pub line_loop: Duration,
+    /// Reactive-statement append plus the runes-mode AST transforms.
+    pub ast_transforms: Duration,
+    /// Shadowed-local post-pass and dev-mode instrumentation.
+    pub post_passes: Duration,
+    pub calls: u64,
+}
+
 thread_local! {
     static VISIT_PROGRAM: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static SCRIPT_TEXT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
@@ -97,6 +116,13 @@ thread_local! {
     static ASSEMBLY_AFTER_FRAGMENT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static CSS_RENDER: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static CODEGEN: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+
+    static ST_PRENORMALIZE: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_COLLECT_VARS: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_LINE_LOOP: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_AST_TRANSFORMS: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_POST_PASSES: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_CALLS: Cell<u64> = const { Cell::new(0) };
 
     static ESRAP_CLIENT_SPLIT: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
     static ESRAP_CLIENT_MAP: Cell<(Duration, u64)> = const { Cell::new((Duration::ZERO, 0)) };
@@ -211,6 +237,43 @@ pub fn record_css_render(d: Duration) {
 #[inline]
 pub fn record_codegen(d: Duration) {
     CODEGEN.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
+pub fn record_st_prenormalize(d: Duration) {
+    ST_PRENORMALIZE.with(|c| c.set(c.get() + d));
+    ST_CALLS.with(|c| c.set(c.get() + 1));
+}
+
+#[inline]
+pub fn record_st_collect_vars(d: Duration) {
+    ST_COLLECT_VARS.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
+pub fn record_st_line_loop(d: Duration) {
+    ST_LINE_LOOP.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
+pub fn record_st_ast_transforms(d: Duration) {
+    ST_AST_TRANSFORMS.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
+pub fn record_st_post_passes(d: Duration) {
+    ST_POST_PASSES.with(|c| c.set(c.get() + d));
+}
+
+pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
+    ScriptTextBreakdown {
+        prenormalize: ST_PRENORMALIZE.with(|c| c.replace(Duration::ZERO)),
+        collect_vars: ST_COLLECT_VARS.with(|c| c.replace(Duration::ZERO)),
+        line_loop: ST_LINE_LOOP.with(|c| c.replace(Duration::ZERO)),
+        ast_transforms: ST_AST_TRANSFORMS.with(|c| c.replace(Duration::ZERO)),
+        post_passes: ST_POST_PASSES.with(|c| c.replace(Duration::ZERO)),
+        calls: ST_CALLS.with(|c| c.replace(0)),
+    }
 }
 
 pub fn take_breakdown() -> Phase3Breakdown {

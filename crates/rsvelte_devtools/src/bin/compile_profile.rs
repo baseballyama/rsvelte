@@ -144,6 +144,7 @@ fn main() {
     }
     let transform_time = start.elapsed();
     let transform_breakdown = profile::take_breakdown();
+    let script_text_breakdown = profile::take_script_text_breakdown();
 
     let total = parse_time + analyze_time + transform_time;
     let pct = |d: std::time::Duration| d.as_secs_f64() / total.as_secs_f64() * 100.0;
@@ -203,6 +204,24 @@ fn main() {
         ms(script_text),
         pct(script_text)
     );
+    let st = script_text_breakdown;
+    let st_other = script_text
+        .saturating_sub(st.prenormalize)
+        .saturating_sub(st.collect_vars)
+        .saturating_sub(st.line_loop)
+        .saturating_sub(st.ast_transforms)
+        .saturating_sub(st.post_passes);
+    for (label, d) in [
+        ("prenormalize", st.prenormalize),
+        ("collect_vars", st.collect_vars),
+        ("line_loop", st.line_loop),
+        ("ast_transforms", st.ast_transforms),
+        ("post_passes", st.post_passes),
+        ("prologue+earlyout", st_other),
+    ] {
+        println!("    {label:<18} {:7.2}ms ({:5.1}%)", ms(d), pct(d));
+    }
+    println!("    (instrumented calls: {})", st.calls);
     println!(
         "  Template fragment:   {:7.2}ms ({:5.1}%)",
         ms(template_fragment),

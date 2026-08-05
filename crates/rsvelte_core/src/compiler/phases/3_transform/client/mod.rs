@@ -4348,6 +4348,8 @@ fn transform_instance_script_for_visitors(
         };
     }
 
+    let _stage = super::profile::timer_start();
+
     // Reset the $$array counters for this component
     // This ensures unique names across multiple $derived destructuring patterns
     SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
@@ -4413,6 +4415,9 @@ fn transform_instance_script_for_visitors(
     } else {
         script_rest_raw
     };
+
+    super::profile::record_st_prenormalize(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
 
     // Collect state variables from analysis for $.get() wrapping
     // LegacyReactive bindings (from `$: x = expr`) also need $.get()/$.set() transforms
@@ -5741,6 +5746,9 @@ fn transform_instance_script_for_visitors(
     // Pre-compute runes fast-path eligibility flags
     let runes_fastpath_eligible = analysis.runes && !dev && prop_mutation_vars.is_empty();
 
+    super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
+
     while line_idx < script_lines.len() {
         let line = script_lines[line_idx];
         let trimmed = line.trim();
@@ -6004,6 +6012,9 @@ fn transform_instance_script_for_visitors(
         );
     }
 
+    super::profile::record_st_line_loop(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
+
     // Append reactive statements at the end, mirroring the official Svelte compiler which
     // appends all $: reactive statements AFTER the rest of the instance body code.
     // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js
@@ -6210,6 +6221,9 @@ fn transform_instance_script_for_visitors(
         }
     }
 
+    super::profile::record_st_ast_transforms(super::profile::timer_elapsed(_stage));
+    let _stage = super::profile::timer_start();
+
     // Post-processing: transform shadowed local reactive vars within their enclosing function bodies.
     // These are state variables declared inside nested functions that share names with
     // top-level bindings. They're not in state_vars (to avoid incorrectly transforming
@@ -6237,6 +6251,8 @@ fn transform_instance_script_for_visitors(
     {
         result = instrumented;
     }
+
+    super::profile::record_st_post_passes(super::profile::timer_elapsed(_stage));
 
     result
 }
