@@ -113,7 +113,11 @@ fn derived_insert_label(dev: bool, pattern_text: &str) -> Option<&'static str> {
 /// For Identifier nodes, looks up the non_proxy_vars list (which contains variables
 /// with known non-proxyable initial values).
 /// For all other expression types (CallExpression, MemberExpression, etc.), returns `true`.
-fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String]) -> bool {
+///
+/// `dev` reflects whether the caller decides on the *visited* expression, as
+/// `create_state_declarator` does — by then the dev equality rewrite has turned
+/// an `a === b` initializer into a `$.strict_equals(...)` call.
+fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String], dev: bool) -> bool {
     match expr {
         Expression::BooleanLiteral(_)
         | Expression::NullLiteral(_)
@@ -125,13 +129,26 @@ fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String]) -> bool {
         Expression::ArrowFunctionExpression(_) => false,
         Expression::FunctionExpression(_) => false,
         Expression::UnaryExpression(_) => false,
-        Expression::BinaryExpression(_) => false,
+        Expression::BinaryExpression(binary) => {
+            use oxc_syntax::operator::BinaryOperator;
+            dev && matches!(
+                binary.operator,
+                BinaryOperator::StrictEquality
+                    | BinaryOperator::StrictInequality
+                    | BinaryOperator::Equality
+                    | BinaryOperator::Inequality
+            )
+        }
         // TypeScript casts: unwrap and recurse on the inner expression.
-        Expression::TSAsExpression(e) => should_proxy_ast(&e.expression, non_proxy_vars),
-        Expression::TSSatisfiesExpression(e) => should_proxy_ast(&e.expression, non_proxy_vars),
-        Expression::TSNonNullExpression(e) => should_proxy_ast(&e.expression, non_proxy_vars),
-        Expression::TSTypeAssertion(e) => should_proxy_ast(&e.expression, non_proxy_vars),
-        Expression::TSInstantiationExpression(e) => should_proxy_ast(&e.expression, non_proxy_vars),
+        Expression::TSAsExpression(e) => should_proxy_ast(&e.expression, non_proxy_vars, dev),
+        Expression::TSSatisfiesExpression(e) => {
+            should_proxy_ast(&e.expression, non_proxy_vars, dev)
+        }
+        Expression::TSNonNullExpression(e) => should_proxy_ast(&e.expression, non_proxy_vars, dev),
+        Expression::TSTypeAssertion(e) => should_proxy_ast(&e.expression, non_proxy_vars, dev),
+        Expression::TSInstantiationExpression(e) => {
+            should_proxy_ast(&e.expression, non_proxy_vars, dev)
+        }
         Expression::Identifier(ident) => {
             if ident.name == "undefined" {
                 return false;
@@ -144,7 +161,7 @@ fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String]) -> bool {
         }
         // ParenthesizedExpression: check inner expression
         Expression::ParenthesizedExpression(paren) => {
-            should_proxy_ast(&paren.expression, non_proxy_vars)
+            should_proxy_ast(&paren.expression, non_proxy_vars, dev)
         }
         // SequenceExpression (comma): upstream `should_proxy` does NOT whitelist
         // SequenceExpression, so it falls through to `return true` — a comma
@@ -838,7 +855,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let (needs_proxy, is_explicit_undefined) = if let Some(arg) = call.arguments.first() {
             let arg_expr = arg.as_expression();
             let needs_proxy = arg_expr
-                .map(|e| should_proxy_ast(e, self.non_proxy_vars))
+                .map(|e| should_proxy_ast(e, self.non_proxy_vars, self.dev))
                 .unwrap_or(false);
             let is_undef = matches!(
                 arg_expr,
@@ -2800,7 +2817,11 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                             && self
                                 .ident_rhs_site_decision(&expr.right)
                                 .unwrap_or_else(|| {
-                                    should_proxy_ast(&expr.right, self.reassign_non_proxy_vars)
+                                    should_proxy_ast(
+                                        &expr.right,
+                                        self.reassign_non_proxy_vars,
+                                        false,
+                                    )
                                 });
 
                         let replacement = if needs_proxy {
@@ -2843,7 +2864,11 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                             && self
                                 .ident_rhs_site_decision(&expr.right)
                                 .unwrap_or_else(|| {
-                                    should_proxy_ast(&expr.right, self.reassign_non_proxy_vars)
+                                    should_proxy_ast(
+                                        &expr.right,
+                                        self.reassign_non_proxy_vars,
+                                        false,
+                                    )
                                 });
 
                         let replacement = if needs_proxy {

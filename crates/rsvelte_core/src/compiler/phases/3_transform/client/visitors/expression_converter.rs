@@ -2219,6 +2219,26 @@ fn should_proxy_json(value: &Value) -> bool {
     }
 }
 
+/// Whether `value` is a direct `$state(...)` call — the only initializer shape
+/// `create_state_declarator` labels.
+fn is_state_rune_call(value: &Value, context: &ComponentContext) -> bool {
+    value
+        .as_object()
+        .filter(|obj| obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression"))
+        .and_then(|obj| get_rune_from_call(obj, context))
+        .is_some_and(|rune| rune == "$state")
+}
+
+/// Typed counterpart of [`is_state_rune_call`].
+fn is_state_rune_call_jsnode(node: &JsNode, pa: &ParseArena, context: &ComponentContext) -> bool {
+    let JsNode::CallExpression { callee, .. } = node else {
+        return false;
+    };
+    let callee_node = pa.get_js_node(*callee);
+    is_potential_rune_call(callee_node, context)
+        && get_rune_from_call_jsnode(callee_node, pa, context).is_some_and(|rune| rune == "$state")
+}
+
 /// Transform a rune call expression.
 ///
 /// This mirrors the official Svelte compiler's CallExpression.js visitor.
@@ -2277,7 +2297,7 @@ fn transform_rune_call(
 
                 // For $state (not $state.raw), wrap with $.proxy() if the value is an object/array
                 if rune == "$state" && should_proxy_json(arg_value) {
-                    JsExpr::Call(JsCallExpression {
+                    let proxied = JsExpr::Call(JsCallExpression {
                         callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
                             object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                             property: JsMemberProperty::Identifier("proxy".into()),
@@ -2286,7 +2306,23 @@ fn transform_rune_call(
                         })),
                         arguments: vec![converted],
                         optional: false,
-                    })
+                    });
+                    match context.state.state_declarator_name.take() {
+                        Some(name) if context.state.dev => JsExpr::Call(JsCallExpression {
+                            callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                                object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                                property: JsMemberProperty::Identifier("tag_proxy".into()),
+                                computed: false,
+                                optional: false,
+                            })),
+                            arguments: vec![
+                                proxied,
+                                JsExpr::Literal(JsLiteral::String(name.into())),
+                            ],
+                            optional: false,
+                        }),
+                        _ => proxied,
+                    }
                 } else {
                     // Primitives or $state.raw: just return the value as-is
                     converted
@@ -3791,7 +3827,15 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                             // In ESTree, `init: null` means no initializer (e.g., `let x;`).
                             // We must filter out JSON null so we don't generate `let x = null;`.
                             let init = decl_obj.get("init").filter(|i| !i.is_null()).map(|i| {
+                                let saved_state_declarator_name =
+                                    context.state.state_declarator_name.take();
+                                if let JsPattern::Identifier(ref name) = pattern
+                                    && is_state_rune_call(i, context)
+                                {
+                                    context.state.state_declarator_name = Some(name.to_string());
+                                }
                                 let __tmp = convert_json_value(i, context);
+                                context.state.state_declarator_name = saved_state_declarator_name;
                                 context.arena.alloc_expr(__tmp)
                             });
                             Some(JsVariableDeclarator {
@@ -6217,7 +6261,16 @@ fn convert_statement_from_jsnode(
                             }
                         }
                         let init_expr = init.map(|i| {
-                            let __tmp = convert_js_node(pa.get_js_node(i), context);
+                            let init_node = pa.get_js_node(i);
+                            let saved_state_declarator_name =
+                                context.state.state_declarator_name.take();
+                            if let JsPattern::Identifier(ref name) = pattern
+                                && is_state_rune_call_jsnode(init_node, pa, context)
+                            {
+                                context.state.state_declarator_name = Some(name.to_string());
+                            }
+                            let __tmp = convert_js_node(init_node, context);
+                            context.state.state_declarator_name = saved_state_declarator_name;
                             context.arena.alloc_expr(__tmp)
                         });
                         Some(JsVariableDeclarator {
