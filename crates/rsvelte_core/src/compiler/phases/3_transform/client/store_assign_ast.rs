@@ -92,13 +92,15 @@ pub fn transform_store_assign_ast(
     state_vars: &[String],
     non_reactive_state_vars: &[String],
 ) -> Option<String> {
-    let spliced = transform_store_assign_spliced(
-        source,
-        store_sub_vars,
-        prop_vars,
-        state_vars,
-        non_reactive_state_vars,
-    );
+    let spliced = || {
+        transform_store_assign_spliced(
+            source,
+            store_sub_vars,
+            prop_vars,
+            state_vars,
+            non_reactive_state_vars,
+        )
+    };
     ast_rewrite::dual_run::resolve("store_assign_ast:inplace", source, spliced, || {
         transform_store_assign_in_place(
             source,

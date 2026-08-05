@@ -67,13 +67,15 @@ pub fn transform_legacy_state_member_mutate_ast(
     raw_state_vars: &[String],
     invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
-    let spliced = transform_legacy_state_member_mutate_spliced(
-        source,
-        state_vars,
-        non_reactive_state_vars,
-        raw_state_vars,
-        invalidate_bodies,
-    );
+    let spliced = || {
+        transform_legacy_state_member_mutate_spliced(
+            source,
+            state_vars,
+            non_reactive_state_vars,
+            raw_state_vars,
+            invalidate_bodies,
+        )
+    };
     ast_rewrite::dual_run::resolve(
         "legacy_state_member_mutate_ast:inplace",
         source,

@@ -75,13 +75,15 @@ pub fn transform_state_assigns_ast(
     is_runes: bool,
     non_proxy_vars: &[String],
 ) -> Option<String> {
-    let spliced = transform_state_assigns_spliced(
-        source,
-        state_vars,
-        raw_state_vars,
-        is_runes,
-        non_proxy_vars,
-    );
+    let spliced = || {
+        transform_state_assigns_spliced(
+            source,
+            state_vars,
+            raw_state_vars,
+            is_runes,
+            non_proxy_vars,
+        )
+    };
     ast_rewrite::dual_run::resolve(
         "state_assigns_combined_ast:inplace",
         source,

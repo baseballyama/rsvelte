@@ -51,7 +51,7 @@ pub fn transform_state_set_reactive_ast(
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> Option<String> {
-    let spliced = transform_state_set_reactive_spliced(source, state_vars, non_reactive_vars);
+    let spliced = || transform_state_set_reactive_spliced(source, state_vars, non_reactive_vars);
     ast_rewrite::dual_run::resolve("state_set_reactive_ast:inplace", source, spliced, || {
         transform_state_set_reactive_in_place(source, state_vars, non_reactive_vars)
     })

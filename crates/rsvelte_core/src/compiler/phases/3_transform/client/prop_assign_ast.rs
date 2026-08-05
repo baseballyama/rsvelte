@@ -66,7 +66,7 @@ thread_local! {
 /// the bindings in `prop_vars`. Returns `None` when there's
 /// nothing to rewrite or the source fails to parse.
 pub fn transform_prop_assign_ast(source: &str, prop_vars: &[String]) -> Option<String> {
-    let spliced = transform_prop_assign_spliced(source, prop_vars);
+    let spliced = || transform_prop_assign_spliced(source, prop_vars);
     ast_rewrite::dual_run::resolve("prop_assign_ast:inplace", source, spliced, || {
         transform_prop_assign_in_place(source, prop_vars)
     })

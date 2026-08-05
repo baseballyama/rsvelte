@@ -52,7 +52,7 @@ pub fn transform_store_unsub_wrap_ast(
     state_vars: &[String],
     store_sub_vars: &[String],
 ) -> Option<String> {
-    let spliced = transform_store_unsub_wrap_spliced(source, state_vars, store_sub_vars);
+    let spliced = || transform_store_unsub_wrap_spliced(source, state_vars, store_sub_vars);
     ast_rewrite::dual_run::resolve("store_unsub_wrap_ast:inplace", source, spliced, || {
         transform_store_unsub_wrap_in_place(source, state_vars, store_sub_vars)
     })

@@ -62,7 +62,7 @@ pub fn transform_store_member_mutate_ast_with_props(
     store_subs: &[String],
     prop_store_names: &[String],
 ) -> Option<String> {
-    let spliced = transform_store_member_mutate_spliced(source, store_subs, prop_store_names);
+    let spliced = || transform_store_member_mutate_spliced(source, store_subs, prop_store_names);
     ast_rewrite::dual_run::resolve("store_member_mutate_ast:inplace", source, spliced, || {
         transform_store_member_mutate_in_place(source, store_subs, prop_store_names)
     })

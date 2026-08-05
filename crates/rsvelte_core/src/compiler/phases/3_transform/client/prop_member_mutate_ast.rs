@@ -76,12 +76,14 @@ pub fn transform_prop_member_mutate_ast(
     non_bindable_prop_vars: &[String],
     prop_invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
-    let spliced = transform_prop_member_mutate_spliced(
-        source,
-        prop_vars,
-        non_bindable_prop_vars,
-        prop_invalidate_bodies,
-    );
+    let spliced = || {
+        transform_prop_member_mutate_spliced(
+            source,
+            prop_vars,
+            non_bindable_prop_vars,
+            prop_invalidate_bodies,
+        )
+    };
     ast_rewrite::dual_run::resolve("prop_member_mutate_ast:inplace", source, spliced, || {
         transform_prop_member_mutate_in_place(
             source,

@@ -93,16 +93,18 @@ pub fn transform_state_pipeline_ast(
         return None;
     }
 
-    let spliced = ast_rewrite::fixed_point(source, |src| {
-        single_pass(
-            src,
-            state_vars,
-            raw_state_vars,
-            is_runes,
-            non_proxy_vars,
-            &effective_read_names,
-        )
-    });
+    let spliced = || {
+        ast_rewrite::fixed_point(source, |src| {
+            single_pass(
+                src,
+                state_vars,
+                raw_state_vars,
+                is_runes,
+                non_proxy_vars,
+                &effective_read_names,
+            )
+        })
+    };
 
     ast_rewrite::dual_run::resolve("state_pipeline_ast:inplace", source, spliced, || {
         transform_state_pipeline_in_place(
