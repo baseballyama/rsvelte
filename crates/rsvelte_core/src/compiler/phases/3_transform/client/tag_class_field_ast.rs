@@ -585,12 +585,21 @@ mod tests {
 
     #[test]
     fn label_drops_hash_when_originally_public() {
-        // Compiler-converted public field: paired setter calls
-        // `$.set(this.#count, ...)`.
-        let src = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(v) { $.set(this.#count, v, true); } }";
+        // Compiler-converted public field: the generated setter body is exactly
+        // `$.set(this.#count, value, true)`.
+        let src = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(value) { $.set(this.#count, value, true); } }";
         let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
         assert!(out.contains("$.tag($.state(0), 'C.count')"));
         assert!(!out.contains("'C.#count'"));
+    }
+
+    #[test]
+    fn label_keeps_hash_for_a_hand_written_accessor_over_a_private_field() {
+        // `set count(val) { this.#count = val }` lowers to a setter whose body
+        // is NOT the generated one, so `#count` was written as private.
+        let src = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(val) { $.set(this.#count, val, true); } }";
+        let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
+        assert!(out.contains("$.tag($.state(0), 'C.#count')"), "got: {out}");
     }
 
     #[test]
@@ -610,7 +619,7 @@ mod tests {
     #[test]
     fn this_private_assign_drops_hash_when_originally_public() {
         // Constructor assignment + paired getter/setter.
-        let src = "class C { constructor() { this.#count = $.state(0); } get count() { return $.get(this.#count); } set count(v) { $.set(this.#count, v, true); } }";
+        let src = "class C { constructor() { this.#count = $.state(0); } get count() { return $.get(this.#count); } set count(value) { $.set(this.#count, value, true); } }";
         let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
         assert!(out.contains("this.#count = $.tag($.state(0), 'C.count')"));
     }
