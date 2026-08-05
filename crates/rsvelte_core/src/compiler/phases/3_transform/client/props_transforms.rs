@@ -3317,6 +3317,11 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // The full original expression is the entire prop(prop().member = value, true) call
             let end_pos = inner_start + close_byte_pos + 1; // +1 for closing paren
+            // Upstream builds the `$.invalidate_inner_signals` sequence first and
+            // passes the whole thing to `validate_mutation`, so the sequence has to
+            // go inside the wrap rather than around it.
+            let (abs_start, end_pos) = expand_to_invalidate_sequence(&result, abs_start, end_pos)
+                .unwrap_or((abs_start, end_pos));
             let full_original_expr = result[abs_start..end_pos].to_string();
 
             // Each mutation reports its own source position.
@@ -3350,6 +3355,34 @@ pub(super) fn wrap_prop_mutation_validation(
     }
 
     result
+}
+
+/// The span of `(<mutation>, $.invalidate_inner_signals(…))` around the
+/// `prop(...)` call at `start..end`, when a legacy indirect binding put one there.
+fn expand_to_invalidate_sequence(text: &str, start: usize, end: usize) -> Option<(usize, usize)> {
+    let open = text[..start].trim_end().len().checked_sub(1)?;
+    if text.as_bytes()[open] != b'(' {
+        return None;
+    }
+    let rest = text[end..].trim_start().strip_prefix(',')?;
+    if !rest.trim_start().starts_with("$.invalidate_inner_signals") {
+        return None;
+    }
+    let mut depth = 0i32;
+    for (offset, ch) in text[open..].char_indices() {
+        match ch {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    let close = open + offset + 1;
+                    return (close > end).then_some((open, close));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// One mutation of a prop as it is written in the source.
