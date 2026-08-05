@@ -19,6 +19,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -374,8 +375,9 @@ fn dump_rows(rows: &[ScalingRow], path: &str) {
         "script_bytes,runes,ensure_script,analyze,script_text,template,codegen,transform\n",
     );
     for r in rows {
-        out.push_str(&format!(
-            "{},{},{},{},{},{},{},{}\n",
+        let _ = writeln!(
+            out,
+            "{},{},{},{},{},{},{},{}",
             r.script_bytes,
             r.runes,
             ns(r.ensure_script),
@@ -384,7 +386,7 @@ fn dump_rows(rows: &[ScalingRow], path: &str) {
             ns(r.template),
             ns(r.codegen),
             ns(r.transform)
-        ));
+        );
     }
     match std::fs::write(path, out) {
         Ok(()) => println!("\n  wrote {} rows to {path}", rows.len()),
@@ -506,6 +508,7 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
     // `log_slope` drops rows whose time is zero, so each bucket is fitted on its
     // own subpopulation; without this count the five exponents look commensurable.
     let mut c_sum = 0.0;
+    let mut c_share_sum = 0.0;
     for (name, get) in buckets {
         let mut cells = [0.0f64; 4];
         for (q, cell) in cells.iter_mut().enumerate() {
@@ -518,6 +521,7 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
         let (exp, fitted) = log_slope(&pts);
         let c_b = share * exp;
         c_sum += c_b;
+        c_share_sum += share;
         println!(
             "    {name:<12} {:>8.4} {:>8.4} {:>8.4} {:>8.4} | {:>6.1}% {:>7.3} {:>6.3} {:>6}",
             cells[0],
@@ -538,11 +542,14 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
         .map(|r| ms(r.transform) - ms(r.script_text) - ms(r.template) - ms(r.codegen))
         .sum::<f64>()
         / total_all.max(f64::MIN_POSITIVE);
+    println!("    {:<12} {:>36} {:>6.1}%", "other", "", uncovered * 100.0);
+    // A column that does not add to 100 invites the reading that the buckets
+    // partition the total, which is how the shares were misread before.
     println!(
-        "    {:<12} {:>44} {:>6.1}%",
-        "(transform, not in the three above)",
+        "    {:<12} {:>36} {:>6.1}%",
+        "SUM",
         "",
-        uncovered * 100.0
+        (c_share_sum + uncovered) * 100.0
     );
     let total_pts: Vec<(f64, f64)> = rows
         .iter()
