@@ -1298,10 +1298,14 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let wrapped_source = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
 
         // Extract the destructured pattern's source text — the recursive
-        // text helper walks this string.
+        // text helper walks this string. Walk it first so a default value
+        // carries the same rewrites any other expression would (the dev
+        // equality instrumentation, above all); binding names are visited as
+        // declarations, not references, so they stay untouched.
         let pattern_span = declarator.id.span();
+        self.visit_binding_pattern(&declarator.id);
         let pattern_text =
-            self.source[pattern_span.start as usize..pattern_span.end as usize].to_string();
+            self.apply_and_drain_inner_replacements(pattern_span.start, pattern_span.end);
         let pattern_text = pattern_text.trim().to_string();
 
         let mut declarations: Vec<String> = Vec::new();
