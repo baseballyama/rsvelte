@@ -205,34 +205,46 @@ fn main() {
         pct(script_text)
     );
     let st = script_text_breakdown;
-    let st_other = script_text
-        .saturating_sub(st.prenormalize)
-        .saturating_sub(st.collect_vars)
-        .saturating_sub(st.line_loop)
-        .saturating_sub(st.ast_transforms)
-        .saturating_sub(st.post_passes);
-    for (label, d) in [
-        ("prenormalize", st.prenormalize),
-        ("collect_vars", st.collect_vars),
-        ("line_loop", st.line_loop),
-        ("  process_accum", st.process_accumulated),
-        ("    runes_xform", st.runes),
-        ("    reactive_stmt", st.reactive_stmt),
+    // Residual rows are signed: saturating them to zero would hide the very
+    // inconsistency the self-check below exists to expose.
+    let residual = |whole: std::time::Duration, parts: &[std::time::Duration]| {
+        ms(whole) - parts.iter().copied().map(ms).sum::<f64>()
+    };
+    for (label, val) in [
+        ("prenormalize", ms(st.prenormalize)),
+        ("collect_vars", ms(st.collect_vars)),
+        ("line_loop", ms(st.line_loop)),
+        ("  process_accum", ms(st.process_accumulated)),
+        ("    runes_xform", ms(st.runes)),
+        ("    reactive_stmt", ms(st.reactive_stmt)),
         (
             "    pa_rest",
-            st.process_accumulated
-                .saturating_sub(st.runes)
-                .saturating_sub(st.reactive_stmt),
+            residual(st.process_accumulated, &[st.runes, st.reactive_stmt]),
         ),
         (
             "  line_scan",
-            st.line_loop.saturating_sub(st.process_accumulated),
+            residual(st.line_loop, &[st.process_accumulated]),
         ),
-        ("ast_transforms", st.ast_transforms),
-        ("post_passes", st.post_passes),
-        ("prologue+earlyout", st_other),
+        ("ast_transforms", ms(st.ast_transforms)),
+        ("post_passes", ms(st.post_passes)),
+        (
+            "prologue+earlyout",
+            residual(
+                script_text,
+                &[
+                    st.prenormalize,
+                    st.collect_vars,
+                    st.line_loop,
+                    st.ast_transforms,
+                    st.post_passes,
+                ],
+            ),
+        ),
     ] {
-        println!("    {label:<18} {:7.2}ms ({:5.1}%)", ms(d), pct(d));
+        println!(
+            "    {label:<18} {val:7.2}ms ({:5.1}%)",
+            val / ms(total) * 100.0
+        );
     }
     println!("    (statements processed: {})", st.statements);
     let st_sum =

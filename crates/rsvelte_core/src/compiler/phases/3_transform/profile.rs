@@ -94,6 +94,13 @@ pub struct Phase3Breakdown {
 /// largest Phase 3 bucket. The five stages are sequential and disjoint, so the
 /// difference between their sum and `script_text_transform` is the prologue
 /// plus the early-out paths.
+///
+/// Do not expect `Σ stages == script_text_transform`. The residual is small
+/// against the parent but is neither reproducible in magnitude nor stable in
+/// sign -- measured between -0.05% and +2.5% of the parent on an idle machine,
+/// and it flips sign and grows to double digits under load. The cause is
+/// unexplained; read the stage shares as good to roughly a point, and read the
+/// residual as an instrument reading rather than as prologue time.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct ScriptTextBreakdown {
     /// Comment strip, class fields, comma split, arrow-paren strip.
