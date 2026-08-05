@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 91 entries)
+## Client dev (`known-failures.client-dev.json`, 49 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -94,6 +94,15 @@ needs before the statement ASI used to separate, the quote style of the
 written inside a comment or a string, and the comments leading a `$:` statement
 that has a surviving successor.
 
+Four more took it to 49: the computed path element of an
+`$$ownership_validator.mutation(...)` going through the binding's own read
+transform, each prop mutation reporting its *own* source position (matching on
+the member names it writes rather than consuming positions left to right, so a
+`$:` body moved to the tail as a `legacy_pre_effect` cannot steal one), the
+`$.assign` coerced-proxy warning on member assignments written in a script, and
+the `$.tag` label of a class *expression* field (`'[class].foo'`, and the public
+name when a public field was lowered to a private backing).
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -108,9 +117,9 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| `$.assign` / `$.assign_async` | 24 | 2 | `visitors/AssignmentExpression.js` | #2064 |
-| signal read/write (`$.get` / `$.set` / `$.update`) | 7 | 0 | `visitors/shared/utils.js` | #2064 |
-| equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
+| `$.assign` / `$.assign_async` | 6 | 2 | `visitors/AssignmentExpression.js` | #2064 |
+| signal read/write (`$.get` / `$.set` / `$.update`) | 3 | 0 | `visitors/shared/utils.js` | #2064 |
+| equality instrumentation | 1 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | ownership mutation validation | 2 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
 | `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
@@ -122,29 +131,43 @@ it but under-emit call sites. The preamble half is now empty; both survivors
 emit their `$$ownership_validator.binding(...)` calls and are missing exactly one
 `$$ownership_validator.mutation(...)` each.
 
-46 entries are attributed to a cluster; the remaining **45** show no
-difference in any dev helper: 19 are comment placement, 18 are the CSS
-sourcemap `$$css`/`$css` carries in dev, 4 are dev label / path-element text,
-2 are redundant parentheses and 2 are a `$.trace` label's line:column. All are
-tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
-entries of that residue and is fixed: `build_each_block_accessor_parts` now
-hands the element `bind:` path the unthunked getter body plus the setter body,
-so `dev` can emit upstream's named accessors (`BindDirective.js:46-54`). The
-component `bind:` path keeps consuming the same bodies for its object-literal
-`get`/`set` methods.
+21 entries are attributed to a cluster; the remaining **28** show no
+difference in any dev helper: 18 are the CSS sourcemap the `$$css`/`$css`
+payload carries in dev, 5 are statement ordering inside an instance script, 2
+are a `$.trace` label's line:column, 2 are redundant parentheses around an
+`$$ownership_validator.mutation(...)` and 1 is the lowering shape of a lazy
+`??=` whose right-hand side awaits. All are tracked in #2064. The legacy
+`bind:` `function get()/set()` shape was 47 entries of that residue and is
+fixed: `build_each_block_accessor_parts` now hands the element `bind:` path the
+unthunked getter body plus the setter body, so `dev` can emit upstream's named
+accessors (`BindDirective.js:46-54`). The component `bind:` path keeps consuming
+the same bodies for its object-literal `get`/`set` methods.
+
+The 18 CSS entries split in two. Seven emit **no** map at all: rsvelte gates the
+`/*# sourceMappingURL=… */` trailer on `!is_custom_element`, where upstream's
+guard is `dev && analysis.inject_styles && css.code` (`css/index.js:68-70`), so
+a custom element's `$$css.code` never carries one. The other 11 emit a map whose
+segments are finer than upstream's: `css/index.js`'s `_` visitor calls
+`addSourcemapLocation` on every CSS AST node's `start` and `end`, and MagicString
+then emits a segment at each of those plus every chunk start and every line start
+inside an unedited chunk — a removal, being an edited chunk with an empty body,
+emits nothing. rsvelte's generator matches tokens by name instead, which is a
+different model, so closing this row means porting MagicString's `generateMap`
+rather than tuning the heuristic.
 
 ### What is left of the `$.assign` row
 
 `$.assign(object, 'prop', operator, value, location)` is upstream's dev warning
 for a coerced-away proxy (`AssignmentExpression.js:170-236`): it fires only when
 the assignment's *value* is used (`path.at(-1) !== 'ExpressionStatement'`), the
-operator is non-coercive, and the right-hand side is not a known primitive.
-rsvelte emits it from the template paths (`expression_converter`, `attribute`)
-but has no collector on the instance / module script paths, so a `(obj.prop =
-value)` written inside a script — most often inside a `new Promise((resolve) =>
-…)` — stays bare. The location argument is what makes this more than a copy of
-`instance_dev_tail_ast`'s other collectors: it is a position in the *original*
-`.svelte` source, and those passes run over already-settled transform output.
+operator is non-coercive, and the right-hand side is not a known primitive. The
+script collector for it landed with `assign_dev_ast`; what is left is the
+**template** path's answer to "is the value used". Five of the six under-emits
+and both over-emits are the same confusion in the two directions: a concise
+arrow body (`{@attach (node) => (node.textContent = …)}`, `onValueChange: (e) =>
+(globals.panel = e.value)`) is a used value and is not wrapped, while a
+statement inside a block-bodied arrow (`(node) => { context.fillStyle = color; }`)
+is not and is. The sixth under-emit is a location argument, not a missing call.
 
 ### What is left of the equality and await rows
 
@@ -157,22 +180,16 @@ every `track_reactivity_loss` under-emit module-side (197 in a component's
 same `await` collector to `module_dev_tail_ast`'s batch, clearing a further 212
 entries:
 
-| | legacy component | runes component | `<script module>` | module script |
-|---|---:|---:|---:|---:|
-| equality under-emits | 2 | 1 | 1 | 0 |
-| `track_reactivity_loss` under-emits | 0 | 0 | 0 | 0 |
-
 Both instrumentations are now emitted for every script kind; only over-emits
-remain. The three `track_reactivity_loss` over-emits are all the *destructured*
+remain (plus one equality under-emit that is a template expression, below). The three `track_reactivity_loss` over-emits are all the *destructured*
 async assignment shape (`[a, b] = await …`): rsvelte lowers it to an async IIFE
 and instruments the IIFE call as well as the inner `await`, where upstream
 destructures after a single wrapped `await`. That is a lowering-shape
 difference, not an instrumentation gap — #2064 long-tail.
 
-The four equality residuals are likewise not instrumentation gaps: three are
-template expressions rsvelte constant-folds (`{1 === 1}` → `"true"`), and one is a
-`$props()` destructuring default that the runes AST pass emits as generated
-`$.fallback(...)` text and never re-visits. Both are #2064 long-tail.
+The one equality residual is likewise not an instrumentation gap: it is a
+`typeof window === 'undefined'` written inside a component prop's arrow, which
+the template path hands through unrewritten — #2064 long-tail.
 
 ### What is left of the `$.tag()` row
 
@@ -216,11 +233,12 @@ each-scoped one falls through — #2064 long-tail.
 
 ### What is left of the signal read/write row
 
-The 7 under-emits are all a computed path element inside an already-emitted
-`$$ownership_validator.mutation(...)`. Upstream builds that element through the
-binding's own read transform (`transform?.read ? transform.read(left.property) :
-left.property`, `shared/utils.js`), so a slot-let / each-block index arrives as
-`$.get(index)` and a store as `prop()`; rsvelte pushes the bare identifier.
+The 3 under-emits are all a rune declared *inside a nested function* whose name
+also exists as a top-level binding, which `transform_shadowed_local_state_vars`
+handles by rewriting just the enclosing function body. It locates the
+declaration by the literal text `<kw> <name> = $.state(` — and in dev the
+`$.tag(...)` wrap already sits between the `=` and the rune call, so the probe
+misses and the whole body goes untransformed.
 
 **#1981 is confirmed absent.** The run contains zero
 `$$ownership_validator.binding(` divergences, so the #1989 fix holds across the
