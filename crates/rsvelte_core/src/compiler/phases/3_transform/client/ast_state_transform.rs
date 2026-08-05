@@ -236,6 +236,8 @@ struct StateVarCollector<'a, 's> {
     /// When inside a shorthand property like `{ foo }`, the IdentifierReference
     /// for `foo` needs special handling: `{ foo: $.get(foo) }`.
     in_shorthand_property: bool,
+    /// Subtrees carrying a `svelte-ignore await_reactivity_loss`.
+    await_ignore_ranges: super::await_reactivity_loss_ast::AwaitIgnoreRanges,
 
     // --- Phase A-2 fields ---
     /// Prop source variables that need getter/setter wrapping: `prop` -> `prop()`.
@@ -362,6 +364,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             replacements_sorted: true,
             scoped_vars: vec![FxHashSet::default()],
             in_shorthand_property: false,
+            await_ignore_ranges: Default::default(),
             prop_source_vars: prop_source_set,
             non_bindable_prop_vars: non_bindable_set,
             store_sub_vars: store_sub_set,
@@ -2001,11 +2004,18 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     }
 
     fn is_await_reactivity_loss_ignored(&self, offset: u32) -> bool {
-        super::await_reactivity_loss_ast::await_reactivity_loss_ignored(
+        self.await_ignore_ranges.contains(offset)
+    }
+
+    fn collect_await_ignore_ranges(&mut self, program: &Program<'_>) {
+        if !self.dev || !super::await_reactivity_loss_ast::source_has_await(self.source) {
+            return;
+        }
+        self.await_ignore_ranges = super::await_reactivity_loss_ast::collect_await_ignore_ranges(
+            program,
             self.source,
-            offset,
             self.is_runes,
-        )
+        );
     }
 
     /// Walk every argument of a `CallExpression` so inner state-var refs
@@ -4550,6 +4560,7 @@ fn collect_state_var_replacements(
         config.exported_names,
     );
     collector.semantic = semantic_ret.as_ref().map(|ret| &ret.semantic);
+    collector.collect_await_ignore_ranges(program);
     collector.visit_program(program);
     collector.replacements
 }
@@ -4587,6 +4598,7 @@ fn collect_state_var_replacements_without_semantic_scan(
         config.analysis,
         config.exported_names,
     );
+    collector.collect_await_ignore_ranges(program);
     for statement in &program.body {
         if !projected_statement_is_type_only(statement) {
             collector.visit_statement(statement);
