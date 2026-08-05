@@ -124,12 +124,17 @@ pub fn with_program_mut(
 /// site is reached through several outer callers, and terminated and
 /// unterminated fragments both arrive there, so no static per-site declaration
 /// can express the convention.
+///
 /// The contract has a second half: the fragment must also bind the text that
 /// follows it the way the source did. Dropping the terminator is what can break
 /// that — `x++` ends a statement, `$.update_prop(x)` does not — so the drop only
 /// happens when the shortened fragment still parses the same way against text
-/// that binds leftwards. A fragment that keeps its `;` is one a caller must not
-/// terminate a second time.
+/// that binds leftwards.
+///
+/// This does not hold on its own: a fragment that keeps its `;` here is one the
+/// caller must not terminate again, which is why `reactive_transforms.rs`'s
+/// `body_needs_semicolon` re-derives the terminator from the rewritten text
+/// instead of the source.
 fn keep_fragment_termination(source: &str, printed: &mut String) {
     if !printed.ends_with(';') || source.trim_end().ends_with(';') {
         return;
