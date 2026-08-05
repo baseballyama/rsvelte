@@ -1897,6 +1897,43 @@ fn apply_transforms_to_statement_with_shadowed(
             })
         }
 
+        JsStatement::Switch(switch_stmt) => {
+            // Upstream scopes the whole `SwitchStatement` as one block, so a
+            // declaration in any case shadows the discriminant and every case.
+            let mut switch_scope = local_scope.clone();
+            for case in &switch_stmt.cases {
+                register_block_local_vars(&case.consequent, &context.arena, &mut switch_scope);
+            }
+            let transform_in_switch = |e: &JsExpr| {
+                apply_transforms_to_expression_with_shadowed(e, context, &switch_scope)
+            };
+            let discriminant = context.arena.alloc_expr(transform_in_switch(
+                context.arena.get_expr(switch_stmt.discriminant),
+            ));
+            let cases = switch_stmt
+                .cases
+                .iter()
+                .map(|case| JsSwitchCase {
+                    test: case.test.map(|t| {
+                        context
+                            .arena
+                            .alloc_expr(transform_in_switch(context.arena.get_expr(t)))
+                    }),
+                    consequent: case
+                        .consequent
+                        .iter()
+                        .map(|s| {
+                            apply_transforms_to_statement_with_shadowed(s, context, &switch_scope)
+                        })
+                        .collect(),
+                })
+                .collect();
+            JsStatement::Switch(JsSwitchStatement {
+                discriminant,
+                cases,
+            })
+        }
+
         JsStatement::Labeled(labeled) => {
             let s = context.arena.get_stmt(labeled.body).clone();
             JsStatement::Labeled(JsLabeledStatement {
