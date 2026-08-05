@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 306 entries)
+## Client dev (`known-failures.client-dev.json`, 284 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -58,8 +58,9 @@ reason. CSS is compared for this target too, and is clean: 0 css-mismatches.
 The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
 #2029, #2030, #2039, #2040, and the #2021 series) took it to 896, #2116
 (legacy instance-script instrumentation) to 639, #2090 (module-script
-`await` instrumentation) to 427, and #2028 (`console.*` wrapping) to 306 — all
-with no regression on `client` or `server`, both of which are empty.
+`await` instrumentation) to 427, #2028 (`console.*` wrapping) to 306, and #2027
+(ownership validation on `bind:` member mutations) to 284 — all with no
+regression on `client` or `server`, both of which are empty.
 
 ### How the counts below are derived
 
@@ -75,13 +76,13 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| ownership mutation validation | 105 | 2 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
-| `$.tag()` / `$.tag_proxy()` | 24 | 0 | `visitors/VariableDeclaration.js` | #2021 |
+| ownership mutation validation | 81 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
+| `$.tag()` / `$.tag_proxy()` | 26 | 0 | `visitors/VariableDeclaration.js` | #2021 |
 | equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-123 entries are attributed to a cluster; the remaining **183** show no
+97 entries are attributed to a cluster; the remaining **187** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (JSDoc dropped, the legacy `bind:` `function get()/set()` shape,
 `$.assign`, `$$css`).
