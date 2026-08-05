@@ -1,7 +1,6 @@
 [
 	"attractions/attractions/snackbar/snackbar-container.svelte",
 	"attractions/attractions/text-field/text-field.svelte",
-	"bits-ui/docs/src/lib/components/examples/command/raycast/sub-command.svelte",
 	"bits-ui/packages/bits-ui/src/lib/bits/menubar/components/menubar-trigger.svelte",
 	"bits-ui/packages/bits-ui/src/lib/bits/utilities/presence-layer/presence.svelte.ts",
 	"cmsaasstarter/src/routes/(admin)/account/(menu)/settings/settings_module.svelte",
@@ -227,7 +226,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/mutation-both/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-discouraged/Counter.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/sub.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-3/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-ok/child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-2/Counter.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-3/Counter.svelte",
@@ -236,7 +234,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-6/Component3.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding/Counter.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-bindable-fallback/Parent.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-use-transform/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/props-default-reactivity/Counter.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/proxy-prop-bound/Counter.svelte",
