@@ -398,7 +398,7 @@ mod tests {
         let out =
             transform_store_assign_ast("$a = 1; $b += 2;", &ssv(&["$a", "$b"]), &[], &[], &[])
                 .unwrap();
-        assert_eq!(out, "$.store_set(a, 1); $.store_set(b, $b() + 2);");
+        assert_eq!(out, "$.store_set(a, 1);\n$.store_set(b, $b() + 2);");
     }
 
     #[test]

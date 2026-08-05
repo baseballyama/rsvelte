@@ -276,7 +276,10 @@ mod tests {
     fn multiple_stores_in_one_source() {
         let out =
             transform_store_update_ast("$a++; $b--;", &ssv(&["$a", "$b"]), &[], &[], &[]).unwrap();
-        assert_eq!(out, "$.update_store(a, $a()); $.update_store(b, $b(), -1);");
+        assert_eq!(
+            out,
+            "$.update_store(a, $a());\n$.update_store(b, $b(), -1);"
+        );
     }
 
     #[test]

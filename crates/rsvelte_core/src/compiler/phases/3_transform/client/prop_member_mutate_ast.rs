@@ -493,7 +493,7 @@ mod tests {
             transform_prop_member_mutate_ast("field.x = {};", &ssv(&["field"]), &[], &map).unwrap();
         assert_eq!(
             out,
-            "(field(field().x = {}, true), $.invalidate_inner_signals(() => { a; b(); }));"
+            "(\n\tfield(field().x = {}, true),\n\t$.invalidate_inner_signals(() => {\n\t\ta;\n\t\tb();\n\t})\n);"
         );
     }
 
@@ -611,7 +611,7 @@ mod tests {
         let out =
             transform_prop_member_mutate_ast("a.x = 1; b.y = 2;", &ssv(&["a", "b"]), &[], &nm())
                 .unwrap();
-        assert_eq!(out, "a(a().x = 1, true); b(b().y = 2, true);");
+        assert_eq!(out, "a(a().x = 1, true);\nb(b().y = 2, true);");
     }
 
     #[test]
@@ -682,7 +682,7 @@ mod tests {
         // matches the text version exactly.
         let src = "console.log((a.b = true));";
         let out = transform_prop_member_mutate_ast(src, &ssv(&["a"]), &[], &nm()).unwrap();
-        assert_eq!(out, "console.log((a(a().b = true, true)));");
+        assert_eq!(out, "console.log(a(a().b = true, true));");
     }
 
     #[test]

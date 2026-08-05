@@ -432,7 +432,7 @@ mod tests {
             &eb(),
         )
         .unwrap();
-        assert_eq!(out, "$.mutate(a, a.x = 1); $.mutate(b, b.y = 2);");
+        assert_eq!(out, "$.mutate(a, a.x = 1);\n$.mutate(b, b.y = 2);");
     }
 
     #[test]

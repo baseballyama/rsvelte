@@ -180,37 +180,37 @@ mod tests {
     #[test]
     fn compound_addition() {
         let out = transform_prop_assign_ast("x += 3;", &ssv(&["x"])).unwrap();
-        assert_eq!(out, "x(x() + (3));");
+        assert_eq!(out, "x(x() + 3);");
     }
 
     #[test]
     fn compound_subtraction() {
         let out = transform_prop_assign_ast("x -= 3;", &ssv(&["x"])).unwrap();
-        assert_eq!(out, "x(x() - (3));");
+        assert_eq!(out, "x(x() - 3);");
     }
 
     #[test]
     fn compound_multiplication() {
         let out = transform_prop_assign_ast("x *= 2;", &ssv(&["x"])).unwrap();
-        assert_eq!(out, "x(x() * (2));");
+        assert_eq!(out, "x(x() * 2);");
     }
 
     #[test]
     fn compound_division() {
         let out = transform_prop_assign_ast("x /= 2;", &ssv(&["x"])).unwrap();
-        assert_eq!(out, "x(x() / (2));");
+        assert_eq!(out, "x(x() / 2);");
     }
 
     #[test]
     fn compound_remainder() {
         let out = transform_prop_assign_ast("x %= 2;", &ssv(&["x"])).unwrap();
-        assert_eq!(out, "x(x() % (2));");
+        assert_eq!(out, "x(x() % 2);");
     }
 
     #[test]
     fn compound_exponential() {
         let out = transform_prop_assign_ast("x **= 2;", &ssv(&["x"])).unwrap();
-        assert_eq!(out, "x(x() ** (2));");
+        assert_eq!(out, "x(x() ** 2);");
     }
 
     #[test]
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn multiple_assignments_in_one_source() {
         let out = transform_prop_assign_ast("a = 1; b += 2;", &ssv(&["a", "b"])).unwrap();
-        assert_eq!(out, "a(1); b(b() + (2));");
+        assert_eq!(out, "a(1);\nb(b() + 2);");
     }
 
     #[test]

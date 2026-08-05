@@ -282,7 +282,7 @@ mod tests {
         let out =
             transform_reactive_update_ast("a++; b--; ++c;", &ssv(&["a"]), &ssv(&["b", "c"]), &[])
                 .unwrap();
-        assert_eq!(out, "$.update_prop(a); $.update(b, -1); $.update_pre(c);");
+        assert_eq!(out, "$.update_prop(a);\n$.update(b, -1);\n$.update_pre(c);");
     }
 
     #[test]
@@ -314,7 +314,10 @@ mod tests {
         .unwrap();
         // The loop counter `i` is not a prop/state var → untouched.
         // `x++` in the body → rewritten.
-        assert_eq!(out, "for (let i = 0; i < 10; i++) { $.update_prop(x); }");
+        assert_eq!(
+            out,
+            "for (let i = 0; i < 10; i++) {\n\t$.update_prop(x);\n}"
+        );
     }
 
     #[test]

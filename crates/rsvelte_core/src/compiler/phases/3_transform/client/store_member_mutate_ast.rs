@@ -355,7 +355,7 @@ mod tests {
             transform_store_member_mutate_ast("$a.x = 1; $b.y++;", &ssv(&["$a", "$b"])).unwrap();
         assert_eq!(
             out,
-            "$.store_mutate(a, $.untrack($a).x = 1, $.untrack($a)); $.store_mutate(b, $.untrack($b).y++, $.untrack($b));"
+            "$.store_mutate(a, $.untrack($a).x = 1, $.untrack($a));\n$.store_mutate(b, $.untrack($b).y++, $.untrack($b));"
         );
     }
 

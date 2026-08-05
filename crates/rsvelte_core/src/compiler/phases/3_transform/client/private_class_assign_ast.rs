@@ -524,7 +524,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "const fps = 1000 / delta;\n$.set(this.#fps, fps);");
+        assert_eq!(out, "const fps = 1000 / delta;\n\n$.set(this.#fps, fps);");
     }
 
     #[test]
@@ -603,7 +603,7 @@ mod tests {
             &ssv(&["this.#b"]),
         )
         .unwrap();
-        assert_eq!(out, "$.set(this.#a, 1); $.update(this.#b);");
+        assert_eq!(out, "$.set(this.#a, 1);\n$.update(this.#b);");
     }
 
     #[test]
@@ -727,9 +727,12 @@ mod tests {
         // so Fix #2 (class wrapper) must kick in.
         let src = "remove(item) {\n  this.#files = this.#files.filter((f) => {\n    if (f === item) return false;\n    return true;\n  });\n}";
         let out = transform_private_class_assign_ast(src, &ssv(&["this.#files"]), &[]).unwrap();
+        // Asserted on the whitespace-free form: the shape is what matters here,
+        // and the printer is free to break the call across lines.
+        let flat: String = out.chars().filter(|c| !c.is_whitespace()).collect();
         // The assignment should be rewritten; no stray ) should appear
         assert!(
-            out.contains("$.set(this.#files,"),
+            flat.contains("$.set(this.#files,"),
             "expected $.set rewrite, got: {}",
             out
         );

@@ -213,14 +213,14 @@ mod tests {
     fn rewrites_inside_if_block() {
         let src = "if (cond) { x = 5; }";
         let out = transform_state_set_reactive_ast(src, &ssv(&["x"]), &[]).unwrap();
-        assert_eq!(out, "if (cond) { $.set(x, 5); }");
+        assert_eq!(out, "if (cond) {\n\t$.set(x, 5);\n}");
     }
 
     #[test]
     fn rewrites_inside_callback() {
         let src = "items.forEach(it => { x = it; });";
         let out = transform_state_set_reactive_ast(src, &ssv(&["x"]), &[]).unwrap();
-        assert_eq!(out, "items.forEach(it => { $.set(x, it); });");
+        assert_eq!(out, "items.forEach((it) => {\n\t$.set(x, it);\n});");
     }
 
     #[test]
@@ -236,14 +236,14 @@ mod tests {
     fn rewrites_multiline_rhs() {
         let src = "x = a\n + b;";
         let out = transform_state_set_reactive_ast(src, &ssv(&["x"]), &[]).unwrap();
-        assert_eq!(out, "$.set(x, a\n + b);");
+        assert_eq!(out, "$.set(x, a + b);");
     }
 
     #[test]
     fn multiple_assignments_in_one_source() {
         let out =
             transform_state_set_reactive_ast("a = 1; b = 2;", &ssv(&["a", "b"]), &[]).unwrap();
-        assert_eq!(out, "$.set(a, 1); $.set(b, 2);");
+        assert_eq!(out, "$.set(a, 1);\n$.set(b, 2);");
     }
 
     #[test]
