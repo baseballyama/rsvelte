@@ -217,9 +217,10 @@ pub fn with_class_fragment_program_mut(
                 if !f(&allocator, &mut parsed.program, parse_str) {
                     return None;
                 }
-                let options =
-                    rsvelte_esrap::PrintOptions::default().with_indent(CLASS_FRAGMENT_INDENT);
-                let printed = rsvelte_esrap::print_with(&parsed.program, parse_str, &options);
+                // `unwrap_class_fragment` strips exactly one level of the
+                // printer's indentation, so `CLASS_FRAGMENT_INDENT` has to stay
+                // equal to the printer's — which is what it is set to.
+                let printed = rsvelte_esrap::print(&parsed.program, parse_str);
                 dual_run::count_print(pass, printed.len());
                 let mut printed = if wrapped {
                     unwrap_class_fragment(&printed)?
