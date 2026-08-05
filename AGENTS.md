@@ -145,6 +145,10 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 - Run `cargo fmt && cargo clippy --all-targets --all-features -- -D warnings` before committing
 - Push immediately after committing
 - Releases are automated via Changesets Release PRs
+- A **brand-new** platform package cannot be published by CI: npm OIDC trusted publishing
+  only works for a name that already exists. Bootstrap it once with
+  `pnpm run bootstrap-platform-packages -- --run <ci-run-id> --yes`, attach the trusted
+  publisher on npmjs.com, then re-run the release
 
 ### Maintaining This File
 
