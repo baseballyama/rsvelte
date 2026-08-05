@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 39 entries)
+## Client dev (`known-failures.client-dev.json`, 22 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -117,6 +117,21 @@ now also reads a chain written through a TypeScript non-null assertion or an
 optional access (`selected!.from`, `selected?.from`), which it had been skipping
 entirely.
 
+Building the injected stylesheet's dev source map took it to 22. `css/index.js`
+runs the whole `.svelte` source through MagicString, so the map is not a
+per-token table: a segment lands at the first character of every unedited chunk,
+after every newline inside one, and at every `addSourcemapLocation` — which the
+`_` visitor calls on the `start` and `end` of every node it visits, recursing
+into a `PseudoClassSelector` only for `is`/`where`/`has`/`not`. The scoping
+modifier is inserted with `appendLeft`, which maps nowhere at all. rsvelte builds
+its stylesheet by writing into a string, so the writer now records the source
+offset of every copied run alongside the marks, and the map is emitted from
+those. A selector that the transform did not reproduce verbatim (anything beyond
+skipping the modifier) falls back to unmapped rather than mapping to the wrong
+place. A custom element gets the map too: upstream's gate is `dev &&
+inject_styles && css.code`, which `$css.code` satisfies like any other injected
+stylesheet.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -148,11 +163,11 @@ The signal read/write row is now empty: `$state` reassignment is resolved per
 binding rather than per name, so same-named `$state` locals in sibling scopes no
 longer share one classification and lose their `$.state(...)` wrapper.
 
-14 entries are attributed to a cluster; the remaining **25** show no
-difference in any dev helper: 18 are the CSS sourcemap the `$$css`/`$css`
-payload carries in dev, 2 are a `$.trace` label's line:column, 2 are redundant
-parentheses around an ownership wrapper, 1 is a statement missing from a
-legacy `$:` body and 2 are one-off shapes (an `$.assign` location, an
+14 entries are attributed to a cluster; the remaining **8** show no
+difference in any dev helper: 2 are a `$.trace` label's line:column, 2 are
+redundant parentheses around an ownership wrapper, 1 is a statement missing
+from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own mapping in a
+minified stylesheet and 2 are one-off shapes (an `$.assign` location, an
 `$.assign_async` wrap). All are tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
 entries of that residue and is fixed: `build_each_block_accessor_parts` now
 hands the element `bind:` path the unthunked getter body plus the setter body,
