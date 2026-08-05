@@ -127,7 +127,19 @@ pub fn with_program_mut(
 fn keep_fragment_termination(source: &str, printed: &mut String) {
     if printed.ends_with(';') && !source.trim_end().ends_with(';') {
         printed.pop();
+        dual_run::count_termination(source, printed);
     }
+}
+
+/// Whether the fragment's last token can be the start of the arguments, index or
+/// operand of whatever the caller appends.
+///
+/// This is the second half of the fragment contract: reproducing the source's
+/// terminator is not enough if the rewrite also changes what the last token
+/// binds to. `x = {}` followed by `(c)` is a block and a call of `c`; rewritten
+/// to `$.set(x, {})` the same following text becomes an argument list.
+fn continues_an_expression(fragment: &str) -> bool {
+    !matches!(fragment.trim_end().as_bytes().last(), Some(b'}') | None)
 }
 
 /// Class wrapper for method-body fragments that Phase-3 hands around without
@@ -363,6 +375,35 @@ mod tests {
     #[test]
     fn splice_empty_is_none() {
         assert!(splice("abc", vec![], false).is_none());
+    }
+
+    /// The text path is unreachable in production now, so nothing else walks it:
+    /// without this it could stop working and only say so the first time someone
+    /// needs the fallback.
+    #[test]
+    fn a_pass_falls_back_to_the_text_path_when_the_in_place_path_declines() {
+        assert!(
+            dual_run::prefer_in_place(),
+            "RSVELTE_AST_SPLICE must not be set while running the tests"
+        );
+        let out = dual_run::resolve(
+            "fallback:test",
+            "x = 1",
+            || Some("SPLICED".to_string()),
+            || None,
+        );
+        assert_eq!(out.as_deref(), Some("SPLICED"));
+    }
+
+    #[test]
+    fn the_in_place_result_is_what_a_pass_returns_when_there_is_one() {
+        let out = dual_run::resolve(
+            "fallback:test",
+            "x = 1",
+            || Some("SPLICED".to_string()),
+            || Some("IN_PLACE".to_string()),
+        );
+        assert_eq!(out.as_deref(), Some("IN_PLACE"));
     }
 
     #[test]
@@ -611,6 +652,40 @@ pub mod dual_run {
     #[inline]
     pub fn enabled() -> bool {
         *ENABLED
+    }
+
+    thread_local! {
+        /// (fragments whose terminator was dropped, of those the ones whose last
+        /// token changed class). Counted unconditionally: it is two byte reads,
+        /// and a counter that only runs under a flag cannot answer "does this
+        /// happen in production".
+        static TERMINATION: std::cell::Cell<(u32, u32)> = const { std::cell::Cell::new((0, 0)) };
+    }
+
+    /// Record one dropped terminator, and whether dropping it changed what the
+    /// fragment's last token binds to.
+    pub(super) fn count_termination(source: &str, printed: &str) {
+        let differs = continues_an_expression(source) != continues_an_expression(printed);
+        TERMINATION.with(|t| {
+            let (pops, changed) = t.get();
+            t.set((pops + 1, changed + u32::from(differs)));
+        });
+        if differs && *DUMP > 0 {
+            eprintln!(
+                "=== last token class changed ===\n--- source ---\n{source}\n--- printed ---\n{printed}\n"
+            );
+        }
+    }
+
+    /// `(dropped terminators, of those the ones that changed the last token's
+    /// class)`. The first is the denominator: a zero numerator means nothing
+    /// only if the denominator is not also zero.
+    pub fn termination_counts() -> (u32, u32) {
+        TERMINATION.with(std::cell::Cell::get)
+    }
+
+    pub fn reset_termination_counts() {
+        TERMINATION.with(|t| t.set((0, 0)));
     }
 
     /// Whether a ported pass returns its in-place result instead of the spliced

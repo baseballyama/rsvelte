@@ -69,6 +69,15 @@ pub use compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::Work 
 pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewriteWork)> {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::work()
 }
+
+/// `(fragments whose printed terminator was dropped, of those the ones whose
+/// last token changed class)`. The second number is the one that matters: a
+/// fragment whose last token changes class binds whatever the caller appends
+/// differently, and no parse gate can see it because both forms are valid.
+#[doc(hidden)]
+pub fn ast_rewrite_termination_counts() -> (u32, u32) {
+    compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::termination_counts()
+}
 #[cfg(feature = "parallel")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,
