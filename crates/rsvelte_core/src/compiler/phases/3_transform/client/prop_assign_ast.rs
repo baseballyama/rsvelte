@@ -473,9 +473,8 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for PropAssignRewriter<'a> {
         let arg =
             match op {
                 None => rhs,
-                // The text path parenthesises the right operand verbatim; keep the
-                // node so the printed form matches rather than relying on the
-                // printer's own precedence rules.
+                // Mirrors the shape the text path builds; the printed parens come
+                // from the printer's precedence rules, which unwrap this node.
                 Some(op) => {
                     let parens = Expression::ParenthesizedExpression(
                         ParenthesizedExpression::boxed(oxc_span::SPAN, rhs, &self.b.ab()),
