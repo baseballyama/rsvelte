@@ -6,6 +6,14 @@
 //! printer is inlined into its callers, or if a site spends time outside the
 //! crate (sourcemap assembly). Both numbers must come from the same run to be
 //! comparable, so this stays off unless the env var is set.
+//!
+//! DUPLICATE — do not extend both. `EsrapBreakdown` on the (unmerged) branch
+//! `dropped/evaluate-memo-c6c14906` instruments the same six print sites with
+//! call counts and a wasm-safe shim, consumed by
+//! `rsvelte_devtools/src/bin/esrap_share.rs`. Neither that struct nor that
+//! binary is in `main`; if either is ever revived, delete this module rather
+//! than maintaining two sets of numbers. (`profile.rs` in `main` is a different
+//! thing: `Phase3Breakdown`, sub-phases rather than print sites.)
 
 use std::cell::Cell;
 use std::time::Duration;
