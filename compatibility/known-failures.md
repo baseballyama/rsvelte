@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 281 entries)
+## Client dev (`known-failures.client-dev.json`, 234 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -59,9 +59,11 @@ The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
 #2029, #2030, #2039, #2040, and the #2021 series) took it to 896, #2116
 (legacy instance-script instrumentation) to 639, #2090 (module-script
 `await` instrumentation) to 427, #2028 (`console.*` wrapping) to 306, #2027
-(ownership validation on `bind:` member mutations) to 284, and #2231 (the same
-validation on member assignments inside `$effect`) to 281 — all with no
-regression on `client` or `server`, both of which are empty.
+(ownership validation on `bind:` member mutations) to 284, #2231 (the same
+validation on member assignments inside `$effect`) to 281, and the legacy
+each-block `bind:` accessor shape (named `function get()` / `function
+set($$value)` instead of arrows) to 234 — all with no regression on `client` or
+`server`, both of which are empty.
 
 ### How the counts below are derived
 
@@ -83,10 +85,15 @@ each side, which separates the two directions and cannot be fooled by order:
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-94 entries are attributed to a cluster; the remaining **187** show no
+94 entries are attributed to a cluster; the remaining **140** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
-in #2064 (JSDoc dropped, the legacy `bind:` `function get()/set()` shape,
-`$.assign`, `$$css`).
+in #2064 (`$.assign`, `$$css`, `$.event` handler naming, constant-folded
+template expressions). The legacy `bind:` `function get()/set()` shape was 47
+entries of that residue and is fixed: `build_each_block_accessor_parts` now
+hands the element `bind:` path the unthunked getter body plus the setter body,
+so `dev` can emit upstream's named accessors (`BindDirective.js:46-54`). The
+component `bind:` path keeps consuming the same bodies for its object-literal
+`get`/`set` methods.
 
 ### What is left of the equality and await rows
 
