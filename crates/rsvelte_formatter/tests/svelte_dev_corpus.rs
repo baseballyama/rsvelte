@@ -295,6 +295,18 @@ fn svelte_dev_corpus_parity() {
         }
     }
 
+    // Unparseable samples are excused from the parity gate below, so an
+    // unbounded count would let a parser regression that breaks nearly every
+    // sample look green here. Ceiling is well above the current baseline (0)
+    // to leave room for normal corpus drift.
+    const MAX_UNPARSEABLE: usize = 20;
+    assert!(
+        unparseable.len() <= MAX_UNPARSEABLE,
+        "{} unparseable sample(s) exceeds the ceiling of {MAX_UNPARSEABLE} — this usually \
+         means a parser regression, not isolated embedded-code gaps",
+        unparseable.len(),
+    );
+
     if !failures.is_empty() {
         // Hard gate: every sample must match the oxfmt(svelte:true) oracle.
         // FMT_CORPUS_SHOW raises the per-run cap for burndown analysis.
