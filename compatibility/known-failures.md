@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 306 entries)
+## Client dev (`known-failures.client-dev.json`, 305 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -59,7 +59,10 @@ The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
 #2029, #2030, #2039, #2040, and the #2021 series) took it to 896, #2116
 (legacy instance-script instrumentation) to 639, #2090 (module-script
 `await` instrumentation) to 427, and #2028 (`console.*` wrapping) to 306 — all
-with no regression on `client` or `server`, both of which are empty.
+with no regression on `client` or `server`, both of which are empty. Making the
+Phase-3 in-place path the one that ships took it to 305: the text path dropped
+the `;` after a state assignment that an `await` followed, so the two ran
+together into a call chain.
 
 ### How the counts below are derived
 
@@ -81,7 +84,7 @@ each side, which separates the two directions and cannot be fooled by order:
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
-123 entries are attributed to a cluster; the remaining **183** show no
+123 entries are attributed to a cluster; the remaining **182** show no
 difference in any dev helper and are the formatting / long-tail residue tracked
 in #2064 (JSDoc dropped, the legacy `bind:` `function get()/set()` shape,
 `$.assign`, `$$css`).
