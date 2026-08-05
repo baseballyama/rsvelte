@@ -7,6 +7,7 @@
 
 pub(crate) use super::shared::ast_rewrite;
 use std::fmt::Write as _;
+mod assign_dev_ast;
 mod ast;
 mod ast_state_transform;
 mod await_reactivity_loss_ast;
@@ -6274,6 +6275,13 @@ fn transform_instance_script_for_visitors(
         && !analysis.runes
         && let Some(instrumented) =
             instance_dev_tail_ast::transform_legacy_instance_dev_tail_ast(&result, Some(analysis))
+    {
+        result = instrumented;
+    }
+
+    if dev
+        && let Some(instrumented) =
+            instance_dev_tail_ast::transform_instance_dev_assign_tail(&result, analysis)
     {
         result = instrumented;
     }
