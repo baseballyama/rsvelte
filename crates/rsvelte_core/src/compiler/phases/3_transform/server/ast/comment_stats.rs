@@ -64,9 +64,10 @@ pub fn dump() {
     if !enabled() {
         return;
     }
+    use std::fmt::Write as _;
     let mut line = String::from("SERVER_COMMENT_STATS");
     for (k, v) in take_all() {
-        line.push_str(&format!(" {k}={v}"));
+        let _ = write!(line, " {k}={v}");
     }
     line.push('\n');
     // Corpus workers share one stderr, and `eprintln!` writes each piece

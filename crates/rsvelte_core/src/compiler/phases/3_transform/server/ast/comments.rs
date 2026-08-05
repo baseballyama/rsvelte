@@ -225,7 +225,7 @@ pub fn print_with_comments<'a>(
     super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
     program.comments = ArenaVec::from_iter_in(comments, &allocator);
 
-    let out = rsvelte_esrap::print_split(
+    rsvelte_esrap::print_split(
         program,
         &buf,
         PAD.len() as u32,
@@ -233,6 +233,5 @@ pub fn print_with_comments<'a>(
         &[],
         &rsvelte_esrap::PrintOptions::default(),
     )
-    .code;
-    out
+    .code
 }
