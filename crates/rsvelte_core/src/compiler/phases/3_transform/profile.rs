@@ -148,6 +148,11 @@ pub struct ScriptTextBreakdown {
     /// Bounds the stage sum from above and the parent timer from below, so
     /// when the two disagree this says which of them is wrong.
     pub in_function: Duration,
+    /// Entries that ran while no parent interval was open.
+    ///
+    /// This is the case equal totals cannot rule out: a parent interval that
+    /// wraps no call, paired with a call that no parent wraps.
+    pub entries_outside_parent: u64,
 }
 
 /// The `*_ast` rewrite passes all reach the parser through one choke point,
@@ -205,6 +210,8 @@ thread_local! {
     static ST_DEPTH: Cell<u64> = const { Cell::new(0) };
     static ST_NESTED_ENTRIES: Cell<u64> = const { Cell::new(0) };
     static ST_IN_FUNCTION: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_PARENT_OPEN: Cell<u64> = const { Cell::new(0) };
+    static ST_ENTRIES_OUTSIDE: Cell<u64> = const { Cell::new(0) };
     static ST_PARENT_SITE_MAIN: Cell<u64> = const { Cell::new(0) };
     static ST_PARENT_SITE_PUB: Cell<u64> = const { Cell::new(0) };
 
@@ -357,7 +364,28 @@ impl EntryGuard {
                 ST_NESTED_ENTRIES.with(|c| c.set(c.get() + 1));
             }
         });
+        if ST_PARENT_OPEN.with(Cell::get) == 0 {
+            ST_ENTRIES_OUTSIDE.with(|c| c.set(c.get() + 1));
+        }
         Self(timer_start())
+    }
+}
+
+/// Marks the span a parent timer covers, so an entry can tell whether it is
+/// inside one.
+pub struct ParentScope;
+
+impl ParentScope {
+    #[expect(clippy::new_without_default, reason = "a guard is never defaulted")]
+    pub fn new() -> Self {
+        ST_PARENT_OPEN.with(|c| c.set(c.get() + 1));
+        Self
+    }
+}
+
+impl Drop for ParentScope {
+    fn drop(&mut self) {
+        ST_PARENT_OPEN.with(|c| c.set(c.get().saturating_sub(1)));
     }
 }
 
@@ -465,6 +493,7 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         parent_site_main: ST_PARENT_SITE_MAIN.with(|c| c.replace(0)),
         parent_site_pub: ST_PARENT_SITE_PUB.with(|c| c.replace(0)),
         in_function: ST_IN_FUNCTION.with(|c| c.replace(Duration::ZERO)),
+        entries_outside_parent: ST_ENTRIES_OUTSIDE.with(|c| c.replace(0)),
     }
 }
 

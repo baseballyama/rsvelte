@@ -551,6 +551,7 @@ fn transform_client_with_visitors(
         let split_top_level_declarations =
             instance_has_top_level_multi_declarator(ast, &instance_script.raw);
         let _script_start = super::profile::timer_start();
+        let _parent_scope = super::profile::ParentScope::new();
         let mut transformed = transform_instance_script_for_visitors(
             &script_body,
             analysis,
@@ -4231,6 +4232,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     // Timed like the main call site, so the script-text bucket stays the parent
     // of its five stage timers rather than missing this entry point's share.
     let _script_start = super::profile::timer_start();
+    let _parent_scope = super::profile::ParentScope::new();
     let out = transform_instance_script_for_visitors(
         script,
         analysis,

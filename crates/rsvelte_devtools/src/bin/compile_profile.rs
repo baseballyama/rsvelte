@@ -279,6 +279,10 @@ fn main() {
         st.entries,
         ms(st.in_function)
     );
+    println!(
+        "    PAIRING entries_outside_parent {}",
+        st.entries_outside_parent
+    );
     report_reparse(&mut rows, ms(total));
     println!(
         "  Template fragment:   {:7.2}ms ({:5.1}%)",
