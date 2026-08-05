@@ -204,13 +204,15 @@ pub(super) fn find_matching_close_paren(s: &str) -> Option<usize> {
     None
 }
 
-/// Drop the comments belonging to a `$:` reactive statement, and only those.
+/// Drop the comments belonging to a `$:` reactive statement, and only those
+/// that upstream cannot re-home.
 ///
 /// Upstream replaces each reactive statement with a synthesized
-/// `$.legacy_pre_effect(...)` call, so its comments — leading ones and any
-/// inside its body — have no node left to attach to and never reach the
-/// output. Every other comment in the instance script does survive, which is
-/// why this cannot be a blanket strip.
+/// `$.legacy_pre_effect(...)` call, so its comments have no node of their own
+/// left. esrap still prints them as leading trivia of the next surviving
+/// statement, though — they only vanish when nothing follows. Comments *inside*
+/// the statement travel into the synthesized call here, where they cannot be
+/// re-homed, so those are dropped either way.
 ///
 /// `svelte-ignore` comments are kept regardless: later text passes read them.
 ///
@@ -224,17 +226,22 @@ pub(super) fn strip_reactive_statement_comments(source: &str) -> String {
     strip_comments_in_spans(source, &reactive_spans)
 }
 
-/// Byte ranges covered by top-level `$:` statements, each extended backwards
-/// over the whitespace and comments that lead up to the label.
+/// Byte ranges whose comments a `$:` statement takes with it. A statement with
+/// a surviving successor keeps its leading comment run — they re-home onto that
+/// successor — so the range then starts at the label instead.
 fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
     let bytes = source.as_bytes();
     let len = bytes.len();
-    let mut spans = Vec::new();
+    // (leading-run start, label start, end)
+    let mut spans: Vec<(usize, usize, usize)> = Vec::new();
     let mut scan = JsScan::new();
     let mut i = 0;
     // Byte just past the last code token, i.e. where a leading comment run may
     // start.
     let mut after_last_code = 0;
+    // Same, but never advanced by a reactive statement: the end of the last
+    // statement that survives into the output.
+    let mut after_last_surviving_code = 0;
 
     while i < len {
         let starts_comment = scan.starts_comment(source, i);
@@ -245,6 +252,7 @@ fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
             let trails_code = starts_comment && !source[after_last_code..i].contains('\n');
             if !starts_comment || trails_code {
                 after_last_code = next;
+                after_last_surviving_code = next;
             }
             i = next;
             continue;
@@ -263,7 +271,7 @@ fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
         {
             let end = reactive_statement_end(source, &mut scan, i + 2);
             let end = extend_over_trailing_comment(source, end);
-            spans.push((after_last_code, end));
+            spans.push((after_last_code, i, end));
             i = end;
             after_last_code = end;
             continue;
@@ -271,8 +279,16 @@ fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
         scan.note_code(c);
         i += 1;
         after_last_code = i;
+        after_last_surviving_code = i;
     }
+
     spans
+        .into_iter()
+        .map(|(leading, label, end)| {
+            let has_successor = after_last_surviving_code > end;
+            (if has_successor { label } else { leading }, end)
+        })
+        .collect()
 }
 
 /// Byte just past the end of the reactive statement whose body starts at
@@ -1207,9 +1223,16 @@ mod reactive_comment_tests {
     }
 
     #[test]
-    fn drops_the_comments_leading_a_reactive_statement() {
+    fn drops_the_comments_leading_a_last_reactive_statement() {
         let out = strip_reactive_statement_comments("let x = 1;\n// note\n$: y = x;\n");
         assert_eq!(out, "let x = 1;\n\n$: y = x;\n");
+    }
+
+    #[test]
+    fn keeps_the_comments_leading_a_reactive_statement_that_has_a_successor() {
+        // esrap re-homes them onto `let z`, so they do reach the output.
+        assert_kept("let x = 1;\n// note\n$: y = x;\nlet z = 2;\n");
+        assert_kept("let x = 1;\n// note\n$: y = x;\n$: w = y;\nlet z = 2;\n");
     }
 
     #[test]
