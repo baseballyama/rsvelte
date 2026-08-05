@@ -53,7 +53,10 @@ pub fn detect_store_subscriptions(
     options_runes: Option<bool>,
     is_module_file: bool,
 ) -> Result<(), AnalysisError> {
+    super::store_sub_stats::bump::DETECT_CALLS(1);
     if memchr::memchr(b'$', analysis.source.as_bytes()).is_none() {
+        super::store_sub_stats::bump::DETECT_EARLY_OUT(1);
+        super::store_sub_stats::dump();
         return Ok(());
     }
 
@@ -93,7 +96,11 @@ pub fn detect_store_subscriptions(
     // seen in the instance/module scripts (which are visited before the template).
     let mut seen_template: FxHashSet<&str> = FxHashSet::default();
     for store_ref in &template_refs {
-        if store_refs.iter().any(|r| r.name == store_ref.name) {
+        if store_refs
+            .iter()
+            .inspect(|_| super::store_sub_stats::bump::TEMPLATE_DEDUP_CHECKS(1))
+            .any(|r| r.name == store_ref.name)
+        {
             continue;
         }
         if seen_template.insert(store_ref.name.as_str()) {
@@ -467,6 +474,7 @@ pub fn detect_store_subscriptions(
         }
     }
 
+    super::store_sub_stats::dump();
     Ok(())
 }
 
@@ -492,8 +500,10 @@ fn collect_dollar_refs_from_script_with_context(
     // `let foo: $$Props['foo']` is NOT a JS variable reference in upstream's
     // scope analysis, so it must not produce a `$$Props` store ref (which would
     // trigger `global_reference_invalid`). Blanking preserves byte positions.
+    super::store_sub_stats::bump::SCRIPT_SCANS(1);
     if is_typescript {
         let blanked = super::types::blank_typescript(content);
+        super::store_sub_stats::bump::BLANK_TS_BYTES(blanked.len() as u64);
         collect_dollar_identifiers_from_js_with_context(&blanked, start, refs, in_module);
         return;
     }
@@ -654,6 +664,14 @@ fn is_dollar_ident_object_property_key(
     false
 }
 
+/// `chars[lo..=pos] == kw`, counted so the scan's keyword-probe allocations are
+/// visible without changing what the probe decides.
+fn keyword_matches(chars: &[char], lo: usize, kw: &str) -> bool {
+    super::store_sub_stats::bump::KEYWORD_STRINGS(1);
+    super::store_sub_stats::bump::KEYWORD_STRING_BYTES(kw.len() as u64);
+    chars[lo..lo + kw.len()].iter().collect::<String>() == kw
+}
+
 /// Check if a `$xxx` identifier at position `ident_start` is being declared as a
 /// variable (let/const/var $xxx) rather than being a store subscription reference.
 ///
@@ -672,20 +690,20 @@ fn is_dollar_ident_variable_declaration(chars: &[char], ident_start: usize) -> b
     }
     // Check for `let`, `const`, `var` keywords ending at position k
     let pos = k as usize;
-    if pos >= 2 && &chars[pos - 2..=pos].iter().collect::<String>() == "let" {
+    if pos >= 2 && keyword_matches(chars, pos - 2, "let") {
         // Make sure not part of a longer word
         let before = if pos >= 3 { chars[pos - 3] } else { ' ' };
         if !before.is_alphanumeric() && before != '_' && before != '$' {
             return true;
         }
     }
-    if pos >= 4 && &chars[pos - 4..=pos].iter().collect::<String>() == "const" {
+    if pos >= 4 && keyword_matches(chars, pos - 4, "const") {
         let before = if pos >= 5 { chars[pos - 5] } else { ' ' };
         if !before.is_alphanumeric() && before != '_' && before != '$' {
             return true;
         }
     }
-    if pos >= 2 && &chars[pos - 2..=pos].iter().collect::<String>() == "var" {
+    if pos >= 2 && keyword_matches(chars, pos - 2, "var") {
         let before = if pos >= 3 { chars[pos - 3] } else { ' ' };
         if !before.is_alphanumeric() && before != '_' && before != '$' {
             return true;
@@ -711,14 +729,14 @@ fn is_dollar_ident_type_declaration(chars: &[char], ident_start: usize) -> bool 
     }
     let pos = k as usize;
     // Check for `type` keyword ending at position k
-    if pos >= 3 && &chars[pos - 3..=pos].iter().collect::<String>() == "type" {
+    if pos >= 3 && keyword_matches(chars, pos - 3, "type") {
         let before = if pos >= 4 { chars[pos - 4] } else { ' ' };
         if !before.is_alphanumeric() && before != '_' && before != '$' {
             return true;
         }
     }
     // Check for `interface` keyword ending at position k
-    if pos >= 8 && &chars[pos - 8..=pos].iter().collect::<String>() == "interface" {
+    if pos >= 8 && keyword_matches(chars, pos - 8, "interface") {
         let before = if pos >= 9 { chars[pos - 9] } else { ' ' };
         if !before.is_alphanumeric() && before != '_' && before != '$' {
             return true;
@@ -748,6 +766,7 @@ fn collect_dollar_identifiers_from_js_with_context(
     let mut declared: Vec<(String, usize, usize)> = Vec::new();
     // Both passes scan the same text, so decode it once.
     let chars: Vec<char> = js.chars().collect();
+    super::store_sub_stats::bump::CHARS_DECODED(chars.len() as u64);
     collect_dollar_identifiers_pass(
         js,
         &chars,
@@ -788,7 +807,9 @@ fn collect_dollar_identifiers_pass(
     let char_byte_offsets: Option<Vec<usize>> = if collect_declared || js.is_ascii() {
         None
     } else {
-        Some(js.char_indices().map(|(b, _)| b).collect())
+        let offsets: Vec<usize> = js.char_indices().map(|(b, _)| b).collect();
+        super::store_sub_stats::bump::OFFSET_TABLE_CHARS(offsets.len() as u64);
+        Some(offsets)
     };
     let len = chars.len();
     let mut i = 0;
@@ -915,6 +936,7 @@ fn collect_dollar_identifiers_pass(
             if !prev_is_ident_char {
                 let ident_start = i;
                 // Collect the identifier
+                super::store_sub_stats::bump::IDENT_STRINGS(1);
                 let mut ident = String::from("$");
                 i += 1;
 
@@ -932,6 +954,7 @@ fn collect_dollar_identifiers_pass(
 
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
+                super::store_sub_stats::bump::IDENT_STRING_BYTES(ident.len() as u64);
                 if ident.len() > 1 {
                     let param_range = dollar_param_body_range(chars, ident_start, i);
                     let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start);
@@ -950,6 +973,7 @@ fn collect_dollar_identifiers_pass(
                         // declaring scope's char range (mirrors scope resolution).
                         && !declared
                             .iter()
+                            .inspect(|_| super::store_sub_stats::bump::SHADOW_CHECKS(1))
                             .any(|(n, s, e)| n == &ident && ident_start >= *s && ident_start < *e)
                         && !is_dollar_ident_object_property_key(chars, ident_start, i)
                         && !is_dollar_ident_type_declaration(chars, ident_start)
@@ -1230,6 +1254,7 @@ fn collect_dollar_refs_from_expression(
         let start = start as usize;
         let end = end as usize;
         if end <= source.len() && start < end {
+            super::store_sub_stats::bump::EXPR_SCANS(1);
             // Use the context-aware variant that filters out function parameters and
             // variable declarations (let/const/var $xxx) to avoid false positives.
             collect_dollar_identifiers_from_js_with_context(

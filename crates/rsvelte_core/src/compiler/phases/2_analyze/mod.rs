@@ -28,6 +28,7 @@ pub mod errors;
 mod pattern_ids;
 pub mod scope;
 mod scope_builder;
+mod store_sub_stats;
 mod store_subscriptions;
 pub mod types;
 pub mod utils;
