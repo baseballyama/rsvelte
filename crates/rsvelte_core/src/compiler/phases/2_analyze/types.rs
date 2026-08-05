@@ -1488,6 +1488,10 @@ pub struct ComponentAnalysis {
     /// used verbatim in dev-mode source locations.
     pub filename: String,
 
+    /// `state.js`'s `filename`: the compile option made relative to `rootDir`, used
+    /// verbatim in dev location strings (the basename above would truncate them).
+    pub location_filename: String,
+
     /// Whether the component uses runes
     pub runes: bool,
 
@@ -1683,6 +1687,19 @@ impl ComponentAnalysis {
                 .as_ref()
                 .map(|f| normalize_filename(f, options.root_dir.as_deref()))
                 .unwrap_or_else(|| "Component".to_string()),
+            location_filename: {
+                let fname = options
+                    .filename
+                    .as_deref()
+                    .unwrap_or("(unknown)")
+                    .replace('\\', "/");
+                match options.root_dir.as_deref() {
+                    Some(root_dir) if fname.starts_with(&root_dir.replace('\\', "/")) => {
+                        fname[root_dir.len()..].trim_start_matches('/').to_string()
+                    }
+                    _ => fname,
+                }
+            },
             runes: initial_runes,
             runes_explicitly_set: options.runes,
             experimental_async: options.experimental.r#async,
