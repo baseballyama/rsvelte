@@ -1,6 +1,7 @@
 ---
 "@rsvelte/compiler": patch
 "@rsvelte/svelte2tsx": patch
+"@rsvelte/svelte-check": patch
 ---
 
 An inline component's direct `{#snippet}` child is now demoted to a component
