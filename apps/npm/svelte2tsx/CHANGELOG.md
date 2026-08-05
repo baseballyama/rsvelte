@@ -1,5 +1,48 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.12
+
+### Patch Changes
+
+- 5ddb700: An inline component's direct `{#snippet}` child is now demoted to a component
+  prop even when the component also carries a `let:` directive or has other
+  named-slot children, matching official svelte2tsx. rsvelte previously gated
+  the snippet-to-prop relocation off whenever `let:` (or a named-slot child) was
+  present and fell back to emitting the snippet as a standalone block-scoped
+  `const foo = …` declaration instead — official always demotes the snippet and
+  independently emits the `let:` / named-slot `$$slot_def` destructure alongside
+  it. Applies to named components, `<svelte:component>`, and `<svelte:self>`.
+- Updated dependencies [87bc75c]
+- Updated dependencies [bc20a4b]
+- Updated dependencies [71d05a9]
+- Updated dependencies [0279808]
+- Updated dependencies [67067b0]
+- Updated dependencies [6c0438e]
+- Updated dependencies [34d5204]
+- Updated dependencies [4484631]
+- Updated dependencies [88daef1]
+- Updated dependencies [5a7a012]
+- Updated dependencies [7833ada]
+- Updated dependencies [44069dd]
+- Updated dependencies [fca6ab6]
+- Updated dependencies [35f4093]
+- Updated dependencies [4a01be3]
+- Updated dependencies [052eb2f]
+- Updated dependencies [f0f6d4e]
+- Updated dependencies [9f9eaff]
+- Updated dependencies [ecb62ec]
+- Updated dependencies [a62f685]
+- Updated dependencies [be4ba0f]
+- Updated dependencies [2dbaba7]
+- Updated dependencies [6171d26]
+- Updated dependencies [07d827f]
+- Updated dependencies [560a5e7]
+- Updated dependencies [5ddb700]
+- Updated dependencies [6162f60]
+- Updated dependencies [7ea35c3]
+- Updated dependencies [aba6843]
+  - @rsvelte/compiler@0.10.5
+
 ## 0.2.11
 
 ### Patch Changes
