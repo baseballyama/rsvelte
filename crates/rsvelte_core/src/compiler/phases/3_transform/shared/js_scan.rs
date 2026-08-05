@@ -4,7 +4,7 @@
 //! A `}`, `)` or `;` inside a comment, string, template or regex literal is
 //! text, not code, and reading it as code truncated a value mid-comment and
 //! spliced an injected `)` into the comment body (#907, #2253). Every such
-//! scanner steps over opaque runs with [`skip_opaque`] first.
+//! scanner steps over opaque runs with `skip_opaque` first.
 
 /// Does a `/` following `prev` (the last significant code byte) open a regex
 /// literal rather than a division?
