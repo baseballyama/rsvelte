@@ -1027,10 +1027,7 @@ pub fn visit<'a, 'b: 'a>(
             has_content: !element.fragment.nodes.is_empty(),
             has_opaque_content,
             is_dynamic_tag: false,
-            in_snippet: context
-                .fragment_owner_stack
-                .iter()
-                .any(|o| matches!(o, super::FragmentOwnerType::SnippetBlock(..))),
+            snippet_name: context.current_snippet_name(),
             prev_is_opaque_boundary: false,
             prev_has_opaque_boundary: false,
         };
