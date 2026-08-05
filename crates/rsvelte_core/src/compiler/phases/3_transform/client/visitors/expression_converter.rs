@@ -835,7 +835,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let body_node = pa.get_js_node(*body);
             let body_is_assignment = body_node.node_type() == Some("AssignmentExpression");
             let saved_arrow_level = context.state.event_handler_arrow_body_level;
-            if context.state.in_event_attribute_handler && body_is_assignment {
+            if (context.state.in_event_attribute_handler || context.state.in_component_attribute)
+                && body_is_assignment
+            {
                 context.state.event_handler_arrow_body_level = 1;
             }
 
@@ -3075,7 +3077,9 @@ fn convert_arrow_function(
                 Some("AssignmentExpression")
             );
             let saved_level = context.state.event_handler_arrow_body_level;
-            if context.state.in_event_attribute_handler && body_is_assignment {
+            if (context.state.in_event_attribute_handler || context.state.in_component_attribute)
+                && body_is_assignment
+            {
                 context.state.event_handler_arrow_body_level = 1;
             }
             let __tmp = convert_json_value(&Value::Object(body_obj.clone()), context);

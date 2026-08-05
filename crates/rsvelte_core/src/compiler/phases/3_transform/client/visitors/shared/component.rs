@@ -982,12 +982,15 @@ fn process_on_directive(
     // `context` is reborrowed mutably by `build_event_handler`. The arena
     // outlives this borrow and traversal is single-threaded (no aliasing).
     let arena_local = unsafe { &*(&context.arena as *const _) };
+    let saved_in_component_attribute = context.state.in_component_attribute;
+    context.state.in_component_attribute = true;
     let mut handler = build_event_handler(
         arena_local,
         on_directive.expression.as_ref(),
         on_directive,
         context,
     );
+    context.state.in_component_attribute = saved_in_component_attribute;
 
     // Apply once modifier
     if on_directive.modifiers.iter().any(|m| m.as_str() == "once") {
@@ -1138,6 +1141,8 @@ fn process_regular_attribute(
     // Build attribute value with per-chunk memoization (matches JS compiler).
     // The closure is invoked for each chunk's transformed expression.
     let arena_ptr = (&context.arena) as *const _;
+    let saved_in_component_attribute = context.state.in_component_attribute;
+    context.state.in_component_attribute = true;
     let result = build_attribute_value(&attr.value, context, |value, metadata| {
         let has_await = metadata.has_await();
         let has_state = metadata.has_state();
@@ -1162,6 +1167,7 @@ fn process_regular_attribute(
             memo_id
         }
     });
+    context.state.in_component_attribute = saved_in_component_attribute;
 
     let final_value = result.value.clone();
 

@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 91 entries)
+## Client dev (`known-failures.client-dev.json`, 85 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -94,6 +94,11 @@ needs before the statement ASI used to separate, the quote style of the
 written inside a comment or a string, and the comments leading a `$:` statement
 that has a surviving successor.
 
+Emitting the `$.assign` stale-value wrap from the typed `JsNode` path took it to
+85. Three of the six cleared entries are that fix; the other three are the
+equality instrumentation the dev constant-fold fix had already corrected without
+being re-measured.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -108,9 +113,9 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| `$.assign` / `$.assign_async` | 24 | 2 | `visitors/AssignmentExpression.js` | #2064 |
+| `$.assign` / `$.assign_async` | 21 | 2 | `visitors/AssignmentExpression.js` | #2064 |
 | signal read/write (`$.get` / `$.set` / `$.update`) | 7 | 0 | `visitors/shared/utils.js` | #2064 |
-| equality instrumentation | 4 | 0 | `visitors/BinaryExpression.js` | #2064 |
+| equality instrumentation | 1 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | ownership mutation validation | 2 | 0 | `transform-client.js`, `visitors/shared/{component,utils}.js` | #2027 |
 | `$.tag()` / `$.tag_proxy()` | 2 | 0 | `visitors/VariableDeclaration.js` | #2064 |
@@ -122,7 +127,7 @@ it but under-emit call sites. The preamble half is now empty; both survivors
 emit their `$$ownership_validator.binding(...)` calls and are missing exactly one
 `$$ownership_validator.mutation(...)` each.
 
-46 entries are attributed to a cluster; the remaining **45** show no
+40 entries are attributed to a cluster; the remaining **45** show no
 difference in any dev helper: 19 are comment placement, 18 are the CSS
 sourcemap `$$css`/`$css` carries in dev, 4 are dev label / path-element text,
 2 are redundant parentheses and 2 are a `$.trace` label's line:column. All are
@@ -159,7 +164,7 @@ entries:
 
 | | legacy component | runes component | `<script module>` | module script |
 |---|---:|---:|---:|---:|
-| equality under-emits | 2 | 1 | 1 | 0 |
+| equality under-emits | 0 | 1 | 0 | 0 |
 | `track_reactivity_loss` under-emits | 0 | 0 | 0 | 0 |
 
 Both instrumentations are now emitted for every script kind; only over-emits
