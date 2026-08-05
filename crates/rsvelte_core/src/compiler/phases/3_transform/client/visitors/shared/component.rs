@@ -268,7 +268,7 @@ pub fn build_component(
 
     // Group children by slot and process snippets
     // Use IndexMap to preserve insertion order (matches JavaScript object key order)
-    let mut children: IndexMap<String, Vec<&TemplateNode>> = IndexMap::new();
+    let mut children: IndexMap<&str, Vec<&TemplateNode>> = IndexMap::new();
 
     for child in &fragment.nodes {
         if let TemplateNode::SnippetBlock(snippet) = child {
@@ -283,7 +283,9 @@ pub fn build_component(
             continue;
         }
 
-        let slot_name = determine_slot(child).unwrap_or_else(|| "default".to_string());
+        let slot_name = determine_slot(child).unwrap_or("default");
+        #[cfg(feature = "measure-slot-key")]
+        crate::measure_slot_key::record(slot_name);
         children.entry(slot_name).or_default().push(child);
     }
 
@@ -292,7 +294,7 @@ pub fn build_component(
         let slot_fn = build_slot_function(
             arena,
             &slot_children,
-            &slot_name,
+            slot_name,
             slot_scope_applies_to_itself,
             &lets,
             &let_names,
@@ -310,7 +312,7 @@ pub fn build_component(
 
                 if needs_slots_default {
                     // Use $$slots.default
-                    serialized_slots.push(b::prop(arena, &slot_name, fn_expr));
+                    serialized_slots.push(b::prop(arena, slot_name, fn_expr));
                     // Add children prop that errors
                     push_prop_immediate(
                         &mut props_and_spreads,
@@ -336,10 +338,10 @@ pub fn build_component(
                         b::prop(arena, "children", wrapped_fn),
                     );
                     // Add $$slots.default: true
-                    serialized_slots.push(b::prop(arena, &slot_name, b::boolean(true)));
+                    serialized_slots.push(b::prop(arena, slot_name, b::boolean(true)));
                 }
             } else {
-                serialized_slots.push(b::prop(arena, &slot_name, fn_expr));
+                serialized_slots.push(b::prop(arena, slot_name, fn_expr));
             }
         }
     }
@@ -739,7 +741,7 @@ pub fn build_component(
 /// Matches the official `determine_slot()` in `svelte/src/compiler/utils/slot.js`.
 /// This checks for `slot="name"` attribute on element-like nodes:
 /// SvelteElement, RegularElement, SvelteFragment, Component, SvelteComponent, SvelteSelf, SlotElement
-fn determine_slot(node: &TemplateNode) -> Option<String> {
+fn determine_slot<'n>(node: &'n TemplateNode<'_>) -> Option<&'n str> {
     let attributes = match node {
         TemplateNode::RegularElement(elem) => Some(&elem.attributes),
         TemplateNode::Component(comp) => Some(&comp.attributes),
@@ -758,7 +760,7 @@ fn determine_slot(node: &TemplateNode) -> Option<String> {
                 && let AttributeValue::Sequence(parts) = &a.value
                 && let Some(AttributeValuePart::Text(text)) = parts.first()
             {
-                return Some(text.data.to_string());
+                return Some(text.data.as_ref());
             }
         }
     }

@@ -30,6 +30,8 @@ pub mod compiler;
 pub mod error;
 #[cfg(feature = "measure-await")]
 pub mod measure_await;
+#[cfg(feature = "measure-slot-key")]
+pub mod measure_slot_key;
 pub mod toolchain;
 
 pub use compiler::legacy::convert_to_legacy;
