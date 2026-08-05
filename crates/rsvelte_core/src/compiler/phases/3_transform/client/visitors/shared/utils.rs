@@ -3937,6 +3937,15 @@ fn get_literal_value_complex(
         }
         "BinaryExpression" => {
             let operator = obj.get("operator").and_then(|v| v.as_str())?;
+
+            // Upstream evaluates the *converted* expression, and in dev the
+            // `BinaryExpression` visitor has already turned an equality into a
+            // `$.strict_equals` / `$.equals` call — which never evaluates to a
+            // known value, so the chunk stays a call instead of folding.
+            if context.state.options.dev && matches!(operator, "===" | "!==" | "==" | "!=") {
+                return None;
+            }
+
             let left = obj.get("left")?;
             let right = obj.get("right")?;
 
