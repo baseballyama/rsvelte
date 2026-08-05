@@ -1,0 +1,26 @@
+{
+  "name": "@rsvelte/language-server-darwin-x64",
+  "version": "0.3.0",
+  "description": "Prebuilt rsvelte-language-server binary for darwin-x64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/language-server-darwin-x64"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "rsvelte-language-server"
+  ],
+  "scripts": {
+    "prepack": "chmod +x rsvelte-language-server"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -39,6 +39,7 @@
 		"stage-svelte-check": "node scripts/release/stage-svelte-check-binaries.mjs",
 		"stage-fmt": "node scripts/release/stage-fmt-binaries.mjs",
 		"stage-lint": "node scripts/release/stage-lint-binaries.mjs",
+		"stage-language-server": "node scripts/release/stage-language-server-binaries.mjs",
 		"stage-vps-native": "node scripts/release/stage-vps-binaries.mjs",
 		"publish-platform-binaries": "node scripts/release/publish-platform-binaries.mjs",
 		"test:envelope": "node scripts/dev/test-envelope-validation.mjs",

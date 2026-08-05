@@ -38,6 +38,11 @@
     ],
     [
       "@rsvelte/language-server",
+      "@rsvelte/language-server-darwin-arm64",
+      "@rsvelte/language-server-darwin-x64",
+      "@rsvelte/language-server-linux-arm64-gnu",
+      "@rsvelte/language-server-linux-x64-gnu",
+      "@rsvelte/language-server-win32-x64-msvc",
       "rsvelte-vscode"
     ]
   ],

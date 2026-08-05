@@ -86,6 +86,32 @@ importers:
       typescript:
         specifier: ^7.0.0
         version: 7.0.2
+    optionalDependencies:
+      '@rsvelte/language-server-darwin-arm64':
+        specifier: workspace:^
+        version: link:../language-server-darwin-arm64
+      '@rsvelte/language-server-darwin-x64':
+        specifier: workspace:^
+        version: link:../language-server-darwin-x64
+      '@rsvelte/language-server-linux-arm64-gnu':
+        specifier: workspace:^
+        version: link:../language-server-linux-arm64-gnu
+      '@rsvelte/language-server-linux-x64-gnu':
+        specifier: workspace:^
+        version: link:../language-server-linux-x64-gnu
+      '@rsvelte/language-server-win32-x64-msvc':
+        specifier: workspace:^
+        version: link:../language-server-win32-x64-msvc
+
+  apps/npm/language-server-darwin-arm64: {}
+
+  apps/npm/language-server-darwin-x64: {}
+
+  apps/npm/language-server-linux-arm64-gnu: {}
+
+  apps/npm/language-server-linux-x64-gnu: {}
+
+  apps/npm/language-server-win32-x64-msvc: {}
 
   apps/npm/lint:
     optionalDependencies:
