@@ -7,6 +7,7 @@ use super::REGEX_INVALID_IDENTIFIER_CHARS;
 use super::expression_needs_proxy;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::phases::phase3_transform::shared::class_body::split_class_members_onto_lines;
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 
 /// JS-lexical-aware replacement for `find_matching_paren`: given `s` positioned
 /// just after an opening `(`, return the byte offset of the matching `)`,
@@ -98,40 +99,56 @@ fn replace_field_ref_word_boundary(haystack: &str, needle: &str, replacement: &s
 fn net_bracket_depth(line: &str) -> i32 {
     let bytes = line.as_bytes();
     let mut depth = 0i32;
+    let mut prev: Option<u8> = None;
     let mut i = 0;
     while i < bytes.len() {
-        match bytes[i] {
-            b'\'' | b'"' | b'`' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < bytes.len() {
-                    match bytes[i] {
-                        b'\\' => i += 2,
-                        b if b == quote => {
-                            i += 1;
-                            break;
-                        }
-                        _ => i += 1,
-                    }
-                }
-                continue;
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
             }
-            b'/' if bytes.get(i + 1) == Some(&b'/') => break, // rest of line is a comment
-            b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                i += 2;
-                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                i = (i + 2).min(bytes.len());
-                continue;
-            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
             _ => {}
         }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
         i += 1;
     }
     depth
+}
+
+/// Apply `line`'s `{` / `}` to a running class-body nesting depth, clamped at
+/// zero. Braces inside comments and literals do not count — a member scan that
+/// counted them split a method in two at a `// … } …` comment.
+fn advance_brace_depth(line: &str, depth: &mut i32) {
+    let bytes = line.as_bytes();
+    let mut prev: Option<u8> = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        match c {
+            b'{' => *depth += 1,
+            b'}' => *depth = (*depth - 1).max(0),
+            _ => {}
+        }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
+        i += 1;
+    }
 }
 
 /// Does `line` start a multi-line *assignment* — an assignment operator at
@@ -149,42 +166,22 @@ fn is_multiline_assignment_start(line: &str) -> bool {
     }
     let bytes = line.as_bytes();
     let mut depth = 0i32;
+    let mut prev: Option<u8> = None;
     let mut i = 0;
     while i < bytes.len() {
-        match bytes[i] {
-            b'\'' | b'"' | b'`' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < bytes.len() {
-                    match bytes[i] {
-                        b'\\' => i += 2,
-                        b if b == quote => {
-                            i += 1;
-                            break;
-                        }
-                        _ => i += 1,
-                    }
-                }
-                continue;
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
             }
-            b'/' if bytes.get(i + 1) == Some(&b'/') => break,
-            b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                i += 2;
-                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                i = (i + 2).min(bytes.len());
-                continue;
-            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
             b'=' if depth == 0 => {
                 let next = bytes.get(i + 1).copied();
-                let prev = if i > 0 {
-                    bytes.get(i - 1).copied()
-                } else {
-                    None
-                };
                 // A plain or compound (`+=`, `-=`, …) assignment `=`, not the
                 // `==`/`===`/`=>` operators nor the tail of `==`/`!=`/`<=`/`>=`.
                 if next != Some(b'=')
@@ -196,71 +193,84 @@ fn is_multiline_assignment_start(line: &str) -> bool {
             }
             _ => {}
         }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
         i += 1;
     }
     false
 }
 
-/// Split a right-hand-side fragment at its first top-level `;`, returning
-/// `(value, trailing)` where `value` is the assignment expression (trimmed)
-/// and `trailing` is the remainder starting at the `;` (the statement
-/// terminator plus any trailing comment).
+/// The leading run of spaces/tabs of `line`.
+fn leading_whitespace(line: &str) -> &str {
+    let end = line
+        .find(|c: char| c != ' ' && c != '\t')
+        .unwrap_or(line.len());
+    &line[..end]
+}
+
+/// Strip `base` from the start of `line`, falling back to its own leading
+/// whitespace when the line is indented less than `base`.
+fn dedent_line<'a>(line: &'a str, base: &str) -> &'a str {
+    line.strip_prefix(base).unwrap_or_else(|| line.trim_start())
+}
+
+/// Byte offset in `rhs` at which the assigned value ends: the first `;` at
+/// bracket depth 0, the closing bracket of an enclosing group, or the end of
+/// the fragment.
 ///
-/// The line-based class transforms receive a single physical source line,
-/// which can carry a statement terminator and a trailing comment after the
-/// expression — e.g. `getter(); // set the initial value`. Naively trimming a
-/// trailing `;` (`.trim_end_matches(';')`) leaves the inner `;` and the
-/// comment glued onto the value, so `$.set(this.#x, <value>, true)` becomes the
-/// syntactically-broken `$.set(this.#x, getter(); // comment, true)` (issue
-/// #907). Scanning for the first top-level `;` — skipping brackets, strings,
-/// template literals and comments — extracts just `getter()` and preserves the
-/// `; // comment` tail so it can be re-appended after the rewritten statement.
-fn split_rhs_at_top_level_semi(s: &str) -> (&str, &str) {
-    let bytes = s.as_bytes();
+/// Hunting for a bare `;`/`)`/`}` instead is what produced the build-breaking
+/// output in #907 and #2253 — the terminator was found inside a comment or a
+/// literal, the value was truncated there, and the injected `$.set(`'s close
+/// paren landed in the middle of the comment text.
+fn rhs_value_end(rhs: &str) -> usize {
+    let bytes = rhs.as_bytes();
     let mut depth = 0i32;
+    let mut prev: Option<u8> = None;
     let mut i = 0;
     while i < bytes.len() {
-        match bytes[i] {
-            b'\'' | b'"' | b'`' => {
-                // Skip the string/template literal body (handles escapes).
-                let quote = bytes[i];
-                i += 1;
-                while i < bytes.len() {
-                    match bytes[i] {
-                        b'\\' => i += 2,
-                        b if b == quote => {
-                            i += 1;
-                            break;
-                        }
-                        _ => i += 1,
-                    }
-                }
-                continue;
+        // A `//` at depth 0 is the statement's trailing comment, so the value
+        // ends there; anywhere deeper it belongs to the expression and is
+        // skipped like any other opaque run.
+        if depth == 0 && bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            return i;
+        }
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
             }
-            b'/' if bytes.get(i + 1) == Some(&b'/') => break, // line comment → tail
-            b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                i += 2;
-                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                i = (i + 2).min(bytes.len());
-                continue;
-            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        match c {
             b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => depth -= 1,
-            b';' if depth == 0 => return (s[..i].trim(), &s[i..]),
+            b')' | b']' | b'}' => {
+                // A closing bracket we never opened belongs to the enclosing
+                // block, so the value ended before it.
+                if depth == 0 {
+                    return i;
+                }
+                depth -= 1;
+            }
+            b';' if depth == 0 => return i,
             _ => {}
+        }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
         }
         i += 1;
     }
-    // No top-level `;` (and no preceding line comment) — the whole fragment is
-    // the value. If we stopped at a line comment, split there so the comment
-    // stays in the trailing slice.
-    if i < bytes.len() && bytes[i] == b'/' {
-        (s[..i].trim_end().trim_end_matches(';').trim(), &s[i..])
-    } else {
-        (s.trim().trim_end_matches(';').trim(), "")
-    }
+    bytes.len()
+}
+
+/// Split a right-hand-side fragment at the end of its value, returning
+/// `(value, trailing)` — the trimmed assignment expression and the remainder
+/// (statement terminator plus any trailing comment), which is re-appended after
+/// the rewritten statement.
+fn split_rhs_at_top_level_semi(s: &str) -> (&str, &str) {
+    let end = rhs_value_end(s);
+    (s[..end].trim().trim_end_matches(';').trim(), &s[end..])
 }
 
 /// Represents a class field with $state or $derived rune.
@@ -297,8 +307,13 @@ pub(super) struct ClassStateField {
 }
 
 /// Emit a transformed class field definition with optional getter/setter.
-pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassStateField]) -> String {
+pub(super) fn emit_class_field(
+    field: &ClassStateField,
+    all_fields: &[ClassStateField],
+    indent: &str,
+) -> String {
     let mut output = String::new();
+    let body_indent = format!("{}\t", indent);
     let private_name = format!("#{}", field.private_backing_name);
 
     // When a `//` comment preceded this field on its own line in the source,
@@ -316,28 +331,28 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         .unwrap_or_default();
 
     if field.constructor_declared {
-        let _ = writeln!(output, "\t\t{};", private_name);
+        let _ = writeln!(output, "{}{};", indent, private_name);
         if !field.is_private {
             let is_derived = field.rune_type == "$derived" || field.rune_type == "$derived.by";
             let is_raw = field.rune_type == "$state.raw" || field.rune_type == "$state.frozen";
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                field.name, private_name
+                "{}get {}() {{\n{}return $.get(this.{});\n{}}}",
+                indent, field.name, body_indent, private_name, indent
             );
             output.push('\n');
             if is_derived || is_raw {
                 let _ = writeln!(
                     output,
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                    field.name, private_name
+                    "{}set {}(value) {{\n{}$.set(this.{}, value);\n{}}}",
+                    indent, field.name, body_indent, private_name, indent
                 );
             } else {
                 let _ = writeln!(
                     output,
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
-                    field.name, private_name
+                    "{}set {}(value) {{\n{}$.set(this.{}, value, true);\n{}}}",
+                    indent, field.name, body_indent, private_name, indent
                 );
             }
         }
@@ -351,43 +366,43 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         };
         let _ = writeln!(
             output,
-            "\t\t{} = {}$.state({});",
-            private_name, comment_infix, wrapped_value
+            "{}{} = {}$.state({});",
+            indent, private_name, comment_infix, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name
+                "{}get {}() {{\n{}return $.get(this.{});\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
-                getter_name, private_name
+                "{}set {}(value) {{\n{}$.set(this.{}, value, true);\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
         }
     } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
         let _ = writeln!(
             output,
-            "\t\t{} = {}$.state({});",
-            private_name, comment_infix, field.value
+            "{}{} = {}$.state({});",
+            indent, private_name, comment_infix, field.value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name
+                "{}get {}() {{\n{}return $.get(this.{});\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                getter_name, private_name
+                "{}set {}(value) {{\n{}$.set(this.{}, value);\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
         }
     } else if field.rune_type == "$derived" {
@@ -408,22 +423,22 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         };
         let _ = writeln!(
             output,
-            "\t\t{} = {}$.derived({});",
-            private_name, comment_infix, wrapped_value
+            "{}{} = {}$.derived({});",
+            indent, private_name, comment_infix, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name
+                "{}get {}() {{\n{}return $.get(this.{});\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                getter_name, private_name
+                "{}set {}(value) {{\n{}$.set(this.{}, value);\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
         }
     } else if field.rune_type == "$derived.by" {
@@ -435,22 +450,22 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         let derived_expr = transform_class_methods(&field.value, all_fields);
         let _ = writeln!(
             output,
-            "\t\t{} = {}$.derived({});",
-            private_name, comment_infix, derived_expr
+            "{}{} = {}$.derived({});",
+            indent, private_name, comment_infix, derived_expr
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name
+                "{}get {}() {{\n{}return $.get(this.{});\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
             output.push('\n');
             let _ = writeln!(
                 output,
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                getter_name, private_name
+                "{}set {}(value) {{\n{}$.set(this.{}, value);\n{}}}",
+                indent, getter_name, body_indent, private_name, indent
             );
         }
     }
@@ -729,6 +744,19 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
 
     let class_header = &after_class[..brace_pos + 1];
 
+    // Synthesized members are printed relative to the class's own source
+    // indentation: hard-coding one level made a module-level `class` (column 0)
+    // come out one tab too deep, class body and closing brace alike.
+    let class_indent: String = {
+        let line_start = script[..class_pos].rfind('\n').map_or(0, |p| p + 1);
+        script[line_start..class_pos]
+            .chars()
+            .take_while(|c| *c == ' ' || *c == '\t')
+            .collect()
+    };
+    let member_indent = format!("{}\t", class_indent);
+    let member_body_indent = format!("{}\t\t", class_indent);
+
     // Find the matching closing brace with JS-lexical awareness so a `}` inside
     // a string / template / regex / comment (e.g. `return "}"`) doesn't truncate
     // the class body (H-057).
@@ -972,13 +1000,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                         members.push(ClassMember::NonRune(line.to_string()));
                     } else {
                         // Update brace depth for lines going into pending_non_rune.
-                        for ch in trimmed.chars() {
-                            match ch {
-                                '{' => brace_depth += 1,
-                                '}' => brace_depth = (brace_depth - 1).max(0),
-                                _ => {}
-                            }
-                        }
+                        advance_brace_depth(trimmed, &mut brace_depth);
                         pending_non_rune.push(line.to_string());
                     }
                 }
@@ -1135,7 +1157,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     // This matches the official Svelte compiler output order.
     for field in &fields {
         if field.constructor_declared && !field.is_private {
-            new_class_body.push_str(&emit_class_field(field, &fields));
+            new_class_body.push_str(&emit_class_field(field, &fields, &member_indent));
         }
     }
 
@@ -1144,7 +1166,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
         match member {
             ClassMember::RuneField(field_idx) => {
                 let field = &fields[*field_idx];
-                new_class_body.push_str(&emit_class_field(field, &fields));
+                new_class_body.push_str(&emit_class_field(field, &fields, &member_indent));
             }
             ClassMember::NonRune(text) => {
                 if text.trim().is_empty() {
@@ -1164,11 +1186,15 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 for field in &fields {
                     if field.constructor_declared && field.is_private && !field.had_class_body_decl
                     {
-                        new_class_body.push_str(&emit_class_field(field, &fields));
+                        new_class_body.push_str(&emit_class_field(field, &fields, &member_indent));
                     }
                 }
                 new_class_body.push('\n');
-                let _ = writeln!(new_class_body, "\t\tconstructor({}) {{", constructor_params);
+                let _ = writeln!(
+                    new_class_body,
+                    "{}constructor({}) {{",
+                    member_indent, constructor_params
+                );
 
                 let mut ctor_body = String::new();
                 // Group physical lines into a single statement only when a line
@@ -1179,6 +1205,10 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 // individually so the `this.#x = …` statements inside the block
                 // are still rewritten.
                 let mut pending = String::new();
+                // Source indentation of the grouped statement's first line, so the
+                // continuation lines keep their nesting relative to it instead of
+                // being flattened to column 0.
+                let mut pending_source_indent = String::new();
                 let mut depth: i32 = 0;
                 for line in constructor_content.lines() {
                     let trimmed = line.trim();
@@ -1188,20 +1218,24 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                         }
                         if is_multiline_assignment_start(trimmed) {
                             pending.push_str(trimmed);
+                            pending_source_indent = leading_whitespace(line).to_string();
                             depth = net_bracket_depth(trimmed);
                         } else {
                             let transformed_line =
                                 transform_constructor_assignment(trimmed, &fields);
-                            let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
+                            let _ =
+                                writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                         }
                     } else {
                         pending.push('\n');
-                        pending.push_str(trimmed);
+                        pending.push_str(&member_body_indent);
+                        pending.push_str(dedent_line(line, &pending_source_indent));
                         depth += net_bracket_depth(trimmed);
                         if depth <= 0 {
                             let transformed_line =
                                 transform_constructor_assignment(&pending, &fields);
-                            let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
+                            let _ =
+                                writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                             pending.clear();
                             depth = 0;
                         }
@@ -1209,7 +1243,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 }
                 if !pending.is_empty() {
                     let transformed_line = transform_constructor_assignment(&pending, &fields);
-                    let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
+                    let _ = writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                 }
 
                 // AST-based pass for `this.#field = …` assignments NESTED inside a
@@ -1257,7 +1291,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                     transform_constructor_private_reads(&ctor_transformed, &fields);
                 new_class_body.push_str(&ctor_transformed);
 
-                new_class_body.push_str("\t\t}\n");
+                let _ = writeln!(new_class_body, "{}}}", member_indent);
             }
         }
     }
@@ -1284,19 +1318,19 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
         // `new (class {})()(args)` (H-059).
         if after_class_transformed.trim_start().starts_with('(') {
             format!(
-                "{}new ({}\n{}\t}}){}",
-                before_new, class_header, new_class_body, after_class_transformed
+                "{}new ({}\n{}{}}}){}",
+                before_new, class_header, new_class_body, class_indent, after_class_transformed
             )
         } else {
             format!(
-                "{}new ({}\n{}\t}})(){}",
-                before_new, class_header, new_class_body, after_class_transformed
+                "{}new ({}\n{}{}}})(){}",
+                before_new, class_header, new_class_body, class_indent, after_class_transformed
             )
         }
     } else {
         format!(
-            "{}{}\n{}\t}}{}",
-            before_class, class_header, new_class_body, after_class_transformed
+            "{}{}\n{}{}}}{}",
+            before_class, class_header, new_class_body, class_indent, after_class_transformed
         )
     }
 }
@@ -1632,7 +1666,7 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
                 while let Some(pos) = result.find(&pattern) {
                     let value_start = pos + pattern.len();
                     let rest = &result[value_start..];
-                    let value_end = rest.find(';').unwrap_or(rest.len());
+                    let value_end = rhs_value_end(rest);
                     let value = rest[..value_end].trim();
                     let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
                     let replacement = if needs_proxy {
@@ -1665,7 +1699,7 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
                 }
                 let value_start = pos + assign_pattern.len();
                 let rest = &result[value_start..];
-                let value_end = rest.find(';').unwrap_or(rest.len());
+                let value_end = rhs_value_end(rest);
                 let value = rest[..value_end].trim();
                 let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
                 let replacement = if needs_proxy {
@@ -1889,7 +1923,7 @@ pub(super) fn transform_class_methods_non_this(
                 while let Some(pos) = result.find(&pattern) {
                     let value_start = pos + pattern.len();
                     let rest = &result[value_start..];
-                    let value_end = rest.find(';').unwrap_or(rest.len());
+                    let value_end = rhs_value_end(rest);
                     let value = rest[..value_end].trim();
                     let replacement = format!(
                         "$.set({}, $.get({}) {} {})",
@@ -1913,7 +1947,7 @@ pub(super) fn transform_class_methods_non_this(
                 }
                 let value_start = pos + assign_pattern.len();
                 let rest = &result[value_start..];
-                let value_end = rest.find(';').unwrap_or(rest.len());
+                let value_end = rhs_value_end(rest);
                 let value = rest[..value_end].trim();
                 let replacement = format!("$.set({}, {})", qualified, value);
                 result = format!(
