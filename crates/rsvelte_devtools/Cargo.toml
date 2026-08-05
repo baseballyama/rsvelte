@@ -22,6 +22,7 @@ pprof = ["dep:pprof"]
 measure-json = ["rsvelte_core/measure-json"]
 measure-await = ["rsvelte_core/measure-await"]
 measure-slot-key = ["rsvelte_core/measure-slot-key"]
+measure-module-source = ["rsvelte_core/measure-module-source"]
 
 [dependencies]
 rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }

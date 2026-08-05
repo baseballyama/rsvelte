@@ -30,6 +30,8 @@ pub mod compiler;
 pub mod error;
 #[cfg(feature = "measure-await")]
 pub mod measure_await;
+#[cfg(feature = "measure-module-source")]
+pub mod measure_module_source;
 #[cfg(feature = "measure-slot-key")]
 pub mod measure_slot_key;
 pub mod toolchain;
