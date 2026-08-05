@@ -99,8 +99,9 @@ pub fn with_program_mut(
                 .with_options(parse_options)
                 .parse();
             let out = if parsed.diagnostics.is_empty() && f(&allocator, &mut parsed.program) {
-                let printed = rsvelte_esrap::print(&parsed.program, source);
+                let mut printed = rsvelte_esrap::print(&parsed.program, source);
                 dual_run::count_print(pass, printed.len());
+                keep_fragment_termination(source, &mut printed);
                 (printed != source).then_some(printed)
             } else {
                 None
@@ -109,6 +110,19 @@ pub fn with_program_mut(
             out
         })
     })
+}
+
+/// Drop the terminator the printer adds to a fragment that did not carry one.
+///
+/// Phase-3 hands these passes a fragment, not a program, and the caller owns
+/// whatever follows it — for an unterminated fragment the caller appends the
+/// `;` itself. Splicing preserved that because it never rewrote bytes outside
+/// an edit span; printing a throwaway `Program` terminates every statement, so
+/// the fragment comes back with a `;` its caller then doubles.
+fn keep_fragment_termination(source: &str, printed: &mut String) {
+    if printed.ends_with(';') && !source.trim_end().ends_with(';') {
+        printed.pop();
+    }
 }
 
 /// Class wrapper for method-body fragments that Phase-3 hands around without
@@ -161,11 +175,12 @@ pub fn with_class_fragment_program_mut(
                     rsvelte_esrap::PrintOptions::default().with_indent(CLASS_FRAGMENT_INDENT);
                 let printed = rsvelte_esrap::print_with(&parsed.program, parse_str, &options);
                 dual_run::count_print(pass, printed.len());
-                let printed = if wrapped {
+                let mut printed = if wrapped {
                     unwrap_class_fragment(&printed)?
                 } else {
                     printed
                 };
+                keep_fragment_termination(source, &mut printed);
                 (printed != source).then_some(printed)
             })();
             *cell.borrow_mut() = allocator;
