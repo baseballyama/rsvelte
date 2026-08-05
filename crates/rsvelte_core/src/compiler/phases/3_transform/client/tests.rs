@@ -1675,3 +1675,41 @@ fn await_reactivity_loss_is_wrapped_unless_ignored() {
         "an unrelated svelte-ignore line must not end the scan:\n{stacked}"
     );
 }
+
+#[test]
+fn module_derived_name_containing_dollar_is_unwrapped() {
+    let source = r#"
+export function useInterval(callback, delay) {
+	const delay$ = $derived(typeof delay === 'function' ? delay() : delay);
+	let intervalId;
+	function start() { intervalId = setInterval(callback, delay$); }
+	return { start };
+}
+"#;
+
+    let compile = |generate| {
+        crate::compiler::compile_module(
+            source,
+            crate::compiler::ModuleCompileOptions {
+                generate,
+                filename: Some("use-interval.svelte.js".to_string()),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .js
+        .code
+    };
+
+    let client = compile(crate::compiler::GenerateMode::Client);
+    assert!(
+        client.contains("setInterval(callback, $.get(delay$))"),
+        "derived read should be unwrapped on the client:\n{client}"
+    );
+
+    let server = compile(crate::compiler::GenerateMode::Server);
+    assert!(
+        server.contains("setInterval(callback, delay$())"),
+        "derived read should be called on the server:\n{server}"
+    );
+}

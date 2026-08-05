@@ -125,7 +125,8 @@ pub(super) static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> = LazyLock::new(|| {
     // (`x[key]`) and writes (`x = next`) are never rewritten through
     // `$.get`/`$.set`, so consumers see the raw source object instead of
     // the value (see baseballyama/rsvelte#143).
-    Regex::new(r"(let|const|var)\s+(\w+)(?:\s*:[^=\n]*)?\s*=\s*\$(?:state(?:\.raw|\.frozen)?|derived(?:\.by)?)(?:<[^(]*>)?\s*\(").unwrap()
+    // `$` is a JS identifier character, so names like `delay$` must be captured too.
+    Regex::new(r"(let|const|var)\s+([\w$]+)(?:\s*:[^=\n]*)?\s*=\s*\$(?:state(?:\.raw|\.frozen)?|derived(?:\.by)?)(?:<[^(]*>)?\s*\(").unwrap()
 });
 
 // Regex for sanitizing identifier names - replaces invalid identifier characters
