@@ -4889,14 +4889,18 @@ fn transform_instance_script_for_visitors(
 
     // Collect prop variable info for ownership mutation validation (dev mode only).
     // Maps prop variable name to its prop alias (the public prop name).
-    let prop_mutation_vars: Vec<(String, String)> = if dev && analysis.runes {
+    let prop_mutation_vars: Vec<(String, Option<String>)> = if dev {
         analysis
             .root
             .bindings
             .iter()
             .filter(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
             .map(|b| {
-                let alias = b.prop_alias.as_deref().unwrap_or(&b.name).to_string();
+                // Upstream only ever assigns `prop_alias` from a `$props()` destructuring key,
+                // so legacy `export let` props report a `null` alias.
+                let alias = analysis
+                    .runes
+                    .then(|| b.prop_alias.as_deref().unwrap_or(&b.name).to_string());
                 (b.name.clone(), alias)
             })
             .collect()

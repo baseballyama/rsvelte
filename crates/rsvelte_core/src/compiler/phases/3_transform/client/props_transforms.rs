@@ -2873,7 +2873,7 @@ pub(super) fn is_valid_js_identifier(s: &str) -> bool {
 /// Reference: validate_mutation() in shared/utils.js
 pub(super) fn wrap_prop_mutation_validation(
     stmt: &str,
-    prop_vars: &[(String, String)], // (var_name, prop_alias)
+    prop_vars: &[(String, Option<String>)], // (var_name, prop_alias)
     source: &str,
 ) -> String {
     let _trimmed = stmt.trim();
@@ -2881,6 +2881,10 @@ pub(super) fn wrap_prop_mutation_validation(
     let mut result = stmt.to_string();
 
     for (var_name, prop_alias) in prop_vars {
+        let alias_literal = match prop_alias {
+            Some(alias) => format!("'{}'", alias),
+            None => "null".to_string(),
+        };
         // First, try the runes-mode pattern: `prop().member = value` (not wrapped in prop(..., true))
         // This handles the case where transform_prop_assignments skips member mutation wrapping in runes mode.
         let runes_prefix = format!("{}().", var_name);
@@ -2914,8 +2918,8 @@ pub(super) fn wrap_prop_mutation_validation(
             if before.ends_with("mutation(")
                 || (before.ends_with("], ")
                     && before.contains(&format!(
-                        "$$ownership_validator.mutation('{}', [",
-                        prop_alias
+                        "$$ownership_validator.mutation({}, [",
+                        alias_literal
                     )))
             {
                 runes_search_from = abs_start + runes_prefix.len();
@@ -2926,7 +2930,7 @@ pub(super) fn wrap_prop_mutation_validation(
             let after_prefix = &result[abs_start + runes_prefix.len()..];
 
             // Parse member chain to find assignment operator
-            let mut path_parts: Vec<String> = vec![format!("'{}'", prop_alias)];
+            let mut path_parts: Vec<String> = vec![format!("'{}'", var_name)];
             let chars: Vec<char> = after_prefix.chars().collect();
             let mut pos = 0;
 
@@ -3070,8 +3074,8 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // Build the replacement
             let mut replacement = format!(
-                "$$ownership_validator.mutation('{}', {}, {}",
-                prop_alias, path_array, full_expr,
+                "$$ownership_validator.mutation({}, {}, {}",
+                alias_literal, path_array, full_expr,
             );
             if line_num > 0 {
                 let _ = write!(replacement, ", {}, {}", line_num, col_num);
@@ -3215,7 +3219,7 @@ pub(super) fn wrap_prop_mutation_validation(
                 };
 
             // Parse member identifiers/bracket accesses until we hit an assignment operator
-            let mut path_parts: Vec<String> = vec![format!("'{}'", prop_alias)];
+            let mut path_parts: Vec<String> = vec![format!("'{}'", var_name)];
             let chars: Vec<char> = after_prop_call.chars().collect();
             let mut pos = 0;
 
@@ -3314,8 +3318,8 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // Build the replacement
             let mut replacement = format!(
-                "$$ownership_validator.mutation('{}', {}, {}",
-                prop_alias, path_array, full_original_expr,
+                "$$ownership_validator.mutation({}, {}, {}",
+                alias_literal, path_array, full_original_expr,
             );
             if line_num > 0 {
                 let _ = write!(replacement, ", {}, {}", line_num, col_num);
@@ -3752,7 +3756,7 @@ mod prop_mutation_location_tests {
     #[test]
     fn mutation_wrapper_carries_the_utf16_column() {
         let source = "<script>\nlet { item } = $props();\nfunction go() { /*🎉*/ item.name = 1; }\n</script>";
-        let prop_vars = vec![("item".to_string(), "item".to_string())];
+        let prop_vars = vec![("item".to_string(), Some("item".to_string()))];
         assert_eq!(
             wrap_prop_mutation_validation("item().name = 1", &prop_vars, source),
             "$$ownership_validator.mutation('item', ['item', 'name'], item().name = 1, 3, 23)"

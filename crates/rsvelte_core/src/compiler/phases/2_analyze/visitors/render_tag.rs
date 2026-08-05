@@ -110,6 +110,21 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     // content, so mark this as an opaque boundary for sibling detection.
     context.analysis.css.has_opaque_elements = true;
 
+    if let Some(name) = callee_name {
+        let site = crate::compiler::phases::phase2_analyze::types::CssRenderSite {
+            parent_idx: context.current_parent_idx(),
+            snippet_name: context.current_snippet_name(),
+        };
+        context
+            .analysis
+            .css
+            .dom_structure
+            .snippet_render_sites
+            .entry(name.to_string())
+            .or_default()
+            .push(site);
+    }
+
     // Validate arguments - no spread elements allowed
     for arg in arguments {
         if matches!(arg, JsNode::SpreadElement { .. }) {

@@ -2798,15 +2798,69 @@ fn global_inner_complex_rels(rel: &Value) -> Option<&Vec<Value>> {
     complex.get("children").and_then(|c| c.as_array())
 }
 
-/// True when the lexical `parent_idx` walk models the real DOM ancestry: a
-/// `{#snippet}`-declared element's real ancestors are its `{@render}` sites and
-/// `<selectedcontent>` mirrors the selected option's subtree — neither is
-/// reachable from `parent_idx`.
+/// True when the structural ancestor walk models the real DOM ancestry.
+/// `{#snippet}` bodies are handled by `effective_parents` (which follows the
+/// `{@render}` sites), but `<selectedcontent>` mirrors the selected option's
+/// subtree and is still unreachable from `parent_idx`.
 fn structural_ancestry_is_lexical(ctx: &CssContext) -> bool {
     !ctx.dom_structure
         .elements
         .iter()
-        .any(|el| el.in_snippet || el.tag_name.eq_ignore_ascii_case("selectedcontent"))
+        .any(|el| el.tag_name.eq_ignore_ascii_case("selectedcontent"))
+}
+
+/// The DOM parents of `el_idx`: its lexical parent, unless that parent lies
+/// outside the element's `{#snippet}` body, in which case the union of the
+/// parents of every `{@render}` site of that snippet (upstream
+/// `get_ancestor_elements` breaking the path walk at a `SnippetBlock`).
+/// `None` when a snippet's render sites are unknown, in which case callers must
+/// stay conservative rather than treat the ancestor set as empty.
+fn effective_parents(ctx: &CssContext, el_idx: usize) -> Option<Vec<usize>> {
+    let el = &ctx.dom_structure.elements[el_idx];
+    let mut out = Vec::new();
+    let mut seen: FxHashSet<&str> = FxHashSet::default();
+    expand_effective_parents(
+        ctx,
+        el.parent_idx,
+        el.snippet_name.as_deref(),
+        &mut seen,
+        &mut out,
+    )?;
+    out.sort_unstable();
+    out.dedup();
+    Some(out)
+}
+
+fn expand_effective_parents<'a>(
+    ctx: &'a CssContext,
+    parent_idx: Option<usize>,
+    snippet: Option<&'a str>,
+    seen: &mut FxHashSet<&'a str>,
+    out: &mut Vec<usize>,
+) -> Option<()> {
+    if let Some(p) = parent_idx
+        && ctx.dom_structure.elements[p].snippet_name.as_deref() == snippet
+    {
+        out.push(p);
+        return Some(());
+    }
+    // The lexical walk left the snippet body (or hit the root): continue from
+    // wherever the snippet is rendered.
+    let Some(name) = snippet else { return Some(()) };
+    if !seen.insert(name) {
+        return Some(());
+    }
+    let sites = ctx.dom_structure.snippet_render_sites.get(name)?;
+    for site in sites {
+        expand_effective_parents(
+            ctx,
+            site.parent_idx,
+            site.snippet_name.as_deref(),
+            seen,
+            out,
+        )?;
+    }
+    Some(())
 }
 
 /// True when a descendant/child chain (subject last) can be evaluated by the
@@ -3510,11 +3564,13 @@ fn structural_ancestors_satisfy_links(
     let prev = &rels[link_idx - 1];
     let elements = &ctx.dom_structure.elements;
     if combinator == ">" {
-        let Some(p) = elements[el_idx].parent_idx else {
-            return false;
+        let Some(parents) = effective_parents(ctx, el_idx) else {
+            return true;
         };
-        structural_element_matches_compound(&elements[p], prev)
-            && structural_ancestors_satisfy_links(rels, link_idx - 1, p, ctx)
+        parents.into_iter().any(|p| {
+            structural_element_matches_compound(&elements[p], prev)
+                && structural_ancestors_satisfy_links(rels, link_idx - 1, p, ctx)
+        })
     } else if combinator == "+" || combinator == "~" {
         // A sibling link searches the previous-sibling relation, not ancestry —
         // `visit_possible_siblings` already models the `+`/`~` adjacency/generality
@@ -3524,14 +3580,24 @@ fn structural_ancestors_satisfy_links(
                 && structural_ancestors_satisfy_links(rels, link_idx - 1, sibling_idx, ctx)
         })
     } else {
-        let mut parent = elements[el_idx].parent_idx;
-        while let Some(p) = parent {
+        let Some(mut queue) = effective_parents(ctx, el_idx) else {
+            return true;
+        };
+        let mut visited: FxHashSet<usize> = queue.iter().copied().collect();
+        while let Some(p) = queue.pop() {
             if structural_element_matches_compound(&elements[p], prev)
                 && structural_ancestors_satisfy_links(rels, link_idx - 1, p, ctx)
             {
                 return true;
             }
-            parent = elements[p].parent_idx;
+            let Some(nexts) = effective_parents(ctx, p) else {
+                return true;
+            };
+            for next in nexts {
+                if visited.insert(next) {
+                    queue.push(next);
+                }
+            }
         }
         false
     }
