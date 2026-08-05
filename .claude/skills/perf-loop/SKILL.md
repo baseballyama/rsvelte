@@ -239,7 +239,6 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 ```bash
 # ベースライン（必須）
 ./scripts/bench/bench.sh --quick      # JS vs Rust 単線比較
-./scripts/bench/bench.sh --profile    # parse / analyze / transform 内訳
 ./scripts/bench/bench.sh --criterion  # 統計的マイクロベンチ
 
 # プロファイル（samply 推奨）
@@ -248,9 +247,24 @@ samply record ./target/profiling/profiler --file path/to/large.svelte --iteratio
 # macOS なら Instruments も可
 instruments -t "Time Profiler" ./target/profiling/profiler -- --file path/to/large.svelte --iterations 100
 
+# フェーズ別の内訳（用途限定 — 直下の警告を読むこと）
+./scripts/bench/bench.sh --profile
+
 # 回帰確認（速さより正しさ）
 cargo test --release
 ```
+
+> **`--profile` と `profiler` バイナリの数字を、フェーズ配分の根拠に使わないこと。**
+>
+> `profiler.rs` は `analyze_component` / `transform_component` を**手組みで直接呼びます**。本番の入口（`Toolchain::prepare` + `PreparedComponent::compile`）とは経路が違い、少なくとも次が食い違います:
+>
+> - 本番が渡す retained script を通さないため、本番には無い再パースが計測に入る
+> - 本番が呼ぶ TypeScript 除去と `<svelte:options>` のマージを実行しない（**その分が分母から欠ける**）
+> - `include_sourcemap_content` などの引数が本番と別の値で固定される
+>
+> **「parse : analyze : transform = X : Y : Z」の形の主張には使えません。** シェアが本番と違います。
+>
+> **samply / Instruments での使用は問題ありません。** あちらが見るのは同一バイナリ内の相対的なホットスポットで、本番との経路一致を前提にしていないからです。**用途で切り分けてください。**
 
 ### 7.2 既知の大物ボトルネック（rsvelte 固有）
 
@@ -382,7 +396,7 @@ cd svelte && USE_RSVELTE=true npx vitest run \
 
 1. `$ARGUMENTS` が `continue` → 直近の perf log を読み、次のループを開始
 2. `$ARGUMENTS` が関数名・モジュール名 → そこに焦点を絞ってループ
-3. `$ARGUMENTS` が空 → 全体を `--profile` で計測し、上位 5 ホットスポットを提示
+3. `$ARGUMENTS` が空 → 全体を samply で計測し、上位 5 ホットスポットを提示（§7.1 の警告により、`--profile` のフェーズ内訳はここで使わない）
 4. **必ず順序を守る**: baseline → profile → 仮説提示（ユーザー確認）→ 変更 → test → 再計測 → keep/revert 判定
 5. 各イテレーション後に **数値と判定をユーザーに報告**。1 イテレーション 1 メッセージを目安に
 6. 3 周ごとに、達成した数値と次の候補ホットスポットを要約する
