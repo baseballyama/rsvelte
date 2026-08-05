@@ -190,6 +190,7 @@ pub fn fragment(
         in_direct_assignment_lhs: false,
         in_bind_directive: false,
         in_component_attribute: false,
+        parent_is_regular_element: false,
         assignment_is_statement: false,
         in_event_attribute_handler: false,
         event_handler_arrow_body_level: 0,

@@ -1113,6 +1113,8 @@ pub fn visit_regular_element(
         // while `context` is reborrowed mutably by the `process_children`
         // closure. The arena outlives this borrow; traversal is single-threaded.
         let arena_ref2 = unsafe { &*(&context.arena as *const _) };
+        let saved_parent_is_regular_element = context.state.parent_is_regular_element;
+        context.state.parent_is_regular_element = true;
         process_children(
             &cleaned.trimmed,
             |is_text| {
@@ -1129,6 +1131,7 @@ pub fn visit_regular_element(
             false, // Not an element - we're processing into a fragment
             context,
         );
+        context.state.parent_is_regular_element = saved_parent_is_regular_element;
 
         // Capture the init/update/after_update statements from processing children
         let child_init = std::mem::take(&mut context.state.init);
@@ -1261,6 +1264,8 @@ pub fn visit_regular_element(
         // while `context` is reborrowed mutably by the `process_children`
         // closure. The arena outlives this borrow; traversal is single-threaded.
         let arena_ref3 = unsafe { &*(&context.arena as *const _) };
+        let saved_parent_is_regular_element = context.state.parent_is_regular_element;
+        context.state.parent_is_regular_element = true;
         process_children(
             &cleaned.trimmed,
             |is_text| {
@@ -1274,6 +1279,7 @@ pub fn visit_regular_element(
             true, // is_element
             context,
         );
+        context.state.parent_is_regular_element = saved_parent_is_regular_element;
 
         // Reset after processing children if needed
         // A reset is only needed if any child would actually advance the hydrate_node cursor.

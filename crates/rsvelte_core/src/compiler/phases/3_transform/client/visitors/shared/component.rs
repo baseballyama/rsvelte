@@ -983,7 +983,7 @@ fn process_on_directive(
     // outlives this borrow and traversal is single-threaded (no aliasing).
     let arena_local = unsafe { &*(&context.arena as *const _) };
     let saved_in_component_attribute = context.state.in_component_attribute;
-    context.state.in_component_attribute = true;
+    context.state.in_component_attribute = !context.state.parent_is_regular_element;
     let mut handler = build_event_handler(
         arena_local,
         on_directive.expression.as_ref(),
@@ -1142,7 +1142,7 @@ fn process_regular_attribute(
     // The closure is invoked for each chunk's transformed expression.
     let arena_ptr = (&context.arena) as *const _;
     let saved_in_component_attribute = context.state.in_component_attribute;
-    context.state.in_component_attribute = true;
+    context.state.in_component_attribute = !context.state.parent_is_regular_element;
     let result = build_attribute_value(&attr.value, context, |value, metadata| {
         let has_await = metadata.has_await();
         let has_state = metadata.has_state();
@@ -2306,6 +2306,8 @@ fn visit_slot_children(
 
     // Save the current state
     // This mirrors Fragment.js which creates a new state with fresh consts, init, update, etc.
+    let saved_parent_is_regular_element =
+        std::mem::take(&mut context.state.parent_is_regular_element);
     let saved_init = std::mem::take(&mut context.state.init);
     let saved_update = std::mem::take(&mut context.state.update);
     let saved_after_update = std::mem::take(&mut context.state.after_update);
@@ -2834,6 +2836,7 @@ fn visit_slot_children(
     context.state.node = saved_node;
     context.state.is_standalone = saved_is_standalone;
     context.state.metadata.namespace = saved_namespace;
+    context.state.parent_is_regular_element = saved_parent_is_regular_element;
 
     result
 }

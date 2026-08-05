@@ -1891,6 +1891,13 @@ pub struct ComponentClientTransformState<'a> {
     /// exempts every such arrow body from the `$.assign` wrap, not just event ones.
     pub in_component_attribute: bool,
 
+    /// Whether the node being visited sits directly in a `RegularElement`'s
+    /// children. Upstream's component exemption above is spelled
+    /// `path.at(-2) === 'Component' && path.at(-3) === 'Fragment'`, and an
+    /// element's children are the one container it does not visit through a
+    /// `Fragment` node — so a component nested in an element is *not* exempt.
+    pub parent_is_regular_element: bool,
+
     /// One-shot token mirroring upstream's `path.at(-1) !== 'ExpressionStatement'`
     /// guard: set just before converting the direct expression child of an
     /// `ExpressionStatement`, consumed (and cleared) by the assignment visitor so
@@ -2203,6 +2210,7 @@ impl<'a> ComponentClientTransformState<'a> {
             in_direct_assignment_lhs: false,
             in_bind_directive: false,
             in_component_attribute: false,
+            parent_is_regular_element: false,
             assignment_is_statement: false,
             in_event_attribute_handler: false,
             event_handler_arrow_body_level: 0,
