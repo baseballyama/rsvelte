@@ -7,7 +7,6 @@
 	"powertable/app/src/lib/components/PowerTable.svelte",
 	"powertable/app/src/routes/examples/+layout.svelte",
 	"skeleton/sites/plus.skeleton.dev/src/routes/(app)/content/blocks/+page.svelte",
-	"skeleton/sites/skeleton.dev/src/components/landing-page/design-system.svelte",
 	"skeleton/sites/skeleton.dev/src/components/ui/header/theme.svelte",
 	"skeleton/sites/skeleton.dev/src/components/ui/preview.svelte",
 	"skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsColors.svelte",

@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 20 entries**, concentrated in real-world corpus repos
+**Current baseline: 19 entries**, concentrated in real-world corpus repos
 (skeleton, layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail).
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every
@@ -16,7 +16,7 @@ entries are the seed set from enrolling `submodules/skeleton` in the corpus
 a cluster (9 into the new Cluster 9, 2 into the new Cluster 10, the other 6 into
 existing Clusters 1/2/3).
 
-## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (4)
+## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements
 (`<a>`, `<span>`, `<title>`, a `<pre><code>` pair, small inline components
@@ -64,11 +64,11 @@ are gone from the baseline: PR #1877's real-world-layout width fix, already
 on `main` before this corpus expansion, cleared both; this doc just hadn't
 caught up.)
 
-The 4th member (`skeleton/sites/skeleton.dev/src/components/landing-page/
-design-system.svelte`) is the `<pre><code>` shape again: the `<code>` open tag's
-`>` must dangle onto the child's line when the child is a multi-line template
-literal (`<code\n  >{`…`}</code\n>`), which is one shape past the three
-`<pre><code>` hug rules already ported.
+A 4th member (`skeleton/sites/skeleton.dev/src/components/landing-page/
+design-system.svelte`) — the `<pre><code>` shape where the `<code>` open tag's
+`>` must dangle onto a multi-line template-literal child — is gone from the
+baseline: the three ported `<pre><code>` hug rules reach it after all, and this
+doc had not caught up.
 
 ## Cluster 2 — attribute/style/directive value break-point selection (8)
 
