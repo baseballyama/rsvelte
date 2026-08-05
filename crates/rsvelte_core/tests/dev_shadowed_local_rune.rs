@@ -88,6 +88,7 @@ fn a_shadowed_derived_is_read_through_its_signal_in_dev() {
 </script>
 
 <span>{multiplied.count}</span>
+<button onclick={() => count++}>increase</button>
 "#,
         true,
     );
