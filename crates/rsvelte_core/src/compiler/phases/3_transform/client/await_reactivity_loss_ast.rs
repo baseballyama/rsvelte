@@ -26,6 +26,22 @@ fn track_reactivity_loss_wrap(argument_text: &str) -> String {
     format!("(await $.track_reactivity_loss({argument_text}))()")
 }
 
+/// The start offset of a whole-statement `await` that a following statement
+/// would be folded into once the wrapper's trailing `)()` makes the line
+/// continuable. Restricted to statements with a successor because the same
+/// visitor also runs over expression fragments parsed as one-statement
+/// programs, where a `;` would land in expression position.
+pub(super) fn unterminated_await_statement(stmt: &Statement<'_>, source: &str) -> Option<u32> {
+    let Statement::ExpressionStatement(stmt) = stmt else {
+        return None;
+    };
+    let Expression::AwaitExpression(_) = &stmt.expression else {
+        return None;
+    };
+    let text = &source[stmt.span.start as usize..stmt.span.end as usize];
+    (!text.ends_with(';')).then(|| stmt.expression.span().start)
+}
+
 /// The wrapper keeps an `await` of its own, so the fixed-point loop would wrap
 /// it again on the next iteration; recognising the marker is what makes this
 /// pass idempotent.
@@ -122,6 +138,7 @@ pub(super) fn collect_await_reactivity_loss_edits(
     let mut collector = AwaitCollector {
         source,
         ignored: collect_await_ignore_ranges(program, source, is_runes),
+        unterminated: rustc_hash::FxHashSet::default(),
         edits: Vec::new(),
     };
     collector.visit_program(program);
@@ -131,10 +148,21 @@ pub(super) fn collect_await_reactivity_loss_edits(
 struct AwaitCollector<'src> {
     source: &'src str,
     ignored: AwaitIgnoreRanges,
+    /// Starts of `await` expressions that are a whole statement relying on ASI.
+    unterminated: rustc_hash::FxHashSet<u32>,
     edits: Vec<Edit>,
 }
 
 impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
+    fn visit_statements(&mut self, stmts: &oxc_allocator::Vec<'a, Statement<'a>>) {
+        for pair in stmts.windows(2) {
+            if let Some(start) = unterminated_await_statement(&pair[0], self.source) {
+                self.unterminated.insert(start);
+            }
+        }
+        walk::walk_statements(self, stmts);
+    }
+
     fn visit_await_expression(&mut self, expr: &AwaitExpression<'a>) {
         walk::walk_await_expression(self, expr);
 
@@ -144,10 +172,11 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
 
         let arg_span = expr.argument.span();
         let arg_text = self.source[arg_span.start as usize..arg_span.end as usize].trim();
-        self.edits.push((
-            expr.span.start,
-            expr.span.end,
-            track_reactivity_loss_wrap(arg_text),
-        ));
+        let mut replacement = track_reactivity_loss_wrap(arg_text);
+        if self.unterminated.contains(&expr.span.start) {
+            replacement.push(';');
+        }
+        self.edits
+            .push((expr.span.start, expr.span.end, replacement));
     }
 }

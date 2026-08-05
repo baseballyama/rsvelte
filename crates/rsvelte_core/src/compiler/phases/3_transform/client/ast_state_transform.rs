@@ -238,6 +238,8 @@ struct StateVarCollector<'a, 's> {
     in_shorthand_property: bool,
     /// Subtrees carrying a `svelte-ignore await_reactivity_loss`.
     await_ignore_ranges: super::await_reactivity_loss_ast::AwaitIgnoreRanges,
+    /// Starts of `await` expressions that are a whole statement relying on ASI.
+    unterminated_await_starts: FxHashSet<u32>,
 
     // --- Phase A-2 fields ---
     /// Prop source variables that need getter/setter wrapping: `prop` -> `prop()`.
@@ -365,6 +367,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             scoped_vars: vec![FxHashSet::default()],
             in_shorthand_property: false,
             await_ignore_ranges: Default::default(),
+            unterminated_await_starts: FxHashSet::default(),
             prop_source_vars: prop_source_set,
             non_bindable_prop_vars: non_bindable_set,
             store_sub_vars: store_sub_set,
@@ -1995,11 +1998,11 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_span = expr.argument.span();
         let arg_text = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
 
-        self.add_replacement(
-            expr.span.start,
-            expr.span.end,
-            format!("(await $.track_reactivity_loss({}))()", arg_text.trim()),
-        );
+        let mut replacement = format!("(await $.track_reactivity_loss({}))()", arg_text.trim());
+        if self.unterminated_await_starts.contains(&expr.span.start) {
+            replacement.push(';');
+        }
+        self.add_replacement(expr.span.start, expr.span.end, replacement);
         true
     }
 
@@ -2316,6 +2319,18 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         if !self.try_rewrite_strict_equals_binary(expr) {
             walk::walk_binary_expression(self, expr);
         }
+    }
+
+    fn visit_statements(&mut self, stmts: &oxc_allocator::Vec<'ast, Statement<'ast>>) {
+        for pair in stmts.windows(2) {
+            if let Some(start) = super::await_reactivity_loss_ast::unterminated_await_statement(
+                &pair[0],
+                self.source,
+            ) {
+                self.unterminated_await_starts.insert(start);
+            }
+        }
+        walk::walk_statements(self, stmts);
     }
 
     fn visit_await_expression(&mut self, expr: &AwaitExpression<'ast>) {

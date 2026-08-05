@@ -184,7 +184,7 @@ mod tests {
         assert!(out.contains("$.user_effect(() => {});"), "got: {out}");
         assert!(out.contains("$.strict_equals(a, b);"), "got: {out}");
         assert!(
-            out.contains("console.log(...$.log_if_contains_state(\"log\", x));"),
+            out.contains("console.log(...$.log_if_contains_state('log', x));"),
             "got: {out}"
         );
         assert!(

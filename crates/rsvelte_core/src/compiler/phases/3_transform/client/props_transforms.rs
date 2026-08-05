@@ -3563,7 +3563,7 @@ pub(super) fn transform_console_calls_dev(stmt: &str) -> String {
                 if !args_content.is_empty() && !all_args_are_literals(args_content) {
                     // Transform: console.METHOD(args) -> console.METHOD(...$.log_if_contains_state("METHOD", args))
                     let new_call = format!(
-                        "console.{}(...$.log_if_contains_state(\"{}\", {}))",
+                        "console.{}(...$.log_if_contains_state('{}', {}))",
                         method, method, args_content
                     );
                     let call_end = args_start + args_end + 1; // +1 for closing paren
