@@ -310,8 +310,22 @@ const SHIPPED_PROJECTS: [&str; 6] = [
 fn collect_files() -> Vec<(String, String)> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     if std::env::args().any(|a| a == "--shipped") {
+        // `--only=a,b` / `--skip=a,b` narrow the set, so a share that turns out
+        // to sit in one project can be attributed to it instead of guessed at.
+        let list = |flag: &str| -> Vec<String> {
+            std::env::args()
+                .find_map(|a| a.strip_prefix(flag).map(str::to_owned))
+                .map(|v| v.split(',').map(str::to_owned).collect())
+                .unwrap_or_default()
+        };
+        let only = list("--only=");
+        let skip = list("--skip=");
         let mut files = Vec::new();
         for project in &SHIPPED_PROJECTS {
+            let matches = |pats: &[String]| pats.iter().any(|p| project.contains(p.as_str()));
+            if (!only.is_empty() && !matches(&only)) || matches(&skip) {
+                continue;
+            }
             collect_svelte_files(&base.join(project), &mut files);
         }
         return files;
