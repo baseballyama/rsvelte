@@ -35,7 +35,7 @@ impl Sampling {
             return;
         }
         let n = ALLOCS.fetch_add(1, Ordering::Relaxed);
-        if n % EVERY.load(Ordering::Relaxed) != 0 {
+        if !n.is_multiple_of(EVERY.load(Ordering::Relaxed)) {
             return;
         }
         IN_RECORDER.with(|flag| {
@@ -312,7 +312,7 @@ fn main() {
     println!();
     println!("== what is being allocated ==");
     let mut cats: Vec<_> = by_category.into_iter().collect();
-    cats.sort_by(|a, b| b.1.cmp(&a.1));
+    cats.sort_by_key(|b| std::cmp::Reverse(b.1));
     for (name, count) in &cats {
         println!(
             "{:6.2}%  {:8.1}/file  {name}",
@@ -326,7 +326,7 @@ fn main() {
             .filter(|((c, _), _)| c == category)
             .map(|((_, site), count)| (site.clone(), *count))
             .collect();
-        rows.sort_by(|a, b| b.1.cmp(&a.1));
+        rows.sort_by_key(|b| std::cmp::Reverse(b.1));
         println!();
         println!("== {category}: innermost rsvelte site ==");
         for (site, count) in rows.into_iter().take(top) {
@@ -340,7 +340,7 @@ fn main() {
     println!();
     println!("== innermost rsvelte frame (self) ==");
     let mut rows: Vec<_> = by_stack_top.into_iter().collect();
-    rows.sort_by(|a, b| b.1.cmp(&a.1));
+    rows.sort_by_key(|b| std::cmp::Reverse(b.1));
     for (name, count) in rows.into_iter().take(top) {
         println!(
             "{:6.2}%  {:8.1}/file  {name}",
@@ -351,7 +351,7 @@ fn main() {
     println!();
     println!("== anywhere on the stack (inclusive) ==");
     let mut rows: Vec<_> = by_frame.into_iter().collect();
-    rows.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+    rows.sort_by_key(|b| std::cmp::Reverse(b.1.0));
     for (name, (count, bytes)) in rows.into_iter().take(top) {
         println!(
             "{:6.2}%  {:8.1}/file  {:9.0} B/file  {name}",
