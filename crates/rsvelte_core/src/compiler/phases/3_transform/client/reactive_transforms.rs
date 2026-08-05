@@ -848,7 +848,8 @@ pub(super) fn transform_reactive_statement(
     } else {
         // Don't add trailing semicolon if the body already ends with '}' (block/if statement)
         // or if the body is a block statement itself
-        let body_needs_semicolon = !inner_body.trim_end().ends_with('}');
+        let body_end = inner_body.trim_end();
+        let body_needs_semicolon = !body_end.ends_with('}') && !body_end.ends_with(';');
         let semi = if body_needs_semicolon { ";" } else { "" };
         format!(
             "$.legacy_pre_effect({}, () => {{\n\t{}{}\n}});",

@@ -124,11 +124,22 @@ pub fn with_program_mut(
 /// site is reached through several outer callers, and terminated and
 /// unterminated fragments both arrive there, so no static per-site declaration
 /// can express the convention.
+/// The contract has a second half: the fragment must also bind the text that
+/// follows it the way the source did. Dropping the terminator is what can break
+/// that — `x++` ends a statement, `$.update_prop(x)` does not — so the drop only
+/// happens when the shortened fragment still parses the same way against text
+/// that binds leftwards. A fragment that keeps its `;` is one a caller must not
+/// terminate a second time.
 fn keep_fragment_termination(source: &str, printed: &mut String) {
-    if printed.ends_with(';') && !source.trim_end().ends_with(';') {
-        printed.pop();
-        dual_run::count_termination(source, printed);
+    if !printed.ends_with(';') || source.trim_end().ends_with(';') {
+        return;
     }
+    let shortened = &printed[..printed.len() - 1];
+    if statements_with_following_text(source) != statements_with_following_text(shortened) {
+        return;
+    }
+    printed.truncate(printed.len() - 1);
+    dual_run::count_termination(source, printed);
 }
 
 /// How many statements a fragment is once text follows it, or `None` when the
