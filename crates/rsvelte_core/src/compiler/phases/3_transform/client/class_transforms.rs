@@ -1776,7 +1776,7 @@ pub(super) fn wrap_standalone_private_reads(content: &str, qualified: &str) -> S
 
         // Check what comes after - if it's already handled (assignment, increment, property access)
         // or already inside $.get(), $.set(), $.update(), $.update_pre(), skip it
-        let before = &result[..abs_pos];
+        let before = result[..abs_pos].trim_end();
         if before.ends_with("$.get(")
             || before.ends_with("$.set(")
             || before.ends_with("$.update(")
