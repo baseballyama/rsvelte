@@ -452,13 +452,19 @@ mod tests {
 /// Equivalence checking for the migration of these passes off text splicing.
 ///
 /// A pass is being rewritten from "collect edits, splice the source" to
-/// "mutate the shared `Program` in place". The two cannot be compared by their
-/// raw output — the splice version returns the original text with holes
-/// replaced, the in-place version is printed by esrap, and esrap normalises.
-/// So equivalence is judged after putting BOTH sides through esrap exactly
-/// once: `normalize(spliced) == print(mutated)`. That is the property the
-/// final pipeline actually needs, because it prints the mutated program with
-/// esrap too.
+/// "mutate the shared `Program` in place". Most of the two sides' raw output
+/// differs for reasons that do not matter — the splice version returns the
+/// original text with holes replaced, the in-place version is printed by esrap,
+/// and esrap normalises. So equivalence is judged after putting BOTH sides
+/// through esrap exactly once: `normalize(spliced) == print(mutated)`. That is
+/// the property the final pipeline actually needs, because it prints the
+/// mutated program with esrap too.
+///
+/// But normalisation is not free of consequence: it also cancels differences
+/// that the *callers* of these passes can see, because a pass returns a
+/// fragment that is spliced back into a larger text. So the raw bytes are
+/// counted too, as their own class, and a report that gives a mismatch count
+/// without the raw-diff count beside it is not a report on this migration.
 ///
 /// That basis is only sound if esrap normalisation is idempotent — otherwise
 /// `normalize` would keep moving and comparing across it would be meaningless.
@@ -476,9 +482,9 @@ pub mod dual_run {
     static PREFER_IN_PLACE: LazyLock<bool> =
         LazyLock::new(|| std::env::var_os("RSVELTE_AST_IN_PLACE").is_some());
 
-    /// How many mismatching runs per pass to dump both sides of. A bare count
-    /// says a port is wrong but not how, and the two sides are far too large to
-    /// print in full for every fixture.
+    /// How many differing runs per pass and class to dump both sides of. A bare
+    /// count says a port differs but not how, and the two sides are far too
+    /// large to print in full for every fixture.
     static DUMP: LazyLock<u32> = LazyLock::new(|| {
         std::env::var("RSVELTE_AST_DUAL_RUN_DUMP")
             .ok()
@@ -487,23 +493,31 @@ pub mod dual_run {
     });
 
     thread_local! {
-        static DUMPED: StdRefCell<Vec<(&'static str, u32)>> = const { StdRefCell::new(Vec::new()) };
+        static DUMPED: StdRefCell<Vec<(&'static str, &'static str, u32)>> =
+            const { StdRefCell::new(Vec::new()) };
     }
 
-    fn dump(pass: &'static str, source: &str, left: Option<&str>, right: Option<&str>) {
+    /// Show the raw bytes both paths produced for a run that did not match byte
+    /// for byte. The sides shown are unnormalised on purpose: a run whose two
+    /// sides differ only in what esrap cancels still needs classifying, and the
+    /// normalised text of such a run is identical and so shows nothing.
+    fn dump(pass: &'static str, kind: &'static str, source: &str, left: &str, right: &str) {
         let budget = *DUMP;
         if budget == 0 {
             return;
         }
         let seen = DUMPED.with(|d| {
             let mut d = d.borrow_mut();
-            match d.iter_mut().find(|(name, _)| *name == pass) {
+            match d
+                .iter_mut()
+                .find(|(name, class, _)| *name == pass && *class == kind)
+            {
                 Some(entry) => {
-                    entry.1 += 1;
-                    entry.1
+                    entry.2 += 1;
+                    entry.2
                 }
                 None => {
-                    d.push((pass, 1));
+                    d.push((pass, kind, 1));
                     1
                 }
             }
@@ -511,30 +525,53 @@ pub mod dual_run {
         if seen > budget {
             return;
         }
-        eprintln!("=== {pass} mismatch #{seen} ===");
+        eprintln!("=== {pass} {kind} #{seen} ===");
         eprintln!("--- input ---\n{source}");
-        eprintln!("--- spliced ---\n{}", left.unwrap_or("<unparseable>"));
-        eprintln!("--- in place ---\n{}", right.unwrap_or("<unparseable>"));
+        eprintln!("--- spliced ---\n{left}");
+        eprintln!("--- in place ---\n{right}");
     }
 
     thread_local! {
         static TALLY: StdRefCell<Vec<Entry>> = const { StdRefCell::new(Vec::new()) };
     }
 
-    /// `(pass, runs, mismatches, unverified)`.
-    pub type Entry = (&'static str, u32, u32, u32);
+    /// `(pass, runs, raw diffs, mismatches, unverified)`. `raw diffs` counts
+    /// every run whose two sides differed byte for byte, so `mismatches` and
+    /// `unverified` are both subsets of it: a run can only reach normalisation
+    /// after the raw bytes have already disagreed.
+    pub type Entry = (&'static str, u32, u32, u32, u32);
 
     /// What one scored run established about a pass.
     enum Verdict {
-        Match,
+        /// The two sides are the same bytes. Nothing was cancelled to get
+        /// there, so this is the only verdict that says the port is faithful
+        /// down to the terminators and the statement-versus-expression shape.
+        RawMatch,
+        /// The raw bytes differ but normalising both sides makes them equal.
+        /// Not a mismatch, and not a clean port either — whatever esrap cancels
+        /// here is a real difference this gate is structurally blind to, so it
+        /// is counted separately instead of being folded into a match.
+        NormalizedMatch,
         Mismatch,
         /// The comparison never happened — normalisation could not read one or
-        /// both sides. Kept apart from `Match` because a no-op satisfies "no
-        /// mismatch" just as well as a faithful port does.
+        /// both sides. Kept apart from the matches because a no-op satisfies
+        /// "no mismatch" just as well as a faithful port does.
         Unverified,
     }
 
+    impl Verdict {
+        fn label(&self) -> &'static str {
+            match self {
+                Verdict::RawMatch => "raw match",
+                Verdict::NormalizedMatch => "raw diff",
+                Verdict::Mismatch => "mismatch",
+                Verdict::Unverified => "unverified",
+            }
+        }
+    }
+
     fn record(pass: &'static str, verdict: &Verdict) {
+        let raw_diff = u32::from(!matches!(verdict, Verdict::RawMatch));
         let mismatch = u32::from(matches!(verdict, Verdict::Mismatch));
         let unverified = u32::from(matches!(verdict, Verdict::Unverified));
         TALLY.with(|t| {
@@ -542,10 +579,11 @@ pub mod dual_run {
             match t.iter_mut().find(|(name, ..)| *name == pass) {
                 Some(entry) => {
                     entry.1 += 1;
-                    entry.2 += mismatch;
-                    entry.3 += unverified;
+                    entry.2 += raw_diff;
+                    entry.3 += mismatch;
+                    entry.4 += unverified;
                 }
-                None => t.push((pass, 1, mismatch, unverified)),
+                None => t.push((pass, 1, raw_diff, mismatch, unverified)),
             }
         });
     }
@@ -818,7 +856,7 @@ pub mod dual_run {
             // so only the text can be a fixed point here — not the shape.
             Some((_, once)) => {
                 if normalize(&once).is_some_and(|(_, twice)| twice == once) {
-                    Verdict::Match
+                    Verdict::RawMatch
                 } else {
                     Verdict::Mismatch
                 }
@@ -828,10 +866,18 @@ pub mod dual_run {
     }
 
     /// Score a ported pass: does the `&mut Program` path land where the splice
-    /// path lands? Both sides go through [`normalize`] exactly once, so esrap
-    /// formatting cancels and only a real difference in what the pass did shows
-    /// up. Counts one run, and one mismatch when the two disagree — including
-    /// when one produced a rewrite and the other did not.
+    /// path lands? The raw bytes are compared first, and only a run whose sides
+    /// already differ is put through [`normalize`] once each to say whether the
+    /// difference survives esrap. Counts one run, one raw diff whenever the
+    /// bytes differ at all, and one mismatch when the difference survives
+    /// normalisation — including when one side produced a rewrite and the other
+    /// did not.
+    ///
+    /// Comparing only the normalised sides would report a clean port for any
+    /// difference esrap cancels, which is not a class this migration may ignore:
+    /// these passes rewrite *fragments*, and whether a fragment comes back as a
+    /// statement or an expression is exactly the kind of thing normalisation
+    /// hides while the caller splicing it back in does not.
     ///
     /// The two paths apply their edits in different orders (collect-then-splice
     /// versus post-order in place), so an order-sensitive pass is exactly what
@@ -851,27 +897,28 @@ pub mod dual_run {
         if spliced.is_none() && ast.is_none() {
             return;
         }
+        // A side that did not rewrite stands for the source it left alone.
+        let raw_left = spliced.unwrap_or(source);
+        let raw_right = ast.unwrap_or(source);
+        if raw_left == raw_right {
+            record(pass, &Verdict::RawMatch);
+            return;
+        }
         let left = spliced.map_or_else(|| normalize(source), normalize);
         let right = ast.map_or_else(|| normalize(source), normalize);
         let verdict = match (&left, &right) {
-            (Some(l), Some(r)) if l == r => Verdict::Match,
+            (Some(l), Some(r)) if l == r => Verdict::NormalizedMatch,
             // Only one side reaching an AST is itself a disagreement.
             (Some(_), Some(_)) | (Some(_), None) | (None, Some(_)) => Verdict::Mismatch,
             // Nothing was compared, so nothing was established.
             (None, None) => Verdict::Unverified,
         };
-        if matches!(verdict, Verdict::Mismatch) {
-            dump(
-                pass,
-                source,
-                left.as_ref().map(|(_, t)| t.as_str()),
-                right.as_ref().map(|(_, t)| t.as_str()),
-            );
-        }
+        dump(pass, verdict.label(), source, raw_left, raw_right);
         record(pass, &verdict);
     }
 
-    /// `(pass, runs, mismatches, unverified)` for this thread, by run count.
+    /// `(pass, runs, raw diffs, mismatches, unverified)` for this thread, by run
+    /// count.
     pub fn tally() -> Vec<Entry> {
         TALLY.with(|t| {
             let mut v = t.borrow().clone();

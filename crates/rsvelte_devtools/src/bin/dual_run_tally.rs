@@ -1,8 +1,15 @@
 //! Runs every official `.svelte` fixture through the client compiler with the
 //! `RSVELTE_AST_DUAL_RUN` equivalence harness on, and prints the per-pass
-//! `(runs, mismatches, unverified)` tally. Exits 2 if any ported Phase-3 pass
-//! disagreed with the text-splicing path it replaces, and also if any run could
-//! not be compared at all — a pass that is never scored proves nothing.
+//! `(runs, raw diffs, mismatches, unverified)` tally. Exits 2 if any ported
+//! Phase-3 pass disagreed with the text-splicing path it replaces, and also if
+//! any run could not be compared at all — a pass that is never scored proves
+//! nothing.
+//!
+//! Raw diffs are reported but do not by themselves fail the run: normalisation
+//! cancels differences that are genuinely inert as well as ones that are not,
+//! so the count is a triage obligation rather than a verdict. Every raw diff
+//! still has to be classified before this migration flips, which is what
+//! `RSVELTE_AST_DUAL_RUN_DUMP` is for.
 
 use std::path::{Path, PathBuf};
 
@@ -62,21 +69,24 @@ fn main() {
     let tally = rsvelte_core::ast_rewrite_dual_run_tally();
     println!("{} fixtures\n", files.len());
     println!(
-        "{:<40} {:>8} {:>10} {:>11}",
-        "pass", "runs", "mismatches", "unverified"
+        "{:<40} {:>8} {:>10} {:>10} {:>11}",
+        "pass", "runs", "raw diffs", "mismatches", "unverified"
     );
+    let mut total_raw_diffs = 0;
     let mut total_mismatches = 0;
     let mut total_unverified = 0;
-    for (pass, runs, mismatches, unverified) in &tally {
-        println!("{pass:<40} {runs:>8} {mismatches:>10} {unverified:>11}");
+    for (pass, runs, raw_diffs, mismatches, unverified) in &tally {
+        println!("{pass:<40} {runs:>8} {raw_diffs:>10} {mismatches:>10} {unverified:>11}");
+        total_raw_diffs += raw_diffs;
         total_mismatches += mismatches;
         total_unverified += unverified;
     }
-    println!("\ntotal mismatches: {total_mismatches}");
+    println!("\ntotal raw diffs:  {total_raw_diffs}");
+    println!("total mismatches: {total_mismatches}");
     println!("total unverified: {total_unverified}");
     if total_unverified > 0 {
         println!("\nunverified by pass:");
-        for (pass, _, _, unverified) in tally.iter().filter(|e| e.3 > 0) {
+        for (pass, _, _, _, unverified) in tally.iter().filter(|e| e.4 > 0) {
             println!("  {pass:<38} {unverified:>11}");
         }
     }
