@@ -151,6 +151,30 @@ mod tests {
         assert_eq!(out, "$.set(x, 5);");
     }
 
+    /// How many statements `fragment` is once a call follows it.
+    fn statements_when_followed_by_a_call(fragment: &str) -> usize {
+        let source = format!("{fragment}\n(c)");
+        let allocator = Allocator::default();
+        let parsed = oxc_parser::Parser::new(&allocator, &source, SourceType::mjs()).parse();
+        assert!(parsed.diagnostics.is_empty(), "did not parse: {source}");
+        parsed.program.body.len()
+    }
+
+    /// A rewritten fragment has to bind the text that follows it the way the
+    /// source did. `x = {}` ends a statement; `$.set(x, {})` does not, so a
+    /// following `(c)` becomes its argument list instead — still valid
+    /// JavaScript, so no parse gate can see it.
+    #[test]
+    fn a_rewrite_binds_the_following_text_the_way_the_source_did() {
+        let src = "x = {}";
+        let out = transform_state_set_reactive_ast(src, &ssv(&["x"]), &[]).unwrap();
+        assert_eq!(
+            statements_when_followed_by_a_call(src),
+            statements_when_followed_by_a_call(&out),
+            "rewrote {src:?} to {out:?}"
+        );
+    }
+
     #[test]
     fn non_reactive_state_left_alone() {
         // x is in state_vars but flagged non-reactive → no rewrite

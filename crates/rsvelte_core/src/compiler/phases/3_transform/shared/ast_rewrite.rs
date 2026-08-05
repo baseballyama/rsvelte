@@ -131,15 +131,27 @@ fn keep_fragment_termination(source: &str, printed: &mut String) {
     }
 }
 
-/// Whether the fragment's last token can be the start of the arguments, index or
-/// operand of whatever the caller appends.
+/// How many statements a fragment is once text follows it, or `None` when the
+/// fragment does not stand alone (a class-member body, say).
 ///
-/// This is the second half of the fragment contract: reproducing the source's
-/// terminator is not enough if the rewrite also changes what the last token
-/// binds to. `x = {}` followed by `(c)` is a block and a call of `c`; rewritten
-/// to `$.set(x, {})` the same following text becomes an argument list.
-fn continues_an_expression(fragment: &str) -> bool {
-    !matches!(fragment.trim_end().as_bytes().last(), Some(b'}') | None)
+/// This is the second half of the fragment contract, and it has to be parsed
+/// rather than eyeballed from the last byte: a trailing `}` ends the statement
+/// when it closes a block but not when it closes an object literal, and both
+/// readings produce valid JavaScript, so nothing downstream can catch a wrong
+/// guess. The probe suffixes are the ones that bind leftwards.
+fn statements_with_following_text(fragment: &str) -> Option<Vec<usize>> {
+    ["(c)", "[c]", "`t`"]
+        .into_iter()
+        .map(|suffix| {
+            let source = format!("{fragment}\n{suffix}");
+            let allocator = Allocator::default();
+            let parsed = Parser::new(&allocator, &source, SourceType::mjs()).parse();
+            parsed
+                .diagnostics
+                .is_empty()
+                .then(|| parsed.program.body.len())
+        })
+        .collect()
 }
 
 /// Class wrapper for method-body fragments that Phase-3 hands around without
@@ -655,37 +667,42 @@ pub mod dual_run {
     }
 
     thread_local! {
-        /// (fragments whose terminator was dropped, of those the ones whose last
-        /// token changed class). Counted unconditionally: it is two byte reads,
-        /// and a counter that only runs under a flag cannot answer "does this
-        /// happen in production".
-        static TERMINATION: std::cell::Cell<(u32, u32)> = const { std::cell::Cell::new((0, 0)) };
+        /// `(terminators dropped, of those the ones that changed what follows,
+        /// of those the ones that could not be checked)`. Counted unconditionally:
+        /// a counter that only runs under a flag cannot answer "does this happen
+        /// in production".
+        static TERMINATION: std::cell::Cell<(u32, u32, u32)> =
+            const { std::cell::Cell::new((0, 0, 0)) };
     }
 
-    /// Record one dropped terminator, and whether dropping it changed what the
-    /// fragment's last token binds to.
+    /// Record one dropped terminator, and whether dropping it changed how the
+    /// text after the fragment binds.
     pub(super) fn count_termination(source: &str, printed: &str) {
-        let differs = continues_an_expression(source) != continues_an_expression(printed);
+        let before = statements_with_following_text(source);
+        let after = statements_with_following_text(printed);
+        let unchecked = before.is_none() || after.is_none();
+        let differs = !unchecked && before != after;
         TERMINATION.with(|t| {
-            let (pops, changed) = t.get();
-            t.set((pops + 1, changed + u32::from(differs)));
+            let (pops, changed, unverifiable) = t.get();
+            t.set((
+                pops + 1,
+                changed + u32::from(differs),
+                unverifiable + u32::from(unchecked),
+            ));
         });
         if differs && *DUMP > 0 {
             eprintln!(
-                "=== last token class changed ===\n--- source ---\n{source}\n--- printed ---\n{printed}\n"
+                "=== following text binds differently ===\n--- source ---\n{source}\n--- printed ---\n{printed}\n"
             );
         }
     }
 
-    /// `(dropped terminators, of those the ones that changed the last token's
-    /// class)`. The first is the denominator: a zero numerator means nothing
-    /// only if the denominator is not also zero.
-    pub fn termination_counts() -> (u32, u32) {
+    /// `(terminators dropped, of those the ones that changed what follows, of
+    /// those the ones that could not be checked)`. The first is the denominator:
+    /// a zero second number means nothing without it, and the third says how much
+    /// of the denominator the check could not speak for.
+    pub fn termination_counts() -> (u32, u32, u32) {
         TERMINATION.with(std::cell::Cell::get)
-    }
-
-    pub fn reset_termination_counts() {
-        TERMINATION.with(|t| t.set((0, 0)));
     }
 
     /// Whether a ported pass returns its in-place result instead of the spliced
