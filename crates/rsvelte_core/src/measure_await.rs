@@ -1,11 +1,26 @@
 //! Deterministic counter for the `String` allocations that the pre-refactor
 //! `contains_direct_await_in_expression` performed per scanned character.
 //!
-//! The scanner below is the pre-refactor body verbatim, so the numbers are
-//! observed allocations rather than a model of them. Running it alongside the
-//! current scanner gives "what the old code would have allocated" against
-//! "what the new code allocates" (zero at these four sites) without needing a
-//! quiet machine. It doubles as a differential oracle: every call compares the
+//! The scanner below is allocation-faithful and verdict-equivalent to the
+//! pre-refactor body rather than a verbatim copy of it. The deviations are:
+//!
+//! - A: in the `"async"` arm the old `||` chain is rewritten as an explicit
+//!   negation, so the third collect happens on exactly the inputs where the
+//!   first two `starts_with` tests failed, as short-circuiting gave before.
+//!   The consequent block it guarded held two comment lines and zero
+//!   statements, so it and its final `starts_with("=>")` test are dropped:
+//!   statically return-neutral, and all three allocations are still made.
+//! - B: `} else { if let Some(..) = .. }` is folded into
+//!   `} else if let Some(..) = ..`, a purely syntactic change.
+//! - C: `is_identifier_char` is copied in below rather than imported, because
+//!   the production helper is `pub(super)` and because the oracle must stay
+//!   pinned to the old definition even if the production one later drifts.
+//!
+//! The numbers are therefore observed allocations rather than a model of them.
+//! Running it alongside the current scanner gives "what the old code would
+//! have allocated" against "what the new code allocates" (zero at these four
+//! sites) without needing a quiet machine. It doubles as a differential
+//! oracle: every call compares the
 //! old verdict against the new one and counts disagreements. Requires the
 //! instrumentation feature:
 //!
@@ -37,6 +52,7 @@ fn bump(counter: &'static std::thread::LocalKey<Cell<u64>>, bytes: usize) {
     ALLOC_BYTES.with(|c| c.set(c.get() + bytes as u64));
 }
 
+// Pinned copy: the oracle must not follow later drift in the production helper.
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
