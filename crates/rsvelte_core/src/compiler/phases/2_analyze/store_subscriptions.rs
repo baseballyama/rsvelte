@@ -734,10 +734,40 @@ fn enclosing_pattern_open(chars: &[char], from: usize) -> Option<usize> {
 fn is_dollar_ident_destructuring_declaration(chars: &[char], ident_start: usize) -> bool {
     let mut from = ident_start;
     while let Some(open) = enclosing_pattern_open(chars, from) {
+        if sits_in_a_default_value(chars, from, open) {
+            return false;
+        }
         if is_dollar_ident_variable_declaration(chars, open) {
             return true;
         }
         from = open;
+    }
+    false
+}
+
+/// Whether a plain `=` separates `pos` from its element's start, i.e. `{ value =
+/// $page }` reads `$page` rather than binding it.
+fn sits_in_a_default_value(chars: &[char], pos: usize, open: usize) -> bool {
+    let mut k = pos as isize - 1;
+    while k > open as isize {
+        let c = chars[k as usize];
+        if c == ',' {
+            return false;
+        }
+        if c == '=' {
+            let next = chars.get(k as usize + 1).copied().unwrap_or(' ');
+            let prev = chars[k as usize - 1];
+            if next != '='
+                && next != '>'
+                && !matches!(
+                    prev,
+                    '=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^'
+                )
+            {
+                return true;
+            }
+        }
+        k -= 1;
     }
     false
 }

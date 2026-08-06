@@ -171,3 +171,11 @@ fn a_slot_attribute_directly_under_a_component_is_still_valid() {
         <C><svelte:fragment slot=\"a\"><D slot=\"b\" /></svelte:fragment></C>";
     assert!(try_compile(inner).is_ok());
 }
+
+#[test]
+fn a_dollar_name_in_a_destructuring_default_is_still_a_store_read() {
+    // `{ value = $page }` reads the store; only the binding target is a declaration.
+    let src = "<script>\nimport { writable } from 'svelte/store';\n\
+        const page = writable(1);\nconst { value = $page } = $props();\n</script>\n{value}";
+    assert!(try_compile(src).is_ok());
+}
