@@ -8,7 +8,33 @@
 	let { code, lang = 'text', caption }: Props = $props();
 
 	let copied = $state(false);
+	let highlighted = $state('');
 	let resetTimer: ReturnType<typeof setTimeout>;
+	let renderSequence = 0;
+
+	const languageAliases: Record<string, string> = {
+		sh: 'bash',
+		shell: 'bash',
+		javascript: 'js',
+		typescript: 'ts'
+	};
+
+	$effect(() => {
+		const source = code;
+		const language = languageAliases[lang] ?? lang;
+		const sequence = ++renderSequence;
+		highlighted = '';
+
+		void (async () => {
+			try {
+				const { highlightCode } = await import('$lib/highlight');
+				const html = await highlightCode(source, language || 'text');
+				if (sequence === renderSequence) highlighted = html;
+			} catch {
+				// The plain-code fallback remains readable if a language is not in the web bundle.
+			}
+		})();
+	});
 
 	async function copy(): Promise<void> {
 		try {
@@ -30,7 +56,11 @@
 			{copied ? 'Copied' : 'Copy'}
 		</button>
 	</figcaption>
-	<pre><code>{code}</code></pre>
+	{#if highlighted}
+		<div class="highlight">{@html highlighted}</div>
+	{:else}
+		<pre class="fallback"><code>{code}</code></pre>
+	{/if}
 </figure>
 
 <style>
@@ -83,18 +113,31 @@
 		border-color: var(--ok);
 	}
 
-	pre {
+	.fallback,
+	.highlight :global(.shiki) {
 		margin: 0;
 		padding: 0.85rem 0.9rem;
 		overflow-x: auto;
 		font-family: 'JetBrains Mono', ui-monospace, monospace;
 		font-size: 0.8rem;
 		line-height: 1.6;
-		color: var(--editor-ink);
+		tab-size: 2;
 	}
 
-	code {
+	.fallback {
+		color: var(--editor-ink);
+		background: var(--editor-bg);
+	}
+
+	.highlight :global(.shiki code),
+	.fallback code {
 		font-family: inherit;
 		white-space: pre;
+	}
+
+	:global(html[data-theme='dark']) .highlight :global(.shiki),
+	:global(html[data-theme='dark']) .highlight :global(.shiki span) {
+		color: var(--shiki-dark) !important;
+		background-color: var(--shiki-dark-bg) !important;
 	}
 </style>

@@ -1,54 +1,132 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { GUIDES } from '$lib/docs';
-	import SiteNav from '$lib/components/SiteNav.svelte';
+	import CodeBlock from '$lib/components/CodeBlock.svelte';
+	import DocsSidebar from '$lib/components/DocsSidebar.svelte';
+	import DocsToc from '$lib/components/DocsToc.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
-	import Eyebrow from '$lib/components/Eyebrow.svelte';
+	import SiteNav from '$lib/components/SiteNav.svelte';
+
+	const toc = [
+		{ label: 'Choosing a package', href: '#choosing-a-package' },
+		{ label: 'Migration', href: '#migration' },
+		{ label: 'Runtime environments', href: '#runtime-environments' },
+	];
+
+	const migration = `- import { compile } from 'svelte/compiler';
++ import { compile } from '@rsvelte/compiler';`;
+
+	const packageUses: Record<string, string> = {
+		compiler: 'Compile Svelte components for client and server.',
+		svelte2tsx: 'Generate TypeScript shadow files from Svelte components.',
+		fmt: 'Format .svelte files.',
+		'svelte-check': 'Type-check Svelte projects from the command line.',
+		'vite-plugin-svelte': 'Compile Svelte applications with Vite.',
+	};
 </script>
 
 <svelte:head>
-	<title>Docs · rsvelte</title>
+	<title>Overview · rsvelte</title>
 	<meta
 		name="description"
-		content="Usage guides for the rsvelte packages — the compiler, svelte2tsx, the formatter, svelte-check and the Vite plugin."
+		content="An overview of the rsvelte compiler, formatter, type-checker, and Vite integration packages."
 	/>
 </svelte:head>
 
 <div class="page">
 	<SiteNav active="docs" />
 
-	<main class="wrap">
-		<header class="head">
-			<Eyebrow gap="0.6rem" fontSize="0.72rem" letterSpacing="0.06em" ruleWidth="20px"
-				>Documentation</Eyebrow
-			>
-			<h1 class="title">Guides</h1>
-			<p class="lede">
-				One guide per core package in the rsvelte toolchain — install, API, examples and flags.
-				Three of them (compiler, svelte2tsx, fmt) also run live in the
-				<a href="{base}/playground">playground</a>.
-			</p>
-		</header>
+	<div class="docs-shell">
+		<DocsSidebar current="overview" />
 
-		<div class="grid">
-			{#each GUIDES as guide (guide.id)}
-				<a class="card" href="{base}/docs/{guide.id}">
-					<div class="card-head">
-						<h2 class="card-title">{guide.title}</h2>
-						{#if guide.runnable}
-							<span class="badge run">runs in browser</span>
-						{:else}
-							<span class="badge cli">CLI only</span>
-						{/if}
+		<main class="article">
+			<nav class="breadcrumbs" aria-label="Breadcrumb">
+				<a href="{base}/">Documentation</a>
+				<span aria-hidden="true">/</span>
+				<span>Overview</span>
+			</nav>
+
+			<header class="article-head">
+				<h1>Overview</h1>
+				<p class="lead">
+					rsvelte is split into packages that correspond to the standard Svelte development tools.
+				</p>
+			</header>
+
+			<p>
+				Start with the compiler or Vite plugin for application builds. The formatter,
+				<code>svelte2tsx</code>, and <code>svelte-check</code> packages can be adopted separately.
+			</p>
+
+			<section id="choosing-a-package">
+				<h2>Choosing a package</h2>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th>Tool</th>
+								<th>Use it for</th>
+								<th>Package</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each GUIDES as guide (guide.id)}
+								<tr>
+									<td><a href="{base}/docs/{guide.id}">{guide.title}</a></td>
+									<td>{packageUses[guide.id]}</td>
+									<td><code>{guide.pkg}</code></td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section id="migration">
+				<h2>Migration</h2>
+				<p>
+					The packages follow their upstream interfaces. In many cases migration is limited to the
+					package name:
+				</p>
+				<CodeBlock code={migration} lang="diff" />
+				<p>
+					Read the package guide before switching a production project. It documents environment
+					setup and any APIs that are specific to the rsvelte distribution.
+				</p>
+			</section>
+
+			<section id="runtime-environments">
+				<h2>Runtime environments</h2>
+				<dl class="environment-list">
+					<div>
+						<dt>Node.js</dt>
+						<dd>Native NAPI packages are used by the Vite plugin and command-line tools.</dd>
 					</div>
-					<code class="pkg">{guide.pkg}</code>
-					<p class="blurb">{guide.tagline}</p>
-					<p class="dropin">drop-in for <code>{guide.dropInFor}</code></p>
-					<span class="more">Read guide →</span>
+					<div>
+						<dt>Browser</dt>
+						<dd>The compiler, formatter, linter, and svelte2tsx are available through WebAssembly.</dd>
+					</div>
+					<div>
+						<dt>Native</dt>
+						<dd>A stable C ABI is available for integrations outside the JavaScript ecosystem.</dd>
+					</div>
+				</dl>
+			</section>
+
+			<nav class="page-nav" aria-label="Documentation pages">
+				<a href="{base}/">
+					<span>Previous</span>
+					<strong>← Introduction</strong>
 				</a>
-			{/each}
-		</div>
-	</main>
+				<a href="{base}/docs/compiler">
+					<span>Next</span>
+					<strong>Compiler →</strong>
+				</a>
+			</nav>
+		</main>
+
+		<DocsToc items={toc} />
+	</div>
 
 	<SiteFooter />
 </div>
@@ -60,127 +138,197 @@
 		flex-direction: column;
 	}
 
-	.wrap {
+	.docs-shell {
 		flex: 1;
 		width: 100%;
-		max-width: 64rem;
+		max-width: 1440px;
 		margin: 0 auto;
-		padding: clamp(1.6rem, 4vh, 2.6rem) clamp(1rem, 4vw, 2rem) 3rem;
-	}
-
-	.title {
-		font-weight: 800;
-		font-size: clamp(2rem, 5vw, 3rem);
-		letter-spacing: -0.03em;
-		color: var(--ink);
-		margin: 0.4rem 0 0.6rem;
-	}
-
-	.lede {
-		font-size: 1.05rem;
-		line-height: 1.65;
-		color: var(--ink-soft);
-		max-width: 44rem;
-		margin: 0;
-	}
-
-	.lede a {
-		color: var(--svelte);
-		border-bottom: 1px solid currentColor;
-	}
-
-	.grid {
-		margin-top: 2.2rem;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-		gap: 1rem;
+		grid-template-columns: 230px minmax(0, 52rem) 200px;
+		justify-content: center;
 	}
 
-	.card {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		padding: 1.1rem 1.1rem 1rem;
-		border: 1px solid var(--rule);
-		border-radius: 8px;
-		background: var(--bg);
-		transition:
-			border-color 0.18s,
-			transform 0.18s,
-			box-shadow 0.18s;
+	.article {
+		min-width: 0;
+		padding: 3rem clamp(2rem, 5vw, 4rem) 5rem;
 	}
 
-	.card:hover {
-		border-color: var(--rule-strong);
-		transform: translateY(-2px);
-		box-shadow: 0 6px 20px -12px rgba(0, 0, 0, 0.25);
-	}
-
-	.card-head {
+	.breadcrumbs {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
 		gap: 0.5rem;
-	}
-
-	.card-title {
-		font-size: 1.15rem;
-		font-weight: 700;
-		letter-spacing: -0.01em;
-		color: var(--ink);
-		margin: 0;
-	}
-
-	.badge {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.6rem;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		padding: 0.2rem 0.45rem;
-		border-radius: 999px;
-		white-space: nowrap;
-	}
-
-	.badge.run {
-		color: var(--svelte);
-		background: color-mix(in srgb, var(--svelte) 12%, transparent);
-	}
-
-	.badge.cli {
+		margin-bottom: 1.4rem;
+		font-size: 0.78rem;
 		color: var(--ink-faint);
-		background: var(--paper-2);
 	}
 
-	.pkg {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.74rem;
+	.breadcrumbs a {
 		color: var(--ink-soft);
 	}
 
-	.blurb {
-		font-size: 0.88rem;
+	.breadcrumbs a:hover {
+		color: var(--accent);
+	}
+
+	.article-head {
+		padding-bottom: 1rem;
+	}
+
+	h1 {
+		font-size: clamp(2.25rem, 5vw, 3.25rem);
+		font-weight: 700;
+		line-height: 1.12;
+		letter-spacing: -0.035em;
+	}
+
+	.lead {
+		margin-top: 0.8rem;
+		font-size: 1.12rem;
+		line-height: 1.65;
+		color: var(--ink-soft);
+	}
+
+	.article > p,
+	section > p {
+		font-size: 0.98rem;
+		line-height: 1.75;
+		color: var(--ink-soft);
+	}
+
+	.article > p {
+		margin-top: 0.75rem;
+	}
+
+	.article code {
+		font-size: 0.84em;
+	}
+
+	section {
+		padding-top: 2.5rem;
+		scroll-margin-top: 5rem;
+	}
+
+	h2 {
+		margin-bottom: 0.75rem;
+		padding-bottom: 0.45rem;
+		border-bottom: 1px solid var(--rule);
+		font-size: 1.4rem;
+		font-weight: 650;
+		line-height: 1.3;
+		letter-spacing: -0.02em;
+	}
+
+	section :global(.block) {
+		margin: 1rem 0;
+	}
+
+	.table-wrap {
+		overflow-x: auto;
+		border: 1px solid var(--rule);
+		border-radius: 6px;
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.82rem;
+	}
+
+	th,
+	td {
+		padding: 0.65rem 0.8rem;
+		border-bottom: 1px solid var(--rule);
+		text-align: left;
+		vertical-align: top;
+	}
+
+	th {
+		background: var(--paper);
+		font-size: 0.75rem;
+		font-weight: 650;
+		color: var(--ink);
+	}
+
+	td {
+		line-height: 1.5;
+		color: var(--ink-soft);
+	}
+
+	tbody tr:last-child td {
+		border-bottom: 0;
+	}
+
+	td a {
+		font-weight: 600;
+		color: var(--accent);
+	}
+
+	.environment-list {
+		border-top: 1px solid var(--rule);
+	}
+
+	.environment-list > div {
+		display: grid;
+		grid-template-columns: 8rem minmax(0, 1fr);
+		gap: 1.5rem;
+		padding: 0.8rem 0;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	dt {
+		font-size: 0.9rem;
+		font-weight: 600;
+	}
+
+	dd {
+		font-size: 0.9rem;
 		line-height: 1.55;
 		color: var(--ink-soft);
-		margin: 0;
-		flex: 1;
 	}
 
-	.dropin {
-		font-size: 0.76rem;
-		color: var(--ink-faint);
-		margin: 0;
+	.page-nav {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2rem;
+		margin-top: 3.5rem;
+		padding-top: 1.25rem;
+		border-top: 1px solid var(--rule);
 	}
 
-	.dropin code {
-		font-family: 'JetBrains Mono', monospace;
+	.page-nav a {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.page-nav a:last-child {
+		align-items: flex-end;
+	}
+
+	.page-nav span {
 		font-size: 0.72rem;
-		color: var(--ink-soft);
+		color: var(--ink-faint);
 	}
 
-	.more {
-		font-size: 0.82rem;
+	.page-nav strong {
+		font-size: 0.88rem;
 		font-weight: 600;
-		color: var(--svelte);
-		margin-top: 0.2rem;
+		color: var(--accent);
+	}
+
+	@media (max-width: 1120px) {
+		.docs-shell {
+			grid-template-columns: 230px minmax(0, 1fr);
+		}
+	}
+
+	@media (max-width: 860px) {
+		.docs-shell {
+			grid-template-columns: 1fr;
+		}
+
+		.article {
+			padding-inline: clamp(1rem, 5vw, 2.5rem);
+		}
 	}
 </style>
