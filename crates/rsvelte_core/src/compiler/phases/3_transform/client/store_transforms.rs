@@ -3,6 +3,7 @@
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 
+use super::scan_index::ScanIndex;
 use super::{find_matching_paren, is_shorthand_object_property};
 
 /// Transform store assignments in client-side code.
@@ -368,6 +369,7 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
         // But avoid replacing function calls that already have ()
         let mut new_result = String::with_capacity(result.len() * 2);
         let chars: Vec<char> = result.chars().collect();
+        let index = ScanIndex::new(&chars);
         let mut char_byte_offsets: Vec<usize> = result.char_indices().map(|(i, _)| i).collect();
         char_byte_offsets.push(result.len());
         let mut i = 0;
@@ -493,7 +495,7 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                         new_result.push_str(store_sub);
                         i += store_sub.len();
                         continue;
-                    } else if is_shorthand_object_property(&chars, i, store_sub.len()) {
+                    } else if is_shorthand_object_property(&index, &chars, i, store_sub.len()) {
                         // Shorthand object property: `{ $width }` -> `{ $width: $width() }`.
                         // Emitting `{ $width() }` is invalid (method shorthand), so expand
                         // like the prop-read path, keeping the leading `$` in the key.

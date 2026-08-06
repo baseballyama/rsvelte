@@ -8,6 +8,7 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 
+use super::scan_index::ScanIndex;
 use super::{
     extract_destructured_prop_names, find_matching_paren, get_or_compile_regex,
     is_explicit_property_key, is_inside_string_literal, is_shadowed_by_function_param,
@@ -19,7 +20,72 @@ use super::{
 /// …`. Such positions declare a new local that shadows a like-named prop and
 /// must not be wrapped as a prop read. Mirrors the `in_param_position` guard the
 /// AST version (`prop_source_reads_ast`) applies.
-fn is_arrow_param_binding(chars: &[char], var_start: usize, var_len: usize) -> bool {
+fn is_arrow_param_binding(
+    index: &ScanIndex,
+    chars: &[char],
+    var_start: usize,
+    var_len: usize,
+) -> bool {
+    let answer = is_arrow_param_binding_indexed(index, chars, var_start, var_len);
+    if super::super::profile::index_oracle_enabled() {
+        super::super::profile::record_index_oracle(
+            answer == is_arrow_param_binding_by_scan(chars, var_start, var_len),
+        );
+    }
+    answer
+}
+
+fn is_arrow_param_binding_indexed(
+    index: &ScanIndex,
+    chars: &[char],
+    var_start: usize,
+    var_len: usize,
+) -> bool {
+    let after = var_start + var_len;
+
+    // `name => …`  (single param, no parens)
+    {
+        let mut k = after;
+        while k < chars.len() && chars[k].is_whitespace() {
+            k += 1;
+        }
+        if k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>' {
+            return true;
+        }
+    }
+
+    // `( … name … ) => …`. A `;` at the same nesting level rules out a parameter
+    // list, and the enclosing bracket has to be a `(` rather than an array or
+    // object literal.
+    if index.prev_semicolon(var_start).is_some() {
+        return false;
+    }
+    let Some(open) = index.enclosing_any(var_start).filter(|&o| chars[o] == '(') else {
+        return false;
+    };
+
+    // Must be at a parameter *name* position (preceded by `(` or `,`), not a
+    // default-value expression like `(a = prop) =>` where `prop` is a read.
+    let mut p = var_start;
+    while p > 0 && chars[p - 1].is_whitespace() {
+        p -= 1;
+    }
+    if !(p == 0 || chars[p - 1] == '(' || chars[p - 1] == ',') {
+        return false;
+    }
+
+    // matching `)` then `=>`
+    let Some(close) = index.closer_of(open).filter(|&c| chars[c] == ')') else {
+        return false;
+    };
+    let mut k = close + 1;
+    while k < chars.len() && chars[k].is_whitespace() {
+        k += 1;
+    }
+    k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>'
+}
+
+fn is_arrow_param_binding_by_scan(chars: &[char], var_start: usize, var_len: usize) -> bool {
     let after = var_start + var_len;
 
     // `name => …`  (single param, no parens)
@@ -126,6 +192,9 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
         // Resolving char index → byte offset with `char_indices().nth(i)` inside the
         // per-character loop below is quadratic in the expression length.
         let char_offsets: Vec<usize> = result.char_indices().map(|(b, _)| b).collect();
+        // Same reason: the identifier guards below each used to answer "what
+        // encloses this position?" with their own backward scan, once per match.
+        let index = ScanIndex::new(&chars);
         #[cfg(feature = "measure-prop-reads")]
         crate::measure_prop_reads::record_pass(chars.len());
         let mut i = 0;
@@ -284,35 +353,41 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                     }
                 };
 
-                // Check if this identifier is shadowed by a function parameter
-                let is_shadowed = is_shadowed_by_function_param(&chars, i, prop_name);
-
-                // Check if this identifier is an explicit object-literal property
-                // KEY (`{ foo: bar }`). A key is not a value read and must not be
-                // wrapped — `{ foo(): bar }` is invalid JS. (Shorthand `{ foo }`
-                // is handled below by expanding to `{ foo: foo() }`.)
-                let is_property_key = is_explicit_property_key(&chars, i, prop_name.len());
-
-                // Check if this identifier is the BINDING in an arrow-function
-                // parameter list (`name =>`, `(a, name) =>`). That declares a new
-                // local shadowing the prop and must not be wrapped as a read —
-                // `(name()) =>` is invalid syntax.
-                let is_arrow_param = is_arrow_param_binding(&chars, i, prop_name.len());
+                // The remaining guards are the expensive ones, so they sit behind
+                // the cheap character checks rather than beside them:
+                // - shadowed by a function parameter;
+                // - an explicit object-literal property KEY (`{ foo: bar }`),
+                //   which is not a value read — `{ foo(): bar }` is invalid JS
+                //   (shorthand `{ foo }` is expanded to `{ foo: foo() }` below);
+                // - the BINDING in an arrow-function parameter list (`name =>`,
+                //   `(a, name) =>`), which declares a new local shadowing the
+                //   prop — `(name()) =>` is invalid syntax.
+                // Under the oracle every guard is asked at every candidate
+                // position, not only where the cheap checks let the question
+                // through, so the comparison covers the guards themselves rather
+                // than the subset of call sites that survive short-circuiting.
+                if super::super::profile::index_oracle_enabled() {
+                    is_shadowed_by_function_param(&index, &chars, i, prop_name);
+                    is_explicit_property_key(&index, &chars, i, prop_name.len());
+                    is_arrow_param_binding(&index, &chars, i, prop_name.len());
+                    is_shorthand_object_property(&index, &chars, i, prop_name.len());
+                }
 
                 if before_ok
                     && after_ok
                     && !is_update_target
                     && !is_assignment_target
                     && !is_inside_update_call
-                    && !is_shadowed
                     && !is_sole_derived_arg
-                    && !is_property_key
-                    && !is_arrow_param
+                    && !is_shadowed_by_function_param(&index, &chars, i, prop_name)
+                    && !is_explicit_property_key(&index, &chars, i, prop_name.len())
+                    && !is_arrow_param_binding(&index, &chars, i, prop_name.len())
                 {
                     // Check if this is a shorthand property in an object literal.
                     // e.g., `{ value }` should become `{ value: value() }` not `{ value() }`
                     // because `{ value() }` is a method definition, not a property.
-                    let is_shorthand = is_shorthand_object_property(&chars, i, prop_name.len());
+                    let is_shorthand =
+                        is_shorthand_object_property(&index, &chars, i, prop_name.len());
 
                     if is_shorthand {
                         // Expand shorthand: { foo } -> { foo: foo() }

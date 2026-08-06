@@ -41,6 +41,7 @@ mod reactive_update_ast;
 mod read_only_props_ast;
 mod rest_prop_member_access_ast;
 mod rune_transforms;
+mod scan_index;
 mod scope_analysis;
 mod state_assigns_combined_ast;
 mod state_call_ast;

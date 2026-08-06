@@ -3,6 +3,8 @@
 use memchr::memmem;
 use std::fmt::Write as _;
 
+use super::scan_index::ScanIndex;
+
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
 /// Strip TypeScript generic type parameters from rune calls.
 /// Converts `$state<SomeType>(...)` → `$state(...)` and `$derived<T>(...)` → `$derived(...)`.
@@ -819,11 +821,238 @@ pub(super) fn is_shadowed_by_for_loop_var(
     false
 }
 
+/// Compares an index answer against the backward scan it replaces, so agreement
+/// has a denominator instead of only a failure count. Off unless
+/// `RSVELTE_INDEX_ORACLE` is set.
+fn oracle_check(answer: bool, by_scan: impl FnOnce() -> bool) {
+    if super::super::profile::index_oracle_enabled() {
+        super::super::profile::record_index_oracle(answer == by_scan());
+    }
+}
+
 pub(super) fn is_shadowed_by_function_param(
+    index: &ScanIndex,
     chars: &[char],
     var_start: usize,
     var_name: &str,
 ) -> bool {
+    let answer = is_shadowed_by_function_param_indexed(index, chars, var_start, var_name);
+    oracle_check(answer, || {
+        is_shadowed_by_function_param_by_scan(chars, var_start, var_name)
+    });
+    answer
+}
+
+fn is_shadowed_by_function_param_indexed(
+    index: &ScanIndex,
+    chars: &[char],
+    var_start: usize,
+    var_name: &str,
+) -> bool {
+    let var_len = var_name.len();
+
+    // Concise arrow bodies: `(a, b) => expr` and `(a, b) => (expr)`.
+    if let Some(arrow) = enclosing_concise_arrow(index, chars, var_start)
+        && arrow_params_contain(index, chars, arrow, var_name, var_len)
+    {
+        return true;
+    }
+
+    // Enclosing block scopes, innermost first.
+    let mut brace = index.enclosing_brace(var_start);
+    while let Some(open) = brace {
+        brace = index.enclosing_brace(open);
+        // `${` opens a template interpolation, not a scope.
+        if open > 0 && chars[open - 1] == '$' {
+            continue;
+        }
+        if block_declares_param(index, chars, open, var_name, var_len) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// The `=>` of the arrow function whose *body* directly contains `var_start`, as
+/// the backward scan in [`is_shadowed_by_function_param_by_scan`] locates it:
+/// walk outwards through call parentheses, stopping at the first brace (any
+/// nesting), the first `=>` at the current parenthesis level, or a grouping `(`.
+fn enclosing_concise_arrow(index: &ScanIndex, chars: &[char], var_start: usize) -> Option<usize> {
+    let mut pos = var_start;
+    loop {
+        let brace = index.prev_brace(pos);
+        let arrow = index.prev_arrow(pos);
+        let open = index.enclosing_paren(pos);
+        // Whichever candidate sits closest to `pos` is the one a right-to-left
+        // scan reaches first.
+        let nearest = [brace, arrow, open].into_iter().flatten().max()?;
+
+        if Some(nearest) == brace {
+            return None;
+        }
+        if Some(nearest) == arrow {
+            return Some(nearest);
+        }
+
+        // A `(` at the current level: `=> (` is an arrow body in parentheses, a
+        // call/member `(` is skipped over, anything else ends the scan.
+        let mut before = nearest;
+        while before > 0 && chars[before - 1].is_whitespace() {
+            before -= 1;
+        }
+        if before >= 2 && chars[before - 1] == '>' && chars[before - 2] == '=' {
+            return Some(before - 1);
+        }
+        if before > 0 && (is_identifier_char(chars[before - 1]) || chars[before - 1] == ')') {
+            pos = nearest;
+            continue;
+        }
+        return None;
+    }
+}
+
+/// Whether the parameter list of the arrow whose `>` sits at `arrow` binds `var_name`.
+fn arrow_params_contain(
+    index: &ScanIndex,
+    chars: &[char],
+    arrow: usize,
+    var_name: &str,
+    var_len: usize,
+) -> bool {
+    let mut k = arrow - 1; // at '='
+    while k > 0 && chars[k - 1].is_whitespace() {
+        k -= 1;
+    }
+    if k > 0 && chars[k - 1] == ')' {
+        let close_idx = k - 1;
+        if let Some(open) = index.opener_of(close_idx) {
+            return param_list_binds(&chars[open + 1..close_idx], var_name, var_len);
+        }
+        return false;
+    }
+    if k > 0 && is_identifier_char(chars[k - 1]) {
+        // Single param arrow: `x => expr`
+        let end = k;
+        let mut start = k;
+        while start > 0 && is_identifier_char(chars[start - 1]) {
+            start -= 1;
+        }
+        let param: String = chars[start..end].iter().collect();
+        return param == var_name;
+    }
+    false
+}
+
+/// Whether `params` (the text between a parameter list's parentheses) contains
+/// `var_name` as a standalone identifier — `(_, count)`, `(count)`, `(count = d)`.
+fn param_list_binds(params: &[char], var_name: &str, var_len: usize) -> bool {
+    let mut k = 0;
+    while k < params.len() {
+        while k < params.len() && params[k].is_whitespace() {
+            k += 1;
+        }
+        if k + var_len <= params.len() {
+            let potential: String = params[k..k + var_len].iter().collect();
+            if potential == var_name {
+                let before_ok = k == 0 || !is_identifier_char(params[k - 1]);
+                let after_ok =
+                    k + var_len >= params.len() || !is_identifier_char(params[k + var_len]);
+                if before_ok && after_ok {
+                    return true;
+                }
+            }
+        }
+        k += 1;
+    }
+    false
+}
+
+/// Whether the block opening at `brace` is a function body binding `var_name`.
+fn block_declares_param(
+    index: &ScanIndex,
+    chars: &[char],
+    brace: usize,
+    var_name: &str,
+    var_len: usize,
+) -> bool {
+    // Skip whitespace before the {
+    let mut j = brace;
+    while j > 0 && chars[j - 1].is_whitespace() {
+        j -= 1;
+    }
+
+    // Arrow functions with a parenthesized object body: `(params) => ({…})`
+    if j > 0 && chars[j - 1] == '(' {
+        let mut k = j - 1;
+        while k > 0 && chars[k - 1].is_whitespace() {
+            k -= 1;
+        }
+        if k >= 2 && chars[k - 2] == '=' && chars[k - 1] == '>' {
+            j = k - 2;
+            while j > 0 && chars[j - 1].is_whitespace() {
+                j -= 1;
+            }
+        }
+    }
+
+    // Also skip `=>` for arrow functions: `(params) => {`
+    if j >= 2 && chars[j - 2] == '=' && chars[j - 1] == '>' {
+        j -= 2;
+        while j > 0 && chars[j - 1].is_whitespace() {
+            j -= 1;
+        }
+    }
+
+    // A `)` here would be the end of a parameter list.
+    if j == 0 || chars[j - 1] != ')' {
+        return false;
+    }
+    let close_paren_idx = j - 1;
+    let Some(open_idx) = index.opener_of(close_paren_idx) else {
+        return false;
+    };
+    if !param_list_binds(&chars[open_idx + 1..close_paren_idx], var_name, var_len) {
+        return false;
+    }
+
+    // The variable is in the parentheses — now confirm they are a parameter list
+    // and not a control-flow head.
+    let mut m = open_idx;
+    while m > 0 && chars[m - 1].is_whitespace() {
+        m -= 1;
+    }
+
+    for keyword in ["if", "while", "for", "switch", "with", "catch"] {
+        let kw_len = keyword.len();
+        if m >= kw_len {
+            let prefix: String = chars[m - kw_len..m].iter().collect();
+            if prefix == keyword && (m == kw_len || !is_identifier_char(chars[m - kw_len - 1])) {
+                return false;
+            }
+        }
+    }
+
+    if m > 0 {
+        if m >= 8 {
+            let prefix: String = chars[m - 8..m].iter().collect();
+            if prefix == "function" {
+                return true;
+            }
+        }
+        // A method definition like `update(count) {`.
+        if is_identifier_char(chars[m - 1]) {
+            return true;
+        }
+    }
+
+    // Bare `(…)` is only a function when an `=>` separates it from the block;
+    // otherwise it is grouping.
+    let between: String = chars[close_paren_idx + 1..brace].iter().collect();
+    between.trim().starts_with("=>")
+}
+
+fn is_shadowed_by_function_param_by_scan(chars: &[char], var_start: usize, var_name: &str) -> bool {
     // Strategy: scan backwards from var_start to find the nearest enclosing function scope.
     // If we find a function with this variable as a parameter, it's shadowed.
     // We need to track brace depth to understand scope nesting.
@@ -1141,6 +1370,7 @@ pub(super) fn is_shadowed_by_function_param(
 /// The variable should NOT be wrapped with $.get() if it's a shorthand property name,
 /// because `{ $.get(foo) }` is invalid JavaScript.
 pub(super) fn is_shorthand_object_property(
+    index: &ScanIndex,
     chars: &[char],
     var_start: usize,
     var_len: usize,
@@ -1165,7 +1395,7 @@ pub(super) fn is_shorthand_object_property(
 
     // Now we need to verify this is inside an object literal
     // by checking what's before the variable.
-    is_object_literal_property_position(chars, var_start)
+    is_object_literal_property_position(index, chars, var_start)
 }
 
 /// Check if a variable at the given position is the KEY of an explicit
@@ -1178,7 +1408,12 @@ pub(super) fn is_shorthand_object_property(
 /// object-literal-context check is shared via
 /// [`is_object_literal_property_position`], which also excludes ternary
 /// `cond ? a : b` (there `a` is not preceded by `{`/`,`).
-pub(super) fn is_explicit_property_key(chars: &[char], var_start: usize, var_len: usize) -> bool {
+pub(super) fn is_explicit_property_key(
+    index: &ScanIndex,
+    chars: &[char],
+    var_start: usize,
+    var_len: usize,
+) -> bool {
     let var_end = var_start + var_len;
 
     // Skip whitespace after the variable.
@@ -1197,13 +1432,70 @@ pub(super) fn is_explicit_property_key(chars: &[char], var_start: usize, var_len
         return false;
     }
 
-    is_object_literal_property_position(chars, var_start)
+    is_object_literal_property_position(index, chars, var_start)
 }
 
 /// Shared backward heuristic: returns true when the identifier at `var_start`
 /// sits in object-literal property position — preceded (ignoring whitespace)
 /// by `{` or `,` inside an object literal (not a block statement or array).
-fn is_object_literal_property_position(chars: &[char], var_start: usize) -> bool {
+fn is_object_literal_property_position(
+    index: &ScanIndex,
+    chars: &[char],
+    var_start: usize,
+) -> bool {
+    let mut j = var_start;
+    while j > 0 && chars[j - 1].is_whitespace() {
+        j -= 1;
+    }
+    if j == 0 {
+        return false;
+    }
+
+    let answer = match chars[j - 1] {
+        '{' => {
+            let mut m = j - 1;
+            while m > 0 && chars[m - 1].is_whitespace() {
+                m -= 1;
+            }
+            if m == 0 {
+                // `{` at the very start of the expression: an object literal (say
+                // inside `$derived()` arguments) or a block statement such as
+                // `$: { tasks, tasks_touched++; }`. Only the latter has a
+                // semicolon at the group's own depth.
+                !index.leading_brace_has_semicolon()
+            } else {
+                let before = chars[m - 1];
+                // `n` is the tail of `return`, spelled out just below.
+                matches!(
+                    before,
+                    '=' | ':' | '(' | '[' | ',' | '?' | '|' | '&' | '!' | 'n'
+                ) || (m >= 6 && chars[m - 6..m].iter().collect::<String>() == "return")
+            }
+        }
+        ',' => {
+            // Object or array element? Whichever enclosing bracket sits closest
+            // decides; each bracket kind is matched independently, as the scan
+            // this replaces counted them.
+            let at = j - 1;
+            let brace = index.enclosing_brace(at);
+            let bracket = index.enclosing_bracket(at);
+            let paren = index.enclosing_paren(at);
+            [brace, bracket, paren]
+                .into_iter()
+                .flatten()
+                .max()
+                .is_some_and(|nearest| Some(nearest) == brace)
+        }
+        _ => false,
+    };
+
+    oracle_check(answer, || {
+        is_object_literal_property_position_by_scan(chars, var_start)
+    });
+    answer
+}
+
+fn is_object_literal_property_position_by_scan(chars: &[char], var_start: usize) -> bool {
     let mut j = var_start;
     // Skip whitespace before the variable
     while j > 0 && chars[j - 1].is_whitespace() {
