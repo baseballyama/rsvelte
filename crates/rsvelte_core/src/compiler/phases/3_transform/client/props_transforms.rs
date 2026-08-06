@@ -6,6 +6,7 @@ use std::fmt::Write as _;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 
 use super::{
     extract_destructured_prop_names, find_matching_paren, get_or_compile_regex,
@@ -2245,6 +2246,51 @@ fn strip_bindable_wrapper(s: &str) -> Option<&str> {
     rest.strip_prefix('(')?.strip_suffix(')')
 }
 
+/// Drop the comments that bracket a `$props()` declarator. A trailing `//` one
+/// would otherwise stay glued to the binding name and swallow the initializer
+/// this helper appends after it.
+fn trim_declarator_comments(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let mut comments: Vec<(usize, usize)> = Vec::new();
+    let mut prev: Option<u8> = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if is_comment {
+                comments.push((i, next));
+            } else {
+                prev = next.checked_sub(1).and_then(|k| bytes.get(k)).copied();
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+
+    let mut start = 0;
+    let mut end = s.len();
+    loop {
+        let slice = &s[start..end];
+        let lo = start + (slice.len() - slice.trim_start().len());
+        let hi = lo + s[lo..end].trim_end().len();
+        if lo == hi {
+            return "";
+        }
+        if let Some(&(_, e)) = comments.iter().find(|&&(st, _)| st == lo) {
+            start = e;
+            end = hi;
+        } else if let Some(&(st, _)) = comments.iter().find(|&&(_, e)| e == hi) {
+            start = lo;
+            end = st;
+        } else {
+            return &s[lo..hi];
+        }
+    }
+}
+
 /// Split declarators by comma, handling nested braces, brackets, parens, and
 /// string / template literals.
 ///
@@ -2530,36 +2576,7 @@ pub(super) fn transform_props_destructuring(
             continue;
         }
 
-        // Strip leading comment lines (e.g., `// eslint-disable-next-line ...`)
-        // These can appear before prop names in destructuring patterns and must not
-        // be included in the prop name string.
-        let prop_part = {
-            let mut s = prop_part;
-            loop {
-                if s.starts_with("//") {
-                    // Single-line comment: skip to end of line
-                    if let Some(newline_pos) = s.find('\n') {
-                        s = s[newline_pos + 1..].trim();
-                        continue;
-                    } else {
-                        // Entire prop_part is a comment - skip it
-                        s = "";
-                        break;
-                    }
-                } else if s.starts_with("/*") {
-                    // Block comment: skip to closing */
-                    if let Some(end_pos) = s.find("*/") {
-                        s = s[end_pos + 2..].trim();
-                        continue;
-                    } else {
-                        s = "";
-                        break;
-                    }
-                }
-                break;
-            }
-            s
-        };
+        let prop_part = trim_declarator_comments(prop_part);
         if prop_part.is_empty() {
             continue;
         }
