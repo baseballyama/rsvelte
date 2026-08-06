@@ -1059,6 +1059,7 @@ pub fn visit<'a, 'b: 'a>(
                         context.uses_event_attributes = true;
                         context.analysis.uses_event_attributes = true;
                     }
+                    super::shared::attribute::record_event_attribute_arrow(context, attr_node);
                     // attribute_quoted check for custom elements
                     if is_custom_element_node(element)
                         && let crate::ast::template::AttributeValue::Sequence(parts) =
