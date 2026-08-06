@@ -8,7 +8,7 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 
-use super::scan_index::ScanIndex;
+use super::scan_index::{ScanIndex, ScanIndexBuilder};
 use super::{
     extract_destructured_prop_names, find_matching_paren, get_or_compile_regex,
     is_explicit_property_key, is_inside_string_literal, is_shadowed_by_function_param,
@@ -188,13 +188,22 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
         // Match the identifier and check the context manually
 
         let mut new_result = String::with_capacity(result.len() * 2);
-        let chars: Vec<char> = result.chars().collect();
-        // Resolving char index → byte offset with `char_indices().nth(i)` inside the
-        // per-character loop below is quadratic in the expression length.
-        let char_offsets: Vec<usize> = result.char_indices().map(|(b, _)| b).collect();
-        // Same reason: the identifier guards below each used to answer "what
-        // encloses this position?" with their own backward scan, once per match.
-        let index = ScanIndex::new(&chars);
+        // One walk feeds all three: the char vector the loop indexes, the byte
+        // offsets (resolving those with `char_indices().nth(i)` inside the
+        // per-character loop below was quadratic in the expression length), and
+        // the index the identifier guards consult instead of each running their
+        // own backward scan once per match.
+        let mut chars: Vec<char> = Vec::with_capacity(result.len());
+        let mut char_offsets: Vec<usize> = Vec::with_capacity(result.len());
+        let mut builder = ScanIndexBuilder::new();
+        let mut prev = None;
+        for (offset, c) in result.char_indices() {
+            char_offsets.push(offset);
+            builder.feed(chars.len(), c, prev);
+            chars.push(c);
+            prev = Some(c);
+        }
+        let index = builder.finish(&chars);
         #[cfg(feature = "measure-prop-reads")]
         crate::measure_prop_reads::record_pass(chars.len());
         let mut i = 0;
