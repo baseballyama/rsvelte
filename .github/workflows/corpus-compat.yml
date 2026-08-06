@@ -507,3 +507,73 @@ jobs:
           path: compatibility/check-e2e-report.json
           if-no-files-found: ignore
           retention-days: 14
+
+  # Generated (not collected) inputs — #2281 Gate 2. Needs only submodules/svelte
+  # and the NAPI binding, so it is minutes rather than the corpus job's tens of
+  # minutes and gates every PR. It is the only job here whose findings do not
+  # depend on what anyone happened to publish: `client`/`server` sat at 0 known
+  # failures while a 329-case matrix found 21 divergences in seconds.
+  shape-matrix:
+    name: Shape matrix parity (generated inputs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Verify known-failures docs match the JSON ratchets
+        run: node scripts/compat-corpus/known-failures-md-check.mjs
+
+      - name: Checkout the Svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install root dependencies (oxfmt)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Svelte compiler dependencies
+        id: svelte-deps-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+          key: corpus-svelte-deps-v1-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
+      - name: Install Svelte compiler dependencies
+        if: steps.svelte-deps-cache.outputs.cache-hit != 'true'
+        run: |
+          cd submodules/svelte
+          pnpm install --frozen-lockfile
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build rsvelte NAPI binding
+        run: |
+          cargo build --release -p rsvelte_napi --lib
+          mkdir -p .corpus-cache
+          cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node
+
+      - name: Shape matrix parity (ratchet against matrix-known-failures.json)
+        run: node scripts/compat-corpus/matrix/run.mjs
+
+      - name: Upload matrix artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-shape-matrix-artifacts
+          path: compatibility/matrix-artifacts
+          if-no-files-found: ignore
+          retention-days: 14

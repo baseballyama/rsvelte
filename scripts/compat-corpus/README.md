@@ -259,6 +259,51 @@ not observe failing, silently emptying the ratchets. Two assertions close it:
   present, so anything far below that is a partial checkout, not a fix.
   `svelte2tsx-verify.mjs --update-baseline` enforces the same floor.
 
+## Generated shape matrix (`matrix/`)
+
+Everything above compares **collected** inputs. This track compares **generated**
+ones (#2281 Gate 2):
+
+```bash
+pnpm run corpus:matrix                 # ~5 s, ~2,000 comparisons
+pnpm run corpus:matrix -- --no-fmt     # skip oxfmt (faster; inflates the count)
+pnpm run corpus:matrix:update          # re-baseline after a fix
+```
+
+Needs only `submodules/svelte` and `.corpus-cache/rsvelte.node` — no corpus
+submodules, no `collect.mjs` — so it runs as its own CI job on every PR.
+
+**Why generated.** A found corpus samples the marginal distribution of published
+code. Every bug in the #2253/#2254/#2255/#2256 batch was an *interaction*:
+
+| shape | occurrences in 14,026 collected files |
+|---|---|
+| #2254 — `{#each … as X}` item as a `switch` discriminant | 0 |
+| #2253 — `#private` `$state` assigned from a literal containing a `//` comment | 0 |
+| #2256 — `svelte-ignore` before an object-literal property | 6 |
+
+`client` and `server` were at 0 known failures — saturated — when all four were
+reported. A 329-case matrix found 21 divergences in seconds.
+
+**Axes** live in `matrix/axes.mjs`, one object per axis:
+
+- `BINDINGS` × `POSITIONS` → family `binding-position` (7 × 47). Adding one
+  position adds 7 cases × 3 targets.
+- `COMMENT_SEEDS` × line boundaries × `COMMENT_KINDS` → family `comment-slot`.
+  Insertion is restricted to `<script>` regions, where a JS comment is inert.
+
+`matrix/mutate.mjs` holds the mutation itself and is shared with the
+corpus-seeded fuzz (Gate 3).
+
+**Normalization is identical to `verify.mjs`** (flatten template holes → oxfmt →
+strip blank lines). That is a requirement, not a convenience: a divergence this
+gate reports must be one the corpus gate would also report, or the two gates
+disagree about what "identical output" means.
+
+`--update-baseline` refuses to run under `--no-fmt` (counts formatting-only
+differences the corpus tolerates by contract) or under a `--families` subset
+(would delete every baseline entry the run did not measure).
+
 ## Formatter parity (`fmt.mjs` / `fmt-verify.mjs`)
 
 A second, independent track verifies that **rsvelte-fmt** formats every

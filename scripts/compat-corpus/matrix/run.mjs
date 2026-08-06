@@ -1,0 +1,262 @@
+#!/usr/bin/env node
+/**
+ * Differential gate over a GENERATED corpus (#2281 Gate 2).
+ *
+ * The collected corpus (`compile.mjs` + `verify.mjs`) samples the marginal
+ * distribution of published Svelte code; this one samples the PRODUCT of
+ * declared axes. The distinction is not academic: `client` and `server` sat at
+ * 0 known failures — saturated — while a 329-case matrix found 21 divergences
+ * in seconds, because every bug in the #2253/#2254/#2255/#2256 batch was an
+ * interaction (binding kind × syntactic position, construct × comment slot)
+ * and a found corpus under-samples interactions exponentially. #2254's shape
+ * occurs 0 times in 14,026 real files; #2253's likewise.
+ *
+ * Needs no corpus submodules — only `submodules/svelte` and the rsvelte NAPI
+ * binding — so it can gate every PR rather than run nightly.
+ *
+ * Normalization is deliberately IDENTICAL to verify.mjs (flatten template holes
+ * -> oxfmt -> strip blank lines): a divergence this gate reports must be a
+ * divergence the corpus gate would also report, or the two gates disagree about
+ * what "identical output" means. `--no-fmt` skips oxfmt for a fast local loop
+ * and inflates the count — never baseline from it.
+ *
+ * Ratchet: compatibility/matrix-known-failures.json, shrink-only and two-sided
+ * (a new failure AND a listed entry that already passes both fail), justified
+ * per entry in the paired .md.
+ *
+ * Usage:
+ *   node scripts/compat-corpus/matrix/run.mjs [--no-fmt] [--update-baseline]
+ *        [--families <a,b>] [--targets <keys>] [--max-print <n>] [--keep-artifacts]
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { flattenTemplateHoles, stripBlankLines, firstDiffLine } from '../normalize.mjs';
+import { selectTargets } from '../targets.mjs';
+import { generate, FAMILIES } from './generate.mjs';
+
+const require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '../../..');
+const CORPUS = path.join(ROOT, 'compatibility');
+const TREE = path.join(CORPUS, 'matrix-artifacts');
+const BASELINE = path.join(CORPUS, 'matrix-known-failures.json');
+
+const args = process.argv.slice(2);
+const NO_FMT = args.includes('--no-fmt');
+const UPDATE_BASELINE = args.includes('--update-baseline');
+const KEEP_ARTIFACTS = args.includes('--keep-artifacts');
+const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max-print') + 1]) || 20 : 20;
+const TARGETS = selectTargets(args);
+
+const FAMILY_KEYS = (() => {
+	const i = args.indexOf('--families');
+	const value = i !== -1 ? args[i + 1] : null;
+	if (!value || value.startsWith('--')) return Object.keys(FAMILIES);
+	return value.split(',').map((s) => s.trim()).filter(Boolean);
+})();
+
+// ---- compilers -------------------------------------------------------------
+
+const BINDING = path.resolve(ROOT, '.corpus-cache/rsvelte.node');
+if (!fs.existsSync(BINDING)) {
+	console.error(`[matrix] rsvelte NAPI binding missing at ${path.relative(ROOT, BINDING)}`);
+	console.error('  build: cargo build --release -p rsvelte_napi --lib');
+	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node');
+	process.exit(2);
+}
+const OFFICIAL = path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js');
+if (!fs.existsSync(OFFICIAL)) {
+	console.error(`[matrix] official compiler missing at ${path.relative(ROOT, OFFICIAL)}`);
+	console.error('  fix: git submodule update --init --depth 1 submodules/svelte && (cd submodules/svelte && pnpm install --ignore-scripts)');
+	process.exit(2);
+}
+
+const svelte = await import(OFFICIAL);
+const rsvelte = require(BINDING);
+
+// ---- generate + compile ----------------------------------------------------
+
+const cases = generate(FAMILY_KEYS);
+console.log(`[matrix] families: ${FAMILY_KEYS.join(', ')}`);
+console.log(`[matrix] cases: ${cases.length}  targets: ${TARGETS.map((t) => t.key).join(', ')}  comparisons: ${cases.length * TARGETS.length}`);
+
+fs.rmSync(TREE, { recursive: true, force: true });
+
+const counts = { match: 0, 'error-parity': 0, 'js-mismatch': 0, 'error-mismatch': 0 };
+/** Pending byte comparisons, resolved after the trees are normalized. */
+const pending = [];
+const failures = [];
+
+function firstLine(message) {
+	return String(message).split('\n')[0];
+}
+
+for (const testCase of cases) {
+	for (const target of TARGETS) {
+		const options = { generate: target.generate, dev: target.dev, filename: path.basename(testCase.id), css: 'external' };
+		let expected = null;
+		let actual = null;
+		let expectedError = null;
+		let actualError = null;
+		try {
+			expected = svelte.compile(testCase.source, options).js.code;
+		} catch (e) {
+			expectedError = firstLine(e.message);
+		}
+		try {
+			actual = rsvelte.compile(testCase.source, options).js.code;
+		} catch (e) {
+			actualError = firstLine(e.message);
+		}
+
+		// Both compilers rejecting is the generated shape being invalid, not a
+		// finding — but ONE rejecting is the sharpest signal this gate produces.
+		if (expectedError && actualError) {
+			counts['error-parity'] += 1;
+			continue;
+		}
+		if (expectedError || actualError) {
+			counts['error-mismatch'] += 1;
+			failures.push({
+				id: testCase.id,
+				target: target.key,
+				verdict: 'error-mismatch',
+				detail: expectedError
+					? `rsvelte accepts, official rejects: ${expectedError}`
+					: `rsvelte rejects, official accepts: ${actualError}`,
+			});
+			continue;
+		}
+
+		const dir = path.join(TREE, testCase.id);
+		fs.mkdirSync(path.join(dir, 'expected'), { recursive: true });
+		fs.mkdirSync(path.join(dir, 'actual'), { recursive: true });
+		fs.writeFileSync(path.join(dir, 'expected', `${target.key}.js`), expected);
+		fs.writeFileSync(path.join(dir, 'actual', `${target.key}.js`), actual);
+		pending.push({ id: testCase.id, target: target.key, dir });
+	}
+}
+
+// ---- normalization (must match verify.mjs exactly) -------------------------
+
+function flattenTreeTemplateHoles(dir) {
+	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+		const p = path.join(dir, entry.name);
+		if (entry.isDirectory()) flattenTreeTemplateHoles(p);
+		else if (entry.name.endsWith('.js')) {
+			const src = fs.readFileSync(p, 'utf8');
+			const flat = flattenTemplateHoles(src);
+			if (flat !== src) fs.writeFileSync(p, flat);
+		}
+	}
+}
+
+if (!NO_FMT && pending.length) {
+	const emptyIgnore = path.join(CORPUS, '.oxfmt-ignore-nothing');
+	fs.writeFileSync(emptyIgnore, '');
+	flattenTreeTemplateHoles(TREE);
+	console.log('[matrix] oxfmt…');
+	try {
+		execFileSync(
+			'npx',
+			['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'],
+			{ cwd: TREE, stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 1024 * 1024 * 64 },
+		);
+	} catch (e) {
+		const stderr = e.stderr?.toString() ?? '';
+		const unparsable = (stderr.match(/x `|x Expected|x Unexpected/g) ?? []).length;
+		console.log(`[matrix]   oxfmt skipped unparsable files (${unparsable} parse diagnostics)`);
+	}
+}
+
+for (const item of pending) {
+	const expected = stripBlankLines(fs.readFileSync(path.join(item.dir, 'expected', `${item.target}.js`), 'utf8'));
+	const actual = stripBlankLines(fs.readFileSync(path.join(item.dir, 'actual', `${item.target}.js`), 'utf8'));
+	if (expected === actual) {
+		counts.match += 1;
+		continue;
+	}
+	counts['js-mismatch'] += 1;
+	const diff = firstDiffLine(expected, actual);
+	failures.push({ id: item.id, target: item.target, verdict: 'js-mismatch', ...diff });
+}
+
+// ---- report ----------------------------------------------------------------
+
+console.log('\n[matrix] results:');
+for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
+
+const ids = new Set(failures.map((f) => `${f.id} [${f.verdict}] (${f.target})`));
+
+if (UPDATE_BASELINE) {
+	if (NO_FMT) {
+		console.error('\n[matrix] refusing to baseline from a --no-fmt run: it counts formatting-only');
+		console.error('  differences as failures, which the corpus gate tolerates by contract.');
+		process.exit(2);
+	}
+	if (FAMILY_KEYS.length !== Object.keys(FAMILIES).length) {
+		console.error('\n[matrix] refusing to baseline from a --families subset: the rewrite deletes');
+		console.error('  every baseline entry the run did not measure (FALSE-SHRINK).');
+		process.exit(2);
+	}
+	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
+	console.log(`\n[matrix] baseline: ${ids.size} known -> ${path.relative(ROOT, BASELINE)}`);
+	cleanup(0);
+}
+
+const baseline = new Set(fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : []);
+const regressions = [...ids].filter((id) => !baseline.has(id));
+// Only entries in the families this run measured can be judged stale.
+const measuredFamilies = new Set(FAMILY_KEYS);
+const measuredTargets = new Set(TARGETS.map((t) => t.key));
+const fixed = [...baseline].filter((id) => {
+	if (ids.has(id)) return false;
+	const family = id.split('/')[0];
+	const target = id.match(/\(([^)]+)\)$/)?.[1];
+	return measuredFamilies.has(family) && measuredTargets.has(target);
+});
+
+const failById = new Map(failures.map((f) => [`${f.id} [${f.verdict}] (${f.target})`, f]));
+
+if (regressions.length) {
+	console.log(`\n[matrix] ❌ ${regressions.length} NEW divergences (not in the baseline):`);
+	for (const id of regressions.slice(0, MAX_PRINT)) {
+		const f = failById.get(id);
+		console.log(`  - ${id}`);
+		if (f.detail) console.log(`      ${f.detail}`);
+		else {
+			console.log(`      line ${f.line}`);
+			console.log(`        official: ${String(f.expected).trim()}`);
+			console.log(`        rsvelte : ${String(f.actual).trim()}`);
+		}
+	}
+	if (regressions.length > MAX_PRINT) console.log(`  … and ${regressions.length - MAX_PRINT} more`);
+}
+
+if (fixed.length) {
+	console.log(`\n[matrix] ❌ ${fixed.length} baseline entries already PASS — the ratchet is stale.`);
+	for (const id of fixed.slice(0, MAX_PRINT)) console.log(`  - ${id}`);
+	if (fixed.length > MAX_PRINT) console.log(`  … and ${fixed.length - MAX_PRINT} more`);
+	console.log('  fix: node scripts/compat-corpus/matrix/run.mjs --update-baseline');
+}
+
+if (regressions.length || fixed.length) cleanup(1);
+
+if (ids.size) {
+	console.log(`\n[matrix] ✅ no regressions (${ids.size} known divergences remain — see compatibility/matrix-known-failures.md)`);
+} else {
+	console.log('\n[matrix] ✅ every generated case matches the official compiler');
+}
+cleanup(0);
+
+function cleanup(code) {
+	// A passing run leaves nothing behind; a failing one keeps the trees so the
+	// divergence can be diffed (same contract as verify.mjs).
+	if (!KEEP_ARTIFACTS && code === 0) fs.rmSync(TREE, { recursive: true, force: true });
+	else if (fs.existsSync(TREE)) console.log(`[matrix] artifacts kept: ${path.relative(ROOT, TREE)}`);
+	process.exit(code);
+}

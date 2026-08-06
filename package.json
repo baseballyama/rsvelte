@@ -61,6 +61,8 @@
 		"corpus:collect": "node scripts/compat-corpus/collect.mjs",
 		"corpus:compile": "node scripts/compat-corpus/compile.mjs",
 		"corpus:verify": "node scripts/compat-corpus/verify.mjs",
+		"corpus:matrix": "node scripts/compat-corpus/matrix/run.mjs",
+		"corpus:matrix:update": "node scripts/compat-corpus/matrix/run.mjs --update-baseline",
 		"corpus:known-failures-check": "node scripts/compat-corpus/known-failures-md-check.mjs",
 		"corpus:clean": "node scripts/compat-corpus/clean.mjs",
 		"corpus:clean:all": "node scripts/compat-corpus/clean.mjs --all",

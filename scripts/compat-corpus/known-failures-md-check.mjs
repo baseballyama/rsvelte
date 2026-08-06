@@ -121,6 +121,47 @@ if (fs.existsSync(WARNING_MD_PATH)) {
 	}
 }
 
+// The generated shape matrix (matrix/run.mjs, #2281 Gate 2) gets the same
+// header-count guard, plus a per-family reconciliation: its doc splits the
+// total between the two axis families, and that split is exactly the number a
+// burn-down PR forgets to update.
+const MATRIX_MD_PATH = path.join(CORPUS, 'matrix-known-failures.md');
+const MATRIX_JSON_PATH = path.join(CORPUS, 'matrix-known-failures.json');
+if (fs.existsSync(MATRIX_MD_PATH)) {
+	const matrixMd = fs.readFileSync(MATRIX_MD_PATH, 'utf8');
+	if (!fs.existsSync(MATRIX_JSON_PATH)) {
+		console.error('[known-failures-md-check] missing ratchet matrix-known-failures.json');
+		failed = true;
+	} else {
+		const entries = JSON.parse(fs.readFileSync(MATRIX_JSON_PATH, 'utf8'));
+		const m = matrixMd.match(/`matrix-known-failures\.json`,\s*([\d,]+)\s+entr(?:y|ies)/);
+		if (!m) {
+			console.error('[known-failures-md-check] could not find the entry count for `matrix-known-failures.json` in matrix-known-failures.md');
+			failed = true;
+		} else if (Number(m[1].replace(/,/g, '')) !== entries.length) {
+			console.error(
+				`[known-failures-md-check] matrix-known-failures.md says ${m[1]} entries, but matrix-known-failures.json has ${entries.length}`,
+			);
+			failed = true;
+		}
+		// Per-family headers, e.g. "### `comment-slot` — 354 entries". A family the
+		// doc does not claim is not checked, so an axis can be added before it is
+		// written up; a family it does claim must reconcile exactly.
+		for (const family of ['binding-position', 'comment-slot']) {
+			const fm = matrixMd.match(new RegExp('### `' + family + '` — ([\\d,]+) entr(?:y|ies)'));
+			if (!fm) continue;
+			const claimed = Number(fm[1].replace(/,/g, ''));
+			const actual = entries.filter((id) => id.startsWith(`${family}/`)).length;
+			if (claimed !== actual) {
+				console.error(
+					`[known-failures-md-check] matrix-known-failures.md says ${claimed} entries for family "${family}", but the ratchet has ${actual}`,
+				);
+				failed = true;
+			}
+		}
+	}
+}
+
 if (failed) {
 	console.error('\n[known-failures-md-check] update the known-failures docs to match the JSON ratchets above.');
 	process.exit(1);

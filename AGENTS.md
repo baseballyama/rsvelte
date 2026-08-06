@@ -81,6 +81,25 @@ invisible **by construction, at any corpus size** — that is how #2256 shipped 
 scored the very entry that reproduces it as `MATCH`. When adding a gate, ask what the oracle does
 not look at, not only what the input does not contain.
 
+### Generated shape matrix (`scripts/compat-corpus/matrix/`)
+
+A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
+ratcheted through `compatibility/matrix-known-failures.json` with per-cluster justification in
+the paired `.md`. Two declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
+position, and comment kind × insertion slot — expanded into ~2,000 comparisons that run in
+**~5 s** and need only `submodules/svelte` plus the NAPI binding, so it gates every PR.
+
+It exists because the collected corpus samples the **marginal** distribution of published code
+while every bug in the #2253/#2254/#2255/#2256 batch was an **interaction**: #2254's shape occurs
+**0 times in 14,026 real files**, #2253's likewise, and `client`/`server` were at 0 known failures
+— saturated — when all four were reported. Adding real-world repos cannot fix that; only
+generating the product can. **Corpus size is no longer the axis worth growing.** The two that are:
+what we compare (warning parity above) and how inputs are constructed (this).
+
+Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
+the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
+`--families` subset (both would FALSE-SHRINK the ratchet).
+
 **Corpus artifacts clean themselves up.** A full run writes ~0.57 GiB of regenerable trees per
 checkout (`sources/` 60 MiB, `expected/` 254 MiB, `actual/` 254 MiB), and N parallel agent
 worktrees each hold a set — this filled the dev machine's disk twice. `verify.mjs` therefore
