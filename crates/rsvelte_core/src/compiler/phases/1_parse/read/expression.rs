@@ -7211,7 +7211,8 @@ fn convert_statement_for_program(
                 Some(&export_decl.declaration),
                 &[],
                 None,
-                oxc_ast::ast::ImportOrExportKind::Value,
+                // oxc derives this from the declaration instead of storing it.
+                export_decl.export_kind(),
                 offset,
                 line_offsets,
             ))

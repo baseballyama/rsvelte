@@ -1221,6 +1221,11 @@ mod ts_removals {
         }
 
         fn visit_export_declaration(&mut self, it: &ExportDeclaration<'a>) {
+            // oxc derives this from the declaration instead of storing it.
+            if it.export_kind() == ImportOrExportKind::Type {
+                self.remove(it.span);
+                return;
+            }
             // An ambient / type-only declaration takes the `export` keyword
             // with it, so the statement is removed rather than the child.
             let drop_statement = match &it.declaration {
