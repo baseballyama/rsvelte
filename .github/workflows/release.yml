@@ -424,9 +424,13 @@ jobs:
     # changesets consumed. This is the only path that needs staged binaries.
     if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     runs-on: ubuntu-latest
+    # Deliberately NOT `needs: close-version-cycle`: that job shares the
+    # cancel-in-progress group with `version-pr` so it can supersede an
+    # in-flight updater, which also means any later push to main cancels it —
+    # and a cancelled dependency would skip this job, silently dropping the
+    # release (run 31063492582).
     needs:
       [
-        close-version-cycle,
         build-svelte-check,
         build-vps-native,
         build-rsvelte-fmt,
