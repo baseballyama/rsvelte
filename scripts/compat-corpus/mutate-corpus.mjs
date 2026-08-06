@@ -125,6 +125,21 @@ function fnv1a(text) {
 	return h >>> 0;
 }
 
+// A source the manifest lists but the tree no longer holds is the truncation
+// hazard itself (#2455): a parallel `corpus:clean`, a disk sweep or an `rm -rf`
+// can empty `sources/` mid-flight. Filtering it away silently is what makes the
+// run unnoticeable — `MIN_MUTATED_SEED_RATIO` below cannot see it either,
+// because `seeds` derives from this filter, so the hazard moves the ratio's own
+// denominator.
+const missingSources = manifest.filter((e) => !fs.existsSync(path.join(SOURCES, e.id)));
+// Workers re-execute this file, so report once from the parent rather than once
+// per shard.
+if (missingSources.length && !WORKER) {
+	console.error(`\n[mutate] ${missingSources.length}/${manifest.length} manifest sources are missing from ${path.relative(ROOT, SOURCES)}:`);
+	for (const e of missingSources.slice(0, 5)) console.error(`  - ${e.id}`);
+	console.error('  the input tree changed under this run — re-run collect.mjs before trusting any number from it.');
+}
+
 const eligible = manifest.filter((e) => !known.has(e.id) && fs.existsSync(path.join(SOURCES, e.id)));
 const seeds = FULL
 	? eligible
@@ -612,6 +627,15 @@ if (UPDATE_BASELINE) {
 		console.error(`\n[mutate] refusing to baseline: ${orphanedSeedIds.size} seeds were orphaned by a worker crash`);
 		console.error('  and went unmeasured, so the rewrite would delete their entries (FALSE-SHRINK).');
 		console.error('  fix the crash, or re-run once it no longer aborts.');
+		process.exit(2);
+	}
+	// The guards above all key on FLAGS — how the run was invoked. This one keys
+	// on the INPUT TREE, which no flag describes and which another process can
+	// change while this one runs.
+	if (missingSources.length) {
+		console.error(`\n[mutate] refusing to baseline: ${missingSources.length} manifest sources were missing from the tree,`);
+		console.error('  so those seeds were never measured and the rewrite would delete their entries (FALSE-SHRINK).');
+		console.error('  re-run: node scripts/compat-corpus/collect.mjs && node scripts/compat-corpus/mutate-corpus.mjs --full --update-baseline');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
