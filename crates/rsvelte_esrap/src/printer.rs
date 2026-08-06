@@ -983,7 +983,9 @@ impl<'opt> Printer<'opt> {
                 ctx.write(";");
             }
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
+            Statement::ExportDeclaration(d) => self.export_declaration(d, ctx),
             Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
+            Statement::ExportFromDeclaration(d) => self.export_from_declaration(d, ctx),
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
             Statement::LabeledStatement(s) => {
                 ctx.write(s.label.name.as_str());
@@ -1148,32 +1150,36 @@ impl<'opt> Printer<'opt> {
         ctx.write(node.local.name.as_str());
     }
 
-    fn export_named_declaration(&mut self, node: &ExportNamedDeclaration, ctx: &mut Context) {
-        if let Some(decl) = &node.declaration {
-            // A class declaration's decorators are printed *before* `export`.
-            if let Declaration::ClassDeclaration(c) = decl
-                && !c.decorators.is_empty()
-            {
-                for decorator in &c.decorators {
-                    self.decorator(decorator, ctx);
-                }
-                self.write_keyword(ctx, node.span().start, "export", " ");
-                self.class_node_no_decorators(c, ctx);
-                return;
+    fn export_declaration(&mut self, node: &ExportDeclaration, ctx: &mut Context) {
+        // A class declaration's decorators are printed *before* `export`.
+        if let Declaration::ClassDeclaration(c) = &node.declaration
+            && !c.decorators.is_empty()
+        {
+            for decorator in &c.decorators {
+                self.decorator(decorator, ctx);
             }
             self.write_keyword(ctx, node.span().start, "export", " ");
-            self.declaration(decl, ctx);
+            self.class_node_no_decorators(c, ctx);
             return;
         }
+        self.write_keyword(ctx, node.span().start, "export", " ");
+        self.declaration(&node.declaration, ctx);
+    }
 
-        let mut kw = self.keyword_cursor(node.span().start, true);
+    fn export_specifier_list(
+        &mut self,
+        span_start: u32,
+        specifiers: &[ExportSpecifier],
+        export_kind: ImportOrExportKind,
+        ctx: &mut Context,
+    ) {
+        let mut kw = self.keyword_cursor(span_start, true);
         kw.write(ctx, "export ");
-        if matches!(node.export_kind, ImportOrExportKind::Type) {
+        if matches!(export_kind, ImportOrExportKind::Type) {
             kw.write(ctx, "type ");
         }
         ctx.write("{");
-        let nodes: Vec<SeqNode> = node
-            .specifiers
+        let nodes: Vec<SeqNode> = specifiers
             .iter()
             .map(|s| {
                 let span = s.span();
@@ -1190,10 +1196,17 @@ impl<'opt> Printer<'opt> {
             .collect();
         self.sequence(nodes, None, true, ",", true, ctx);
         ctx.write("}");
-        if let Some(source) = &node.source {
-            ctx.write(" from ");
-            ctx.write(self.string_literal(source));
-        }
+    }
+
+    fn export_named_declaration(&mut self, node: &ExportNamedDeclaration, ctx: &mut Context) {
+        self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
+        ctx.write(";");
+    }
+
+    fn export_from_declaration(&mut self, node: &ExportFromDeclaration, ctx: &mut Context) {
+        self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
+        ctx.write(" from ");
+        ctx.write(self.string_literal(&node.source));
         ctx.write(";");
     }
 
@@ -1976,10 +1989,15 @@ impl<'opt> Printer<'opt> {
             self.type_annotation(rt, ctx);
         }
         ctx.write(" => ");
-        if node.expression {
-            // Concise body: a single `ExpressionStatement` holds the expression.
-            if let Some(Statement::ExpressionStatement(es)) = node.body.statements.first() {
-                let body = &es.expression;
+        match &node.body {
+            ArrowFunctionBody::FunctionBody(body) => {
+                let span = body.span();
+                self.block(&body.statements, span.start, span.end, ctx);
+            }
+            _ => {
+                let Some(body) = node.body.as_expression() else {
+                    return;
+                };
                 if arrow_concise_body_needs_wrap(body) {
                     ctx.write("(");
                     self.print_expression(body, ctx);
@@ -1988,9 +2006,6 @@ impl<'opt> Printer<'opt> {
                     self.print_expression(body, ctx);
                 }
             }
-        } else {
-            let span = node.body.span();
-            self.block(&node.body.statements, span.start, span.end, ctx);
         }
     }
 
@@ -3382,13 +3397,8 @@ impl<'opt> Printer<'opt> {
                     ctx.write("readonly ");
                 }
                 ctx.write("[");
-                for (i, param) in s.parameters.iter().enumerate() {
-                    if i > 0 {
-                        ctx.write(", ");
-                    }
-                    ctx.write(param.name.as_str());
-                    self.type_annotation(&param.type_annotation, ctx);
-                }
+                ctx.write(s.parameter.name.as_str());
+                self.type_annotation(&s.parameter.type_annotation, ctx);
                 ctx.write("]");
                 self.type_annotation(&s.type_annotation, ctx);
             }
