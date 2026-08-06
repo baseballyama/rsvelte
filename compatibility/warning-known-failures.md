@@ -66,20 +66,51 @@ identified so far:
 
 ## Warning positions (`warning-position-known-failures.<target>.json`, 625 entries each)
 
-The codes agree but a `(line, column)` does not. Almost all of these are one
-systemic cause: **rsvelte emits the warning with no span at all**, so `start` is
-`undefined` where upstream reports a real position. An editor or CLI that places
-a squiggle from `warning.start` gets nothing.
+The codes agree but a `(line, column)` does not. There are **two** systemic
+causes, not one, and they need different edits. Measured over the 625 listed
+entries, which carry 967 mismatching tuples between them:
+
+- **No span at all (649 tuples, 67.1%)** — rsvelte emits the warning with
+  `start === undefined` where upstream reports a real position, so an editor or
+  CLI that places a squiggle from `warning.start` gets nothing. Concentrated in
+  `event_directive_deprecated` (142), `element_invalid_self_closing_tag` (118),
+  `export_let_unused` (110), `non_reactive_update` (102) and
+  `options_missing_custom_element` (53). Here the fix really is mechanical:
+  attach the span already available at the emission site.
+- **A span that is real but too wide (318 tuples, 32.9%)** — every one of these
+  is an a11y code, and every one is a *column*-only disagreement: 315 column-only,
+  3 line-and-column, and **0 line-only**. The line agrees because the attribute
+  and its element are on the same line; the column disagrees because rsvelte
+  reported the element where upstream reports the attribute. This one is not
+  "attach the missing span": the span was attached, by the wrong owner. See below.
 
 Split from the code ratchet on purpose: this backlog is far larger, and folded
-together it would hide every semantic regression above. Codes seen with missing
-positions include `event_directive_deprecated`,
-`element_invalid_self_closing_tag`, `a11y_role_supports_aria_props`,
-`export_let_unused` and `non_reactive_update`.
+together it would hide every semantic regression above.
 
-Burning this down is mostly mechanical — attach the span already available at
-each emission site — so the count should fall in large steps rather than one
-entry at a time.
+### The a11y half (fixed)
+
+`2_analyze/visitors/regular_element.rs` stamped `element.start`/`element.end` on
+any a11y warning that arrived spanless, and `shared/a11y/mod.rs` pushed *every*
+warning spanless — so the element fallback won even for the warnings upstream
+attaches to an attribute (`a11y/index.js` passes `attribute`, not `node`, at 16
+of its warn sites). The fix gives each attribute-scoped warning its attribute's
+span at the point it is raised, leaving the element fallback to cover only the
+three codes upstream genuinely scopes to the element
+(`a11y_interactive_supports_focus`,
+`a11y_no_interactive_element_to_noninteractive_role`,
+`a11y_no_noninteractive_element_to_interactive_role`).
+
+Codes cleared: `a11y_role_supports_aria_props` (120 tuples),
+`a11y_role_supports_aria_props_implicit` (59), `a11y_no_redundant_roles` (41),
+`a11y_no_abstract_role` (24), `a11y_invalid_attribute` (20), `a11y_autofocus`
+(10), the `a11y_incorrect_aria_attribute_type*` family (22),
+`a11y_role_has_required_aria_props` (4), `a11y_autocomplete_valid` (3) and
+`a11y_misplaced_scope` (3).
+
+Note that `a11y_role_supports_aria_props` was previously listed above as a
+missing-position code. It never was: rsvelte always emitted a span for it. That
+mis-attribution is exactly what a single-cause reading of this bucket produces —
+the split above was measured per tuple, not inferred from the code names.
 
 `perf_avoid_nested_class` was the first of these to be burned down (#2349),
 and it cost two entries rather than the one the `runed` / `svelte-toolbelt`
