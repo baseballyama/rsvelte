@@ -367,7 +367,17 @@ if (!NO_FMT && fs.existsSync(TREE)) {
 	const emptyIgnore = path.join(CORPUS, '.oxfmt-ignore-nothing');
 	fs.writeFileSync(emptyIgnore, '');
 	flattenTreeTemplateHoles(TREE);
-	console.log('[mutate] oxfmt…');
+	// The code/comment split is defined by what this normalizer absorbs, so the
+	// verdicts are only comparable across runs that used the same version.
+	let oxfmtVersion;
+	try {
+		oxfmtVersion = execFileSync('npx', ['oxfmt', '--version'], { encoding: 'utf8' }).trim().replace(/^Version:\s*/, '');
+	} catch (e) {
+		console.error(`\n[mutate] cannot run oxfmt: ${String(e?.message ?? e).split('\n')[0]}`);
+		console.error('  Normalization defines the ratchet, so a run without it is not comparable. Use --no-fmt to opt out.');
+		process.exit(2);
+	}
+	console.log(`[mutate] oxfmt ${oxfmtVersion}…`);
 	try {
 		execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {
 			cwd: TREE,
