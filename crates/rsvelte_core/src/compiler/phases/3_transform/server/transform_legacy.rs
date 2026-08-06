@@ -1341,21 +1341,15 @@ fn extract_store_set_targets(code: &str, vars: &mut Vec<String>) {
     let mut search_from = 0;
     while let Some(pos) = finder.find(&code.as_bytes()[search_from..]) {
         let abs_pos = search_from + pos;
-        let after_call = abs_pos + 12; // "$.store_set(".len()
-        // Read the first argument (store name)
-        let mut j = after_call;
-        let chars: Vec<char> = code.chars().collect();
-        while j < chars.len() && (chars[j] == ' ' || chars[j] == '\t') {
-            j += 1;
-        }
-        let name_start = j;
-        while j < chars.len() && (chars[j].is_alphanumeric() || chars[j] == '_' || chars[j] == '$')
-        {
-            j += 1;
-        }
-        if j > name_start {
-            let store_name: String = chars[name_start..j].iter().collect();
-            let store_sub = format!("${}", store_name);
+        // `memmem` yields a byte offset; the old code fed it to a `Vec<char>`,
+        // mis-slicing the name whenever non-ASCII preceded the call.
+        let rest = code[abs_pos + 12..].trim_start_matches([' ', '\t']);
+        let store_name: String = rest
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+            .collect();
+        if !store_name.is_empty() {
+            let store_sub = format!("${store_name}");
             if !vars.contains(&store_sub) {
                 vars.push(store_sub);
             }
@@ -1369,67 +1363,38 @@ fn extract_store_set_targets(code: &str, vars: &mut Vec<String>) {
 /// to find variable assignments that indicate the reactive statement modifies a variable.
 fn extract_simple_assignments(code: &str) -> Vec<String> {
     let mut vars = Vec::new();
-    // Find patterns like `identifier =` (not `==`), `identifier++`, `identifier--`,
-    // `++identifier`, `--identifier`
-    let chars: Vec<char> = code.chars().collect();
-    let len = chars.len();
+    let bytes = code.as_bytes();
     let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
+    let mut prev: Option<u8> = None;
 
-    while i < len {
-        let c = chars[i];
-
-        // Track string literals to avoid matching inside them
-        if (c == '\'' || c == '"' || c == '`') && !in_string {
-            in_string = true;
-            string_char = c;
-            i += 1;
-            continue;
-        }
-        if in_string {
-            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
-                in_string = false;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
             }
-            i += 1;
+            i = next;
             continue;
         }
 
-        // Check for `++identifier` and `--identifier` prefix operators
-        if i + 2 < len
-            && ((chars[i] == '+' && chars[i + 1] == '+')
-                || (chars[i] == '-' && chars[i + 1] == '-'))
+        // Prefix `++x` / `--x`
+        if (bytes[i] == b'+' && bytes.get(i + 1) == Some(&b'+'))
+            || (bytes[i] == b'-' && bytes.get(i + 1) == Some(&b'-'))
         {
-            let op_end = i + 2;
-            // Skip whitespace after operator
-            let mut j = op_end;
-            while j < len && chars[j] == ' ' {
+            let mut j = i + 2;
+            while bytes.get(j) == Some(&b' ') {
                 j += 1;
             }
-            // Read identifier
-            if j < len && (chars[j].is_alphabetic() || chars[j] == '_' || chars[j] == '$') {
-                let start = j;
-                while j < len && (chars[j].is_alphanumeric() || chars[j] == '_' || chars[j] == '$')
-                {
-                    j += 1;
-                }
-                let ident: String = chars[start..j].iter().collect();
+            if let Some((ident, end)) = read_identifier(code, j) {
                 if !is_reactive_keyword(&ident) && !vars.contains(&ident) {
                     vars.push(ident);
                 }
-                i = j;
+                prev = Some(b'x');
+                i = end;
                 continue;
             }
         }
 
-        if c.is_alphabetic() || c == '_' || c == '$' {
-            // Read identifier
-            let start = i;
-            while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
-                i += 1;
-            }
-            let ident: String = chars[start..i].iter().collect();
-
+        if let Some((ident, end)) = read_identifier(code, i) {
             // A member property (`foo.x = …` / `foo.x += …` / `foo.x++`) is not
             // a declared variable: the assignment mutates the *base object*, not the
             // property. Recording the property would create a false reactive
@@ -1437,72 +1402,81 @@ fn extract_simple_assignments(code: &str) -> Vec<String> {
             // name (e.g. `$: { if (x) … }` spuriously depending on
             // `$: foo.x = count`), reordering otherwise-independent `$:`
             // statements away from source order.
-            let is_member_prop = start > 0 && chars[start - 1] == '.';
+            let is_member_prop = i > 0 && bytes[i - 1] == b'.';
 
-            // Check for postfix `++` or `--`
-            if i + 1 < len
-                && ((chars[i] == '+' && chars[i + 1] == '+')
-                    || (chars[i] == '-' && chars[i + 1] == '-'))
+            // Postfix `x++` / `x--`
+            if (bytes.get(end) == Some(&b'+') && bytes.get(end + 1) == Some(&b'+'))
+                || (bytes.get(end) == Some(&b'-') && bytes.get(end + 1) == Some(&b'-'))
             {
                 if !is_member_prop && !is_reactive_keyword(&ident) && !vars.contains(&ident) {
-                    vars.push(ident.clone());
+                    vars.push(ident);
                 }
-                i += 2;
+                prev = Some(b'x');
+                i = end + 2;
                 continue;
             }
 
-            // Skip whitespace
-            let mut j = i;
-            while j < len && chars[j] == ' ' {
+            let mut j = end;
+            while bytes.get(j) == Some(&b' ') {
                 j += 1;
             }
 
-            // Check for `=` (not `==` or `=>`)
-            if j < len && chars[j] == '=' {
-                let next = chars.get(j + 1).copied().unwrap_or('\0');
-                if next != '=' && next != '>' {
-                    let prev = if j > 0 { chars[j - 1] } else { '\0' };
-                    if prev != '!'
-                        && prev != '<'
-                        && prev != '>'
-                        && prev != '+'
-                        && prev != '-'
-                        && prev != '*'
-                        && prev != '/'
-                        && prev != '?'
-                        && prev != '&'
-                        && prev != '|'
-                        && prev != '^'
-                    {
-                        // This is an assignment to `ident`
-                        if !is_member_prop && !is_reactive_keyword(&ident) && !vars.contains(&ident)
-                        {
-                            vars.push(ident.clone());
-                        }
-                    }
-                }
+            // `=`, but not `==`, `=>`, or the tail of a compound operator
+            if bytes.get(j) == Some(&b'=')
+                && !matches!(bytes.get(j + 1), Some(b'=' | b'>'))
+                && !matches!(
+                    j.checked_sub(1).map(|k| bytes[k]),
+                    Some(
+                        b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'?' | b'&' | b'|' | b'^'
+                    )
+                )
+                && !is_member_prop
+                && !is_reactive_keyword(&ident)
+                && !vars.contains(&ident)
+            {
+                vars.push(ident.clone());
             }
 
-            // Check for compound assignment operators: +=, -=, *=, /=, etc.
-            if j + 1 < len && chars[j + 1] == '=' {
-                let op = chars[j];
-                if matches!(op, '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^') {
-                    // Check it's not `==` following
-                    let after_eq = chars.get(j + 2).copied().unwrap_or('\0');
-                    if after_eq != '='
-                        && !is_member_prop
-                        && !is_reactive_keyword(&ident)
-                        && !vars.contains(&ident)
-                    {
-                        vars.push(ident.clone());
-                    }
-                }
+            // Compound assignment: `+=`, `-=`, `*=`, …
+            if bytes.get(j + 1) == Some(&b'=')
+                && matches!(
+                    bytes.get(j),
+                    Some(b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^')
+                )
+                && bytes.get(j + 2) != Some(&b'=')
+                && !is_member_prop
+                && !is_reactive_keyword(&ident)
+                && !vars.contains(&ident)
+            {
+                vars.push(ident);
             }
-        } else {
-            i += 1;
+
+            prev = Some(b'x');
+            i = end;
+            continue;
         }
+
+        let c = bytes[i];
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
+        i += 1;
     }
     vars
+}
+
+/// Identifier starting at byte `at`, with the byte offset just past it.
+fn read_identifier(code: &str, at: usize) -> Option<(String, usize)> {
+    let rest = code.get(at..)?;
+    let first = rest.chars().next()?;
+    if !(first.is_alphabetic() || first == '_' || first == '$') {
+        return None;
+    }
+    let end = rest
+        .char_indices()
+        .find(|(_, c)| !(c.is_alphanumeric() || *c == '_' || *c == '$'))
+        .map_or(rest.len(), |(k, _)| k);
+    Some((rest[..end].to_string(), at + end))
 }
 
 /// Check if a string is a JS keyword that can't be a variable name.
@@ -2279,6 +2253,33 @@ mod tests {
         assert_eq!(
             reorder_reactive_statements_after_functions(script),
             script.trim_end()
+        );
+    }
+
+    #[test]
+    fn store_set_target_survives_non_ascii_before_the_call() {
+        let mut vars = Vec::new();
+        extract_store_set_targets(
+            "{ const t = '\u{65e5}'; $.store_set(count, t); }",
+            &mut vars,
+        );
+        assert_eq!(vars, vec!["$count".to_string()]);
+    }
+
+    #[test]
+    fn simple_assignments_ignore_comments() {
+        assert_eq!(extract_simple_assignments("// a = 1"), Vec::<String>::new());
+        assert_eq!(
+            extract_simple_assignments("/* a = 1 */ b = 2"),
+            vec!["b".to_string()]
+        );
+    }
+
+    #[test]
+    fn simple_assignments_survive_non_ascii() {
+        assert_eq!(
+            extract_simple_assignments("const t = '\u{65e5}\u{672c}'; total = t.length;"),
+            vec!["t".to_string(), "total".to_string()]
         );
     }
 
