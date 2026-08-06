@@ -4,52 +4,30 @@
 //! for server-side code generation, including `export let` declarations, reactive
 //! `$:` statements, and related helper utilities.
 
+use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
 use memchr::memmem;
 use std::fmt::Write as _;
 
 /// Check if the declaration string contains a semicolon at depth 0 (not inside braces/parens/brackets).
 /// This is used to determine if an export let declaration is complete.
 fn has_top_level_semicolon(s: &str) -> bool {
-    // Byte-indexing is safe here: every character we test (`'`, `"`, `` ` ``,
-    // `\\`, brackets, `;`) is ASCII, and UTF-8 continuation/leading bytes
-    // (0x80-0xFF) never collide with ASCII bytes (0x00-0x7F).
-    let bytes = s.as_bytes();
-    let mut i = 0;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    while i < bytes.len() {
-        let c = bytes[i];
-        if in_string {
-            if c == b'\\' {
-                // Skip the escaped character (always ASCII in valid JS escapes:
-                // \n, \t, \\, \", \u{..}, \x.., …).
-                i += 2;
-                continue;
-            } else if c == string_char {
-                in_string = false;
+    for (_, c) in code_bytes(s.as_bytes()) {
+        match c {
+            b'(' => paren_depth += 1,
+            b')' => paren_depth -= 1,
+            b'[' => bracket_depth += 1,
+            b']' => bracket_depth -= 1,
+            b'{' => brace_depth += 1,
+            b'}' => brace_depth -= 1,
+            b';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                return true;
             }
-        } else if c == b'"' || c == b'\'' || c == b'`' {
-            in_string = true;
-            string_char = c;
-        } else {
-            match c {
-                b'(' => paren_depth += 1,
-                b')' => paren_depth -= 1,
-                b'[' => bracket_depth += 1,
-                b']' => bracket_depth -= 1,
-                b'{' => brace_depth += 1,
-                b'}' => brace_depth -= 1,
-                b';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
-                    return true;
-                }
-                _ => {}
-            }
+            _ => {}
         }
-        i += 1;
     }
     false
 }
@@ -58,46 +36,47 @@ fn has_top_level_semicolon(s: &str) -> bool {
 /// For example: `bg = "gre"; // comment` -> `bg = "gre"`.
 /// If there is no top-level semicolon the string is returned trimmed as-is.
 fn strip_at_top_level_semicolon(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut i = 0;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    while i < bytes.len() {
-        let c = bytes[i];
-        if in_string {
-            if c == b'\\' {
-                i += 2;
-                continue;
-            } else if c == string_char {
-                in_string = false;
+    for (i, c) in code_bytes(s.as_bytes()) {
+        match c {
+            b'(' => paren_depth += 1,
+            b')' => paren_depth -= 1,
+            b'[' => bracket_depth += 1,
+            b']' => bracket_depth -= 1,
+            b'{' => brace_depth += 1,
+            b'}' => brace_depth -= 1,
+            b';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                // `i` points at an ASCII `;`, so `s[..i]` is on a char boundary.
+                return s[..i].trim().to_string();
             }
-        } else if c == b'"' || c == b'\'' || c == b'`' {
-            in_string = true;
-            string_char = c;
-        } else {
-            match c {
-                b'(' => paren_depth += 1,
-                b')' => paren_depth -= 1,
-                b'[' => bracket_depth += 1,
-                b']' => bracket_depth -= 1,
-                b'{' => brace_depth += 1,
-                b'}' => brace_depth -= 1,
-                b';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
-                    // Truncate at this semicolon. `i` points at an ASCII `;`,
-                    // so `s[..i]` is always on a char boundary.
-                    return s[..i].trim().to_string();
-                }
-                _ => {}
-            }
+            _ => {}
         }
-        i += 1;
     }
     // No top-level semicolon found - return as-is, stripping trailing semicolons
     s.trim_end_matches(';').trim().to_string()
+}
+
+/// Does the string / template / block comment opening at `i` run off the end of
+/// `bytes` without its closing delimiter?
+fn opaque_run_is_unterminated(bytes: &[u8], i: usize) -> bool {
+    match bytes[i] {
+        quote @ (b'\'' | b'"' | b'`') => {
+            let mut j = i + 1;
+            while j < bytes.len() {
+                match bytes[j] {
+                    b'\\' => j += 2,
+                    b if b == quote => return false,
+                    _ => j += 1,
+                }
+            }
+            true
+        }
+        b'/' if bytes.get(i + 1) == Some(&b'*') => !bytes[i + 2..].windows(2).any(|w| w == b"*/"),
+        _ => false,
+    }
 }
 
 /// Check if an export let declaration value appears to be syntactically complete.
@@ -107,46 +86,55 @@ fn export_let_declaration_seems_complete(decl: &str) -> bool {
     // First, check if brackets/parens/braces are balanced - if unbalanced, definitely incomplete.
     let bytes = decl.as_bytes();
     let mut i = 0;
+    let mut prev: Option<u8> = None;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
+    // An unclosed template literal or block comment means the next line continues it.
+    let mut unterminated = false;
+    let mut last_code_end = 0;
 
     while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if next == bytes.len() && opaque_run_is_unterminated(bytes, i) {
+                unterminated = true;
+            }
+            if !is_comment {
+                prev = Some(b'x');
+                last_code_end = next;
+            }
+            i = next;
+            continue;
+        }
         let c = bytes[i];
-        if in_string {
-            if c == b'\\' {
-                // Skip the escaped character
-                i += 2;
-                continue;
-            } else if c == string_char {
-                in_string = false;
-            }
-        } else if c == b'"' || c == b'\'' || c == b'`' {
-            in_string = true;
-            string_char = c;
-        } else {
-            match c {
-                b'(' => paren_depth += 1,
-                b')' => paren_depth -= 1,
-                b'[' => bracket_depth += 1,
-                b']' => bracket_depth -= 1,
-                b'{' => brace_depth += 1,
-                b'}' => brace_depth -= 1,
-                _ => {}
-            }
+        match c {
+            b'(' => paren_depth += 1,
+            b')' => paren_depth -= 1,
+            b'[' => bracket_depth += 1,
+            b']' => bracket_depth -= 1,
+            b'{' => brace_depth += 1,
+            b'}' => brace_depth -= 1,
+            _ => {}
+        }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+            last_code_end = i + 1;
         }
         i += 1;
     }
 
     // If any depth is non-zero, definitely incomplete
-    if paren_depth != 0 || bracket_depth != 0 || brace_depth != 0 || in_string {
+    if paren_depth != 0 || bracket_depth != 0 || brace_depth != 0 || unterminated {
         return false;
     }
 
-    // Check for trailing operators that would require continuation
-    let trimmed = decl.trim();
+    // Check for trailing operators that would require continuation, past any
+    // trailing comment — `= [1] /* ] */` ends in code, not in a `/`.
+    let trimmed = if last_code_end > 0 {
+        decl[..last_code_end].trim()
+    } else {
+        decl.trim()
+    };
     if trimmed.ends_with('+')
         || trimmed.ends_with('-')
         || trimmed.ends_with('*')
@@ -211,37 +199,17 @@ fn split_same_line_leading_comments(script: &str) -> std::borrow::Cow<'_, str> {
     std::borrow::Cow::Owned(out)
 }
 
-/// Byte offset of the last `,` at paren/bracket/brace depth 0 (string-aware).
+/// Byte offset of the last `,` at paren/bracket/brace depth 0 (code only).
 fn find_last_top_level_comma(s: &str) -> Option<usize> {
-    let bytes = s.as_bytes();
     let mut depth = 0i32;
-    let mut in_string = false;
-    let mut q = 0u8;
     let mut last = None;
-    let mut i = 0;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if in_string {
-            if c == b'\\' {
-                i += 2;
-                continue;
-            }
-            if c == q {
-                in_string = false;
-            }
-        } else {
-            match c {
-                b'"' | b'\'' | b'`' => {
-                    in_string = true;
-                    q = c;
-                }
-                b'(' | b'[' | b'{' => depth += 1,
-                b')' | b']' | b'}' => depth -= 1,
-                b',' if depth == 0 => last = Some(i),
-                _ => {}
-            }
+    for (i, c) in code_bytes(s.as_bytes()) {
+        match c {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => last = Some(i),
+            _ => {}
         }
-        i += 1;
     }
     last
 }
@@ -489,28 +457,10 @@ fn transform_single_export_let(declaration: &str, kw: &str) -> String {
 
 fn split_declarators(declaration: &str) -> Vec<String> {
     let mut result = Vec::new();
-    let bytes = declaration.as_bytes();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
     let mut segment_start = 0;
 
-    for i in 0..bytes.len() {
-        let c = bytes[i];
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            continue;
-        }
-
+    for (i, c) in code_bytes(declaration.as_bytes()) {
         match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
@@ -535,25 +485,8 @@ fn split_declarators(declaration: &str) -> Vec<String> {
 fn find_assignment_in_declarator(declarator: &str) -> Option<usize> {
     let bytes = declarator.as_bytes();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    for i in 0..bytes.len() {
-        let c = bytes[i];
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            continue;
-        }
-
+    for (i, c) in code_bytes(bytes) {
         match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
@@ -663,26 +596,8 @@ fn is_arrow_function(s: &str) -> bool {
 fn find_arrow_at_depth_zero(s: &str) -> Option<usize> {
     let bytes = s.as_bytes();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    for i in 0..bytes.len().saturating_sub(1) {
-        let c = bytes[i];
-
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            continue;
-        }
-
+    for (i, c) in code_bytes(bytes) {
         match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
@@ -726,26 +641,10 @@ fn is_string_literal(s: &str) -> bool {
 fn split_binary_expression(s: &str) -> Option<(&str, &str)> {
     let bytes = s.as_bytes();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    for i in (0..bytes.len()).rev() {
-        let c = bytes[i];
-
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            continue;
-        }
-
+    // Right-to-left over the code bytes: collect forward, then walk back.
+    let code: Vec<(usize, u8)> = code_bytes(bytes).collect();
+    for &(i, c) in code.iter().rev() {
         match c {
             b')' | b']' | b'}' => depth += 1,
             b'(' | b'[' | b'{' => depth -= 1,
@@ -765,26 +664,13 @@ fn split_binary_expression(s: &str) -> Option<(&str, &str)> {
 fn split_logical_expression(s: &str) -> Option<(&str, &str)> {
     let bytes = s.as_bytes();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    for i in (0..bytes.len().saturating_sub(1)).rev() {
-        let c = bytes[i];
-        let next = bytes[i + 1];
-
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
+    // Right-to-left over the code bytes: collect forward, then walk back.
+    let code: Vec<(usize, u8)> = code_bytes(bytes).collect();
+    for &(i, c) in code.iter().rev() {
+        let Some(&next) = bytes.get(i + 1) else {
             continue;
-        }
-
-        if in_string {
-            continue;
-        }
+        };
 
         match c {
             b')' | b']' | b'}' => depth += 1,
@@ -807,27 +693,9 @@ fn split_logical_expression(s: &str) -> Option<(&str, &str)> {
 fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
     let bytes = s.as_bytes();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
     let mut question_pos = None;
 
-    for i in 0..bytes.len() {
-        let c = bytes[i];
-
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            continue;
-        }
-
+    for (i, c) in code_bytes(bytes) {
         match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
@@ -846,18 +714,21 @@ fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
 
 fn find_assignment_eq(s: &str) -> Option<usize> {
     let bytes = s.as_bytes();
-    let mut i = 0;
     let mut depth = 0;
+    let mut skip_until = 0;
 
-    while i < bytes.len() {
-        match bytes[i] {
+    for (i, c) in code_bytes(bytes) {
+        if i < skip_until {
+            continue;
+        }
+        match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
             b'=' if depth == 0 => {
                 let next = bytes.get(i + 1).copied();
                 let prev = if i > 0 { Some(bytes[i - 1]) } else { None };
                 if next == Some(b'=') || next == Some(b'>') {
-                    i += 2;
+                    skip_until = i + 2;
                     continue;
                 }
                 if let Some(p) = prev
@@ -876,14 +747,12 @@ fn find_assignment_eq(s: &str) -> Option<usize> {
                             | b'?'
                     )
                 {
-                    i += 1;
                     continue;
                 }
                 return Some(i);
             }
             _ => {}
         }
-        i += 1;
     }
     None
 }
@@ -896,6 +765,75 @@ fn find_assignment_eq(s: &str) -> Option<usize> {
 /// all initialization code.
 ///
 /// This function moves `$:` statement lines/blocks to the end of the script content.
+/// Byte just past the first unescaped backtick, closing an open template literal.
+fn template_literal_close(bytes: &[u8]) -> Option<usize> {
+    let mut j = 0;
+    while j < bytes.len() {
+        match bytes[j] {
+            b'\\' => j += 2,
+            b'`' => return Some(j + 1),
+            _ => j += 1,
+        }
+    }
+    None
+}
+
+/// Fold one line of a `$:` statement into the running bracket depth. A template
+/// literal is opaque and spans lines, so its state is threaded across calls.
+fn scan_reactive_line(line: &str, depth: &mut i32, in_template: &mut bool) {
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    let mut prev: Option<u8> = None;
+
+    if *in_template {
+        match template_literal_close(bytes) {
+            Some(j) => {
+                *in_template = false;
+                i = j;
+                prev = Some(b'x');
+            }
+            None => return,
+        }
+    }
+
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if bytes[i] == b'`' && opaque_run_is_unterminated(bytes, i) {
+                *in_template = true;
+                return;
+            }
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        match c {
+            b'{' | b'(' | b'[' => *depth += 1,
+            b'}' | b')' | b']' => *depth -= 1,
+            _ => {}
+        }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
+        i += 1;
+    }
+}
+
+/// Net bracket depth change over one line, counting code bytes only.
+fn bracket_depth_delta(line: &str) -> i32 {
+    let mut delta = 0;
+    for (_, c) in code_bytes(line.as_bytes()) {
+        match c {
+            b'{' | b'(' | b'[' => delta += 1,
+            b'}' | b')' | b']' => delta -= 1,
+            _ => {}
+        }
+    }
+    delta
+}
+
 pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> String {
     let lines: Vec<&str> = script.lines().collect();
 
@@ -921,13 +859,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             let trimmed = lines[i].trim();
             if in_reactive_multiline {
                 // Count braces to find the end of the reactive statement
-                for c in trimmed.chars() {
-                    match c {
-                        '{' | '(' | '[' => reactive_depth += 1,
-                        '}' | ')' | ']' => reactive_depth -= 1,
-                        _ => {}
-                    }
-                }
+                reactive_depth += bracket_depth_delta(trimmed);
                 if reactive_depth <= 0 {
                     in_reactive_multiline = false;
                 }
@@ -937,14 +869,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             if trimmed.starts_with("$:") {
                 saw_reactive = true;
                 // Count braces in the reactive statement line to detect multiline
-                let mut depth: i32 = 0;
-                for c in trimmed.chars() {
-                    match c {
-                        '{' | '(' | '[' => depth += 1,
-                        '}' | ')' | ']' => depth -= 1,
-                        _ => {}
-                    }
-                }
+                let depth: i32 = bracket_depth_delta(trimmed);
                 if depth > 0 {
                     // This is a multi-line reactive statement; skip until balanced
                     in_reactive_multiline = true;
@@ -988,13 +913,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             {
                                 break;
                             }
-                            for c in nt.chars() {
-                                match c {
-                                    '{' | '(' | '[' => acc_depth += 1,
-                                    '}' | ')' | ']' => acc_depth -= 1,
-                                    _ => {}
-                                }
-                            }
+                            acc_depth += bracket_depth_delta(nt);
                             i += 1;
                             let nl = nt.chars().last().unwrap_or(' ');
                             let is_cont = matches!(
@@ -1075,26 +994,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             // Count brace depth and backtick state to detect multi-line blocks
             let mut depth: i32 = 0;
             let mut in_template_literal = false;
-            {
-                let bytes = trimmed.as_bytes();
-                let mut ci = 0;
-                while ci < bytes.len() {
-                    if bytes[ci] == b'\\' && ci + 1 < bytes.len() {
-                        ci += 2; // skip escaped char
-                        continue;
-                    }
-                    if bytes[ci] == b'`' {
-                        in_template_literal = !in_template_literal;
-                    } else if !in_template_literal {
-                        match bytes[ci] {
-                            b'{' | b'(' | b'[' => depth += 1,
-                            b'}' | b')' | b']' => depth -= 1,
-                            _ => {}
-                        }
-                    }
-                    ci += 1;
-                }
-            }
+            scan_reactive_line(trimmed, &mut depth, &mut in_template_literal);
 
             if depth > 0 || in_template_literal {
                 // Multi-line reactive statement (or template literal) - collect until balanced
@@ -1102,24 +1002,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                 while i < lines.len() && (depth > 0 || in_template_literal) {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    let bytes = next.as_bytes();
-                    let mut ci = 0;
-                    while ci < bytes.len() {
-                        if bytes[ci] == b'\\' && ci + 1 < bytes.len() {
-                            ci += 2;
-                            continue;
-                        }
-                        if bytes[ci] == b'`' {
-                            in_template_literal = !in_template_literal;
-                        } else if !in_template_literal {
-                            match bytes[ci] {
-                                b'{' | b'(' | b'[' => depth += 1,
-                                b'}' | b')' | b']' => depth -= 1,
-                                _ => {}
-                            }
-                        }
-                        ci += 1;
-                    }
+                    scan_reactive_line(next, &mut depth, &mut in_template_literal);
                     i += 1;
                 }
             } else {
@@ -1160,15 +1043,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     // Collect continuation lines until we hit a line that looks complete.
                     // Track accumulated bracket depth so multi-line bracket expressions
                     // like `$: x = arr[\n  expr\n];` are fully consumed.
-                    let mut accumulated_depth: i32 = 0;
                     // Count depth from the initial $: line too
-                    for c in trimmed.chars() {
-                        match c {
-                            '{' | '(' | '[' => accumulated_depth += 1,
-                            '}' | ')' | ']' => accumulated_depth -= 1,
-                            _ => {}
-                        }
-                    }
+                    let mut accumulated_depth: i32 = bracket_depth_delta(trimmed);
                     while i < lines.len() {
                         let next = lines[i];
                         let next_trimmed = next.trim();
@@ -1181,13 +1057,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                         }
                         stmt_lines.push(next);
                         // Update accumulated depth
-                        for c in next_trimmed.chars() {
-                            match c {
-                                '{' | '(' | '[' => accumulated_depth += 1,
-                                '}' | ')' | ']' => accumulated_depth -= 1,
-                                _ => {}
-                            }
-                        }
+                        accumulated_depth += bracket_depth_delta(next_trimmed);
                         let next_last = next_trimmed.chars().last().unwrap_or(' ');
                         let next_is_continuation = matches!(
                             next_last,
@@ -1297,26 +1167,13 @@ fn sort_reactive_in_place(script: &str) -> String {
         if trimmed.starts_with("$:") {
             // Collect this reactive statement (possibly multi-line)
             let mut stmt_lines = vec![lines[i]];
-            let mut depth: i32 = 0;
-            for c in trimmed.chars() {
-                match c {
-                    '{' | '(' | '[' => depth += 1,
-                    '}' | ')' | ']' => depth -= 1,
-                    _ => {}
-                }
-            }
+            let mut depth: i32 = bracket_depth_delta(trimmed);
             i += 1;
             if depth > 0 {
                 while i < n && depth > 0 {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    for c in next.chars() {
-                        match c {
-                            '{' | '(' | '[' => depth += 1,
-                            '}' | ')' | ']' => depth -= 1,
-                            _ => {}
-                        }
-                    }
+                    depth += bracket_depth_delta(next);
                     i += 1;
                 }
             } else {
@@ -2011,40 +1868,16 @@ fn find_destructuring_pattern_end_ssr(s: &str) -> Option<usize> {
     }
 
     let mut depth = 0;
-    let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    while i < bytes.len() {
-        if in_string {
-            if bytes[i] == b'\\' {
-                i += 2;
-                continue;
-            }
-            if bytes[i] == string_char {
-                in_string = false;
-            }
-            i += 1;
-            continue;
-        }
-
-        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
-            in_string = true;
-            string_char = bytes[i];
-            i += 1;
-            continue;
-        }
-
-        if bytes[i] == b'{' || bytes[i] == b'[' {
+    for (i, c) in code_bytes(bytes) {
+        if c == b'{' || c == b'[' {
             depth += 1;
-        } else if bytes[i] == b'}' || bytes[i] == b']' {
+        } else if c == b'}' || c == b']' {
             depth -= 1;
             if depth == 0 {
                 return Some(i + 1);
             }
         }
-
-        i += 1;
     }
     None
 }
@@ -2193,10 +2026,8 @@ fn extract_destructured_export_paths_ssr(
 }
 
 fn split_property_key_value_ssr(prop: &str) -> Option<(&str, &str)> {
-    let bytes = prop.as_bytes();
     let mut depth = 0;
-    for i in 0..bytes.len() {
-        let ch = bytes[i];
+    for (i, ch) in code_bytes(prop.as_bytes()) {
         match ch {
             b'{' | b'[' | b'(' => depth += 1,
             b'}' | b']' | b')' => depth -= 1,
@@ -2223,29 +2054,11 @@ fn split_binding_name_default_ssr(s: &str) -> (&str, Option<&str>) {
 }
 
 fn split_destructuring_properties_ssr(s: &str) -> Vec<&str> {
-    let bytes = s.as_bytes();
     let mut result = Vec::new();
     let mut depth = 0;
     let mut start = 0;
-    let mut in_string = false;
-    let mut string_char = 0u8;
 
-    for i in 0..bytes.len() {
-        let ch = bytes[i];
-        if in_string {
-            if ch == b'\\' {
-                continue;
-            }
-            if ch == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-        if ch == b'\'' || ch == b'"' || ch == b'`' {
-            in_string = true;
-            string_char = ch;
-            continue;
-        }
+    for (i, ch) in code_bytes(s.as_bytes()) {
         match ch {
             b'{' | b'[' | b'(' => depth += 1,
             b'}' | b']' | b')' => depth -= 1,
@@ -2296,5 +2109,130 @@ mod tests {
         assert_eq!(extract_simple_assignments("x = 1;"), vec!["x"]);
         assert_eq!(extract_simple_assignments("x += 1;"), vec!["x"]);
         assert_eq!(extract_simple_assignments("x++;"), vec!["x"]);
+    }
+
+    #[test]
+    fn top_level_semicolon_ignores_comments_and_strings() {
+        assert!(!has_top_level_semicolon("x = 1 // done;"));
+        assert!(!has_top_level_semicolon("x = 1 /* a; b */"));
+        assert!(!has_top_level_semicolon("x = 'a;b'"));
+        assert!(has_top_level_semicolon("x = 1; y"));
+    }
+
+    #[test]
+    fn strip_at_semicolon_ignores_comments() {
+        assert_eq!(
+            strip_at_top_level_semicolon("x = 1 // a; b"),
+            "x = 1 // a; b"
+        );
+        assert_eq!(
+            strip_at_top_level_semicolon("x = 1 /* ; */ + 2"),
+            "x = 1 /* ; */ + 2"
+        );
+        assert_eq!(strip_at_top_level_semicolon("x = 1; // c"), "x = 1");
+    }
+
+    #[test]
+    fn declaration_completeness_ignores_comment_brackets() {
+        assert!(!export_let_declaration_seems_complete("x = [1 /* ] */"));
+        assert!(!export_let_declaration_seems_complete("x = [1 // ]"));
+        assert!(export_let_declaration_seems_complete("x = [1] /* ] */"));
+        assert!(!export_let_declaration_seems_complete("x = `abc"));
+        assert!(!export_let_declaration_seems_complete("x = 1 /* open"));
+    }
+
+    #[test]
+    fn last_top_level_comma_ignores_comments() {
+        assert_eq!(find_last_top_level_comma("a, b /* , */"), Some(1));
+        assert_eq!(find_last_top_level_comma("a // , b"), None);
+    }
+
+    #[test]
+    fn split_declarators_ignores_comments() {
+        assert_eq!(
+            split_declarators("a = 1 /* , */ , b = 2"),
+            vec!["a = 1 /* , */", "b = 2"]
+        );
+        assert_eq!(split_declarators("a = 1 // , b"), vec!["a = 1 // , b"]);
+    }
+
+    #[test]
+    fn assignment_in_declarator_ignores_comments() {
+        assert_eq!(find_assignment_in_declarator("x /* = */ = 1"), Some(10));
+        assert_eq!(find_assignment_in_declarator("x // = 1"), None);
+    }
+
+    #[test]
+    fn arrow_at_depth_zero_ignores_comments() {
+        assert_eq!(find_arrow_at_depth_zero("x /* => */ + 1"), None);
+        assert_eq!(find_arrow_at_depth_zero("// =>"), None);
+    }
+
+    #[test]
+    fn split_binary_ignores_comments() {
+        assert_eq!(split_binary_expression("a /* + */ b"), None);
+        assert_eq!(split_binary_expression("a // + b"), None);
+    }
+
+    #[test]
+    fn split_logical_ignores_comments() {
+        assert_eq!(split_logical_expression("a /* && */ b"), None);
+        assert_eq!(split_logical_expression("a // || b"), None);
+    }
+
+    #[test]
+    fn split_conditional_ignores_comments() {
+        assert_eq!(split_conditional_expression("cond // ? x : y"), None);
+        assert_eq!(split_conditional_expression("cond /* ? x : y */"), None);
+    }
+
+    #[test]
+    fn assignment_eq_ignores_comments_and_strings() {
+        assert_eq!(find_assignment_eq("a /* = */ b"), None);
+        assert_eq!(find_assignment_eq("a // = b"), None);
+        assert_eq!(find_assignment_eq("'=' + x"), None);
+    }
+
+    #[test]
+    fn destructuring_pattern_end_ignores_comments() {
+        assert_eq!(
+            find_destructuring_pattern_end_ssr("{ a /* } */, b }"),
+            Some(16)
+        );
+        assert_eq!(
+            find_destructuring_pattern_end_ssr("{ a // }\n, b }"),
+            Some(14)
+        );
+    }
+
+    #[test]
+    fn property_key_value_ignores_comments_and_strings() {
+        assert_eq!(
+            split_property_key_value_ssr("a /* : */ : b"),
+            Some(("a /* : */", "b"))
+        );
+        assert_eq!(split_property_key_value_ssr("'a:b'"), None);
+    }
+
+    #[test]
+    fn destructuring_properties_ignore_comments() {
+        assert_eq!(
+            split_destructuring_properties_ssr("a /* , */ , b"),
+            vec!["a /* , */ ", " b"]
+        );
+        assert_eq!(
+            split_destructuring_properties_ssr("a // , b"),
+            vec!["a // , b"]
+        );
+    }
+
+    #[test]
+    fn reactive_block_brace_in_comment_does_not_close_the_block() {
+        let script = "let a = 1;\n$: {\n\tb = a; // }\n}\n$: c = b;\nlet d = 2;\n";
+        let out = reorder_reactive_statements_after_functions(script);
+        assert!(
+            out.contains("$: {\n\tb = a; // }\n}"),
+            "block split apart: {out}"
+        );
     }
 }
