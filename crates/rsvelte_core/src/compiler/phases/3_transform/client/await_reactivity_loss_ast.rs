@@ -26,6 +26,57 @@ fn track_reactivity_loss_wrap(argument_text: &str) -> String {
     format!("(await $.track_reactivity_loss({argument_text}))()")
 }
 
+/// The dev wrapper upstream builds in `visitors/ForOfStatement.js`.
+pub(super) fn for_await_track_reactivity_loss_wrap(iterable_text: &str) -> String {
+    format!("$.for_await_track_reactivity_loss({iterable_text})")
+}
+
+/// Whether upstream's `ForOfStatement` visitor would wrap this loop's iterable.
+pub(super) fn is_for_await_instrumentable(
+    stmt: &ForOfStatement<'_>,
+    experimental_async: bool,
+    ignored: bool,
+) -> bool {
+    stmt.r#await
+        && experimental_async
+        && !ignored
+        && !is_for_await_track_reactivity_loss_call(&stmt.right)
+}
+
+/// Whether `expr` is an `await` this pass will itself rewrite in full.
+fn awaits_over_the_whole_span(expr: &Expression<'_>, ignore: &AwaitIgnoreRanges) -> bool {
+    let Expression::AwaitExpression(expr) = expr else {
+        return false;
+    };
+    !is_track_reactivity_loss_call(&expr.argument)
+        && !is_destructuring_iife_call(&expr.argument)
+        && !ignore.contains(expr.span.start)
+}
+
+fn for_await_edit(
+    stmt: &ForOfStatement<'_>,
+    source: &str,
+    experimental_async: bool,
+    ignore: &AwaitIgnoreRanges,
+) -> Option<Edit> {
+    if !is_for_await_instrumentable(stmt, experimental_async, ignore.contains(stmt.span.start)) {
+        return None;
+    }
+    // A bare awaited iterable produces an `await` edit over the very same span,
+    // which the splice's strict-containment check cannot order; let that one
+    // land and re-collect this loop over the settled expression.
+    if awaits_over_the_whole_span(&stmt.right, ignore) {
+        return None;
+    }
+    let span = stmt.right.span();
+    let text = source[span.start as usize..span.end as usize].trim();
+    Some((
+        span.start,
+        span.end,
+        for_await_track_reactivity_loss_wrap(text),
+    ))
+}
+
 /// Whether `stmt`'s last token is an expression, so that a following line
 /// opening with `(` continues it instead of starting a statement of its own.
 /// A source `await` can never continue a line, but the wrapper this pass builds
@@ -76,13 +127,22 @@ pub(super) fn separator_positions(
 /// it again on the next iteration; recognising the marker is what makes this
 /// pass idempotent.
 fn is_track_reactivity_loss_call(expr: &Expression<'_>) -> bool {
+    is_internal_call(expr, "track_reactivity_loss")
+}
+
+/// The `for await` wrapper is likewise re-collected by the fixed-point loop.
+pub(super) fn is_for_await_track_reactivity_loss_call(expr: &Expression<'_>) -> bool {
+    is_internal_call(expr, "for_await_track_reactivity_loss")
+}
+
+fn is_internal_call(expr: &Expression<'_>, name: &str) -> bool {
     let Expression::CallExpression(call) = expr.without_parentheses() else {
         return false;
     };
     let Expression::StaticMemberExpression(member) = &call.callee else {
         return false;
     };
-    member.property.name == "track_reactivity_loss"
+    member.property.name == name
         && matches!(&member.object, Expression::Identifier(id) if id.name == "$")
 }
 
@@ -182,11 +242,13 @@ pub(super) fn collect_await_reactivity_loss_edits(
     program: &Program<'_>,
     source: &str,
     is_runes: bool,
+    experimental_async: bool,
 ) -> Vec<Edit> {
     let mut collector = AwaitCollector {
         source,
         ignored: collect_await_ignore_ranges(program, source, is_runes),
         separators: rustc_hash::FxHashMap::default(),
+        experimental_async,
         edits: Vec::new(),
     };
     collector.visit_program(program);
@@ -198,6 +260,9 @@ struct AwaitCollector<'src> {
     ignored: AwaitIgnoreRanges,
     /// Statement start → end of the statement a `;` has to separate it from.
     separators: rustc_hash::FxHashMap<u32, u32>,
+    /// Upstream's `ForOfStatement` wrap is gated on `experimental.async`; the
+    /// `AwaitExpression` one is not.
+    experimental_async: bool,
     edits: Vec<Edit>,
 }
 
@@ -206,6 +271,16 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
         self.separators
             .extend(separator_positions(stmts, self.source));
         walk::walk_statements(self, stmts);
+    }
+
+    fn visit_for_of_statement(&mut self, stmt: &ForOfStatement<'a>) {
+        walk::walk_for_of_statement(self, stmt);
+
+        if let Some(edit) =
+            for_await_edit(stmt, self.source, self.experimental_async, &self.ignored)
+        {
+            self.edits.push(edit);
+        }
     }
 
     fn visit_await_expression(&mut self, expr: &AwaitExpression<'a>) {

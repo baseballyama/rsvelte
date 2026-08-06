@@ -70,6 +70,7 @@ pub(super) fn transform_module_dev_tail_ast(
 
     let has_inspect = dev && super::inspect_rune_ast::source_has_inspect_rune(source);
     let has_await = dev && super::await_reactivity_loss_ast::source_has_await(source);
+    let experimental_async = analysis.is_some_and(|a| a.experimental_async);
 
     if !has_effect && !has_strict && !has_console && !has_tag && !has_inspect && !has_await {
         return None;
@@ -114,7 +115,10 @@ pub(super) fn transform_module_dev_tail_ast(
             if has_await {
                 edits.extend(
                     super::await_reactivity_loss_ast::collect_await_reactivity_loss_edits(
-                        program, src, is_runes,
+                        program,
+                        src,
+                        is_runes,
+                        experimental_async,
                     ),
                 );
             }

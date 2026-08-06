@@ -69,6 +69,7 @@ pub(super) fn transform_legacy_instance_dev_tail_ast(
     // across fixed-point iterations.
     let has_equality = super::strict_equals_ast::source_has_equality_op(source);
     let has_await = super::await_reactivity_loss_ast::source_has_await(source);
+    let experimental_async = analysis.is_some_and(|a| a.experimental_async);
     // The per-statement loop in `mod.rs` never sees a `$:` body — it is folded
     // into a `$.legacy_pre_effect(...)` call afterwards — so the console wrap
     // has to be re-collected over the settled script.
@@ -95,7 +96,10 @@ pub(super) fn transform_legacy_instance_dev_tail_ast(
                 // hyphenated code spellings.
                 edits.extend(
                     super::await_reactivity_loss_ast::collect_await_reactivity_loss_edits(
-                        program, src, false,
+                        program,
+                        src,
+                        false,
+                        experimental_async,
                     ),
                 );
             }

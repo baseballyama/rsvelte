@@ -2042,6 +2042,36 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         true
     }
 
+    /// Dev-mode rewrite of `for await (… of X)` to
+    /// `for await (… of $.for_await_track_reactivity_loss(X))`, mirroring the
+    /// official compiler's `ForOfStatement` visitor. Returns `true` when the
+    /// statement was rewritten (the caller then skips the default walk).
+    fn try_rewrite_for_await_reactivity_loss(&mut self, stmt: &ForOfStatement<'_>) -> bool {
+        if !self.dev
+            || !super::await_reactivity_loss_ast::is_for_await_instrumentable(
+                stmt,
+                self.analysis.is_some_and(|a| a.experimental_async),
+                self.is_await_reactivity_loss_ignored(stmt.span.start),
+            )
+        {
+            return false;
+        }
+
+        self.visit_for_statement_left(&stmt.left);
+        self.visit_expression(&stmt.right);
+        let right_span = stmt.right.span();
+        let right_text = self.apply_and_drain_inner_replacements(right_span.start, right_span.end);
+        self.add_replacement(
+            right_span.start,
+            right_span.end,
+            super::await_reactivity_loss_ast::for_await_track_reactivity_loss_wrap(
+                right_text.trim(),
+            ),
+        );
+        self.visit_statement(&stmt.body);
+        true
+    }
+
     fn is_await_reactivity_loss_ignored(&self, offset: u32) -> bool {
         self.await_ignore_ranges.contains(offset)
     }
@@ -2371,6 +2401,12 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // argument itself when it matches.
         if !self.try_rewrite_await_reactivity_loss(expr) {
             walk::walk_await_expression(self, expr);
+        }
+    }
+
+    fn visit_for_of_statement(&mut self, stmt: &ForOfStatement<'ast>) {
+        if !self.try_rewrite_for_await_reactivity_loss(stmt) {
+            walk::walk_for_of_statement(self, stmt);
         }
     }
 
