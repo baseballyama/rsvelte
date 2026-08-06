@@ -849,16 +849,45 @@ Denominator: **1087 tracked `.mjs`/`.rs` files scanned; 5 accept both.**
 |---|---|---|---|
 | `check-verify.mjs` | `--scenario` | `--update` | **yes** — `:100` `if (UPDATE && ONLY) fail('--update cannot be combined with --scenario')` |
 | `check-e2e-verify.mjs` | `--project` | `--update` | **yes** — `:115`, same shape |
-| `matrix/run.mjs` | `--families`, `--targets` | `--update-baseline` | **yes** — `:184` (`--no-fmt`), `:188-189` (`--families` subset) |
+| **`matrix/run.mjs`** | `--families`, `--targets` | `--update-baseline` | **PARTIAL — 2 of 3 axes.** Refuses `--no-fmt` (`:184`) and the `--families` subset (`:188-189`, naming FALSE-SHRINK explicitly). Does **not** refuse `--targets` |
 | `verify.mjs` | `--targets` | `--update-baseline` | **scopes instead of refusing** — `UPDATE_SCOPE` (`:104-112`, `:182`) writes only the measured targets, plus `requireFullCorpus` (`:164-172`). A valid alternative |
 | **`css-prune-sweep.mjs`** | `--filter` (`:52`, applied `:324`) | `--update-baseline` (`:57`, `:476`) | **NO** — the write is unguarded |
 
-So there is **exactly one unguarded instance repo-wide today**, not a spreading pattern: the
-other four are handled, two by refusing and one by scoping. A shared helper is not yet warranted.
+**Corrected count: 2 unguarded holes of 5, not 1.** An earlier revision of this table scored
+`matrix/run.mjs` as guarded because it refuses *something*. It refuses `--families`; `--targets`
+narrows the same population and is not refused. `ids` (`:180`) is built only from the selected
+`TARGETS` (`:52`), and `:193` then writes the **whole** baseline from it — so
+`--targets client --update-baseline` deletes every `server` and `client-dev` entry. **[D]**
+Observed by another agent against a redirected output path: **350 entries → 50, 300 deleted
+(86%), exit 0.**
 
-Note the trap in the loose version of this check: grepping for `refus|exit\(2\)` reports
-`css-prune-sweep.mjs` as guarded, because those tokens appear elsewhere in the file. The
-predicate is only meaningful when the refusal's *condition* references the selector variable.
+### Why this one is the argument for a shared helper
+
+Not the count — two of five is weak evidence on frequency. The mechanism is the evidence, and
+`matrix/run.mjs` proves it inside a single file:
+
+- the **write** path (`:182-196`) narrows on families only;
+- the **compare** path (`:203-208`), fifteen lines below, narrows on
+  `measuredFamilies.has(family) && measuredTargets.has(target)` — **both** axes;
+- and the comment introducing it (`:200`) says *"Only entries in the families this run
+  measured"*, naming one axis while the code beneath it handles two.
+
+The author was not unaware that `--targets` narrows the measured set; they wrote
+`measuredTargets` at `:202` and used it at `:207`. The knowledge was present in the file and did
+not reach the guard fifteen lines up. Compare the population across the repo:
+`mutate-corpus.mjs` refuses all four of its axes, `matrix/run.mjs` 2 of 3, `verify.mjs` 0 of 1
+(it scopes instead). These are **incomplete copies of one rule, each missing the axis its author
+happened not to be holding in mind** — which is a failure mode education cannot reach, because
+the person already knows the rule. A structure that makes the write path consume the same
+narrowing set the compare path uses can; a reminder cannot.
+
+**The trap in the loose version of this check** — and it is the same shape as the
+misclassification above. Grepping `refus|exit\(2\)` reports `css-prune-sweep.mjs` as guarded,
+because those tokens occur elsewhere in the file; it also reports `matrix/run.mjs` as guarded,
+because it genuinely refuses a *different* axis. The proxy answers *"does this file contain
+refusal machinery"* when the question is *"does it refuse **this**"*. The predicate is only
+meaningful when the refusal's **condition references the selector variable in question** — per
+axis, not per file.
 
 ## Adding a gate, or a row here
 
