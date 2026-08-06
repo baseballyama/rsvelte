@@ -162,6 +162,43 @@ if (fs.existsSync(MATRIX_MD_PATH)) {
 	}
 }
 
+// The corpus-seeded mutation fuzz (mutate-corpus.mjs, #2281 Gate 3): header
+// count plus the per-verdict table, which is what a burn-down PR forgets.
+const MUTATION_MD_PATH = path.join(CORPUS, 'mutation-known-failures.md');
+const MUTATION_JSON_PATH = path.join(CORPUS, 'mutation-known-failures.json');
+if (fs.existsSync(MUTATION_MD_PATH)) {
+	const mutationMd = fs.readFileSync(MUTATION_MD_PATH, 'utf8');
+	if (!fs.existsSync(MUTATION_JSON_PATH)) {
+		console.error('[known-failures-md-check] missing ratchet mutation-known-failures.json');
+		failed = true;
+	} else {
+		const entries = JSON.parse(fs.readFileSync(MUTATION_JSON_PATH, 'utf8'));
+		const m = mutationMd.match(/`mutation-known-failures\.json`,\s*([\d,]+)\s+entr(?:y|ies)/);
+		if (!m) {
+			console.error('[known-failures-md-check] could not find the entry count for `mutation-known-failures.json` in mutation-known-failures.md');
+			failed = true;
+		} else if (Number(m[1].replace(/,/g, '')) !== entries.length) {
+			console.error(
+				`[known-failures-md-check] mutation-known-failures.md says ${m[1]} entries, but mutation-known-failures.json has ${entries.length}`,
+			);
+			failed = true;
+		}
+		// Per-verdict table rows, e.g. "| `code-mismatch` | 213 |".
+		for (const verdict of ['code-mismatch', 'compiler-crash', 'error-mismatch']) {
+			const vm = mutationMd.match(new RegExp('\\| `' + verdict + '` \\| (\\d+) \\|'));
+			if (!vm) continue;
+			const claimed = Number(vm[1]);
+			const actual = entries.filter((id) => id.includes(`[${verdict}]`)).length;
+			if (claimed !== actual) {
+				console.error(
+					`[known-failures-md-check] mutation-known-failures.md says ${claimed} "${verdict}" entries, but the ratchet has ${actual}`,
+				);
+				failed = true;
+			}
+		}
+	}
+}
+
 if (failed) {
 	console.error('\n[known-failures-md-check] update the known-failures docs to match the JSON ratchets above.');
 	process.exit(1);

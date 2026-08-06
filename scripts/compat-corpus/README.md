@@ -311,6 +311,49 @@ disagree about what "identical output" means.
 differences the corpus tolerates by contract) or under a `--families` subset
 (would delete every baseline entry the run did not measure).
 
+## Mutation fuzz (`mutate-corpus.mjs`)
+
+Gate 2 generates inputs from declared axes with hand-picked seeds. This is the
+same mutation applied to the **real corpus entries** (#2281 Gate 3) — they stop
+being the test set and become a seed set:
+
+```bash
+pnpm run corpus:mutate                 # deterministic sample (600 seeds)
+pnpm run corpus:mutate -- --seeds 1500 # what CI runs on a PR
+pnpm run corpus:mutate:full            # every eligible seed (what main runs)
+pnpm run corpus:mutate:update          # re-baseline (requires --full)
+```
+
+Needs `collect.mjs` to have run (`sources/` + `manifest.json`), which is why it
+lives in the `corpus` CI job — `verify.mjs` only reclaims `expected/`+`actual/`.
+
+**Only the code class is ratcheted.** A divergent mutant is:
+
+| verdict | ratcheted | meaning |
+|---|---|---|
+| `code-mismatch` | yes | difference survives normalizing comments, whitespace and trailing commas away |
+| `compiler-crash` | yes | rsvelte aborted the process |
+| `error-mismatch` | yes | exactly one compiler rejected the mutant |
+| `comment-mismatch` | no | comment dropped/duplicated/relocated, or a line broke differently |
+
+The full sweep yields 213 code and 13,242 comment divergences. Ratcheting per id
+without the split would be a 13,000-entry file churning on every submodule bump;
+comment fidelity is ratcheted per id by Gate 2 instead, on generated seeds that
+do not move when a submodule bumps.
+
+**Design properties that make the ratchet stable**
+
+- The mutant a seed contributes comes from **that seed's own hash**, not its
+  index, so adding a corpus entry does not reshuffle everyone else's mutants.
+- The `__L<line>__<kind>` tag goes **before** the extension, so the compiler
+  still sees a `.svelte` / `.svelte.js` / `.svelte.ts` filename. Appending it
+  produced 9 spurious `error-mismatch` entries that vanished once fixed.
+- Seeds already in `known-failures.<target>.json` are excluded — they diverge
+  before anything is inserted.
+- Compilation runs in **child processes** (like `compile.mjs`): a panic aborts
+  the process, and the worker's `IDX <i>` lets the parent name the crashing
+  seed, record it, and resume. Without this one bad mutant kills the sweep.
+
 ## Formatter parity (`fmt.mjs` / `fmt-verify.mjs`)
 
 A second, independent track verifies that **rsvelte-fmt** formats every
