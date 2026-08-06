@@ -44,6 +44,9 @@ const ROOT = path.resolve(__dirname, '../..');
 const CORPUS = path.join(ROOT, 'compatibility');
 const RATCHET = path.join(CORPUS, 'css-prune-known-failures.json');
 
+// Exact, not a floor: the grid is deterministic, so any drift is a source edit.
+const EXPECTED_COMPONENTS = 1430;
+
 const args = process.argv.slice(2);
 const argValue = (name, fallback = null) => {
 	const i = args.indexOf(name);
@@ -55,6 +58,17 @@ const LIST = args.includes('--list');
 const BOTH = args.includes('--both');
 const CHECK = args.includes('--check');
 const UPDATE_BASELINE = args.includes('--update-baseline');
+
+// A narrowed run measures a subset, so it can neither clear the ratchet nor
+// rewrite it: the ids it never compiled are not evidence of anything.
+if (FILTER && (CHECK || UPDATE_BASELINE)) {
+	const flag = CHECK ? '--check' : '--update-baseline';
+	const harm = CHECK
+		? 'would report "no regressions" for components it never compiled'
+		: 'would delete every baseline id outside the filter';
+	console.error(`[css-prune-sweep] --filter cannot be combined with ${flag}: a filtered run ${harm}`);
+	process.exit(2);
+}
 
 // ---------------------------------------------------------------------------
 // grid ingredients
@@ -321,11 +335,26 @@ function* generate() {
 // compile + compare
 // ---------------------------------------------------------------------------
 
-const all0 = [...generate()].filter((c) => !FILTER || c.id.includes(FILTER));
+const generated = [...generate()];
+const all0 = generated.filter((c) => !FILTER || c.id.includes(FILTER));
 if (LIST) {
 	for (const c of all0) console.log(c.id);
-	console.log(`\n${all0.length} components`);
+	console.log(`\n${all0.length} of ${generated.length} components`);
 	process.exit(0);
+}
+
+// The grid is a pure product of the axes above, so its size is a property of
+// this file rather than of the corpus on disk — pin it exactly.
+if (generated.length !== EXPECTED_COMPONENTS) {
+	console.error(
+		`[css-prune-sweep] grid produced ${generated.length} components, expected ${EXPECTED_COMPONENTS}`
+	);
+	console.error(
+		generated.length < EXPECTED_COMPONENTS
+			? '  the generator lost cases; a sweep over a shrunken grid passes by comparing less'
+			: `  the axes grew; if that is intended, set EXPECTED_COMPONENTS to ${generated.length}`
+	);
+	process.exit(2);
 }
 
 const svelte = await import(
@@ -512,7 +541,9 @@ if (CHECK) {
 	// fixed" delta left unmerged on a later PR reads as normal noise, so a
 	// real regression could hide inside it.
 	if (regressions.length > 0 || fixed.length > 0) process.exit(1);
-	console.log(`\n[css-prune-sweep] no regressions (${divergedIds.length} known divergences)`);
+	console.log(
+		`\n[css-prune-sweep] no regressions — compared ${all.length} of ${EXPECTED_COMPONENTS} components (${divergedIds.length} known divergences)`
+	);
 	process.exit(0);
 }
 
