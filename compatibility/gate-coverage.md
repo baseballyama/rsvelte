@@ -51,7 +51,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 8 | css-prune sweep | `css.code` of 1430 generated components | **an empty population exits 0** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
-| 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` excluded; autofixes never compared | [S] |
+| 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
 | 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts | [S] |
 | 13 | svelte-check Layer 2 (e2e) | same key, 3 units in 2 repos | same fields; whether the oracle finds anything at all | [U] |
 | 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
@@ -447,13 +447,41 @@ model when adding floors elsewhere.
 **Unit.** Per file, a **Set** of `` `${ruleId}\t${line}:${col}\t${message}` `` (`:90`). This is
 the only gate in the repo that *does* compare message text.
 
-### Blind spot 11a — `.svelte.js` / `.svelte.ts` findings are computed and then dropped
+### Blind spot 11a — `.svelte.js` / `.svelte.ts` are outside the gate on *both* sides
 
-`lint-verify.mjs:84` filters the manifest to `kind === 'component'`. rsvelte-lint is pointed at
-the whole `SOURCES` directory (`:124`) and its module findings land in `byFile` (`:153`), and
-the oracle is configured for `**/*.svelte.js` / `**/*.svelte.ts` (`lint-oracle/run.mjs:132`) —
-but the diff loop iterates components only (`:178`). **[S]** Both sides produce module
-findings; neither is compared. Rune-module lint parity is ungated.
+`lint-verify.mjs:84` filters the manifest to `kind === 'component'`, so the oracle — which is
+configured for `**/*.svelte.js` / `**/*.svelte.ts` (`lint-oracle/run.mjs:132`) and lints
+whatever file list it is handed (`:181`) — is never asked about a module. The diff loop
+iterates components only (`:178`). **[S]**
+
+**Correction (2026-08-07).** An earlier revision of this row said rsvelte-lint's module findings
+"land in `byFile`" and that "both sides produce module findings; neither is compared". That was
+wrong, and it is worth recording how: the claim was inherited from a sweep and shipped with an
+`[S]` label without the citation being opened. `rsvelte-lint` **cannot lint a module at all** —
+`collect_files` (`crates/rsvelte_lint/src/main.rs:65-82`) admits a path only when
+`path.extension() == "svelte"`, both on the directory walk (`:71`) and on an explicit path
+argument (`:75`), and `Path::extension()` returns `"js"` for `a.svelte.js` and `"ts"` for
+`a.svelte.ts`. **[D]** Verified with a standalone `rustc` program over all four cases:
+`a.svelte` → `Some("svelte")`, match; `a.svelte.js` → `Some("js")`, no match; `a.svelte.ts` →
+`Some("ts")`, no match; `a.js` → `Some("js")`, no match (negative control).
+
+So the surface is unguarded on both sides, and the two causes need fixing in order — see
+`main.rs` gap below, then the gate filter. Removing `lint-verify.mjs:84` **alone** would not
+measure rule parity; it would fill the ratchet with `-` (false-negative) entries reporting that
+the rsvelte CLI linted none of those files.
+
+The engine is not the limitation: `run_script_rules_module` (`crates/rsvelte_lint/src/engine.rs:332`)
+is public and implemented, `engine.rs:124,132` dispatch `.svelte.js`/`.svelte.ts` to it, and
+several rules implement the `ScriptRule` hook specifically to reach it (`no_store_async.rs:5`,
+`require_stores_init.rs:4`). Only the CLI's file collection is missing.
+
+**This blind spot has already cost functionality.** `prefer_svelte_reactivity.rs:19-21` declines
+to port a rule path upstream implements, stating the reason outright: *"The plugin additionally
+flags exported instances in `*.svelte.js` / `*.svelte.ts` modules; those fixtures are
+`.svelte.js` files (not collected by the component oracle) and that path is intentionally not
+ported here."* An ungated surface did not merely hide divergence — it was cited in-code as
+grounds for not implementing against it. That is the strongest argument in this document for
+why a blind-spot inventory is worth maintaining.
 
 ### Blind spot 11b — duplicate findings collapse
 
