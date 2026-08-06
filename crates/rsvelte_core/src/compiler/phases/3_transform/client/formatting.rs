@@ -267,7 +267,7 @@ fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
         if c == b'$'
             && bytes.get(i + 1) == Some(&b':')
             && scan.depth == 0
-            && matches!(scan.last_code, None | Some(b';') | Some(b'{') | Some(b'}'))
+            && statement_can_begin(&scan, bytes, after_last_code, i)
         {
             let end = reactive_statement_end(source, &mut scan, i + 2);
             let end = extend_over_trailing_comment(source, end);
@@ -289,6 +289,22 @@ fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
             (if has_successor { label } else { leading }, end)
         })
         .collect()
+}
+
+/// Whether a statement can begin at `at`, `after_last_code` being the byte just
+/// past the preceding code token. Besides the explicit boundaries, automatic
+/// semicolon insertion makes a line terminator after a token that can end an
+/// expression one too — `let bar` followed by a `$:` line is a labeled
+/// statement just as much as `let bar;` is.
+fn statement_can_begin(scan: &JsScan, bytes: &[u8], after_last_code: usize, at: usize) -> bool {
+    match scan.last_code {
+        None | Some(b';') | Some(b'{') | Some(b'}') => true,
+        Some(c) => {
+            (c.is_ascii_alphanumeric()
+                || matches!(c, b'_' | b'$' | b')' | b']' | b'\'' | b'"' | b'`'))
+                && bytes[after_last_code..at].contains(&b'\n')
+        }
+    }
 }
 
 /// Byte just past the end of the reactive statement whose body starts at
@@ -1301,6 +1317,18 @@ mod reactive_comment_tests {
     fn drops_comments_inside_a_reactive_block() {
         let out = strip_reactive_statement_comments("$: {\n\t// inner\n\ty = 1;\n}\n");
         assert_eq!(out, "$: {\n\t\n\ty = 1;\n}\n");
+    }
+
+    #[test]
+    fn drops_comments_after_a_semicolon_less_predecessor() {
+        let out = strip_reactive_statement_comments("let y\n$: {\n\t// inner\n\ty = 1;\n}\n");
+        assert_eq!(out, "let y\n$: {\n\t\n\ty = 1;\n}\n");
+    }
+
+    #[test]
+    fn a_conditional_consequent_is_not_a_reactive_statement() {
+        let source = "let y = c ?\n/* keep */\n$: 1;\n";
+        assert_eq!(strip_reactive_statement_comments(source), source);
     }
 
     #[test]
