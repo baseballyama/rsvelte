@@ -68,6 +68,14 @@ fn test_svelte2tsx_fixtures() {
     let outcomes = match iter_svelte2tsx_outcomes() {
         Some(o) => o,
         None => {
+            // CI checks this submodule out unconditionally, so absence there
+            // means the job is misconfigured, not that fixtures are unavailable.
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "submodules/language-tools is not checked out while running \
+                 under CI — every svelte2tsx fixture assertion would be \
+                 silently skipped."
+            );
             eprintln!("Skipping: language-tools submodule not available");
             return;
         }

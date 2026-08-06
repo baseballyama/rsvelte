@@ -25,7 +25,7 @@
 //!     cargo test --release --test svelte_check_golden -- --nocapture
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rsvelte_check::tsgo::find_compiler;
 use rsvelte_check::{RunOptions, run};
@@ -38,7 +38,27 @@ fn fixture_root() -> Option<PathBuf> {
         .join("language-tools")
         .join("packages")
         .join("svelte-check");
+    // CI checks this submodule out unconditionally, so absence there means the
+    // job is misconfigured rather than that the fixtures are unavailable.
+    assert!(
+        p.exists() || std::env::var_os("CI").is_none(),
+        "submodules/language-tools is not checked out while running under CI — \
+         the svelte-check golden assertions would be silently skipped."
+    );
     if p.exists() { Some(p) } else { None }
+}
+
+/// The fixture workspaces are addressed by hardcoded name, so an upstream
+/// rename would silently zero this suite instead of failing it.
+fn require_fixture(workspace: &Path) -> bool {
+    let exists = workspace.exists();
+    assert!(
+        exists || std::env::var_os("CI").is_none(),
+        "fixture workspace {} is missing while running under CI — it was \
+         probably renamed upstream; update this test instead of skipping it.",
+        workspace.display()
+    );
+    exists
 }
 
 /// One expected TypeScript-side error. Mirrors the entries in
@@ -110,7 +130,7 @@ fn test_success_fixture_has_no_svelte_errors() {
         return;
     };
     let workspace = root.join("test-success");
-    if !workspace.exists() {
+    if !require_fixture(&workspace) {
         eprintln!(
             "Skipping: test-success fixture not found at {}",
             workspace.display()
@@ -149,7 +169,7 @@ fn test_error_fixture_has_no_svelte_errors() {
         return;
     };
     let workspace = root.join("test-error");
-    if !workspace.exists() {
+    if !require_fixture(&workspace) {
         eprintln!(
             "Skipping: test-error fixture not found at {}",
             workspace.display()
@@ -187,7 +207,7 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
     };
     let workspace = root.join("test-error");
     let tsconfig = workspace.join("tsconfig.json");
-    if !workspace.exists() || !tsconfig.exists() {
+    if !require_fixture(&workspace) || !require_fixture(&tsconfig) {
         eprintln!("Skipping: test-error fixture not found");
         return;
     }

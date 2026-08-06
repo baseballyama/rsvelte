@@ -552,6 +552,13 @@ fn expected_record(e: &ExpectedError) -> FullRecord {
 #[test]
 fn oracle_strict_parity() {
     let Some(root) = fixture_root() else {
+        // CI checks this submodule out unconditionally, so absence there means
+        // the job is misconfigured, not that the oracle is unavailable.
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "submodules/eslint-plugin-svelte is not checked out while running \
+             under CI — the oracle parity assertions would be silently skipped."
+        );
         eprintln!("Skipping oracle: eslint-plugin-svelte submodule not checked out");
         return;
     };

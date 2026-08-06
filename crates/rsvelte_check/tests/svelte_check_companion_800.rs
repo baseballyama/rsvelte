@@ -72,6 +72,13 @@ fn run_check(dir: &Path) -> Vec<String> {
 #[test]
 fn companion_svelte_ts_does_not_shadow_component_module() {
     if find_compiler(&PathBuf::from("."), true).is_err() {
+        // CI provides a TypeScript compiler via TSGO_BIN, so a miss there means
+        // the job is misconfigured rather than that the check is unavailable.
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "no `tsgo` / `tsc` binary found while running under CI — the \
+             companion-module assertions would be silently skipped."
+        );
         eprintln!("skip #800: no tsgo/tsc found");
         return;
     }
@@ -131,6 +138,13 @@ fn companion_svelte_ts_does_not_shadow_component_module() {
 #[test]
 fn no_companion_means_no_augmentation() {
     if find_compiler(&PathBuf::from("."), true).is_err() {
+        // CI provides a TypeScript compiler via TSGO_BIN, so a miss there means
+        // the job is misconfigured rather than that the check is unavailable.
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "no `tsgo` / `tsc` binary found while running under CI — the \
+             companion-module assertions would be silently skipped."
+        );
         eprintln!("skip #800: no tsgo/tsc found");
         return;
     }

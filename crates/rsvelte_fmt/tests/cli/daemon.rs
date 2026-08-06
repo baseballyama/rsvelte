@@ -14,6 +14,13 @@ fn node_bin() -> Option<PathBuf> {
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
+    // Every runner that executes this suite ships Node, so on CI a missing
+    // `node` means the job is misconfigured, not that the daemon is untestable.
+    assert!(
+        ok || std::env::var_os("CI").is_none(),
+        "no `node` on $PATH while running under CI — the daemon-path \
+         assertions would be silently skipped."
+    );
     ok.then(|| PathBuf::from("node"))
 }
 

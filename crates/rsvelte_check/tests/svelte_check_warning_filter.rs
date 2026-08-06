@@ -31,11 +31,19 @@ fn sidecar_script() -> PathBuf {
 }
 
 fn node_available() -> bool {
-    Command::new("node")
+    let ok = Command::new("node")
         .arg("--version")
         .output()
         .map(|o| o.status.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    // Every runner that executes this suite ships Node, so on CI a missing
+    // `node` means the job is misconfigured, not that the sidecar is untestable.
+    assert!(
+        ok || std::env::var_os("CI").is_none(),
+        "no `node` on $PATH while running under CI — all nine warningFilter \
+         sidecar assertions would be silently skipped."
+    );
+    ok
 }
 
 fn workspace(tag: &str) -> PathBuf {
