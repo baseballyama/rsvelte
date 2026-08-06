@@ -145,12 +145,6 @@ pub(super) fn transform_destructure_assignments_with_props(
 /// This ensures inner/nested destructures (e.g., in the RHS of an outer
 /// destructure) are processed before outer ones, so $$array counter
 /// values match the official compiler output.
-#[cold]
-#[inline(never)]
-fn bracket_offset_miss(byte: usize, len: usize) -> ! {
-    panic!("bracket byte offset {byte} is not a char start in a {len}-byte statement")
-}
-
 pub(super) fn find_and_transform_one_destructure(
     statement: &str,
     store_sub_vars: &[String],
@@ -445,6 +439,12 @@ pub(super) fn find_and_transform_one_destructure(
     new_statement.push_str(&statement[actual_end..]);
 
     Some(new_statement)
+}
+
+#[cold]
+#[inline(never)]
+fn bracket_offset_miss(byte: usize, len: usize) -> ! {
+    panic!("bracket byte offset {byte} is not a char start in a {len}-byte statement")
 }
 
 /// Returns true when the byte position `pattern_open_byte` (the `{` or `[`
