@@ -1,5 +1,49 @@
 # @rsvelte/compiler
 
+## 0.10.6
+
+### Patch Changes
+
+- e8efbe7: Only emit the dev `$.assign` coerced-proxy warning when the assignment's value is used. A template expression converted through the JSON path — an `{@attach}` body with a block, above all — had no such check, so a bare statement in one was wrapped.
+- 4d6be01: Build the dev CSS source map the way MagicString does — a segment at the start of every unedited chunk, at every line start inside one, and at every CSS AST node boundary — instead of matching tokens by name, use the source basename for its `file` field, and emit it for a custom element's `$$css.code` too.
+- 867c596: Pass the memoized `$0`/`$1` parameters and their deps array to the `$.template_effect` emitted inside an element block, so an element that contains a `{#snippet}` or a `{const}` no longer generates a zero-argument callback whose body references unbound identifiers.
+- a7dbe9f: Fold constants that reach a template through a non-literal initializer. A `const`
+  whose initializer is a call, binary or conditional expression (`const rows =
+Math.ceil(sprites / cols)`) is now evaluated at compile time when it is read from
+  a template chunk, so `style="background-size: {64 * rows}px"` emits the folded
+  literal instead of a reactive interpolation — matching the official compiler on
+  client, dev-client and server output.
+- aeb2671: Recognise `$state` / `$derived` declarations in `.svelte.(js|ts)` modules whose variable name contains a `$` (e.g. `const delay$ = $derived(...)`), so their reads are unwrapped to `$.get(delay$)` on the client and `delay$()` on the server instead of leaking the raw signal.
+- f3baaec: Resolve `$state` reassignment per binding in `.svelte.(js|ts)` modules, so same-named `$state` locals in sibling scopes no longer collapse into one classification and lose their `$.state(...)` wrapper.
+- 8dab47f: fix(compiler): apply read transforms inside `bind:` setter assignment targets
+
+  A component binding whose expression is a member expression with a plain
+  (non-state, non-prop) root emitted its setter target untransformed, so an
+  each-block destructuring thunk used as a computed key was written as `key`
+  instead of `key()` — the write landed on a property keyed by the thunk
+  function rather than by its value.
+
+- ab2d636: Give each dev `$$ownership_validator.mutation(...)` the source position of the mutation it actually wraps when a prop is written more than once through the same member path, and read a member chain that goes through a TypeScript non-null assertion or an optional access.
+- 141cb58: Fix the async server instance-body split for `do…while`, labeled, `debugger` and
+  bare-block statements, plus brace-less `if … else` chains. These shapes used to
+  produce a thunk array that the compiler could not parse back, which quietly
+  degraded the component to an un-split instance body. Such a rejection is now a
+  compile error in every build profile rather than silently wrong output.
+- 02a315c: Keep comments in server output. A statement that survives into the SSR module now
+  carries the comments written above it, including the leading comments of a legacy
+  `<script>`, instead of every comment being dropped on the way to the server build.
+- 552f8b1: Transform a shadowed function-local `$state` / `$derived` through its signal in dev mode too. The declaration probes matched the literal `<kw> <name> = $.state(` text, but in dev the `$.tag(...)` label wrap already sits between the `=` and the rune call, so the reads and writes in the enclosing function body were left bare.
+- 3990eb8: fix(compiler): proxy `$state(a && b)` initializers and read private class-field state through `$.get`
+
+  Two silent reactivity bugs in the client output:
+
+  - a `$state` initializer whose top-level operator was `&&` was not wrapped in
+    `$.proxy(...)`, so mutations to nested properties of the held value did not
+    trigger updates (`||` and `??` were already handled).
+  - a `$state` private class field read inside a nested function in a constructor
+    was rewritten to `this.#field.v.…` instead of `$.get(this.#field).…`, so the
+    read was never registered as a dependency.
+
 ## 0.10.5
 
 ### Patch Changes
