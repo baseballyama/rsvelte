@@ -475,13 +475,21 @@ is public and implemented, `engine.rs:124,132` dispatch `.svelte.js`/`.svelte.ts
 several rules implement the `ScriptRule` hook specifically to reach it (`no_store_async.rs:5`,
 `require_stores_init.rs:4`). Only the CLI's file collection is missing.
 
-**This blind spot has already cost functionality.** `prefer_svelte_reactivity.rs:19-21` declines
+**This blind spot is a feedback loop, not a gap.** `prefer_svelte_reactivity.rs:19-21` declines
 to port a rule path upstream implements, stating the reason outright: *"The plugin additionally
 flags exported instances in `*.svelte.js` / `*.svelte.ts` modules; those fixtures are
 `.svelte.js` files (not collected by the component oracle) and that path is intentionally not
-ported here."* An ungated surface did not merely hide divergence — it was cited in-code as
-grounds for not implementing against it. That is the strongest argument in this document for
-why a blind-spot inventory is worth maintaining.
+ported here."*
+
+Read that carefully. The ungated surface did not merely *hide* divergence — it **licensed** it,
+and the licence is written down in a place where nothing forces it into view. A gap leaks; a
+loop widens. Every gate this document describes can do the same thing, because "the oracle does
+not cover it" is always available as a reason to stop, and it is always locally reasonable.
+
+That is the strongest argument here for maintaining the inventory, and it is stronger than any
+single row: the cost of an unobserved surface is not bounded by the defects that have drifted
+into it, because the surface also decides what gets built. **When you scope work by what the
+gate checks, the gate stops being a measurement and becomes the specification.**
 
 ### Blind spot 11b — duplicate findings collapse
 
@@ -796,6 +804,61 @@ svelte2tsx and formatter parity gates. It does **not** flow into the lint gate (
 divergence is by policy absent.
 
 ---
+
+## Predicates — cheap questions that find these without reading a gate end to end
+
+Reading a gate line by line is how most rows here were produced, and it does not scale. These
+two questions are mechanical, and each has already found real defects. Run them when you touch
+this file; they are far cheaper than a full read and they convert `[S]` rows into `[D]` rows,
+because a population you can empty is usually a population you can demonstrate.
+
+### P1 — Does the guard count the same collection the comparison loop consumes?
+
+Name the collection the floor measures and the collection the loop iterates, and check they are
+the same object. Where they differ, the guard is satisfied by a population the comparison never
+sees.
+
+| gate | guard measures | loop consumes | same? |
+|---|---|---|---|
+| corpus `verify.mjs` | `manifest` ≥1000 (`:205`) **and** ≥99% with outputs (`:224`) | `manifest` (`:284`,`:318`) | **yes** — and `hasOutputs` explicitly bridges manifest→tree |
+| `svelte2tsx-verify.mjs` | component `manifest` ≥1000 (`:86`) | `manifest` (`:102`,`:162`), plus a per-entry presence check (`:176`) | **yes** — an absent tree scores `missing`, not `match` |
+| `check-verify.mjs` | scenarios > 0 (`:179`) | scenarios | **yes** (its blind spot is elsewhere: no diagnostic floor) |
+| **`fmt-verify.mjs`** | `included.length` from `fmt/meta.json` (`:69`) | files read from `fmt/oracle/` (`:95`), `continue` when absent (`:97`) | **NO** → #2447 |
+| **`css-prune-sweep.mjs`** | *nothing* (`:482` is a `console.log`) | generated `cases` | **NO** → #2445 |
+| **`lint-verify.mjs`** | `files.length === 0` (`:163`) | oracle gets `files` (`:178`); **rsvelte gets the whole `SOURCES` dir** (`:124`) | **NO** — two populations inside one comparison; this is the mechanism of blind spot 11a |
+| **`ast_gate_preconditions.rs`** | `files.len() > 1000` on *discovered inputs* (`:57`) | only successfully-**compiled** files (`continue` at `:90`) | **NO** → blind spot 15a; the difference is unmeasured |
+| **`matrix/run.mjs`** | *nothing* — `cases.length` is printed at `:84`, never asserted | generated `cases` | **NO** — same shape as #2445 |
+| `svelte2tsx_fixtures.rs` | `total_tested > 0` (`:147`), derived from the loop itself | same | yes, but the floor is degenerate → blind spot 17a |
+
+**5 of 9 fail**, two of which (`matrix/run.mjs`, and the `lint-verify.mjs` framing) this predicate
+found rather than a full read.
+
+**Companion tell, and it *is* greppable: asymmetric handling of symmetric inputs.** In
+`fmt-verify.mjs`, `oracle === null` is skipped silently (`:97`) and `actual === null` fails
+loudly (`:98-101`) — two lines apart. Two sides of one comparison should fail the same way;
+when they do not, one of them was written while thinking about a different question.
+
+### P2 — Does the script accept a subset selector *and* a baseline-writing flag, and refuse the combination?
+
+`--update-baseline` rewrites the ratchet from what the run measured, so combining it with a
+selector deletes every entry outside the selection. Two greps, binary answer.
+
+Denominator: **1087 tracked `.mjs`/`.rs` files scanned; 5 accept both.**
+
+| script | selector | writer | refuses? |
+|---|---|---|---|
+| `check-verify.mjs` | `--scenario` | `--update` | **yes** — `:100` `if (UPDATE && ONLY) fail('--update cannot be combined with --scenario')` |
+| `check-e2e-verify.mjs` | `--project` | `--update` | **yes** — `:115`, same shape |
+| `matrix/run.mjs` | `--families`, `--targets` | `--update-baseline` | **yes** — `:184` (`--no-fmt`), `:188-189` (`--families` subset) |
+| `verify.mjs` | `--targets` | `--update-baseline` | **scopes instead of refusing** — `UPDATE_SCOPE` (`:104-112`, `:182`) writes only the measured targets, plus `requireFullCorpus` (`:164-172`). A valid alternative |
+| **`css-prune-sweep.mjs`** | `--filter` (`:52`, applied `:324`) | `--update-baseline` (`:57`, `:476`) | **NO** — the write is unguarded |
+
+So there is **exactly one unguarded instance repo-wide today**, not a spreading pattern: the
+other four are handled, two by refusing and one by scoping. A shared helper is not yet warranted.
+
+Note the trap in the loose version of this check: grepping for `refus|exit\(2\)` reports
+`css-prune-sweep.mjs` as guarded, because those tokens appear elsewhere in the file. The
+predicate is only meaningful when the refusal's *condition* references the selector variable.
 
 ## Adding a gate, or a row here
 
