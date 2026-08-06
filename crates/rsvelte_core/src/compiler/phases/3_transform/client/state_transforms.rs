@@ -97,6 +97,17 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
     body_references_identifier_recursive(stripped_body.trim(), identifier, &re)
 }
 
+/// Byte just past the comment or regex literal starting at `i`, plus whether it
+/// was a comment. Restricted to `/`-led runs on purpose: this scanner's whole job
+/// is to descend into string and template literals, which `skip_opaque` — the
+/// same lexer this delegates to — treats as opaque.
+fn skip_slash_run(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bool)> {
+    if bytes[i] != b'/' {
+        return None;
+    }
+    skip_opaque(bytes, i, prev)
+}
+
 /// Strip text content from string literals and template literals, keeping expression parts.
 ///
 /// Replaces:
@@ -106,29 +117,6 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
 ///
 /// This prevents false identifier matches inside literal text, e.g., `<circle>` in
 /// a template literal won't match the variable name `circle`.
-/// Byte just past the comment starting at `i`, if one starts there. `skip_opaque`
-/// cannot be used here: this scanner's whole job is to descend into string and
-/// template literals, which `skip_opaque` treats as opaque.
-fn skip_comment(bytes: &[u8], i: usize) -> Option<usize> {
-    match (bytes[i], bytes.get(i + 1)) {
-        (b'/', Some(b'/')) => {
-            let mut j = i + 2;
-            while j < bytes.len() && bytes[j] != b'\n' {
-                j += 1;
-            }
-            Some(j)
-        }
-        (b'/', Some(b'*')) => {
-            let mut j = i + 2;
-            while j + 1 < bytes.len() && !(bytes[j] == b'*' && bytes[j + 1] == b'/') {
-                j += 1;
-            }
-            Some((j + 2).min(bytes.len()))
-        }
-        _ => None,
-    }
-}
-
 pub(super) fn strip_string_literal_text(code: &str) -> String {
     // Fast path: if no string delimiters exist, return as-is
     // Uses memchr3 for SIMD-accelerated search of all three delimiters at once
@@ -141,13 +129,21 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
     let mut result: Vec<u8> = bytes.to_vec();
     let len = bytes.len();
     let mut i = 0;
+    // Last significant code byte, to tell a regex literal from a division.
+    let mut prev: Option<u8> = None;
 
     while i < len {
-        // A quote inside a comment (`// don't`) must not open a string literal
-        // and blank out every live read that follows it.
-        if let Some(next) = skip_comment(bytes, i) {
+        // A quote inside a comment (`// don't`) or a regex literal (`/'/g`) must
+        // not open a string and blank out every live read that follows it.
+        if let Some((next, is_comment)) = skip_slash_run(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
             i = next;
             continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
         }
         match bytes[i] {
             // Handle single/double-quoted strings
@@ -181,10 +177,17 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
                         i += 2; // skip `${`
                         // Find matching `}` - track depth
                         let mut depth = 1;
+                        let mut inner_prev: Option<u8> = None;
                         while i < len && depth > 0 {
-                            if let Some(next) = skip_comment(bytes, i) {
+                            if let Some((next, is_comment)) = skip_slash_run(bytes, i, inner_prev) {
+                                if !is_comment {
+                                    inner_prev = Some(b'x');
+                                }
                                 i = next;
                                 continue;
+                            }
+                            if !bytes[i].is_ascii_whitespace() {
+                                inner_prev = Some(bytes[i]);
                             }
                             match bytes[i] {
                                 b'{' => depth += 1,
@@ -1763,6 +1766,22 @@ mod scan_lexing_tests {
             "a = 1; // don't\nb = width",
             "width"
         ));
+    }
+
+    #[test]
+    fn apostrophe_in_a_regex_literal_does_not_blank_the_code_after_it() {
+        // `replace(/'/g, …)` — the quote is regex source, not a string opener.
+        assert!(body_references_identifier(
+            "a = raw.replace(/'/g, \"&#39;\");\nb = width",
+            "width"
+        ));
+    }
+
+    #[test]
+    fn a_division_after_a_value_is_not_read_as_a_regex() {
+        // Negative control for the regex arm: a `/` after a value divides, so the
+        // bytes after it are still code.
+        assert!(body_references_identifier("a = n / 2;\nb = width", "width"));
     }
 
     #[test]
