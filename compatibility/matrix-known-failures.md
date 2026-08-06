@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 590 entries)
+## Matrix known failures (`matrix-known-failures.json`, 600 entries)
 
 ### `binding-position` — 2 entries
 
@@ -103,13 +103,39 @@ not drop *every* Program-level comment.** Over the 192 generated module cases it
 (7 drops each). A fix built on "drop them all" would be wrong in 112 of 192 positions; the
 correct fix reproduces a position rule.
 
-Not in this block, and deliberately still failing: **10 entries** (`module-class-state__L02__*`
-line-comment kinds, `client` + `client-dev`) are a **different** divergence — both compilers
-keep the comment, but rsvelte relocates a class field's leading comment into the field's
-initializer (`#n = // c` + newline + `$.state(0);`) instead of leaving it on its own line. It
-reproduces through the component path too (`<script module>` via `compile`), so it is neither
-module-specific nor an artifact of the matrix's `compileModule` dispatch. Baselining it would
-convert a live bug into a requirement, so it is left red pending its own issue.
+### `comment-slot` class-field comment relocation — 10 entries, all #2437
+
+`module-class-state__L02__*` for the five **line**-comment kinds (`line`, `line-with-brace`,
+`line-with-paren`, `line-with-semi`, `svelte-ignore`) on `client` and `client-dev`. Block
+comments at the same slot are unaffected.
+
+**This is not a preservation gap and must not be closed against #2399.** Both compilers *keep*
+the comment. rsvelte **relocates** it: a line comment that precedes a rune-initialized class
+field is moved off its own line and into the field's initializer position.
+
+```js
+// official                        // rsvelte (client-dev)
+export class Counter {             export class Counter {
+	// c                            	#n = // c
+	#n = $.state(0);                	$.state(0);
+```
+
+on `client` it lands as a trailing comment instead: `#n = $.state(0); // c`.
+
+**rsvelte's output here is wrong, not accepted.** These entries are parked so the module seeds
+could land; they are tracked by
+[#2437](https://github.com/baseballyama/rsvelte/issues/2437) and clear when it does.
+
+Two facts that make this a shipped bug rather than a matrix artefact, and that belong with any
+attempt to fix it:
+
+- **It reproduces through `compile`, not only `compileModule`** — the same class inside a
+  `<script module>` block of a `.svelte` component diverges identically. So it is neither
+  module-specific nor a consequence of this family's `compileModule` dispatch.
+- **The collected corpus cannot see it even where the shape occurs**, because `verify.mjs`
+  invokes `ast_equiv_batch` with empty argv and `CommentPolicy::Ignore` therefore applies
+  (#2424, documented by #2436). A comment-position divergence is scored a pass corpus-wide, so
+  this generated family is currently the only place in the project where one is observable.
 
 ## Burn-down
 
