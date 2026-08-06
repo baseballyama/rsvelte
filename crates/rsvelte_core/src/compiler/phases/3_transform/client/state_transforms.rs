@@ -32,6 +32,13 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::{
 /// For block bodies like `{ c = a + b; count = count + 1; }`, we check each statement
 /// within the block.
 pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
+    // Every strip below only blanks or deletes characters, so a name absent from
+    // the raw body is absent from all of them. Callers ask this once per
+    // (statement, reactive variable) pair, and almost every pair is a miss.
+    if memmem::find(body.as_bytes(), identifier.as_bytes()).is_none() {
+        return false;
+    }
+
     // The Rust regex crate does NOT support lookbehind assertions.
     // We use alternation-based boundary matching instead:
     //   (^|[^a-zA-Z0-9_$])identifier([^a-zA-Z0-9_$]|$)
@@ -117,11 +124,11 @@ fn skip_slash_run(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bo
 ///
 /// This prevents false identifier matches inside literal text, e.g., `<circle>` in
 /// a template literal won't match the variable name `circle`.
-pub(super) fn strip_string_literal_text(code: &str) -> String {
+pub(super) fn strip_string_literal_text(code: &str) -> std::borrow::Cow<'_, str> {
     // Fast path: if no string delimiters exist, return as-is
     // Uses memchr3 for SIMD-accelerated search of all three delimiters at once
     if memchr::memchr3(b'\'', b'"', b'`', code.as_bytes()).is_none() {
-        return code.to_string();
+        return std::borrow::Cow::Borrowed(code);
     }
 
     // Work with bytes for performance (string literal delimiters are all ASCII)
@@ -264,7 +271,9 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
         }
     }
 
-    String::from_utf8(result).unwrap_or_else(|_| code.to_string())
+    String::from_utf8(result)
+        .map(std::borrow::Cow::Owned)
+        .unwrap_or(std::borrow::Cow::Borrowed(code))
 }
 
 /// Strip non-shorthand, non-computed object property keys from code.
@@ -277,7 +286,12 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
 /// - `{ key: value }` -> `{     value }` (non-shorthand key blanked)
 /// - `{ key }` -> `{ key }` (shorthand preserved)
 /// - `{ [expr]: value }` -> `{ [expr]: value }` (computed preserved)
-pub(super) fn strip_object_property_keys(code: &str) -> String {
+pub(super) fn strip_object_property_keys(code: &str) -> std::borrow::Cow<'_, str> {
+    // A key can only be blanked at a `:`, and the two `Vec<char>` below cost four
+    // bytes per source byte, so the absence of one is worth checking for.
+    if memchr::memchr(b':', code.as_bytes()).is_none() {
+        return std::borrow::Cow::Borrowed(code);
+    }
     let chars: Vec<char> = code.chars().collect();
     let len = chars.len();
     let mut result: Vec<char> = chars.clone();
@@ -349,7 +363,7 @@ pub(super) fn strip_object_property_keys(code: &str) -> String {
         i += 1;
     }
 
-    result.into_iter().collect()
+    std::borrow::Cow::Owned(result.into_iter().collect())
 }
 
 /// Strip out function/arrow expression bodies where the identifier is declared as a parameter.
@@ -360,7 +374,17 @@ pub(super) fn strip_object_property_keys(code: &str) -> String {
 /// - `function (a) { ... }` -> `                   `
 /// - `(a) => { ... }` -> `              `
 /// - `(a) => expr` -> `            `
-pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) -> String {
+pub(super) fn strip_function_scopes_that_shadow<'a>(
+    body: &'a str,
+    identifier: &str,
+) -> std::borrow::Cow<'a, str> {
+    // Only a `function` keyword or an arrow can introduce a shadowing parameter,
+    // and the common reactive body has neither.
+    if memmem::find(body.as_bytes(), b"function").is_none()
+        && memmem::find(body.as_bytes(), b"=>").is_none()
+    {
+        return std::borrow::Cow::Borrowed(body);
+    }
     let mut result = body.to_string();
 
     // Pattern: `function identifier(params) { body }` or `function (params) { body }`
@@ -562,7 +586,7 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
         }
     }
 
-    result
+    std::borrow::Cow::Owned(result)
 }
 
 /// Recursively check if an identifier is read (not just assigned to) in a body of code.
