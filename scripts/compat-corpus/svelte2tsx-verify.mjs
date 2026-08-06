@@ -53,6 +53,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { stripBlankLines, readIf, firstDiffLine } from './normalize.mjs';
 import { mappingViolations } from './sourcemap.mjs';
+import { MIN_FULL_CORPUS_ENTRIES, S2T_TREES, cleanupArtifacts } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -255,6 +256,14 @@ for (const [k, v] of Object.entries({ ...counts, ...mapCounts })) console.log(` 
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report-s2t.json'))}`);
 
 if (UPDATE_BASELINE) {
+	// Rewriting from a partial corpus would delete every baseline id it did not
+	// measure, which reads as a ratchet win instead of a missing checkout.
+	if (manifest.length < MIN_FULL_CORPUS_ENTRIES) {
+		console.error(
+			`[s2t-verify] refusing to rewrite baselines from ${manifest.length} corpus entries (expected >= ${MIN_FULL_CORPUS_ENTRIES})`
+		);
+		process.exit(2);
+	}
 	const updates = [[failures, BASELINE_PATH]];
 	// A --baseline run targets some alternate TSX ratchet; rewriting the one real
 	// map ratchet from it would clobber it with that run's narrower results.
@@ -325,8 +334,13 @@ function ratchet(label, entries, file) {
 const tsxRegressed = ratchet('TSX', failures, BASELINE_PATH);
 const mapRegressed = ratchet('source-map', mapFailures, MAP_BASELINE_PATH);
 
-if (tsxRegressed || mapRegressed) process.exit(1);
+if (tsxRegressed || mapRegressed) {
+	cleanupArtifacts(S2T_TREES, args, { failed: true, label: 's2t-verify' });
+	process.exit(1);
+}
 
 if (!failures.length && !mapFailures.length) {
 	console.log('\n[s2t-verify] ✅ all svelte2tsx outputs identical after normalization, all source maps well-formed');
 }
+
+cleanupArtifacts(S2T_TREES, args, { failed: false, label: 's2t-verify' });

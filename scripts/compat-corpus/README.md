@@ -196,6 +196,52 @@ node scripts/compat-corpus/cluster.mjs              # group failures by diff sig
 node scripts/compat-corpus/cluster.mjs --show 'JS client: E:…'   # list ids in a cluster
 ```
 
+### Disk: who deletes the artifacts
+
+A full run writes ~0.57 GiB of regenerable trees per checkout — measured with
+`du -sk` on a 3-target run: `sources/` 60 MiB, `expected/` 254 MiB, `actual/`
+254 MiB (the apparent bytes are ~40% lower; ~42k tiny files plus 21k directories
+round up to 4 KiB blocks). N parallel agent worktrees each hold their own set,
+which is how the machine runs out of disk. The rules, all implemented in
+`artifacts.mjs`:
+
+- **`verify.mjs` deletes `expected/` + `actual/` after a passing run.** Nothing
+  downstream reads them (`svelte2tsx-compile.mjs` and `fmt.mjs` read `sources/`,
+  which is kept), so the producer cleans up instead of the operator remembering.
+  `svelte2tsx-verify.mjs` does the same for `expected-s2t/` + `actual-s2t/`.
+- **A failing run keeps them** — that is when someone diffs `expected/<id>`
+  against `actual/<id>` to attribute a cluster. `--keep-artifacts` (or
+  `CORPUS_KEEP_ARTIFACTS=1`) keeps them unconditionally, `--clean-artifacts`
+  deletes even after a failure.
+- **CI keeps them unconditionally** (`CI` is set): the `Cluster failures` step
+  reads both trees and runs on *any* earlier step's failure, not only verify's.
+- **`compile.mjs` refuses to start** when free disk is below
+  `180 MiB × targets + 512 MiB`. ENOSPC halfway through leaves a half-written
+  tree, and a half-written tree scores as `match` for every entry it never
+  reached.
+- **`pnpm run corpus:clean`** reclaims every regenerable artifact in this
+  checkout *and* in every `.claude/worktrees/*` sibling (`--here` for this
+  checkout only, `--dry-run` to preview, `--all` to also drop the slower-to-
+  rebuild fmt/lint/check stages). It works from an explicit allowlist, so the
+  checked-in `*known-failures*.json` ratchets and their `.md` files are never
+  touched — those are not regenerable from the corpus.
+
+### Guards against a vacuously green run
+
+Deleting the trees makes one pre-existing hazard sharper: `verify.mjs` reads a
+missing output as `""` on both sides, so a verify against an absent tree scores
+every entry `match` — and `--update-baseline` *deletes* every baseline id it did
+not observe failing, silently emptying the ratchets. Two assertions close it:
+
+- `verify.mjs` requires ≥99% of manifest entries to have compiled output on at
+  least one side before it compares anything (the union, because a crashed
+  worker leaves only the rsvelte-side `error.json`). A cleaned or partial tree
+  aborts with exit 2 instead of passing.
+- `--update-baseline` (and `--from-report`) refuse to rewrite a ratchet from
+  fewer than 12000 corpus entries — the corpus is 14025 with every submodule
+  present, so anything far below that is a partial checkout, not a fix.
+  `svelte2tsx-verify.mjs --update-baseline` enforces the same floor.
+
 ## Formatter parity (`fmt.mjs` / `fmt-verify.mjs`)
 
 A second, independent track verifies that **rsvelte-fmt** formats every

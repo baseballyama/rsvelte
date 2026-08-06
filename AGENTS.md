@@ -71,6 +71,19 @@ maps are segmented too differently to diff (byte, decoded-set and lookup-equalit
 than equal to official's — using official only to calibrate the invariants. See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md).
 
+**Corpus artifacts clean themselves up.** A full run writes ~0.57 GiB of regenerable trees per
+checkout (`sources/` 60 MiB, `expected/` 254 MiB, `actual/` 254 MiB), and N parallel agent
+worktrees each hold a set — this filled the dev machine's disk twice. `verify.mjs` therefore
+deletes `expected/` + `actual/` after a **passing** run (`svelte2tsx-verify.mjs` likewise for the
+`-s2t` trees); a **failing** run keeps them so a divergence can still be diffed, as does CI and as
+does `--keep-artifacts`. `compile.mjs` aborts up front when free disk is below
+`180 MiB × targets + 512 MiB`. `pnpm run corpus:clean` reclaims everything regenerable across
+this checkout and every `.claude/worktrees/*` sibling — never the checked-in `*known-failures*`
+ratchets. Because a verify against an absent tree would score every entry `match`, `verify.mjs`
+asserts ≥99% of manifest entries have compiled output before comparing, and refuses
+`--update-baseline` below 12000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
+every baseline id it did not measure).
+
 The svelte-check diagnostic-parity gate is the odd one out: its unit is a **type-checked project**,
 not per-file text, so module resolution / workspace layout / the `.d.ts` environment are observable
 there and nowhere else. Layer 1 (`check-verify.mjs`, ratchet `check-known-failures.json`) runs

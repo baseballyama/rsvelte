@@ -33,7 +33,11 @@
  * baselines from an existing report.json (e.g. downloaded from a CI run), so a
  * new target's baseline can be bootstrapped without a local full run.
  *
- * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--from-report <path>] [--targets <keys>] [--strict]
+ * A passing run deletes expected/ and actual/ (see artifacts.mjs); a failing run
+ * keeps them so the divergence can be inspected. --keep-artifacts always keeps,
+ * --clean-artifacts always deletes.
+ *
+ * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
  */
 
 import fs from 'node:fs';
@@ -42,6 +46,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { flattenTemplateHoles, stripBlankLines, readIf, firstDiffLine } from './normalize.mjs';
 import { TARGET_KEYS as ALL_TARGET_KEYS, selectTargets } from './targets.mjs';
+import { MIN_FULL_CORPUS_ENTRIES, OUTPUT_TREES, cleanupArtifacts } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -103,6 +108,19 @@ function partitionFailures(failures) {
 	return byTarget;
 }
 
+// `--update-baseline` DELETES every baseline id this run did not observe
+// failing, so a run over a partial corpus silently shrinks the ratchets to
+// whatever it happened to measure. Refuse unless the run saw the whole corpus.
+function requireFullCorpus(measured, what) {
+	if (measured >= MIN_FULL_CORPUS_ENTRIES) return;
+	console.error(
+		`[verify] refusing to rewrite baselines from ${measured} ${what} (expected >= ${MIN_FULL_CORPUS_ENTRIES})`
+	);
+	console.error('  a partial corpus would delete every baseline entry it did not measure');
+	console.error('  fix: git submodule update --init --depth 1 … && node scripts/compat-corpus/collect.mjs');
+	process.exit(2);
+}
+
 function writeBaselines(byTarget) {
 	console.log();
 	for (const target of TARGETS) {
@@ -117,8 +135,43 @@ function writeBaselines(byTarget) {
 if (FROM_REPORT) {
 	const report = JSON.parse(fs.readFileSync(FROM_REPORT, 'utf8'));
 	console.log(`[verify] deriving baselines from ${path.relative(ROOT, FROM_REPORT)} (${report.failures.length} failures)`);
+	requireFullCorpus(report.total ?? 0, 'entries in the report');
 	writeBaselines(partitionFailures(report.failures));
 	process.exit(0);
+}
+
+// ---- inputs ----------------------------------------------------------------
+
+const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
+
+// A near-empty manifest (partial checkout, failed collect) would make the
+// comparison below pass vacuously instead of catching a real regression.
+const MIN_MANIFEST_ENTRIES = 1000;
+if (manifest.length < MIN_MANIFEST_ENTRIES) {
+	console.error(
+		`[verify] only ${manifest.length} entries in manifest.json (expected >= ${MIN_MANIFEST_ENTRIES}); run \`node scripts/compat-corpus/collect.mjs\` first`,
+	);
+	process.exit(2);
+}
+
+// compile.mjs writes either `<target>.js` or `error.json` for every entry on
+// both sides, so a missing pair means the tree was never compiled (or was
+// cleaned away). Comparing against an absent tree reads both sides as "" and
+// scores every entry `match` — a green run that measured nothing.
+function hasOutputs(tree, id) {
+	if (fs.existsSync(path.join(tree, id, 'error.json'))) return true;
+	return TARGET_KEYS.some((key) => fs.existsSync(path.join(tree, id, `${key}.js`)));
+}
+
+// A crashed worker leaves its one entry with only the rsvelte-side error.json,
+// so coverage is checked against the union rather than demanded per tree.
+const compiled = manifest.filter(({ id }) => hasOutputs(EXPECTED, id) || hasOutputs(ACTUAL, id)).length;
+if (compiled < manifest.length * 0.99) {
+	console.error(
+		`[verify] only ${compiled}/${manifest.length} manifest entries have compiled output for ${TARGET_KEYS.join(', ')}`
+	);
+	console.error('  run: node scripts/compat-corpus/compile.mjs   (outputs are deleted after a green verify)');
+	process.exit(2);
 }
 
 // ---- oxfmt normalization ---------------------------------------------------
@@ -165,18 +218,6 @@ if (!NO_FMT) {
 }
 
 // ---- comparison --------------------------------------------------------------
-
-const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
-
-// A near-empty manifest (partial checkout, failed collect) would make the
-// comparison below pass vacuously instead of catching a real regression.
-const MIN_MANIFEST_ENTRIES = 1000;
-if (manifest.length < MIN_MANIFEST_ENTRIES) {
-	console.error(
-		`[verify] only ${manifest.length} entries in manifest.json (expected >= ${MIN_MANIFEST_ENTRIES}); run \`node scripts/compat-corpus/collect.mjs\` first`,
-	);
-	process.exit(2);
-}
 
 const counts = {
 	match: 0,
@@ -315,9 +356,18 @@ console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report.json'))}`
 const failById = new Map(failures.map((f) => [f.id, f]));
 const failsByTarget = partitionFailures(failures);
 
+// Only compile.mjs and cluster.mjs read these trees; nothing downstream does,
+// so a green run deletes them here instead of leaving ~0.5 GiB per checkout for
+// the operator to remember.
+function finish(code) {
+	cleanupArtifacts(OUTPUT_TREES, args, { failed: code !== 0, label: 'verify' });
+	process.exit(code);
+}
+
 if (UPDATE_BASELINE) {
+	requireFullCorpus(manifest.length, 'corpus entries');
 	writeBaselines(failsByTarget);
-	process.exit(0);
+	finish(0);
 }
 
 const loadBaseline = (p) =>
@@ -372,7 +422,7 @@ if (regressions.length) {
 	}
 }
 
-if (regressions.length || fixedKnown) process.exit(1);
+if (regressions.length || fixedKnown) finish(1);
 
 if (failures.length) {
 	const breakdown = TARGET_KEYS.map((key) => `${key} ${failsByTarget.get(key).size}`).join(', ');
@@ -380,3 +430,5 @@ if (failures.length) {
 } else {
 	console.log('\n[verify] ✅ all corpus outputs identical after normalization');
 }
+
+finish(0);

@@ -26,6 +26,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { selectTargets } from './targets.mjs';
+import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -160,6 +161,14 @@ if (!FILTER) {
 	fs.rmSync(EXPECTED, { recursive: true, force: true });
 	fs.rmSync(ACTUAL, { recursive: true, force: true });
 }
+
+// After the wipe above, so the figure reflects the space this run really needs.
+// ENOSPC halfway through leaves a half-written tree, and a half-written tree
+// scores as `match` for every entry it never reached.
+requireDiskSpace(
+	(FILTER ? 0 : BYTES_PER_TARGET * TARGETS.length) + DISK_HEADROOM,
+	'compile'
+);
 
 const JOBS = Number(argValue('--jobs', String(Math.max(2, Math.min(8, os.cpus().length - 2)))));
 const startedAt = Date.now();
