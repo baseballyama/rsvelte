@@ -10,7 +10,7 @@ fn fmt(src: &str) -> String {
     let opts = FormatOptions {
         js: JsFormatOptions {
             line_width: LineWidth::try_from(80u16).expect("valid line width"),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };

@@ -15,7 +15,7 @@ fn options(indent_style: IndentStyle, print_width: u16, tab_width: u8) -> Format
             indent_style,
             indent_width: IndentWidth::try_from(tab_width).expect("valid indent width"),
             line_width: LineWidth::try_from(print_width).expect("valid print width"),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     }

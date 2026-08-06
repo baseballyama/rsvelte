@@ -6,7 +6,7 @@ fn options() -> FormatOptions {
         js: JsFormatOptions {
             line_width: LineWidth::try_from(100).expect("valid line width"),
             quote_style: QuoteStyle::Single,
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     }

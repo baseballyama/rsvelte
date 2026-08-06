@@ -112,7 +112,7 @@ fn slot_span_slot_inline_run_breaks() {
     let opts = FormatOptions {
         js: JsFormatOptions {
             line_width: LineWidth::try_from(80u16).unwrap(),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };

@@ -770,8 +770,8 @@ pub(super) fn collect_self_named_rune_call_positions(
     for stmt in program.body.iter() {
         match stmt {
             oxc::Statement::VariableDeclaration(vd) => visit_var_decl(vd),
-            oxc::Statement::ExportNamedDeclaration(ex) => {
-                if let Some(oxc::Declaration::VariableDeclaration(vd)) = &ex.declaration {
+            oxc::Statement::ExportDeclaration(ex) => {
+                if let oxc::Declaration::VariableDeclaration(vd) = &ex.declaration {
                     visit_var_decl(vd);
                 }
             }
@@ -840,10 +840,8 @@ pub(super) fn inject_store_subscriptions_with_program(
                 collect_import_store_names(import, context);
             }
 
-            oxc::Statement::ExportNamedDeclaration(export) => {
-                if let Some(ref decl) = export.declaration
-                    && let oxc::Declaration::VariableDeclaration(var_decl) = decl
-                {
+            oxc::Statement::ExportDeclaration(export) => {
+                if let oxc::Declaration::VariableDeclaration(var_decl) = &export.declaration {
                     let last_decl_end = var_decl
                         .declarations
                         .last()

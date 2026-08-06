@@ -251,7 +251,7 @@ fn is_react_hook_with_deps_array(args: &[Argument<'_>]) -> bool {
     else {
         return false;
     };
-    !callback.params.has_parameter() && !callback.expression
+    !callback.params.has_parameter() && !callback.body.is_expression()
 }
 
 /// `compose(a => a, b => b)`: oxc breaks every argument out unconditionally, so
@@ -315,7 +315,7 @@ fn can_group_arrow(arrow: &ArrowFunctionExpression<'_>, is_arrow_recursion: bool
     // the body is a non-empty block.
     if let Some(return_type) = &arrow.return_type
         && matches!(return_type.type_annotation, TSType::TSTypeReference(_))
-        && (arrow.expression || arrow.body.statements.is_empty())
+        && (arrow.body.is_expression() || arrow.body.is_empty())
     {
         return false;
     }
@@ -394,7 +394,7 @@ fn should_group_first(
 ) -> bool {
     match first {
         Expression::FunctionExpression(_) => {}
-        Expression::ArrowFunctionExpression(arrow) if !arrow.expression => {}
+        Expression::ArrowFunctionExpression(arrow) if !arrow.body.is_expression() => {}
         _ => return false,
     }
     if matches!(

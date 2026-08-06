@@ -77,7 +77,7 @@ pub(crate) fn build_format_options(
         indent_style,
         indent_width,
         line_width,
-        ..JsFormatOptions::new()
+        ..JsFormatOptions::default()
     };
     // Layer the remaining `.oxfmtrc` JS keys (quotes, semicolons, …) so inline
     // `<script>` blocks match standalone files. See #693.

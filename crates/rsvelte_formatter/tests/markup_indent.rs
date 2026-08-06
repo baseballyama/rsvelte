@@ -84,7 +84,7 @@ fn tab_style_uses_tabs_for_nesting() {
     let opts = FormatOptions {
         js: JsFormatOptions {
             indent_style: IndentStyle::Tab,
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };
@@ -97,7 +97,7 @@ fn four_space_indent_used() {
     let opts = FormatOptions {
         js: JsFormatOptions {
             indent_width: IndentWidth::try_from(4).expect("4 is valid"),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };

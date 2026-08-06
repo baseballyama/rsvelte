@@ -51,7 +51,7 @@ pub fn format_svelte(source: &str, options_json: &str) -> String {
 /// fall back to the formatter defaults. Mirrors `build_format_options` in the
 /// `rsvelte-fmt` CLI, minus the native-only `<style>` formatter callback.
 fn parse_options(options_json: &str) -> FormatOptions {
-    let mut js = JsFormatOptions::new();
+    let mut js = JsFormatOptions::default();
 
     let value = serde_json::from_str::<serde_json::Value>(options_json).unwrap_or(Value::Null);
     let obj = value.as_object();

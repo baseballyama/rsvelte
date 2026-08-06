@@ -71,7 +71,7 @@ fn fmt_w(src: &str, width: u16) -> String {
     let opts = FormatOptions {
         js: JsFormatOptions {
             line_width: LineWidth::try_from(width).expect("valid line width"),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };

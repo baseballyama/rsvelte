@@ -98,7 +98,7 @@ pub type StyleFormatter =
 impl FormatOptions {
     pub fn new() -> Self {
         Self {
-            js: JsFormatOptions::new(),
+            js: JsFormatOptions::default(),
             style_formatter: None,
             typescript: false,
             single_attribute_per_line: false,

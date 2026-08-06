@@ -34,7 +34,9 @@ use super::ExportedNames;
 /// `offset` is the content_offset that maps OXC positions (relative to script
 /// content) back to the original source.
 pub(super) fn handle_export_named_decl(
-    export: &oxc::ExportNamedDeclaration,
+    export_span: oxc_span::Span,
+    export_declaration: Option<&oxc::Declaration>,
+    export_specifiers: &[oxc::ExportSpecifier],
     offset: u32,
     str: &mut MagicString<'_>,
     exported_names: &mut ExportedNames,
@@ -45,11 +47,11 @@ pub(super) fn handle_export_named_decl(
     basename: &str,
     emit_jsdoc: bool,
 ) {
-    let node_start = export.span.start + offset;
+    let node_start = export_span.start + offset;
     let mut cached_leading_doc = None;
 
     // Case 1: export with declaration (export let/const/function/class ...)
-    if let Some(ref decl) = export.declaration {
+    if let Some(decl) = export_declaration {
         let decl_start = decl.span().start + offset;
 
         // For instance scripts: remove the 'export ' keyword (replace with space).
@@ -120,7 +122,7 @@ pub(super) fn handle_export_named_decl(
                         // mirroring official's `value.doc`.
                         let leading_doc = cached_leading_doc
                             .get_or_insert_with(|| {
-                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                                leading_jsdoc_comment(raw_content, export_span.start as usize)
                             })
                             .as_ref();
                         if let Some(name) = binding_pattern_simple_name(&declarator.id)
@@ -165,7 +167,7 @@ pub(super) fn handle_export_named_decl(
                         // `x = __sveltets_2_any(x)` even with an initializer.
                         let has_jsdoc_type = cached_leading_doc
                             .get_or_insert_with(|| {
-                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                                leading_jsdoc_comment(raw_content, export_span.start as usize)
                             })
                             .as_deref()
                             .is_some_and(|doc| doc.contains("@type"));
@@ -286,10 +288,10 @@ pub(super) fn handle_export_named_decl(
     // and never looks at `moduleSpecifier`, so a re-export (`export { a } from
     // './mod'`) is stripped too — left in place it would put an `export … from`
     // inside `$$render()`, which is not valid TSX (TS1233).
-    if export.declaration.is_none() {
-        let node_end = export.span.end + offset;
+    if export_declaration.is_none() {
+        let node_end = export_span.end + offset;
         str.overwrite(node_start, node_end, "");
-        for spec in export.specifiers.iter() {
+        for spec in export_specifiers.iter() {
             let local = module_export_name_to_string(&spec.local);
             let exported = module_export_name_to_string(&spec.exported);
             let possible = possible_exports.get(&local);
@@ -315,7 +317,7 @@ pub(super) fn handle_export_named_decl(
             if renamed && exported_names.has(&local) {
                 let merged_doc = cached_leading_doc
                     .get_or_insert_with(|| {
-                        leading_jsdoc_comment(raw_content, export.span.start as usize)
+                        leading_jsdoc_comment(raw_content, export_span.start as usize)
                     })
                     .map(str::to_string);
                 exported_names.rename_export_let_in_place(&local, exported.clone(), merged_doc);
@@ -325,7 +327,7 @@ pub(super) fn handle_export_named_decl(
             let doc = if renamed {
                 cached_leading_doc
                     .get_or_insert_with(|| {
-                        leading_jsdoc_comment(raw_content, export.span.start as usize)
+                        leading_jsdoc_comment(raw_content, export_span.start as usize)
                     })
                     .map(str::to_string)
                     .or_else(|| possible.and_then(|p| p.doc.clone()))

@@ -26,7 +26,7 @@ fn formats_unformatted_js() {
     let formatted = format_program(
         &allocator,
         &parser_ret.program,
-        JsFormatOptions::new(),
+        JsFormatOptions::default(),
         None,
     )
     .print()

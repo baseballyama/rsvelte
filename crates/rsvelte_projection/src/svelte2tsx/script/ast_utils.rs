@@ -237,10 +237,8 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
                     }
                 }
             }
-            oxc::Statement::ExportNamedDeclaration(ex) => {
-                if let Some(decl) = &ex.declaration {
-                    add_declaration(decl, &mut names);
-                }
+            oxc::Statement::ExportDeclaration(ex) => {
+                add_declaration(&ex.declaration, &mut names);
             }
             _ => {}
         }

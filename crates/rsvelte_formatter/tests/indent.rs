@@ -17,7 +17,7 @@ fn tab_indent_style_uses_tabs_for_outer_wrap() {
     let opts = FormatOptions {
         js: JsFormatOptions {
             indent_style: IndentStyle::Tab,
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };
@@ -35,7 +35,7 @@ fn four_space_indent_uses_four_spaces() {
     let opts = FormatOptions {
         js: JsFormatOptions {
             indent_width: IndentWidth::try_from(4).expect("4 is valid"),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };
@@ -65,7 +65,7 @@ fn collapse_fill_run_uses_four_space_indent() {
     let opts = FormatOptions {
         js: JsFormatOptions {
             indent_width: IndentWidth::try_from(4).expect("4 is valid"),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };
@@ -90,7 +90,7 @@ fn collapse_hug_mixed_uses_tab_indent() {
     let opts = FormatOptions {
         js: JsFormatOptions {
             indent_style: IndentStyle::Tab,
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     };
@@ -137,7 +137,7 @@ fn tab_opts() -> FormatOptions {
             indent_style: IndentStyle::Tab,
             indent_width: IndentWidth::try_from(4).expect("4 is valid"),
             line_width: LineWidth::try_from(100).expect("100 is valid"),
-            ..JsFormatOptions::new()
+            ..JsFormatOptions::default()
         },
         ..FormatOptions::default()
     }

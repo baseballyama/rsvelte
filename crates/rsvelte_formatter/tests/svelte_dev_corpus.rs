@@ -147,7 +147,7 @@ fn format_options(style: StyleFormatter) -> FormatOptions {
         indent_style: IndentStyle::Space,
         indent_width: IndentWidth::try_from(2u8).unwrap(),
         line_width: LineWidth::try_from(80u16).unwrap(),
-        ..JsFormatOptions::new()
+        ..JsFormatOptions::default()
     };
     FormatOptions {
         js,

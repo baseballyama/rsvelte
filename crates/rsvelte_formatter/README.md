@@ -71,7 +71,7 @@ let opts = FormatOptions {
     js: JsFormatOptions {
         indent_style: IndentStyle::Space,
         line_width: LineWidth::try_from(80).unwrap(),
-        ..JsFormatOptions::new()
+        ..JsFormatOptions::default()
     },
     ..FormatOptions::default()
 };

@@ -141,7 +141,9 @@ fn scan_class_body(class: &oxc::Class, exported_names: &mut ExportedNames, offse
 fn scan_expr(expr: &oxc::Expression, exported_names: &mut ExportedNames, offset: u32) {
     match expr {
         oxc::Expression::ArrowFunctionExpression(arrow) => {
-            scan_nested_special_type_decls(&arrow.body.statements, exported_names, offset);
+            if let Some(block) = arrow.body.as_function_body() {
+                scan_nested_special_type_decls(&block.statements, exported_names, offset);
+            }
         }
         oxc::Expression::FunctionExpression(func) => {
             if let Some(body) = &func.body {
