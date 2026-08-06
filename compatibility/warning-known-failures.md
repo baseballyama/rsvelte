@@ -105,20 +105,32 @@ code ratchet unmoved at 70.
 `2_analyze/visitors/regular_element.rs` stamped `element.start`/`element.end` on
 any a11y warning that arrived spanless, and `shared/a11y/mod.rs` pushed *every*
 warning spanless — so the element fallback won even for the warnings upstream
-attaches to an attribute (`a11y/index.js` passes `attribute`, not `node`, at 16
-of its warn sites). The fix gives each attribute-scoped warning its attribute's
+attaches to an attribute. Of the 17 warn sites inside `a11y/index.js`'s first
+attribute loop (`:108`-`:287`), 14 pass `attribute` and exactly three pass
+`node`. The fix gives each attribute-scoped warning its attribute's
 span at the point it is raised, leaving the element fallback to cover only the
 three codes upstream genuinely scopes to the element
 (`a11y_interactive_supports_focus`,
 `a11y_no_interactive_element_to_noninteractive_role`,
 `a11y_no_noninteractive_element_to_interactive_role`).
 
-Codes cleared: `a11y_role_supports_aria_props` (120 tuples),
-`a11y_role_supports_aria_props_implicit` (59), `a11y_no_redundant_roles` (41),
-`a11y_no_abstract_role` (24), `a11y_invalid_attribute` (20), `a11y_autofocus`
-(10), the `a11y_incorrect_aria_attribute_type*` family (22),
-`a11y_role_has_required_aria_props` (4), `a11y_autocomplete_valid` (3) and
-`a11y_misplaced_scope` (3).
+Codes cleared, summing to all 317 (`120 + 59 + 41 + 24 + 24 + 20 + 10 + 4 + 3 +
+3 + 2 + 7x1`): `a11y_role_supports_aria_props` 120,
+`a11y_role_supports_aria_props_implicit` 59, `a11y_no_redundant_roles` 41,
+`a11y_no_abstract_role` 24, the `a11y_incorrect_aria_attribute_type*` family 24
+(boolean 6, tokenlist 5, integer 4, token 4, bare 3, tristate 2),
+`a11y_invalid_attribute` 20, `a11y_autofocus` 10,
+`a11y_role_has_required_aria_props` 4, `a11y_autocomplete_valid` 3,
+`a11y_misplaced_scope` 3, `a11y_unknown_role` 2, and one tuple each of
+`a11y_aria_activedescendant_has_tabindex`, `a11y_unknown_aria_attribute`,
+`a11y_aria_attributes`, `a11y_misplaced_role`, `a11y_hidden`, `a11y_accesskey`
+and `a11y_positive_tabindex` (seven codes).
+
+The tail matters for a reason beyond bookkeeping: an earlier draft of this list
+stopped at the counts of 3 and reported the type family as 22 rather than 24,
+so it summed to 306 against a measured 317. A list that reads as exhaustive and
+is not is the same defect as a cause inferred from a code name — **state the
+sum, or say the list is partial.**
 
 Note that `a11y_role_supports_aria_props` was previously listed above as a
 missing-position code. It never was: rsvelte always emitted a span for it. That
@@ -127,8 +139,11 @@ the split above was measured per tuple, not inferred from the code names.
 
 What is left is 650 tuples: the 649 missing-span ones, unchanged, plus a single
 `a11y_figcaption_index` that disagrees on **both** line and column. That one is a
-third cause, not a remnant of this one — the code already carried a span, so it
-was never routed through the element fallback.
+third cause, and it is structurally out of reach rather than merely unobserved:
+upstream raises it at `:532`, outside both attribute loops, on `children[index]`
+— so none of the four stamp sites can see it, and `stamp_attribute` skips
+anything that already carries a span. That argument holds regardless of what any
+run showed, which is why it is the one to record.
 
 `perf_avoid_nested_class` was the first of these to be burned down (#2349),
 and it cost two entries rather than the one the `runed` / `svelte-toolbelt`
