@@ -251,8 +251,10 @@ fn constructor_literal_with_trailing_line_comment_in_last_position() {
         GenerateMode::Client,
         false,
     );
+    // The official compiler's own bytes: esrap reflows the literal onto the
+    // opening line and gives the trailing comment a line of its own.
     assert!(
-        out.contains("\t\t$.set(this.#x, {\n\t\t\ta: s\n\t\t\t// c\n\t\t});"),
+        out.contains("\t\t$.set(this.#x, { a: s\n\n\t\t// c\n\t\t });"),
         "trailing comment must stay inside the literal:\n{out}"
     );
     assert_structurally_valid(&out, "trailing comment in last position");
@@ -309,7 +311,7 @@ fn compound_and_logical_assignments_keep_nested_comments() {
     assert_structurally_valid(&out, "compound/logical assignment");
     let flat = dedented(&out);
     assert!(
-        flat.contains("?? {\na: s,\n// c\nb: s\n}, true);"),
+        flat.contains("?? {\na: s,\n// c\nb: s\n},\ntrue\n);"),
         "logical assignment RHS must survive:\n{out}"
     );
     assert!(
