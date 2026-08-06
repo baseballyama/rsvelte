@@ -17,9 +17,14 @@
 //! output.
 //!
 //! **CRITICAL RULE:** return `None` on ANY variant not explicitly handled
-//! here — in particular `JsExpr::Raw`, `JsExpr::Spanned`, `JsStatement::Raw`,
-//! and `JsStatement::RawMapped`, which carry opaque source text the structural
-//! esrap printer cannot reconstruct.
+//! here.
+//!
+//! The `Raw` family is handled, not excluded: `JsStatement::Raw` /
+//! `JsStatement::RawMapped` carry source text that [`Self::parse_raw_statements`]
+//! re-parses into real oxc statements, and [`Self::expand_stmt`] flattens a
+//! multi-statement chunk inline at statement-list sites. A whole module body
+//! emitted as one `Raw` therefore converts. Conversion fails only when that
+//! text does not parse (`chunk-parse`).
 //!
 //! # Comments and the unified coordinate space
 //!
