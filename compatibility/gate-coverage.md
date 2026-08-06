@@ -812,6 +812,26 @@ two questions are mechanical, and each has already found real defects. Run them 
 this file; they are far cheaper than a full read and they convert `[S]` rows into `[D]` rows,
 because a population you can empty is usually a population you can demonstrate.
 
+### P0 — Is the verdict you are reading actually the check's verdict?
+
+Apply this before the other two, because it invalidates them. Every gate in this file ultimately
+reports a **verdict**, and a verdict can be corrupted by the plumbing carrying it while still
+looking exactly like a pass. Four instances turned up in one day of work on this document, two
+of which corrupted a verdict rather than merely truncating output:
+
+| mode | what it looks like | the tell |
+|---|---|---|
+| **masked exit code** | `cmd \| tail -5` reports the *pipe's* status, not `cmd`'s — always 0 | read the command's own output for its failure text, or use `PIPESTATUS` / drop the pipe |
+| **truncated output** | `\| head -8` shows a clean prefix of a failing run | a cap has no error condition, so "nothing bad in the first N" is not "nothing bad" — state the denominator |
+| **`grep` dropping input** | the repo's `grep` wraps `ugrep -I`, which discards binary-looking stdin, so `git show <rev>:<f> \| grep <s>` finds nothing for strings that are present | use `command grep` when piping, and pair every negative claim with a positive control |
+| **stale artifact** | a gate passes against a binary or tree built before the change | rebuild, or assert a freshness token (`ensure_fixtures_fresh`, `common/mod.rs:124-137`, is the model) |
+
+Worked instance, from this document's own work: `cargo clippy … | tail -5` reported **exit 0**
+while clippy had actually died on `signal: 15` (a disk-guard kill). The 0 was `tail`'s. It was
+caught only by reading the full output file — and it happened inside the PR fixing a
+silent-success bug. **A masked exit code and a passing check are indistinguishable at the point
+of use**, which is the same property that makes every row in this document worth writing down.
+
 ### P1 — Does the guard count the same collection the comparison loop consumes?
 
 Name the collection the floor measures and the collection the loop iterates, and check they are
