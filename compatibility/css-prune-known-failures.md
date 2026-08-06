@@ -26,7 +26,7 @@ Sweep shape: 1222 components, ~4s. Client and server prune identically
 (`--both` reports 0 client≠server divergences), so the sweep compiles one target
 (`generate: 'client'`, `css: 'external'`) per component.
 
-## Divergence clusters (0 entries — all root causes fixed)
+## Divergence clusters (`css-prune-known-failures.json`, 0 entries — all root causes fixed)
 
 The ratchet is empty: the sweep reports 0 divergences. The three root causes
 found by this sweep are all fixed. The history is kept here as the record of why
