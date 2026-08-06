@@ -43,6 +43,13 @@ fn svelte_dev_short_sha(root: &Path) -> Option<String> {
     (sha.len() >= 12).then(|| sha[..12].to_string())
 }
 
+/// `FMT_CORPUS_OXFMT` is set by exactly the CI step that checks out svelte.dev
+/// and generates the corpus, so it — not `CI` — marks the run that must not skip.
+/// The sharded `test` job deliberately omits svelte.dev and has to stay green.
+fn in_corpus_job() -> bool {
+    std::env::var_os("FMT_CORPUS_OXFMT").is_some()
+}
+
 fn oxfmt_bin() -> PathBuf {
     if let Ok(p) = std::env::var("FMT_CORPUS_OXFMT") {
         return PathBuf::from(p);
@@ -111,12 +118,24 @@ fn svelte_dev_markdown_cli_parity() {
     let root = repo_root();
 
     let Some(short_sha) = svelte_dev_short_sha(&root) else {
+        assert!(
+            !in_corpus_job(),
+            "submodules/svelte.dev is not checked out in the job that sets \
+             FMT_CORPUS_OXFMT — the markdown parity assertions would be \
+             silently skipped."
+        );
         eprintln!("[fmt-corpus-md] svelte.dev submodule not checked out; skipping.");
         return;
     };
     let fixtures = root.join("fixtures/fmt-corpus").join(&short_sha);
     let markdown_root = fixtures.join("markdown");
     if !markdown_root.is_dir() {
+        assert!(
+            !in_corpus_job(),
+            "no markdown fixtures at fixtures/fmt-corpus/{short_sha} in the job \
+             that sets FMT_CORPUS_OXFMT — `generate-fmt-corpus` produced nothing, \
+             or wrote a different svelte.dev SHA."
+        );
         eprintln!(
             "[fmt-corpus-md] no markdown fixtures at fixtures/fmt-corpus/{short_sha}; skipping. \
              Run: pnpm run generate-fmt-corpus"
@@ -126,6 +145,12 @@ fn svelte_dev_markdown_cli_parity() {
 
     let oxfmt = oxfmt_bin();
     if !oxfmt_runnable(&oxfmt) {
+        assert!(
+            !in_corpus_job(),
+            "FMT_CORPUS_OXFMT is set but oxfmt is not runnable at {} — the \
+             oracle is broken, not absent.",
+            oxfmt.display()
+        );
         eprintln!(
             "[fmt-corpus-md] oxfmt not runnable at {} (set FMT_CORPUS_OXFMT); skipping.",
             oxfmt.display()
