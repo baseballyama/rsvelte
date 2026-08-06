@@ -181,6 +181,21 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           pr_branch="chore/update-${SUB_NAME}"
+
+          # This branch name carries no version, so every weekly run targets the
+          # same branch — refuse to force over commits pushed to it by hand.
+          set +e
+          node scripts/ci/bot-branch-guard.mjs --branch "${pr_branch}" \
+            --what "${SUB_NAME} ${short_new:-${new:0:12}}" --report-pr
+          guard_rc=$?
+          set -e
+          if [ "${guard_rc}" -eq 3 ]; then
+            echo "::warning::${pr_branch} carries downstream commits; leaving it untouched."
+            exit 0
+          elif [ "${guard_rc}" -ne 0 ]; then
+            exit "${guard_rc}"
+          fi
+
           git checkout -B "${pr_branch}"
 
           # Advance the gitlink to the new commit without checking the

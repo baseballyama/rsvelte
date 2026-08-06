@@ -165,6 +165,44 @@ test('single commit authored by the bot but amended by a human', ({ work }) => {
 	assert(r.code === 3, `expected blocked on committer mismatch, got ${r.code}: ${r.out}`);
 });
 
+// actions/checkout defaults to fetch-depth: 1, so this is the shape CI actually runs in.
+function shallowClone({ root, origin }) {
+	const shallow = join(root, 'shallow');
+	git(root, ['clone', '--depth=1', `file://${origin}`, shallow]);
+	assert(
+		git(shallow, ['rev-parse', '--is-shallow-repository']) === 'true',
+		'expected a shallow clone',
+	);
+	return shallow;
+}
+
+test('shallow CI clone: bot-only branch is still recognised as safe', (repo) => {
+	const { work } = repo;
+	for (let i = 0; i < 5; i++) {
+		commit(work, { file: `main-${i}.txt`, message: `main work ${i}`, author: 'human' });
+	}
+	git(work, ['push', 'origin', 'main']);
+	git(work, ['checkout', '-B', 'bump', 'main']);
+	commit(work, { file: 'v.txt', message: 'chore(deps): update oxfmt to 0.62.0', author: 'bot' });
+	git(work, ['push', 'origin', 'bump']);
+	const r = runGuard(shallowClone(repo), 'bump');
+	assert(r.code === 0, `expected safe from a shallow clone, got ${r.code}: ${r.out}`);
+});
+
+test('shallow CI clone: downstream commits are still detected', (repo) => {
+	const { work } = repo;
+	for (let i = 0; i < 5; i++) {
+		commit(work, { file: `main-${i}.txt`, message: `main work ${i}`, author: 'human' });
+	}
+	git(work, ['push', 'origin', 'main']);
+	git(work, ['checkout', '-B', 'bump', 'main']);
+	commit(work, { file: 'v.txt', message: 'chore(deps): update oxfmt to 0.62.0', author: 'bot' });
+	commit(work, { file: 'fix.rs', message: 'fix(compiler): hand-written work', author: 'human' });
+	git(work, ['push', 'origin', 'bump']);
+	const r = runGuard(shallowClone(repo), 'bump');
+	assert(r.code === 3, `expected blocked from a shallow clone, got ${r.code}: ${r.out}`);
+});
+
 test('single commit written entirely by a human', ({ work }) => {
 	git(work, ['checkout', '-B', 'bump', 'main']);
 	commit(work, { file: 'v.txt', message: 'chore(deps): update oxfmt to 0.62.0', author: 'human' });

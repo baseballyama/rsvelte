@@ -122,6 +122,21 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           pr_branch="chore/upgrade-svelte-${LATEST_VERSION}"
+
+          # This PR is explicitly finished by hand (fixtures + regressions), so
+          # downstream commits are the expected state — never force over them.
+          set +e
+          node scripts/ci/bot-branch-guard.mjs --branch "${pr_branch}" \
+            --what "Svelte ${LATEST_VERSION}" --report-pr
+          guard_rc=$?
+          set -e
+          if [ "${guard_rc}" -eq 3 ]; then
+            echo "::warning::${pr_branch} carries downstream commits; leaving it untouched."
+            exit 0
+          elif [ "${guard_rc}" -ne 0 ]; then
+            exit "${guard_rc}"
+          fi
+
           git checkout -B "${pr_branch}"
 
           # Advance the svelte gitlink (mode 160000 = gitlink).

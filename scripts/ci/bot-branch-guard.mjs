@@ -107,6 +107,10 @@ function git(repo, args) {
 	};
 }
 
+function isShallow(repo) {
+	return git(repo, ['rev-parse', '--is-shallow-repository']).stdout === 'true';
+}
+
 /**
  * @returns {{status: 'safe'|'blocked', reason: string, commits: Array<{sha: string, author: string, committer: string, subject: string}>}}
  */
@@ -117,8 +121,7 @@ export function inspectBranch(opts) {
 	if (opts.fetch) {
 		// --depth only when already shallow: passing it to a full clone would
 		// shallowify the checkout the caller is about to push from.
-		const shallow = git(repo, ['rev-parse', '--is-shallow-repository']).stdout === 'true';
-		const depth = shallow ? ['--depth=200'] : [];
+		const depth = isShallow(repo) ? ['--depth=200'] : [];
 		git(repo, [
 			'fetch',
 			'--no-tags',
@@ -158,11 +161,17 @@ export function inspectBranch(opts) {
 		};
 	}
 
-	const mergeBase = git(repo, ['merge-base', baseTip.stdout, branchTip.stdout]);
+	let mergeBase = git(repo, ['merge-base', baseTip.stdout, branchTip.stdout]);
+	if ((!mergeBase.ok || !mergeBase.stdout) && opts.fetch && isShallow(repo)) {
+		// A skipped bump is cheap, but silently skipping every bump because the
+		// CI clone is too shallow to answer is not — pay for the full history once.
+		git(repo, ['fetch', '--no-tags', '--quiet', '--unshallow', remote]);
+		mergeBase = git(repo, ['merge-base', baseTip.stdout, branchTip.stdout]);
+	}
 	if (!mergeBase.ok || !mergeBase.stdout) {
 		return {
 			status: 'blocked',
-			reason: `no merge-base between ${remote}/${base} and ${remote}/${branch} (shallow clone?); refusing to force-push`,
+			reason: `no merge-base between ${remote}/${base} and ${remote}/${branch}; refusing to force-push`,
 			commits: [],
 		};
 	}

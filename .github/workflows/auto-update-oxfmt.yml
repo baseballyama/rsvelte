@@ -127,6 +127,21 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           pr_branch="chore/update-oxfmt-${LATEST_VERSION}"
+
+          # The regenerate-and-force-push below would destroy any commit pushed
+          # to the open PR by hand, so refuse to touch a branch that has them.
+          set +e
+          node scripts/ci/bot-branch-guard.mjs --branch "${pr_branch}" \
+            --what "oxfmt ${LATEST_VERSION}" --report-pr
+          guard_rc=$?
+          set -e
+          if [ "${guard_rc}" -eq 3 ]; then
+            echo "::warning::${pr_branch} carries downstream commits; leaving it untouched."
+            exit 0
+          elif [ "${guard_rc}" -ne 0 ]; then
+            exit "${guard_rc}"
+          fi
+
           git checkout -B "${pr_branch}"
 
           # Bump every caret/tilde-pinned oxfmt range across the workspace.
