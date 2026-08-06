@@ -280,6 +280,11 @@ console.log(`[mutate] manifest ${manifest.length}, already-diverging ${known.siz
 console.log(`[mutate] mode: ${FULL ? 'full sweep' : `sample of ${seeds.length}`}  per-file ${PER_FILE}  targets ${TARGETS.map((t) => t.key).join(', ')}`);
 
 const crashes = [];
+// Seeds a crashed worker had already written pairs for before dying. Its shard
+// tally never reached disk, so those pairs are on disk but in no count — the
+// accounting below has to scope around them rather than mistake them for
+// corruption.
+const orphanedSeedIds = new Set();
 const passThrough = ['--per-file', String(PER_FILE), '--targets', TARGETS.map((t) => t.key).join(','), ...(FULL ? ['--full'] : ['--seeds', String(SEEDS)])];
 
 function runRange(start, end) {
@@ -303,6 +308,7 @@ function runRange(start, end) {
 			if (code === 0) return resolve();
 			const seed = seeds[last];
 			console.error(`[mutate] worker aborted (${signal ?? code}) on ${seed?.id}`);
+			for (let i = start; i <= last && i < end; i++) orphanedSeedIds.add(seeds[i].id);
 			// The crash IS the finding — a mutant that aborts the compiler is
 			// strictly worse than one that diverges.
 			if (seed) crashes.push({ id: seed.id, verdict: 'compiler-crash', detail: `rsvelte aborted the process (${signal ?? `exit ${code}`})` });
@@ -471,11 +477,28 @@ function astVerdicts(pairs) {
 	return new Map(JSON.parse(out).map((v) => [v.id, v]));
 }
 
-const pairs = fs.existsSync(TREE) ? walkPairs(TREE) : [];
-// Every divergent comparison wrote both halves, so a `divergent` count that the
-// walk cannot account for means outputs went missing between the two stages.
+const allPairs = fs.existsSync(TREE) ? walkPairs(TREE) : [];
+const seedIdOfMutant = (id) => id.replace(/__m\d+__[a-z0-9-]+(?=\.svelte(\.[jt]s)?$)/, '');
+const mutantIdOfPair = (p) => path.relative(TREE, path.dirname(path.dirname(p)));
+// Scope the count to seeds a surviving shard accounted for, rather than deleting
+// the orphans: the invariant becomes true by construction and the artifacts stay
+// on disk for whoever debugs the crash.
+const pairs = allPairs.filter((p) => !orphanedSeedIds.has(seedIdOfMutant(mutantIdOfPair(p))));
+const orphanedPairs = allPairs.length - pairs.length;
+if (orphanedPairs) {
+	console.log(`[mutate] ${orphanedPairs} pairs from ${orphanedSeedIds.size} crash-orphaned seeds excluded from the accounting`);
+}
+// Every divergent comparison wrote both halves, so a count the walk cannot
+// account for means the two stages disagree. State the DIRECTION and both
+// candidate causes: a shortfall is lost output, an excess is unaccounted output
+// (usually a crashed worker's tally). Asserting one sends the next reader
+// hunting for files that were never lost.
 if (pairs.length !== divergent) {
-	console.error(`\n[mutate] ${pairs.length} output pairs on disk for ${divergent} divergent comparisons — outputs went missing.`);
+	const delta = pairs.length - divergent;
+	const shape = delta > 0 ? `excess of ${delta}` : `shortfall of ${-delta}`;
+	console.error(`\n[mutate] ${pairs.length} accounted output pairs on disk vs ${divergent} divergent comparisons — ${shape}.`);
+	console.error('  a shortfall means output went missing after it was counted;');
+	console.error('  an excess means output was written but never counted (a worker died before writing its tally).');
 	process.exit(2);
 }
 const differing = [];
@@ -580,6 +603,15 @@ if (UPDATE_BASELINE) {
 	}
 	if (TARGETS.length !== ALL_TARGETS.length) {
 		console.error('\n[mutate] refusing to baseline from a --targets subset (FALSE-SHRINK).');
+		process.exit(2);
+	}
+	// Scoping the count keeps the run honest, but a crash-orphaned seed was still
+	// never measured — baselining would delete its existing entries exactly as a
+	// sampled run would.
+	if (orphanedSeedIds.size) {
+		console.error(`\n[mutate] refusing to baseline: ${orphanedSeedIds.size} seeds were orphaned by a worker crash`);
+		console.error('  and went unmeasured, so the rewrite would delete their entries (FALSE-SHRINK).');
+		console.error('  fix the crash, or re-run once it no longer aborts.');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
