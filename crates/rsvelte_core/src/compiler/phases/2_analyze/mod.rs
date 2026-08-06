@@ -239,9 +239,16 @@ pub(crate) fn analyze_prepared_component_with_retained(
         && svelte_options.custom_element.is_some()
         && !options.custom_element
     {
-        analysis
-            .warnings
-            .push(warnings::options_missing_custom_element());
+        let mut warning = warnings::options_missing_custom_element();
+        if let Some(attr) = svelte_options
+            .attributes
+            .iter()
+            .find(|a| a.name == "customElement")
+        {
+            warning.start = Some(attr.start);
+            warning.end = Some(attr.end);
+        }
+        analysis.warnings.push(warning);
     }
 
     // Extract script content for Phase 3 (avoids re-parsing)
@@ -682,7 +689,9 @@ pub(crate) fn analyze_prepared_component_with_retained(
                     .contains(&"non_reactive_update".to_string())
                 {
                     let name = binding.name.clone();
-                    analysis.warnings.push(warnings::non_reactive_update(&name));
+                    let mut warning = warnings::non_reactive_update(&name);
+                    stamp_declaration(&mut warning, binding);
+                    analysis.warnings.push(warning);
                 }
             }
         }
@@ -746,7 +755,9 @@ pub(crate) fn analyze_prepared_component_with_retained(
                     .contains(&"export_let_unused".to_string())
                 {
                     let name = binding.name.clone();
-                    analysis.warnings.push(warnings::export_let_unused(&name));
+                    let mut warning = warnings::export_let_unused(&name);
+                    stamp_declaration(&mut warning, binding);
+                    analysis.warnings.push(warning);
                 }
             }
         }
@@ -876,6 +887,16 @@ pub(crate) fn analyze_prepared_component_with_retained(
     }
 
     Ok(analysis)
+}
+
+/// Upstream warns these on `binding.node`, the declaration identifier alone.
+/// The binding keeps only the identifier's start, so the end is the name's
+/// **byte** length — a `char` count would slice a non-ASCII name mid-character.
+fn stamp_declaration(warning: &mut warnings::AnalysisWarning, binding: &scope::Binding) {
+    if let Some(start) = binding.declaration_start {
+        warning.start = Some(start);
+        warning.end = Some(start + binding.name.len() as u32);
+    }
 }
 
 /// Synthesize empty class/style attributes for elements that need them.

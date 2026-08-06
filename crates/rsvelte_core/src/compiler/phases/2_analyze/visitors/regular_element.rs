@@ -989,7 +989,10 @@ pub fn visit<'a, 'b: 'a>(
                 && !is_svg(node_name)
                 && !is_mathml(node_name)
             {
-                context.emit_warning(warnings::element_invalid_self_closing_tag(node_name));
+                let mut warning = warnings::element_invalid_self_closing_tag(node_name);
+                warning.start = Some(element.start);
+                warning.end = Some(element.end);
+                context.emit_warning(warning);
             }
         }
     }
@@ -1134,7 +1137,10 @@ pub fn visit<'a, 'b: 'a>(
                 // on_directive::visit doesn't have access to the parent type.
                 // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/OnDirective.js
                 if context.analysis.runes {
-                    context.emit_warning(warnings::event_directive_deprecated(&on.name));
+                    let mut warning = warnings::event_directive_deprecated(&on.name);
+                    warning.start = Some(on.start);
+                    warning.end = Some(on.end);
+                    context.emit_warning(warning);
                 }
 
                 // Track event directive for mixed_event_handler_syntaxes check
