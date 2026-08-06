@@ -90,7 +90,7 @@ Re-baseline in the same PR as the fix:
 
 ```
 cargo build --release -p rsvelte_napi --lib
-mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node
+mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node
 node scripts/compat-corpus/matrix/run.mjs --update-baseline
 ```
 

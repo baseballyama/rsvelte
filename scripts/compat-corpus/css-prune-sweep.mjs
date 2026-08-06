@@ -30,7 +30,7 @@
  *
  * Requires a staged NAPI binding at .corpus-cache/rsvelte.node
  * (cargo build --release -p rsvelte_napi --lib,
- *  then cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node).
+ *  then mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node).
  */
 
 import fs from 'node:fs';
@@ -337,7 +337,7 @@ try {
 } catch (e) {
 	console.error('[css-prune-sweep] rsvelte NAPI binding missing at .corpus-cache/rsvelte.node');
 	console.error('  build: cargo build --release -p rsvelte_napi --lib');
-	console.error('  stage: cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node');
+	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node');
 	process.exit(1);
 }
 
