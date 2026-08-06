@@ -821,19 +821,6 @@ fn scan_reactive_line(line: &str, depth: &mut i32, in_template: &mut bool) {
     }
 }
 
-/// Net bracket depth change over one line, counting code bytes only.
-fn bracket_depth_delta(line: &str) -> i32 {
-    let mut delta = 0;
-    for (_, c) in code_bytes(line.as_bytes()) {
-        match c {
-            b'{' | b'(' | b'[' => delta += 1,
-            b'}' | b')' | b']' => delta -= 1,
-            _ => {}
-        }
-    }
-    delta
-}
-
 pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> String {
     let lines: Vec<&str> = script.lines().collect();
 
@@ -854,13 +841,16 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
         let mut needs = false;
         let mut in_reactive_multiline = false;
         let mut reactive_depth: i32 = 0;
+        // Must match the collection loop below, or the two disagree on where a
+        // reactive block ends and this scan mis-routes.
+        let mut in_template = false;
         let mut i = 0;
         while i < lines.len() {
             let trimmed = lines[i].trim();
             if in_reactive_multiline {
                 // Count braces to find the end of the reactive statement
-                reactive_depth += bracket_depth_delta(trimmed);
-                if reactive_depth <= 0 {
+                scan_reactive_line(trimmed, &mut reactive_depth, &mut in_template);
+                if reactive_depth <= 0 && !in_template {
                     in_reactive_multiline = false;
                 }
                 i += 1;
@@ -869,8 +859,10 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             if trimmed.starts_with("$:") {
                 saw_reactive = true;
                 // Count braces in the reactive statement line to detect multiline
-                let depth: i32 = bracket_depth_delta(trimmed);
-                if depth > 0 {
+                let mut depth: i32 = 0;
+                in_template = false;
+                scan_reactive_line(trimmed, &mut depth, &mut in_template);
+                if depth > 0 || in_template {
                     // This is a multi-line reactive statement; skip until balanced
                     in_reactive_multiline = true;
                     reactive_depth = depth;
@@ -906,6 +898,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     if ends_with_cont || next_starts_cont {
                         // Skip continuation lines, tracking accumulated bracket depth
                         let mut acc_depth: i32 = depth; // depth from the $: line
+                        let mut acc_template = in_template;
                         i += 1;
                         while i < lines.len() {
                             let nt = lines[i].trim();
@@ -913,7 +906,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             {
                                 break;
                             }
-                            acc_depth += bracket_depth_delta(nt);
+                            scan_reactive_line(nt, &mut acc_depth, &mut acc_template);
                             i += 1;
                             let nl = nt.chars().last().unwrap_or(' ');
                             let is_cont = matches!(
@@ -1044,7 +1037,9 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     // Track accumulated bracket depth so multi-line bracket expressions
                     // like `$: x = arr[\n  expr\n];` are fully consumed.
                     // Count depth from the initial $: line too
-                    let mut accumulated_depth: i32 = bracket_depth_delta(trimmed);
+                    let mut accumulated_depth: i32 = 0;
+                    let mut acc_template = false;
+                    scan_reactive_line(trimmed, &mut accumulated_depth, &mut acc_template);
                     while i < lines.len() {
                         let next = lines[i];
                         let next_trimmed = next.trim();
@@ -1057,7 +1052,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                         }
                         stmt_lines.push(next);
                         // Update accumulated depth
-                        accumulated_depth += bracket_depth_delta(next_trimmed);
+                        scan_reactive_line(next_trimmed, &mut accumulated_depth, &mut acc_template);
                         let next_last = next_trimmed.chars().last().unwrap_or(' ');
                         let next_is_continuation = matches!(
                             next_last,
@@ -1167,13 +1162,15 @@ fn sort_reactive_in_place(script: &str) -> String {
         if trimmed.starts_with("$:") {
             // Collect this reactive statement (possibly multi-line)
             let mut stmt_lines = vec![lines[i]];
-            let mut depth: i32 = bracket_depth_delta(trimmed);
+            let mut depth: i32 = 0;
+            let mut in_template = false;
+            scan_reactive_line(trimmed, &mut depth, &mut in_template);
             i += 1;
-            if depth > 0 {
-                while i < n && depth > 0 {
+            if depth > 0 || in_template {
+                while i < n && (depth > 0 || in_template) {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    depth += bracket_depth_delta(next);
+                    scan_reactive_line(next, &mut depth, &mut in_template);
                     i += 1;
                 }
             } else {
@@ -2134,7 +2131,7 @@ mod tests {
 
     #[test]
     fn declaration_completeness_ignores_comment_brackets() {
-        assert!(!export_let_declaration_seems_complete("x = [1 /* ] */"));
+        assert!(export_let_declaration_seems_complete("x = [1 /* ] */ ]"));
         assert!(!export_let_declaration_seems_complete("x = [1 // ]"));
         assert!(export_let_declaration_seems_complete("x = [1] /* ] */"));
         assert!(!export_let_declaration_seems_complete("x = `abc"));
@@ -2223,6 +2220,15 @@ mod tests {
         assert_eq!(
             split_destructuring_properties_ssr("a // , b"),
             vec!["a // , b"]
+        );
+    }
+
+    #[test]
+    fn interpolation_brace_does_not_end_the_reactive_block_early() {
+        let script = "let name = 'w';\n$: b = 1;\n$: { msg = `hello ${\nname\n}`;\n}\n";
+        assert_eq!(
+            reorder_reactive_statements_after_functions(script),
+            script.trim_end()
         );
     }
 
