@@ -384,7 +384,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         Some(CatchParameter::new(
                             SPAN,
                             pattern,
-                            oxc_ast::builder::NONE,
+                            None,
                             &self.ab,
                         ))
                     }
@@ -503,7 +503,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             specifiers,
             source,
             None,
-            oxc_ast::builder::NONE,
+            None,
             ImportOrExportKind::Value,
             &self.ab,
         );
@@ -598,7 +598,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             specs,
             None,
             ImportOrExportKind::Value,
-            oxc_ast::builder::NONE,
+            None,
             &self.ab,
         );
         Some(Statement::from(decl))
@@ -664,10 +664,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             generator,
             is_async,
             false,
-            oxc_ast::builder::NONE,
-            oxc_ast::builder::NONE,
+            None,
+            None,
             params,
-            oxc_ast::builder::NONE,
+            None,
             Some(body),
             &self.ab,
         ))
@@ -738,7 +738,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 SPAN,
                 kind,
                 binding,
-                oxc_ast::builder::NONE,
+                None,
                 init,
                 false,
                 &self.ab,
@@ -875,7 +875,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(Expression::CallExpression(CallExpression::boxed(
                     SPAN,
                     callee,
-                    oxc_ast::builder::NONE,
+                    None,
                     args,
                     *optional,
                     &self.ab,
@@ -889,7 +889,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(Expression::NewExpression(NewExpression::boxed(
                     SPAN,
                     callee,
-                    oxc_ast::builder::NONE,
+                    None,
                     args,
                     &self.ab,
                 )))
@@ -994,7 +994,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     TaggedTemplateExpression::boxed(
                         SPAN,
                         tag,
-                        oxc_ast::builder::NONE,
+                        None,
                         quasi,
                         &self.ab,
                     ),
@@ -1523,9 +1523,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 SPAN,
                 is_expr,
                 *r#async,
-                oxc_ast::builder::NONE,
+                None,
                 params,
-                oxc_ast::builder::NONE,
+                None,
                 fn_body,
                 &self.ab,
             ),
@@ -1551,7 +1551,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 let call = CallExpression::boxed(
                     SPAN,
                     callee,
-                    oxc_ast::builder::NONE,
+                    None,
                     args,
                     *optional,
                     &self.ab,
@@ -1583,7 +1583,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     SPAN,
                     ArenaVec::new_in(&self.ab),
                     rest_el,
-                    oxc_ast::builder::NONE,
+                    None,
                     &self.ab,
                 ));
                 continue;
@@ -1593,8 +1593,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 SPAN,
                 ArenaVec::new_in(&self.ab),
                 pattern,
-                oxc_ast::builder::NONE,
-                oxc_ast::builder::NONE,
+                None,
+                None,
                 false,
                 None,
                 false,

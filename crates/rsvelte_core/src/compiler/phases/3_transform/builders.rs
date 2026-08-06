@@ -188,7 +188,7 @@ impl<'a> B<'a> {
         Expression::CallExpression(CallExpression::boxed(
             SPAN,
             callee,
-            oxc_ast::builder::NONE,
+            None,
             args,
             false,
             &self.ab(),
@@ -223,7 +223,7 @@ impl<'a> B<'a> {
         let callee = callee.into_expr(self);
         let args = self.args(args);
         let call =
-            CallExpression::boxed(SPAN, callee, oxc_ast::builder::NONE, args, true, &self.ab());
+            CallExpression::boxed(SPAN, callee, None, args, true, &self.ab());
         // Wrap in a ChainExpression so esrap prints the `?.()` chain form.
         Expression::ChainExpression(ChainExpression::boxed(
             SPAN,
@@ -239,7 +239,7 @@ impl<'a> B<'a> {
         Expression::NewExpression(NewExpression::boxed(
             SPAN,
             callee,
-            oxc_ast::builder::NONE,
+            None,
             args,
             &self.ab(),
         ))
@@ -427,7 +427,7 @@ impl<'a> B<'a> {
                 &self.ab(),
             ));
         }
-        BindingPattern::new_object_pattern(SPAN, props, oxc_ast::builder::NONE, &self.ab())
+        BindingPattern::new_object_pattern(SPAN, props, None, &self.ab())
     }
 
     /// Reinterpret an `Expression` as a `BindingPattern`, mirroring upstream's
@@ -516,8 +516,8 @@ impl<'a> B<'a> {
                 SPAN,
                 ArenaVec::new_in(&self.ab()),
                 pat,
-                oxc_ast::builder::NONE,
-                oxc_ast::builder::NONE,
+                None,
+                None,
                 false,
                 None,
                 false,
@@ -533,7 +533,7 @@ impl<'a> B<'a> {
                     SPAN,
                     ArenaVec::new_in(&self.ab()),
                     rest_el,
-                    oxc_ast::builder::NONE,
+                    None,
                     &self.ab(),
                 )
             });
@@ -565,9 +565,9 @@ impl<'a> B<'a> {
             SPAN,
             body_is_expression,
             is_async,
-            oxc_ast::builder::NONE,
+            None,
             params,
-            oxc_ast::builder::NONE,
+            None,
             body,
             &self.ab(),
         ))
@@ -623,10 +623,10 @@ impl<'a> B<'a> {
             false,
             is_async,
             false,
-            oxc_ast::builder::NONE,
-            oxc_ast::builder::NONE,
+            None,
+            None,
             params,
-            oxc_ast::builder::NONE,
+            None,
             Some(body),
             &self.ab(),
         );
@@ -649,10 +649,10 @@ impl<'a> B<'a> {
             false,
             is_async,
             false,
-            oxc_ast::builder::NONE,
-            oxc_ast::builder::NONE,
+            None,
+            None,
             params,
-            oxc_ast::builder::NONE,
+            None,
             Some(body),
             &self.ab(),
         );
@@ -714,7 +714,7 @@ impl<'a> B<'a> {
                 SPAN,
                 kind,
                 pat,
-                oxc_ast::builder::NONE,
+                None,
                 init,
                 false,
                 &self.ab(),
@@ -734,7 +734,7 @@ impl<'a> B<'a> {
             SPAN,
             kind,
             pattern,
-            oxc_ast::builder::NONE,
+            None,
             init,
             false,
             &self.ab(),
@@ -862,7 +862,7 @@ impl<'a> B<'a> {
                 SPAN,
                 kind,
                 pat,
-                oxc_ast::builder::NONE,
+                None,
                 init,
                 false,
                 &self.ab(),
@@ -917,7 +917,7 @@ impl<'a> B<'a> {
             Some(specs),
             self.module_source(source),
             None,
-            oxc_ast::builder::NONE,
+            None,
             ImportOrExportKind::Value,
             &self.ab(),
         );
@@ -951,7 +951,7 @@ impl<'a> B<'a> {
             specifiers,
             self.module_source(source),
             None,
-            oxc_ast::builder::NONE,
+            None,
             ImportOrExportKind::Value,
             &self.ab(),
         );
