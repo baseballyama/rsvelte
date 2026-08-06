@@ -42,8 +42,9 @@
  *
  * ---- warning parity --------------------------------------------------------
  *
- * `compile.mjs` records every compiler warning as (code, line, column) in
- * `warnings.json` next to the output. Two independent comparisons run here:
+ * `compile.mjs` records every compiler warning as (code, line, column, message)
+ * in `warnings.json` next to the output. Three independent comparisons run here,
+ * as a cascade — each is only reached when the one above it already agrees:
  *
  *   - warning-code-mismatch      the multiset of warning CODES differs. A
  *                                semantic bug: rsvelte warns where upstream
@@ -54,10 +55,17 @@
  *                                span at that emission site, so an editor has
  *                                nowhere to put the squiggle.
  *                                Ratchet: warning-position-known-failures.<target>.json
+ *   - warning-message-mismatch   code and position both agree and the prose
+ *                                differs. The only part a human reads, and the
+ *                                only dimension in which a diagnostic can name
+ *                                an attribute that is not on the element or
+ *                                suggest a path that does not exist while
+ *                                looking correct to the other two.
+ *                                Ratchet: warning-message-known-failures.<target>.json
  *
  * They are separate because they have different causes and different fixes;
  * folded together, the much larger position backlog would hide every semantic
- * regression. Both are shrink-only, like the output ratchets, and neither can
+ * regression. All three are shrink-only, like the output ratchets, and none can
  * ever change an output ratchet — a warning divergence is not an output
  * divergence.
  *
@@ -386,12 +394,30 @@ for (const { id } of manifest) {
 // its own ratchets. A warning divergence must never move an output ratchet, and
 // an output divergence must never move a warning ratchet.
 
-const warningCounts = { match: 0, 'warning-code-mismatch': 0, 'warning-position-mismatch': 0 };
+const warningCounts = {
+	match: 0,
+	'warning-code-mismatch': 0,
+	'warning-position-mismatch': 0,
+	'warning-message-mismatch': 0,
+};
 const warningFailures = [];
 
 const readWarnings = (dir) => JSON.parse(readIf(path.join(dir, 'warnings.json')) ?? '{}');
 const codeBag = (list) => list.map((w) => w.code).sort();
 const posKey = (w) => `${w.code}@${w.line ?? '?'}:${w.column ?? '?'}`;
+// Keyed by code so a message divergence names the rule it belongs to.
+const msgKey = (w) => `${w.code}: ${w.message}`;
+// A tree compiled before `message` was recorded has the field on neither side,
+// which would compare equal everywhere and score the message ratchet green
+// while measuring nothing. Counted here and asserted after the loop.
+let warningsSeen = 0;
+let warningsWithMessage = 0;
+const countMessageCoverage = (list) => {
+	for (const w of list) {
+		warningsSeen++;
+		if (typeof w.message === 'string') warningsWithMessage++;
+	}
+};
 // Multiset difference a \ b, so a code emitted twice on one side and once on
 // the other is still a divergence.
 const bagDiff = (a, b) => {
@@ -418,6 +444,8 @@ for (const { id } of manifest) {
 		if (expErr[target] || actErr[target]) continue;
 		const e = expWarn[target] ?? [];
 		const a = actWarn[target] ?? [];
+		countMessageCoverage(e);
+		countMessageCoverage(a);
 
 		const extra = bagDiff(codeBag(a), codeBag(e));
 		const missing = bagDiff(codeBag(e), codeBag(a));
@@ -436,6 +464,16 @@ for (const { id } of manifest) {
 		if (String(ePos) !== String(aPos)) {
 			const i = ePos.findIndex((x, k) => x !== aPos[k]);
 			details.push({ target, kind: 'warning-position', expected: ePos[i], actual: aPos[i] });
+			continue;
+		}
+
+		// Only reached when the codes and the positions both already agree, so a
+		// divergence here is the message text alone.
+		const eMsg = e.map(msgKey).sort();
+		const aMsg = a.map(msgKey).sort();
+		if (String(eMsg) !== String(aMsg)) {
+			const i = eMsg.findIndex((x, k) => x !== aMsg[k]);
+			details.push({ target, kind: 'warning-message', expected: eMsg[i], actual: aMsg[i] });
 		}
 	}
 
@@ -443,14 +481,28 @@ for (const { id } of manifest) {
 		warningCounts.match++;
 		continue;
 	}
+	// Most-semantic wins, so an entry with both a code and a message divergence
+	// is counted once, as the code bug it is.
 	const verdict = details.some((d) => d.kind === 'warning-code')
 		? 'warning-code-mismatch'
-		: 'warning-position-mismatch';
+		: details.some((d) => d.kind === 'warning-position')
+			? 'warning-position-mismatch'
+			: 'warning-message-mismatch';
 	warningCounts[verdict]++;
 	warningFailures.push({ id, verdict, details });
 }
 
-// Two ratchets per target, partitioned by detail kind so a position divergence
+if (warningsSeen > 0 && warningsWithMessage < warningsSeen) {
+	console.error(
+		`[verify] ${warningsSeen - warningsWithMessage}/${warningsSeen} recorded warnings carry no \`message\`.`
+	);
+	console.error('  These trees predate the message ratchet: both sides would compare equal and the');
+	console.error('  message baseline would go green without comparing anything.');
+	console.error('  run: node scripts/compat-corpus/compile.mjs');
+	process.exit(2);
+}
+
+// Three ratchets per target, partitioned by detail kind so a position divergence
 // never lands in the semantic baseline (and vice versa).
 function partitionWarnings(kind) {
 	const byTarget = new Map(TARGET_KEYS.map((key) => [key, new Set()]));
@@ -467,6 +519,7 @@ function partitionWarnings(kind) {
 const WARNING_RATCHETS = [
 	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline },
 	{ kind: 'warning-position', label: 'warning positions', file: (t) => t.warningPositionBaseline },
+	{ kind: 'warning-message', label: 'warning messages', file: (t) => t.warningMessageBaseline },
 ];
 
 const report = {
