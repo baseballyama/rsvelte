@@ -367,7 +367,6 @@ pub fn transform_client_module(
 
     let program = super::js_ast::nodes::JsProgram { body };
     let arena = super::js_ast::arena::JsArena::new();
-    // EXPERIMENT: route through to_oxc -> esrap like the component path.
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
         super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
