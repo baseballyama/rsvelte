@@ -289,6 +289,12 @@ const failures = [];
 // blind to them under either policy. The path forward is rsvelte preserving
 // comments plus `--comments` here — see compatibility/ast-equivalence.md.
 //
+// Preservation is necessary but NOT sufficient. Official drops the comment in
+// 80 of 192 generated module positions and keeps it in the other 112 — the
+// choice is position-dependent, not per-comment-kind (#2399). Parity therefore
+// requires reproducing official's position rule; a blanket-preserve rsvelte
+// would diverge on those 80.
+//
 // A second, narrower cause compounds this for modules: `.svelte.ts` entries
 // reach both compilers TS-stripped, and esbuild drops all comments on the way
 // (see compile.mjs's `prepareSource`).

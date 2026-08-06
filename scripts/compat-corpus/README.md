@@ -291,6 +291,10 @@ Two things follow that are easy to get wrong:
   `eslint-disable`, `prettier-ignore`, `# sourceMappingURL=` — so JSDoc type
   tags like `@type` are still filtered as prose. The real prerequisite is
   rsvelte preserving comments at all; see `compatibility/ast-equivalence.md`.
+- **Preserving them is necessary but not sufficient.** Official itself drops
+  the comment in 80 of 192 generated module positions and keeps it in the other
+  112, position-dependent rather than per-comment-kind (#2399). Parity means
+  reproducing that rule, so a blanket-preserve rsvelte would diverge on the 80.
 - **The esbuild TS-stripping in `compile.mjs` is the narrower second cause,
   not the binding one.** `.svelte.ts` entries reach both compilers stripped of
   comments (299 of 437 module entries, 52 of which carry real top-level
