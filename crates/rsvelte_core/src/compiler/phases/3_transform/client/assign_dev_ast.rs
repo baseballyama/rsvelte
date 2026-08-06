@@ -89,6 +89,35 @@ impl<'a> Visit<'a> for AsyncScan {
     fn visit_class(&mut self, _: &Class<'a>) {}
 }
 
+/// The value `arrow` (`utils/builders.js`) hoists out of a lazy getter, turning
+/// `async () => await x()` back into `() => x()`. Upstream decides on the
+/// unvisited right-hand side, so the `$.track_reactivity_loss` wrapper this pass
+/// already sees around the `await` has to be looked through.
+fn hoistable_await_argument<'a, 'b>(expr: &'b Expression<'a>) -> Option<&'b Expression<'a>> {
+    let argument = match expr.without_parentheses() {
+        Expression::AwaitExpression(await_expr) => &await_expr.argument,
+        Expression::CallExpression(call) if call.arguments.is_empty() => {
+            let Expression::AwaitExpression(await_expr) = call.callee.without_parentheses() else {
+                return None;
+            };
+            let Expression::CallExpression(wrap) = await_expr.argument.without_parentheses() else {
+                return None;
+            };
+            let Expression::StaticMemberExpression(member) = &wrap.callee else {
+                return None;
+            };
+            if member.property.name != "track_reactivity_loss"
+                || !matches!(&member.object, Expression::Identifier(id) if id.name == "$")
+            {
+                return None;
+            }
+            wrap.arguments.first()?.as_expression()?
+        }
+        _ => return None,
+    };
+    (!is_expression_async(argument)).then_some(argument)
+}
+
 /// One element of a member chain, as both sides can compare it: a written name,
 /// or a computed access whose expression only has to be a computed access on
 /// the other side too.
@@ -172,17 +201,9 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
     fn visit_assignment_expression(&mut self, assign: &AssignmentExpression<'a>) {
         walk::walk_assignment_expression(self, assign);
 
-        if self.statement_expressions.contains(&assign.span.start)
-            && !self.concise_arrow_bodies.contains(&assign.span.start)
-        {
-            return;
-        }
         let Some(operator) = non_coercive(assign.operator) else {
             return;
         };
-        if is_known_primitive(&assign.right) {
-            return;
-        }
         let mut path = Vec::new();
         let slice = |span: oxc_span::Span| &self.source[span.start as usize..span.end as usize];
         let (root, object_span, property) = match &assign.left {
@@ -210,9 +231,18 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
             }
             _ => return,
         };
+        // Consumed before the decision below, not after: two identical member
+        // chains in one script are told apart only by which site is still
+        // unused, so a site the decision rejects still has to be spent.
         let Some((line, column)) = self.sites.take(&root, &path, operator) else {
             return;
         };
+        if is_known_primitive(&assign.right)
+            || (self.statement_expressions.contains(&assign.span.start)
+                && !self.concise_arrow_bodies.contains(&assign.span.start))
+        {
+            return;
+        }
 
         let object = slice(object_span);
         let right = slice(assign.right.span());
@@ -221,24 +251,36 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
         // awaiting getter has to be awaited back through `$.assign_async`.
         let needs_lazy_getter = operator != "=";
         let needs_async = needs_lazy_getter && is_expression_async(&assign.right);
+        let hoisted = needs_async
+            .then(|| hoistable_await_argument(&assign.right))
+            .flatten();
         let value = match (needs_lazy_getter, needs_async) {
             (false, _) => right.to_string(),
             (true, false) => format!("() => {right}"),
-            (true, true) => format!("async () => {right}"),
+            (true, true) => match hoisted {
+                Some(argument) => format!("() => {}", slice(argument.span())),
+                None => format!("async () => {right}"),
+            },
         };
         let callee = if needs_async {
-            "await $.assign_async"
+            "$.assign_async"
         } else {
             "$.assign"
         };
-        self.edits.push((
-            assign.span.start,
-            assign.span.end,
-            format!(
-                "{callee}({object}, {property}, '{operator}', {value}, '{}:{line}:{column}')",
-                self.filename
-            ),
-        ));
+        let call = format!(
+            "{callee}({object}, {property}, '{operator}', {value}, '{}:{line}:{column}')",
+            self.filename
+        );
+        // `build_assignment` hands the `await` it adds to `context.visit`, so the
+        // `AwaitExpression` visitor instruments it in the same pass; here that
+        // pass has already run over the script.
+        let replacement = if needs_async {
+            format!("(await $.track_reactivity_loss({call}))()")
+        } else {
+            call
+        };
+        self.edits
+            .push((assign.span.start, assign.span.end, replacement));
     }
 }
 
