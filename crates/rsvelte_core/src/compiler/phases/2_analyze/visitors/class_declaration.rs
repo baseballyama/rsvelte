@@ -24,14 +24,20 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             validate_identifier_name(binding, Some(context.function_depth))?;
         }
 
-        // Check function depth for performance warning
-        let allowed_depth = if context.ast_type == AstType::Module {
-            0
-        } else {
-            1
-        };
+        // Only a component's `<script module>` allows top-level module scope only;
+        // upstream's `analyze_module` leaves `ast_type` null, so a standalone
+        // `.svelte.(js|ts)` module gets the component depth instead.
+        let allowed_depth =
+            if context.ast_type == AstType::Module && !context.analysis.is_module_file {
+                0
+            } else {
+                1
+            };
         if context.function_depth > allowed_depth {
-            context.emit_warning(warnings::perf_avoid_nested_class());
+            let mut warning = warnings::perf_avoid_nested_class();
+            warning.start = node.start();
+            warning.end = node.end();
+            context.emit_warning(warning);
         }
 
         // Visit the class body - ClassBody visitor still uses Value,
@@ -41,4 +47,79 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::compiler::{CompileOptions, ModuleCompileOptions, compile, compile_module};
+
+    fn module_warnings(source: &str) -> Vec<crate::compiler::Warning> {
+        compile_module(
+            source,
+            ModuleCompileOptions {
+                filename: Some("x.svelte.js".to_string()),
+                ..Default::default()
+            },
+        )
+        .expect("compile_module")
+        .warnings
+    }
+
+    fn component_warnings(source: &str) -> Vec<crate::compiler::Warning> {
+        compile(
+            source,
+            CompileOptions {
+                filename: Some("Comp.svelte".to_string()),
+                ..Default::default()
+            },
+        )
+        .expect("compile")
+        .warnings
+    }
+
+    fn nested_class(warnings: &[crate::compiler::Warning]) -> Vec<&crate::compiler::Warning> {
+        warnings
+            .iter()
+            .filter(|w| w.code == "perf_avoid_nested_class")
+            .collect()
+    }
+
+    #[test]
+    fn standalone_module_allows_function_depth_1() {
+        let warnings = module_warnings("describe('x', () => {\n\tclass A {}\n});\n");
+        assert!(nested_class(&warnings).is_empty());
+    }
+
+    #[test]
+    fn standalone_module_warns_at_function_depth_2() {
+        let warnings = module_warnings(
+            "describe('x', () => {\n\tit('y', () => {\n\t\tclass A {}\n\t});\n});\n",
+        );
+        assert_eq!(nested_class(&warnings).len(), 1);
+    }
+
+    #[test]
+    fn component_script_module_warns_at_function_depth_1() {
+        let warnings = component_warnings(
+            "<script module>\n\tdescribe('x', () => {\n\t\tclass A {}\n\t});\n</script>\n",
+        );
+        assert_eq!(nested_class(&warnings).len(), 1);
+    }
+
+    #[test]
+    fn component_instance_script_allows_the_component_scope() {
+        let warnings = component_warnings("<script>\n\tclass A {}\n</script>\n");
+        assert!(nested_class(&warnings).is_empty());
+    }
+
+    #[test]
+    fn warning_carries_the_class_declaration_span() {
+        let warnings = module_warnings(
+            "describe('x', () => {\n\tit('y', () => {\n\t\tclass A {}\n\t});\n});\n",
+        );
+        let warning = nested_class(&warnings)[0];
+        let start = warning.start.as_ref().expect("warning start");
+        assert_eq!((start.line, start.column), (3, 2));
+        assert!(warning.end.is_some());
+    }
 }
