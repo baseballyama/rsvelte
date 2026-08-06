@@ -1,0 +1,14 @@
+[
+	{
+		"id": "bits-ui",
+		"path": "submodules/bits-ui",
+		"subPath": "tests",
+		"install": "pnpm install --frozen-lockfile",
+		"prepare": ["pnpm -F bits-ui build", "pnpm --filter tests exec svelte-kit sync"],
+		"test": "pnpm exec vitest run",
+		"projects": ["browser (chromium)", "browser (webkit)"],
+		"playwright": ["chromium", "webkit"],
+		"artifacts": ["packages/bits-ui/dist"],
+		"timeoutMinutes": 25
+	}
+]

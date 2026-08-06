@@ -1,0 +1,111 @@
+name: Plugin Swap Parity
+
+# The one verification layer the output-equality corpus cannot reach.
+#
+# Every corpus track compares compiler *output*. None of them observes which
+# files the Vite PLUGIN hands to `compileModule`, so a plugin that silently
+# skips a dependency's `.svelte.js` module is green across all of them and still
+# breaks every real app. This runs a pinned real project's own test suite twice
+# against ONE frozen dependency tree — official `@sveltejs/vite-plugin-svelte`,
+# then `@rsvelte/vite-plugin-svelte` — and requires the same tests to pass.
+# See scripts/compat-corpus/plugin-swap-verify.mjs for the hermeticity design.
+#
+# PLACEMENT. Per-PR only on paths that can plausibly move plugin-layer file
+# selection; scheduled + push-to-main otherwise. For a `crates/**` change the
+# corpus already proves byte-identical output over 14k entries, so this gate's
+# marginal information there is near zero — while its cost is not: it installs a
+# real project, builds it, and runs two full browser suites. Keeping it off
+# those PRs keeps it on the ones where it actually discriminates.
+#
+# Its cost also RISES as it succeeds: today the swapped side dies at module load,
+# so it runs ~no tests. Once #2299 is fixed it will run the full suite on both
+# sides, roughly doubling the job.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * 3' # Wednesdays 03:23 UTC
+  push:
+    branches: [main]
+    # Broader on main than on PRs: compiler-side breakage still gets caught,
+    # just after merge rather than on every compiler PR.
+    paths:
+      - 'crates/**'
+      - 'apps/npm/vite-plugin-svelte/**'
+      - 'scripts/compat-corpus/plugin-swap-*'
+      - 'compatibility/plugin-swap-known-failures.json'
+      - 'submodules/bits-ui'
+      - '.gitmodules'
+      - '.github/workflows/plugin-swap.yml'
+  pull_request:
+    paths:
+      - 'apps/npm/vite-plugin-svelte/**'
+      - 'crates/rsvelte_napi/**'
+      - 'crates/rsvelte_bindings_support/**'
+      - 'scripts/compat-corpus/plugin-swap-*'
+      - 'compatibility/plugin-swap-known-failures.json'
+      - 'submodules/bits-ui'
+      - '.gitmodules'
+      - '.github/workflows/plugin-swap.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_PROFILE_RELEASE_LTO: "off"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+
+jobs:
+  plugin-swap-parity:
+    name: Vite plugin swap parity (bits-ui)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Checkout target submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/bits-ui submodules/svelte
+
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: plugin-swap
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # Stages the NAPI addon into apps/npm/vite-plugin-svelte-native-<triple>/,
+      # which is what the shim dlopen's once it is swapped in.
+      - name: Build rsvelte NAPI addon (host triple)
+        run: pnpm run build:vps-native
+
+      # Keyed on the target's lockfile: the Playwright browser revision is
+      # whatever that lockfile's playwright pins, never the ambient latest.
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: plugin-swap-pw-v1-${{ runner.os }}-${{ hashFiles('submodules/bits-ui/pnpm-lock.yaml') }}
+
+      - name: Verify plugin-swap parity (ratchet against plugin-swap-known-failures.json)
+        run: node scripts/compat-corpus/plugin-swap-verify.mjs
+
+      - name: Upload plugin-swap report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: plugin-swap-report
+          path: compatibility/plugin-swap-report.json
+          if-no-files-found: ignore
+          retention-days: 14
