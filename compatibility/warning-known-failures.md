@@ -85,6 +85,15 @@ between them:
   reported the element where upstream reports the attribute. This one is not
   "attach the missing span": the span was attached, by the wrong owner. See below.
 
+**The discriminator, for the next mixed position bucket:** count line-only
+mismatches. A bucket with *zero* of them is a wrong-**owner** bucket, not a
+missing-span one — if two candidate nodes sit on the same line (an attribute and
+its element always do), only the column can move, so a span attached to the
+wrong node produces column-only disagreements and nothing else. That test is
+geometric and costs one pass over the tuples; it does not require reading any
+entries, and it is what separated these two causes. Reach for it before
+inspecting cases.
+
 Split from the code ratchet on purpose: this backlog is far larger, and folded
 together it would hide every semantic regression above.
 
