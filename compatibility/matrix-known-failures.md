@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 350 entries)
+## Matrix known failures (`matrix-known-failures.json`, 590 entries)
 
 ### `binding-position` — 2 entries
 
@@ -83,6 +83,33 @@ By seed:
 Server dominates (248 of 348) for a known structural reason: the SSR path reconstructs
 statements it cannot carry comments through. See `server/ast/comments.rs` and the
 comment-carry-over work in #2312, which is the burn-down vehicle for the 224 server drops.
+
+### `comment-slot` module path (`.svelte.(js|ts)`) — 240 entries, all #2399
+
+Added with the module seeds that gave this family its `.svelte.(js|ts)` cases. Every one of
+these 240 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
+official drops a Program-level comment in the module path and rsvelte keeps it.** They are
+listed as *expected to shrink when #2399 lands*, not as accepted behaviour. Do not treat this
+block as a specification of rsvelte's output.
+
+Classified mechanically, not by eye: for each entry the two normalized outputs are diffed as
+line multisets, and an entry qualifies only when nothing is missing from rsvelte's side and
+every extra line is a comment. The classifier is the same comparison the gate makes, run over
+the gate's own artifacts.
+
+One correction this measurement forces, because #2399's framing depends on it: **official does
+not drop *every* Program-level comment.** Over the 192 generated module cases it drops in
+**80** and preserves in **112** — position-dependent, and uniform across all 8 comment kinds
+(7 drops each). A fix built on "drop them all" would be wrong in 112 of 192 positions; the
+correct fix reproduces a position rule.
+
+Not in this block, and deliberately still failing: **10 entries** (`module-class-state__L02__*`
+line-comment kinds, `client` + `client-dev`) are a **different** divergence — both compilers
+keep the comment, but rsvelte relocates a class field's leading comment into the field's
+initializer (`#n = // c` + newline + `$.state(0);`) instead of leaving it on its own line. It
+reproduces through the component path too (`<script module>` via `compile`), so it is neither
+module-specific nor an artifact of the matrix's `compileModule` dispatch. Baselining it would
+convert a live bug into a requirement, so it is left red pending its own issue.
 
 ## Burn-down
 
