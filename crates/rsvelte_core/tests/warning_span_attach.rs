@@ -39,20 +39,22 @@ fn spanned(src: &str, code: &str) -> String {
         .end
         .as_ref()
         .unwrap_or_else(|| panic!("`{code}` has no end"));
-    // `column` counts characters, not bytes — slicing by byte index here would
-    // panic on the non-ASCII case below rather than report it.
-    let line: Vec<char> = src
+    // `column` is a count of UTF-16 code units, matching upstream's locator over
+    // a JS string. Slicing by byte index panics on a non-ASCII name; slicing by
+    // `char` is right across the BMP and wrong for an astral one, which the last
+    // test below exists to catch.
+    let line: Vec<u16> = src
         .lines()
         .nth(start.line - 1)
         .unwrap_or("")
-        .chars()
+        .encode_utf16()
         .collect();
     let to = if start.line == end.line {
         end.column.min(line.len())
     } else {
         line.len()
     };
-    let text: String = line[start.column..to].iter().collect();
+    let text = String::from_utf16_lossy(&line[start.column..to]);
     if start.line == end.line {
         text
     } else {
@@ -117,12 +119,26 @@ fn non_reactive_update_spans_the_identifier() {
     assert_eq!(spanned(src, "non_reactive_update"), "b");
 }
 
-/// `end` is derived from the name's byte length, but the reported column counts
-/// characters. This pins that the two units survive the conversion: upstream
-/// reports 19-23 here, so a byte-length `end` that leaked into the column would
-/// show as 31.
+/// `end` is derived from the name's **byte** length while the reported column is
+/// a **UTF-16** count. This pins that the units survive the conversion: upstream
+/// reports 19-23 here, so a byte-length `end` leaking into the column would show
+/// as 31.
+///
+/// It settles byte-end against column, and nothing more — every character here
+/// is in the BMP, where a UTF-16 count and a `char` count are equal. The astral
+/// case below is what separates those two.
 #[test]
-fn non_ascii_identifier_span_is_byte_correct() {
+fn bmp_identifier_span_survives_the_byte_to_column_conversion() {
     let src = "<script>export let プロップ;</script>\n<div></div>";
     assert_eq!(spanned(src, "export_let_unused"), "プロップ");
+}
+
+/// The column unit itself. `𝕏` (U+1D54F, a valid `ID_Start`) is 1 `char`, 2
+/// UTF-16 code units and 4 bytes, so it is the only kind of input that can tell
+/// the three apart. Upstream reports 19-21 — UTF-16, not characters — and
+/// rsvelte agrees; a `char`-based column would report 19-20.
+#[test]
+fn astral_identifier_column_is_utf16_not_chars() {
+    let src = "<script>export let 𝕏;</script>\n<div></div>";
+    assert_eq!(spanned(src, "export_let_unused"), "𝕏");
 }

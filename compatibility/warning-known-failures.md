@@ -172,6 +172,13 @@ They had **three** different causes:
   from the name's byte length, which is a data-availability problem rather than
   a plumbing one.
 
+**Where to look, not just what to doubt:** the earlier reading grouped by
+*symptom* (`start === undefined`), which is downstream of all three mechanisms
+and therefore cannot separate them at all. What splits them is the warn
+**target** — the *input* to the diagnostic rather than its output. Look up each
+code's upstream warn node before writing one fix for several codes. Reach for
+this and the line-only test above *before* reading entries.
+
 Worth stating because the single-cause reading is what produced every earlier
 error in this file. A shared symptom is not evidence of a shared mechanism; the
 cheap check is to look up each code's upstream warn target before writing one
@@ -206,6 +213,22 @@ mismatching tuples, at least one reachable only by each fix. Disjoint removal
 sets are not enough to make the counts add: the interaction lives inside the
 entries, not between the sets. Re-baseline off a run, never off the previous
 number.
+
+**These spans have no gate but their unit tests.** The ratchet compares one
+`(code, line, column)` per warning, so `end` is not observable by it at all, and
+neither is the message text at per-message granularity — `diagnostics_test.rs`
+pins every diagnostic's wording behind a single digest, which reports that
+*something* changed without saying what to, or whether the new text is right.
+Where a gate is blind to a field by construction, the unit test is not a
+convenience; it is the only oracle.
+
+**On column units, so the tests are not read as settling more than they do:**
+columns are UTF-16 code units on both sides, matching upstream's locator over a
+JS string. A BMP identifier such as `プロップ` cannot show this — a `char` count
+and a UTF-16 count agree everywhere in the BMP — so it pins only byte-`end`
+against column. The astral case (`𝕏`, U+1D54F: 1 char, 2 UTF-16 units, 4 bytes)
+is what separates them, and rsvelte already agrees with upstream at 19-21 there.
+Both are pinned, separately and under names that say which.
 
 `perf_avoid_nested_class` was the first of these to be burned down (#2349),
 and it cost two entries rather than the one the `runed` / `svelte-toolbelt`
