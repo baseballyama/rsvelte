@@ -28,6 +28,7 @@
 		"compatibility-report": "RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture",
 		"list-categories": "cargo test --release --test compatibility_report list_test_categories -- --nocapture",
 		"update-docs": "node scripts/dev/update-docs.mjs",
+		"report-orphan-test-binaries": "node scripts/dev/report-orphan-test-binaries.mjs",
 		"test-and-update": "npm run compatibility-report && npm run update-docs",
 		"generate-entities": "node scripts/fixtures/generate-entities-from-svelte.mjs",
 		"verify-entities": "node scripts/fixtures/verify-entities-compatibility.mjs",
