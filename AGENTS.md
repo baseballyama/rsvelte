@@ -174,6 +174,23 @@ docker compose exec dev cargo test
 
 VS Code Dev Containers ("Reopen in Container") also works.
 
+### grep can return nothing and mean nothing
+
+Four ways `grep` has silently reported "no matches" for strings that were
+present. All of them produce a confident empty result, so a negative grep is
+never on its own evidence that something is absent — confirm with a positive
+control on a string you know is there.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `grep X file` finds nothing that is there | `grep` is a shell function wrapping `ugrep --ignore-files`, which skips gitignored paths | `command grep` |
+| `Binary file … matches`, no lines printed | one NUL byte anywhere in the file (not non-ASCII — UTF-8 is fine) | `command grep -a`, or `git grep` |
+| `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
+| later matches missing | `\| head -N` truncates with no error | state the denominator, or drop the cap |
+
+Related: in `cmd \| head`, `$?` is `head`'s status, not `cmd`'s. Never read a
+verdict through a pipe.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
