@@ -225,11 +225,23 @@ the equality instrumentation, `$.track_reactivity_loss`, ownership mutation
 validation, `$.tag()` / `$.tag_proxy()`, `console.*` wrapping and the signal
 read/write row — was already empty.
 
-Still over-reaching, and not covered by any corpus entry: the exemption is
-carried by a level flag that stays set for the whole body conversion, so an
-assignment nested *inside* an exempt arrow's body
-(`onclick={() => (a.b = f(() => (c.d = e)))}`) is exempted too. Upstream would
-wrap the inner one.
+Two divergences remain here, both deferred only because **no corpus entry
+reaches them** — each has a check that distinguishes fixing from not, so neither
+is unverifiable:
+
+- **Over-reach.** The exemption is carried by a level flag that stays set for the
+  whole body conversion, so an assignment nested *inside* an exempt arrow's body
+  is exempted too. `onclick={() => (a.b = f(() => (c.d = e)))}` must emit
+  `$.assign(c, 'd'` and must not emit `$.assign(a, 'b'` — one input, both signs.
+  A boolean cannot express upstream's third conjunct, which is the *identity*
+  test `expression === context.path.at(-1)`; the exempt arrow has to be carried
+  by identity, not by a level.
+- **Under-reach, the opposite direction.** Upstream's guard names
+  `SvelteElement` alongside `RegularElement`, but `visit_event_attribute` is
+  reached only from `regular_element.rs`, so `<svelte:element this={tag}
+  onclick={() => (o.x = v)}>` is never exempt and emits
+  `$.assign(o, 'x', '=', v, …)` where upstream emits none. Measured, not
+  inferred.
 
 Counting method, for whoever picks this up: attribute an entry by **comparing
 how many times each helper appears** on each side, never by the first differing
