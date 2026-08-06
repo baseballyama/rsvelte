@@ -2893,7 +2893,15 @@ fn transform_script_legacy<'a>(
             } else if let Some(first) = out.get_mut(out_len) {
                 comments::SetSpans(anchor).visit_statement(first);
             } else if let Some(entry) = reactive.get_mut(reactive_len) {
-                comments::SetSpans(anchor).visit_statement(&mut entry.stmt);
+                // Upstream rebuilds the `$` label as a loc-less `b.labeled(...)`
+                // whose body keeps the source loc, so the comments flush after
+                // the `$:` rather than before it.
+                match &mut entry.stmt {
+                    Statement::LabeledStatement(ls) => {
+                        comments::SetSpans(anchor).visit_statement(&mut ls.body);
+                    }
+                    other => comments::SetSpans(anchor).visit_statement(other),
+                }
             }
         }
     }
