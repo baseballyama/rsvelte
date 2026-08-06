@@ -75,10 +75,10 @@ fn walk_statement_for_classes<'a>(
         Statement::ClassDeclaration(class) => {
             handle_class(class, source, replacements);
         }
-        Statement::ExportNamedDeclaration(e) => {
-            if let Some(Declaration::ClassDeclaration(class)) = &e.declaration {
+        Statement::ExportDeclaration(e) => {
+            if let Declaration::ClassDeclaration(class) = &e.declaration {
                 handle_class(class, source, replacements);
-            } else if let Some(Declaration::VariableDeclaration(vd)) = &e.declaration {
+            } else if let Declaration::VariableDeclaration(vd) = &e.declaration {
                 for decl in &vd.declarations {
                     if let Some(init) = &decl.init {
                         walk_expression_for_classes(init, source, replacements);

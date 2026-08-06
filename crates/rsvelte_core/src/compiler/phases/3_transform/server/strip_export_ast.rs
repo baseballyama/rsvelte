@@ -88,10 +88,8 @@ impl StripExportCollector {
 }
 
 impl<'ast> Visit<'ast> for StripExportCollector {
-    fn visit_export_named_declaration(&mut self, export: &ExportNamedDeclaration<'ast>) {
-        if let Some(decl) = &export.declaration
-            && Self::should_strip(decl)
-        {
+    fn visit_export_declaration(&mut self, export: &ExportDeclaration<'ast>) {
+        if Self::should_strip(&export.declaration) {
             // Remove exactly the `export ` prefix (7 bytes) at the start of the
             // export declaration, mirroring `strip_prefix("export ")`.
             self.edits.push((
@@ -100,7 +98,7 @@ impl<'ast> Visit<'ast> for StripExportCollector {
                 String::new(),
             ));
         }
-        walk::walk_export_named_declaration(self, export);
+        walk::walk_export_declaration(self, export);
     }
 }
 

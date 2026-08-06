@@ -471,13 +471,15 @@ fn transform_script<'a>(
                 // `global_visitors`, which has NO `ExportNamedDeclaration` visitor, so a
                 // module `export class` / `export const` is kept VERBATIM (export
                 // retained) — that falls through to the `other =>` catch-all below.
-                Statement::ExportNamedDeclaration(exp) if is_instance => {
-                    match exp.declaration.as_ref() {
-                        None => {
-                            // `export { count }` → removed.
-                            break 'emit;
-                        }
-                        Some(oxc_ast::ast::Declaration::VariableDeclaration(vd)) => {
+                Statement::ExportNamedDeclaration(_) | Statement::ExportFromDeclaration(_)
+                    if is_instance =>
+                {
+                    // `export { count }` → removed.
+                    break 'emit;
+                }
+                Statement::ExportDeclaration(exp) if is_instance => {
+                    match &exp.declaration {
+                        oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
                             count_export_keyword(
                                 &ret.program.comments,
                                 exp.span.start,
@@ -486,7 +488,7 @@ fn transform_script<'a>(
                             count_non_reparse(&ret.program.comments, vd.span);
                             out.extend(lower_variable_declaration(vd, src, is_instance, state));
                         }
-                        Some(decl) => {
+                        decl => {
                             // `export function` / `export class` → keep the inner
                             // declaration verbatim (re-parsed from its source span)
                             // with the same read-wrap every re-homed statement gets.
@@ -511,7 +513,7 @@ fn transform_script<'a>(
                 // the tree-wide server `CallExpression` / `VariableDeclaration` visitors
                 // firing on the module body). E.g. `<script module> export let route =
                 // $state({})` → `export let route = {}`.
-                Statement::ExportNamedDeclaration(exp) if !is_instance => {
+                Statement::ExportDeclaration(exp) if !is_instance => {
                     let span = exp.span();
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
@@ -886,10 +888,10 @@ fn lower_nested_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState
 /// {}`. Reuses [`NestedRuneLower::lower_var_decl`] with the nested flag forced on
 /// so the declarator's rune init is expanded exactly like a nested one.
 fn lower_module_export_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState<'a>) {
-    let Statement::ExportNamedDeclaration(exp) = stmt else {
+    let Statement::ExportDeclaration(exp) = stmt else {
         return;
     };
-    let Some(oxc_ast::ast::Declaration::VariableDeclaration(vd)) = exp.declaration.as_mut() else {
+    let oxc_ast::ast::Declaration::VariableDeclaration(vd) = &mut exp.declaration else {
         return;
     };
     let mut v = NestedRuneLower {
@@ -1317,9 +1319,9 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             None,
             None,
-            b.empty_params(),
+            oxc_allocator::ArenaBox::new_in(b.empty_params(), &b.ab()),
             None,
-            Some(getter_body),
+            Some(oxc_allocator::ArenaBox::new_in(getter_body, &b.ab())),
             &b.ab(),
         );
         new_body.push(oxc_ast::ast::ClassElement::new_method_definition(
@@ -1352,9 +1354,9 @@ impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
             false,
             None,
             None,
-            setter_params,
+            oxc_allocator::ArenaBox::new_in(setter_params, &b.ab()),
             None,
-            Some(setter_body),
+            Some(oxc_allocator::ArenaBox::new_in(setter_body, &b.ab())),
             &b.ab(),
         );
         new_body.push(oxc_ast::ast::ClassElement::new_method_definition(
@@ -2699,7 +2701,18 @@ fn transform_script_legacy<'a>(
                         }
                     }
                 }
-                Statement::ExportNamedDeclaration(exp) => {
+                Statement::ExportNamedDeclaration(_) | Statement::ExportFromDeclaration(_) => {
+                    if !is_instance {
+                        let span = stmt.span();
+                        let slice = &src[span.start as usize..span.end as usize];
+                        if let Some(rehomed) = state.reparse_statement(slice) {
+                            out.push(rehomed);
+                        }
+                    }
+                    // INSTANCE script: `export { a, b }` → dropped (`b.empty`).
+                    break 'emit;
+                }
+                Statement::ExportDeclaration(exp) => {
                     if !is_instance {
                         // MODULE script: `export const FOO = 1` is a REAL ES module
                         // export, not a prop — upstream's `server_module` keeps it
@@ -2717,11 +2730,7 @@ fn transform_script_legacy<'a>(
                     // `ExportNamedDeclaration` global visitor `return
                     // context.visit(node.declaration)` feeding the non-runes
                     // `VariableDeclaration` branch).
-                    let Some(decl) = exp.declaration.as_ref() else {
-                        // `export { a, b }` with no declaration → dropped (`b.empty`).
-                        break 'emit;
-                    };
-                    match decl {
+                    match &exp.declaration {
                         oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
                             count_export_keyword(
                                 &ret.program.comments,

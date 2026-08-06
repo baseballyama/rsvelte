@@ -71,14 +71,10 @@ impl<'a> UnthunkCollector<'a> {
         let Expression::ArrowFunctionExpression(arrow) = expr else {
             return None;
         };
-        if !arrow.expression || !arrow.params.items.is_empty() || arrow.params.rest.is_some() {
+        if !arrow.params.items.is_empty() || arrow.params.rest.is_some() {
             return None;
         }
-        // An expression-bodied arrow stores its value as the single statement.
-        let [Statement::ExpressionStatement(stmt)] = arrow.body.statements.as_slice() else {
-            return None;
-        };
-        let Expression::CallExpression(call) = &stmt.expression else {
+        let Some(Expression::CallExpression(call)) = arrow.body.as_expression() else {
             return None;
         };
         if call.optional || !call.arguments.is_empty() {

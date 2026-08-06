@@ -4290,29 +4290,29 @@ fn projected_statement_is_type_only(statement: &Statement<'_>) -> bool {
                 || function.body.is_none()
         }
         Statement::ClassDeclaration(class) => class.declare,
-        Statement::ExportNamedDeclaration(export) => {
-            export.export_kind == ImportOrExportKind::Type
-                || export.declaration.as_ref().is_some_and(|declaration| {
-                    matches!(
-                        declaration,
-                        Declaration::TSTypeAliasDeclaration(_)
-                            | Declaration::TSInterfaceDeclaration(_)
-                            | Declaration::TSEnumDeclaration(_)
-                            | Declaration::TSModuleDeclaration(_)
-                    ) || matches!(
-                        declaration,
-                        Declaration::FunctionDeclaration(function)
-                            if function.r#type == FunctionType::TSDeclareFunction
-                                || function.declare
-                                || function.body.is_none()
-                    ) || matches!(
-                        declaration,
-                        Declaration::VariableDeclaration(declaration) if declaration.declare
-                    ) || matches!(
-                        declaration,
-                        Declaration::ClassDeclaration(class) if class.declare
-                    )
-                })
+        Statement::ExportNamedDeclaration(export) => export.export_kind == ImportOrExportKind::Type,
+        Statement::ExportFromDeclaration(export) => export.export_kind == ImportOrExportKind::Type,
+        Statement::ExportDeclaration(export) => {
+            let declaration = &export.declaration;
+            matches!(
+                declaration,
+                Declaration::TSTypeAliasDeclaration(_)
+                    | Declaration::TSInterfaceDeclaration(_)
+                    | Declaration::TSEnumDeclaration(_)
+                    | Declaration::TSModuleDeclaration(_)
+            ) || matches!(
+                declaration,
+                Declaration::FunctionDeclaration(function)
+                    if function.r#type == FunctionType::TSDeclareFunction
+                        || function.declare
+                        || function.body.is_none()
+            ) || matches!(
+                declaration,
+                Declaration::VariableDeclaration(declaration) if declaration.declare
+            ) || matches!(
+                declaration,
+                Declaration::ClassDeclaration(class) if class.declare
+            )
         }
         Statement::ExportDefaultDeclaration(export) => {
             matches!(

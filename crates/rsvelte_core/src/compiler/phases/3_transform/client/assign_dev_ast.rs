@@ -189,10 +189,7 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
     }
 
     fn visit_arrow_function_expression(&mut self, arrow: &ArrowFunctionExpression<'a>) {
-        if arrow.expression
-            && let Some(Statement::ExpressionStatement(stmt)) = arrow.body.statements.first()
-            && let Expression::AssignmentExpression(assign) = &stmt.expression
-        {
+        if let Some(Expression::AssignmentExpression(assign)) = arrow.body.as_expression() {
             self.concise_arrow_bodies.insert(assign.span.start);
         }
         walk::walk_arrow_function_expression(self, arrow);

@@ -11936,80 +11936,79 @@ fn convert_export_named_as_node(
             line_offsets,
         ))
     });
-        let specifiers: Vec<JsNode> = spec_list
-            .iter()
-            .map(|spec| {
-                let spec_start = offset + spec.span.start as usize;
-                let spec_end = offset + spec.span.end as usize;
-                let spec_loc = create_typed_loc(spec_start, spec_end, line_offsets);
+    let specifiers: Vec<JsNode> = spec_list
+        .iter()
+        .map(|spec| {
+            let spec_start = offset + spec.span.start as usize;
+            let spec_end = offset + spec.span.end as usize;
+            let spec_loc = create_typed_loc(spec_start, spec_end, line_offsets);
 
-                let local_start = offset + spec.local.span().start as usize;
-                let local_end = offset + spec.local.span().end as usize;
-                let local_name = spec.local.name().as_str();
-                let local = expr_to_node(create_identifier(
-                    local_name,
-                    local_start,
-                    local_end,
-                    line_offsets,
-                ));
-
-                let exported_start = offset + spec.exported.span().start as usize;
-                let exported_end = offset + spec.exported.span().end as usize;
-                let exported_name = spec.exported.name().as_str();
-                let exported = expr_to_node(create_identifier(
-                    exported_name,
-                    exported_start,
-                    exported_end,
-                    line_offsets,
-                ));
-
-                let export_kind = if spec.export_kind == oxc_ast::ast::ImportOrExportKind::Type
-                {
-                    Some(CompactString::from("type"))
-                } else {
-                    None
-                };
-
-                JsNode::ExportSpecifier {
-                    start: spec_start as u32,
-                    end: spec_end as u32,
-                    loc: spec_loc,
-                    local: arena.alloc_js_node(local),
-                    exported: arena.alloc_js_node(exported),
-                    export_kind,
-                }
-            })
-            .collect();
-
-        let export_kind = if kind == oxc_ast::ast::ImportOrExportKind::Type {
-            Some(CompactString::from("type"))
-        } else {
-            None
-        };
-
-        let source = src.map(|source| {
-            let source_start = offset + source.span.start as usize;
-            let source_end = offset + source.span.end as usize;
-            let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-            arena.alloc_js_node(expr_to_node(create_string_literal(
-                &source.value,
-                raw,
-                source_start,
-                source_end,
+            let local_start = offset + spec.local.span().start as usize;
+            let local_end = offset + spec.local.span().end as usize;
+            let local_name = spec.local.name().as_str();
+            let local = expr_to_node(create_identifier(
+                local_name,
+                local_start,
+                local_end,
                 line_offsets,
-            )))
-        });
+            ));
 
-        JsNode::ExportNamedDeclaration {
-            start: start as u32,
-            end: end as u32,
-            loc,
-            declaration,
-            specifiers: arena.alloc_js_children(specifiers),
-            source,
-            export_kind,
-            attributes: IdRange::empty(),
-        }
+            let exported_start = offset + spec.exported.span().start as usize;
+            let exported_end = offset + spec.exported.span().end as usize;
+            let exported_name = spec.exported.name().as_str();
+            let exported = expr_to_node(create_identifier(
+                exported_name,
+                exported_start,
+                exported_end,
+                line_offsets,
+            ));
+
+            let export_kind = if spec.export_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                Some(CompactString::from("type"))
+            } else {
+                None
+            };
+
+            JsNode::ExportSpecifier {
+                start: spec_start as u32,
+                end: spec_end as u32,
+                loc: spec_loc,
+                local: arena.alloc_js_node(local),
+                exported: arena.alloc_js_node(exported),
+                export_kind,
+            }
+        })
+        .collect();
+
+    let export_kind = if kind == oxc_ast::ast::ImportOrExportKind::Type {
+        Some(CompactString::from("type"))
+    } else {
+        None
+    };
+
+    let source = src.map(|source| {
+        let source_start = offset + source.span.start as usize;
+        let source_end = offset + source.span.end as usize;
+        let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+        arena.alloc_js_node(expr_to_node(create_string_literal(
+            &source.value,
+            raw,
+            source_start,
+            source_end,
+            line_offsets,
+        )))
+    });
+
+    JsNode::ExportNamedDeclaration {
+        start: start as u32,
+        end: end as u32,
+        loc,
+        declaration,
+        specifiers: arena.alloc_js_children(specifiers),
+        source,
+        export_kind,
+        attributes: IdRange::empty(),
+    }
 }
 
 #[cfg(test)]

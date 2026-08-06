@@ -1006,7 +1006,9 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
     ) {
         let mut frame = FxHashSet::default();
         Self::collect_param_names(&it.params, &mut frame);
-        collect_block_decl_names(&it.body.statements, &mut frame);
+        if let Some(block) = it.body.as_function_body() {
+            collect_block_decl_names(&block.statements, &mut frame);
+        }
         self.shadowed.push(frame);
         oxc_ast_visit::walk_mut::walk_arrow_function_expression(self, it);
         self.shadowed.pop();

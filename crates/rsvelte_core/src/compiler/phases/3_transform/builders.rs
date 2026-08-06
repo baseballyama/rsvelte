@@ -222,8 +222,7 @@ impl<'a> B<'a> {
         use oxc_ast::ast::ChainElement;
         let callee = callee.into_expr(self);
         let args = self.args(args);
-        let call =
-            CallExpression::boxed(SPAN, callee, None, args, true, &self.ab());
+        let call = CallExpression::boxed(SPAN, callee, None, args, true, &self.ab());
         // Wrap in a ChainExpression so esrap prints the `?.()` chain form.
         Expression::ChainExpression(ChainExpression::boxed(
             SPAN,
@@ -236,13 +235,7 @@ impl<'a> B<'a> {
     pub fn new_expr(self, callee: impl IntoExpr<'a>, args: Vec<Expression<'a>>) -> Expression<'a> {
         let callee = callee.into_expr(self);
         let args = self.args(args);
-        Expression::NewExpression(NewExpression::boxed(
-            SPAN,
-            callee,
-            None,
-            args,
-            &self.ab(),
-        ))
+        Expression::NewExpression(NewExpression::boxed(SPAN, callee, None, args, &self.ab()))
     }
 
     /// Convert a `Vec<Expression>` into an arena `Vec<Argument>`.
@@ -742,15 +735,8 @@ impl<'a> B<'a> {
         pattern: BindingPattern<'a>,
         init: Option<Expression<'a>>,
     ) -> Statement<'a> {
-        let declarator = VariableDeclarator::new(
-            SPAN,
-            kind,
-            pattern,
-            None,
-            init,
-            false,
-            &self.ab(),
-        );
+        let declarator =
+            VariableDeclarator::new(SPAN, kind, pattern, None, init, false, &self.ab());
         let decls = ArenaVec::from_value_in(declarator, &self.ab());
         let decl = VariableDeclaration::boxed(SPAN, kind, decls, false, &self.ab());
         Statement::VariableDeclaration(decl)

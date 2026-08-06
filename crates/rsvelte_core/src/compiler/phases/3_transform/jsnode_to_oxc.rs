@@ -381,16 +381,11 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     None => None,
                     Some(p) => {
                         let pattern = self.binding_pattern(self.arena.get_js_node(*p))?;
-                        Some(CatchParameter::new(
-                            SPAN,
-                            pattern,
-                            None,
-                            &self.ab,
-                        ))
+                        Some(CatchParameter::new(SPAN, pattern, None, &self.ab))
                     }
                 };
                 let body = self.block_statement_box(*body)?;
-                Some(CatchClause::new(SPAN, catch_param, body, &self.ab))
+                Some(CatchClause::boxed(SPAN, catch_param, body, &self.ab))
             }
         };
 
@@ -549,7 +544,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             return None;
         }
 
-        let (declaration, specs) = if let Some(decl_id) = declaration {
+        let specs = if let Some(decl_id) = declaration {
             let decl_node = self.arena.get_js_node(*decl_id);
             let declaration = match decl_node {
                 JsNode::VariableDeclaration { .. } => {
@@ -562,7 +557,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 }
                 _ => return None,
             };
-            (Some(declaration), ArenaVec::new_in(&self.ab))
+            let decl = ModuleDeclaration::new_export_declaration(SPAN, declaration, &self.ab);
+            return Some(Statement::from(decl));
         } else {
             let spec_nodes = self.arena.get_js_children(*specifiers);
             let mut out = ArenaVec::with_capacity_in(spec_nodes.len(), &self.ab);
@@ -589,16 +585,13 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     &self.ab,
                 ));
             }
-            (None, out)
+            out
         };
 
         let decl = ModuleDeclaration::new_export_named_declaration(
             SPAN,
-            declaration,
             specs,
-            None,
             ImportOrExportKind::Value,
-            None,
             &self.ab,
         );
         Some(Statement::from(decl))
@@ -666,9 +659,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             false,
             None,
             None,
-            params,
+            ArenaBox::new_in(params, &self.ab),
             None,
-            Some(body),
+            Some(ArenaBox::new_in(body, &self.ab)),
             &self.ab,
         ))
     }
@@ -735,13 +728,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 None => None,
             };
             declarators.push(VariableDeclarator::new(
-                SPAN,
-                kind,
-                binding,
-                None,
-                init,
-                false,
-                &self.ab,
+                SPAN, kind, binding, None, init, false, &self.ab,
             ));
         }
         Some(VariableDeclaration::boxed(
@@ -873,12 +860,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 let callee = self.expr_id(*callee)?;
                 let args = self.arguments(*arguments)?;
                 Some(Expression::CallExpression(CallExpression::boxed(
-                    SPAN,
-                    callee,
-                    None,
-                    args,
-                    *optional,
-                    &self.ab,
+                    SPAN, callee, None, args, *optional, &self.ab,
                 )))
             }
             JsNode::NewExpression {
@@ -887,11 +869,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 let callee = self.expr_id(*callee)?;
                 let args = self.arguments(*arguments)?;
                 Some(Expression::NewExpression(NewExpression::boxed(
-                    SPAN,
-                    callee,
-                    None,
-                    args,
-                    &self.ab,
+                    SPAN, callee, None, args, &self.ab,
                 )))
             }
             JsNode::BinaryExpression {
@@ -991,13 +969,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 let tag = self.expr_id(*tag)?;
                 let quasi = self.template_literal(self.arena.get_js_node(*quasi))?;
                 Some(Expression::TaggedTemplateExpression(
-                    TaggedTemplateExpression::boxed(
-                        SPAN,
-                        tag,
-                        None,
-                        quasi,
-                        &self.ab,
-                    ),
+                    TaggedTemplateExpression::boxed(SPAN, tag, None, quasi, &self.ab),
                 ))
             }
             JsNode::AssignmentExpression {
@@ -1498,33 +1470,26 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         };
         let params = self.formal_params(*params)?;
         let body_node = self.arena.get_js_node(*body);
-        let (is_expr, fn_body) = if *expression {
-            // Concise-body arrow: a single implicit-return expression.
-            let expr = self.expr(body_node)?;
-            let stmt =
-                Statement::ExpressionStatement(ExpressionStatement::boxed(SPAN, expr, &self.ab));
-            let stmts = ArenaVec::from_value_in(stmt, &self.ab);
-            (
-                true,
-                FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab),
-            )
+        let fn_body = if *expression {
+            ArrowFunctionBody::from(self.expr(body_node)?)
         } else {
             let JsNode::BlockStatement { body, .. } = body_node else {
                 return None;
             };
             let stmts = self.statements(*body)?;
-            (
-                false,
-                FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab), stmts, &self.ab),
-            )
+            ArrowFunctionBody::FunctionBody(FunctionBody::boxed(
+                SPAN,
+                ArenaVec::new_in(&self.ab),
+                stmts,
+                &self.ab,
+            ))
         };
         Some(Expression::ArrowFunctionExpression(
             ArrowFunctionExpression::boxed(
                 SPAN,
-                is_expr,
                 *r#async,
                 None,
-                params,
+                ArenaBox::new_in(params, &self.ab),
                 None,
                 fn_body,
                 &self.ab,
@@ -1548,14 +1513,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             } => {
                 let callee = self.expr_id(*callee)?;
                 let args = self.arguments(*arguments)?;
-                let call = CallExpression::boxed(
-                    SPAN,
-                    callee,
-                    None,
-                    args,
-                    *optional,
-                    &self.ab,
-                );
+                let call = CallExpression::boxed(SPAN, callee, None, args, *optional, &self.ab);
                 ChainElement::CallExpression(call)
             }
             _ => return None,

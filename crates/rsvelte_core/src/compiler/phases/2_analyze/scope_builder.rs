@@ -16,10 +16,11 @@ use rustc_hash::FxHashMap;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, Statement, VariableDeclaration,
+    ArrowFunctionBody, BindingPattern, Declaration, Expression, Statement, VariableDeclaration,
     VariableDeclarationKind,
 };
 use oxc_parser::Parser as OxcParser;
+use oxc_span::GetSpan;
 use oxc_span::SourceType;
 
 /// An update/assignment to track for marking bindings as reassigned/mutated.
@@ -1513,10 +1514,11 @@ impl<'a> ScopeBuilder<'a> {
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_decl.body);
             }
-            Statement::ExportNamedDeclaration(export_decl) => {
-                if let Some(ref declaration) = export_decl.declaration {
-                    self.process_declaration(declaration);
-                }
+            Statement::ExportDeclaration(export_decl) => {
+                self.process_declaration(&export_decl.declaration);
+            }
+            Statement::ExportNamedDeclaration(_) | Statement::ExportFromDeclaration(_) => {
+                // Specifier-only exports re-export existing bindings; nothing new is declared.
             }
             Statement::ExportDefaultDeclaration(_) => {
                 // Export default doesn't create a named binding in the module scope
@@ -1833,7 +1835,7 @@ impl<'a> ScopeBuilder<'a> {
                 // For arrow functions with block body, use offset + span.start - 1
                 {
                     let key =
-                        (self.current_script_offset + arrow_func.body.span.start as usize) as u32;
+                        (self.current_script_offset + arrow_func.body.span().start as usize) as u32;
                     self.function_scope_map.insert(key, self.current_scope);
                 }
 
@@ -1843,8 +1845,17 @@ impl<'a> ScopeBuilder<'a> {
                 }
 
                 // Track updates in arrow function body
-                for stmt in &arrow_func.body.statements {
-                    self.process_statement(stmt);
+                match &arrow_func.body {
+                    ArrowFunctionBody::FunctionBody(block) => {
+                        for stmt in &block.statements {
+                            self.process_statement(stmt);
+                        }
+                    }
+                    _ => {
+                        if let Some(expr) = arrow_func.body.as_expression() {
+                            self.track_expression_updates(expr);
+                        }
+                    }
                 }
 
                 self.function_depth -= 1;

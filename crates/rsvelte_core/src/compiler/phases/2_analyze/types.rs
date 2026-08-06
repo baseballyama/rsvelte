@@ -1220,29 +1220,51 @@ mod ts_removals {
             }
         }
 
-        fn visit_export_named_declaration(&mut self, it: &ExportNamedDeclaration<'a>) {
+        fn visit_export_declaration(&mut self, it: &ExportDeclaration<'a>) {
+            // An ambient / type-only declaration takes the `export` keyword
+            // with it, so the statement is removed rather than the child.
+            let drop_statement = match &it.declaration {
+                Declaration::FunctionDeclaration(func) => is_ambient_function(func),
+                Declaration::ClassDeclaration(class) => class.declare,
+                Declaration::VariableDeclaration(var_decl) => var_decl.declare,
+                Declaration::TSTypeAliasDeclaration(_)
+                | Declaration::TSInterfaceDeclaration(_)
+                | Declaration::TSEnumDeclaration(_)
+                | Declaration::TSModuleDeclaration(_) => true,
+                _ => false,
+            };
+            if drop_statement {
+                self.remove(it.span);
+                return;
+            }
+            self.visit_declaration(&it.declaration);
+        }
+
+        fn visit_export_from_declaration(&mut self, it: &ExportFromDeclaration<'a>) {
             if it.export_kind == ImportOrExportKind::Type {
                 self.remove(it.span);
                 return;
             }
-            if let Some(declaration) = &it.declaration {
-                // An ambient / type-only declaration takes the `export` keyword
-                // with it, so the statement is removed rather than the child.
-                let drop_statement = match declaration {
-                    Declaration::FunctionDeclaration(func) => is_ambient_function(func),
-                    Declaration::ClassDeclaration(class) => class.declare,
-                    Declaration::VariableDeclaration(var_decl) => var_decl.declare,
-                    Declaration::TSTypeAliasDeclaration(_)
-                    | Declaration::TSInterfaceDeclaration(_)
-                    | Declaration::TSEnumDeclaration(_)
-                    | Declaration::TSModuleDeclaration(_) => true,
-                    _ => false,
-                };
-                if drop_statement {
-                    self.remove(it.span);
-                    return;
+            let type_specs: Vec<_> = it
+                .specifiers
+                .iter()
+                .filter(|s| s.export_kind == ImportOrExportKind::Type)
+                .collect();
+            if type_specs.is_empty() {
+                return;
+            }
+            if type_specs.len() == it.specifiers.len() {
+                self.remove(it.span);
+            } else {
+                for spec in type_specs {
+                    remove_specifier_with_comma(spec.span, self.source, self.removals);
                 }
-                self.visit_declaration(declaration);
+            }
+        }
+
+        fn visit_export_named_declaration(&mut self, it: &ExportNamedDeclaration<'a>) {
+            if it.export_kind == ImportOrExportKind::Type {
+                self.remove(it.span);
                 return;
             }
             let type_specs: Vec<_> = it
