@@ -70,16 +70,18 @@
  * divergence.
  *
  * Warning comparison needs no normalization, so it is meaningful under
- * `--no-fmt`. `--update-warning-baseline` rewrites ONLY the warning ratchets,
- * so a `--no-fmt` run (which inflates JS failures) can seed them without
- * corrupting the output baselines.
+ * `--no-fmt`. `--update-warning-baseline` rewrites ONLY the code and position
+ * ratchets, so a `--no-fmt` run (which inflates JS failures) can seed them
+ * without corrupting the output baselines. `--update-message-baseline` is
+ * scoped to the message ratchets alone, so adding that dimension did not widen
+ * what an existing `--update-warning-baseline` command rewrites.
  *
- * The two update flags compose: passing both rewrites both ratchet families in
- * one run (the families are disjoint). Every run that asks for a rewrite prints
- * up front which families it will write, and a run that writes nothing is never
- * reported as a successful rewrite.
+ * The three update flags compose: passing several rewrites each of those ratchet
+ * families in one run (the families are disjoint). Every run that asks for a
+ * rewrite prints up front which families it will write, and a run that writes
+ * nothing is never reported as a successful rewrite.
  *
- * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
+ * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--update-message-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
  */
 
 import fs from 'node:fs';
@@ -102,6 +104,10 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max-print') + 1]) || 20 : 20;
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const UPDATE_WARNING_BASELINE = args.includes('--update-warning-baseline');
+// Scoped to the message ratchets alone. `--update-warning-baseline` deliberately
+// keeps its original meaning (codes + positions) so adding this dimension did not
+// silently widen what an existing command rewrites.
+const UPDATE_MESSAGE_BASELINE = args.includes('--update-message-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
 const TARGETS = selectTargets(args);
 const TARGET_KEYS = TARGETS.map((t) => t.key);
@@ -126,16 +132,20 @@ const FROM_REPORT = (() => {
 
 // State an update run's intent before doing any work: the failure mode this
 // guards against is a rewrite that silently writes nothing and still exits 0.
-const UPDATE_FAMILIES = [UPDATE_BASELINE && 'output', UPDATE_WARNING_BASELINE && 'warning'].filter(Boolean);
+const UPDATE_FAMILIES = [
+	UPDATE_BASELINE && 'output',
+	UPDATE_WARNING_BASELINE && 'warning',
+	UPDATE_MESSAGE_BASELINE && 'warning message',
+].filter(Boolean);
 if (UPDATE_FAMILIES.length) {
 	console.log(`[verify] rewriting ${UPDATE_FAMILIES.join(' + ')} ratchets for ${TARGET_KEYS.join(', ')}`);
 }
 
 // --from-report reconstructs only the output ratchets, so pairing it with the
 // warning flag would write half of what was asked for.
-if (FROM_REPORT && UPDATE_WARNING_BASELINE) {
+if (FROM_REPORT && (UPDATE_WARNING_BASELINE || UPDATE_MESSAGE_BASELINE)) {
 	console.error('[verify] --from-report cannot rewrite the warning ratchets (it derives output failures only)');
-	console.error('  fix: drop --update-warning-baseline, then re-run a full verify with it');
+	console.error('  fix: drop --update-warning-baseline / --update-message-baseline, then re-run a full verify');
 	process.exit(2);
 }
 
@@ -517,9 +527,21 @@ function partitionWarnings(kind) {
 }
 
 const WARNING_RATCHETS = [
-	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline },
-	{ kind: 'warning-position', label: 'warning positions', file: (t) => t.warningPositionBaseline },
-	{ kind: 'warning-message', label: 'warning messages', file: (t) => t.warningMessageBaseline },
+	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline, rewrite: () => UPDATE_WARNING_BASELINE, family: 'warning' },
+	{
+		kind: 'warning-position',
+		label: 'warning positions',
+		file: (t) => t.warningPositionBaseline,
+		rewrite: () => UPDATE_WARNING_BASELINE,
+		family: 'warning',
+	},
+	{
+		kind: 'warning-message',
+		label: 'warning messages',
+		file: (t) => t.warningMessageBaseline,
+		rewrite: () => UPDATE_MESSAGE_BASELINE,
+		family: 'warning message',
+	},
 ];
 
 const report = {
@@ -544,22 +566,25 @@ const warningRegressions = [];
 const warningFailById = new Map(warningFailures.map((f) => [f.id, f]));
 let warningFixed = 0;
 
-// `--update-baseline` alone is about the OUTPUT ratchets; leave the warning ones
-// alone so an output burn-down cannot silently absorb a warning regression. Ask
-// for both and both are rewritten.
-const SKIP_WARNING_RATCHETS = UPDATE_BASELINE && !UPDATE_WARNING_BASELINE;
-for (const ratchet of SKIP_WARNING_RATCHETS ? [] : WARNING_RATCHETS) {
+// Each family is rewritten only by its own flag, so an output burn-down cannot
+// silently absorb a warning regression and a message burn-down cannot absorb a
+// code one. Ask for several and all of them are rewritten.
+const ANY_UPDATE = UPDATE_BASELINE || UPDATE_WARNING_BASELINE || UPDATE_MESSAGE_BASELINE;
+for (const ratchet of WARNING_RATCHETS) {
+	// During an update run the comparison results are discarded anyway, so a
+	// family nobody asked to rewrite is skipped rather than half-measured.
+	if (ANY_UPDATE && !ratchet.rewrite()) continue;
 	const byTarget = partitionWarnings(ratchet.kind);
 	for (const target of TARGETS) {
 		const p = path.resolve(CORPUS, ratchet.file(target));
 		const ids = byTarget.get(target.key);
 
-		if (UPDATE_WARNING_BASELINE) {
+		if (ratchet.rewrite()) {
 			// Same FALSE-SHRINK trap as the output baselines: this rewrite drops
 			// every id the run did not measure.
 			requireFullCorpus(manifest.length, 'corpus entries');
 			fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
-			WRITTEN.add('warning');
+			WRITTEN.add(ratchet.family);
 			console.log(`[verify] ${ratchet.label} baseline: ${ids.size} known -> ${path.relative(ROOT, p)}`);
 			continue;
 		}
@@ -572,8 +597,8 @@ for (const ratchet of SKIP_WARNING_RATCHETS ? [] : WARNING_RATCHETS) {
 	}
 }
 
-// Hand off to the output rewrite below when both were asked for.
-if (UPDATE_WARNING_BASELINE && !UPDATE_BASELINE) finish(0);
+// Hand off to the output rewrite below when that was asked for too.
+if ((UPDATE_WARNING_BASELINE || UPDATE_MESSAGE_BASELINE) && !UPDATE_BASELINE) finish(0);
 
 // Two-sided, like the output ratchets: a listed entry that already passes fails
 // the run, so the PR that fixes entries re-baselines in the same PR.
