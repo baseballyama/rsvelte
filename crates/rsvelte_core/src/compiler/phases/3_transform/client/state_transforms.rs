@@ -13,6 +13,7 @@ use super::rune_transforms::{
 };
 use super::{STATE_TMP_COUNTER, get_or_compile_regex};
 use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 
 // ---------------------------------------------------------------------------
 // Identifier reference detection (lines 7653-8602 of mod.rs)
@@ -852,42 +853,57 @@ pub(super) fn lhs_starts_with_keyword(lhs: &str) -> bool {
 
 /// Find the position of the assignment operator (=) that's not part of ==, ===, !=, !==
 pub(super) fn find_assignment_position(expr: &str) -> Option<usize> {
-    let chars: Vec<char> = expr.chars().collect();
+    let bytes = expr.as_bytes();
     let mut i = 0;
-    let mut depth = 0;
+    let mut depth = 0i32;
+    // Last significant code byte, both for the operator lookbehind and to tell a
+    // regex literal from a division.
+    let mut prev: Option<u8> = None;
 
-    while i < chars.len() {
-        let c = chars[i];
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            '=' if depth == 0 => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
                 // Check it's not ==, ===, !=, !==, <=, >=, =>,
                 // or compound assignment operators: +=, -=, *=, /=, %=, **=,
                 // <<=, >>=, >>>=, &=, |=, ^=, &&=, ||=, ??=
-                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
-                let next = chars.get(i + 1).copied();
+                let next = bytes.get(i + 1).copied();
 
-                if prev != Some('=')
-                    && prev != Some('!')
-                    && prev != Some('<')
-                    && prev != Some('>')
-                    && prev != Some('+')
-                    && prev != Some('-')
-                    && prev != Some('*')
-                    && prev != Some('/')
-                    && prev != Some('%')
-                    && prev != Some('&')
-                    && prev != Some('|')
-                    && prev != Some('^')
-                    && prev != Some('?')
-                    && next != Some('=')
-                    && next != Some('>')
+                if !matches!(
+                    prev,
+                    Some(
+                        b'=' | b'!'
+                            | b'<'
+                            | b'>'
+                            | b'+'
+                            | b'-'
+                            | b'*'
+                            | b'/'
+                            | b'%'
+                            | b'&'
+                            | b'|'
+                            | b'^'
+                            | b'?'
+                    )
+                ) && next != Some(b'=')
+                    && next != Some(b'>')
                 {
                     return Some(i);
                 }
             }
             _ => {}
+        }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
         }
         i += 1;
     }

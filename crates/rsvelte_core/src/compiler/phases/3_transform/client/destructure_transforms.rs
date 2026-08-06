@@ -566,8 +566,12 @@ pub(super) fn extract_destructure_targets(pattern: &str) -> Vec<String> {
             targets.push(root);
         }
 
-        // Also recurse into nested patterns
-        if part.starts_with('[') || part.starts_with('{') {
+        // Also recurse into nested patterns. Only a *closed* bracket pair is
+        // recursed into: an unbalanced fragment strips nothing, so the callee
+        // would re-derive the identical part and never terminate.
+        if (part.starts_with('[') && part.ends_with(']'))
+            || (part.starts_with('{') && part.ends_with('}'))
+        {
             let nested = extract_destructure_targets(part);
             targets.extend(nested);
         }
