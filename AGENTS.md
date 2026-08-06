@@ -48,6 +48,23 @@ module path) is internal IR construction with unchanged output — a maintainabi
 - Retained Phase-1 programs are immutable; Phase 3 uses source-range transforms and falls back after text rewrites
 - No backward compatibility for internal APIs (refactor freely)
 
+### What each gate cannot see ([`compatibility/gate-coverage.md`](compatibility/gate-coverage.md))
+
+The sections below describe what the ~18 gates *do* compare. Every one of them can be green
+while a real defect ships, because each has a field its comparison key drops, a normalization
+step that erases the divergence, or a population its unit never reaches — and rediscovering
+those blind spots ad hoc has cost this project several shipped bugs (#2403, #2424, #2425).
+`compatibility/gate-coverage.md` is the inventory: per gate, the unit compared, what it
+structurally cannot observe with the responsible flag/field/filter cited by file and line, and
+evidence classified as a **discriminating case**, a **structural argument from code**, or an
+explicit **unmeasured**. Never fill a row with a plausible guess — an unsupported blind-spot
+claim is worse than a blank, because the next person reads the row as surveyed.
+
+**When adding a gate, add its row before the ratchet is first baselined**, and answer "what
+does this gate not look at?" — which is not the same question as "what inputs does it not
+have". Corpus size is the saturated axis; the two that still find defects are what we compare
+and how inputs are constructed.
+
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus
