@@ -5,6 +5,9 @@
 //! to keep the visitor files focused on their specific AST node handling.
 
 use crate::ast::template::Script;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    code_bytes, code_bytes_from, skip_opaque,
+};
 use memchr::memmem;
 use rustc_hash::FxHashMap;
 use std::fmt::Write as _;
@@ -364,24 +367,17 @@ pub(crate) fn skip_string_literal(bytes: &[u8], start: usize) -> usize {
 /// Skip a matched brace pair `{...}` starting at position of `{`.
 fn skip_braces(bytes: &[u8], start: usize) -> usize {
     let mut depth = 1i32;
-    let mut i = start + 1;
-    let len = bytes.len();
-
-    while i < len && depth > 0 {
-        let c = bytes[i];
-        if matches!(c, b'\'' | b'"' | b'`') {
-            i = skip_string_literal(bytes, i);
-            continue;
-        }
+    for (i, c) in code_bytes_from(bytes, start + 1) {
         if c == b'{' {
             depth += 1;
         } else if c == b'}' {
             depth -= 1;
+            if depth == 0 {
+                return i + 1;
+            }
         }
-        i += 1;
     }
-
-    i
+    bytes.len()
 }
 
 /// Transform `await expr` patterns inside an expression to use `$.save()`.
@@ -659,9 +655,8 @@ pub(crate) fn is_valid_js_identifier(name: &str) -> bool {
 fn extract_param_default(rest: &str) -> Option<String> {
     let bytes = rest.as_bytes();
     let mut depth = 0i32;
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
+    for (i, c) in code_bytes(bytes) {
+        match c {
             b'(' | b'[' | b'{' | b'<' => depth += 1,
             b')' | b']' | b'}' | b'>' => depth -= 1,
             b'=' if depth == 0 => {
@@ -674,7 +669,6 @@ fn extract_param_default(rest: &str) -> Option<String> {
             }
             _ => {}
         }
-        i += 1;
     }
     None
 }
@@ -684,14 +678,14 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
 
     // Handle destructured parameters: { ... }: Type or [ ... ]: Type
     if trimmed.starts_with('{') || trimmed.starts_with('[') {
-        let close_char = if trimmed.starts_with('{') { '}' } else { ']' };
+        let close_char = if trimmed.starts_with('{') { b'}' } else { b']' };
         // Find the matching closing bracket
         let mut depth = 0;
         let mut close_pos = None;
-        for (i, c) in trimmed.char_indices() {
+        for (i, c) in code_bytes(trimmed.as_bytes()) {
             match c {
-                '{' | '[' => depth += 1,
-                '}' | ']' if c == close_char => {
+                b'{' | b'[' => depth += 1,
+                b'}' | b']' if c == close_char => {
                     depth -= 1;
                     if depth == 0 {
                         close_pos = Some(i);
@@ -1122,17 +1116,13 @@ pub(crate) fn try_evaluate_with_constants(
 /// Find the index of a binary + operator (not inside quotes or after another operator).
 fn find_binary_plus(expr: &str) -> Option<usize> {
     let bytes = expr.as_bytes();
-    let mut in_single_quote = false;
-    let mut in_double_quote = false;
     let mut paren_depth = 0;
 
-    for i in 0..bytes.len() {
-        match bytes[i] {
-            b'\'' if !in_double_quote => in_single_quote = !in_single_quote,
-            b'"' if !in_single_quote => in_double_quote = !in_double_quote,
-            b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
-            b')' if !in_single_quote && !in_double_quote => paren_depth -= 1,
-            b'+' if !in_single_quote && !in_double_quote && paren_depth == 0 => {
+    for (i, c) in code_bytes(bytes) {
+        match c {
+            b'(' => paren_depth += 1,
+            b')' => paren_depth -= 1,
+            b'+' if paren_depth == 0 => {
                 // Make sure it's a binary +, not unary
                 // Check that there's a non-whitespace token before it
                 let before = expr[..i].trim_end();
@@ -1160,17 +1150,13 @@ fn find_binary_plus(expr: &str) -> Option<usize> {
 /// Find the index of a binary - operator (not unary minus).
 fn find_binary_minus(expr: &str) -> Option<usize> {
     let bytes = expr.as_bytes();
-    let mut in_single_quote = false;
-    let mut in_double_quote = false;
     let mut paren_depth = 0;
 
-    for i in 0..bytes.len() {
-        match bytes[i] {
-            b'\'' if !in_double_quote => in_single_quote = !in_single_quote,
-            b'"' if !in_single_quote => in_double_quote = !in_double_quote,
-            b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
-            b')' if !in_single_quote && !in_double_quote => paren_depth -= 1,
-            b'-' if !in_single_quote && !in_double_quote && paren_depth == 0 => {
+    for (i, c) in code_bytes(bytes) {
+        match c {
+            b'(' => paren_depth += 1,
+            b')' => paren_depth -= 1,
+            b'-' if paren_depth == 0 => {
                 let before = expr[..i].trim_end();
                 if !before.is_empty()
                     && !before.ends_with('+')
@@ -1220,26 +1206,10 @@ pub(crate) fn extract_rune_inner(value: &str, prefix: &str) -> Option<String> {
     let after_prefix = &trimmed[prefix.len()..];
     // Find matching closing paren
     let mut depth = 1i32;
-    let mut in_string = false;
-    let mut string_char = ' ';
-    for (i, c) in after_prefix.char_indices() {
-        if (c == '"' || c == '\'' || c == '`')
-            && (i == 0 || after_prefix.as_bytes()[i - 1] != b'\\')
-        {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-        if in_string {
-            continue;
-        }
+    for (i, c) in code_bytes(after_prefix.as_bytes()) {
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
                 depth -= 1;
                 if depth == 0 {
                     let inner = after_prefix[..i].trim().to_string();
@@ -1417,20 +1387,26 @@ fn split_declarators(s: &str) -> Vec<&str> {
     let mut i = 0;
     let len = bytes.len();
 
+    let mut prev: Option<u8> = None;
     while i < len {
+        // A `,` or a bracket inside a comment or a regex literal is text; the
+        // template-literal branch below is kept because `skip_opaque` treats an
+        // interpolation as part of the opaque run.
+        if bytes[i] != b'`'
+            && let Some((next, is_comment)) = skip_opaque(bytes, i, prev)
+        {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
         match bytes[i] {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
-            b'\'' | b'"' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < len && bytes[i] != quote {
-                    if bytes[i] == b'\\' {
-                        i += 1; // skip escaped char
-                    }
-                    i += 1;
-                }
-            }
             b'`' => {
                 // Template literal - skip to matching backtick
                 i += 1;
@@ -1759,5 +1735,37 @@ mod ts_strip_tests {
             strip_ts_type_annotation("[a, b]: number[] = []"),
             "[a, b] = []"
         );
+    }
+}
+
+#[cfg(test)]
+mod js_scan_tests {
+    use super::{extract_rune_inner, split_declarators, strip_ts_type_annotation};
+
+    #[test]
+    fn scans_ignore_delimiters_in_comments_and_strings() {
+        // A `}` in a comment or a string does not close the destructured pattern.
+        assert_eq!(
+            strip_ts_type_annotation("{ a /* } */, b }: Props"),
+            "{ a /* } */, b }"
+        );
+        assert_eq!(
+            strip_ts_type_annotation("{ a = '}' }: Props"),
+            "{ a = '}' }"
+        );
+
+        // A `)` in a comment or a string does not close the rune call.
+        assert_eq!(
+            extract_rune_inner("$state(/* ) */ 1)", "$state("),
+            Some("/* ) */ 1".to_string())
+        );
+        assert_eq!(
+            extract_rune_inner("$state(')')", "$state("),
+            Some("')'".to_string())
+        );
+
+        // A `,` in a comment does not split the declarator list.
+        assert_eq!(split_declarators("a = 1 /* , */ , b = 2").len(), 2);
+        assert_eq!(split_declarators("a = 1 // x, y\n, b = 2").len(), 2);
     }
 }
