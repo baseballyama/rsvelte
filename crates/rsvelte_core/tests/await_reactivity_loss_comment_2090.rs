@@ -49,9 +49,12 @@ fn every_comment_in_the_run_is_kept() {
     );
 }
 
-/// The copied region runs to the `await` expression's own end, so a
-/// parenthesized operand keeps its closing paren however the parse treats
-/// parens — ending the copy at the argument would emit `(load()`.
+/// Preservation guard, not a regression test: this caller parses with
+/// `ParseOptions::default()`, where `preserve_parens` makes the argument span
+/// cover the parens, so it passes on either end bound. It would start
+/// discriminating only under `preserve_parens: false`, which is why the copy
+/// runs to the expression's own end — the read range then equals the written
+/// range by construction rather than by coincidence.
 #[test]
 fn a_parenthesized_operand_stays_balanced() {
     let src = "export async function f() {\n\treturn (await (load()))();\n}\n";
