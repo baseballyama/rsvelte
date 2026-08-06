@@ -25,8 +25,10 @@
 //! to parse in every one of these shapes; before the fix it did not, and
 //! Vite/Rolldown rejected the file with `Parse failure: Unexpected token`.
 //!
-//! The tests also pin the synthesized indentation: class lowering used to print
-//! its members one tab too deep for a module-level class.
+//! Layout expectations here are **the official compiler's own bytes**, obtained
+//! by compiling the same source with `submodules/svelte`. They are not a record
+//! of what rsvelte happens to print. Where rsvelte still diverges from upstream,
+//! the assertion says so at its own site instead of absorbing the difference.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{GenerateMode, compile_module};
@@ -310,6 +312,11 @@ fn compound_and_logical_assignments_keep_nested_comments() {
     );
     assert_structurally_valid(&out, "compound/logical assignment");
     let flat = dedented(&out);
+    // Both assertions below carry a divergence from upstream that predates this
+    // file and is tracked separately; only the comment's survival is this test's
+    // subject. Official emits `$.set(this.#x, this.#x.v ?? { … })` with no third
+    // argument — the `true` is a spurious proxy flag on a logical-assignment RHS
+    // — and reads the compound operand as `this.#n.v`, not `$.get(this.#n)`.
     assert!(
         flat.contains("?? {\na: s,\n// c\nb: s\n},\ntrue\n);"),
         "logical assignment RHS must survive:\n{out}"
