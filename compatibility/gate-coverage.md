@@ -323,7 +323,7 @@ returns `[]`. A token-granular regression to zeroed generated columns passes.
 `map.sources` itself is dropped at `svelte2tsx-compile.mjs:136`. **[D]** `"ASAA"` (source index
 9 against 1 source) returns `[]`.
 
-**Closing 7a:** a coverage floor (fraction of generated lines carrying ≥1 segment, calibrated
+**Tracked:** #2453. **Closing 7a:** a coverage floor (fraction of generated lines carrying ≥1 segment, calibrated
 against official on the same corpus) is a ~20-line addition to `sourcemap.mjs` and would catch
 the sharpest case. Cost: low.
 
@@ -366,7 +366,7 @@ reads only `divergedIds`. **[S]** And CI does not pass `--both` anyway
 `compileCss` (`:348-367`) returns `{ css }` only. **[S]** rsvelte can prune identically and
 omit the `css_unused_selector` warning; green.
 
-**Closing 8a:** one assertion. Cost: trivial.
+**Tracked:** #2445. **Closing 8a:** one assertion. Cost: trivial.
 
 ---
 
@@ -408,7 +408,7 @@ nondeterminism, 3 oxfmt-internal CSS disagreement). This is a *small, justified*
 here so it is not mistaken for a blind spot. Its staleness check is `console.warn` only
 (`fmt-verify.mjs:110-126`).
 
-**Closing 9a:** assert `matched + failures.length + excluded === included.length`. Cost: trivial.
+**Tracked:** #2447. **Closing 9a:** assert `matched + failures.length + excluded === included.length`. Cost: trivial.
 
 ---
 
@@ -691,7 +691,7 @@ matches. This is how `AGENTS.md` reports `Validator 333/333` and "All in-scope f
 (100.0%)" while `validator-known-failures.json` holds 207 real divergences.
 (`tests/validator.rs` *does* check the code — for the 125 fixtures not on the ratchet.)
 
-**Closing it:** compare the warning code multiset in the report. Cost: low. The number in
+**Tracked:** #2452. **Closing it:** compare the warning code multiset in the report. Cost: low. The number in
 `AGENTS.md` will drop, which is the point.
 
 ---
