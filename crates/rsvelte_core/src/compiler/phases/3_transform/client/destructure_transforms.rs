@@ -165,7 +165,6 @@ pub(super) fn find_and_transform_one_destructure(
     let len = chars.len();
 
     // Build char-index → byte-index mapping for safe string slicing with multi-byte chars
-    let byte_offsets: Vec<usize> = statement.char_indices().map(|(b, _)| b).collect();
     let table = CharToByte::new(statement);
     let b = |char_idx: usize| -> usize { table.byte(CharOffset::new(char_idx)).get() };
 
@@ -179,9 +178,9 @@ pub(super) fn find_and_transform_one_destructure(
     // Each candidate stores (close_bracket_char_idx, pattern_start, rhs_start_after_eq)
     #[derive(Clone, Copy)]
     struct Candidate {
-        close_pos: usize,     // char index of ] or }
-        pattern_start: usize, // char index of [ or {
-        eq_pos: usize,        // char index of =
+        close_pos: CharOffset,
+        pattern_start: CharOffset,
+        eq_pos: CharOffset,
     }
     let mut candidates: Vec<Candidate> = Vec::new();
 
@@ -223,25 +222,25 @@ pub(super) fn find_and_transform_one_destructure(
 
                 // Walk backwards from position `i` to find the matching open bracket.
                 // The helper works in byte offsets; this loop indexes by char.
-                let matching_open = find_matching_open_bracket(
+                if let Some(pattern_start) = find_matching_open_bracket(
                     statement,
                     table.byte(CharOffset::new(i)),
                     open_bracket,
                     close_bracket,
-                );
-                // The helper only returns ASCII bracket positions, which are
-                // always char starts; a miss would be a bug, not input.
-                if let Some(pattern_start) = matching_open.map(|byte| {
-                    byte_offsets
-                        .binary_search(&byte.get())
-                        .unwrap_or_else(|_| bracket_offset_miss(byte.get(), statement.len()))
+                )
+                .map(|byte| {
+                    // The helper only returns ASCII bracket positions, which are
+                    // always char starts; a miss would be a bug, not input.
+                    table
+                        .char_of(byte)
+                        .unwrap_or_else(|| bracket_offset_miss(byte.get(), statement.len()))
                 }) {
-                    let pattern_str = &statement[b(pattern_start)..b(i + 1)];
+                    let pattern_str = &statement[b(pattern_start.get())..b(i + 1)];
                     let rhs_start = j + 1;
 
                     // For array patterns, check if `[` is actually member access
-                    if open_bracket == '[' && pattern_start > 0 {
-                        let before_char = chars[pattern_start - 1];
+                    if open_bracket == '[' && pattern_start > CharOffset::ZERO {
+                        let before_char = chars[pattern_start.get() - 1];
                         if before_char.is_ascii_alphanumeric()
                             || before_char == '_'
                             || before_char == '$'
@@ -254,7 +253,7 @@ pub(super) fn find_and_transform_one_destructure(
                     }
 
                     // Skip declaration destructures (let/const/var)
-                    let before_pattern = statement[..b(pattern_start)].trim_end();
+                    let before_pattern = statement[..b(pattern_start.get())].trim_end();
                     if before_pattern.ends_with("let")
                         || before_pattern.ends_with("const")
                         || before_pattern.ends_with("var")
@@ -282,7 +281,7 @@ pub(super) fn find_and_transform_one_destructure(
                     // brace/bracket depth. If we encounter an unmatched
                     // opening `{` or `[` before hitting a statement boundary,
                     // we're nested inside another pattern and should skip.
-                    if is_inside_enclosing_pattern(statement, b(pattern_start)) {
+                    if is_inside_enclosing_pattern(statement, b(pattern_start.get())) {
                         i = j + 1;
                         continue;
                     }
@@ -316,9 +315,9 @@ pub(super) fn find_and_transform_one_destructure(
 
                     // Valid candidate - store it
                     candidates.push(Candidate {
-                        close_pos: i,
+                        close_pos: CharOffset::new(i),
                         pattern_start,
-                        eq_pos: j,
+                        eq_pos: CharOffset::new(j),
                     });
                 }
             }
@@ -364,12 +363,12 @@ pub(super) fn find_and_transform_one_destructure(
         // Compute rhs_end for each candidate to determine containment
         let rhs_ends: Vec<usize> = candidates
             .iter()
-            .map(|c| find_destructure_rhs_end(statement, CharOffset::new(c.eq_pos + 1)).get())
+            .map(|c| find_destructure_rhs_end(statement, c.eq_pos + 1).get())
             .collect();
 
         let mut selected = 0; // default to first
         'outer: for (ci, c) in candidates.iter().enumerate() {
-            let rhs_start = c.eq_pos + 1;
+            let rhs_start = (c.eq_pos + 1).get();
             let rhs_end = rhs_ends[ci];
             // Check if any other candidate's close_pos is inside this candidate's RHS range
             let mut contains_other = false;
@@ -378,7 +377,7 @@ pub(super) fn find_and_transform_one_destructure(
                     continue;
                 }
                 // Check if other's close bracket is within this candidate's RHS
-                if other.close_pos > rhs_start && other.close_pos < rhs_end {
+                if other.close_pos.get() > rhs_start && other.close_pos.get() < rhs_end {
                     contains_other = true;
                     break;
                 }
@@ -391,9 +390,9 @@ pub(super) fn find_and_transform_one_destructure(
         selected
     };
     let candidate = &candidates[candidate_idx];
-    let i = candidate.close_pos;
-    let pattern_start = candidate.pattern_start;
-    let j = candidate.eq_pos;
+    let i = candidate.close_pos.get();
+    let pattern_start = candidate.pattern_start.get();
+    let j = candidate.eq_pos.get();
     let rhs_start = j + 1;
 
     let pattern_str = &statement[b(pattern_start)..b(i + 1)];

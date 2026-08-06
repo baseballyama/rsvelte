@@ -8,9 +8,10 @@
 //! would restore exactly the silence this removes. Every crossing goes through a
 //! named method and stays greppable.
 //!
-//! What this does **not** catch: an offset in the right unit but into the *wrong
-//! string*. `ByteOffset` carries no provenance, so one measured against a trimmed
-//! copy still slices the original without complaint.
+//! Two things this does **not** catch. `Add<usize>` accepts any `usize`, so
+//! `char_offset + name.len()` — a char offset advanced by a byte length — still
+//! compiles. And neither type carries provenance, so an offset measured against a
+//! trimmed copy still slices the original without complaint.
 
 use std::ops::{Add, Sub};
 
@@ -120,6 +121,11 @@ impl CharToByte {
     pub fn byte(&self, at: CharOffset) -> ByteOffset {
         ByteOffset(self.offsets.get(at.0).copied().unwrap_or(self.byte_len))
     }
+
+    /// `None` when `at` lands inside a character rather than starting one.
+    pub fn char_of(&self, at: ByteOffset) -> Option<CharOffset> {
+        self.offsets.binary_search(&at.0).ok().map(CharOffset)
+    }
 }
 
 #[cfg(test)]
@@ -136,6 +142,15 @@ mod tests {
             let _ = at.before(s);
         }
         assert_eq!(table.byte(CharOffset::new(4)), ByteOffset::end_of(s));
+    }
+
+    #[test]
+    fn char_of_rejects_an_interior_byte() {
+        let s = "aあb";
+        let table = CharToByte::new(s);
+        assert_eq!(table.char_of(ByteOffset::new(1)), Some(CharOffset::new(1)));
+        assert_eq!(table.char_of(ByteOffset::new(2)), None);
+        assert_eq!(table.char_of(ByteOffset::new(4)), Some(CharOffset::new(2)));
     }
 
     #[test]
