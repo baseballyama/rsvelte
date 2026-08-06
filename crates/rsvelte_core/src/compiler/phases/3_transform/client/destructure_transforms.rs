@@ -218,9 +218,11 @@ pub(super) fn find_and_transform_one_destructure(
                 let close_bracket = c;
                 let open_bracket = if c == ']' { '[' } else { '{' };
 
-                // Walk backwards from position `i` to find the matching open bracket
+                // Walk backwards from position `i` to find the matching open bracket.
+                // The helper works in byte offsets; this loop indexes by char.
                 if let Some(pattern_start) =
-                    find_matching_open_bracket(statement, i, open_bracket, close_bracket)
+                    find_matching_open_bracket(statement, b(i), open_bracket, close_bracket)
+                        .and_then(|byte| byte_offsets.binary_search(&byte).ok())
                 {
                     let pattern_str = &statement[b(pattern_start)..b(i + 1)];
                     let rhs_start = j + 1;
@@ -481,24 +483,24 @@ fn is_inside_enclosing_pattern(statement: &str, pattern_open_byte: usize) -> boo
 }
 
 /// Find the matching opening bracket, respecting nesting and strings.
+/// `close_pos` and the returned position are **byte** offsets.
 pub(super) fn find_matching_open_bracket(
     s: &str,
     close_pos: usize,
     open_bracket: char,
     close_bracket: char,
 ) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    let (open, close) = (open_bracket as u8, close_bracket as u8);
+    // Collect forward so opaque runs are skipped, then walk the code bytes back.
+    let code: Vec<(usize, u8)> = code_bytes(s.as_bytes())
+        .take_while(|(i, _)| *i < close_pos)
+        .collect();
+
     let mut depth = 1;
-    let mut i = close_pos;
-
-    // Walk backwards
-    while i > 0 {
-        i -= 1;
-        let c = chars[i];
-
-        if c == close_bracket {
+    for &(i, c) in code.iter().rev() {
+        if c == close {
             depth += 1;
-        } else if c == open_bracket {
+        } else if c == open {
             depth -= 1;
             if depth == 0 {
                 return Some(i);
@@ -1605,5 +1607,30 @@ mod non_ascii_tests {
             extract_destructure_targets("{ a /* , b */, c }"),
             vec!["a".to_string(), "c".to_string()]
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn matching_open_bracket_ignores_string_contents() {
+        // `{ a = "}" } = obj` — the default value's `}` is text, not a closer.
+        let s = r#"{ a = "}" } = obj"#;
+        assert_eq!(find_matching_open_bracket(s, 10, '{', '}'), Some(0));
+    }
+
+    #[test]
+    fn matching_open_bracket_ignores_comment_contents() {
+        let s = "{ a, /* } */ b } = obj";
+        let close = s.rfind('}').unwrap();
+        assert_eq!(find_matching_open_bracket(s, close, '{', '}'), Some(0));
+    }
+
+    #[test]
+    fn matching_open_bracket_still_matches_nested() {
+        let s = "{ a: { b } } = obj";
+        assert_eq!(find_matching_open_bracket(s, 11, '{', '}'), Some(0));
     }
 }
