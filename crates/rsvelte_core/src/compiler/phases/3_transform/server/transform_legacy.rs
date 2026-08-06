@@ -843,8 +843,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
         let mut needs = false;
         let mut in_reactive_multiline = false;
         let mut reactive_depth: i32 = 0;
-        // Must match the collection loop below, or the two disagree on where a
-        // reactive block ends and this scan mis-routes.
+        // Threaded like the collection loop below; if the two disagree on where a
+        // block ends, this scan mis-routes.
         let mut in_template = false;
         let mut i = 0;
         while i < lines.len() {
@@ -904,7 +904,12 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                         i += 1;
                         while i < lines.len() {
                             let nt = lines[i].trim();
-                            if nt.is_empty() || nt.starts_with("$:") || nt.starts_with("function ")
+                            // Inside a template literal these are literal text, not
+                            // statement boundaries.
+                            if !acc_template
+                                && (nt.is_empty()
+                                    || nt.starts_with("$:")
+                                    || nt.starts_with("function "))
                             {
                                 break;
                             }
@@ -1046,10 +1051,13 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     while i < lines.len() {
                         let next = lines[i];
                         let next_trimmed = next.trim();
-                        if next_trimmed.is_empty()
-                            || next_trimmed.starts_with("$:")
-                            || next_trimmed.starts_with("function ")
-                            || next_trimmed.starts_with("//")
+                        // Inside a template literal these are literal text, not
+                        // statement boundaries.
+                        if !acc_template
+                            && (next_trimmed.is_empty()
+                                || next_trimmed.starts_with("$:")
+                                || next_trimmed.starts_with("function ")
+                                || next_trimmed.starts_with("//"))
                         {
                             break;
                         }
@@ -2228,6 +2236,26 @@ mod tests {
             split_destructuring_properties_ssr("a // , b"),
             vec!["a // , b"]
         );
+    }
+
+    #[test]
+    fn template_text_is_not_a_statement_boundary() {
+        // A blank line, `$:`, `function ` or `//` inside a template literal is
+        // literal text; the loops' first exit used to treat it as a boundary.
+        for body in [
+            "\n",
+            "$: not a statement\n",
+            "// not a comment\n",
+            "function nope() {}\n",
+        ] {
+            let script =
+                format!("let a = 1;\n$: msg =\n`hello\n{body}${{name}}`;\nlet after = 2;\n");
+            let out = reorder_reactive_statements_after_functions(&script);
+            assert!(
+                out.contains(&format!("$: msg =\n`hello\n{body}${{name}}`;")),
+                "statement split on {body:?}: {out}"
+            );
+        }
     }
 
     // Control is this change's own pre-fix state; the code it replaced passes too.
