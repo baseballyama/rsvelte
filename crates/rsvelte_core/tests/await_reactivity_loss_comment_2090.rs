@@ -79,7 +79,9 @@ fn a_line_comment_survives() {
     assert_contains(&out, "// hi");
 }
 
-/// The wrap is skipped entirely when ignored, so the source is untouched.
+/// Covers the ignore gate rather than the copy: this `await` returns before
+/// reaching the copied range, so the assertion moves when the gate breaks, not
+/// when the end bound changes.
 #[test]
 fn an_ignored_await_is_left_alone() {
     let src = "export async function f() {\n\t// svelte-ignore await_reactivity_loss\n\treturn await /* hi */ load();\n}\n";
