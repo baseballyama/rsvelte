@@ -1559,8 +1559,8 @@ fn extract_simple_assignments(code: &str) -> Vec<String> {
             }
             let ident: String = chars[start..i].iter().collect();
 
-            // A member property (`foo.x = …` / `foo.x++`) is not a declared
-            // variable: the assignment mutates the *base object*, not the
+            // A member property (`foo.x = …` / `foo.x += …` / `foo.x++`) is not
+            // a declared variable: the assignment mutates the *base object*, not the
             // property. Recording the property would create a false reactive
             // dependency for any statement that reads an identifier of that
             // name (e.g. `$: { if (x) … }` spuriously depending on
@@ -1618,7 +1618,11 @@ fn extract_simple_assignments(code: &str) -> Vec<String> {
                 if matches!(op, '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^') {
                     // Check it's not `==` following
                     let after_eq = chars.get(j + 2).copied().unwrap_or('\0');
-                    if after_eq != '=' && !is_reactive_keyword(&ident) && !vars.contains(&ident) {
+                    if after_eq != '='
+                        && !is_member_prop
+                        && !is_reactive_keyword(&ident)
+                        && !vars.contains(&ident)
+                    {
                         vars.push(ident.clone());
                     }
                 }
@@ -2254,4 +2258,43 @@ fn split_destructuring_properties_ssr(s: &str) -> Vec<&str> {
     }
     result.push(&s[start..]);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn member_assignment_targets_are_not_recorded() {
+        // Upstream's `AssignmentExpression` visitor takes the same branch for
+        // every operator, and `extract_identifiers` yields nothing for a
+        // member-expression target, so no operator records the property.
+        assert!(extract_simple_assignments("obj.x = 1;").is_empty());
+        assert!(extract_simple_assignments("obj.x += 1;").is_empty());
+        assert!(extract_simple_assignments("a.b.c *= 2;").is_empty());
+        assert!(extract_simple_assignments("obj.x++;").is_empty());
+    }
+
+    #[test]
+    fn compound_member_assignment_does_not_reorder() {
+        let out = reorder_reactive_statements_after_functions(
+            "\tlet a = 1;\n\t$: a = x * 2;\n\t$: obj.x += 1;\n",
+        );
+        assert_eq!(out, "\tlet a = 1;\n\t$: a = x * 2;\n\t$: obj.x += 1;");
+    }
+
+    #[test]
+    fn compound_identifier_assignment_still_reorders() {
+        let out = reorder_reactive_statements_after_functions(
+            "\tlet a = 1;\n\t$: a = x * 2;\n\t$: x += 1;\n",
+        );
+        assert_eq!(out, "\tlet a = 1;\n\t$: x += 1;\n\t$: a = x * 2;");
+    }
+
+    #[test]
+    fn plain_identifier_assignment_targets_are_recorded() {
+        assert_eq!(extract_simple_assignments("x = 1;"), vec!["x"]);
+        assert_eq!(extract_simple_assignments("x += 1;"), vec!["x"]);
+        assert_eq!(extract_simple_assignments("x++;"), vec!["x"]);
+    }
 }
