@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 12 entries)
+## Client dev (`known-failures.client-dev.json`, 11 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -161,6 +161,10 @@ therefore proxies (an arithmetic `BinaryExpression` still does not); and a
 `$state` declared inside a template handler body reaches the expression
 converter, which had no way back to the declarator's name.
 
+Instrumenting a `$derived` destructuring default took it to 11. The pattern's
+source text was lifted verbatim before the walk reached it, so a default value
+never got the dev equality rewrite any other expression gets.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -175,7 +179,6 @@ each side, which separates the two directions and cannot be fooled by order:
 
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
-| equality instrumentation | 1 | 0 | `visitors/BinaryExpression.js` | #2064 |
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
 | `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
@@ -192,7 +195,7 @@ the two halves that had no equivalent on the JSON expression path (the value
 must be used, and the component-prop exemption only covers a component that is
 a `Fragment` child).
 
-6 entries are attributed to a cluster; the remaining **6** show no
+5 entries are attributed to a cluster; the remaining **6** show no
 difference in any dev helper: 2 are a `$.trace` label's line:column, 1 is a
 statement missing from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own
 mapping in a minified stylesheet and 2 are one-off shapes (an `$.assign`
