@@ -92,7 +92,7 @@
 		"check-e2e-corpus:update": "node scripts/compat-corpus/check-e2e-verify.mjs --update",
 		"test:svelte-check-e2e": "pnpm run check-e2e-corpus:sync && cargo build --release -p rsvelte_check && pnpm run check-corpus:oracle-install && pnpm run check-e2e-corpus:verify",
 		"changeset": "changeset",
-		"version-packages": "changeset version && pnpm run sync-version && pnpm run check:lint-types-lock",
+		"version-packages": "changeset version && pnpm run sync-version && node scripts/ci/check-lint-types-lock.mjs --allow-unresolved",
 		"release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && pnpm run build:language-server && changeset publish"
 	},
 	"devDependencies": {

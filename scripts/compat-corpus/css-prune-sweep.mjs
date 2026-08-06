@@ -497,9 +497,9 @@ if (CHECK) {
 	const regressions = divergedIds.filter((id) => !baseline.has(id));
 	const fixed = [...baseline].filter((id) => !divergedIds.includes(id));
 	if (fixed.length) {
-		console.log(`\n[css-prune-sweep] ${fixed.length} baseline divergences now fixed — shrink the ratchet:`);
-		for (const id of fixed.slice(0, 20)) console.log(`  - ${id}`);
-		console.log('  run: node scripts/compat-corpus/css-prune-sweep.mjs --update-baseline');
+		console.error(`\n[css-prune-sweep] ${fixed.length} baseline divergences now fixed — the ratchet is stale:`);
+		for (const id of fixed.slice(0, 20)) console.error(`  - ${id}`);
+		console.error('  fix: node scripts/compat-corpus/css-prune-sweep.mjs --update-baseline');
 	}
 	if (regressions.length) {
 		console.error(`\n[css-prune-sweep] ${regressions.length} NEW prune divergence(s) (regressions):`);
@@ -507,8 +507,11 @@ if (CHECK) {
 			const d = diverged.find((x) => x.id === id);
 			console.error(`  - ${id}  [${d.verdict}]`);
 		}
-		process.exit(1);
 	}
+	// Staleness is fatal, same as the other corpus ratchets: an "already
+	// fixed" delta left unmerged on a later PR reads as normal noise, so a
+	// real regression could hide inside it.
+	if (regressions.length > 0 || fixed.length > 0) process.exit(1);
 	console.log(`\n[css-prune-sweep] no regressions (${divergedIds.length} known divergences)`);
 	process.exit(0);
 }

@@ -13,8 +13,18 @@
 //   1. text audit (no cargo, no submodule): every in-repo crate pinned in the
 //      lock must match its `crates/<name>/Cargo.toml` `[package].version`.
 //   2. resolution (`cargo metadata --locked`): ground truth, catches dependency
-//      graph / requirement / oxc-patch / corsa-bind drift too. Skipped when
-//      `submodules/corsa-bind` is absent unless `--require-resolve` is passed.
+//      graph / requirement / oxc-patch / corsa-bind drift too.
+//
+// Layer 2 needs `submodules/corsa-bind` checked out. If it's missing this
+// script inits it itself (public repo, shallow, ~3s) rather than silently
+// falling back to layer 1 alone — a text-pin match is not evidence the lock
+// resolves, and reporting it as a pass previously let a 15-entry oxc-rev
+// drift through undetected on every machine that hadn't run
+// `git submodule update --init submodules/corsa-bind`. If resolution still
+// cannot happen (no network, no cargo), that is reported as a distinct,
+// non-passing outcome — never printed or exit-coded like a real pass — unless
+// the caller opted in with `--allow-unresolved` (used by `version-packages`,
+// which must not hard-fail on infra flakiness; see that script for why).
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -29,12 +39,16 @@ const corsaBind = resolve(repoRoot, 'submodules/corsa-bind');
 
 const argv = new Set(process.argv.slice(2));
 const fix = argv.has('--fix');
-const requireResolve = argv.has('--require-resolve');
+// `--require-resolve` is still accepted (ci.yml passes it) but is now a
+// no-op: resolution is attempted by default via the self-init below.
+const allowUnresolved = argv.has('--allow-unresolved');
+
+const SUBMODULE_INIT_CMD = 'git submodule update --init submodules/corsa-bind';
 
 const FIX_HINT = [
 	'Fix it with:',
 	'',
-	'    git submodule update --init --depth 1 submodules/corsa-bind',
+	`    ${SUBMODULE_INIT_CMD}`,
 	'    pnpm run fix:lint-types-lock',
 	'',
 	'then commit the updated crates/rsvelte_lint_types/Cargo.lock.',
@@ -94,6 +108,51 @@ function runCargoMetadata(locked) {
 	});
 }
 
+function haveCorsaBind() {
+	return existsSync(corsaBind) && readdirSync(corsaBind).length > 0;
+}
+
+// Shallow + public: cheap enough (~3s measured) to attempt unconditionally
+// instead of asking every caller to remember a manual setup step.
+function ensureCorsaBind() {
+	if (haveCorsaBind()) return { ok: true };
+	try {
+		execFileSync('git', ['submodule', 'update', '--init', '--depth', '1', 'submodules/corsa-bind'], {
+			cwd: repoRoot,
+			stdio: ['ignore', 'ignore', 'pipe'],
+		});
+		return { ok: true };
+	} catch (err) {
+		const detail = err.stderr ? err.stderr.toString().trim().split('\n')[0] : err.message;
+		return { ok: false, reason: `could not check out submodules/corsa-bind (${detail})` };
+	}
+}
+
+function cargoAvailable() {
+	try {
+		execFileSync('cargo', ['--version'], { stdio: 'ignore' });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+// The one outcome that must never be mistaken for "the lock is fine": layer 2
+// (the only layer that catches dependency-graph / oxc-patch drift) did not
+// run at all. `--allow-unresolved` is the only way to make this exit 0.
+function reportUnresolved(reason) {
+	const detail =
+		`${lockRel}: resolution NOT verified — ${reason}.\n` +
+		`Only the in-repo version-pin text audit ran; dependency-graph / oxc-patch drift would NOT be caught.\n` +
+		`Enable it with: ${SUBMODULE_INIT_CMD}`;
+	if (allowUnresolved) {
+		console.log(`SKIPPED (not a pass): ${detail}`);
+		process.exit(0);
+	}
+	console.error(detail);
+	process.exit(1);
+}
+
 let lockText = readFileSync(lockPath, 'utf8');
 const drifted = auditPins(lockText);
 
@@ -105,13 +164,15 @@ if (fix) {
 			console.log(`  ${name}: ${pinned} -> ${actual}`);
 		}
 	}
-	if (existsSync(corsaBind) && readdirSync(corsaBind).length > 0) {
+	const corsa = ensureCorsaBind();
+	if (corsa.ok) {
 		runCargoMetadata(false);
 		console.log(`Re-resolved ${lockRel}.`);
 	} else {
 		console.log(
-			`submodules/corsa-bind is not checked out — pins synced textually only.\n` +
-				`Run \`git submodule update --init --depth 1 submodules/corsa-bind\` and re-run to fully re-resolve.`,
+			`Could not re-resolve ${lockRel} — ${corsa.reason}.\n` +
+				`Pins were synced textually only; dependency-graph / oxc-patch drift may remain.\n` +
+				`Run \`${SUBMODULE_INIT_CMD}\` and re-run to fully re-resolve.`,
 		);
 	}
 	process.exit(0);
@@ -126,18 +187,10 @@ if (drifted.length > 0) {
 	process.exit(1);
 }
 
-const haveCorsaBind = existsSync(corsaBind) && readdirSync(corsaBind).length > 0;
-if (!haveCorsaBind) {
-	if (requireResolve) {
-		console.error(
-			'submodules/corsa-bind is not checked out, so the lock cannot be resolved.\n' +
-				'Run: git submodule update --init --depth 1 submodules/corsa-bind',
-		);
-		process.exit(1);
-	}
-	console.log(`${lockRel} pins match crates/ (resolution check skipped: no corsa-bind).`);
-	process.exit(0);
-}
+const corsa = ensureCorsaBind();
+if (!corsa.ok) reportUnresolved(corsa.reason);
+
+if (!cargoAvailable()) reportUnresolved('cargo is not installed / not on PATH');
 
 try {
 	runCargoMetadata(true);
