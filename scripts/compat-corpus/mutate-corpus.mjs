@@ -165,7 +165,7 @@ if (WORKER) {
 		return id + tag;
 	};
 	const findings = [];
-	const tally = { match: 0, 'error-parity': 0, 'seed-skipped': 0, divergent: 0 };
+	const tally = { match: 0, 'error-parity': 0, 'seed-skipped': 0, 'seed-error': 0, divergent: 0, mutants: 0, comparisons: 0 };
 
 	function compileOne(compiler, mutant, target) {
 		const options = { generate: target.generate, dev: target.dev, filename: mutant.id };
@@ -173,7 +173,13 @@ if (WORKER) {
 		try {
 			const result =
 				mutant.kind === 'component' ? compiler.compile(mutant.source, options) : compiler.compileModule(mutant.source, options);
-			return { js: result.js?.code ?? '' };
+			// A compiler that returns without code is a broken oracle, not an
+			// empty program: defaulting to '' makes both sides '' and scores match.
+			const js = result.js?.code;
+			if (typeof js !== 'string' || js.length === 0) {
+				return { error: 'compiler returned no js.code' };
+			}
+			return { js };
 		} catch (e) {
 			return { error: String(e?.message ?? e).split('\n')[0] };
 		}
@@ -198,14 +204,19 @@ if (WORKER) {
 				});
 			}
 		} catch {
+			// Distinguished from "this seed has no insertion slot": an exception
+			// here means generation broke, and a silent skip would read as work.
 			mutants = [];
+			tally['seed-error'] += 1;
 		}
 		if (mutants.length === 0) {
 			tally['seed-skipped'] += 1;
 			continue;
 		}
+		tally.mutants += mutants.length;
 		for (const mutant of mutants) {
 			for (const target of TARGETS) {
+				tally.comparisons += 1;
 				const expected = compileOne(svelte, mutant, target);
 				const actual = compileOne(rsvelte, mutant, target);
 				if (expected.error && actual.error) {
@@ -298,22 +309,45 @@ for (let s = 0; s < seeds.length; s += shardSize) ranges.push([s, Math.min(s + s
 console.log(`[mutate] ${seeds.length} seeds across ${ranges.length} workers…`);
 await Promise.all(ranges.map(([s, e]) => runRange(s, e)));
 
-const counts = { match: 0, 'error-parity': 0, 'code-mismatch': 0, 'comment-mismatch': 0, 'error-mismatch': 0, 'compiler-crash': crashes.length, 'seed-skipped': 0 };
+const counts = { match: 0, 'error-parity': 0, 'code-mismatch': 0, 'comment-mismatch': 0, 'error-mismatch': 0, 'compiler-crash': crashes.length, 'seed-skipped': 0, 'seed-error': 0 };
 const failures = [...crashes.map((c) => ({ ...c, target: 'all' }))];
 let divergent = 0;
-for (const file of fs.existsSync(SHARDS) ? fs.readdirSync(SHARDS) : []) {
+let mutantsGenerated = 0;
+let comparisons = 0;
+// A worker that dies without writing its shard would otherwise remove its whole
+// range from every count below, and the run would still report success.
+const shardFiles = fs.existsSync(SHARDS) ? fs.readdirSync(SHARDS) : [];
+if (shardFiles.length !== ranges.length) {
+	console.error(`\n[mutate] ${shardFiles.length} shard results for ${ranges.length} workers — a worker produced no tally.`);
+	process.exit(2);
+}
+for (const file of shardFiles) {
 	const shard = JSON.parse(fs.readFileSync(path.join(SHARDS, file), 'utf8'));
 	counts.match += shard.tally.match;
 	counts['error-parity'] += shard.tally['error-parity'];
 	counts['seed-skipped'] += shard.tally['seed-skipped'];
+	counts['seed-error'] += shard.tally['seed-error'];
 	divergent += shard.tally.divergent;
+	mutantsGenerated += shard.tally.mutants;
+	comparisons += shard.tally.comparisons;
 	for (const f of shard.findings) {
 		counts['error-mismatch'] += 1;
 		failures.push(f);
 	}
 }
 fs.rmSync(SHARDS, { recursive: true, force: true });
-console.log(`[mutate] raw-divergent ${divergent}`);
+console.log(`[mutate] mutants ${mutantsGenerated}, comparisons ${comparisons}, raw-divergent ${divergent}`);
+
+// A fuzzer that generates nothing reports "no divergences found", which reads as
+// a pass. Require that most seeds actually yielded mutants before believing it.
+const MIN_MUTATED_SEED_RATIO = 0.5;
+const seedsMutated = seeds.length - counts['seed-skipped'];
+if (comparisons === 0 || seedsMutated < seeds.length * MIN_MUTATED_SEED_RATIO) {
+	console.error(`\n[mutate] only ${seedsMutated}/${seeds.length} seeds produced a mutant (${comparisons} comparisons).`);
+	console.error('  The insertion-slot scanner is finding nothing — this run measured nothing.');
+	if (counts['seed-error']) console.error(`  ${counts['seed-error']} seeds threw during generation.`);
+	process.exit(2);
+}
 
 // ---- normalization (must match verify.mjs exactly) -------------------------
 
@@ -394,9 +428,19 @@ function walkPairs(dir, out = []) {
 	return out;
 }
 
-for (const expectedPath of fs.existsSync(TREE) ? walkPairs(TREE) : []) {
+const pairs = fs.existsSync(TREE) ? walkPairs(TREE) : [];
+// Every divergent comparison wrote both halves, so a `divergent` count that the
+// walk cannot account for means outputs went missing between the two stages.
+if (pairs.length !== divergent) {
+	console.error(`\n[mutate] ${pairs.length} output pairs on disk for ${divergent} divergent comparisons — outputs went missing.`);
+	process.exit(2);
+}
+for (const expectedPath of pairs) {
 	const actualPath = expectedPath.replace(`${path.sep}expected${path.sep}`, `${path.sep}actual${path.sep}`);
-	if (!fs.existsSync(actualPath)) continue;
+	if (!fs.existsSync(actualPath)) {
+		console.error(`\n[mutate] missing rsvelte output for ${path.relative(TREE, expectedPath)} — a skipped pair would score as no divergence.`);
+		process.exit(2);
+	}
 	const expected = stripBlankLines(fs.readFileSync(expectedPath, 'utf8'));
 	const actual = stripBlankLines(fs.readFileSync(actualPath, 'utf8'));
 	const target = path.basename(expectedPath, '.js');
