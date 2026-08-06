@@ -49,9 +49,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { stripBlankLines, readIf, firstDiffLine } from './normalize.mjs';
+import { stripBlankLines, readIf, firstDiffLine, oxfmtTree, oxfmtParses as oxfmtParsesFile } from './normalize.mjs';
 import { mappingViolations } from './sourcemap.mjs';
 import { MIN_FULL_CORPUS_ENTRIES, S2T_TREES, cleanupArtifacts } from './artifacts.mjs';
 
@@ -123,25 +122,10 @@ for (const { id } of manifest) {
 }
 
 if (!NO_FMT) {
-	const emptyIgnore = path.join(CORPUS, '.oxfmt-ignore-nothing');
-	fs.writeFileSync(emptyIgnore, '');
 	for (const tree of [EXPECTED, ACTUAL]) {
 		if (!fs.existsSync(tree)) continue;
 		console.log(`[s2t-verify] oxfmt ${path.relative(ROOT, tree)}…`);
-		try {
-			execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {
-				cwd: tree,
-				stdio: ['ignore', 'ignore', 'pipe'],
-				maxBuffer: 1024 * 1024 * 64,
-			});
-		} catch (e) {
-			// oxfmt exits non-zero when some files cannot be parsed. Those files
-			// are left unformatted in BOTH trees and compared byte-for-byte
-			// instead (an unparsable rsvelte output is itself a real divergence).
-			const stderr = e.stderr?.toString() ?? '';
-			const unparsable = (stderr.match(/x `|x Expected|x Unexpected/g) ?? []).length;
-			console.log(`[s2t-verify]   oxfmt skipped unparsable files (${unparsable} parse diagnostics)`);
-		}
+		oxfmtTree(tree, { config: path.join(CORPUS, '.oxfmtrc.json'), label: 's2t-verify' });
 	}
 }
 
@@ -173,15 +157,7 @@ function isOracleInternalCrash(errJson) {
 		return false;
 	}
 }
-function oxfmtParses(absFile) {
-	if (!fs.existsSync(absFile)) return false;
-	try {
-		execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), absFile], { stdio: 'ignore' });
-		return true;
-	} catch {
-		return false;
-	}
-}
+const oxfmtParses = (absFile) => oxfmtParsesFile(absFile, { config: path.join(CORPUS, '.oxfmtrc.json') });
 
 for (const { id } of manifest) {
 	const expDir = path.join(EXPECTED, id);

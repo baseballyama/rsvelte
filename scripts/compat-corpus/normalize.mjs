@@ -14,6 +14,9 @@
  * any multi-line token are eligible for removal.
  */
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 /**
  * Collapse newlines inside template-literal HOLES (`${ ... }`) into a single
@@ -181,6 +184,68 @@ export function stripBlankLines(src) {
 		}
 	}
 	return out.join('\n');
+}
+
+/**
+ * Run oxfmt in place over a whole output tree.
+ *
+ * oxfmt applies the repository's VCS ignore rules to its walk and (since 0.62)
+ * `--ignore-path` no longer overrides them, so every corpus output tree — all
+ * gitignored — would be silently skipped: zero files formatted, exit 0. The
+ * walk therefore starts from a symlink in a directory outside the repository,
+ * where no `.git` is found above the root.
+ *
+ * A canary file guards the whole arrangement: if the pass ever stops touching
+ * the tree again, every entry would be compared RAW and the gate would report
+ * failures it never measured, so that is a hard error, not a warning.
+ */
+export function oxfmtTree(tree, { config, label }) {
+	const canaryText = 'const   canary   =   1;\n';
+	const canary = path.join(tree, 'oxfmt_canary.js');
+	fs.writeFileSync(canary, canaryText);
+	const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'corpus-oxfmt-'));
+	const root = path.join(stage, 'tree');
+	fs.symlinkSync(tree, root);
+	try {
+		execFileSync('npx', ['oxfmt', '-c', config, '--no-error-on-unmatched-pattern', 'tree'], {
+			cwd: stage,
+			stdio: ['ignore', 'ignore', 'pipe'],
+			maxBuffer: 1024 * 1024 * 64,
+		});
+	} catch (e) {
+		// oxfmt exits non-zero when some files cannot be parsed (e.g. the official
+		// compiler emits `await` inside non-async component functions for async
+		// components). Those files are left unformatted in BOTH trees and compared
+		// byte-for-byte instead.
+		const stderr = e.stderr?.toString() ?? '';
+		const unparsable = (stderr.match(/x `|x Expected|x Unexpected/g) ?? []).length;
+		console.log(`[${label}]   oxfmt skipped unparsable files (${unparsable} parse diagnostics)`);
+	}
+	const formatted = fs.readFileSync(canary, 'utf8');
+	fs.rmSync(canary, { force: true });
+	fs.unlinkSync(root);
+	fs.rmSync(stage, { recursive: true, force: true });
+	if (formatted === canaryText) {
+		console.error(`[${label}] oxfmt formatted NOTHING under ${tree}`);
+		console.error('  normalization is a no-op, so every entry would be compared raw — refusing to report results');
+		process.exit(3);
+	}
+}
+
+/** Whether oxfmt can parse one file, checked out of tree so nothing is rewritten. */
+export function oxfmtParses(absFile, { config }) {
+	if (!fs.existsSync(absFile)) return false;
+	const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'corpus-oxfmt-'));
+	const copy = path.join(stage, path.basename(absFile));
+	fs.copyFileSync(absFile, copy);
+	try {
+		execFileSync('npx', ['oxfmt', '-c', config, copy], { stdio: 'ignore' });
+		return true;
+	} catch {
+		return false;
+	} finally {
+		fs.rmSync(stage, { recursive: true, force: true });
+	}
 }
 
 /**

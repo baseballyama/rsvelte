@@ -31,10 +31,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { flattenTemplateHoles, stripBlankLines, firstDiffLine } from '../normalize.mjs';
+import { flattenTemplateHoles, stripBlankLines, firstDiffLine, oxfmtTree } from '../normalize.mjs';
 import { selectTargets } from '../targets.mjs';
 import { generate, FAMILIES } from './generate.mjs';
 
@@ -156,21 +155,9 @@ function flattenTreeTemplateHoles(dir) {
 }
 
 if (!NO_FMT && pending.length) {
-	const emptyIgnore = path.join(CORPUS, '.oxfmt-ignore-nothing');
-	fs.writeFileSync(emptyIgnore, '');
 	flattenTreeTemplateHoles(TREE);
 	console.log('[matrix] oxfmt…');
-	try {
-		execFileSync(
-			'npx',
-			['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'],
-			{ cwd: TREE, stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 1024 * 1024 * 64 },
-		);
-	} catch (e) {
-		const stderr = e.stderr?.toString() ?? '';
-		const unparsable = (stderr.match(/x `|x Expected|x Unexpected/g) ?? []).length;
-		console.log(`[matrix]   oxfmt skipped unparsable files (${unparsable} parse diagnostics)`);
-	}
+	oxfmtTree(TREE, { config: path.join(CORPUS, '.oxfmtrc.json'), label: 'matrix' });
 }
 
 for (const item of pending) {

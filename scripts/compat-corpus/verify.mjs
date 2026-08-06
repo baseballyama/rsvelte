@@ -73,7 +73,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { flattenTemplateHoles, stripBlankLines, readIf, firstDiffLine } from './normalize.mjs';
+import { flattenTemplateHoles, stripBlankLines, readIf, firstDiffLine, oxfmtTree } from './normalize.mjs';
 import { TARGET_KEYS as ALL_TARGET_KEYS, selectTargets } from './targets.mjs';
 import { MIN_FULL_CORPUS_ENTRIES, OUTPUT_TREES, cleanupArtifacts } from './artifacts.mjs';
 
@@ -220,8 +220,6 @@ function flattenTreeTemplateHoles(dir) {
 }
 
 if (!NO_FMT) {
-	const emptyIgnore = path.join(CORPUS, '.oxfmt-ignore-nothing');
-	fs.writeFileSync(emptyIgnore, '');
 	for (const tree of [EXPECTED, ACTUAL]) {
 		// esrap wraps long expressions inside `${}` template holes; oxfmt
 		// preserves hole multiline-ness from its input, so flatten holes
@@ -229,21 +227,7 @@ if (!NO_FMT) {
 		console.log(`[verify] flatten template holes ${path.relative(ROOT, tree)}…`);
 		flattenTreeTemplateHoles(tree);
 		console.log(`[verify] oxfmt ${path.relative(ROOT, tree)}…`);
-		try {
-			execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {
-				cwd: tree,
-				stdio: ['ignore', 'ignore', 'pipe'],
-				maxBuffer: 1024 * 1024 * 64,
-			});
-		} catch (e) {
-			// oxfmt exits non-zero when some files cannot be parsed (e.g. the
-			// official compiler emits `await` inside non-async component
-			// functions for async components). Those files are left unformatted
-			// in BOTH trees and compared byte-for-byte instead.
-			const stderr = e.stderr?.toString() ?? '';
-			const unparsable = (stderr.match(/x `|x Expected|x Unexpected/g) ?? []).length;
-			console.log(`[verify]   oxfmt skipped unparsable files (${unparsable} parse diagnostics)`);
-		}
+		oxfmtTree(tree, { config: path.join(CORPUS, '.oxfmtrc.json'), label: 'verify' });
 	}
 }
 
