@@ -600,10 +600,16 @@ output parses with OXC, 100%.
 
 ### Blind spot 15a — compile failures are skipped, so errors make the gate *greener*
 
-`:90-92`: `let Ok(result) = compile(...) else { continue };`. **[S]** There is no per-target
-count floor (only `files.len() > 1000` on *input discovery*, `:57`). Breaking `server` codegen
-so `compile()` returns `Err` for 200 samples leaves `files.len()` unchanged, `continue`s past
-all 200, and leaves `failures` empty.
+`:90-92`: `let Ok(result) = compile(...) else { continue };`. The skip itself is deliberate and
+justified in-code — *"these samples include deliberately invalid input, and validation is gated
+elsewhere"* — so the blind spot is not the `continue`, it is that **nothing counts how many
+samples survived it**. **[S]** The only floor is `files.len() > 1000` on *input discovery*
+(`:57`); there is no per-target floor on samples actually canonicalized. Breaking `server`
+codegen so `compile()` returns `Err` for 200 samples leaves `files.len()` unchanged, `continue`s
+past all 200, and leaves `failures` empty.
+
+The fix is therefore a counter, not a policy change: assert that the number of samples reaching
+`canonicalize` per target stays near its measured value.
 
 ### Blind spot 15b — it parses the left side only
 
