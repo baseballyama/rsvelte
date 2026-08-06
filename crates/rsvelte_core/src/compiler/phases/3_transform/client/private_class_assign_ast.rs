@@ -21,6 +21,14 @@
 //! (`||= &&= ??=`) are non-coercive; arithmetic / bitwise / shift
 //! compounds are coercive and never proxy.
 //!
+//! The compound operand is the *visited* left-hand side, so it follows upstream
+//! `MemberExpression.js`: `$.get(q)` in a method body, `q.v` when the caller says
+//! the fragment is a constructor body (`in_constructor`) — but only at the
+//! constructor's own depth, since upstream `shared/function.js` clears the flag
+//! on entry to any nested function. Upstream reads a `$derived` field through
+//! `$.get` even in a constructor, so the constructor caller lists only `$state`
+//! / `$state.raw` fields.
+//!
 //! | Source        | Replacement (proxy-needing $state)         | Replacement (otherwise)             |
 //! |---------------|--------------------------------------------|-------------------------------------|
 //! | `q = expr`    | `$.set(q, expr, true)`                     | `$.set(q, expr)`                    |
@@ -178,11 +186,23 @@ pub fn transform_private_class_assign_ast(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
+    in_constructor: bool,
 ) -> Option<String> {
-    let spliced =
-        || transform_private_class_assign_spliced(source, state_qualified, other_qualified);
+    let spliced = || {
+        transform_private_class_assign_spliced(
+            source,
+            state_qualified,
+            other_qualified,
+            in_constructor,
+        )
+    };
     ast_rewrite::dual_run::resolve("private_class_assign_ast:inplace", source, spliced, || {
-        transform_private_class_assign_in_place(source, state_qualified, other_qualified)
+        transform_private_class_assign_in_place(
+            source,
+            state_qualified,
+            other_qualified,
+            in_constructor,
+        )
     })
 }
 
@@ -190,6 +210,7 @@ fn transform_private_class_assign_spliced(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
+    in_constructor: bool,
 ) -> Option<String> {
     if state_qualified.is_empty() && other_qualified.is_empty() {
         return None;
@@ -203,7 +224,7 @@ fn transform_private_class_assign_spliced(
     }
 
     ast_rewrite::fixed_point(source, |src| {
-        single_pass(src, state_qualified, other_qualified)
+        single_pass(src, state_qualified, other_qualified, in_constructor)
     })
 }
 
@@ -211,6 +232,7 @@ fn single_pass(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
+    in_constructor: bool,
 ) -> Option<String> {
     MODULE_PRIVATE_CLASS_ASSIGN_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
@@ -287,6 +309,8 @@ fn single_pass(
             source: parse_str,
             state_qualified,
             other_qualified,
+            in_constructor,
+            function_depth: 0,
             var_proxy: &binding_info.var_proxy,
             reassigned: &binding_info.reassigned,
             replacements: Vec::new(),
@@ -314,6 +338,8 @@ struct PrivateClassAssignCollector<'a> {
     source: &'a str,
     state_qualified: &'a [String],
     other_qualified: &'a [String],
+    in_constructor: bool,
+    function_depth: u32,
     var_proxy: &'a HashMap<String, bool>,
     reassigned: &'a HashSet<String>,
     replacements: Vec<Edit>,
@@ -339,6 +365,22 @@ enum Compound {
     Logic(&'static str),
 }
 
+/// The visited left-hand side of a compound assignment, per upstream
+/// `MemberExpression.js`.
+fn field_read_text(qualified: &str, in_constructor: bool) -> String {
+    if in_constructor {
+        format!("{}.v", qualified)
+    } else {
+        format!("$.get({})", qualified)
+    }
+}
+
+/// Upstream `shared/function.js` clears `in_constructor` on entry to any nested
+/// function, so only the constructor's own statements read through `.v`.
+fn reads_dot_v(in_constructor: bool, function_depth: u32) -> bool {
+    in_constructor && function_depth == 0
+}
+
 fn classify(text: &str, state_qualified: &[String], other_qualified: &[String]) -> Option<Match> {
     if state_qualified.iter().any(|q| q.as_str() == text) {
         Some(Match::State)
@@ -350,6 +392,18 @@ fn classify(text: &str, state_qualified: &[String], other_qualified: &[String]) 
 }
 
 impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
+    fn visit_function(&mut self, func: &Function<'ast>, flags: oxc_syntax::scope::ScopeFlags) {
+        self.function_depth += 1;
+        walk::walk_function(self, func, flags);
+        self.function_depth -= 1;
+    }
+
+    fn visit_arrow_function_expression(&mut self, expr: &ArrowFunctionExpression<'ast>) {
+        self.function_depth += 1;
+        walk::walk_arrow_function_expression(self, expr);
+        self.function_depth -= 1;
+    }
+
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -408,21 +462,22 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
                 Compound::Arith(_) => false,
             };
 
+        let read = field_read_text(
+            qualified,
+            reads_dot_v(self.in_constructor, self.function_depth),
+        );
         let rewrite = match compound {
             Compound::None if needs_proxy => format!("$.set({}, {}, true)", qualified, rhs_text),
             Compound::None => format!("$.set({}, {})", qualified, rhs_text),
-            Compound::Arith(op) => format!(
-                "$.set({}, $.get({}) {} {})",
-                qualified, qualified, op, rhs_text
-            ),
-            Compound::Logic(op) if needs_proxy => format!(
-                "$.set({}, $.get({}) {} {}, true)",
-                qualified, qualified, op, rhs_text
-            ),
-            Compound::Logic(op) => format!(
-                "$.set({}, $.get({}) {} {})",
-                qualified, qualified, op, rhs_text
-            ),
+            Compound::Arith(op) => {
+                format!("$.set({}, {} {} {})", qualified, read, op, rhs_text)
+            }
+            Compound::Logic(op) if needs_proxy => {
+                format!("$.set({}, {} {} {}, true)", qualified, read, op, rhs_text)
+            }
+            Compound::Logic(op) => {
+                format!("$.set({}, {} {} {})", qualified, read, op, rhs_text)
+            }
         };
 
         self.replacements
@@ -461,52 +516,54 @@ mod tests {
         names.iter().map(|s| s.to_string()).collect()
     }
 
+    /// A method body: compound operands read through `$.get`.
+    fn method_body(
+        source: &str,
+        state_qualified: &[String],
+        other_qualified: &[String],
+    ) -> Option<String> {
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, false)
+    }
+
+    /// A constructor body: compound operands read through `.v`.
+    fn ctor_body(
+        source: &str,
+        state_qualified: &[String],
+        other_qualified: &[String],
+    ) -> Option<String> {
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, true)
+    }
+
     #[test]
     fn state_assign_with_proxy_object_literal() {
         // `{ x: 1 }` needs proxy.
-        let out = transform_private_class_assign_ast(
-            "this.#data = { x: 1 };",
-            &ssv(&["this.#data"]),
-            &[],
-        )
-        .unwrap();
+        let out = method_body("this.#data = { x: 1 };", &ssv(&["this.#data"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#data, { x: 1 }, true);");
     }
 
     #[test]
     fn state_assign_without_proxy_primitive() {
         // `5` is primitive — no proxy needed.
-        let out =
-            transform_private_class_assign_ast("this.#count = 5;", &ssv(&["this.#count"]), &[])
-                .unwrap();
+        let out = method_body("this.#count = 5;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#count, 5);");
     }
 
     #[test]
     fn state_assign_with_proxy_array_literal() {
-        let out = transform_private_class_assign_ast(
-            "this.#list = [1, 2, 3];",
-            &ssv(&["this.#list"]),
-            &[],
-        )
-        .unwrap();
+        let out = method_body("this.#list = [1, 2, 3];", &ssv(&["this.#list"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#list, [1, 2, 3], true);");
     }
 
     #[test]
     fn state_assign_with_proxy_new_expression() {
-        let out =
-            transform_private_class_assign_ast("this.#obj = new Foo();", &ssv(&["this.#obj"]), &[])
-                .unwrap();
+        let out = method_body("this.#obj = new Foo();", &ssv(&["this.#obj"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#obj, new Foo(), true);");
     }
 
     #[test]
     fn derived_assign_no_proxy_even_with_object() {
         // $derived doesn't get proxy logic.
-        let out =
-            transform_private_class_assign_ast("this.#d = { x: 1 };", &[], &ssv(&["this.#d"]))
-                .unwrap();
+        let out = method_body("this.#d = { x: 1 };", &[], &ssv(&["this.#d"])).unwrap();
         assert_eq!(out, "$.set(this.#d, { x: 1 });");
     }
 
@@ -515,12 +572,7 @@ mod tests {
         // Compound arithmetic (`+=`) is a coercive operator, so upstream's
         // `is_non_coercive_operator(operator)` gate makes `needs_proxy` false
         // regardless of the RHS shape — no `, true` even for an object literal.
-        let out = transform_private_class_assign_ast(
-            "this.#data += { x: 1 };",
-            &ssv(&["this.#data"]),
-            &[],
-        )
-        .unwrap();
+        let out = method_body("this.#data += { x: 1 };", &ssv(&["this.#data"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#data, $.get(this.#data) + { x: 1 });");
     }
 
@@ -528,7 +580,7 @@ mod tests {
     fn state_assign_identifier_traces_to_nonproxyable_initial() {
         // `fps` is bound to a BinaryExpression initializer, which is not
         // proxyable, so the assignment to a `$state` field must not proxy.
-        let out = transform_private_class_assign_ast(
+        let out = method_body(
             "const fps = 1000 / delta;\nthis.#fps = fps;",
             &ssv(&["this.#fps"]),
             &[],
@@ -539,75 +591,61 @@ mod tests {
 
     #[test]
     fn compound_state_without_proxy_primitive() {
-        let out =
-            transform_private_class_assign_ast("this.#count += 3;", &ssv(&["this.#count"]), &[])
-                .unwrap();
+        let out = method_body("this.#count += 3;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#count, $.get(this.#count) + 3);");
     }
 
     #[test]
     fn post_increment_state() {
-        let out = transform_private_class_assign_ast("this.#count++;", &ssv(&["this.#count"]), &[])
-            .unwrap();
+        let out = method_body("this.#count++;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.update(this.#count);");
     }
 
     #[test]
     fn post_decrement_state() {
-        let out = transform_private_class_assign_ast("this.#count--;", &ssv(&["this.#count"]), &[])
-            .unwrap();
+        let out = method_body("this.#count--;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.update(this.#count, -1);");
     }
 
     #[test]
     fn pre_increment_state() {
-        let out = transform_private_class_assign_ast("++this.#count;", &ssv(&["this.#count"]), &[])
-            .unwrap();
+        let out = method_body("++this.#count;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.update_pre(this.#count);");
     }
 
     #[test]
     fn pre_decrement_state() {
-        let out = transform_private_class_assign_ast("--this.#count;", &ssv(&["this.#count"]), &[])
-            .unwrap();
+        let out = method_body("--this.#count;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.update_pre(this.#count, -1);");
     }
 
     #[test]
     fn instance_prefix_state() {
-        let out = transform_private_class_assign_ast(
-            "instance.#count = 5;",
-            &ssv(&["instance.#count"]),
-            &[],
-        )
-        .unwrap();
+        let out = method_body("instance.#count = 5;", &ssv(&["instance.#count"]), &[]).unwrap();
         assert_eq!(out, "$.set(instance.#count, 5);");
     }
 
     #[test]
     fn unknown_field_left_alone() {
-        assert!(
-            transform_private_class_assign_ast("this.#other = 5;", &ssv(&["this.#count"]), &[])
-                .is_none()
-        );
+        assert!(method_body("this.#other = 5;", &ssv(&["this.#count"]), &[]).is_none());
     }
 
     #[test]
     fn does_not_rewrite_inside_string_literal() {
         let src = r#"let s = "this.#count = 5";"#;
-        assert!(transform_private_class_assign_ast(src, &ssv(&["this.#count"]), &[]).is_none());
+        assert!(method_body(src, &ssv(&["this.#count"]), &[]).is_none());
     }
 
     #[test]
     fn rewrites_inside_template_expression() {
         let src = "let s = `${this.#count = 5}`;";
-        let out = transform_private_class_assign_ast(src, &ssv(&["this.#count"]), &[]).unwrap();
+        let out = method_body(src, &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "let s = `${$.set(this.#count, 5)}`;");
     }
 
     #[test]
     fn multiple_fields_in_one_source() {
-        let out = transform_private_class_assign_ast(
+        let out = method_body(
             "this.#a = 1; this.#b++;",
             &ssv(&["this.#a"]),
             &ssv(&["this.#b"]),
@@ -620,18 +658,13 @@ mod tests {
     fn already_wrapped_no_op() {
         // After wrap, the AssignmentExpression is gone.
         let src = "$.set(this.#count, 5);";
-        assert!(transform_private_class_assign_ast(src, &ssv(&["this.#count"]), &[]).is_none());
+        assert!(method_body(src, &ssv(&["this.#count"]), &[]).is_none());
     }
 
     #[test]
     fn arrow_function_rhs_no_proxy() {
         // Arrow function isn't proxy-needing.
-        let out = transform_private_class_assign_ast(
-            "this.#cb = (x) => x + 1;",
-            &ssv(&["this.#cb"]),
-            &[],
-        )
-        .unwrap();
+        let out = method_body("this.#cb = (x) => x + 1;", &ssv(&["this.#cb"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#cb, (x) => x + 1);");
     }
 
@@ -639,30 +672,22 @@ mod tests {
     fn member_chain_lhs_left_alone() {
         // `this.#count.foo = 5` — LHS is StaticMember, not bare
         // PrivateField. Different code path.
-        assert!(
-            transform_private_class_assign_ast("this.#count.foo = 5;", &ssv(&["this.#count"]), &[])
-                .is_none()
-        );
+        assert!(method_body("this.#count.foo = 5;", &ssv(&["this.#count"]), &[]).is_none());
     }
 
     #[test]
     fn empty_qualified_no_op() {
-        assert!(transform_private_class_assign_ast("this.#count = 5;", &[], &[]).is_none());
+        assert!(method_body("this.#count = 5;", &[], &[]).is_none());
     }
 
     #[test]
     fn parse_error_returns_none() {
-        assert!(
-            transform_private_class_assign_ast("this.#count = (", &ssv(&["this.#count"]), &[])
-                .is_none()
-        );
+        assert!(method_body("this.#count = (", &ssv(&["this.#count"]), &[]).is_none());
     }
 
     #[test]
     fn no_op_without_qualified_in_source() {
-        assert!(
-            transform_private_class_assign_ast("let x = 1;", &ssv(&["this.#count"]), &[]).is_none()
-        );
+        assert!(method_body("let x = 1;", &ssv(&["this.#count"]), &[]).is_none());
     }
 
     #[test]
@@ -671,12 +696,7 @@ mod tests {
         // so a `$state` field always proxies (`, true`). Regression test for
         // issue #1438 (`??=` was previously left un-rewritten, producing the
         // invalid `$.get(this.#promise) ??= run()`).
-        let out = transform_private_class_assign_ast(
-            "this.#promise ??= run();",
-            &ssv(&["this.#promise"]),
-            &[],
-        )
-        .unwrap();
+        let out = method_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
         assert_eq!(
             out,
             "$.set(this.#promise, $.get(this.#promise) ?? run(), true);"
@@ -685,48 +705,74 @@ mod tests {
 
     #[test]
     fn logical_or_assign_state_proxies() {
-        let out =
-            transform_private_class_assign_ast("this.#x ||= y;", &ssv(&["this.#x"]), &[]).unwrap();
+        let out = method_body("this.#x ||= y;", &ssv(&["this.#x"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#x, $.get(this.#x) || y, true);");
     }
 
     #[test]
     fn logical_and_assign_state_proxies() {
-        let out =
-            transform_private_class_assign_ast("this.#x &&= y;", &ssv(&["this.#x"]), &[]).unwrap();
+        let out = method_body("this.#x &&= y;", &ssv(&["this.#x"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#x, $.get(this.#x) && y, true);");
     }
 
     #[test]
     fn logical_assign_other_no_proxy() {
         // `$derived`/etc. (other_qualified) never proxy — no `, true`.
-        let out =
-            transform_private_class_assign_ast("this.#d ??= y;", &[], &ssv(&["this.#d"])).unwrap();
+        let out = method_body("this.#d ??= y;", &[], &ssv(&["this.#d"])).unwrap();
         assert_eq!(out, "$.set(this.#d, $.get(this.#d) ?? y);");
     }
 
     #[test]
     fn bitwise_compound_state_no_proxy() {
         // Bitwise compound (`&=`) is coercive → no proxy, binary expansion.
-        let out =
-            transform_private_class_assign_ast("this.#count &= 3;", &ssv(&["this.#count"]), &[])
-                .unwrap();
+        let out = method_body("this.#count &= 3;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#count, $.get(this.#count) & 3);");
     }
 
     #[test]
     fn shift_compound_state_no_proxy() {
-        let out =
-            transform_private_class_assign_ast("this.#count <<= 2;", &ssv(&["this.#count"]), &[])
-                .unwrap();
+        let out = method_body("this.#count <<= 2;", &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#count, $.get(this.#count) << 2);");
+    }
+
+    #[test]
+    fn constructor_compound_reads_dot_v() {
+        let out = ctor_body("this.#count += 3;", &ssv(&["this.#count"]), &[]).unwrap();
+        assert_eq!(out, "$.set(this.#count, this.#count.v + 3);");
+    }
+
+    #[test]
+    fn constructor_logical_reads_dot_v() {
+        let out = ctor_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
+        assert_eq!(out, "$.set(this.#promise, this.#promise.v ?? run(), true);");
+    }
+
+    #[test]
+    fn constructor_nested_function_reads_through_get() {
+        let out = ctor_body(
+            "run(() => { this.#count += 3; });",
+            &ssv(&["this.#count"]),
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            out,
+            "run(() => {\n\t$.set(this.#count, $.get(this.#count) + 3);\n});"
+        );
+    }
+
+    #[test]
+    fn constructor_plain_assign_is_unaffected() {
+        // `=` never reads the field, so the constructor form matches the method one.
+        let out = ctor_body("this.#count = 5;", &ssv(&["this.#count"]), &[]).unwrap();
+        assert_eq!(out, "$.set(this.#count, 5);");
     }
 
     #[test]
     fn return_at_top_level_works() {
         // Class method bodies often have bare return
         let src = "return this.#count = 5;";
-        let out = transform_private_class_assign_ast(src, &ssv(&["this.#count"]), &[]).unwrap();
+        let out = method_body(src, &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "return $.set(this.#count, 5);");
     }
 
@@ -736,7 +782,7 @@ mod tests {
         // The source is NOT valid as a standalone module (it's a method definition),
         // so Fix #2 (class wrapper) must kick in.
         let src = "remove(item) {\n  this.#files = this.#files.filter((f) => {\n    if (f === item) return false;\n    return true;\n  });\n}";
-        let out = transform_private_class_assign_ast(src, &ssv(&["this.#files"]), &[]).unwrap();
+        let out = method_body(src, &ssv(&["this.#files"]), &[]).unwrap();
         // Asserted on the whitespace-free form: the shape is what matters here,
         // and the printer is free to break the call across lines.
         let flat: String = out.chars().filter(|c| !c.is_whitespace()).collect();
@@ -769,7 +815,7 @@ mod tests {
             "}\n",
             "add(item) {\n  this.#files = this.#files.concat(item);\n}\n",
         );
-        let out = transform_private_class_assign_ast(src, &ssv(&["this.#files"]), &[]).unwrap();
+        let out = method_body(src, &ssv(&["this.#files"]), &[]).unwrap();
         assert!(
             out.contains("$.set(this.#files,"),
             "expected $.set rewrite, got:\n{}",
@@ -827,6 +873,7 @@ pub(crate) fn transform_private_class_assign_in_place(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
+    in_constructor: bool,
 ) -> Option<String> {
     if state_qualified.is_empty() && other_qualified.is_empty() {
         return None;
@@ -856,6 +903,8 @@ pub(crate) fn transform_private_class_assign_in_place(
                 source: parse_str,
                 state_qualified,
                 other_qualified,
+                in_constructor,
+                function_depth: 0,
                 var_proxy: binding_info.var_proxy,
                 reassigned: binding_info.reassigned,
                 changed: false,
@@ -872,6 +921,8 @@ struct PrivateClassAssignRewriter<'a, 'b> {
     source: &'b str,
     state_qualified: &'b [String],
     other_qualified: &'b [String],
+    in_constructor: bool,
+    function_depth: u32,
     var_proxy: HashMap<String, bool>,
     reassigned: HashSet<String>,
     changed: bool,
@@ -969,14 +1020,28 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
         &self,
         pf: &oxc_allocator::Box<'a, PrivateFieldExpression<'a>>,
     ) -> Expression<'a> {
-        self.b.call(
-            "$.get",
-            vec![Expression::PrivateFieldExpression(pf.clone_in(self.alloc))],
-        )
+        let field = Expression::PrivateFieldExpression(pf.clone_in(self.alloc));
+        if reads_dot_v(self.in_constructor, self.function_depth) {
+            self.b.member(field, "v")
+        } else {
+            self.b.call("$.get", vec![field])
+        }
     }
 }
 
 impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for PrivateClassAssignRewriter<'a, 'b> {
+    fn visit_function(&mut self, func: &mut Function<'a>, flags: oxc_syntax::scope::ScopeFlags) {
+        self.function_depth += 1;
+        oxc_ast_visit::walk_mut::walk_function(self, func, flags);
+        self.function_depth -= 1;
+    }
+
+    fn visit_arrow_function_expression(&mut self, expr: &mut ArrowFunctionExpression<'a>) {
+        self.function_depth += 1;
+        oxc_ast_visit::walk_mut::walk_arrow_function_expression(self, expr);
+        self.function_depth -= 1;
+    }
+
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
 
@@ -996,13 +1061,36 @@ mod in_place_tests {
         names.iter().map(|s| s.to_string()).collect()
     }
 
+    fn method_body(
+        source: &str,
+        state_qualified: &[String],
+        other_qualified: &[String],
+    ) -> Option<String> {
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, false)
+    }
+
+    fn method_body_in_place(
+        source: &str,
+        state_qualified: &[String],
+        other_qualified: &[String],
+    ) -> Option<String> {
+        transform_private_class_assign_in_place(source, state_qualified, other_qualified, false)
+    }
+
+    fn ctor_body_in_place(
+        source: &str,
+        state_qualified: &[String],
+        other_qualified: &[String],
+    ) -> Option<String> {
+        transform_private_class_assign_in_place(source, state_qualified, other_qualified, true)
+    }
+
     #[test]
     fn rewrites_a_bare_class_method_body() {
         // A method definition is not a module, so this only reaches the rewriter
         // through the synthetic-`class` wrapper — and must come back without it.
         let src = "remove(item) {\n  this.#files = this.#files.filter((f) => f !== item);\n}";
-        let out =
-            transform_private_class_assign_in_place(src, &ssv(&["this.#files"]), &[]).unwrap();
+        let out = method_body_in_place(src, &ssv(&["this.#files"]), &[]).unwrap();
         assert!(
             out.contains("$.set(this.#files,"),
             "expected $.set rewrite, got: {out}"
@@ -1015,14 +1103,20 @@ mod in_place_tests {
     }
 
     #[test]
+    fn constructor_compound_reads_dot_v_in_place() {
+        let out = ctor_body_in_place("this.#count += 3;", &ssv(&["this.#count"]), &[]).unwrap();
+        assert_eq!(out.trim(), "$.set(this.#count, this.#count.v + 3);");
+    }
+
+    #[test]
     fn agrees_with_the_spliced_path_on_a_class_method_body() {
         let src = concat!(
             "get files() {\n  return this.#files;\n}\n",
             "add(item) {\n  this.#files = this.#files.concat(item);\n}\n",
         );
         let state = ssv(&["this.#files"]);
-        let spliced = transform_private_class_assign_ast(src, &state, &[]).unwrap();
-        let in_place = transform_private_class_assign_in_place(src, &state, &[]).unwrap();
+        let spliced = method_body(src, &state, &[]).unwrap();
+        let in_place = method_body_in_place(src, &state, &[]).unwrap();
         // Reprinting is not byte-preserving — the in-place path re-emits the whole
         // fragment — so the two paths are compared the way the dual-run gate
         // compares them: through the printer.
