@@ -96,6 +96,9 @@ const PER_FILE = numArg('per-file', 1);
 const MAX_PRINT = numArg('max-print', 20);
 const JOBS = numArg('jobs', Math.max(2, Math.min(8, os.cpus().length - 2)));
 const TARGETS = selectTargets(args);
+// Pinnable like the sibling fmt gates, so a baseline can be re-derived against a
+// chosen normalizer version instead of whatever `npx` happens to resolve.
+const OXFMT = process.env.OXFMT_BIN ? [process.env.OXFMT_BIN] : ['npx', 'oxfmt'];
 
 // ---- seed selection (identical in parent and worker) ------------------------
 
@@ -165,7 +168,7 @@ if (WORKER) {
 		return id + tag;
 	};
 	const findings = [];
-	const tally = { match: 0, 'error-parity': 0, 'seed-skipped': 0, 'seed-error': 0, divergent: 0, mutants: 0, comparisons: 0 };
+	const tally = { match: 0, 'error-parity': 0, 'seed-skipped': 0, 'seed-error': 0, divergent: 0, mutants: 0, comparisons: 0, byKind: {} };
 
 	function compileOne(compiler, mutant, target) {
 		const options = { generate: target.generate, dev: target.dev, filename: mutant.id };
@@ -198,8 +201,13 @@ if (WORKER) {
 				const slot = slots[h % slots.length];
 				const kindName = KIND_NAMES[(h >>> 8) % KIND_NAMES.length];
 				mutants.push({
-					id: tagId(entry.id, `__L${slot.line}__${kindName}`),
+					// `n` and `kindName` derive from the seed id alone; the slot's LINE
+					// does not, so keying on it would make an edit anywhere in a seed
+					// file rewrite every one of its entries as both a regression and a
+					// staleness for the same unchanged divergence.
+					id: tagId(entry.id, `__m${n}__${kindName}`),
 					kind: entry.kind,
+					kindName,
 					source: source.slice(0, slot.offset) + slot.indent + COMMENT_KINDS[kindName] + '\n' + source.slice(slot.offset),
 				});
 			}
@@ -215,6 +223,7 @@ if (WORKER) {
 		}
 		tally.mutants += mutants.length;
 		for (const mutant of mutants) {
+			tally.byKind[mutant.kindName] = (tally.byKind[mutant.kindName] ?? 0) + 1;
 			for (const target of TARGETS) {
 				tally.comparisons += 1;
 				const expected = compileOne(svelte, mutant, target);
@@ -314,6 +323,7 @@ const failures = [...crashes.map((c) => ({ ...c, target: 'all' }))];
 let divergent = 0;
 let mutantsGenerated = 0;
 let comparisons = 0;
+const mutantsByKind = {};
 // A worker that dies without writing its shard would otherwise remove its whole
 // range from every count below, and the run would still report success.
 const shardFiles = fs.existsSync(SHARDS) ? fs.readdirSync(SHARDS) : [];
@@ -330,6 +340,7 @@ for (const file of shardFiles) {
 	divergent += shard.tally.divergent;
 	mutantsGenerated += shard.tally.mutants;
 	comparisons += shard.tally.comparisons;
+	for (const [k, v] of Object.entries(shard.tally.byKind)) mutantsByKind[k] = (mutantsByKind[k] ?? 0) + v;
 	for (const f of shard.findings) {
 		counts['error-mismatch'] += 1;
 		failures.push(f);
@@ -371,7 +382,7 @@ if (!NO_FMT && fs.existsSync(TREE)) {
 	// verdicts are only comparable across runs that used the same version.
 	let oxfmtVersion;
 	try {
-		oxfmtVersion = execFileSync('npx', ['oxfmt', '--version'], { encoding: 'utf8' }).trim().replace(/^Version:\s*/, '');
+		oxfmtVersion = execFileSync(OXFMT[0], [...OXFMT.slice(1), '--version'], { encoding: 'utf8' }).trim().replace(/^Version:\s*/, '');
 	} catch (e) {
 		console.error(`\n[mutate] cannot run oxfmt: ${String(e?.message ?? e).split('\n')[0]}`);
 		console.error('  Normalization defines the ratchet, so a run without it is not comparable. Use --no-fmt to opt out.');
@@ -379,7 +390,7 @@ if (!NO_FMT && fs.existsSync(TREE)) {
 	}
 	console.log(`[mutate] oxfmt ${oxfmtVersion}…`);
 	try {
-		execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {
+		execFileSync(OXFMT[0], [...OXFMT.slice(1), '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {
 			cwd: TREE,
 			stdio: ['ignore', 'ignore', 'pipe'],
 			maxBuffer: 1024 * 1024 * 64,
@@ -478,6 +489,32 @@ console.log('\n[mutate] results:');
 for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(17)} ${v}`);
 
 const ids = new Set(failures.map((f) => `${f.id} [${f.verdict}] (${f.target})`));
+
+// The delimiter-vs-plain rate is this gate's headline claim, so it comes out of
+// the gate rather than being recomputed by hand into the paired .md.
+if (Object.keys(mutantsByKind).length) {
+	const hits = {};
+	for (const f of failures) {
+		if (f.verdict !== 'code-mismatch') continue;
+		const m = /__m\d+__([a-z0-9-]+)\.svelte(\.[jt]s)?$/.exec(f.id);
+		if (m) hits[m[1]] = (hits[m[1]] ?? 0) + 1;
+	}
+	const rate = (k) => (1000 * (hits[k] ?? 0)) / mutantsByKind[k];
+	console.log('\n[mutate] code findings per 1,000 mutants, by comment kind:');
+	for (const k of Object.keys(mutantsByKind).sort((a, b) => rate(b) - rate(a))) {
+		console.log(`  ${k.padEnd(18)} ${String(hits[k] ?? 0).padStart(5)} / ${String(mutantsByKind[k]).padStart(5)}  ${rate(k).toFixed(1)}`);
+	}
+	const num = (ks) => ks.reduce((a, k) => a + (hits[k] ?? 0), 0);
+	const den = (ks) => ks.reduce((a, k) => a + mutantsByKind[k], 0);
+	const all = Object.keys(mutantsByKind);
+	const delim = all.filter((k) => /-with-|ignore/.test(k));
+	const plain = all.filter((k) => !/-with-|ignore/.test(k));
+	if (delim.length && plain.length && num(plain)) {
+		const d = (1000 * num(delim)) / den(delim);
+		const p = (1000 * num(plain)) / den(plain);
+		console.log(`  delimiter-carrying ${d.toFixed(1)} vs plain ${p.toFixed(1)} per 1,000 — ratio ${(d / p).toFixed(2)}x`);
+	}
+}
 
 if (UPDATE_BASELINE) {
 	if (!FULL) {
