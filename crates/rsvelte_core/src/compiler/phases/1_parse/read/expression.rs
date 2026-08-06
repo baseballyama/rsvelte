@@ -5773,21 +5773,14 @@ fn create_arrow_function<'a>(
     }
 
     // Convert body - check if this is an expression body or block body
-    let body_node = if arrow.expression {
-        if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-            arrow.body.statements.first()
-        {
-            expr_to_node(convert_expression(
-                arena,
-                &expr_stmt.expression,
-                offset,
-                line_offsets,
-            ))
-        } else {
-            convert_arrow_body(arena, &arrow.body, offset, line_offsets)
-        }
-    } else {
-        convert_arrow_body(arena, &arrow.body, offset, line_offsets)
+    let body_node = match arrow.body.as_function_body() {
+        Some(block) => convert_arrow_body(arena, block, offset, line_offsets),
+        None => expr_to_node(convert_expression(
+            arena,
+            arrow.body.as_expression().expect("arrow body"),
+            offset,
+            line_offsets,
+        )),
     };
 
     Expression::from_node(JsNode::ArrowFunctionExpression {
@@ -5797,7 +5790,7 @@ fn create_arrow_function<'a>(
         id: None,
         params: arena.alloc_js_children(params),
         body: arena.alloc_js_node(body_node),
-        expression: arrow.expression,
+        expression: arrow.body.is_expression(),
         generator: false,
         r#async: arrow.r#async,
         type_parameters: arrow.type_parameters.as_ref().map(|tp| {
@@ -7211,97 +7204,41 @@ fn convert_statement_for_program(
         oxc_ast::ast::Statement::FunctionDeclaration(func_decl) => {
             convert_function_declaration_as_node(arena, func_decl, offset, line_offsets)
         }
+        oxc_ast::ast::Statement::ExportDeclaration(export_decl) => {
+            Some(convert_export_named_as_node(
+                arena,
+                export_decl.span,
+                Some(&export_decl.declaration),
+                &[],
+                None,
+                oxc_ast::ast::ImportOrExportKind::Value,
+                offset,
+                line_offsets,
+            ))
+        }
         oxc_ast::ast::Statement::ExportNamedDeclaration(export_decl) => {
-            let start = offset + export_decl.span.start as usize;
-            let end = offset + export_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-
-            // Handle declaration if present (e.g., export let x;)
-            let declaration = export_decl.declaration.as_ref().map(|decl| {
-                arena.alloc_js_node(convert_declaration_for_program_as_node(
-                    arena,
-                    decl,
-                    offset,
-                    line_offsets,
-                ))
-            });
-
-            // Handle specifiers
-            let specifiers: Vec<JsNode> = export_decl
-                .specifiers
-                .iter()
-                .map(|spec| {
-                    let spec_start = offset + spec.span.start as usize;
-                    let spec_end = offset + spec.span.end as usize;
-                    let spec_loc = create_typed_loc(spec_start, spec_end, line_offsets);
-
-                    let local_start = offset + spec.local.span().start as usize;
-                    let local_end = offset + spec.local.span().end as usize;
-                    let local_name = spec.local.name().as_str();
-                    let local = expr_to_node(create_identifier(
-                        local_name,
-                        local_start,
-                        local_end,
-                        line_offsets,
-                    ));
-
-                    let exported_start = offset + spec.exported.span().start as usize;
-                    let exported_end = offset + spec.exported.span().end as usize;
-                    let exported_name = spec.exported.name().as_str();
-                    let exported = expr_to_node(create_identifier(
-                        exported_name,
-                        exported_start,
-                        exported_end,
-                        line_offsets,
-                    ));
-
-                    let export_kind = if spec.export_kind == oxc_ast::ast::ImportOrExportKind::Type
-                    {
-                        Some(CompactString::from("type"))
-                    } else {
-                        None
-                    };
-
-                    JsNode::ExportSpecifier {
-                        start: spec_start as u32,
-                        end: spec_end as u32,
-                        loc: spec_loc,
-                        local: arena.alloc_js_node(local),
-                        exported: arena.alloc_js_node(exported),
-                        export_kind,
-                    }
-                })
-                .collect();
-
-            let export_kind = if export_decl.export_kind == oxc_ast::ast::ImportOrExportKind::Type {
-                Some(CompactString::from("type"))
-            } else {
-                None
-            };
-
-            let source = export_decl.source.as_ref().map(|source| {
-                let source_start = offset + source.span.start as usize;
-                let source_end = offset + source.span.end as usize;
-                let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-                arena.alloc_js_node(expr_to_node(create_string_literal(
-                    &source.value,
-                    raw,
-                    source_start,
-                    source_end,
-                    line_offsets,
-                )))
-            });
-
-            Some(JsNode::ExportNamedDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-                declaration,
-                specifiers: arena.alloc_js_children(specifiers),
-                source,
-                export_kind,
-                attributes: IdRange::empty(),
-            })
+            Some(convert_export_named_as_node(
+                arena,
+                export_decl.span,
+                None,
+                &export_decl.specifiers,
+                None,
+                export_decl.export_kind,
+                offset,
+                line_offsets,
+            ))
+        }
+        oxc_ast::ast::Statement::ExportFromDeclaration(export_decl) => {
+            Some(convert_export_named_as_node(
+                arena,
+                export_decl.span,
+                None,
+                &export_decl.specifiers,
+                Some(&export_decl.source),
+                export_decl.export_kind,
+                offset,
+                line_offsets,
+            ))
         }
         oxc_ast::ast::Statement::ExportDefaultDeclaration(export_decl) => {
             let start = offset + export_decl.span.start as usize;
@@ -8926,18 +8863,16 @@ fn convert_expression_for_program<'a>(
             // For expression-body arrows (`(x) => x + 1`), emit the inner expression
             // directly as the body (without a BlockStatement wrapper). Otherwise emit
             // the full BlockStatement body.
-            let body_node = if arrow.expression
-                && let Some(oxc_ast::ast::Statement::ExpressionStatement(es)) =
-                    arrow.body.statements.first()
-            {
-                expr_to_node(convert_expression_for_program(
+            let body_node = match arrow.body.as_function_body() {
+                Some(block) => {
+                    convert_function_body_for_program_as_node(arena, block, offset, line_offsets)
+                }
+                None => expr_to_node(convert_expression_for_program(
                     arena,
-                    &es.expression,
+                    arrow.body.as_expression().expect("arrow body"),
                     offset,
                     line_offsets,
-                ))
-            } else {
-                convert_function_body_for_program_as_node(arena, &arrow.body, offset, line_offsets)
+                )),
             };
 
             Expression::from_node(JsNode::ArrowFunctionExpression {
@@ -8945,7 +8880,7 @@ fn convert_expression_for_program<'a>(
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 id: None,
-                expression: arrow.expression,
+                expression: arrow.body.is_expression(),
                 generator: false,
                 r#async: arrow.r#async,
                 params: arena.alloc_js_children(params),
@@ -11815,7 +11750,7 @@ fn create_arrow_function_with_adjustment(
     obj.set_field("type", Value::String("ArrowFunctionExpression".to_string()));
     push_binding_span_fields(&mut obj, start, end, line_offsets);
     obj.set_field("id", Value::Null);
-    obj.set_field("expression", Value::Bool(arrow.expression));
+    obj.set_field("expression", Value::Bool(arrow.body.is_expression()));
     obj.set_field("generator", Value::Bool(false));
     obj.set_field("async", Value::Bool(arrow.r#async));
 
@@ -11854,14 +11789,41 @@ fn create_arrow_function_with_adjustment(
     }
     obj.set_field("params", Value::Array(params));
 
-    // Convert body - arrow.expression indicates if body is expression or block statement
-    let body = convert_function_body_with_adjustment(
-        arena,
-        &arrow.body,
-        doc_offset,
-        prefix_len,
-        line_offsets,
-    );
+    // A concise body keeps the historical `BlockStatement`/`ExpressionStatement`
+    // wrapper oxc used to synthesise, so downstream span arithmetic is unchanged.
+    let body = match arrow.body.as_function_body() {
+        Some(block) => convert_function_body_with_adjustment(
+            arena,
+            block,
+            doc_offset,
+            prefix_len,
+            line_offsets,
+        ),
+        None => {
+            let expr = arrow.body.as_expression().expect("arrow body");
+            let span = expr.span();
+            let expr_start = doc_offset + span.start as usize - prefix_len;
+            let expr_end = doc_offset + span.end as usize - prefix_len;
+            let mut stmt = Map::new();
+            stmt.set_field("type", Value::String("ExpressionStatement".to_string()));
+            push_binding_span_fields(&mut stmt, expr_start, expr_end, line_offsets);
+            stmt.set_field(
+                "expression",
+                convert_expression_with_adjustment(
+                    arena,
+                    expr,
+                    doc_offset,
+                    prefix_len,
+                    line_offsets,
+                ),
+            );
+            let mut block = Map::new();
+            block.set_field("type", Value::String("BlockStatement".to_string()));
+            push_binding_span_fields(&mut block, expr_start, expr_end, line_offsets);
+            block.set_field("body", Value::Array(vec![Value::Object(stmt)]));
+            Value::Object(block)
+        }
+    };
     obj.set_field("body", body);
 
     Value::Object(obj)
@@ -11948,6 +11910,106 @@ fn convert_statement_with_adjustment(
         }
         _ => None,
     }
+}
+
+/// Rebuild the ESTree `ExportNamedDeclaration` shape from the three oxc
+/// statements it was split into (`export <decl>`, `export {..}`, `export {..} from`).
+#[allow(clippy::too_many_arguments)]
+fn convert_export_named_as_node(
+    arena: &ParseArena,
+    span: oxc_span::Span,
+    decl: Option<&oxc_ast::ast::Declaration>,
+    spec_list: &[oxc_ast::ast::ExportSpecifier],
+    src: Option<&oxc_ast::ast::StringLiteral>,
+    kind: oxc_ast::ast::ImportOrExportKind,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    let start = offset + span.start as usize;
+    let end = offset + span.end as usize;
+    let loc = create_typed_loc(start, end, line_offsets);
+    let declaration = decl.map(|decl| {
+        arena.alloc_js_node(convert_declaration_for_program_as_node(
+            arena,
+            decl,
+            offset,
+            line_offsets,
+        ))
+    });
+        let specifiers: Vec<JsNode> = spec_list
+            .iter()
+            .map(|spec| {
+                let spec_start = offset + spec.span.start as usize;
+                let spec_end = offset + spec.span.end as usize;
+                let spec_loc = create_typed_loc(spec_start, spec_end, line_offsets);
+
+                let local_start = offset + spec.local.span().start as usize;
+                let local_end = offset + spec.local.span().end as usize;
+                let local_name = spec.local.name().as_str();
+                let local = expr_to_node(create_identifier(
+                    local_name,
+                    local_start,
+                    local_end,
+                    line_offsets,
+                ));
+
+                let exported_start = offset + spec.exported.span().start as usize;
+                let exported_end = offset + spec.exported.span().end as usize;
+                let exported_name = spec.exported.name().as_str();
+                let exported = expr_to_node(create_identifier(
+                    exported_name,
+                    exported_start,
+                    exported_end,
+                    line_offsets,
+                ));
+
+                let export_kind = if spec.export_kind == oxc_ast::ast::ImportOrExportKind::Type
+                {
+                    Some(CompactString::from("type"))
+                } else {
+                    None
+                };
+
+                JsNode::ExportSpecifier {
+                    start: spec_start as u32,
+                    end: spec_end as u32,
+                    loc: spec_loc,
+                    local: arena.alloc_js_node(local),
+                    exported: arena.alloc_js_node(exported),
+                    export_kind,
+                }
+            })
+            .collect();
+
+        let export_kind = if kind == oxc_ast::ast::ImportOrExportKind::Type {
+            Some(CompactString::from("type"))
+        } else {
+            None
+        };
+
+        let source = src.map(|source| {
+            let source_start = offset + source.span.start as usize;
+            let source_end = offset + source.span.end as usize;
+            let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+            arena.alloc_js_node(expr_to_node(create_string_literal(
+                &source.value,
+                raw,
+                source_start,
+                source_end,
+                line_offsets,
+            )))
+        });
+
+        JsNode::ExportNamedDeclaration {
+            start: start as u32,
+            end: end as u32,
+            loc,
+            declaration,
+            specifiers: arena.alloc_js_children(specifiers),
+            source,
+            export_kind,
+            attributes: IdRange::empty(),
+        }
 }
 
 #[cfg(test)]

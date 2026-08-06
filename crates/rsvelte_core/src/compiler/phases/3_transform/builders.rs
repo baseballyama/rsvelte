@@ -563,14 +563,26 @@ impl<'a> B<'a> {
     ) -> Expression<'a> {
         Expression::ArrowFunctionExpression(ArrowFunctionExpression::boxed(
             SPAN,
-            body_is_expression,
             is_async,
             None,
-            params,
+            ArenaBox::new_in(params, &self.ab()),
             None,
-            body,
+            self.arrow_body(body, body_is_expression),
             &self.ab(),
         ))
+    }
+
+    /// oxc models a concise arrow body as the bare expression, so unwrap the
+    /// single `ExpressionStatement` callers still pass as a `FunctionBody`.
+    fn arrow_body(self, mut body: FunctionBody<'a>, is_expression: bool) -> ArrowFunctionBody<'a> {
+        if is_expression
+            && body.statements.len() == 1
+            && matches!(body.statements[0], Statement::ExpressionStatement(_))
+            && let Some(Statement::ExpressionStatement(es)) = body.statements.pop()
+        {
+            return ArrowFunctionBody::from(es.unbox().expression);
+        }
+        ArrowFunctionBody::FunctionBody(ArenaBox::new_in(body, &self.ab()))
     }
 
     /// `(params) => expr` — concise-body arrow.
@@ -625,9 +637,9 @@ impl<'a> B<'a> {
             false,
             None,
             None,
-            params,
+            ArenaBox::new_in(params, &self.ab()),
             None,
-            Some(body),
+            Some(ArenaBox::new_in(body, &self.ab())),
             &self.ab(),
         );
         Expression::FunctionExpression(func)
@@ -651,9 +663,9 @@ impl<'a> B<'a> {
             false,
             None,
             None,
-            params,
+            ArenaBox::new_in(params, &self.ab()),
             None,
-            Some(body),
+            Some(ArenaBox::new_in(body, &self.ab())),
             &self.ab(),
         );
         Statement::from(oxc_ast::ast::Declaration::FunctionDeclaration(func))
