@@ -8,6 +8,15 @@ of only comparing diagnostic counts, mirroring what
 already passes, so an entry that starts passing must be removed by the change
 that made it pass.
 
+**If you are here because `test_validator` failed and you were not working on a
+ratchet:** you almost certainly fixed a fixture that is listed below, and the
+entry has to go in *your* PR. This is the same rule the corpus ratchets follow —
+the PR that fixes entries re-baselines in the same PR rather than leaving a
+backlog — but it is newer here, so a failure reading `N stale entries in
+compatibility/validator-known-failures.json (they already pass)` is your change
+succeeding, not unrelated breakage. Re-run the suite and delete the entries it
+names; never hand-edit a count to match.
+
 ## Current baseline: `validator-known-failures.json`, 181 entries
 
 Every cluster count below is measured from the failure report the suite prints,
