@@ -86,3 +86,26 @@ fn a_custom_element_carries_the_map_too() {
     );
     assert!(map.contains("\"mappings\":\";AAKA,"), "got:\n{map}");
 }
+
+#[test]
+fn a_partially_pruned_selector_list_keeps_its_segments() {
+    let map = injected_css(
+        r#"<svelte:options css="injected" />
+
+<div class="foo">foo</div>
+
+<style>
+	.foo, .unused {
+		color: green;
+	}
+</style>
+"#,
+    );
+    // `overwrite` replaces the separator before the pruned selector, so the
+    // ` /* (unused) ` it writes still carries that separator's position, and
+    // both selectors keep segments of their own.
+    assert!(
+        map.contains("\"mappings\":\";AAKA,CAAC,kBAAI,aAAE,SAAO,CAAC;AACf,EAAE,YAAY;AACd;\""),
+        "got:\n{map}"
+    );
+}

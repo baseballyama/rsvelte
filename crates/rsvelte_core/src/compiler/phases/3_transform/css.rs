@@ -934,15 +934,34 @@ fn emit_selector(
     let emitted = produced.as_bytes();
     let mut runs: Vec<(usize, usize, usize)> = Vec::new();
     let (mut i, mut j) = (0usize, 0usize);
-    while j < emitted.len() {
-        for inserted in [where_modifier.as_bytes(), modifier.as_bytes()] {
-            if emitted[j..].starts_with(inserted) && !src[i..].starts_with(inserted) {
+    'emitted: while j < emitted.len() {
+        // `prependRight` / `appendRight` / `appendLeft` insertions carry no
+        // segment of their own, so they only move the generated cursor.
+        for inserted in [
+            where_modifier.as_bytes(),
+            modifier.as_bytes(),
+            b"/* (unused) ".as_slice(),
+            b"*/".as_slice(),
+        ] {
+            if !inserted.is_empty()
+                && emitted[j..].starts_with(inserted)
+                && !src[i..].starts_with(inserted)
+            {
                 j += inserted.len();
-                break;
+                continue 'emitted;
             }
         }
-        if j >= emitted.len() {
-            break;
+        // The separator before a pruned selector goes through `overwrite`,
+        // which keeps the chunk it replaces — so the replacement's first byte
+        // carries that separator's position.
+        if emitted[j..].starts_with(b" /* (unused) ") && i < src.len() && src[i] == b',' {
+            runs.push((j, i, 1));
+            j += " /* (unused) ".len();
+            i += 1;
+            while i < src.len() && src[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            continue;
         }
         if i < src.len() && src[i] == emitted[j] {
             match runs.last_mut() {
