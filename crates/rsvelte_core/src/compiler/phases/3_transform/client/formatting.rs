@@ -276,6 +276,13 @@ fn reactive_statement_spans(source: &str) -> Vec<(usize, usize)> {
             after_last_code = end;
             continue;
         }
+        // Bracket depth is what confines the scan to the script's top level;
+        // `reactive_statement_end` maintains it only while inside a statement.
+        match c {
+            b'{' | b'(' | b'[' => scan.depth += 1,
+            b'}' | b')' | b']' => scan.depth = scan.depth.saturating_sub(1),
+            _ => {}
+        }
         scan.note_code(c);
         i += 1;
         after_last_code = i;
@@ -1331,6 +1338,51 @@ mod reactive_comment_tests {
         assert_eq!(strip_reactive_statement_comments(source), source);
     }
 
+    /// The ASI accept side, on the other token classes that can end an
+    /// expression — a bare `?` is not the only byte that has to be rejected.
+    #[test]
+    fn any_token_that_can_end_an_expression_opens_a_statement() {
+        for predecessor in ["f()", "xs[0]", "y", "1", "_x", "$x", "'s'", "`t`"] {
+            let source = format!("{predecessor}\n$: {{\n\t// inner\n\ty = 1;\n}}\n");
+            let expected = format!("{predecessor}\n$: {{\n\t\n\ty = 1;\n}}\n");
+            assert_eq!(
+                strip_reactive_statement_comments(&source),
+                expected,
+                "predecessor: {predecessor}"
+            );
+        }
+    }
+
+    /// The ASI reject side: an operator cannot end an expression, so the next
+    /// line continues it rather than starting a labeled statement.
+    #[test]
+    fn an_operator_does_not_open_a_statement() {
+        for predecessor in ["let y = c ?", "let y = a +", "let y =", "let y = a,"] {
+            let source = format!("{predecessor}\n/* keep */\n$: 1;\n");
+            assert_eq!(
+                strip_reactive_statement_comments(&source),
+                source,
+                "predecessor: {predecessor}"
+            );
+        }
+    }
+
+    /// The newline term: without a line terminator there is no ASI, so the
+    /// `$:` cannot be a statement start however its predecessor ends.
+    #[test]
+    fn a_same_line_predecessor_does_not_open_a_statement() {
+        let source = "let y = a $: /* keep */ 1;\n";
+        assert_eq!(strip_reactive_statement_comments(source), source);
+    }
+
+    /// `$` is an ordinary object key, and `,` sits at bracket depth — upstream
+    /// only treats a `$:` at the script's top level as reactive.
+    #[test]
+    fn an_object_literal_key_is_not_a_reactive_statement() {
+        let source = "let o = {\n\ta: 1,\n\t/* keep */\n\t$: 2\n};\n";
+        assert_eq!(strip_reactive_statement_comments(source), source);
+    }
+
     #[test]
     fn drops_comments_inside_a_reactive_if_block() {
         let out = strip_reactive_statement_comments(
@@ -1357,9 +1409,12 @@ mod reactive_comment_tests {
         assert_kept("let a = 'a // not a comment';\n// kept\nlet b = 1;\n");
     }
 
+    /// Upstream bails on `context.path.length > 1`, so even a `$:` — not just a
+    /// label that could never be confused for one — is plain inside a function.
     #[test]
     fn a_label_inside_a_function_body_is_not_a_reactive_statement() {
         assert_kept("function f() {\n\t// kept\n\tlab: for (;;) break lab;\n}\n");
+        assert_kept("function f() {\n\tlet a = 1\n\t$: {\n\t\t/* keep */\n\t\ta = 2;\n\t}\n}\n");
     }
 
     #[test]
