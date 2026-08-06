@@ -780,27 +780,28 @@ fn template_literal_close(bytes: &[u8]) -> Option<usize> {
 
 /// Fold one line of a `$:` statement into the running bracket depth. A template
 /// literal is opaque and spans lines, so its state is threaded across calls.
-fn scan_reactive_line(line: &str, depth: &mut i32, in_template: &mut bool) {
+/// Returns the updated `(depth, in_template)` rather than writing through
+/// `&mut`, so a caller that drops the template half fails to compile.
+#[must_use]
+fn scan_reactive_line(line: &str, mut depth: i32, in_template: bool) -> (i32, bool) {
     let bytes = line.as_bytes();
     let mut i = 0;
     let mut prev: Option<u8> = None;
 
-    if *in_template {
+    if in_template {
         match template_literal_close(bytes) {
             Some(j) => {
-                *in_template = false;
                 i = j;
                 prev = Some(b'x');
             }
-            None => return,
+            None => return (depth, true),
         }
     }
 
     while i < bytes.len() {
         if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
             if bytes[i] == b'`' && opaque_run_is_unterminated(bytes, i) {
-                *in_template = true;
-                return;
+                return (depth, true);
             }
             if !is_comment {
                 prev = Some(b'x');
@@ -810,8 +811,8 @@ fn scan_reactive_line(line: &str, depth: &mut i32, in_template: &mut bool) {
         }
         let c = bytes[i];
         match c {
-            b'{' | b'(' | b'[' => *depth += 1,
-            b'}' | b')' | b']' => *depth -= 1,
+            b'{' | b'(' | b'[' => depth += 1,
+            b'}' | b')' | b']' => depth -= 1,
             _ => {}
         }
         if !c.is_ascii_whitespace() {
@@ -819,6 +820,7 @@ fn scan_reactive_line(line: &str, depth: &mut i32, in_template: &mut bool) {
         }
         i += 1;
     }
+    (depth, false)
 }
 
 pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> String {
@@ -849,7 +851,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             let trimmed = lines[i].trim();
             if in_reactive_multiline {
                 // Count braces to find the end of the reactive statement
-                scan_reactive_line(trimmed, &mut reactive_depth, &mut in_template);
+                (reactive_depth, in_template) =
+                    scan_reactive_line(trimmed, reactive_depth, in_template);
                 if reactive_depth <= 0 && !in_template {
                     in_reactive_multiline = false;
                 }
@@ -859,9 +862,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             if trimmed.starts_with("$:") {
                 saw_reactive = true;
                 // Count braces in the reactive statement line to detect multiline
-                let mut depth: i32 = 0;
-                in_template = false;
-                scan_reactive_line(trimmed, &mut depth, &mut in_template);
+                let depth: i32;
+                (depth, in_template) = scan_reactive_line(trimmed, 0, false);
                 if depth > 0 || in_template {
                     // This is a multi-line reactive statement; skip until balanced
                     in_reactive_multiline = true;
@@ -906,7 +908,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             {
                                 break;
                             }
-                            scan_reactive_line(nt, &mut acc_depth, &mut acc_template);
+                            (acc_depth, acc_template) =
+                                scan_reactive_line(nt, acc_depth, acc_template);
                             i += 1;
                             let nl = nt.chars().last().unwrap_or(' ');
                             let is_cont = matches!(
@@ -935,7 +938,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             } else {
                                 false
                             };
-                            if !is_cont && !following_starts && acc_depth <= 0 {
+                            if !is_cont && !following_starts && acc_depth <= 0 && !acc_template {
                                 break;
                             }
                         }
@@ -987,7 +990,7 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             // Count brace depth and backtick state to detect multi-line blocks
             let mut depth: i32 = 0;
             let mut in_template_literal = false;
-            scan_reactive_line(trimmed, &mut depth, &mut in_template_literal);
+            (depth, in_template_literal) = scan_reactive_line(trimmed, depth, in_template_literal);
 
             if depth > 0 || in_template_literal {
                 // Multi-line reactive statement (or template literal) - collect until balanced
@@ -995,7 +998,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                 while i < lines.len() && (depth > 0 || in_template_literal) {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    scan_reactive_line(next, &mut depth, &mut in_template_literal);
+                    (depth, in_template_literal) =
+                        scan_reactive_line(next, depth, in_template_literal);
                     i += 1;
                 }
             } else {
@@ -1037,9 +1041,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     // Track accumulated bracket depth so multi-line bracket expressions
                     // like `$: x = arr[\n  expr\n];` are fully consumed.
                     // Count depth from the initial $: line too
-                    let mut accumulated_depth: i32 = 0;
-                    let mut acc_template = false;
-                    scan_reactive_line(trimmed, &mut accumulated_depth, &mut acc_template);
+                    let (mut accumulated_depth, mut acc_template) =
+                        scan_reactive_line(trimmed, 0, false);
                     while i < lines.len() {
                         let next = lines[i];
                         let next_trimmed = next.trim();
@@ -1052,7 +1055,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                         }
                         stmt_lines.push(next);
                         // Update accumulated depth
-                        scan_reactive_line(next_trimmed, &mut accumulated_depth, &mut acc_template);
+                        (accumulated_depth, acc_template) =
+                            scan_reactive_line(next_trimmed, accumulated_depth, acc_template);
                         let next_last = next_trimmed.chars().last().unwrap_or(' ');
                         let next_is_continuation = matches!(
                             next_last,
@@ -1081,7 +1085,10 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             false
                         };
                         i += 1;
-                        if !next_is_continuation && !following_starts_cont && accumulated_depth <= 0
+                        if !next_is_continuation
+                            && !following_starts_cont
+                            && accumulated_depth <= 0
+                            && !acc_template
                         {
                             break;
                         }
@@ -1164,13 +1171,13 @@ fn sort_reactive_in_place(script: &str) -> String {
             let mut stmt_lines = vec![lines[i]];
             let mut depth: i32 = 0;
             let mut in_template = false;
-            scan_reactive_line(trimmed, &mut depth, &mut in_template);
+            (depth, in_template) = scan_reactive_line(trimmed, depth, in_template);
             i += 1;
             if depth > 0 || in_template {
                 while i < n && (depth > 0 || in_template) {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    scan_reactive_line(next, &mut depth, &mut in_template);
+                    (depth, in_template) = scan_reactive_line(next, depth, in_template);
                     i += 1;
                 }
             } else {
@@ -2220,6 +2227,18 @@ mod tests {
         assert_eq!(
             split_destructuring_properties_ssr("a // , b"),
             vec!["a // , b"]
+        );
+    }
+
+    // Control is this change's own pre-fix state; the code it replaced passes too.
+    #[test]
+    fn continuation_interpolation_keeps_the_statement_whole() {
+        // `$: msg =` continues onto a template whose `${` opens on the next line.
+        let script = "let a = 1;\n$: msg =\n`hello ${\nname\n}`;\nlet after = 2;\n";
+        let out = reorder_reactive_statements_after_functions(script);
+        assert!(
+            out.contains("$: msg =\n`hello ${\nname\n}`;"),
+            "statement body split: {out}"
         );
     }
 
