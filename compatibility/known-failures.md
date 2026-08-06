@@ -212,18 +212,24 @@ that separator still carry source-map segments.
 
 ### What is left
 
-One entry, contributed by the `runed` / `svelte-toolbelt` enrolment:
-`runed/sites/docs/src/lib/components/demos/scroll-state.svelte` writes
-`onsubmit={preventDefault(() => (scroll.x = x))}`, and rsvelte emits the bare
-`scroll.x = $.get(x)` where upstream wraps it as
-`$.assign(scroll, "x", "=", $.get(x), "…scroll-state.svelte:41:69")`. That is
-the `$.assign` row of #2064 — the coerced-away-proxy dev warning
-(`AssignmentExpression.js:170-236`) — reached here through an assignment nested
-inside a call argument in a template attribute expression. Every other
-dev-helper cluster the enrolment-era table tracked — the equality
-instrumentation, `$.track_reactivity_loss`, ownership mutation validation,
-`$.tag()` / `$.tag_proxy()`, `console.*` wrapping and the signal read/write
-row — is empty.
+Nothing. The last entry — `runed/…/demos/scroll-state.svelte`, which writes
+`onsubmit={preventDefault(() => (scroll.x = x))}` and had rsvelte emitting the
+bare `scroll.x = $.get(x)` where upstream wraps it as
+`$.assign(scroll, "x", "=", $.get(x), "…scroll-state.svelte:41:69")` — is fixed.
+The event-attribute exemption from the coerced-away-proxy dev warning
+(`AssignmentExpression.js:170-236`) was applied to every arrow anywhere in the
+attribute expression, but upstream requires the arrow to *be* that expression
+(`path.at(-2) === 'RegularElement'`), so an arrow passed as a call argument was
+never exempt. Every other dev-helper cluster the enrolment-era table tracked —
+the equality instrumentation, `$.track_reactivity_loss`, ownership mutation
+validation, `$.tag()` / `$.tag_proxy()`, `console.*` wrapping and the signal
+read/write row — was already empty.
+
+Still over-reaching, and not covered by any corpus entry: the exemption is
+carried by a level flag that stays set for the whole body conversion, so an
+assignment nested *inside* an exempt arrow's body
+(`onclick={() => (a.b = f(() => (c.d = e)))}`) is exempted too. Upstream would
+wrap the inner one.
 
 Counting method, for whoever picks this up: attribute an entry by **comparing
 how many times each helper appears** on each side, never by the first differing
