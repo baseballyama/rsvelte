@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+  # Unfiltered: a PR stacked on another branch must still run these gates,
+  # otherwise it reports green having run none of them.
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
