@@ -823,6 +823,8 @@ fn scan_reactive_line(line: &str, mut depth: i32, in_template: bool) -> (i32, bo
     (depth, false)
 }
 
+// The only live caller is `{@const}` lowering, whose input is a declaration, so no `$:`
+// reaches this in a shipping compile.
 pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> String {
     let lines: Vec<&str> = script.lines().collect();
 
