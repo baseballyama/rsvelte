@@ -220,17 +220,22 @@ pub(super) fn find_and_transform_one_destructure(
 
                 // Walk backwards from position `i` to find the matching open bracket.
                 // The helper works in byte offsets; this loop indexes by char.
-                if let Some(pattern_start) =
-                    find_matching_open_bracket(statement, b(i), open_bracket, close_bracket).map(
-                        |byte| {
-                            // The helper only returns ASCII bracket positions, which
-                            // are always char starts; a miss would be a bug, not input.
-                            byte_offsets
-                                .binary_search(&byte)
-                                .expect("open bracket is a char boundary")
-                        },
-                    )
-                {
+                if let Some(pattern_start) = find_matching_open_bracket(
+                    statement,
+                    b(i),
+                    open_bracket,
+                    close_bracket,
+                )
+                .map(|byte| {
+                    // The helper only returns ASCII bracket positions, which
+                    // are always char starts; a miss would be a bug, not input.
+                    byte_offsets.binary_search(&byte).unwrap_or_else(|_| {
+                        panic!(
+                            "bracket byte offset {byte} is not a char start in a {}-byte statement",
+                            statement.len()
+                        )
+                    })
+                }) {
                     let pattern_str = &statement[b(pattern_start)..b(i + 1)];
                     let rhs_start = j + 1;
 
