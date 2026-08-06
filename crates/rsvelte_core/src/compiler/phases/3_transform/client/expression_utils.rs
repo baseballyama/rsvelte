@@ -1649,13 +1649,6 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
     // `trimmed.starts_with("new ")` (and the call/identifier checks) miss.
     let trimmed = strip_leading_comments(expr.trim()).trim();
 
-    // `await expr` needs proxy because the resolved value could be an object/array.
-    // In the official Svelte compiler, AwaitExpression is not in the list of types
-    // that return false from should_proxy, so it always returns true.
-    if trimmed.starts_with("await ") {
-        return true;
-    }
-
     // Arrow functions and function expressions don't need proxy wrapping
     // They're functions themselves, not objects/arrays
     // Check for patterns like:
@@ -1666,6 +1659,9 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
         return false;
     }
 
+    // These prefixes settle the node type on their own, and must be decided
+    // before the operator sniffs below: TS generics such as `new Map<K, V>()`
+    // otherwise read as a top-level relational operator.
     // Object literal
     if trimmed.starts_with('{') {
         return true;
@@ -1678,6 +1674,37 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
 
     // new expression
     if trimmed.starts_with("new ") {
+        return true;
+    }
+
+    // Ternary/conditional expressions (a ? b : c) need proxy if either branch
+    // could produce a proxyable value. In the official Svelte compiler,
+    // ConditionalExpression is not in the list of types that return false from
+    // should_proxy, so it always returns true.
+    // Check for ternary expressions by looking for '?' at the top level
+    if contains_top_level_ternary(trimmed) {
+        return true;
+    }
+
+    // Logical expressions with ||, && or ?? always need proxy.
+    // In the official Svelte compiler, LogicalExpression is not in the
+    // should_proxy whitelist, so it always returns true regardless of operands.
+    // e.g., `pData ?? defaultValue`, `expr || fallback`, `a === undefined && !b`
+    if contains_top_level_logical(trimmed) {
+        return true;
+    }
+
+    // BinaryExpression is on should_proxy's no-proxy list, so `foo() + 1` is
+    // false even though its left operand is a call. Conditional and logical
+    // operators bind looser, hence the ordering above.
+    if is_top_level_binary_expression(trimmed) {
+        return false;
+    }
+
+    // `await expr` needs proxy because the resolved value could be an object/array.
+    // In the official Svelte compiler, AwaitExpression is not in the list of types
+    // that return false from should_proxy, so it always returns true.
+    if trimmed.starts_with("await ") {
         return true;
     }
 
@@ -1719,21 +1746,111 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
-    // Ternary/conditional expressions (a ? b : c) need proxy if either branch
-    // could produce a proxyable value. In the official Svelte compiler,
-    // ConditionalExpression is not in the list of types that return false from
-    // should_proxy, so it always returns true.
-    // Check for ternary expressions by looking for '?' at the top level
-    if contains_top_level_ternary(trimmed) {
-        return true;
-    }
+    false
+}
 
-    // Logical expressions with ||, && or ?? always need proxy.
-    // In the official Svelte compiler, LogicalExpression is not in the
-    // should_proxy whitelist, so it always returns true regardless of operands.
-    // e.g., `pData ?? defaultValue`, `expr || fallback`, `a === undefined && !b`
-    if contains_top_level_logical(trimmed) {
-        return true;
+/// Check if an expression is a `BinaryExpression` at the top level — an infix
+/// arithmetic, equality, bitwise or shift operator outside any bracket or
+/// string. `&&`, `||` and `??` are `LogicalExpression`s and are excluded, as
+/// are assignment operators and `=>`.
+pub(super) fn is_top_level_binary_expression(expr: &str) -> bool {
+    let bytes = expr.as_bytes();
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut string_char = b'\0';
+    let mut prev_significant: Option<u8> = None;
+
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+
+        if in_string {
+            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+                in_string = false;
+                prev_significant = Some(c);
+            }
+            i += 1;
+            continue;
+        }
+
+        match c {
+            b'\'' | b'"' | b'`' => {
+                in_string = true;
+                string_char = c;
+                i += 1;
+                continue;
+            }
+            b'(' | b'[' | b'{' => {
+                depth += 1;
+                prev_significant = Some(c);
+                i += 1;
+                continue;
+            }
+            b')' | b']' | b'}' => {
+                depth = depth.saturating_sub(1);
+                prev_significant = Some(c);
+                i += 1;
+                continue;
+            }
+            _ => {}
+        }
+
+        // Only an operator with a completed operand to its left is infix; a
+        // leading `-`/`!` is a UnaryExpression, which is on the same no-proxy
+        // list anyway.
+        let infix = matches!(
+            prev_significant,
+            Some(p) if p.is_ascii_alphanumeric()
+                || matches!(p, b'_' | b'$' | b')' | b']' | b'}' | b'\'' | b'"' | b'`')
+        );
+        if depth == 0 && infix {
+            let next = bytes.get(i + 1).copied();
+            match c {
+                // `==`/`===` are binary; `=>` and a bare `=` are not.
+                b'=' => return next == Some(b'='),
+                b'!' if next == Some(b'=') => return true,
+                b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^' => {
+                    if (c == b'&' && next == Some(b'&')) || (c == b'|' && next == Some(b'|')) {
+                        return false;
+                    }
+                    let after = if c == b'*' && next == Some(b'*') {
+                        2
+                    } else {
+                        1
+                    };
+                    // Compound assignment (`+=`, `**=`, ...) is an AssignmentExpression.
+                    return bytes.get(i + after) != Some(&b'=');
+                }
+                b'<' | b'>' => {
+                    let mut j = i;
+                    while bytes.get(j) == Some(&c) {
+                        j += 1;
+                    }
+                    // Shift assignment (`<<=`, `>>=`, `>>>=`).
+                    return !(j > i + 1 && bytes.get(j) == Some(&b'='));
+                }
+                // The word operators `in` / `instanceof`, only when the previous
+                // character is whitespace so they cannot be part of an identifier.
+                b'i' if i > 0 && bytes[i - 1].is_ascii_whitespace() => {
+                    let mut j = i;
+                    while bytes
+                        .get(j)
+                        .is_some_and(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$'))
+                    {
+                        j += 1;
+                    }
+                    if matches!(&expr[i..j], "in" | "instanceof") {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if !c.is_ascii_whitespace() {
+            prev_significant = Some(c);
+        }
+        i += 1;
     }
 
     false
@@ -2499,7 +2616,7 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
 
 #[cfg(test)]
 mod proxy_detection_tests {
-    use super::{expression_needs_proxy, strip_leading_comments};
+    use super::{expression_needs_proxy, is_top_level_binary_expression, strip_leading_comments};
 
     #[test]
     fn strips_leading_block_and_line_comments() {
@@ -2521,6 +2638,61 @@ mod proxy_detection_tests {
         assert!(expression_needs_proxy("/* @__PURE__ */ createThing()"));
         // Functions still don't need a proxy even behind a comment.
         assert!(!expression_needs_proxy("/* c */ () => 1"));
+    }
+
+    #[test]
+    fn binary_expressions_never_need_proxy() {
+        for expr in [
+            "$.get(runs) + 1",
+            "a * 2",
+            "count() - 1",
+            "'a' + 'b'",
+            "a === undefined",
+            "a !== b",
+            "a > 1",
+            "a << 2",
+            "a & 3",
+            "a ** 2",
+            "(await mk()) + 1",
+            "mk() instanceof Map",
+            "'k' in obj",
+        ] {
+            assert!(!expression_needs_proxy(expr), "{expr}");
+        }
+    }
+
+    #[test]
+    fn non_binary_operators_still_need_proxy() {
+        for expr in [
+            "a ?? {}",
+            "a || []",
+            "a && b",
+            "mk() ? {} : []",
+            "a < b ? {} : []",
+            "new Map()",
+            "await mk()",
+            "mk({ a: 1 })",
+            "{ a: 1 + 2 }",
+            "[1, 2].concat([3])",
+            "thing.list.map((x) => x * 2)",
+        ] {
+            assert!(expression_needs_proxy(expr), "{expr}");
+        }
+    }
+
+    #[test]
+    fn assignment_and_arrow_are_not_binary() {
+        for expr in [
+            "a = b",
+            "a += 1",
+            "a >>= 1",
+            "a ||= b",
+            "(x) => x + 1",
+            "-a",
+            "!mk()",
+        ] {
+            assert!(!is_top_level_binary_expression(expr), "{expr}");
+        }
     }
 }
 
