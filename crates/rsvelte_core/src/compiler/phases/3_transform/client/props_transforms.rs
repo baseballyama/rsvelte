@@ -122,6 +122,9 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
 
         let mut new_result = String::with_capacity(result.len() * 2);
         let chars: Vec<char> = result.chars().collect();
+        // Resolving char index → byte offset with `char_indices().nth(i)` inside the
+        // per-character loop below is quadratic in the expression length.
+        let char_offsets: Vec<usize> = result.char_indices().map(|(b, _)| b).collect();
         #[cfg(feature = "measure-prop-reads")]
         crate::measure_prop_reads::record_pass(chars.len());
         let mut i = 0;
@@ -191,11 +194,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
             }
 
             // Check if we're at the start of the identifier
-            let remaining = &result[result
-                .char_indices()
-                .nth(i)
-                .map(|(idx, _)| idx)
-                .unwrap_or(i)..];
+            let remaining = &result[char_offsets.get(i).copied().unwrap_or(i)..];
             if remaining.starts_with(prop_name) {
                 // Check character before (must be non-identifier char or start of string)
                 let before_ok = if i == 0 {
@@ -259,11 +258,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 // After transform_prop_update_expressions runs, we get $.update_prop(x)
                 // and we must not convert x to x() inside that call
                 let is_inside_update_call = {
-                    let prefix_str = &result[..result
-                        .char_indices()
-                        .nth(i)
-                        .map(|(idx, _)| idx)
-                        .unwrap_or(i)];
+                    let prefix_str = &result[..char_offsets.get(i).copied().unwrap_or(i)];
                     prefix_str.ends_with("$.update_prop(")
                         || prefix_str.ends_with("$.update_pre_prop(")
                         || prefix_str.ends_with("$.update_prop(")
@@ -275,11 +270,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 // where propName is a prop source (getter function) that's equivalent to the
                 // derived computation. In this case we must NOT append `()`.
                 let is_sole_derived_arg = {
-                    let prefix_str = &result[..result
-                        .char_indices()
-                        .nth(i)
-                        .map(|(idx, _)| idx)
-                        .unwrap_or(i)];
+                    let prefix_str = &result[..char_offsets.get(i).copied().unwrap_or(i)];
                     if prefix_str.ends_with("$.derived(") {
                         // Check that after the identifier is just `)` (possibly preceded by whitespace)
                         let mut k = after_idx;
