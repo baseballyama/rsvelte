@@ -4384,8 +4384,9 @@ mod pattern_end_unit_tests {
 
     #[test]
     fn pattern_end_is_a_byte_offset() {
-        // Callers slice `&str` with this, so it must be a byte offset.
-        for pattern in ["{ a }", "{ café }", "{ ああ }", "[ あ, い ]"] {
+        // Callers slice `&str` with this, so it must be a byte offset. The
+        // leading-space case is the only one where the trim `base` is non-zero.
+        for pattern in ["{ a }", "{ café }", "{ ああ }", "[ あ, い ]", "  { café }"] {
             let end = find_destructuring_pattern_end(pattern).unwrap();
             assert_eq!(&pattern[..end], pattern, "pattern {pattern:?}");
         }
