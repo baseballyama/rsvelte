@@ -848,3 +848,5 @@ fn compile_result_to_json(result: &rsvelte_core::compiler::CompileResult) -> Val
         "metadata": { "runes": result.metadata.runes },
     })
 }
+
+// Throwaway probe line for the stacked-PR CI check; travels with the probe branch.
