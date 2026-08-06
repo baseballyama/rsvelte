@@ -97,6 +97,10 @@ pub struct ParseWarning {
     pub code: String,
     /// Warning message
     pub message: String,
+    /// Start byte offset of the node the warning is attributed to.
+    pub start: u32,
+    /// End byte offset of the node the warning is attributed to.
+    pub end: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]

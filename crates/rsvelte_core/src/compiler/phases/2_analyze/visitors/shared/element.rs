@@ -120,7 +120,10 @@ pub fn validate_element(
                     && name == attr.name
                     && context.analysis.root.find_binding_any_scope(name).is_none()
                 {
-                    context.emit_warning(warnings::attribute_global_event_reference(&attr.name));
+                    context.emit_warning(
+                        warnings::attribute_global_event_reference(&attr.name)
+                            .at(attr_start, attr_end),
+                    );
                 }
 
                 // Validate slot attribute
@@ -139,7 +142,8 @@ pub fn validate_element(
                         super::super::super::warnings::attribute_invalid_property_name(
                             &attr.name,
                             correct_name,
-                        ),
+                        )
+                        .at(attr_start, attr_end),
                     );
                 }
 

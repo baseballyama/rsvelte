@@ -843,7 +843,9 @@ pub fn visit<'a, 'b: 'a>(
         if binding.declaration_kind == super::super::DeclarationKind::Import
             && binding.references.is_empty()
         {
-            context.emit_warning(warnings::component_name_lowercase(&element.name));
+            context.emit_warning(
+                warnings::component_name_lowercase(&element.name).at(element.start, element.end),
+            );
         }
     }
 
@@ -906,7 +908,9 @@ pub fn visit<'a, 'b: 'a>(
             let only_warn = current_block_depth > parent_block_depth;
 
             if only_warn {
-                context.emit_warning(warnings::node_invalid_placement_ssr(&message));
+                context.emit_warning(
+                    warnings::node_invalid_placement_ssr(&message).at(element.start, element.end),
+                );
             } else {
                 return Err(errors::node_invalid_placement(&message).at(element.start, element.end));
             }
@@ -970,7 +974,9 @@ pub fn visit<'a, 'b: 'a>(
         // Now emit warnings or return errors
         for (message, only_warn) in ancestor_warnings {
             if only_warn {
-                context.emit_warning(warnings::node_invalid_placement_ssr(&message));
+                context.emit_warning(
+                    warnings::node_invalid_placement_ssr(&message).at(element.start, element.end),
+                );
             } else {
                 return Err(errors::node_invalid_placement(&message).at(element.start, element.end));
             }
@@ -991,7 +997,10 @@ pub fn visit<'a, 'b: 'a>(
                 && !is_svg(node_name)
                 && !is_mathml(node_name)
             {
-                context.emit_warning(warnings::element_invalid_self_closing_tag(node_name));
+                context.emit_warning(
+                    warnings::element_invalid_self_closing_tag(node_name)
+                        .at(element.start, element.end),
+                );
             }
         }
     }
@@ -1071,7 +1080,9 @@ pub fn visit<'a, 'b: 'a>(
                             crate::ast::template::AttributeValuePart::ExpressionTag(_)
                         )
                     {
-                        context.emit_warning(warnings::attribute_quoted());
+                        context.emit_warning(
+                            warnings::attribute_quoted().at(attr_node.start, attr_node.end),
+                        );
                     }
                 }
                 // Mutable re-borrow so the visitor can populate
@@ -1136,7 +1147,9 @@ pub fn visit<'a, 'b: 'a>(
                 // on_directive::visit doesn't have access to the parent type.
                 // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/OnDirective.js
                 if context.analysis.runes {
-                    context.emit_warning(warnings::event_directive_deprecated(&on.name));
+                    context.emit_warning(
+                        warnings::event_directive_deprecated(&on.name).at(on.start, on.end),
+                    );
                 }
 
                 // Track event directive for mixed_event_handler_syntaxes check

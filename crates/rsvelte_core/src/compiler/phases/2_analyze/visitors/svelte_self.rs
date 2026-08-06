@@ -19,20 +19,26 @@ pub fn visit<'a, 'b: 'a>(
     // Validate placement
     validate_special_element_placement("svelte:self", context)?;
 
-    // Emit deprecation warning
-    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/SvelteSelf.js
-    // w.svelte_self_deprecated(node, state.analysis.name, filename.replace('./', ''));
-    //
-    // The component name is derived from the filename in ComponentAnalysis::new()
-    // If no filename was provided, it defaults to "Component"
-    let component_name = &context.analysis.name;
+    if context.analysis.runes {
+        // Upstream reads `state.filename`, whose unset sentinel is `(unknown)`.
+        let filename = context.analysis.location_filename.as_str();
+        let (component_name, basename) = if filename == "(unknown)" {
+            ("Self", "Self.svelte".to_string())
+        } else {
+            (
+                context.analysis.name.as_str(),
+                filename
+                    .split(['/', '\\'])
+                    .next_back()
+                    .unwrap_or(filename)
+                    .to_string(),
+            )
+        };
 
-    // Construct the basename (filename.svelte format)
-    // The official compiler uses the actual filename's basename, but since
-    // we only have the component name, we construct it as "{name}.svelte"
-    let basename = format!("{}.svelte", component_name);
-
-    context.emit_warning(warnings::svelte_self_deprecated(component_name, &basename));
+        context.emit_warning(
+            warnings::svelte_self_deprecated(component_name, &basename).at(self_.start, self_.end),
+        );
+    }
 
     // Analyze attributes — upstream's SvelteSelf.js delegates to the shared
     // `visit_component(node, context)`, which visits every attribute (and
@@ -47,7 +53,7 @@ pub fn visit<'a, 'b: 'a>(
                     && parts.len() == 1
                     && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
                 {
-                    context.emit_warning(warnings::attribute_quoted());
+                    context.emit_warning(warnings::attribute_quoted().at(a.start, a.end));
                 }
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;

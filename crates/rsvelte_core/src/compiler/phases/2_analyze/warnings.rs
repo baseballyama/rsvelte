@@ -30,6 +30,15 @@ impl AnalysisWarning {
             end: None,
         }
     }
+
+    /// Attribute the warning to a source range, mirroring the node upstream
+    /// passes as the first argument to its `w.*` constructor.
+    #[must_use]
+    pub fn at(mut self, start: u32, end: u32) -> Self {
+        self.start = Some(start);
+        self.end = Some(end);
+        self
+    }
 }
 
 /// Create a warning with a specific code and message.
@@ -281,7 +290,7 @@ diagnostics! {
     bind_invalid_each_rest(name: &str) => "The rest operator (...) will create a new object and binding '{}' with the original object will not work\nhttps://svelte.dev/e/bind_invalid_each_rest", name;
 
     /// Quoted single-expression attribute warning
-    attribute_quoted() => "Quoted attribute values will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted";
+    attribute_quoted() => "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted";
 
     // Event directive warnings
 

@@ -49,7 +49,7 @@ pub fn visit(
 
     // Validate attribute name for illegal colons
     if let Err(warning) = validate_attribute_name(&attribute.name) {
-        context.emit_warning(warning);
+        context.emit_warning(warning.at(attribute.start, attribute.end));
     }
 
     // Get the parent node to determine context

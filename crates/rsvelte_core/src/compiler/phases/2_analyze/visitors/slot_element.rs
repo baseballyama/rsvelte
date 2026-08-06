@@ -27,7 +27,7 @@ pub fn visit<'a, 'b: 'a>(
 ) -> Result<(), AnalysisError> {
     // In runes mode (without custom elements), emit a deprecation warning
     if context.analysis.runes && context.analysis.custom_element.is_none() {
-        context.emit_warning(warnings::slot_element_deprecated());
+        context.emit_warning(warnings::slot_element_deprecated().at(slot.start, slot.end));
     }
 
     // Mark that we have control flow affecting sibling relationships

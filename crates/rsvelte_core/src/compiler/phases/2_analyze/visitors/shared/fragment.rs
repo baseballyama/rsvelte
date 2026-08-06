@@ -43,7 +43,11 @@ fn compute_all_preceding_ignores(
         match node {
             TemplateNode::Comment(comment) => {
                 // Extract svelte-ignore codes and accumulate them
-                let extracted = extract_svelte_ignore_with_warnings(&comment.data, runes);
+                let extracted = extract_svelte_ignore_with_warnings(
+                    comment.start + 4, // `<!--`.len()
+                    &comment.data,
+                    runes,
+                );
                 pending_ignores.extend(extracted.ignores);
                 pending_warnings.extend(extracted.warnings);
                 // Comments themselves get None
@@ -107,31 +111,19 @@ pub fn analyze<'a, 'b: 'a>(
     // but only emit legacy_code/unknown_code warnings for non-Comment/non-Text nodes.
     let mut ignore_info = compute_all_preceding_ignores(&fragment.nodes, runes);
 
-    // Emit warnings from svelte-ignore comment validation (legacy_code, unknown_code).
-    // These are emitted only once per comment because only the first
-    // non-Comment/non-Text node collects from preceding comments.
-    for entry in ignore_info.iter().flatten() {
-        let (preceding, is_text) = entry;
-        // Only emit legacy_code/unknown_code warnings for non-Text nodes
-        if !is_text {
-            for warning in &preceding.warnings {
-                context
-                    .analysis
-                    .warnings
-                    .push(warnings::AnalysisWarning::new(
-                        warning.code.clone(),
-                        warning.message.clone(),
-                    ));
-            }
-        }
-    }
-
     for (idx, node) in fragment.nodes.iter_mut().enumerate() {
         // Take ownership of ignore codes to avoid cloning
-        let ignore_codes = ignore_info[idx]
-            .take()
-            .map(|(p, _)| p.ignores)
-            .unwrap_or_default();
+        let (ignore_codes, extraction_warnings) = match ignore_info[idx].take() {
+            // Emitted at the node that collects the comment, so they interleave
+            // with the node's own warnings in source order. Only non-Text nodes
+            // collect, matching the official `_` visitor.
+            Some((preceding, false)) => (preceding.ignores, preceding.warnings),
+            Some((preceding, true)) => (preceding.ignores, Vec::new()),
+            None => (Vec::new(), Vec::new()),
+        };
+        for warning in extraction_warnings {
+            context.analysis.warnings.push(warning);
+        }
         let has_ignores = !ignore_codes.is_empty();
         if has_ignores {
             // Store ignored codes on element metadata for use during code generation

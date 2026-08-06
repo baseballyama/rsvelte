@@ -365,12 +365,21 @@ impl<'a> Parser<'a> {
                             .as_ref()
                             .is_none_or(|t| t.tag.as_str() != closing_name)
                         {
+                            // element.js L109: the range runs from the element's
+                            // start to its first child, falling back to the
+                            // triggering tag when it has none.
+                            let end = fragment
+                                .nodes
+                                .first()
+                                .map_or(close_start as u32, |n| n.span().0);
                             self.parse_warnings.push(crate::ast::template::ParseWarning {
                                 code: "element_implicitly_closed".to_string(),
                                 message: format!(
                                     "This element is implicitly closed by the following `</{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
                                     closing_name, name
                                 ),
+                                start: start as u32,
+                                end,
                             });
                         }
                     } else if !self.options.loose {
@@ -425,12 +434,18 @@ impl<'a> Parser<'a> {
                 // Emit element_implicitly_closed warning.
                 // Corresponds to element.js L203-205:
                 //   w.element_implicitly_closed({ start: parent.start, end }, `<${tag.name}>`, `</${parent.name}>`);
+                let end = fragment
+                    .nodes
+                    .first()
+                    .map_or(self.index as u32, |n| n.span().0);
                 self.parse_warnings.push(crate::ast::template::ParseWarning {
                     code: "element_implicitly_closed".to_string(),
                     message: format!(
                         "This element is implicitly closed by the following `<{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
                         reason, name
                     ),
+                    start: start as u32,
+                    end,
                 });
                 // Track which tag was auto-closed so we can raise the correct error later.
                 // Reference: element.js `parser.last_auto_closed_tag` assignment.
@@ -685,6 +700,8 @@ impl<'a> Parser<'a> {
                             self.parse_warnings.push(crate::ast::template::ParseWarning {
                                 code: "svelte_element_invalid_this".to_string(),
                                 message: "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this".to_string(),
+                                start: node.start,
+                                end: node.end,
                             });
                         }
                     }

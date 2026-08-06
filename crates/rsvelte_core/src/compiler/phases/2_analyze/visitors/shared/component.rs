@@ -143,11 +143,13 @@ pub fn visit_component<'a, 'b: 'a>(
                 }
                 // Check for attribute_quoted: quoted single-expression attribute on component
                 if is_quoted_single_expression(attr) {
-                    context.emit_warning(super::super::super::warnings::attribute_quoted());
+                    context.emit_warning(
+                        super::super::super::warnings::attribute_quoted().at(attr.start, attr.end),
+                    );
                 }
                 // Check for illegal colon in attribute name
                 if let Err(warning) = validate_attribute_name_colon(&attr.name) {
-                    context.emit_warning(warning);
+                    context.emit_warning(warning.at(attr.start, attr.end));
                 }
                 // TODO: if (attribute.name === 'slot') {
                 //     validate_slot_attribute(context, attribute, true);

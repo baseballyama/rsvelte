@@ -136,10 +136,10 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // These include warnings like `element_implicitly_closed` that are
     // emitted during parsing when elements are auto-closed.
     for pw in &ast.parse_warnings {
-        analysis.warnings.push(warnings::AnalysisWarning::new(
-            pw.code.clone(),
-            pw.message.clone(),
-        ));
+        analysis.warnings.push(
+            warnings::AnalysisWarning::new(pw.code.clone(), pw.message.clone())
+                .at(pw.start, pw.end),
+        );
     }
 
     // Merge svelte:options from the parsed AST into the analysis
@@ -239,9 +239,15 @@ pub(crate) fn analyze_prepared_component_with_retained(
         && svelte_options.custom_element.is_some()
         && !options.custom_element
     {
-        analysis
-            .warnings
-            .push(warnings::options_missing_custom_element());
+        let mut warning = warnings::options_missing_custom_element();
+        if let Some(attr) = svelte_options
+            .attributes
+            .iter()
+            .find(|attr| attr.name.as_str() == "customElement")
+        {
+            warning = warning.at(attr.start, attr.end);
+        }
+        analysis.warnings.push(warning);
     }
 
     // Extract script content for Phase 3 (avoids re-parsing)
@@ -253,11 +259,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Detect store subscriptions and create synthetic bindings
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
-    let is_module_file = options
-        .filename
-        .as_ref()
-        .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
-        .unwrap_or(false);
+    let is_module_file = analysis.is_module_file;
     store_subscriptions::detect_store_subscriptions(
         ast,
         &mut analysis,
@@ -416,9 +418,15 @@ pub(crate) fn analyze_prepared_component_with_retained(
                 .any(|attr| attr.name.as_str() == "module")
             && !is_module_file
         {
-            analysis
-                .warnings
-                .push(warnings::script_context_deprecated());
+            let mut warning = warnings::script_context_deprecated();
+            if let Some(attr) = module
+                .attributes
+                .iter()
+                .find(|attr| attr.name.as_str() == "context")
+            {
+                warning = warning.at(attr.start, attr.end);
+            }
+            analysis.warnings.push(warning);
         }
 
         // Use typed dispatch for script visiting - avoids JSON Map construction
@@ -682,7 +690,12 @@ pub(crate) fn analyze_prepared_component_with_retained(
                     .contains(&"non_reactive_update".to_string())
                 {
                     let name = binding.name.clone();
-                    analysis.warnings.push(warnings::non_reactive_update(&name));
+                    let node = binding_node_span(binding);
+                    let mut warning = warnings::non_reactive_update(&name);
+                    if let Some((start, end)) = node {
+                        warning = warning.at(start, end);
+                    }
+                    analysis.warnings.push(warning);
                 }
             }
         }
@@ -746,7 +759,12 @@ pub(crate) fn analyze_prepared_component_with_retained(
                     .contains(&"export_let_unused".to_string())
                 {
                     let name = binding.name.clone();
-                    analysis.warnings.push(warnings::export_let_unused(&name));
+                    let node = binding_node_span(binding);
+                    let mut warning = warnings::export_let_unused(&name);
+                    if let Some((start, end)) = node {
+                        warning = warning.at(start, end);
+                    }
+                    analysis.warnings.push(warning);
                 }
             }
         }
@@ -1024,6 +1042,13 @@ fn synthesize_for_element_attrs(
     }
 }
 
+/// Span of `binding.node` — the declaration identifier, which upstream passes to
+/// `w.non_reactive_update` / `w.export_let_unused`.
+fn binding_node_span(binding: &Binding) -> Option<(u32, u32)> {
+    let start = binding.declaration_start?;
+    Some((start, start + binding.name.len() as u32))
+}
+
 /// Validate script attributes and emit warnings for unknown ones.
 fn validate_script_attributes(
     attributes: &[crate::ast::template::AttributeNode],
@@ -1034,7 +1059,9 @@ fn validate_script_attributes(
 
     for attr in attributes {
         if !KNOWN_ATTRS.contains(&attr.name.as_str()) {
-            analysis.warnings.push(warnings::script_unknown_attribute());
+            analysis
+                .warnings
+                .push(warnings::script_unknown_attribute().at(attr.start, attr.end));
         }
     }
 }

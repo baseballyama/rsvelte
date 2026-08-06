@@ -19,7 +19,9 @@ pub fn visit<'a, 'b: 'a>(
 ) -> Result<(), AnalysisError> {
     // In runes mode, <svelte:component> is deprecated because components are dynamic by default
     if context.analysis.runes {
-        context.emit_warning(warnings::svelte_component_deprecated());
+        context.emit_warning(
+            warnings::svelte_component_deprecated().at(component.start, component.end),
+        );
     }
 
     // `<svelte:component>` must have a `this` attribute — when missing, the
@@ -65,7 +67,7 @@ pub fn visit<'a, 'b: 'a>(
             Attribute::Attribute(a) => {
                 // Check for attribute_quoted on svelte:component
                 if is_quoted_single_expression(a) {
-                    context.emit_warning(warnings::attribute_quoted());
+                    context.emit_warning(warnings::attribute_quoted().at(a.start, a.end));
                 }
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;

@@ -335,7 +335,7 @@ pub fn validate_block_not_empty(
             && !text.raw.is_empty()
             && text.raw.trim().is_empty()
         {
-            return Ok(Some(warnings::block_empty()));
+            return Ok(Some(warnings::block_empty().at(text.start, text.end)));
         }
     }
     Ok(None)

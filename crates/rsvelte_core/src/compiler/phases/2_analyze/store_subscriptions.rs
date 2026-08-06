@@ -298,9 +298,10 @@ pub fn detect_store_subscriptions(
                         check_pos += 1;
                     }
                     if check_pos < source_bytes.len() && source_bytes[check_pos] == b'(' {
-                        analysis
-                            .warnings
-                            .push(warnings::store_rune_conflict(store_name));
+                        analysis.warnings.push(
+                            warnings::store_rune_conflict(store_name)
+                                .at(store_ref.position as u32, pos as u32),
+                        );
                     }
                 }
             } else {

@@ -238,18 +238,23 @@ fn visit_common(
     //   if (binding?.kind === 'each' && binding.metadata?.inside_rest) {
     //     w.bind_invalid_each_rest(binding.node, binding.node.name);
     //   }
-    if let Some(binding) = binding
-        && matches!(
-            binding.kind,
-            crate::compiler::phases::phase2_analyze::BindingKind::EachItem
-        )
-        && binding.inside_rest
-    {
-        context.emit_warning(
-            crate::compiler::phases::phase2_analyze::warnings::bind_invalid_each_rest(
-                &binding.name,
-            ),
-        );
+    let each_rest_name = binding
+        .filter(|b| {
+            matches!(
+                b.kind,
+                crate::compiler::phases::phase2_analyze::BindingKind::EachItem
+            ) && b.inside_rest
+        })
+        .map(|b| b.name.clone());
+    if let Some(name) = each_rest_name {
+        // Upstream attributes this to `binding.node`; rsvelte's `Binding` keeps no
+        // declaring-node span for each-item bindings, so recover it from the pattern.
+        let mut warning =
+            crate::compiler::phases::phase2_analyze::warnings::bind_invalid_each_rest(&name);
+        if let Some((start, end)) = find_rest_binding_span(&name, context) {
+            warning = warning.at(start, end);
+        }
+        context.emit_warning(warning);
     }
 
     // Visit child expressions to add template references
@@ -270,6 +275,70 @@ fn visit_common(
     // if node.metadata.expression.has_await { return Err(errors::illegal_await_expression()); }
 
     Ok(())
+}
+
+/// Locate the declaring identifier of an each-item binding that sits inside a rest
+/// element, searching the enclosing `{#each}` context patterns innermost-first.
+fn find_rest_binding_span(name: &str, context: &VisitorContext) -> Option<(u32, u32)> {
+    for node in context.path.iter().rev() {
+        let crate::ast::template::TemplateNode::EachBlock(each) = node else {
+            continue;
+        };
+        let Some(pattern) = each.context.as_ref().map(|c| c.as_node()) else {
+            continue;
+        };
+        if let Some(span) = find_rest_identifier(pattern.as_ref(), name, false, context.parse_arena)
+        {
+            return Some(span);
+        }
+    }
+    None
+}
+
+/// Mirrors `ScopeBuilder::declare_bindings_from_pattern_node_with_kind`'s traversal,
+/// returning the span of the identifier it would have declared with `inside_rest`.
+fn find_rest_identifier(
+    pattern: &JsNode,
+    name: &str,
+    inside_rest: bool,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<(u32, u32)> {
+    match pattern {
+        JsNode::Identifier {
+            name: id,
+            start,
+            end,
+            ..
+        } => (inside_rest && id.as_str() == name).then_some((*start, *end)),
+        JsNode::ObjectPattern { properties, .. } | JsNode::ObjectExpression { properties, .. } => {
+            arena
+                .get_js_children(*properties)
+                .iter()
+                .find_map(|prop| match prop {
+                    JsNode::RestElement { argument, .. }
+                    | JsNode::SpreadElement { argument, .. } => {
+                        find_rest_identifier(arena.get_js_node(*argument), name, true, arena)
+                    }
+                    JsNode::Property { value, .. } => {
+                        find_rest_identifier(arena.get_js_node(*value), name, inside_rest, arena)
+                    }
+                    _ => None,
+                })
+        }
+        JsNode::ArrayPattern { elements, .. } | JsNode::ArrayExpression { elements, .. } => {
+            elements
+                .iter()
+                .flatten()
+                .find_map(|elem| find_rest_identifier(elem, name, inside_rest, arena))
+        }
+        JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+            find_rest_identifier(arena.get_js_node(*argument), name, true, arena)
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            find_rest_identifier(arena.get_js_node(*left), name, inside_rest, arena)
+        }
+        _ => None,
+    }
 }
 
 /// Validate that an Identifier `bind:x={y}` expression targets state or props.
