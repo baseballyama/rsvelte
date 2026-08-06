@@ -47,13 +47,16 @@ and #2343 (the spurious `$.set` proxy flag for a `BinaryExpression`). #2307
 (spurious `/* @__PURE__ */`) is comment-only, so the AST-structural comparator
 does not see it at all; it burns down with the esrap comment epic (#2336).
 
-## Server (`known-failures.server.json`, 1 entry)
+## Server (`known-failures.server.json`, 0 entries)
 
-The one entry is #2308, from the `runed` / `svelte-toolbelt` enrolment:
-`watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracts** it to
+The last entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
+`watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
-round-trips through the client transform, which rewrites the assignment, and the
-server printer has no way back to the source form.
+round-trips through the client transform, which rewrote the assignment, so the
+operator was already gone before the server printer ran. Fixed by lowering
+`$state` to its bare initializer *before* the client transform, so state
+bindings on this path are never signal-wrapped and nothing has to be
+reconstructed.
 
 Its previous sole entry was the SSR half of the same #2031 divergence (the extra
 `<!---->` the dynamic form pushes), fixed by the same change.
