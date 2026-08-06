@@ -401,8 +401,8 @@ pub struct VisitorContext<'a> {
     /// Used for mixed_event_handler_syntaxes validation.
     pub uses_event_attributes: bool,
 
-    /// See `ComponentAnalysis::event_attribute_arrows`.
-    pub event_attribute_arrows: rustc_hash::FxHashSet<u32>,
+    /// See `ComponentAnalysis::event_attribute_arrow_starts`.
+    pub event_attribute_arrow_starts: rustc_hash::FxHashSet<u32>,
     /// Whether we're inside a template expression tag ({expression}).
     /// Used to detect reactive context for pickled_awaits.
     pub in_expression_tag: bool,
@@ -567,7 +567,7 @@ impl<'a> VisitorContext<'a> {
             has_svelte_options: false,
             event_directive_node: None,
             uses_event_attributes: false,
-            event_attribute_arrows: rustc_hash::FxHashSet::default(),
+            event_attribute_arrow_starts: rustc_hash::FxHashSet::default(),
             in_expression_tag: false,
             in_template_function: false,
             ignore_stack: Vec::new(),

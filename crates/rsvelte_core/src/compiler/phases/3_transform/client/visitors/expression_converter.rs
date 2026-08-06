@@ -839,7 +839,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let is_event_attribute_arrow = context
                 .state
                 .analysis
-                .event_attribute_arrows
+                .event_attribute_arrow_starts
                 .contains(arrow_start);
             context.state.event_handler_arrow_body_level = if (is_event_attribute_arrow
                 || context.state.in_component_attribute)
@@ -3124,7 +3124,7 @@ fn convert_arrow_function(
                         context
                             .state
                             .analysis
-                            .event_attribute_arrows
+                            .event_attribute_arrow_starts
                             .contains(&(start as u32))
                     });
             let saved_level = context.state.event_handler_arrow_body_level;

@@ -171,7 +171,7 @@ pub fn record_event_attribute_arrow(context: &mut VisitorContext, attribute: &At
         && tag.expression.as_node().node_type() == Some("ArrowFunctionExpression")
         && let Some(start) = tag.expression.as_node().start()
     {
-        context.analysis.event_attribute_arrows.insert(start);
+        context.analysis.event_attribute_arrow_starts.insert(start);
     }
 }
 

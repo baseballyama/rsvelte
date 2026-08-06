@@ -1560,12 +1560,12 @@ pub struct ComponentAnalysis {
     /// Whether the component uses event attributes (on:event={handler})
     pub uses_event_attributes: bool,
 
-    /// Start offsets of arrow functions that are the direct expression of an
-    /// event attribute on a `RegularElement` or `SvelteElement`. Phase 3 exempts
-    /// exactly these from the dev `$.assign` wrap, mirroring upstream's identity
-    /// test `expression === context.path.at(-1)` — which a boolean cannot
-    /// express, because it cannot say *which* arrow.
-    pub event_attribute_arrows: rustc_hash::FxHashSet<u32>,
+    /// Start offsets of the arrow functions that *are* the expression of an event
+    /// attribute on a `RegularElement` or `SvelteElement` — not arrows nested
+    /// inside one, and not arrows on `<svelte:window>` and friends. A syntactic
+    /// fact about the template, recorded here because this is where the elements
+    /// are already walked.
+    pub event_attribute_arrow_starts: rustc_hash::FxHashSet<u32>,
 
     /// The first on: directive node encountered (for error reporting about mixed syntax)
     pub event_directive_node: Option<EventDirectiveInfo>,
@@ -1746,7 +1746,7 @@ impl ComponentAnalysis {
             uses_render_tags: false,
             uses_component_bindings: false,
             uses_event_attributes: false,
-            event_attribute_arrows: rustc_hash::FxHashSet::default(),
+            event_attribute_arrow_starts: rustc_hash::FxHashSet::default(),
             event_directive_node: None,
             needs_context: false,
             needs_props: false,
