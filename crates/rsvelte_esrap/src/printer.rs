@@ -2456,9 +2456,12 @@ impl<'opt> Printer<'opt> {
     /// members/identifiers and never trip this — only an explicitly nested chain
     /// (the snippet-argument base) does.
     fn member_object_with_parens(&mut self, object: &Expression, ctx: &mut Context) {
-        if matches!(object, Expression::ChainExpression(_)) {
+        // oxc keeps a `ParenthesizedExpression` around the nested chain, which
+        // `print_expression` would then drop — look through it as the callee
+        // rule does, so the required parens are not lost.
+        if matches!(unparen(object), Expression::ChainExpression(_)) {
             ctx.write("(");
-            self.print_expression(object, ctx);
+            self.print_expression(unparen(object), ctx);
             ctx.write(")");
         } else {
             self.child_with_parens(object, 19, ctx);
