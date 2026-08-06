@@ -757,6 +757,59 @@ fn strip_indent(line: &str, base_indent: usize) -> &str {
     }
 }
 
+/// esrap elides `ParenthesizedExpression` (acorn does too), so a one-dependency
+/// `$.legacy_pre_effect(() => (dep), …)` thunk would lose its parens across this
+/// round-trip; rebuild it as the one-element sequence upstream emits.
+fn restore_pre_effect_thunk_parens<'a>(
+    program: &mut oxc_ast::ast::Program<'a>,
+    allocator: &'a Allocator,
+) {
+    use oxc_allocator::{ArenaVec, ReplaceWith};
+    use oxc_ast::ast::{Argument, Expression, SequenceExpression, Statement};
+
+    let ab = oxc_ast::builder::AstBuilder::new(allocator);
+    for stmt in program.body.iter_mut() {
+        let Statement::ExpressionStatement(es) = stmt else {
+            continue;
+        };
+        let Expression::CallExpression(call) = &mut es.expression else {
+            continue;
+        };
+        let Expression::StaticMemberExpression(m) = &call.callee else {
+            continue;
+        };
+        if !matches!(&m.object, Expression::Identifier(id) if id.name == "$")
+            || m.property.name != "legacy_pre_effect"
+        {
+            continue;
+        }
+        let Some(Argument::ArrowFunctionExpression(arrow)) = call.arguments.first_mut() else {
+            continue;
+        };
+        let Some(body) = arrow.get_expression_mut() else {
+            continue;
+        };
+        // A multi-dependency thunk is already `Paren(Sequence)` and prints its own parens.
+        if !matches!(&*body, Expression::ParenthesizedExpression(p)
+            if !matches!(p.expression, Expression::SequenceExpression(_)))
+        {
+            continue;
+        }
+        body.replace_with(|e| {
+            let Expression::ParenthesizedExpression(p) = e else {
+                unreachable!()
+            };
+            // Keep the paren's own span so comment placement is unchanged.
+            let span = p.span;
+            Expression::SequenceExpression(SequenceExpression::boxed(
+                span,
+                ArenaVec::from_value_in(p.unbox().expression, &ab),
+                &ab,
+            ))
+        });
+    }
+}
+
 /// Parses the input as JavaScript, then reprints it with OXC's codegen to normalize:
 /// - Spacing around operators (e.g., `let x=0` -> `let x = 0`)
 /// - Spacing before braces (e.g., `function f(){` -> `function f() {`)
@@ -855,7 +908,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // Use thread-local allocator to avoid repeated allocation overhead
     let code = with_normalize_allocator(|allocator| {
         let _pt = super::super::profile::timer_start();
-        let parsed = Parser::new(allocator, &protected, SourceType::mjs()).parse();
+        let mut parsed = Parser::new(allocator, &protected, SourceType::mjs()).parse();
         super::super::profile::record_direct_parse(
             super::super::profile::timer_elapsed(_pt),
             protected.len(),
@@ -863,6 +916,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         if !parsed.diagnostics.is_empty() {
             return js.to_string();
         }
+        restore_pre_effect_thunk_parens(&mut parsed.program, allocator);
         let _t = super::super::profile::timer_start();
         let printed = rsvelte_esrap::print(&parsed.program, &protected);
         super::super::profile::record_esrap_normalize(super::super::profile::timer_elapsed(_t));
