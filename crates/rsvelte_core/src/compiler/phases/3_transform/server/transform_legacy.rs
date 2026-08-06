@@ -2223,6 +2223,7 @@ mod tests {
         );
     }
 
+    // Control is this change's own pre-fix state; the code it replaced passes too.
     #[test]
     fn interpolation_brace_does_not_end_the_reactive_block_early() {
         let script = "let name = 'w';\n$: b = 1;\n$: { msg = `hello ${\nname\n}`;\n}\n";
