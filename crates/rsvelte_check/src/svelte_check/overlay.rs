@@ -2705,11 +2705,7 @@ fn hijacked_import_spans(
     for stmt in &parsed.program.body {
         match stmt {
             oxc::Statement::ImportDeclaration(decl) => take(&decl.source.value, decl.span),
-            oxc::Statement::ExportNamedDeclaration(decl) => {
-                if let Some(src) = &decl.source {
-                    take(&src.value, decl.span);
-                }
-            }
+            oxc::Statement::ExportFromDeclaration(decl) => take(&decl.source.value, decl.span),
             oxc::Statement::ExportAllDeclaration(decl) => take(&decl.source.value, decl.span),
             _ => {}
         }
@@ -3007,10 +3003,15 @@ fn module_exports(source: &str, source_type: SourceType) -> ModuleExports {
     let mut has_default = false;
     for stmt in &parsed.program.body {
         match stmt {
+            oxc::Statement::ExportDeclaration(decl) => {
+                collect_declaration_names(&decl.declaration, &mut names);
+            }
             oxc::Statement::ExportNamedDeclaration(decl) => {
-                if let Some(declaration) = &decl.declaration {
-                    collect_declaration_names(declaration, &mut names);
+                for spec in &decl.specifiers {
+                    names.push(spec.exported.name().to_string());
                 }
+            }
+            oxc::Statement::ExportFromDeclaration(decl) => {
                 for spec in &decl.specifiers {
                     names.push(spec.exported.name().to_string());
                 }

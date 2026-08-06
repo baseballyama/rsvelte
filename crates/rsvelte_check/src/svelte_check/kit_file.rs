@@ -682,7 +682,7 @@ impl<'a> FnLike<'a> {
         Self {
             params: &af.params,
             has_return_type: af.return_type.is_some(),
-            return_pos: find_arrow_token(source, af.params.span.end, af.body.span.start),
+            return_pos: find_arrow_token(source, af.params.span.end, af.body.span().start),
             start: af.span.start,
             is_async: af.r#async,
             needs_parens: source.as_bytes().get(af.params.span.start as usize) != Some(&b'('),
@@ -896,10 +896,10 @@ fn visit_route_statement(
     basename: &str,
     adds: &mut Vec<AddedCode>,
 ) {
-    let oxc::Statement::ExportNamedDeclaration(ex) = stmt else {
+    let oxc::Statement::ExportDeclaration(ex) = stmt else {
         return;
     };
-    let Some(decl) = &ex.declaration else { return };
+    let decl = &ex.declaration;
     let gate = ctx.gate(ex.span.start);
     match decl {
         oxc::Declaration::VariableDeclaration(var) => {
@@ -1069,10 +1069,10 @@ fn add_export_type(
     return_type: Option<&str>,
     adds: &mut Vec<AddedCode>,
 ) {
-    let oxc::Statement::ExportNamedDeclaration(ex) = stmt else {
+    let oxc::Statement::ExportDeclaration(ex) = stmt else {
         return;
     };
-    let Some(decl) = &ex.declaration else { return };
+    let decl = &ex.declaration;
     let gate = ctx.gate(ex.span.start);
     match decl {
         oxc::Declaration::FunctionDeclaration(f) => {

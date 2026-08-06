@@ -358,7 +358,10 @@ pub(super) fn detect_rune_in_expr(
         }
         oxc::Expression::ArrowFunctionExpression(arrow) => {
             let scope = scope_with_params(declared_names, &arrow.params);
-            arrow.body.as_function_body().is_some_and(|block| detect_rune_in_nested_body(&block.statements, &scope))
+            arrow
+                .body
+                .as_function_body()
+                .is_some_and(|block| detect_rune_in_nested_body(&block.statements, &scope))
         }
         oxc::Expression::FunctionExpression(func) => func.body.as_ref().is_some_and(|body| {
             let scope = scope_with_params(declared_names, &func.params);
