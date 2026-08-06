@@ -39,9 +39,15 @@ fn repo_root() -> PathBuf {
 }
 
 fn svelte_dev_short_sha(root: &Path) -> Option<String> {
+    let submodule = root.join("submodules/svelte.dev");
+    // An uninitialised submodule is an empty directory, and `git -C` there walks
+    // up to the superproject and reports *its* HEAD — a valid-looking wrong SHA.
+    if !submodule.join(".git").exists() {
+        return None;
+    }
     let out = Command::new("git")
         .args(["-C"])
-        .arg(root.join("submodules/svelte.dev"))
+        .arg(&submodule)
         .args(["rev-parse", "HEAD"])
         .output()
         .ok()?;
