@@ -422,6 +422,11 @@ const msgKey = (w) => `${w.code}: ${w.message}`;
 // while measuring nothing. Counted here and asserted after the loop.
 let warningsSeen = 0;
 let warningsWithMessage = 0;
+// The message dimension only sees entries whose codes and positions already
+// agree, so "0 message divergences" is meaningless without saying over how many.
+// Printed beside the counts because a denominator kept only in prose gets
+// dropped when the number is quoted.
+const messageCoverage = { emitting: 0, reached: 0 };
 const countMessageCoverage = (list) => {
 	for (const w of list) {
 		warningsSeen++;
@@ -449,6 +454,8 @@ for (const { id } of manifest) {
 	const actErr = JSON.parse(readIf(path.join(ACTUAL, id, 'error.json')) ?? '{}');
 
 	const details = [];
+	let emitsWarning = false;
+	let reachesMessage = false;
 	for (const targetDef of TARGETS) {
 		const target = targetDef.key;
 		if (expErr[target] || actErr[target]) continue;
@@ -456,6 +463,7 @@ for (const { id } of manifest) {
 		const a = actWarn[target] ?? [];
 		countMessageCoverage(e);
 		countMessageCoverage(a);
+		if (e.length || a.length) emitsWarning = true;
 
 		const extra = bagDiff(codeBag(a), codeBag(e));
 		const missing = bagDiff(codeBag(e), codeBag(a));
@@ -479,6 +487,7 @@ for (const { id } of manifest) {
 
 		// Only reached when the codes and the positions both already agree, so a
 		// divergence here is the message text alone.
+		if (e.length) reachesMessage = true;
 		const eMsg = e.map(msgKey).sort();
 		const aMsg = a.map(msgKey).sort();
 		if (String(eMsg) !== String(aMsg)) {
@@ -486,6 +495,9 @@ for (const { id } of manifest) {
 			details.push({ target, kind: 'warning-message', expected: eMsg[i], actual: aMsg[i] });
 		}
 	}
+
+	if (emitsWarning) messageCoverage.emitting++;
+	if (reachesMessage) messageCoverage.reached++;
 
 	if (!details.length) {
 		warningCounts.match++;
@@ -558,6 +570,14 @@ console.log('\n[verify] results:');
 for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
 console.log('\n[verify] warning parity:');
 for (const [k, v] of Object.entries(warningCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
+{
+	const { emitting, reached } = messageCoverage;
+	const pct = emitting ? ((reached / emitting) * 100).toFixed(1) : '0.0';
+	console.log(
+		`  message dimension reached ${reached}/${emitting} warning-emitting entries (${pct}%) — ` +
+			`the rest diverge earlier in the cascade, so this gate's reach grows as the code and position ratchets shrink`
+	);
+}
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report.json'))}`);
 
 // ---- warning ratchets ------------------------------------------------------

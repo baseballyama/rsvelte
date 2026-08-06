@@ -62,10 +62,7 @@ distinct warning codes seen         74   (of 89 in VALID_WARNING_CODES)
 - **The denominator is 592, not 14,131.** Only 8.4% of corpus entries emit any warning,
   and of those, **just under half never reach the message comparison at all**: 70 are
   consumed by the code dimension and 529 by the position dimension (70 + 529 + 592 =
-  1191 exactly). The cascade stops at the first divergence, so an entry already listed
-  in the code or position ratchet is invisible here. **This gate's reach is coupled to
-  the position backlog rather than independent of it** — burning that down widens this
-  one, and no one should read "1 divergence" as "1 divergence among 14,131 entries".
+  1191 exactly). See the coupling section below — it is a result, not a caveat.
 - **Entries either compiler rejects** are skipped (the `expErr`/`actErr` guard in
   `verify.mjs`) — error parity covers those separately.
 - **15 of the 89 ignorable codes never fire on this corpus.** Only three of those are
@@ -84,6 +81,27 @@ distinct warning codes seen         74   (of 89 in VALID_WARNING_CODES)
   stripping changes no verdict at the point in the cascade where messages are compared
   — codes already agree by then. It is stripped so a code-level defect cannot leak into
   this ratchet, and so the two gates share one definition of "message".
+
+## This gate's coverage is one minus the backlog above it
+
+The 599 entries the message dimension never reaches are **exactly** the ones already
+listed as broken in the code (70) and position (529) ratchets. That makes the coverage
+figure a property of those backlogs rather than of this gate, with three consequences
+that are not visible from the ratchet file:
+
+1. **Coverage grows as the position ratchet burns down.** Nothing about this gate has to
+   change for its reach to increase. Conversely, a reader who sees `[]` here cannot tell
+   whether it means agreement or absence of reach — so the honest headline is
+   **"0 divergences over 592 of 1,191 warning-emitting entries"**, never "0" alone.
+   `verify.mjs` prints that denominator beside the counts for this reason.
+2. **The unreached half is adversely selected, not neutrally missing.** An entry whose
+   warning position already diverges is not a random sample: something about that
+   diagnostic is already wrong, which makes its message *more* likely to be wrong too.
+   The half this gate cannot see is the half most likely to contain a defect.
+3. It is the "a ratchet entry suppresses everything about its entry, not only the
+   dimension its justification names" property **appearing as a quantity rather than as
+   a bug found later**. That property has been inferred after the fact before; here it
+   is 599 entries, countable up front.
 
 ## Current baseline: 0 entries per target
 
