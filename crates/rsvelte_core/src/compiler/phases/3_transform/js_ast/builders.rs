@@ -1043,6 +1043,28 @@ pub fn optional_call(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) ->
     })
 }
 
+/// Close an optional chain by wrapping it in a `ChainExpression`, so a member
+/// access built on top of it stays *outside* the chain (upstream keeps the
+/// source `ChainExpression` node, which is what makes esrap parenthesize).
+/// Non-chains and already-wrapped chains are returned unchanged.
+pub fn close_optional_chain(arena: &JsArena, expr: JsExpr) -> JsExpr {
+    fn is_open_chain(arena: &JsArena, expr: &JsExpr) -> bool {
+        match expr {
+            JsExpr::Member(m) => m.optional || is_open_chain(arena, arena.get_expr(m.object)),
+            JsExpr::Call(c) => c.optional || is_open_chain(arena, arena.get_expr(c.callee)),
+            _ => false,
+        }
+    }
+
+    if is_open_chain(arena, &expr) {
+        JsExpr::Chain(JsChainExpression {
+            expression: arena.alloc_expr(expr),
+        })
+    } else {
+        expr
+    }
+}
+
 /// Create a new expression.
 pub fn new_expr(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
     JsExpr::New(JsNewExpression {

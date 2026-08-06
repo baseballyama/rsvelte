@@ -384,6 +384,9 @@ pub fn build_event_handler(
             apply_args,
         )
     } else {
+        // Upstream's handler is still its own `ChainExpression`, so the `apply`
+        // member lands outside the chain and the printer parenthesises it.
+        let js_expr = b::close_optional_chain(&context.arena, js_expr);
         b::call(
             &context.arena,
             b::optional_member(&context.arena, js_expr, "apply"),

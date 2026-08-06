@@ -276,7 +276,10 @@ pub fn build_event_handler(
 
         b::call(arena, b::member_path(arena, "$.apply"), apply_args)
     } else {
-        // handler?.apply(this, $$args) - use optional chaining for safety
+        // handler?.apply(this, $$args) - use optional chaining for safety.
+        // Upstream's handler is still its own `ChainExpression`, so the `apply`
+        // member lands outside the chain and the printer parenthesises it.
+        let handler = b::close_optional_chain(arena, handler);
         b::call(
             arena,
             b::optional_member(arena, handler, "apply"),
