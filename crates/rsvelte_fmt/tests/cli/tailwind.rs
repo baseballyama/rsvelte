@@ -147,11 +147,15 @@ fn node_runnable() -> bool {
         .unwrap_or(false)
 }
 
-/// `RSVELTE_FMT_TW_TEST_DIR` is set by exactly the CI step that installs the
-/// Tailwind oracle, so it — not `CI` — marks the run that must not skip. Every
-/// other job legitimately lacks the oracle and has to stay green.
+/// May this run fail on a missing Tailwind oracle? Both conditions are needed:
+/// `RSVELTE_REQUIRE_PREREQS` says the job promised its prerequisites, and
+/// `RSVELTE_FMT_TW_TEST_DIR` says the oracle is in scope for it. This binary
+/// also runs in the sharded `test` job, which sets the former but installs no
+/// oracle — and the latter is a user-facing knob, so either alone turns a
+/// legitimate skip into a failure.
 fn tw_oracle_declared() -> bool {
-    std::env::var_os("RSVELTE_FMT_TW_TEST_DIR").is_some()
+    std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_some()
+        && std::env::var_os("RSVELTE_FMT_TW_TEST_DIR").is_some()
 }
 
 /// Build a fixture project (custom v4 stylesheet + `node_modules` symlinked from

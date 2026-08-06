@@ -62,11 +62,15 @@ fn svelte_dev_short_sha(root: &Path) -> Option<String> {
     Some(sha[..12].to_string())
 }
 
-/// `FMT_CORPUS_OXFMT` is set by exactly the CI step that checks out svelte.dev
-/// and generates the corpus, so it — not `CI` — marks the run that must not skip.
-/// The sharded `test` job deliberately omits svelte.dev and has to stay green.
+/// May this run fail on a missing prerequisite? Two conditions, because either
+/// alone is wrong: `RSVELTE_REQUIRE_PREREQS` says the *job* promised its
+/// prerequisites (the sharded `test` job omits svelte.dev and must stay green),
+/// and `FMT_CORPUS_OXFMT` says the corpus is in scope for it. `FMT_CORPUS_OXFMT`
+/// is a user-facing knob, so gating on it alone would turn a contributor's local
+/// export into a panic where they used to get a skip.
 fn in_corpus_job() -> bool {
-    std::env::var_os("FMT_CORPUS_OXFMT").is_some()
+    std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_some()
+        && std::env::var_os("FMT_CORPUS_OXFMT").is_some()
 }
 
 fn oxfmt_bin() -> PathBuf {

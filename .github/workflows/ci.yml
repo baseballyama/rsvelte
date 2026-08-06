@@ -601,6 +601,11 @@ jobs:
         env:
           RUST_MIN_STACK: '33554432'
           FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
+          # This job checked svelte.dev out and generated the corpus, so a
+          # missing prerequisite here is a misconfigured job. `FMT_CORPUS_OXFMT`
+          # alone cannot say that — it is a user-facing knob, and gating on it
+          # would make a contributor's local export fail their test run.
+          RSVELTE_REQUIRE_PREREQS: '1'
 
       - name: Run sortTailwindcss JS-parity tests (custom config vs. oxfmt)
         # Asserts rsvelte-fmt's JS-sorted output is byte-identical to the real
