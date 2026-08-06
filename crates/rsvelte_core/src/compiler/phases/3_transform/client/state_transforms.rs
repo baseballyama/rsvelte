@@ -912,37 +912,54 @@ pub(super) fn find_assignment_position(expr: &str) -> Option<usize> {
 
 /// Find the position of a `:` at depth 0 in an expression.
 /// This is used to split ternary expressions like `true_rhs : false_branch`.
+/// The returned position is a **byte** offset: the caller slices `expr` with it.
 pub(super) fn find_colon_at_depth0(expr: &str) -> Option<usize> {
-    let chars: Vec<char> = expr.chars().collect();
+    // Not `code_bytes`: this scanner descends into `${…}` on purpose, and an
+    // opaque template skip would swallow it. UTF-8 continuation bytes are all
+    // >= 0x80, so they never match an ASCII arm.
+    let bytes = expr.as_bytes();
     let mut depth = 0;
     let mut i = 0;
 
-    while i < chars.len() {
-        match chars[i] {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            ':' if depth == 0 => return Some(i),
-            '\'' | '"' => {
-                // Skip string literals
-                let quote = chars[i];
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b':' if depth == 0 => return Some(i),
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                    i += 1;
+                }
                 i += 1;
-                while i < chars.len() && chars[i] != quote {
-                    if chars[i] == '\\' && i + 1 < chars.len() {
+            }
+            quote @ (b'\'' | b'"') => {
+                // Skip string literals
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
                         i += 1;
                     }
                     i += 1;
                 }
             }
-            '`' => {
+            b'`' => {
                 // Skip template literals
                 i += 1;
-                while i < chars.len() && chars[i] != '`' {
-                    if chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                while i < bytes.len() && bytes[i] != b'`' {
+                    if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
                         depth += 1;
                         i += 1;
-                    } else if chars[i] == '}' && depth > 0 {
+                    } else if bytes[i] == b'}' && depth > 0 {
                         depth -= 1;
-                    } else if chars[i] == '\\' && i + 1 < chars.len() {
+                    } else if bytes[i] == b'\\' && i + 1 < bytes.len() {
                         i += 1;
                     }
                     i += 1;
@@ -1839,5 +1856,32 @@ mod non_ascii_tests {
         let vars = vec![("x".to_string(), None, DeclarationKind::Let)];
         let out = transform_legacy_state_declarations("let x: Café = 0", &vars, false, false);
         assert!(out.contains("$.mutable_source(0)"), "got: {out}");
+    }
+}
+
+#[cfg(test)]
+mod colon_depth0_tests {
+    use super::*;
+
+    #[test]
+    fn colon_position_is_a_byte_offset() {
+        // The caller slices `&str` with this, so it must be a byte offset.
+        let expr = "\"ああa\" : x";
+        let pos = find_colon_at_depth0(expr).unwrap();
+        assert_eq!(pos, expr.find(':').unwrap());
+    }
+
+    #[test]
+    fn colon_in_comment_is_not_depth0() {
+        assert_eq!(find_colon_at_depth0("a /* : */ : b"), Some(10));
+        assert_eq!(find_colon_at_depth0("a // : b"), None);
+    }
+
+    #[test]
+    fn ternary_branch_split_survives_non_ascii() {
+        let re = regex::Regex::new(r"\bcomponent\b").unwrap();
+        // `cond ? component = "ああa" : component = other`
+        let stmt = "cond ? component = \"ああa\" : component = other";
+        let _ = check_identifier_in_statement(stmt, "component", &re);
     }
 }
