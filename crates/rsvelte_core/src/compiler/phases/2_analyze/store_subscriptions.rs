@@ -742,6 +742,46 @@ fn is_dollar_ident_destructuring_declaration(chars: &[char], ident_start: usize)
     false
 }
 
+/// Whether `kw` ends at `end` (inclusive) and is not part of a longer word.
+fn keyword_ends_at(chars: &[char], end: isize, kw: &str) -> bool {
+    let n = kw.chars().count() as isize;
+    if end < n - 1 {
+        return false;
+    }
+    let start = (end - n + 1) as usize;
+    if !chars[start..=end as usize].iter().copied().eq(kw.chars()) {
+        return false;
+    }
+    start == 0 || !is_identifier_char(chars[start - 1])
+}
+
+/// `import { $foo as bar }` names a module export rather than reading a store,
+/// and a bare `import { $foo }` declares the name outright.
+fn is_dollar_ident_import_specifier(chars: &[char], ident_start: usize) -> bool {
+    let Some(open) = enclosing_pattern_open(chars, ident_start) else {
+        return false;
+    };
+    if chars[open] != '{' {
+        return false;
+    }
+    let mut k = open as isize - 1;
+    while k >= 0 && chars[k as usize].is_whitespace() {
+        k -= 1;
+    }
+    if keyword_ends_at(chars, k, "import") {
+        return true;
+    }
+    // `import type { … }`
+    if keyword_ends_at(chars, k, "type") {
+        k -= 4;
+        while k >= 0 && chars[k as usize].is_whitespace() {
+            k -= 1;
+        }
+        return keyword_ends_at(chars, k, "import");
+    }
+    false
+}
+
 /// Check if a `$$xxx` identifier is used in a TypeScript type declaration context
 /// (e.g., `type $$Props = ...` or `interface $$Props { ... }`).
 /// These are TypeScript-only constructs that should not be treated as store references.
@@ -984,7 +1024,9 @@ fn collect_dollar_identifiers_pass(
                     let param_range = dollar_param_body_range(chars, ident_start, i);
                     let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start)
                         || is_dollar_ident_destructuring_declaration(chars, ident_start);
-                    let is_declaration = param_range.is_some() || is_var_decl;
+                    let is_declaration = param_range.is_some()
+                        || is_var_decl
+                        || is_dollar_ident_import_specifier(chars, ident_start);
                     if collect_declared {
                         if let Some((bs, be)) = param_range {
                             // A param shadows only inside its own arrow body.
