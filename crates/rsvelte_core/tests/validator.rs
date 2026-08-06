@@ -539,14 +539,12 @@ fn validator_warning_messages_match_official() {
         for (a, e) in result.warnings.iter().zip(expected.iter()) {
             let actual = common::strip_error_link(&a.message);
             let want = common::strip_error_link(&e.message);
-            if actual != want {
-                if diverged.insert(name.clone()) {
-                    let _ = write!(
-                        detail,
-                        "\n  {name} [{}]\n    rsvelte:  {actual}\n    official: {want}",
-                        a.code
-                    );
-                }
+            if actual != want && diverged.insert(name.clone()) {
+                let _ = write!(
+                    detail,
+                    "\n  {name} [{}]\n    rsvelte:  {actual}\n    official: {want}",
+                    a.code
+                );
             }
         }
     }
