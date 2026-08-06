@@ -1427,7 +1427,11 @@ pub(super) fn find_trace_source_location(
 ) -> Option<(usize, usize)> {
     // Find $inspect.trace() in source and then find the enclosing function/arrow
     if let Some(trace_pos) = memmem::find(source.as_bytes(), b"$inspect.trace(") {
-        let before = &source[..trace_pos];
+        // The scans below read backwards for code punctuation, so prose in a
+        // comment between the function head and the trace call would otherwise
+        // answer for it.
+        let before = blank_comments(&source[..trace_pos]);
+        let before = before.as_str();
 
         // Walk backwards past whitespace and the opening { to find the arrow =>
         // or function keyword
@@ -1465,6 +1469,53 @@ pub(super) fn find_trace_source_location(
         }
     }
     None
+}
+
+/// Replace every comment byte with a space, keeping newlines and byte offsets,
+/// so a backward scan for code cannot land inside prose.
+fn blank_comments(source: &str) -> String {
+    let bytes = source.as_bytes();
+    let mut out = bytes.to_vec();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            quote @ (b'\'' | b'"' | b'`') => {
+                i += 1;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    let closed = bytes[i] == quote;
+                    i += 1;
+                    if closed {
+                        break;
+                    }
+                }
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    out[i] = b' ';
+                    i += 1;
+                }
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                let start = i;
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                for byte in &mut out[start..i] {
+                    if *byte != b'\n' {
+                        *byte = b' ';
+                    }
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    String::from_utf8(out).unwrap_or_else(|_| source.to_string())
 }
 
 /// Find the matching opening parenthesis for a closing `)` at the given position.
