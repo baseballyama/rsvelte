@@ -449,6 +449,28 @@ function walkPairs(dir, out = []) {
 	return out;
 }
 
+const AST_EQUIV_BIN = path.join(ROOT, 'target/release/ast_equiv_batch');
+
+// The verdict comes from the same Rust comparator the corpus gate has used
+// since #2184, not from a second definition of "equivalent" written here: a
+// string identity cannot collapse optional parentheses, so it reports
+// non-divergences as divergences.
+function astVerdicts(pairs) {
+	if (!pairs.length) return new Map();
+	if (!fs.existsSync(AST_EQUIV_BIN)) {
+		console.error(`[mutate] missing ${AST_EQUIV_BIN} — build it first:`);
+		console.error('  cargo build --release --bin ast_equiv_batch');
+		process.exit(2);
+	}
+	const input = pairs.map((p) => ({ id: p.key, left: p.expectedPath, right: p.actualPath }));
+	const out = execFileSync(AST_EQUIV_BIN, [], {
+		input: JSON.stringify(input),
+		encoding: 'utf8',
+		maxBuffer: 1024 * 1024 * 256,
+	});
+	return new Map(JSON.parse(out).map((v) => [v.id, v]));
+}
+
 const pairs = fs.existsSync(TREE) ? walkPairs(TREE) : [];
 // Every divergent comparison wrote both halves, so a `divergent` count that the
 // walk cannot account for means outputs went missing between the two stages.
@@ -456,6 +478,7 @@ if (pairs.length !== divergent) {
 	console.error(`\n[mutate] ${pairs.length} output pairs on disk for ${divergent} divergent comparisons — outputs went missing.`);
 	process.exit(2);
 }
+const differing = [];
 for (const expectedPath of pairs) {
 	const actualPath = expectedPath.replace(`${path.sep}expected${path.sep}`, `${path.sep}actual${path.sep}`);
 	if (!fs.existsSync(actualPath)) {
@@ -470,7 +493,17 @@ for (const expectedPath of pairs) {
 		counts.match += 1;
 		continue;
 	}
-	if (codeIdentity(expected) === codeIdentity(actual)) {
+	differing.push({ key: `${id} ${target}`, id, target, expectedPath, actualPath, expected, actual });
+}
+
+const verdicts = astVerdicts(differing);
+
+for (const pair of differing) {
+	const { id, target, expected, actual } = pair;
+	const ast = verdicts.get(pair.key);
+	// Comments are ignored by default, so `equivalent` here means the code
+	// agrees and only comments or formatting moved.
+	if (ast?.verdict === 'equivalent') {
 		counts['comment-mismatch'] += 1;
 		continue;
 	}
