@@ -6198,9 +6198,9 @@ fn transform_complex_selector(
         // Track if the next relative selector should be treated as global
         // (after a bare :global modifier)
         let mut next_is_global = false;
-        // Source end of the last compound emitted through the ordinary path, so
+        // Source span of the last compound emitted through the ordinary path, so
         // the combinator gap can be copied verbatim from the stylesheet.
-        let mut prev_rel_end: Option<usize> = None;
+        let mut prev_rel_span: Option<(usize, usize)> = None;
 
         for relative_selector in children {
             // Check if this relative selector starts with bare :global (no args)
@@ -6342,7 +6342,7 @@ fn transform_complex_selector(
                 if let Some(text) = (!result.is_empty())
                     .then(|| {
                         source_combinator_text(
-                            prev_rel_end,
+                            prev_rel_span,
                             relative_selector,
                             name,
                             css_source,
@@ -6675,41 +6675,52 @@ fn transform_complex_selector(
                 }
             }
 
-            prev_rel_end = relative_selector
-                .get("end")
-                .and_then(|e| e.as_u64())
-                .map(|e| e as usize);
+            prev_rel_span = compound_start(relative_selector)
+                .zip(relative_selector.get("end").and_then(|e| e.as_u64()))
+                .map(|(s, e)| (s, e as usize));
         }
     }
 
     result
 }
 
+fn compound_start(relative_selector: &Value) -> Option<usize> {
+    relative_selector
+        .get("selectors")
+        .and_then(|s| s.as_array())
+        .and_then(|a| a.first())
+        .and_then(|s| s.get("start"))
+        .and_then(|s| s.as_u64())
+        .map(|s| s as usize)
+}
+
 /// Upstream rewrites the stylesheet in place, so the author's whitespace between
 /// two compounds — including line breaks — survives into the output.
 fn source_combinator_text(
-    prev_rel_end: Option<usize>,
+    prev_rel_span: Option<(usize, usize)>,
     relative_selector: &Value,
     name: &str,
     css_source: &str,
     css_start: usize,
 ) -> Option<String> {
-    let prev_end = prev_rel_end?;
-    let start = relative_selector
-        .get("selectors")
-        .and_then(|s| s.as_array())
-        .and_then(|a| a.first())
-        .and_then(|s| s.get("start"))
-        .and_then(|s| s.as_u64())? as usize;
-    let from = prev_end.checked_sub(css_start)?;
+    let (prev_start, prev_end) = prev_rel_span?;
+    let start = compound_start(relative_selector)?;
+    let mut from = prev_end.checked_sub(css_start)?;
     let to = start.checked_sub(css_start)?;
     if to <= from || to > css_source.len() {
         return None;
     }
+    // Our identifier spans stop before the whitespace that terminates a CSS hex
+    // escape, where upstream's swallow it; that character belongs to the compound.
+    if ends_with_css_hex_escape(css_source.get(prev_start.checked_sub(css_start)?..from)?)
+        && css_source[from..to].starts_with([' ', '\t', '\n', '\r'])
+    {
+        from += 1;
+    }
     let text = css_source.get(from..to)?;
     // A gap holding anything but the combinator (a comment, a synthesized node's
     // stale span) falls back to the canonical spelling.
-    if text.trim() != name.trim() {
+    if text.is_empty() || text.trim() != name.trim() {
         return None;
     }
     Some(text.to_string())
