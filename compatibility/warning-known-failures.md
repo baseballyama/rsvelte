@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 70 entries; the three position files hold the same 625. That is not a
+the same 70 entries; the three position files hold the same 529. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -64,11 +64,12 @@ identified so far:
   over-warning** — concentrated in the Svelte migrate fixtures, which are out of
   scope for codegen but still compile here.
 
-## Warning positions (`warning-position-known-failures.<target>.json`, 625 entries each)
+## Warning positions (`warning-position-known-failures.<target>.json`, 529 entries each)
 
 The codes agree but a `(line, column)` does not. There are **two** systemic
-causes, not one, and they need different edits. Measured over the 625 listed
-entries, which carry 967 mismatching tuples between them:
+causes, not one, and they need different edits. Measured over the 625 entries
+listed before the a11y half was fixed, which carried 967 mismatching tuples
+between them:
 
 - **No span at all (649 tuples, 67.1%)** — rsvelte emits the warning with
   `start === undefined` where upstream reports a real position, so an editor or
@@ -88,6 +89,9 @@ Split from the code ratchet on purpose: this backlog is far larger, and folded
 together it would hide every semantic regression above.
 
 ### The a11y half (fixed)
+
+Fixing it took the list from 625 entries to **529**: 96 removed, 0 added, and the
+code ratchet unmoved at 70.
 
 `2_analyze/visitors/regular_element.rs` stamped `element.start`/`element.end` on
 any a11y warning that arrived spanless, and `shared/a11y/mod.rs` pushed *every*
@@ -111,6 +115,11 @@ Note that `a11y_role_supports_aria_props` was previously listed above as a
 missing-position code. It never was: rsvelte always emitted a span for it. That
 mis-attribution is exactly what a single-cause reading of this bucket produces —
 the split above was measured per tuple, not inferred from the code names.
+
+What is left is 650 tuples: the 649 missing-span ones, unchanged, plus a single
+`a11y_figcaption_index` that disagrees on **both** line and column. That one is a
+third cause, not a remnant of this one — the code already carried a span, so it
+was never routed through the element fallback.
 
 `perf_avoid_nested_class` was the first of these to be burned down (#2349),
 and it cost two entries rather than the one the `runed` / `svelte-toolbelt`
