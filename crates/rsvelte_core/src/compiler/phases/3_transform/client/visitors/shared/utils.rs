@@ -3774,10 +3774,14 @@ fn get_literal_value_json(
                             use crate::compiler::phases::phase2_analyze::scope::BindingKind;
                             if !matches!(binding.kind, BindingKind::Derived)
                                 && init.contains("\"type\":")
+                                && INITIAL_EVAL_DEPTH.with(|d| d.get()) < MAX_INITIAL_EVAL_DEPTH
                                 && let Ok(parsed_expr) =
                                     serde_json::from_str::<crate::ast::js::Expression>(init)
                             {
-                                return get_literal_value_json(parsed_expr.as_json(), context);
+                                INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
+                                let folded = get_literal_value_json(parsed_expr.as_json(), context);
+                                INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
+                                return folded;
                             }
                         }
                         None
