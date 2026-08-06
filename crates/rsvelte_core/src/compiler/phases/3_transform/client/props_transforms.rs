@@ -6,7 +6,7 @@ use std::fmt::Write as _;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
 
 use super::scan_index::{ScanIndex, ScanIndexBuilder};
 use super::{
@@ -2572,6 +2572,21 @@ pub(super) fn strip_js_comments(code: &str) -> String {
 ///
 /// Multiple prop declarations are combined into a single `let` statement with
 /// comma-separated declarators, matching the official compiler output format.
+/// Byte span of the destructuring pattern's braces. A `/** @type {Props} */`
+/// annotation puts braces ahead of the pattern, so only code positions count.
+fn props_pattern_span(trimmed: &str) -> Option<(usize, usize)> {
+    let mut open = None;
+    let mut close = None;
+    for (i, c) in code_bytes(trimmed.as_bytes()) {
+        match c {
+            b'{' if open.is_none() => open = Some(i),
+            b'}' => close = Some(i),
+            _ => {}
+        }
+    }
+    Some((open?, close?))
+}
+
 pub(super) fn transform_props_destructuring(
     line: &str,
     prop_source_vars: &[String],
@@ -2635,8 +2650,7 @@ pub(super) fn transform_props_destructuring(
     }
 
     // Extract the part between { and }
-    let open_brace = trimmed.find('{')?;
-    let close_brace = trimmed.rfind('}')?;
+    let (open_brace, close_brace) = props_pattern_span(trimmed)?;
     let props_str = &trimmed[open_brace + 1..close_brace];
 
     // Parse each prop - collect declarators for combining into a single `let` statement
@@ -4357,5 +4371,32 @@ mod split_declarators_tests {
             transform_prop_reads_in_expr("cond ? active : 0", &["active".to_string()]),
             "cond ? active() : 0"
         );
+    }
+}
+
+#[cfg(test)]
+mod props_pattern_span_tests {
+    use super::props_pattern_span;
+
+    #[test]
+    fn jsdoc_type_braces_are_not_the_pattern() {
+        // `let /** @type {Props} */ { a, b } = $props();` — idiomatic in JS Svelte.
+        let line = "let /** @type {Props} */ { a, b } = $props();";
+        let (open, close) = props_pattern_span(line).unwrap();
+        assert_eq!(&line[open..=close], "{ a, b }");
+    }
+
+    #[test]
+    fn trailing_comment_brace_is_not_the_closer() {
+        let line = "let { a } = $props(); // }";
+        let (open, close) = props_pattern_span(line).unwrap();
+        assert_eq!(&line[open..=close], "{ a }");
+    }
+
+    #[test]
+    fn plain_pattern_is_unchanged() {
+        let line = "let { a, b } = $props();";
+        let (open, close) = props_pattern_span(line).unwrap();
+        assert_eq!(&line[open..=close], "{ a, b }");
     }
 }
