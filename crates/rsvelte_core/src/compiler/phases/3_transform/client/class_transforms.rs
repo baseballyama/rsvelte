@@ -123,6 +123,154 @@ fn net_bracket_depth(line: &str) -> i32 {
     depth
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub(super) enum MemberKind {
+    Property,
+    Method,
+    StaticBlock,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct MemberShape {
+    pub kind: MemberKind,
+    pub multiline: bool,
+}
+
+/// esrap's `body()` puts a blank line between two class members whenever either
+/// one prints across multiple lines or their node types differ, so the
+/// re-printer has to reproduce the same margins instead of copying the source's.
+pub(super) fn needs_margin(prev: MemberShape, next: MemberShape) -> bool {
+    prev.multiline || next.multiline || prev.kind != next.kind
+}
+
+/// Classify a member from its head text: the first bracket-depth-0 delimiter
+/// decides — `(` means a method, `=` a property with an initializer, `{` a
+/// static block.
+fn member_kind(head: &str) -> MemberKind {
+    let bytes = head.as_bytes();
+    let mut prev: Option<u8> = None;
+    let mut square = 0i32;
+    let mut i = 0;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        match c {
+            b'[' => square += 1,
+            b']' => square = (square - 1).max(0),
+            b'(' if square == 0 => return MemberKind::Method,
+            b'=' if square == 0 => return MemberKind::Property,
+            b'{' if square == 0 => return MemberKind::StaticBlock,
+            _ => {}
+        }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
+        i += 1;
+    }
+    MemberKind::Property
+}
+
+/// Shapes of the first and last node emitted by [`emit_class_field`], which
+/// already separates its own backing field / getter / setter with blank lines.
+pub(super) fn field_block_shapes(text: &str) -> (MemberShape, MemberShape) {
+    let chunks: Vec<Vec<&str>> = text
+        .split("\n\n")
+        .map(|chunk| chunk.lines().filter(|l| !l.trim().is_empty()).collect())
+        .filter(|chunk: &Vec<&str>| !chunk.is_empty())
+        .collect();
+    let default = MemberShape {
+        kind: MemberKind::Property,
+        multiline: false,
+    };
+    (
+        chunks.first().map(|c| shape_of(c)).unwrap_or(default),
+        chunks.last().map(|c| shape_of(c)).unwrap_or(default),
+    )
+}
+
+/// Append one member block, prefixing esrap's margin when the previous block
+/// requires one.
+pub(super) fn append_member_block(
+    out: &mut String,
+    prev: &mut Option<MemberShape>,
+    text: &str,
+    first: MemberShape,
+    last: MemberShape,
+) {
+    if let Some(prev_shape) = *prev
+        && needs_margin(prev_shape, first)
+    {
+        out.push('\n');
+    }
+    out.push_str(text);
+    *prev = Some(last);
+}
+
+fn shape_of(block: &[&str]) -> MemberShape {
+    let head = block
+        .iter()
+        .map(|l| l.trim())
+        .find(|l| !l.is_empty() && !l.starts_with("//") && !l.starts_with("/*"))
+        .unwrap_or("");
+    MemberShape {
+        kind: member_kind(head),
+        multiline: block.iter().filter(|l| !l.trim().is_empty()).count() > 1,
+    }
+}
+
+/// Split a class-body text blob into its top-level members and re-emit them with
+/// esrap's margins. Returns the rewritten text plus the first and last member
+/// shapes, so the caller can decide the margin against the neighbouring block.
+pub(super) fn rejoin_class_members(
+    text: &str,
+) -> (String, Option<MemberShape>, Option<MemberShape>) {
+    let mut blocks: Vec<Vec<&str>> = Vec::new();
+    let mut current: Vec<&str> = Vec::new();
+    let mut depth = 0i32;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        current.push(line);
+        depth += net_bracket_depth(trimmed);
+        // A comment line never terminates a member: it belongs to the next one.
+        if depth <= 0 && !trimmed.starts_with("//") && !trimmed.starts_with("/*") {
+            depth = 0;
+            blocks.push(std::mem::take(&mut current));
+        }
+    }
+    if !current.is_empty() {
+        blocks.push(current);
+    }
+
+    let first = blocks.first().map(|b| shape_of(b));
+    let last = blocks.last().map(|b| shape_of(b));
+
+    let mut out = String::new();
+    let mut prev: Option<MemberShape> = None;
+    for block in &blocks {
+        let shape = shape_of(block);
+        if let Some(prev_shape) = prev
+            && needs_margin(prev_shape, shape)
+        {
+            out.push('\n');
+        }
+        for line in block {
+            out.push_str(line);
+            out.push('\n');
+        }
+        prev = Some(shape);
+    }
+    (out, first, last)
+}
+
 /// Apply `line`'s `{` / `}` to a running class-body nesting depth, clamped at
 /// zero. Braces inside comments and literals do not count — a member scan that
 /// counted them split a method in two at a `// … } …` comment.
@@ -1155,9 +1303,12 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     // 1. Emit constructor-declared PUBLIC fields at the top of the class
     // (with getter/setter). Private backing fields come later, just before the constructor.
     // This matches the official Svelte compiler output order.
+    let mut prev_shape: Option<MemberShape> = None;
     for field in &fields {
         if field.constructor_declared && !field.is_private {
-            new_class_body.push_str(&emit_class_field(field, &fields, &member_indent));
+            let text = emit_class_field(field, &fields, &member_indent);
+            let (first, last) = field_block_shapes(&text);
+            append_member_block(&mut new_class_body, &mut prev_shape, &text, first, last);
         }
     }
 
@@ -1166,16 +1317,24 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
         match member {
             ClassMember::RuneField(field_idx) => {
                 let field = &fields[*field_idx];
-                new_class_body.push_str(&emit_class_field(field, &fields, &member_indent));
+                let text = emit_class_field(field, &fields, &member_indent);
+                let (first, last) = field_block_shapes(&text);
+                append_member_block(&mut new_class_body, &mut prev_shape, &text, first, last);
             }
             ClassMember::NonRune(text) => {
                 if text.trim().is_empty() {
                     continue;
                 }
                 let transformed = transform_class_methods(text, &fields);
-                for line in transformed.lines() {
-                    new_class_body.push_str(line);
-                    new_class_body.push('\n');
+                let (rejoined, first, last) = rejoin_class_members(&transformed);
+                if let (Some(first), Some(last)) = (first, last) {
+                    append_member_block(
+                        &mut new_class_body,
+                        &mut prev_shape,
+                        &rejoined,
+                        first,
+                        last,
+                    );
                 }
             }
             ClassMember::Constructor => {
@@ -1186,10 +1345,25 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 for field in &fields {
                     if field.constructor_declared && field.is_private && !field.had_class_body_decl
                     {
-                        new_class_body.push_str(&emit_class_field(field, &fields, &member_indent));
+                        let text = emit_class_field(field, &fields, &member_indent);
+                        let (first, last) = field_block_shapes(&text);
+                        append_member_block(
+                            &mut new_class_body,
+                            &mut prev_shape,
+                            &text,
+                            first,
+                            last,
+                        );
                     }
                 }
-                new_class_body.push('\n');
+                let ctor_shape = MemberShape {
+                    kind: MemberKind::Method,
+                    multiline: true,
+                };
+                if prev_shape.is_none_or(|prev| needs_margin(prev, ctor_shape)) {
+                    new_class_body.push('\n');
+                }
+                prev_shape = Some(ctor_shape);
                 let _ = writeln!(
                     new_class_body,
                     "{}constructor({}) {{",
