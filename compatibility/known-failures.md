@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 9 entries)
+## Client dev (`known-failures.client-dev.json`, 7 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -169,6 +169,13 @@ Locating the traced function past a comment took it to 9. The `$inspect.trace()`
 label carries `locate_node(fn)`, which rsvelte finds by scanning backwards from
 the call — and a comment between the function head and the call answered for it.
 
+Resolving a shadowed name through the scope chain a script reference actually
+sees took it to 7. Two things fed the `console.*` wrap's `scope.evaluate`
+lookup the wrong binding: a legacy instance declaration wrote its initializer
+onto a same-named module binding (the write resolved through the root scope's
+declarations only), and a template binding — an each item — stayed a candidate
+for a reference inside the instance script.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -184,7 +191,6 @@ each side, which separates the two directions and cannot be fooled by order:
 | Cluster | under-emits | over-emits | Upstream emitter (`phases/3-transform/client/`) | Issue |
 |---|---:|---:|---|---|
 | `$.track_reactivity_loss(...)` | 0 | 3 | `visitors/AwaitExpression.js` | #2064 |
-| `console.*` wrapping | 0 | 2 | `visitors/CallExpression.js` | #2064 |
 
 The ownership row is now empty as well: the preamble half went first, then the
 call-site half, once every prop-rooted `bind:` setter reached
@@ -199,7 +205,7 @@ the two halves that had no equivalent on the JSON expression path (the value
 must be used, and the component-prop exemption only covers a component that is
 a `Fragment` child).
 
-5 entries are attributed to a cluster; the remaining **4** show no
+3 entries are attributed to a cluster; the remaining **4** show no
 difference in any dev helper: 1 is a statement missing from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own
 mapping in a minified stylesheet and 2 are one-off shapes (an `$.assign`
 location, an `$.assign_async` wrap). All are tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
