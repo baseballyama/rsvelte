@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 11 entries)
+## Client dev (`known-failures.client-dev.json`, 9 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -165,6 +165,10 @@ Instrumenting a `$derived` destructuring default took it to 11. The pattern's
 source text was lifted verbatim before the walk reached it, so a default value
 never got the dev equality rewrite any other expression gets.
 
+Locating the traced function past a comment took it to 9. The `$inspect.trace()`
+label carries `locate_node(fn)`, which rsvelte finds by scanning backwards from
+the call — and a comment between the function head and the call answered for it.
+
 ### How the counts below are derived
 
 The enrolment-era table attributed each entry by its **first differing line**.
@@ -195,9 +199,8 @@ the two halves that had no equivalent on the JSON expression path (the value
 must be used, and the component-prop exemption only covers a component that is
 a `Fragment` child).
 
-5 entries are attributed to a cluster; the remaining **6** show no
-difference in any dev helper: 2 are a `$.trace` label's line:column, 1 is a
-statement missing from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own
+5 entries are attributed to a cluster; the remaining **4** show no
+difference in any dev helper: 1 is a statement missing from a legacy `$:` body, 1 is the ` /* (unused) ` marker's own
 mapping in a minified stylesheet and 2 are one-off shapes (an `$.assign`
 location, an `$.assign_async` wrap). All are tracked in #2064. The legacy `bind:` `function get()/set()` shape was 47
 entries of that residue and is fixed: `build_each_block_accessor_parts` now
