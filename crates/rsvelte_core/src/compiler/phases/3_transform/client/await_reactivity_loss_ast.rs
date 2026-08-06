@@ -26,20 +26,50 @@ fn track_reactivity_loss_wrap(argument_text: &str) -> String {
     format!("(await $.track_reactivity_loss({argument_text}))()")
 }
 
-/// The start offset of a whole-statement `await` that a following statement
-/// would be folded into once the wrapper's trailing `)()` makes the line
-/// continuable. Restricted to statements with a successor because the same
-/// visitor also runs over expression fragments parsed as one-statement
-/// programs, where a `;` would land in expression position.
-pub(super) fn unterminated_await_statement(stmt: &Statement<'_>, source: &str) -> Option<u32> {
-    let Statement::ExpressionStatement(stmt) = stmt else {
-        return None;
+/// Whether `stmt`'s last token is an expression, so that a following line
+/// opening with `(` continues it instead of starting a statement of its own.
+/// A source `await` can never continue a line, but the wrapper this pass builds
+/// can, so every such boundary has to be restored.
+fn ends_in_open_expression(stmt: &Statement<'_>, source: &str) -> bool {
+    let unterminated = |span: oxc_span::Span| {
+        !source[span.start as usize..span.end as usize]
+            .trim_end()
+            .ends_with(';')
     };
-    let Expression::AwaitExpression(_) = &stmt.expression else {
-        return None;
-    };
-    let text = &source[stmt.span.start as usize..stmt.span.end as usize];
-    (!text.ends_with(';')).then(|| stmt.expression.span().start)
+    match stmt {
+        Statement::ExpressionStatement(stmt) => unterminated(stmt.span),
+        Statement::VariableDeclaration(decl) => unterminated(decl.span),
+        Statement::ReturnStatement(stmt) => unterminated(stmt.span),
+        Statement::ThrowStatement(stmt) => unterminated(stmt.span),
+        Statement::IfStatement(stmt) => {
+            ends_in_open_expression(stmt.alternate.as_ref().unwrap_or(&stmt.consequent), source)
+        }
+        Statement::ForStatement(stmt) => ends_in_open_expression(&stmt.body, source),
+        Statement::ForInStatement(stmt) => ends_in_open_expression(&stmt.body, source),
+        Statement::ForOfStatement(stmt) => ends_in_open_expression(&stmt.body, source),
+        Statement::WhileStatement(stmt) => ends_in_open_expression(&stmt.body, source),
+        Statement::LabeledStatement(stmt) => ends_in_open_expression(&stmt.body, source),
+        _ => false,
+    }
+}
+
+/// The end offset of the statement a wrapped `await` statement has to be
+/// separated from, keyed by that statement's start. Only a statement that
+/// *begins* with the `await` grows a leading `(`, and only a predecessor left
+/// open by ASI can absorb it.
+pub(super) fn separator_positions(
+    stmts: &oxc_allocator::Vec<'_, Statement<'_>>,
+    source: &str,
+) -> Vec<(u32, u32)> {
+    stmts
+        .windows(2)
+        .filter_map(|pair| {
+            let Statement::ExpressionStatement(next) = &pair[1] else {
+                return None;
+            };
+            ends_in_open_expression(&pair[0], source).then(|| (next.span.start, pair[0].span().end))
+        })
+        .collect()
 }
 
 /// The wrapper keeps an `await` of its own, so the fixed-point loop would wrap
@@ -156,7 +186,7 @@ pub(super) fn collect_await_reactivity_loss_edits(
     let mut collector = AwaitCollector {
         source,
         ignored: collect_await_ignore_ranges(program, source, is_runes),
-        unterminated: rustc_hash::FxHashSet::default(),
+        separators: rustc_hash::FxHashMap::default(),
         edits: Vec::new(),
     };
     collector.visit_program(program);
@@ -166,18 +196,15 @@ pub(super) fn collect_await_reactivity_loss_edits(
 struct AwaitCollector<'src> {
     source: &'src str,
     ignored: AwaitIgnoreRanges,
-    /// Starts of `await` expressions that are a whole statement relying on ASI.
-    unterminated: rustc_hash::FxHashSet<u32>,
+    /// Statement start → end of the statement a `;` has to separate it from.
+    separators: rustc_hash::FxHashMap<u32, u32>,
     edits: Vec<Edit>,
 }
 
 impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
     fn visit_statements(&mut self, stmts: &oxc_allocator::Vec<'a, Statement<'a>>) {
-        for pair in stmts.windows(2) {
-            if let Some(start) = unterminated_await_statement(&pair[0], self.source) {
-                self.unterminated.insert(start);
-            }
-        }
+        self.separators
+            .extend(separator_positions(stmts, self.source));
         walk::walk_statements(self, stmts);
     }
 
@@ -193,11 +220,19 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
 
         let arg_span = expr.argument.span();
         let arg_text = self.source[arg_span.start as usize..arg_span.end as usize].trim();
-        let mut replacement = track_reactivity_loss_wrap(arg_text);
-        if self.unterminated.contains(&expr.span.start) {
-            replacement.push(';');
-        }
-        self.edits
-            .push((expr.span.start, expr.span.end, replacement));
+        let wrap = track_reactivity_loss_wrap(arg_text);
+        // The `;` rides inside this edit rather than as an insertion of its own,
+        // which `splice`'s innermost-only filter would read as nested.
+        let (start, replacement) = match self.separators.get(&expr.span.start) {
+            Some(&prev_end) => (
+                prev_end,
+                format!(
+                    ";{}{wrap}",
+                    &self.source[prev_end as usize..expr.span.start as usize]
+                ),
+            ),
+            None => (expr.span.start, wrap),
+        };
+        self.edits.push((start, expr.span.end, replacement));
     }
 }

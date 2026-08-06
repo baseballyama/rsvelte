@@ -20,7 +20,7 @@ use oxc_span::Span;
 use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UpdateOperator};
 use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::destructure_transforms::{
     ArrayHelperRead, build_fallback_string, extract_destructure_paths, js_number_to_string,
@@ -256,7 +256,8 @@ struct StateVarCollector<'a, 's> {
     /// Subtrees carrying a `svelte-ignore await_reactivity_loss`.
     await_ignore_ranges: super::await_reactivity_loss_ast::AwaitIgnoreRanges,
     /// Starts of `await` expressions that are a whole statement relying on ASI.
-    unterminated_await_starts: FxHashSet<u32>,
+    /// Statement start → end of the statement a `;` has to separate it from.
+    await_separators: FxHashMap<u32, u32>,
 
     // --- Phase A-2 fields ---
     /// Prop source variables that need getter/setter wrapping: `prop` -> `prop()`.
@@ -384,7 +385,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             scoped_vars: vec![FxHashSet::default()],
             in_shorthand_property: false,
             await_ignore_ranges: Default::default(),
-            unterminated_await_starts: FxHashSet::default(),
+            await_separators: FxHashMap::default(),
             prop_source_vars: prop_source_set,
             non_bindable_prop_vars: non_bindable_set,
             store_sub_vars: store_sub_set,
@@ -2024,11 +2025,20 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_span = expr.argument.span();
         let arg_text = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
 
-        let mut replacement = format!("(await $.track_reactivity_loss({}))()", arg_text.trim());
-        if self.unterminated_await_starts.contains(&expr.span.start) {
-            replacement.push(';');
-        }
-        self.add_replacement(expr.span.start, expr.span.end, replacement);
+        let wrap = format!("(await $.track_reactivity_loss({}))()", arg_text.trim());
+        // The `;` rides inside this replacement rather than being appended to
+        // the statement before it, which may have no replacement of its own.
+        let (start, replacement) = match self.await_separators.get(&expr.span.start) {
+            Some(&prev_end) => (
+                prev_end,
+                format!(
+                    ";{}{wrap}",
+                    &self.source[prev_end as usize..expr.span.start as usize]
+                ),
+            ),
+            None => (expr.span.start, wrap),
+        };
+        self.add_replacement(start, expr.span.end, replacement);
         true
     }
 
@@ -2348,14 +2358,11 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     }
 
     fn visit_statements(&mut self, stmts: &oxc_allocator::Vec<'ast, Statement<'ast>>) {
-        for pair in stmts.windows(2) {
-            if let Some(start) = super::await_reactivity_loss_ast::unterminated_await_statement(
-                &pair[0],
+        self.await_separators
+            .extend(super::await_reactivity_loss_ast::separator_positions(
+                stmts,
                 self.source,
-            ) {
-                self.unterminated_await_starts.insert(start);
-            }
-        }
+            ));
         walk::walk_statements(self, stmts);
     }
 
