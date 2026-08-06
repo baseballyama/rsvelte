@@ -914,8 +914,8 @@ pub(super) fn find_assignment_position(expr: &str) -> Option<usize> {
 /// This is used to split ternary expressions like `true_rhs : false_branch`.
 /// The returned position is a **byte** offset: the caller slices `expr` with it.
 pub(super) fn find_colon_at_depth0(expr: &str) -> Option<usize> {
-    // Not `code_bytes`: this scanner descends into `${…}` on purpose, and an
-    // opaque template skip would swallow it. UTF-8 continuation bytes are all
+    // Not `code_bytes`: `${`/`}` move the outer depth here and the bookkeeping is
+    // preserved exactly rather than re-derived. UTF-8 continuation bytes are all
     // >= 0x80, so they never match an ASCII arm.
     let bytes = expr.as_bytes();
     let mut depth = 0;
