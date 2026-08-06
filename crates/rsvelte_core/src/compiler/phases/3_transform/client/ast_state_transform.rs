@@ -2011,7 +2011,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// boundary. Suppressed by a leading `svelte-ignore await_reactivity_loss`.
     /// Returns `true` when the expression was rewritten.
     fn try_rewrite_await_reactivity_loss(&mut self, expr: &AwaitExpression<'_>) -> bool {
-        if !self.dev || self.is_await_reactivity_loss_ignored(expr.span.start) {
+        if !self.dev
+            || self.is_await_reactivity_loss_ignored(expr.span.start)
+            || super::await_reactivity_loss_ast::is_destructuring_iife_call(&expr.argument)
+        {
             return false;
         }
 

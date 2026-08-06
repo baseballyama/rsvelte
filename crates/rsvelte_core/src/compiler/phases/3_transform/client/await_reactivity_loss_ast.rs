@@ -56,6 +56,24 @@ fn is_track_reactivity_loss_call(expr: &Expression<'_>) -> bool {
         && matches!(&member.object, Expression::Identifier(id) if id.name == "$")
 }
 
+/// The `await (async ($$value) => { … })(…)` an async destructuring assignment
+/// is lowered to. Upstream destructures after a single instrumented `await`, so
+/// this call — which rsvelte generates *after* the source `await` was already
+/// wrapped — has no counterpart to instrument.
+pub(super) fn is_destructuring_iife_call(expr: &Expression<'_>) -> bool {
+    let Expression::CallExpression(call) = expr.without_parentheses() else {
+        return false;
+    };
+    let Expression::ArrowFunctionExpression(arrow) = call.callee.without_parentheses() else {
+        return false;
+    };
+    arrow.r#async
+        && matches!(
+            arrow.params.items.first().map(|param| &param.pattern),
+            Some(BindingPattern::BindingIdentifier(id)) if id.name == "$$value"
+        )
+}
+
 /// Source spans whose whole subtree carries a `svelte-ignore
 /// await_reactivity_loss`, mirroring upstream's analysis-phase ignore stack:
 /// a leading comment binds to the outermost node starting after it, and every
@@ -166,7 +184,10 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
     fn visit_await_expression(&mut self, expr: &AwaitExpression<'a>) {
         walk::walk_await_expression(self, expr);
 
-        if is_track_reactivity_loss_call(&expr.argument) || self.ignored.contains(expr.span.start) {
+        if is_track_reactivity_loss_call(&expr.argument)
+            || is_destructuring_iife_call(&expr.argument)
+            || self.ignored.contains(expr.span.start)
+        {
             return;
         }
 
