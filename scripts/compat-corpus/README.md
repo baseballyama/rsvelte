@@ -171,7 +171,12 @@ dimensions:
 
 Warning comparison needs no normalization, so it is meaningful under `--no-fmt`;
 `--update-warning-baseline` rewrites only the warning ratchets, so a `--no-fmt`
-run (which inflates JS failures) can seed them safely. See
+run (which inflates JS failures) can seed them safely. The two update flags
+**compose**: passing both rewrites both families in one run, each run announces
+which families it will write, and a rewrite run that reaches no write exits `2`
+instead of reporting success (`scripts/dev/test-corpus-verify-baseline-flags.mjs`
+guards this). `--from-report` derives output failures only, so it rejects
+`--update-warning-baseline` rather than ignoring it. See
 [compatibility/warning-known-failures.md](../../compatibility/warning-known-failures.md)
 — including why this gate did not exist until #2281, and the corpus entry that
 proved it was needed.

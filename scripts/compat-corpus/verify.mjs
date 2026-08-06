@@ -66,6 +66,11 @@
  * so a `--no-fmt` run (which inflates JS failures) can seed them without
  * corrupting the output baselines.
  *
+ * The two update flags compose: passing both rewrites both ratchet families in
+ * one run (the families are disjoint). Every run that asks for a rewrite prints
+ * up front which families it will write, and a run that writes nothing is never
+ * reported as a successful rewrite.
+ *
  * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
  */
 
@@ -111,6 +116,21 @@ const FROM_REPORT = (() => {
 	return i !== -1 && args[i + 1] ? path.resolve(process.cwd(), args[i + 1]) : null;
 })();
 
+// State an update run's intent before doing any work: the failure mode this
+// guards against is a rewrite that silently writes nothing and still exits 0.
+const UPDATE_FAMILIES = [UPDATE_BASELINE && 'output', UPDATE_WARNING_BASELINE && 'warning'].filter(Boolean);
+if (UPDATE_FAMILIES.length) {
+	console.log(`[verify] rewriting ${UPDATE_FAMILIES.join(' + ')} ratchets for ${TARGET_KEYS.join(', ')}`);
+}
+
+// --from-report reconstructs only the output ratchets, so pairing it with the
+// warning flag would write half of what was asked for.
+if (FROM_REPORT && UPDATE_WARNING_BASELINE) {
+	console.error('[verify] --from-report cannot rewrite the warning ratchets (it derives output failures only)');
+	console.error('  fix: drop --update-warning-baseline, then re-run a full verify with it');
+	process.exit(2);
+}
+
 // --baseline-client <path> / --baseline-server <path> select alternate ratchet
 // files (defaults come from targets.mjs). The corpus is a single unified set,
 // so these are rarely needed — kept for ad-hoc scoped runs.
@@ -151,7 +171,12 @@ function requireFullCorpus(measured, what) {
 	process.exit(2);
 }
 
+// Which ratchet families this run actually wrote, checked against
+// UPDATE_FAMILIES in finish() so a rewrite that reaches no write cannot exit 0.
+const WRITTEN = new Set();
+
 function writeBaselines(byTarget) {
+	WRITTEN.add('output');
 	console.log();
 	for (const target of TARGETS) {
 		if (UPDATE_SCOPE && target.key !== UPDATE_SCOPE) continue;
@@ -482,9 +507,11 @@ const warningRegressions = [];
 const warningFailById = new Map(warningFailures.map((f) => [f.id, f]));
 let warningFixed = 0;
 
-// `--update-baseline` is about the OUTPUT ratchets; leave the warning ones
-// alone so an output burn-down cannot silently absorb a warning regression.
-for (const ratchet of UPDATE_BASELINE ? [] : WARNING_RATCHETS) {
+// `--update-baseline` alone is about the OUTPUT ratchets; leave the warning ones
+// alone so an output burn-down cannot silently absorb a warning regression. Ask
+// for both and both are rewritten.
+const SKIP_WARNING_RATCHETS = UPDATE_BASELINE && !UPDATE_WARNING_BASELINE;
+for (const ratchet of SKIP_WARNING_RATCHETS ? [] : WARNING_RATCHETS) {
 	const byTarget = partitionWarnings(ratchet.kind);
 	for (const target of TARGETS) {
 		const p = path.resolve(CORPUS, ratchet.file(target));
@@ -495,6 +522,7 @@ for (const ratchet of UPDATE_BASELINE ? [] : WARNING_RATCHETS) {
 			// every id the run did not measure.
 			requireFullCorpus(manifest.length, 'corpus entries');
 			fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
+			WRITTEN.add('warning');
 			console.log(`[verify] ${ratchet.label} baseline: ${ids.size} known -> ${path.relative(ROOT, p)}`);
 			continue;
 		}
@@ -507,7 +535,8 @@ for (const ratchet of UPDATE_BASELINE ? [] : WARNING_RATCHETS) {
 	}
 }
 
-if (UPDATE_WARNING_BASELINE) finish(0);
+// Hand off to the output rewrite below when both were asked for.
+if (UPDATE_WARNING_BASELINE && !UPDATE_BASELINE) finish(0);
 
 // Two-sided, like the output ratchets: a listed entry that already passes fails
 // the run, so the PR that fixes entries re-baselines in the same PR.
@@ -535,6 +564,11 @@ const failsByTarget = partitionFailures(failures);
 // so a green run deletes them here instead of leaving ~0.5 GiB per checkout for
 // the operator to remember.
 function finish(code) {
+	const missed = code === 0 ? UPDATE_FAMILIES.filter((f) => !WRITTEN.has(f)) : [];
+	if (missed.length) {
+		console.error(`\n[verify] ❌ asked to rewrite ${missed.join(' + ')} ratchets but wrote none of them`);
+		code = 2;
+	}
 	cleanupArtifacts(OUTPUT_TREES, args, { failed: code !== 0, label: 'verify' });
 	process.exit(code);
 }

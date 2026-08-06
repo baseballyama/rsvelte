@@ -914,6 +914,18 @@ jobs:
       - name: Run vite-plugin-svelte native shim smoke test
         run: pnpm run test:vps-shim
 
+  corpus-verify-flags:
+    name: Corpus verify baseline-flag contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Check --update-baseline / --update-warning-baseline compose
+        run: node scripts/dev/test-corpus-verify-baseline-flags.mjs
+
   vps-version-check:
     name: VPS native VERSION drift check
     runs-on: ubuntu-latest
