@@ -1,18 +1,16 @@
 //! AST-based rewrite of private-field assignments + updates in
-//! class method bodies (with `this.` prefix and proxy detection
-//! for `$state` fields).
+//! class method and constructor bodies, with proxy detection for
+//! `$state` fields.
 //!
 //! Replaces the assignment / update branches in
 //! `class_transforms.rs::transform_class_methods` (lines 1169+).
 //!
-//! Differs from `private_field_assign_ast` (PR #207, non-this
-//! constructor variant) in two ways:
-//!
-//! 1. `$state` fields get a `, true` flag when the RHS expression
-//!    needs proxy wrapping (per `expression_needs_proxy`). Other
-//!    rune types and the non-this variant don't apply this.
-//! 2. Update expressions (`q++`, `--q`) are also rewritten to
-//!    `$.update(q)` / `$.update_pre(q[, -1])`.
+//! The receiver is not part of the match: a qualified name is any
+//! `<expr>.#field` text the caller lists, so `inst.#x` from
+//! `const inst = this` is handled here exactly like `this.#x`.
+//! `private_field_assign_ast` covers a narrower non-`this` case and
+//! models neither the proxy flag nor the logical operators, so it is
+//! only reached as a fallback when this pass declines to parse.
 //!
 //! Mappings (preserved exactly). Whether the `, true` proxy flag is
 //! emitted follows upstream `AssignmentExpression.js`:
@@ -22,12 +20,16 @@
 //! compounds are coercive and never proxy.
 //!
 //! The compound operand is the *visited* left-hand side, so it follows upstream
-//! `MemberExpression.js`: `$.get(q)` in a method body, `q.v` when the caller says
-//! the fragment is a constructor body (`in_constructor`) — but only at the
-//! constructor's own depth, since upstream `shared/function.js` clears the flag
-//! on entry to any nested function. Upstream reads a `$derived` field through
-//! `$.get` even in a constructor, so the constructor caller lists only `$state`
-//! / `$state.raw` fields.
+//! `MemberExpression.js`, whose read form has two conditions:
+//! `in_constructor && (field.type === '$state.raw' || field.type === '$state')`.
+//! `v_read_qualified` carries both — the caller lists a name there only when it
+//! is a constructor body *and* the field is `$state` / `$state.raw`, so a
+//! `$derived` field still reads through `$.get` inside a constructor. The depth
+//! check is separate because upstream `shared/function.js` clears
+//! `in_constructor` on entry to any nested function.
+//!
+//! Neither list is `this`-only: upstream keys off `PrivateIdentifier`, not the
+//! receiver, so `inst.#x` takes the same path as `this.#x`.
 //!
 //! | Source        | Replacement (proxy-needing $state)         | Replacement (otherwise)             |
 //! |---------------|--------------------------------------------|-------------------------------------|
@@ -186,14 +188,14 @@ pub fn transform_private_class_assign_ast(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
-    in_constructor: bool,
+    v_read_qualified: &[String],
 ) -> Option<String> {
     let spliced = || {
         transform_private_class_assign_spliced(
             source,
             state_qualified,
             other_qualified,
-            in_constructor,
+            v_read_qualified,
         )
     };
     ast_rewrite::dual_run::resolve("private_class_assign_ast:inplace", source, spliced, || {
@@ -201,7 +203,7 @@ pub fn transform_private_class_assign_ast(
             source,
             state_qualified,
             other_qualified,
-            in_constructor,
+            v_read_qualified,
         )
     })
 }
@@ -210,7 +212,7 @@ fn transform_private_class_assign_spliced(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
-    in_constructor: bool,
+    v_read_qualified: &[String],
 ) -> Option<String> {
     if state_qualified.is_empty() && other_qualified.is_empty() {
         return None;
@@ -224,7 +226,7 @@ fn transform_private_class_assign_spliced(
     }
 
     ast_rewrite::fixed_point(source, |src| {
-        single_pass(src, state_qualified, other_qualified, in_constructor)
+        single_pass(src, state_qualified, other_qualified, v_read_qualified)
     })
 }
 
@@ -232,7 +234,7 @@ fn single_pass(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
-    in_constructor: bool,
+    v_read_qualified: &[String],
 ) -> Option<String> {
     MODULE_PRIVATE_CLASS_ASSIGN_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
@@ -309,7 +311,7 @@ fn single_pass(
             source: parse_str,
             state_qualified,
             other_qualified,
-            in_constructor,
+            v_read_qualified,
             function_depth: 0,
             var_proxy: &binding_info.var_proxy,
             reassigned: &binding_info.reassigned,
@@ -338,7 +340,7 @@ struct PrivateClassAssignCollector<'a> {
     source: &'a str,
     state_qualified: &'a [String],
     other_qualified: &'a [String],
-    in_constructor: bool,
+    v_read_qualified: &'a [String],
     function_depth: u32,
     var_proxy: &'a HashMap<String, bool>,
     reassigned: &'a HashSet<String>,
@@ -367,8 +369,8 @@ enum Compound {
 
 /// The visited left-hand side of a compound assignment, per upstream
 /// `MemberExpression.js`.
-fn field_read_text(qualified: &str, in_constructor: bool) -> String {
-    if in_constructor {
+fn field_read_text(qualified: &str, dot_v: bool) -> String {
+    if dot_v {
         format!("{}.v", qualified)
     } else {
         format!("$.get({})", qualified)
@@ -377,8 +379,8 @@ fn field_read_text(qualified: &str, in_constructor: bool) -> String {
 
 /// Upstream `shared/function.js` clears `in_constructor` on entry to any nested
 /// function, so only the constructor's own statements read through `.v`.
-fn reads_dot_v(in_constructor: bool, function_depth: u32) -> bool {
-    in_constructor && function_depth == 0
+fn reads_dot_v(qualified: &str, v_read_qualified: &[String], function_depth: u32) -> bool {
+    function_depth == 0 && v_read_qualified.iter().any(|q| q.as_str() == qualified)
 }
 
 fn classify(text: &str, state_qualified: &[String], other_qualified: &[String]) -> Option<Match> {
@@ -464,7 +466,7 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
 
         let read = field_read_text(
             qualified,
-            reads_dot_v(self.in_constructor, self.function_depth),
+            reads_dot_v(qualified, self.v_read_qualified, self.function_depth),
         );
         let rewrite = match compound {
             Compound::None if needs_proxy => format!("$.set({}, {}, true)", qualified, rhs_text),
@@ -516,22 +518,35 @@ mod tests {
         names.iter().map(|s| s.to_string()).collect()
     }
 
-    /// A method body: compound operands read through `$.get`.
+    /// A method body: compound operands read through `$.get`, so nothing is
+    /// listed as a `.v` read.
     fn method_body(
         source: &str,
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_ast(source, state_qualified, other_qualified, false)
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, &[])
     }
 
-    /// A constructor body: compound operands read through `.v`.
+    /// A constructor body whose names are all `$state` / `$state.raw`, so every
+    /// one of them reads through `.v`.
     fn ctor_body(
         source: &str,
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_ast(source, state_qualified, other_qualified, true)
+        let v_read: Vec<String> = state_qualified
+            .iter()
+            .chain(other_qualified.iter())
+            .cloned()
+            .collect();
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, &v_read)
+    }
+
+    /// A constructor body holding a `$derived` field: upstream still reads it
+    /// through `$.get`, so it is absent from `v_read_qualified`.
+    fn ctor_body_derived(source: &str, derived_qualified: &[String]) -> Option<String> {
+        transform_private_class_assign_ast(source, &[], derived_qualified, &[])
     }
 
     #[test]
@@ -742,6 +757,21 @@ mod tests {
     }
 
     #[test]
+    fn constructor_derived_still_reads_through_get() {
+        // `.v` is for `$state` / `$state.raw` only — a `$derived` field keeps
+        // `$.get` even at constructor depth.
+        let out = ctor_body_derived("this.#d ??= s;", &ssv(&["this.#d"])).unwrap();
+        assert_eq!(out, "$.set(this.#d, $.get(this.#d) ?? s);");
+    }
+
+    #[test]
+    fn a_non_this_receiver_takes_the_same_path() {
+        // Upstream keys off `PrivateIdentifier`, not the receiver.
+        let out = ctor_body("inst.#count += 3;", &ssv(&["inst.#count"]), &[]).unwrap();
+        assert_eq!(out, "$.set(inst.#count, inst.#count.v + 3);");
+    }
+
+    #[test]
     fn constructor_logical_reads_dot_v() {
         let out = ctor_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
         assert_eq!(out, "$.set(this.#promise, this.#promise.v ?? run(), true);");
@@ -873,7 +903,7 @@ pub(crate) fn transform_private_class_assign_in_place(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
-    in_constructor: bool,
+    v_read_qualified: &[String],
 ) -> Option<String> {
     if state_qualified.is_empty() && other_qualified.is_empty() {
         return None;
@@ -903,7 +933,7 @@ pub(crate) fn transform_private_class_assign_in_place(
                 source: parse_str,
                 state_qualified,
                 other_qualified,
-                in_constructor,
+                v_read_qualified,
                 function_depth: 0,
                 var_proxy: binding_info.var_proxy,
                 reassigned: binding_info.reassigned,
@@ -921,7 +951,7 @@ struct PrivateClassAssignRewriter<'a, 'b> {
     source: &'b str,
     state_qualified: &'b [String],
     other_qualified: &'b [String],
-    in_constructor: bool,
+    v_read_qualified: &'b [String],
     function_depth: u32,
     var_proxy: HashMap<String, bool>,
     reassigned: HashSet<String>,
@@ -941,6 +971,7 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
             return;
         };
         let operator = assign.operator;
+        let dot_v = reads_dot_v(pf_text, self.v_read_qualified, self.function_depth);
 
         // Mirrors upstream `AssignmentExpression.js`: only `=` and the logical
         // compounds are non-coercive, and the logical ones build a
@@ -967,8 +998,13 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
 
         let value = match compound_op_node(operator) {
             None => assign.right,
-            Some(CompoundOp::Binary(op)) => self.b.binary(op, self.field_read(&pf), assign.right),
-            Some(CompoundOp::Logical(op)) => self.b.logical(op, self.field_read(&pf), assign.right),
+            Some(CompoundOp::Binary(op)) => {
+                self.b.binary(op, self.field_read(&pf, dot_v), assign.right)
+            }
+            Some(CompoundOp::Logical(op)) => {
+                self.b
+                    .logical(op, self.field_read(&pf, dot_v), assign.right)
+            }
         };
 
         let mut args = vec![Expression::PrivateFieldExpression(pf), value];
@@ -1019,9 +1055,10 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
     fn field_read(
         &self,
         pf: &oxc_allocator::Box<'a, PrivateFieldExpression<'a>>,
+        dot_v: bool,
     ) -> Expression<'a> {
         let field = Expression::PrivateFieldExpression(pf.clone_in(self.alloc));
-        if reads_dot_v(self.in_constructor, self.function_depth) {
+        if dot_v {
             self.b.member(field, "v")
         } else {
             self.b.call("$.get", vec![field])
@@ -1066,7 +1103,7 @@ mod in_place_tests {
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_ast(source, state_qualified, other_qualified, false)
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, &[])
     }
 
     fn method_body_in_place(
@@ -1074,7 +1111,7 @@ mod in_place_tests {
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_in_place(source, state_qualified, other_qualified, false)
+        transform_private_class_assign_in_place(source, state_qualified, other_qualified, &[])
     }
 
     fn ctor_body_in_place(
@@ -1082,7 +1119,12 @@ mod in_place_tests {
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_in_place(source, state_qualified, other_qualified, true)
+        let v_read: Vec<String> = state_qualified
+            .iter()
+            .chain(other_qualified.iter())
+            .cloned()
+            .collect();
+        transform_private_class_assign_in_place(source, state_qualified, other_qualified, &v_read)
     }
 
     #[test]
