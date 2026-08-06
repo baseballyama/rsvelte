@@ -31,11 +31,10 @@ fn node_runnable() -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
-    // Every runner that executes this suite ships Node, so on CI a missing
-    // `node` means the job is misconfigured, not that the path is untestable.
+    // Only a job that promised Node may fail on its absence.
     assert!(
-        ok || std::env::var_os("CI").is_none(),
-        "no `node` on $PATH while running under CI — the oxfmt-bin resolution \
+        ok || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "no `node` on $PATH in a job that declares RSVELTE_REQUIRE_PREREQS — the oxfmt-bin resolution \
          assertions would be silently skipped."
     );
     ok

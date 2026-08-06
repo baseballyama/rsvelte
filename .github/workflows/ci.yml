@@ -291,6 +291,12 @@ jobs:
         run: bash scripts/ci/run-test-shard.sh ${{ matrix.shard }} 3
         timeout-minutes: 30
         env:
+          # This job checked the submodules out above and supplies node and a
+          # TS compiler, so the guarded suites must fail rather than skip when
+          # one is missing. Only a job that actually supplies them may set this:
+          # `publish-crates.yml` runs the same test binaries with no submodules
+          # and must keep skipping, which is why the guards cannot key on `CI`.
+          RSVELTE_REQUIRE_PREREQS: '1'
           # Some fixtures (notably the compatibility_report harness) walk
           # deeply nested ASTs and overflow the default 8 MB thread stack.
           RUST_MIN_STACK: '33554432'
@@ -611,6 +617,8 @@ jobs:
         env:
           OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
           RSVELTE_FMT_TW_TEST_DIR: ${{ runner.temp }}/tw-oracle
+          # `--test cli` also carries node-gated tests; this job has node.
+          RSVELTE_REQUIRE_PREREQS: '1'
 
   language-server:
     name: Language server

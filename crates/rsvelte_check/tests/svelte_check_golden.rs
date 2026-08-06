@@ -13,13 +13,14 @@
 //!
 //!   * The Svelte-side assertions ("the Svelte compile is clean") run
 //!     unconditionally and are the part this test always enforces.
-//!   * The full TypeScript assertions only run when a `tsgo` / `tsc`
-//!     binary can be located via `find_compiler` — otherwise they're
-//!     skipped with a printed notice, so the test stays runnable on a
-//!     machine without a TS toolchain. Under `CI` that same condition is
-//!     a hard failure instead: a CI job that cannot type-check is
-//!     misconfigured, and a silent skip there is indistinguishable from
-//!     a pass.
+//!   * The full TypeScript assertions only run when `find_compiler` locates
+//!     a compiler — `$TSGO_BIN`, else `@typescript/native[-preview]`, since
+//!     these call it with `prefer_tsgo` and it never falls back to `tsc` on
+//!     `$PATH`. Otherwise they're skipped with a printed notice, so the test
+//!     stays runnable on a machine without a TS toolchain. In a job that
+//!     declares `RSVELTE_REQUIRE_PREREQS` the same condition is a hard
+//!     failure: that job promised a compiler, and a silent skip there is
+//!     indistinguishable from a pass.
 //!
 //! Run with:
 //!     cargo test --release --test svelte_check_golden -- --nocapture
@@ -38,11 +39,10 @@ fn fixture_root() -> Option<PathBuf> {
         .join("language-tools")
         .join("packages")
         .join("svelte-check");
-    // CI checks this submodule out unconditionally, so absence there means the
-    // job is misconfigured rather than that the fixtures are unavailable.
+    // Only a job that promised this submodule may fail on its absence.
     assert!(
-        p.exists() || std::env::var_os("CI").is_none(),
-        "submodules/language-tools is not checked out while running under CI — \
+        p.exists() || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "submodules/language-tools is not checked out in a job that declares RSVELTE_REQUIRE_PREREQS — \
          the svelte-check golden assertions would be silently skipped."
     );
     if p.exists() { Some(p) } else { None }
@@ -53,8 +53,8 @@ fn fixture_root() -> Option<PathBuf> {
 fn require_fixture(workspace: &Path) -> bool {
     let exists = workspace.exists();
     assert!(
-        exists || std::env::var_os("CI").is_none(),
-        "fixture workspace {} is missing while running under CI — it was \
+        exists || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "fixture workspace {} is missing in a job that declares RSVELTE_REQUIRE_PREREQS — it was \
          probably renamed upstream; update this test instead of skipping it.",
         workspace.display()
     );
@@ -213,17 +213,17 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
     }
     if find_compiler(&workspace, true).is_err() {
         // A silent skip here is exactly how the TypeScript half of this test
-        // greened for every #1883-#1889 report; on CI a missing compiler means
-        // the job is misconfigured, not that the assertions are unavailable.
+        // greened for every #1883-#1889 report.
         assert!(
-            std::env::var_os("CI").is_none(),
-            "no `tsgo` / `tsc` binary found while running under CI — the \
-             TypeScript assertions would be silently skipped. Install \
-             `typescript` / `@typescript/native-preview`, or set TSGO_BIN."
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "no TypeScript 7 native compiler in a job that declares \
+             RSVELTE_REQUIRE_PREREQS — set TSGO_BIN, or install \
+             @typescript/native-preview. The TypeScript assertions would be \
+             silently skipped."
         );
         eprintln!(
-            "Skipping: no `tsgo` / `tsc` binary on this machine \
-             (set TSGO_BIN or install @typescript/native-preview to enable)"
+            "Skipping: no TSGO_BIN and no @typescript/native-preview \
+             on this machine"
         );
         return;
     }

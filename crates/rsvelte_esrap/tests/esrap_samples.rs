@@ -112,11 +112,10 @@ fn collect_samples(dir: &Path) -> Vec<Sample> {
 #[test]
 fn esrap_samples_match() {
     let Some(dir) = samples_dir() else {
-        // CI checks this submodule out unconditionally, so absence there means
-        // the job is misconfigured, not that the samples are unavailable.
+        // Only a job that promised this submodule may fail on its absence.
         assert!(
-            std::env::var_os("CI").is_none(),
-            "submodules/esrap is not checked out while running under CI — the \
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "submodules/esrap is not checked out in a job that declares RSVELTE_REQUIRE_PREREQS — the \
              sample-parity assertions would be silently skipped."
         );
         eprintln!("[esrap_samples] submodules/esrap absent — skipping");
