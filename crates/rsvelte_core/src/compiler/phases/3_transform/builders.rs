@@ -220,7 +220,21 @@ impl<'a> B<'a> {
         args: Vec<Expression<'a>>,
     ) -> Expression<'a> {
         use oxc_ast::ast::ChainElement;
-        let callee = callee.into_expr(self);
+        let mut callee = callee.into_expr(self);
+        // Upstream's callee is a chain *element* (`unwrap_optional(…).callee`), never a
+        // nested `ChainExpression`; reparsing the callee text re-adds that wrapper, and
+        // keeping it would close the chain and print `(a?.b)?.()` instead of `a?.b?.()`.
+        if let Expression::ChainExpression(chain) = callee {
+            callee = match chain.unbox().expression {
+                ChainElement::CallExpression(c) => Expression::CallExpression(c),
+                ChainElement::TSNonNullExpression(e) => Expression::TSNonNullExpression(e),
+                ChainElement::ComputedMemberExpression(m) => {
+                    Expression::ComputedMemberExpression(m)
+                }
+                ChainElement::StaticMemberExpression(m) => Expression::StaticMemberExpression(m),
+                ChainElement::PrivateFieldExpression(m) => Expression::PrivateFieldExpression(m),
+            };
+        }
         let args = self.args(args);
         let call = CallExpression::boxed(SPAN, callee, None, args, true, &self.ab());
         // Wrap in a ChainExpression so esrap prints the `?.()` chain form.
