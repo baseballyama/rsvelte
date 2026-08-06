@@ -95,14 +95,19 @@ fn warning_points_at_the_attribute() {
 
 /// Upstream's wording names components and custom elements; rsvelte's said
 /// "Quoted attribute values", which is wrong for plain elements.
+///
+/// Asserted in full, not by prefix: the corpus gate compares `(code, line,
+/// column)` and never the message, so this test is the **only** observer of
+/// this string in the repo. A prefix assertion would leave the advice clause
+/// and the docs URL watched by nothing — which is the condition that let the
+/// wrong wording ship in the first place.
 #[test]
 fn message_matches_upstream() {
     let src = format!("{RUNES}\n<Component id=\"{{x}}\" />");
-    assert!(
-        quoted(&src)[0]
-            .message
-            .starts_with("Quoted attributes on components and custom elements will be stringified"),
-        "got {:?}",
-        quoted(&src)[0].message
+    assert_eq!(
+        quoted(&src)[0].message,
+        "Quoted attributes on components and custom elements will be stringified in a future \
+         version of Svelte. If this isn't what you want, remove the quotes\n\
+         https://svelte.dev/e/attribute_quoted"
     );
 }
