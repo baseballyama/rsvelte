@@ -293,11 +293,13 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
             return;
         }
 
-        // Copy from just past the `await` keyword, not from the argument: the
-        // trivia between them holds comments that upstream flushes inside the
-        // call, and slicing at the argument would drop them.
+        // Copy the operand region the replacement covers — from just past the
+        // `await` keyword to the expression's own end. Ending at the argument
+        // instead would drop the trivia holding comments upstream flushes
+        // inside the call, and would cut a parenthesized argument short of its
+        // `)` wherever the parse does not preserve parens.
         let arg_start = expr.span.start as usize + "await".len();
-        let arg_text = self.source[arg_start..expr.argument.span().end as usize].trim();
+        let arg_text = self.source[arg_start..expr.span.end as usize].trim();
         let wrap = track_reactivity_loss_wrap(arg_text);
         // The `;` rides inside this edit rather than as an insertion of its own,
         // which `splice`'s innermost-only filter would read as nested.

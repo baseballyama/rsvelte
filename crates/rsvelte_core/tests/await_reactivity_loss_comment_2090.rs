@@ -49,6 +49,21 @@ fn every_comment_in_the_run_is_kept() {
     );
 }
 
+/// The copied region runs to the `await` expression's own end, so a
+/// parenthesized operand keeps its closing paren however the parse treats
+/// parens — ending the copy at the argument would emit `(load()`.
+#[test]
+fn a_parenthesized_operand_stays_balanced() {
+    let src = "export async function f() {\n\treturn (await (load()))();\n}\n";
+    let out = module(src);
+    assert_contains(&out, "$.track_reactivity_loss((load()))");
+    assert_eq!(
+        out.matches('(').count(),
+        out.matches(')').count(),
+        "unbalanced parens:\n{out}"
+    );
+}
+
 /// Upstream breaks the call across lines for a line comment
 /// (`$.track_reactivity_loss(\n\t// hi\n\tload()\n)`); splicing source text
 /// keeps it on the opening line. oxfmt collapses the two layouts to the same
