@@ -318,7 +318,7 @@ for (let s = 0; s < seeds.length; s += shardSize) ranges.push([s, Math.min(s + s
 console.log(`[mutate] ${seeds.length} seeds across ${ranges.length} workers…`);
 await Promise.all(ranges.map(([s, e]) => runRange(s, e)));
 
-const counts = { match: 0, 'error-parity': 0, 'code-mismatch': 0, 'comment-mismatch': 0, 'error-mismatch': 0, 'compiler-crash': crashes.length, 'seed-skipped': 0, 'seed-error': 0 };
+const counts = { match: 0, 'error-parity': 0, unparseable: 0, 'code-mismatch': 0, 'comment-mismatch': 0, 'error-mismatch': 0, 'compiler-crash': crashes.length, 'seed-skipped': 0, 'seed-error': 0 };
 const failures = [...crashes.map((c) => ({ ...c, target: 'all' }))];
 let divergent = 0;
 let mutantsGenerated = 0;
@@ -507,6 +507,21 @@ for (const pair of differing) {
 		counts['comment-mismatch'] += 1;
 		continue;
 	}
+	// "Does not parse" is strictly stronger than "differs" and must never be
+	// folded into it: a mutant whose output no engine will load is a miscompile,
+	// not a formatting divergence, and burying it beside one is how 78 of them
+	// went unreported.
+	if (ast?.verdict === 'unparseable') {
+		counts.unparseable += 1;
+		failures.push({
+			id,
+			target,
+			verdict: 'unparseable',
+			expected: `parses (${ast.side} side does not)`,
+			actual: ast.message ?? 'output does not parse',
+		});
+		continue;
+	}
 	counts['code-mismatch'] += 1;
 	// Report the first line that differs in CODE, not the first line that
 	// differs at all: an unformatted pair (oxfmt could not parse it) leads with
@@ -528,7 +543,10 @@ const ids = new Set(failures.map((f) => `${f.id} [${f.verdict}] (${f.target})`))
 if (Object.keys(mutantsByKind).length) {
 	const hits = {};
 	for (const f of failures) {
-		if (f.verdict !== 'code-mismatch') continue;
+		// `unparseable` counts too: it is a strictly stronger finding than
+		// `code-mismatch`, so excluding it would understate the very rate this
+		// reports.
+		if (f.verdict !== 'code-mismatch' && f.verdict !== 'unparseable') continue;
 		const m = /__m\d+__([a-z0-9-]+)\.svelte(\.[jt]s)?$/.exec(f.id);
 		if (m) hits[m[1]] = (hits[m[1]] ?? 0) + 1;
 	}
