@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 356 entries)
+## Matrix known failures (`matrix-known-failures.json`, 350 entries)
 
 ### `binding-position` — 2 entries
 
@@ -47,7 +47,7 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 354 entries
+### `comment-slot` — 348 entries
 
 One comment inserted at each line boundary inside every `<script>` region of 6 seeds,
 across 8 comment kinds. A comment is the one token that may appear between any two other
@@ -59,7 +59,7 @@ Classified by comparing the **multiset of comments** in each output:
 | what diverges | entries | of which server |
 |---|---|---|
 | rsvelte drops a comment the official compiler keeps | 268 | 224 |
-| the comment survives but lands somewhere else | 58 | 6 |
+| the comment survives but lands somewhere else | 52 | 0 |
 | rsvelte emits a comment more than once | 28 | 24 |
 | **anything other than the comment itself** | **0** | — |
 
@@ -75,12 +75,12 @@ By seed:
 |---|---|
 | `class-static-block` | 90 |
 | `class-private-state` | 82 |
-| `legacy-reactive` | 78 |
+| `legacy-reactive` | 72 |
 | `module-script` | 72 |
 | `await-block` | 24 |
 | `snippet-render` | 8 |
 
-Server dominates (256 of 354) for a known structural reason: the SSR path reconstructs
+Server dominates (248 of 348) for a known structural reason: the SSR path reconstructs
 statements it cannot carry comments through. See `server/ast/comments.rs` and the
 comment-carry-over work in #2312, which is the burn-down vehicle for the 224 server drops.
 
