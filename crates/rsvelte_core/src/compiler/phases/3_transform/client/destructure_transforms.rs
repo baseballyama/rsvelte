@@ -6,6 +6,7 @@ use super::rune_transforms::{
     find_derived_property_colon, split_derived_array_elements, split_derived_object_properties,
 };
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, code_bytes_from};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
 use oxc_parser::{ParseOptions, Parser};
@@ -452,12 +453,13 @@ pub(super) fn find_and_transform_one_destructure(
 /// `{` of a function body, …) leaves the inner pattern eligible for the
 /// usual destructure-assignment rewrite.
 fn is_inside_enclosing_pattern(statement: &str, pattern_open_byte: usize) -> bool {
-    let bytes = statement.as_bytes();
+    // A backwards walk cannot tell code from a comment or string, so the
+    // lexical state is established by a forward pass first.
+    let code: Vec<(usize, u8)> = code_bytes(statement.as_bytes())
+        .take_while(|&(i, _)| i < pattern_open_byte)
+        .collect();
     let mut depth: i32 = 0;
-    let mut i = pattern_open_byte;
-    while i > 0 {
-        i -= 1;
-        let b = bytes[i];
+    for &(i, b) in code.iter().rev() {
         match b {
             b'}' | b']' => depth += 1,
             b'{' | b'[' => {
@@ -583,44 +585,23 @@ pub(super) fn extract_destructure_targets(pattern: &str) -> Vec<String> {
 /// Split a string on top-level commas (not inside brackets, parens, or strings).
 pub(super) fn split_on_commas(s: &str) -> Vec<String> {
     let mut parts = Vec::new();
-    let mut current = String::new();
     let mut depth = 0;
-    let mut in_string: Option<char> = None;
+    let mut start = 0usize;
 
-    for c in s.chars() {
-        if in_string.is_some() {
-            current.push(c);
-            if Some(c) == in_string {
-                in_string = None;
-            }
-            continue;
-        }
-
+    for (i, c) in code_bytes(s.as_bytes()) {
         match c {
-            '\'' | '"' | '`' => {
-                in_string = Some(c);
-                current.push(c);
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => {
+                parts.push(s[start..i].to_string());
+                start = i + 1;
             }
-            '(' | '[' | '{' => {
-                depth += 1;
-                current.push(c);
-            }
-            ')' | ']' | '}' => {
-                depth -= 1;
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                parts.push(current.clone());
-                current.clear();
-            }
-            _ => {
-                current.push(c);
-            }
+            _ => {}
         }
     }
 
-    if !current.is_empty() {
-        parts.push(current);
+    if start < s.len() {
+        parts.push(s[start..].to_string());
     }
 
     parts
@@ -629,21 +610,12 @@ pub(super) fn split_on_commas(s: &str) -> Vec<String> {
 /// Find the position of a top-level colon in a string (not inside brackets or strings).
 pub(super) fn find_top_level_colon(s: &str) -> Option<usize> {
     let mut depth = 0;
-    let mut in_string: Option<char> = None;
 
-    for (i, c) in s.char_indices() {
-        if in_string.is_some() {
-            if Some(c) == in_string {
-                in_string = None;
-            }
-            continue;
-        }
-
+    for (i, c) in code_bytes(s.as_bytes()) {
         match c {
-            '\'' | '"' | '`' => in_string = Some(c),
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            ':' if depth == 0 => return Some(i),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b':' if depth == 0 => return Some(i),
             _ => {}
         }
     }
@@ -653,36 +625,21 @@ pub(super) fn find_top_level_colon(s: &str) -> Option<usize> {
 
 /// Find the position of a top-level `=` in a string (not `==` or `===`).
 pub(super) fn find_top_level_equals(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
     let mut depth = 0;
-    let mut in_string: Option<char> = None;
-    let mut prev: Option<char> = None;
-    let mut iter = s.char_indices().peekable();
+    let mut prev: Option<u8> = None;
 
-    while let Some((i, c)) = iter.next() {
-        if in_string.is_some() {
-            if Some(c) == in_string {
-                in_string = None;
-            }
-            prev = Some(c);
-            continue;
-        }
-
+    for (i, c) in code_bytes(bytes) {
         match c {
-            '\'' | '"' | '`' => in_string = Some(c),
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            '=' if depth == 0 => {
-                // Make sure it's not == or ===
-                if iter.peek().map(|&(_, next)| next) == Some('=') {
-                    prev = Some(c);
-                    continue;
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                // Not `==`/`===`, and not the tail of `!=` / `<=` / `>=`.
+                if bytes.get(i + 1) != Some(&b'=')
+                    && !matches!(prev, Some(b'!') | Some(b'<') | Some(b'>'))
+                {
+                    return Some(i);
                 }
-                // Make sure it's not != or <=, >=
-                if matches!(prev, Some('!') | Some('<') | Some('>')) {
-                    prev = Some(c);
-                    continue;
-                }
-                return Some(i);
             }
             _ => {}
         }
@@ -1073,67 +1030,26 @@ pub(super) fn skip_balanced_braces(bytes: &[u8], start: usize) -> usize {
 /// Skip balanced brackets from start (which should be the opening bracket).
 /// Returns position after the closing bracket.
 pub(super) fn skip_balanced(bytes: &[u8], start: usize, open: u8, close: u8) -> usize {
-    let len = bytes.len();
     let mut depth = 0;
-    let mut i = start;
-    let mut in_string: Option<u8> = None;
-
-    while i < len {
-        if let Some(q) = in_string {
-            if bytes[i] == b'\\' {
-                i += 2;
-                continue;
-            }
-            if bytes[i] == q {
-                in_string = None;
-            }
-            i += 1;
-            continue;
-        }
-        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
-            in_string = Some(bytes[i]);
-            i += 1;
-            continue;
-        }
-        if bytes[i] == open {
+    for (i, c) in code_bytes_from(bytes, start) {
+        if c == open {
             depth += 1;
-        } else if bytes[i] == close {
+        } else if c == close {
             depth -= 1;
             if depth == 0 {
                 return i + 1;
             }
         }
-        i += 1;
     }
-    len
+    bytes.len()
 }
 
 /// Skip an expression (arrow body without braces). Ends at a `,`, `)`, `]`, or `}`
 /// at depth 0, or at end of input.
 pub(super) fn skip_expression(bytes: &[u8], start: usize) -> usize {
-    let len = bytes.len();
     let mut depth = 0usize;
-    let mut i = start;
-    let mut in_string: Option<u8> = None;
-
-    while i < len {
-        if let Some(q) = in_string {
-            if bytes[i] == b'\\' {
-                i += 2;
-                continue;
-            }
-            if bytes[i] == q {
-                in_string = None;
-            }
-            i += 1;
-            continue;
-        }
-        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
-            in_string = Some(bytes[i]);
-            i += 1;
-            continue;
-        }
-        match bytes[i] {
+    for (i, c) in code_bytes_from(bytes, start) {
+        match c {
             b'(' | b'[' | b'{' => {
                 depth += 1;
             }
@@ -1148,9 +1064,8 @@ pub(super) fn skip_expression(bytes: &[u8], start: usize) -> usize {
             }
             _ => {}
         }
-        i += 1;
     }
-    len
+    bytes.len()
 }
 
 /// Check if a string expression is a "simple" expression that doesn't need thunk wrapping.
@@ -1658,5 +1573,38 @@ mod non_ascii_tests {
         // `!=` is not a top-level assignment; the preceding-char check must run
         // against the correct char even when a multi-byte char sits earlier.
         assert_eq!(find_top_level_equals("café != x"), None);
+    }
+
+    #[test]
+    fn scans_ignore_delimiters_in_comments_and_strings() {
+        use super::{
+            extract_destructure_targets, find_top_level_colon, skip_balanced, skip_expression,
+            split_on_commas,
+        };
+
+        // A comma in a comment or a string is text, not a separator.
+        assert_eq!(split_on_commas("a /* x, y */, b").len(), 2);
+        assert_eq!(split_on_commas("a: ',', b").len(), 2);
+        assert_eq!(split_on_commas("a // one, two\n, b").len(), 2);
+
+        // A colon in a comment or a string does not rename a property.
+        assert_eq!(find_top_level_colon("a /* k: v */"), None);
+        assert_eq!(find_top_level_colon("a = ':'"), None);
+
+        // A brace in a comment or a string does not close the block.
+        let src = b"{ /* } */ a }rest";
+        assert_eq!(skip_balanced(src, 0, b'{', b'}'), src.len() - 4);
+        let src = b"{ a = '}' }rest";
+        assert_eq!(skip_balanced(src, 0, b'{', b'}'), src.len() - 4);
+
+        // A depth-0 comma in a comment does not end the arrow body.
+        let src = b"a /* , */ + b, c";
+        assert_eq!(skip_expression(src, 0), 13);
+
+        // The whole pattern still yields the right targets when commented.
+        assert_eq!(
+            extract_destructure_targets("{ a /* , b */, c }"),
+            vec!["a".to_string(), "c".to_string()]
+        );
     }
 }

@@ -6,6 +6,56 @@
 //! spliced an injected `)` into the comment body (#907, #2253). Every such
 //! scanner steps over opaque runs with `skip_opaque` first.
 
+/// Iterator over the *code* bytes of `bytes`: every byte that is not inside a
+/// string, template literal, regex literal or comment, as `(byte index, byte)`.
+///
+/// Multi-byte UTF-8 sequences are yielded byte by byte; every continuation byte
+/// is `>= 0x80`, so a scanner matching ASCII delimiters is unaffected and the
+/// indices stay valid `str` boundaries at the delimiters it does match.
+pub(crate) fn code_bytes(bytes: &[u8]) -> CodeBytes<'_> {
+    code_bytes_from(bytes, 0)
+}
+
+/// `code_bytes`, resuming at `start`. The byte at `start` is treated as the
+/// first byte of a fresh token, so a `/` there reads as a regex literal.
+pub(crate) fn code_bytes_from(bytes: &[u8], start: usize) -> CodeBytes<'_> {
+    CodeBytes {
+        bytes,
+        i: start.min(bytes.len()),
+        prev: None,
+    }
+}
+
+pub(crate) struct CodeBytes<'a> {
+    bytes: &'a [u8],
+    i: usize,
+    prev: Option<u8>,
+}
+
+impl Iterator for CodeBytes<'_> {
+    type Item = (usize, u8);
+
+    fn next(&mut self) -> Option<(usize, u8)> {
+        while self.i < self.bytes.len() {
+            if let Some((next, is_comment)) = skip_opaque(self.bytes, self.i, self.prev) {
+                if !is_comment {
+                    self.prev = Some(b'x');
+                }
+                self.i = next;
+                continue;
+            }
+            let c = self.bytes[self.i];
+            let at = self.i;
+            self.i += 1;
+            if !c.is_ascii_whitespace() {
+                self.prev = Some(c);
+            }
+            return Some((at, c));
+        }
+        None
+    }
+}
+
 /// Does a `/` following `prev` (the last significant code byte) open a regex
 /// literal rather than a division?
 pub(crate) fn slash_starts_regex(prev: Option<u8>) -> bool {
