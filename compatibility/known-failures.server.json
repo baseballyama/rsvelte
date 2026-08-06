@@ -1,6 +1,3 @@
 [
-	"runed/packages/runed/src/lib/utilities/use-debounce/use-debounce.svelte.ts",
-	"runed/packages/runed/src/lib/utilities/use-interval/use-interval.svelte.ts",
-	"runed/packages/runed/src/lib/utilities/watch/watch.test.svelte.ts",
-	"runed/sites/docs/src/lib/components/demos/animation-frames.svelte"
+	"runed/packages/runed/src/lib/utilities/watch/watch.test.svelte.ts"
 ]

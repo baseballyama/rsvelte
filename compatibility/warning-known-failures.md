@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 70 entries; the three position files hold the same 626. That is not a
+the same 71 entries; the three position files hold the same 627. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -46,7 +46,7 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all six files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 70 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 71 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
@@ -63,8 +63,15 @@ identified so far:
 - **`svelte_self_deprecated` / `reactive_declaration_module_script_dependency`
   over-warning** — concentrated in the Svelte migrate fixtures, which are out of
   scope for codegen but still compile here.
+- **`perf_avoid_nested_class` over-warning in a standalone module** (#2348) —
+  the one entry the `runed` / `svelte-toolbelt` enrolment added
+  (`on-click-outside.test.svelte.ts`). `analyze_module` passes `ast_type: null`,
+  not `'module'`, so upstream's `allowed_depth` is 1 for a standalone
+  `.svelte.(js|ts)` and only depth ≥ 2 warns; rsvelte uses 0 and warns one level
+  early. A component's `<script module>` really does use 0, so the two cases
+  have to stay distinguishable.
 
-## Warning positions (`warning-position-known-failures.<target>.json`, 626 entries each)
+## Warning positions (`warning-position-known-failures.<target>.json`, 627 entries each)
 
 The codes agree but a `(line, column)` does not. Almost all of these are one
 systemic cause: **rsvelte emits the warning with no span at all**, so `start` is
@@ -75,7 +82,9 @@ Split from the code ratchet on purpose: this backlog is far larger, and folded
 together it would hide every semantic regression above. Codes seen with missing
 positions include `event_directive_deprecated`,
 `element_invalid_self_closing_tag`, `a11y_role_supports_aria_props`,
-`export_let_unused` and `non_reactive_update`.
+`export_let_unused`, `non_reactive_update` and `perf_avoid_nested_class`
+(#2349 — the one entry the `runed` / `svelte-toolbelt` enrolment added,
+`is-document-visible.test.svelte.ts`).
 
 Burning this down is mostly mechanical — attach the span already available at
 each emission site — so the count should fall in large steps rather than one

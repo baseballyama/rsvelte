@@ -36,9 +36,26 @@ being called directly — was fixed by #2057: the scope builder gives each branc
 its own scope, but the analysis visitor never entered it, so the render tag's
 lexical lookup started above the branch and missed the snippet binding.
 
-## Server (`known-failures.server.json`, 0 entries)
+It stayed empty through the `runed` / `svelte-toolbelt` enrolment, which raised
+the module share of corpus entries from 3.4% to 5.1% — modules were the thinnest
+surface the corpus covered. That enrolment surfaced eleven divergences and every
+one that this target can see was fixed before it landed: #2300 (`$state`
+declaration in a module not lowered), #2301 (reactive getter not unwrapped at a
+call argument), #2302 (missing `$.proxy`), #2303 (private class-field state
+read), #2304 (`$.template_effect` without its deps array), #2305, #2309, #2330
+and #2343 (the spurious `$.set` proxy flag for a `BinaryExpression`). #2307
+(spurious `/* @__PURE__ */`) is comment-only, so the AST-structural comparator
+does not see it at all; it burns down with the esrap comment epic (#2336).
 
-Empty. Its one entry was the SSR half of the same #2031 divergence (the extra
+## Server (`known-failures.server.json`, 1 entry)
+
+The one entry is #2308, from the `runed` / `svelte-toolbelt` enrolment:
+`watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracts** it to
+`runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
+round-trips through the client transform, which rewrites the assignment, and the
+server printer has no way back to the source form.
+
+Its previous sole entry was the SSR half of the same #2031 divergence (the extra
 `<!---->` the dynamic form pushes), fixed by the same change.
 
 The two SSR destructuring seeds this corpus also surfaced — #2033 (computed /
@@ -46,7 +63,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 0 entries)
+## Client dev (`known-failures.client-dev.json`, 1 entry)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -69,7 +86,7 @@ template expressions, which are converted through the typed `JsNode` path) to
 203, and the legacy half of the same validation (`prop_mutation_vars` was
 gated on `analysis.runes`, so no `export let` prop member mutation in an
 instance script was ever wrapped) to 187 — all with no regression on `client`
-or `server`, both of which are empty. Making the Phase-3 in-place path the one
+or `server`, both of which were empty throughout that campaign. Making the Phase-3 in-place path the one
 that ships took it to 186: the text path dropped the `;` after a state
 assignment that an `await` followed, so the two ran together into a call chain.
 The dev eager read of a snippet parameter that carries a default value
@@ -195,10 +212,18 @@ that separator still carry source-map segments.
 
 ### What is left
 
-Nothing. All three targets are at 0, and every dev-helper cluster the
-enrolment-era table tracked — `$.assign`, the equality instrumentation,
-`$.track_reactivity_loss`, ownership mutation validation, `$.tag()` /
-`$.tag_proxy()`, `console.*` wrapping and the signal read/write row — is empty.
+One entry, contributed by the `runed` / `svelte-toolbelt` enrolment:
+`runed/sites/docs/src/lib/components/demos/scroll-state.svelte` writes
+`onsubmit={preventDefault(() => (scroll.x = x))}`, and rsvelte emits the bare
+`scroll.x = $.get(x)` where upstream wraps it as
+`$.assign(scroll, "x", "=", $.get(x), "…scroll-state.svelte:41:69")`. That is
+the `$.assign` row of #2064 — the coerced-away-proxy dev warning
+(`AssignmentExpression.js:170-236`) — reached here through an assignment nested
+inside a call argument in a template attribute expression. Every other
+dev-helper cluster the enrolment-era table tracked — the equality
+instrumentation, `$.track_reactivity_loss`, ownership mutation validation,
+`$.tag()` / `$.tag_proxy()`, `console.*` wrapping and the signal read/write
+row — is empty.
 
 Counting method, for whoever picks this up: attribute an entry by **comparing
 how many times each helper appears** on each side, never by the first differing

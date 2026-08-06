@@ -3,6 +3,7 @@
 	"layercake/src/lib/LayerCake.svelte",
 	"layerchart/docs/src/examples/components/Treemap/nested-filter.svelte",
 	"melt-ui/docs/src/components/motion.svelte",
+	"runed/packages/runed/src/lib/utilities/on-click-outside/on-click-outside.test.svelte.ts",
 	"smelte/src/components/Treeview/Treeview.svelte",
 	"svelte-form-builder/src/lib/FormBuilder.svelte",
 	"svelte-maplibre/src/routes/examples/data_join/+page.svelte",

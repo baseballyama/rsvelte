@@ -105,6 +105,7 @@
 	"layerchart/docs/src/examples/components/Waffle/olympians-by-birth-year.svelte",
 	"layerchart/docs/src/examples/components/Waffle/unit-multiple.svelte",
 	"melt-ui/docs/src/components/transition.svelte",
+	"runed/packages/runed/src/lib/utilities/is-document-visible/is-document-visible.test.svelte.ts",
 	"skeleton/sites/skeleton.dev/src/components/examples/guides/cookbook/breadcrumbs/svelte/default.svelte",
 	"skeleton/sites/skeleton.dev/src/components/examples/guides/cookbook/breadcrumbs/svelte/icons.svelte",
 	"skeleton/sites/skeleton.dev/src/components/examples/guides/cookbook/logo-clouds/svelte/default.svelte",
