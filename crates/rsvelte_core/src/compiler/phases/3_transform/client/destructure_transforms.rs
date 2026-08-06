@@ -633,13 +633,12 @@ pub(super) fn find_top_level_equals(s: &str) -> Option<usize> {
         match c {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
-            b'=' if depth == 0 => {
-                // Not `==`/`===`, and not the tail of `!=` / `<=` / `>=`.
-                if bytes.get(i + 1) != Some(&b'=')
-                    && !matches!(prev, Some(b'!') | Some(b'<') | Some(b'>'))
-                {
-                    return Some(i);
-                }
+            // Not `==`/`===`, and not the tail of `!=` / `<=` / `>=`.
+            b'=' if depth == 0
+                && bytes.get(i + 1) != Some(&b'=')
+                && !matches!(prev, Some(b'!') | Some(b'<') | Some(b'>')) =>
+            {
+                return Some(i);
             }
             _ => {}
         }

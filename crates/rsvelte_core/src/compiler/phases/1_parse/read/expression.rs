@@ -7058,16 +7058,14 @@ impl CommentAttacher<'_> {
                 continue;
             }
             match value {
-                Value::Object(_) => {
-                    if is_estree_node(value) {
-                        self.visit(
-                            value,
-                            Some(ParentInfo {
-                                end,
-                                is_last_in_body: false,
-                            }),
-                        );
-                    }
+                Value::Object(_) if is_estree_node(value) => {
+                    self.visit(
+                        value,
+                        Some(ParentInfo {
+                            end,
+                            is_last_in_body: false,
+                        }),
+                    );
                 }
                 Value::Array(items) => {
                     let last = items.len().saturating_sub(1);
