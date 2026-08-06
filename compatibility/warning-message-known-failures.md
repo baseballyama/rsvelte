@@ -13,6 +13,13 @@ when the one above it already agrees:
 The three are separate because they have different causes and different fixes. Folded
 together, the much larger position backlog would hide every semantic regression.
 
+> **Not to be confused with `validator-message-known-failures.json`.** That is a
+> different gate over a different population: the 332 `packages/svelte/tests/validator`
+> fixtures, checked by `crates/rsvelte_core/tests/validator.rs`. This file gates the
+> ~14k-entry real-world corpus. The names are one word apart and the two are unrelated
+> — an entry in one says nothing about the other, and their counts are not comparable
+> because the populations have different warning mixes.
+
 ## Why the message dimension needs its own gate
 
 Until this file existed, the corpus never recorded `message` at all —

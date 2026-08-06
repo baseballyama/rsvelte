@@ -165,6 +165,7 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max-print') + 1]) || 20 : 20;
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const UPDATE_WARNING_BASELINE = args.includes('--update-warning-baseline');
+const UPDATE_MESSAGE_BASELINE = args.includes('--update-message-baseline');
 const UPDATE_ERROR_BASELINE = args.includes('--update-error-baseline');
 const UPDATE_PARSE_BASELINE = args.includes('--update-parse-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
@@ -194,6 +195,7 @@ const FROM_REPORT = (() => {
 const UPDATE_FAMILIES = [
 	UPDATE_BASELINE && 'output',
 	UPDATE_WARNING_BASELINE && 'warning',
+	UPDATE_MESSAGE_BASELINE && 'warning message',
 	UPDATE_ERROR_BASELINE && 'error',
 	UPDATE_PARSE_BASELINE && 'parse',
 ].filter(Boolean);
@@ -214,9 +216,9 @@ if (UPDATE_BASELINE) {
 
 // --from-report reconstructs only the output ratchets, so pairing it with a
 // diagnostic flag would write half of what was asked for.
-if (FROM_REPORT && (UPDATE_WARNING_BASELINE || UPDATE_ERROR_BASELINE || UPDATE_PARSE_BASELINE)) {
-	console.error('[verify] --from-report cannot rewrite the warning/error/parse ratchets (it derives output failures only)');
-	console.error('  fix: drop --update-warning-baseline / --update-error-baseline / --update-parse-baseline, then re-run a full verify with it');
+if (FROM_REPORT && (UPDATE_WARNING_BASELINE || UPDATE_MESSAGE_BASELINE || UPDATE_ERROR_BASELINE || UPDATE_PARSE_BASELINE)) {
+	console.error('[verify] --from-report cannot rewrite diagnostic ratchets (it derives output failures only)');
+	console.error('  fix: drop the diagnostic update flags, then re-run a full verify with it');
 	process.exit(2);
 }
 
@@ -879,7 +881,15 @@ const DIAGNOSTIC_FAMILIES = [
 		noun: 'warning',
 		flag: '--update-warning-baseline',
 		update: UPDATE_WARNING_BASELINE,
-		ratchets: WARNING_RATCHETS,
+		ratchets: WARNING_RATCHETS.filter((r) => r.kind !== 'warning-message'),
+		failures: warningFailures,
+	},
+	{
+		family: 'warning message',
+		noun: 'warning message',
+		flag: '--update-message-baseline',
+		update: UPDATE_MESSAGE_BASELINE,
+		ratchets: WARNING_RATCHETS.filter((r) => r.kind === 'warning-message'),
 		failures: warningFailures,
 	},
 	{
