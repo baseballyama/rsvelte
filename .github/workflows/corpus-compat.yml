@@ -45,6 +45,8 @@ on:
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
+      - 'submodules/eslint-plugin-svelte'
+      - 'submodules/svelte-eslint-parser'
       - 'submodules/bits-ui'
       - 'submodules/flowbite-svelte'
       - 'submodules/melt-ui'
@@ -83,6 +85,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/corpus-compat.yml'
+      - '.github/actions/**'
   pull_request:
     paths:
       - 'crates/**'
@@ -93,6 +96,8 @@ on:
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
+      - 'submodules/eslint-plugin-svelte'
+      - 'submodules/svelte-eslint-parser'
       - 'submodules/bits-ui'
       - 'submodules/flowbite-svelte'
       - 'submodules/melt-ui'
@@ -131,6 +136,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/corpus-compat.yml'
+      - '.github/actions/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
