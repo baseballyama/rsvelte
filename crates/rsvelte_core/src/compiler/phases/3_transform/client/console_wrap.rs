@@ -44,7 +44,11 @@ pub(super) const CONSOLE_METHODS: &[&str] = &[
 /// Run `f` with an `EvalCtx` wired to `analysis` — the client transform has no
 /// `{@const}` table, no async blockers and no single render position, so every
 /// other field is inert.
-fn with_eval_ctx<R>(analysis: &ComponentAnalysis, f: impl FnOnce(&EvalCtx<'_>) -> R) -> R {
+fn with_eval_ctx<R>(
+    analysis: &ComponentAnalysis,
+    current_scope_index: Option<usize>,
+    f: impl FnOnce(&EvalCtx<'_>) -> R,
+) -> R {
     let constant_vars = rustc_hash::FxHashMap::default();
     let blocker_map = rustc_hash::FxHashMap::default();
     let template_scopes_cache = std::cell::OnceCell::new();
@@ -54,7 +58,7 @@ fn with_eval_ctx<R>(analysis: &ComponentAnalysis, f: impl FnOnce(&EvalCtx<'_>) -
         source: &analysis.source,
         use_async: false,
         top_level_blocker_map: &blocker_map,
-        current_scope_index: None,
+        current_scope_index,
         template_scopes_cache: &template_scopes_cache,
     })
 }
@@ -65,7 +69,7 @@ pub(super) fn args_need_wrap(args: &[Value], analysis: &ComponentAnalysis) -> bo
     if args.is_empty() {
         return false;
     }
-    with_eval_ctx(analysis, |ctx| {
+    with_eval_ctx(analysis, None, |ctx| {
         args.iter().any(|arg| {
             arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement")
                 || ctx.evaluate_estree(arg, 0).has_unknown()
@@ -140,10 +144,10 @@ impl<'a> Visit<'a> for ConstCollector<'_> {
 }
 
 /// Whether a bare identifier left in generated code can still evaluate to
-/// `UNKNOWN`. Resolution is restricted to names declared exactly once: with a
-/// shadowing declaration in play, the generated text alone cannot say which of
-/// them this reference reaches, and guessing could suppress a wrap upstream
-/// emits.
+/// `UNKNOWN`. Shadowing declarations are left to `evaluate_identifier`, whose
+/// agreement rule unions the candidates' value sets — so a name the generated
+/// text cannot resolve stays unknown, which is the direction that keeps a wrap
+/// upstream emits.
 fn identifier_can_be_unknown(
     name: &str,
     analysis: Option<&ComponentAnalysis>,
@@ -158,10 +162,9 @@ fn identifier_can_be_unknown(
     let Some(analysis) = analysis else {
         return true;
     };
-    if analysis.root.bindings_by_name.get(name).map(|b| b.len()) != Some(1) {
-        return true;
-    }
-    with_eval_ctx(analysis, |ctx| {
+    // Resolve from the instance scope: this pass only ever sees script text, so
+    // a same-named template binding (an each item, say) is not in scope.
+    with_eval_ctx(analysis, Some(analysis.root.instance_scope_index), |ctx| {
         ctx.evaluate_identifier(name, 0).has_unknown()
     })
 }

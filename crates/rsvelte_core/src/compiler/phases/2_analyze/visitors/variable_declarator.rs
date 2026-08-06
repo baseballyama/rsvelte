@@ -91,6 +91,22 @@ fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
 // ---------------------------------------------------------------------------
 
 /// Visit a variable declarator (typed JsNode path).
+/// The instance scope's own declaration of `name`, for an instance-script
+/// declarator whose position lookup missed. `context.scope` is the root scope
+/// there, so the chain lookup would otherwise answer with a same-named
+/// module-script binding and write this initializer onto it.
+fn instance_scope_binding(context: &super::VisitorContext<'_>, name: &str) -> Option<usize> {
+    if !matches!(context.ast_type, super::AstType::Instance) {
+        return None;
+    }
+    let root = &context.analysis.root;
+    root.all_scopes
+        .get(root.instance_scope_index)?
+        .declarations
+        .get(name)
+        .copied()
+}
+
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let JsNode::VariableDeclarator { id, init, .. } = node else {
         return Ok(());
@@ -437,6 +453,7 @@ fn visit_runes_mode_typed(
                 .analysis
                 .root
                 .find_binding_by_declaration_start(&path.name, path.start)
+                .or_else(|| instance_scope_binding(context, &path.name))
                 .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
                 .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
             if let Some(binding_idx) = binding_idx {
@@ -914,13 +931,21 @@ fn visit_non_runes_mode_typed(
     let id_is_plain_identifier_typed = matches!(id_node, JsNode::Identifier { .. });
     if let Some(init) = init_node {
         for path in &paths {
-            if let Some(&binding_idx) = context
+            let binding_idx = context
                 .analysis
                 .root
-                .scope
-                .declarations
-                .get(path.name.as_str())
-            {
+                .find_binding_by_declaration_start(&path.name, path.start)
+                .or_else(|| instance_scope_binding(context, &path.name))
+                .or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(path.name.as_str())
+                        .copied()
+                });
+            if let Some(binding_idx) = binding_idx {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
                 // Keep the init AST for a non-literal but potentially
