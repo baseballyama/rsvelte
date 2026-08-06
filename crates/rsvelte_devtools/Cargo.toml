@@ -34,10 +34,10 @@ rsvelte_projection = { path = "../rsvelte_projection" }
 
 backtrace = "0.3"
 chrono = "0.4"
-oxc_allocator = "0.142"
-oxc_codegen = "0.142"
-oxc_parser = "0.142"
-oxc_span = "0.142"
+oxc_allocator = "0.143"
+oxc_codegen = "0.143"
+oxc_parser = "0.143"
+oxc_span = "0.143"
 rayon = { version = "1.10", optional = true }
 regex = "1.11"
 rustc-hash = "2.0"
@@ -55,7 +55,7 @@ criterion = { version = "5.0.0", features = [
     "html_reports",
 ], package = "codspeed-criterion-compat" }
 # Repository-only compatibility probe for the unreleased OXC formatter.
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "65fe65d8429e1d1bdf86c517ff08bd119ee87660" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "9a423f2f485b79c2353c49442c0c7f60f900261d" }
 similar = { version = "3.0", features = ["text"] }
 tokio = { version = "1", features = ["rt"] }
 

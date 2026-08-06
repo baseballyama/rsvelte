@@ -58,12 +58,12 @@ rayon = { version = "1.10", optional = true }
 
 # OXC — same git rev as rsvelte_core (unified by the workspace `[patch]`),
 # used only to statically parse `eslint.config.js` for the config importer.
-oxc_allocator = "0.142"
-oxc_parser = "0.142"
-oxc_ast = "0.142"
-oxc_ast_visit = { version = "0.142", optional = true }
-oxc_span = "0.142"
-oxc_semantic = "0.142"
+oxc_allocator = "0.143"
+oxc_parser = "0.143"
+oxc_ast = "0.143"
+oxc_ast_visit = { version = "0.143", optional = true }
+oxc_span = "0.143"
+oxc_semantic = "0.143"
 
 [dev-dependencies]
 serde_json = "1.0"
