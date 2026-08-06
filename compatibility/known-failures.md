@@ -46,7 +46,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 4 entries)
+## Client dev (`known-failures.client-dev.json`, 0 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -181,20 +181,24 @@ await …` is lowered to `await (async ($$value) => { … })(…)`, and the dev
 `await` pass wrapped that generated call as well as the source `await` it was
 built around — upstream destructures after a single instrumented `await`.
 
+Four last fixes took it to 0. `build_assignment` hands the `await` it adds to
+`context.visit`, so `$.assign_async(…)` is instrumented like any other `await`
+while `arrow` (`utils/builders.js`) collapses the lazy getter it wraps back to a
+synchronous `() => x()`. A site the transform decision rejects still has to be
+spent, or a later identical member chain reports its position. The dev `await`
+wrapper opens with `(`, so it continues *any* statement ASI left open — not just
+another wrapped `await`, which is all the previous check covered. And in a
+partially pruned selector list the `/* (unused) ` markers are `prependRight` /
+`appendRight` insertions while the separator before a pruned selector goes
+through `overwrite`, which keeps the chunk it replaces — so both selectors and
+that separator still carry source-map segments.
+
 ### What is left
 
-Every dev-helper cluster the enrolment-era table tracked — `$.assign`, the
-equality instrumentation, `$.track_reactivity_loss`, ownership mutation
-validation, `$.tag()` / `$.tag_proxy()`, `console.*` wrapping and the signal
-read/write row — is now empty: no remaining entry emits any of them a different
-number of times from upstream.
-
-The 4 that remain show no dev-helper difference at all. One is a statement
-missing from a legacy `$:` body, one is the ` /* (unused) ` marker's own mapping
-in a minified stylesheet (upstream inserts it with `overwrite`, which consumes
-the separator it replaces and emits a segment — the skip-only alignment in
-`css.rs` cannot express that), and two are one-off shapes: an `$.assign`
-location and an `$.assign_async` wrap. All are tracked in #2064.
+Nothing. All three targets are at 0, and every dev-helper cluster the
+enrolment-era table tracked — `$.assign`, the equality instrumentation,
+`$.track_reactivity_loss`, ownership mutation validation, `$.tag()` /
+`$.tag_proxy()`, `console.*` wrapping and the signal read/write row — is empty.
 
 Counting method, for whoever picks this up: attribute an entry by **comparing
 how many times each helper appears** on each side, never by the first differing

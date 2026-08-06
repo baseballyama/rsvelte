@@ -1,6 +1,1 @@
-[
-	"svelte/packages/svelte/tests/runtime-runes/samples/assignment-value-stale-lazy-rhs-async/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/main.svelte",
-	"svelte/packages/svelte/tests/server-side-rendering/samples/css-injected-options-minify/main.svelte",
-	"svelthree/src/lib/components/WebGLRenderer.svelte"
-]
+[]
