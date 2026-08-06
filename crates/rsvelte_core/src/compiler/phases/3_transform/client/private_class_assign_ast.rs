@@ -43,6 +43,9 @@
 //! | `++q`         | `$.update_pre(q)`                          | `$.update_pre(q)`                   |
 //! | `--q`         | `$.update_pre(q, -1)`                      | `$.update_pre(q, -1)`               |
 //!
+//! The four update rows are a deliberate divergence for a non-`this` receiver —
+//! see the comment at the rewrite site.
+//!
 //! Where `q` matches one of the qualified names. `state_qualified`
 //! holds the `$state`-rune-type qualifieds (proxy-aware); other
 //! qualifieds (`$state.raw`, `$state.frozen`, `$derived`,
@@ -498,6 +501,10 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         }
         let qualified = pf_text;
 
+        // Deliberate divergence: upstream `UpdateExpression.js` gates this form on
+        // `argument.object.type === 'ThisExpression'` and falls through to a visited
+        // member otherwise, which in a method body yields the unparseable
+        // `$.get(q)++`, so we keep the valid form for every receiver.
         let rewrite = match (expr.operator, expr.prefix) {
             (UpdateOperator::Increment, false) => format!("$.update({})", qualified),
             (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", qualified),
@@ -1026,6 +1033,10 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
         if classify(pf_text, self.state_qualified, self.other_qualified).is_none() {
             return;
         }
+        // Deliberate divergence: upstream `UpdateExpression.js` gates this form on
+        // `argument.object.type === 'ThisExpression'` and falls through to a visited
+        // member otherwise, which in a method body yields the unparseable
+        // `$.get(q)++`, so we keep the valid form for every receiver.
         let callee = if update.prefix {
             "$.update_pre"
         } else {
