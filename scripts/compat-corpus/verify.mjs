@@ -620,12 +620,21 @@ for (const { id } of manifest) {
 // its own ratchets. A warning divergence must never move an output ratchet, and
 // an output divergence must never move a warning ratchet.
 
-const warningCounts = { match: 0, 'warning-code-mismatch': 0, 'warning-position-mismatch': 0 };
+const warningCounts = { match: 0, 'warning-code-mismatch': 0, 'warning-position-mismatch': 0, 'warning-message-mismatch': 0 };
 const warningFailures = [];
 
 const readWarnings = (dir) => JSON.parse(readIf(path.join(dir, 'warnings.json')) ?? '{}');
 const codeBag = (list) => list.map((w) => w.code).sort();
 const posKey = (w) => `${w.code}@${w.line ?? '?'}:${w.column ?? '?'}`;
+const msgKey = (w) => `${w.code}: ${w.message}`;
+let warningsSeen = 0;
+let warningsWithMessage = 0;
+const countMessageCoverage = (list) => {
+	for (const w of list) {
+		warningsSeen++;
+		if (typeof w.message === 'string') warningsWithMessage++;
+	}
+};
 // Multiset difference a \ b, so a code emitted twice on one side and once on
 // the other is still a divergence.
 const bagDiff = (a, b) => {
@@ -652,6 +661,8 @@ for (const { id } of manifest) {
 		if (expErr[target] || actErr[target]) continue;
 		const e = expWarn[target] ?? [];
 		const a = actWarn[target] ?? [];
+		countMessageCoverage(e);
+		countMessageCoverage(a);
 
 		const extra = bagDiff(codeBag(a), codeBag(e));
 		const missing = bagDiff(codeBag(e), codeBag(a));
@@ -670,6 +681,14 @@ for (const { id } of manifest) {
 		if (String(ePos) !== String(aPos)) {
 			const i = ePos.findIndex((x, k) => x !== aPos[k]);
 			details.push({ target, kind: 'warning-position', expected: ePos[i], actual: aPos[i] });
+			continue;
+		}
+
+		const eMsg = e.map(msgKey).sort();
+		const aMsg = a.map(msgKey).sort();
+		if (String(eMsg) !== String(aMsg)) {
+			const i = eMsg.findIndex((x, k) => x !== aMsg[k]);
+			details.push({ target, kind: 'warning-message', expected: eMsg[i], actual: aMsg[i] });
 		}
 	}
 
@@ -679,9 +698,17 @@ for (const { id } of manifest) {
 	}
 	const verdict = details.some((d) => d.kind === 'warning-code')
 		? 'warning-code-mismatch'
-		: 'warning-position-mismatch';
+		: details.some((d) => d.kind === 'warning-position')
+			? 'warning-position-mismatch'
+			: 'warning-message-mismatch';
 	warningCounts[verdict]++;
 	warningFailures.push({ id, verdict, details });
+}
+
+if (warningsSeen > 0 && warningsWithMessage < warningsSeen) {
+	console.error(`[verify] ${warningsSeen - warningsWithMessage}/${warningsSeen} recorded warnings carry no \`message\`.`);
+	console.error('  run: node scripts/compat-corpus/compile.mjs');
+	process.exit(2);
 }
 
 // Ratchets are partitioned by detail kind so a position divergence never lands
@@ -701,6 +728,7 @@ function partitionDetails(failureList, kind) {
 const WARNING_RATCHETS = [
 	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline },
 	{ kind: 'warning-position', label: 'warning positions', file: (t) => t.warningPositionBaseline },
+	{ kind: 'warning-message', label: 'warning messages', file: (t) => t.warningMessageBaseline },
 ];
 
 // ---- error parity ----------------------------------------------------------

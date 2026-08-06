@@ -134,23 +134,39 @@ if (args.includes('--worker')) {
 		}
 	}
 
-	// A warning is compared as (code, line, column). The message text is not
-	// part of the contract — it is prose and upstream rewords it — but the
-	// position is: editors and CLIs place a diagnostic from `start`. rsvelte
-	// leaves `start` undefined at many emission sites, which is why position is
-	// captured (and ratcheted) rather than dropped.
+	// Both compilers append `\nhttps://svelte.dev/e/<code>` to every message, so
+	// the tail restates `code` and belongs to the code ratchet, not this one.
+	const stripErrorLink = (message) => {
+		const cut = String(message ?? '').lastIndexOf('\n');
+		return cut !== -1 && message.slice(cut + 1).startsWith('https://svelte.dev/e/')
+			? message.slice(0, cut)
+			: String(message ?? '');
+	};
+
+	// A warning is compared as (code, line, column, message). Position matters
+	// because editors and CLIs place a diagnostic from `start`, and rsvelte leaves
+	// `start` undefined at many emission sites. Message matters because it is the
+	// only part a human reads, and a message can name the wrong attribute or
+	// suggest a path that does not exist while code and position both match.
+	// Message is recorded here rather than reconstructed in verify.mjs: a
+	// comparison widened downstream would read a field absent from both sides and
+	// pass every entry.
 	function normalizeWarnings(warnings) {
 		return (warnings ?? [])
 			.map((w) => ({
 				code: w.code ?? null,
 				line: w.start?.line ?? null,
 				column: w.start?.column ?? null,
+				message: stripErrorLink(w.message),
 			}))
 			.sort(
 				(a, b) =>
 					String(a.code).localeCompare(String(b.code)) ||
 					(a.line ?? -1) - (b.line ?? -1) ||
-					(a.column ?? -1) - (b.column ?? -1),
+					(a.column ?? -1) - (b.column ?? -1) ||
+					// Two warnings identical in all three would otherwise pair
+					// arbitrarily across the two sides.
+					a.message.localeCompare(b.message),
 			);
 	}
 
