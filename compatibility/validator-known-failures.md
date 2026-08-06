@@ -7,7 +7,7 @@ of only comparing diagnostic counts, mirroring what
 every listed fixture is a real divergence from the last confirmed test run, not
 a placeholder.
 
-## Current baseline: 207 divergences
+## Current baseline: 206 divergences
 
 The divergences fall into three clusters:
 
@@ -43,7 +43,7 @@ The divergences fall into three clusters:
   Each is a narrow-the-span fix once the underlying node's precise range is
   identified (per-rule, not architectural).
 
-- **Warning/error content differs from upstream wording (13).** The diagnostic
+- **Warning/error content differs from upstream wording (12).** The diagnostic
   fires on the right node but the message text itself — or, for one rule, the
   argument order — diverges from upstream. Not fixed in this change (deferred
   to keep the assertion-tightening change span-neutral); each is a self-contained
