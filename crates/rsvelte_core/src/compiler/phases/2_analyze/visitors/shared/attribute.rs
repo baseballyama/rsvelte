@@ -157,6 +157,10 @@ pub fn get_correct_attribute_name(name: &str) -> Option<&'static str> {
 /// Check if an attribute is an event attribute (starts with "on" and has expression value).
 ///
 /// Corresponds to `is_event_attribute` in ast.js.
+pub fn is_event_attribute(attribute: &AttributeNode<'_>) -> bool {
+    attribute.name.starts_with("on") && is_expression_attribute(attribute)
+}
+
 /// Record an event attribute whose expression is a lone arrow, so Phase 3 can
 /// exempt that arrow's direct assignment body from the dev `$.assign` wrap.
 /// Upstream's test is node identity (`expression === context.path.at(-1)`), so
@@ -173,10 +177,6 @@ pub fn record_event_attribute_arrow(context: &mut VisitorContext, attribute: &At
     {
         context.analysis.event_attribute_arrow_starts.insert(start);
     }
-}
-
-pub fn is_event_attribute(attribute: &AttributeNode<'_>) -> bool {
-    attribute.name.starts_with("on") && is_expression_attribute(attribute)
 }
 
 /// Get the chunks of an attribute value.
