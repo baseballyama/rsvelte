@@ -29,7 +29,7 @@ pub fn visit(text: &Text, context: &mut VisitorContext) -> Result<(), AnalysisEr
         && REGEX_NOT_WHITESPACE.is_match(&text.data)
         && let Some(message) = is_tag_valid_with_parent("#text", parent_element)
     {
-        return Err(errors::node_invalid_placement(&message));
+        return Err(errors::node_invalid_placement(&message).at(text.start, text.end));
     }
 
     // Check for bidirectional control characters

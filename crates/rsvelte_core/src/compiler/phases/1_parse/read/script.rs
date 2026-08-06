@@ -372,7 +372,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "script_duplicate",
                         "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element",
-                        (start, end),
+                        (start, start),
                     ));
                 }
                 self.instance_script = Some(script);
@@ -382,7 +382,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "script_duplicate",
                         "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element",
-                        (start, end),
+                        (start, start),
                     ));
                 }
                 self.module_script = Some(script);

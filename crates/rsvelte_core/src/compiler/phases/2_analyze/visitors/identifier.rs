@@ -58,7 +58,7 @@ fn visit_identifier_inner(
     if name == "$" || name.starts_with("$$") {
         // $$ prefixed names except reserved ones ($$props, $$restProps, $$slots) are illegal
         if name != "$$props" && name != "$$restProps" && name != "$$slots" {
-            return Err(errors::global_reference_invalid(name));
+            return Err(errors::global_reference_invalid(name).at(start, end));
         }
     }
 

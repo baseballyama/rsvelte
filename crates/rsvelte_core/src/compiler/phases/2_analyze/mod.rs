@@ -1202,8 +1202,8 @@ fn check_reactive_declaration_cycles(
     };
 
     // Collect reactive statements and their assignments/dependencies
-    // Each entry: (assignments: Vec<String>, dependencies: Vec<String>)
-    let mut reactive_stmts: Vec<(Vec<String>, Vec<String>)> = Vec::new();
+    // Each entry: (assignments, dependencies, statement span)
+    let mut reactive_stmts: Vec<(Vec<String>, Vec<String>, Option<(u32, u32)>)> = Vec::new();
 
     for node in body {
         if node.get("type").and_then(|v| v.as_str()) != Some("LabeledStatement") {
@@ -1253,14 +1253,19 @@ fn check_reactive_declaration_cycles(
         dependencies.retain(|dep| !assignments.contains(dep));
 
         if !assignments.is_empty() {
-            reactive_stmts.push((assignments, dependencies));
+            let span = node
+                .get("start")
+                .and_then(|v| v.as_u64())
+                .zip(node.get("end").and_then(|v| v.as_u64()))
+                .map(|(start, end)| (start as u32, end as u32));
+            reactive_stmts.push((assignments, dependencies, span));
         }
     }
 
     // Build edges for cycle detection: (assignment_name, dependency_name)
     // Use &str references to avoid String allocations
     let mut edges: Vec<(&str, &str)> = Vec::new();
-    for (assignments, dependencies) in &reactive_stmts {
+    for (assignments, dependencies, _) in &reactive_stmts {
         for assignment in assignments {
             for dependency in dependencies {
                 edges.push((assignment.as_str(), dependency.as_str()));
@@ -1271,7 +1276,16 @@ fn check_reactive_declaration_cycles(
     // Check for cycles
     if let Some(cycle) = utils::check_graph_for_cycles(&edges) {
         let cycle_str = cycle.join(" \u{2192} "); // → character
-        return Err(errors::reactive_declaration_cycle(&cycle_str));
+        let mut error = errors::reactive_declaration_cycle(&cycle_str);
+        // Upstream blames the first declaration that assigns the cycle's head.
+        if let Some(head) = cycle.first()
+            && let Some((_, _, Some((start, end)))) = reactive_stmts
+                .iter()
+                .find(|(assignments, _, _)| assignments.iter().any(|a| a == head))
+        {
+            error = error.at(*start, *end);
+        }
+        return Err(error);
     }
 
     Ok(())
@@ -2571,6 +2585,20 @@ impl AnalysisError {
             start: Some(start),
             end: Some(end),
         }
+    }
+
+    /// Attribute the error to a source range, mirroring the node upstream
+    /// passes as the first argument to its `e.*` constructor.
+    #[must_use]
+    pub fn at(mut self, start: u32, end: u32) -> Self {
+        if let AnalysisError::ValidationWithCode {
+            start: s, end: e, ..
+        } = &mut self
+        {
+            *s = Some(start);
+            *e = Some(end);
+        }
+        self
     }
 }
 

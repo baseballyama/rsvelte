@@ -639,6 +639,33 @@ impl<'a> Parser<'a> {
                 }))
             }
             ElementType::SvelteElement => {
+                // element.js L286-296: a missing `this` is attributed to the element's
+                // start, a valueless one to the `this` attribute itself.
+                const MISSING_THIS: &str = "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this";
+                let definition = attributes.iter().find_map(|attr| match attr {
+                    crate::ast::Attribute::Attribute(node) if node.name.as_str() == "this" => {
+                        Some(node)
+                    }
+                    _ => None,
+                });
+                match definition {
+                    None => {
+                        return Err(crate::error::ParseError::svelte(
+                            "svelte_element_missing_this",
+                            MISSING_THIS,
+                            (start, start),
+                        ));
+                    }
+                    Some(node) if matches!(node.value, AttributeValue::True(_)) => {
+                        return Err(crate::error::ParseError::svelte(
+                            "svelte_element_missing_this",
+                            MISSING_THIS,
+                            (node.start as usize, node.end as usize),
+                        ));
+                    }
+                    Some(_) => {}
+                }
+
                 // Check if the "this" attribute is a string value (not an expression)
                 // and emit svelte_element_invalid_this warning if so.
                 // Corresponds to element.js L288-289: if (!is_expression_attribute(definition)) { w.svelte_element_invalid_this(definition); }
@@ -1444,8 +1471,10 @@ impl<'a> Parser<'a> {
                         self.index,
                     )
                 } else {
-                    // Plain quoted string without expression is invalid for directives
-                    let error_pos = self.index - 1; // Position at the opening quote
+                    // Plain quoted string without expression is invalid for directives.
+                    // Upstream attributes this to the value node, which starts
+                    // just past the opening quote.
+                    let error_pos = self.index;
                     return Err(crate::error::ParseError::svelte(
                         "directive_invalid_value",
                         "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",

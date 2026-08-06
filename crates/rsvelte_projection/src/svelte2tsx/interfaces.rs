@@ -26,6 +26,9 @@ pub enum Svelte2TsxNamespace {
     Svg,
     /// MathML element namespace.
     Mathml,
+    /// Foreign (non-HTML) namespace — element attribute names keep their
+    /// authored case instead of being folded to the intrinsic-element typings.
+    Foreign,
 }
 
 /// Svelte version target.

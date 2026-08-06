@@ -114,7 +114,10 @@ pub fn detect_store_subscriptions(
         // Corresponds to Svelte's L266-269 and L351-352 in 2-analyze/index.js
         // Note: bare $ detection is handled in Identifier visitor via proper AST analysis
         if ref_name.starts_with("$$") {
-            return Err(errors::global_reference_invalid(ref_name));
+            return Err(errors::global_reference_invalid(ref_name).at(
+                store_ref.position as u32,
+                (store_ref.position + ref_name.len()) as u32,
+            ));
         }
 
         // Skip names that don't start with $ or bare $
@@ -462,7 +465,10 @@ pub fn detect_store_subscriptions(
                 }) {
                     continue;
                 }
-                return Err(errors::global_reference_invalid(ref_name));
+                return Err(errors::global_reference_invalid(ref_name).at(
+                    store_ref.position as u32,
+                    (store_ref.position + ref_name.len()) as u32,
+                ));
             }
         }
     }

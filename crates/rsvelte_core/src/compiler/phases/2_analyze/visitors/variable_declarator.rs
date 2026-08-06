@@ -123,7 +123,11 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 .module_scope_declarations
                 .contains_key(&name)
             {
-                return Err(errors::declaration_duplicate_module_import());
+                let mut error = errors::declaration_duplicate_module_import();
+                if let (Some(start), Some(end)) = (id_node.start(), id_node.end()) {
+                    error = error.at(start, end);
+                }
+                return Err(error);
             }
         }
     }

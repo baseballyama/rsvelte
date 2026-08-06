@@ -37,12 +37,14 @@ pub fn visit(
     // Validate slot attribute must be a static value
     // Corresponds to validate_slot_attribute in shared/attribute.js
     if attribute.name == "slot" && !is_text_attribute(attribute) {
-        return Err(errors::slot_attribute_invalid());
+        return Err(errors::slot_attribute_invalid().at(attribute.start, attribute.end));
     }
 
     // Validate attribute name for invalid characters
     if is_invalid_attribute_name(&attribute.name) {
-        return Err(errors::attribute_invalid_name(&attribute.name));
+        return Err(
+            errors::attribute_invalid_name(&attribute.name).at(attribute.start, attribute.end)
+        );
     }
 
     // Validate attribute name for illegal colons

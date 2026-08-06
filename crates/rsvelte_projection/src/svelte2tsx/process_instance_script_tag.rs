@@ -146,6 +146,7 @@ pub(crate) fn process_instance_script_tag(
                 &exported_names.instance_value_names,
                 &exported_names.instance_import_names,
                 &exported_names.module_import_names,
+                &exported_names.module_value_names,
             );
             // Check if type references generics from $$render
             let has_generic_dep = !render_generics.is_empty()
@@ -371,24 +372,27 @@ pub(crate) fn process_instance_script_tag(
             exported_names.props_type_text.as_ref(),
         )
     {
-        // `append_right`, not `append_left`: `preprendStr` attaches to the
-        // character AT `let_pos`, so the declaration must stay behind when the
-        // import that ends there is hoisted away.
-        if force_inside_render {
-            str.append_right(
-                let_pos,
-                &format!(";type $$ComponentProps =  {};", type_text),
-            );
+        let decl = if force_inside_render {
+            format!(";type $$ComponentProps =  {};", type_text)
         } else {
             // type_already_inserted (auto-generated SvelteKit / fallback type).
             // JS reference wraps in surroundWithIgnoreComments.
-            str.append_right(
-                let_pos,
-                &format!(
-                    "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                    type_text
-                ),
-            );
+            format!(
+                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
+                type_text
+            )
+        };
+        // The JS reference relocates the annotation itself, so the alias is a
+        // moved chunk that lands before the snippets moved to the same index
+        // later. Only a props declaration that opens the script shares an index
+        // with them; there `append_left` reproduces that order by riding the
+        // `function $$render() {` chunk's outro. Anywhere else `append_right` is
+        // required, so the alias stays behind when the import ending at
+        // `let_pos` is hoisted away.
+        if let_pos == content_start {
+            str.append_left(let_pos, &decl);
+        } else {
+            str.append_right(let_pos, &decl);
         }
     }
 

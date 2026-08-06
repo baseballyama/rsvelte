@@ -1,25 +1,25 @@
 # validator-known-failures.json — why entries are accepted
 
-`crates/rsvelte_core/tests/validator.rs` now asserts full upstream parity per
-fixture — warning `code`/`message`/`start`/`end` and error `start`/`end` — instead
-of only comparing diagnostic counts, mirroring what
+`crates/rsvelte_core/tests/validator.rs` asserts full upstream parity per fixture —
+warning `code`/`message`/`start`/`end` and error `start`/`end` — instead of only
+comparing diagnostic counts, mirroring what
 `packages/svelte/tests/validator/test.ts` checks. The ratchet may only shrink;
 every listed fixture is a real divergence from the last confirmed test run, not
 a placeholder.
 
-## Current baseline: 207 divergences
+## Current baseline: 63 divergences
 
-The divergences fall into three clusters:
+The error-span cluster is gone: every `AnalysisError` now carries the source range
+upstream attributes it to. Constructors in
+`crates/rsvelte_core/src/compiler/phases/2_analyze/errors.rs` still build a
+span-less error, and each raising site attaches the span with
+`AnalysisError::at(start, end)` — taking the same node upstream passes to its
+`e.*` constructor, which is often a sibling attribute or a child rather than the
+node the enclosing visitor is looking at.
 
-- **Error spans not populated (~141, the majority).** Many `AnalysisError` call
-  sites construct the error without threading the triggering node's span through,
-  so `start`/`end` come back `None..None` instead of the real source range (e.g.
-  `invalid-node-placement-5`, `module-script-reactive-declaration`). This is a
-  structural span-plumbing gap across dozens of call sites in
-  `crates/rsvelte_core/src/compiler/phases/2_analyze` rather than one bug —
-  fixing it means auditing each `AnalysisError::*` construction individually.
+What remains is warnings only, in two clusters:
 
-- **Warning span-only mismatches (53).** The warning `code` and `message` match
+- **Warning span-only mismatches (59).** The warning `code` and `message` match
   upstream exactly; only the reported `start`/`end` differs — typically rsvelte
   reports a whole-line/whole-node span where upstream reports a narrower
   sub-span (an attribute value, a role token, an identifier). Affects
@@ -36,41 +36,28 @@ The divergences fall into three clusters:
   `inline-new-class*`, `unreferenced-variables*`, `empty-block`,
   `global-event-reference`, `illegal-attribute-character`,
   `implicitly-closed-by-{parent,sibling}`, `bidirectional-control-characters`,
-  `use-the-platform`, `reactive-module-variable`, `unknown-code`,
-  `script-unknown-attribute`, `script-context-module-runes-deprecated`,
-  `script-invalid-spread-attribute`, `tag-custom-element-options-missing`,
-  `runes-legacy-syntax-warnings`, and `a11y-aria-unsupported-element`.
+  `use-the-platform`, `reactive-module-variable`, `script-unknown-attribute`,
+  `script-context-module-runes-deprecated`, `script-invalid-spread-attribute`,
+  `tag-custom-element-options-missing`, `runes-legacy-syntax-warnings`,
+  `invalid-node-placement-5`, `module-script-reactive-declaration`,
+  `reactive-declaration-non-top-level` and `a11y-aria-unsupported-element`.
   Each is a narrow-the-span fix once the underlying node's precise range is
   identified (per-rule, not architectural).
 
-- **Warning/error content differs from upstream wording (13).** The diagnostic
-  fires on the right node but the message text itself — or, for one rule, the
-  argument order — diverges from upstream. Not fixed in this change (deferred
-  to keep the assertion-tightening change span-neutral); each is a self-contained
-  one-line follow-up:
-  - `a11y-aria-props`: `a11y_unknown_aria_attribute` phrases the suggestion as
-    `"... (did you mean 'labelledby'?)"` instead of upstream's
-    `"... . Did you mean 'labelledby'?"`; `a11y_missing_attribute` renders a
+  Note that these are invisible to the Compatibility Report, which compares only
+  the *number* of warnings a successful compile emits — this gate is the only
+  thing that sees them.
+
+- **Warning content differs from upstream wording (4).** The diagnostic fires on
+  the right node but the message text itself — or, for one rule, the argument
+  order — diverges from upstream. Each is a self-contained message-string
+  correction:
+  - `a11y-anchor-in-svg-is-valid`: the `a11y_missing_attribute` /
+    `a11y_unknown_aria_attribute` wording — `a11y_unknown_aria_attribute` phrases
+    the suggestion as `"... (did you mean 'labelledby'?)"` instead of upstream's
+    `"... . Did you mean 'labelledby'?"`, and `a11y_missing_attribute` renders a
     double space and an Oxford comma (`"should have  alt, aria-label, or
     aria-labelledby"`) instead of `"should have an alt, aria-label or
     aria-labelledby"` (missing article, no Oxford comma).
-  - `a11y-aria-proptypes-tokenlist`: `a11y_incorrect_aria_attribute_type_tokenlist`
-    lists the allowed tokens with an Oxford comma (`"removals", "text"`) instead
-    of upstream's `"removals" or "text"`.
-  - `invalid-node-placement-5`: `node_invalid_placement_ssr` says `"cannot be a
-    descendant of"` instead of upstream's `"cannot be a child of"`.
-  - `module-script-reactive-declaration`: `reactive_declaration_invalid_placement`
-    says `"are only valid at the top level"` instead of upstream's `"only exist
-    at the top level"`.
-  - `a11y-no-interactive-element-to-noninteractive-role`: the message swaps the
-    element and role naming — rsvelte reports `` `<article>` cannot have role
-    'a' `` (interpreting the *role* attribute value as the element and the HTML
-    tag as the role) where upstream reports `` `<a>` cannot have role 'article'
-    `` (element tag first, role attribute second); the same swap appears in the
-    nested `a11y_no_redundant_roles`/`a11y_no_abstract_role` diagnostics emitted
-    from the same fixture.
-  - The remaining entries in this cluster (`attribute-quoted`,
-    `svelte-self-deprecated`, and related singleton wording/argument diffs) are
-    each a single message-string correction pending a follow-up pass once the
-    span-plumbing work above lands and the fixtures can be re-verified in one
-    pass rather than piecemeal.
+  - `unknown-code`, `attribute-quoted` and `svelte-self-deprecated` are singleton
+    wording/argument diffs of the same kind.

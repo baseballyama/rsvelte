@@ -3,7 +3,7 @@
 
 use std::collections::VecDeque;
 
-use crate::ast::template::Root;
+use crate::ast::template::{Fragment, Root, TemplateNode};
 use rustc_hash::FxHashMap;
 
 use super::super::magic_string::MagicString;
@@ -145,6 +145,100 @@ pub(crate) fn hoist_top_level_snippets(
     hoistable_snippet_ranges
 }
 
+/// Collect the component names a snippet body instantiates (`<Icon />`,
+/// `<Foo.Bar />`, `<svelte:component this={X} />`).
+///
+/// A tag name is not an expression, so the lexical scan below never sees it,
+/// yet the generated `__sveltets_2_ensureComponent(Icon)` call does reference
+/// the binding. Mirrors official `collectSnippetComponentGlobals`, which exists
+/// for the same reason (periscopic ignores template tags).
+fn collect_snippet_component_names(fragment: &Fragment, source: &str, names: &mut Vec<String>) {
+    fn is_component_tag(name: &str) -> bool {
+        let mut chars = name.chars();
+        match chars.next() {
+            Some(c) if c.is_ascii_uppercase() => true,
+            Some(c) if c.is_ascii_alphabetic() => {
+                let head: String = std::iter::once(c)
+                    .chain(chars.clone().take_while(|c| c.is_ascii_alphabetic()))
+                    .collect();
+                name[head.len()..].starts_with('.')
+            }
+            _ => false,
+        }
+    }
+
+    for node in fragment.nodes.iter() {
+        match node {
+            TemplateNode::Component(comp) => {
+                if !comp.name.starts_with("svelte:") && is_component_tag(&comp.name) {
+                    names.push(comp.name.to_string());
+                }
+                collect_snippet_component_names(&comp.fragment, source, names);
+            }
+            TemplateNode::SvelteComponent(el) => {
+                if let (Some(s), Some(e)) = (el.expression.start(), el.expression.end())
+                    && let Some(text) = source.get(s as usize..e as usize)
+                    && text
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                {
+                    names.push(text.to_string());
+                }
+                collect_snippet_component_names(&el.fragment, source, names);
+            }
+            TemplateNode::RegularElement(el) => {
+                collect_snippet_component_names(&el.fragment, source, names)
+            }
+            TemplateNode::SvelteElement(el) => {
+                collect_snippet_component_names(&el.fragment, source, names)
+            }
+            TemplateNode::TitleElement(el) => {
+                collect_snippet_component_names(&el.fragment, source, names)
+            }
+            TemplateNode::SlotElement(el) => {
+                collect_snippet_component_names(&el.fragment, source, names)
+            }
+            TemplateNode::SvelteBody(el)
+            | TemplateNode::SvelteDocument(el)
+            | TemplateNode::SvelteFragment(el)
+            | TemplateNode::SvelteBoundary(el)
+            | TemplateNode::SvelteHead(el)
+            | TemplateNode::SvelteOptions(el)
+            | TemplateNode::SvelteSelf(el)
+            | TemplateNode::SvelteWindow(el) => {
+                collect_snippet_component_names(&el.fragment, source, names)
+            }
+            TemplateNode::IfBlock(block) => {
+                collect_snippet_component_names(&block.consequent, source, names);
+                if let Some(alternate) = &block.alternate {
+                    collect_snippet_component_names(alternate, source, names);
+                }
+            }
+            TemplateNode::EachBlock(block) => {
+                collect_snippet_component_names(&block.body, source, names);
+                if let Some(fallback) = &block.fallback {
+                    collect_snippet_component_names(fallback, source, names);
+                }
+            }
+            TemplateNode::AwaitBlock(block) => {
+                for branch in [&block.pending, &block.then, &block.catch]
+                    .into_iter()
+                    .flatten()
+                {
+                    collect_snippet_component_names(branch, source, names);
+                }
+            }
+            TemplateNode::KeyBlock(block) => {
+                collect_snippet_component_names(&block.fragment, source, names)
+            }
+            TemplateNode::SnippetBlock(block) => {
+                collect_snippet_component_names(&block.body, source, names)
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Decide whether a top-level `{#snippet}` block is module-hoistable.
 ///
 /// A snippet is module-hoistable when its body's free variables resolve only
@@ -213,7 +307,8 @@ fn is_snippet_module_hoistable(
     // blocks) rather than the general `lexical_identifiers` to avoid false
     // positives from HTML attribute names like `data-state` (where `state`
     // follows a `-` and is not a JS reference). Both checks below iterate it.
-    let body_idents = lexical_identifiers_in_expressions(body_text);
+    let mut body_idents = lexical_identifiers_in_expressions(body_text);
+    collect_snippet_component_names(&snippet.body, source, &mut body_idents);
     for ident in &body_idents {
         if params_set.contains(ident) {
             continue;
