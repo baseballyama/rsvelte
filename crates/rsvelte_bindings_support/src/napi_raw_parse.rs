@@ -1228,7 +1228,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_typed_loc(w, loc.as_deref());
             write_literal_value(w, value);
             write_str(w, raw.as_str());
-            write_regex(w, regex.as_ref());
+            write_regex(w, regex.as_deref());
         }
         JsNode::BinaryExpression {
             start,

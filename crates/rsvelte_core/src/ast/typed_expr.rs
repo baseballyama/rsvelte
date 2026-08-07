@@ -58,7 +58,9 @@ pub enum LiteralValue {
     Number(f64),
     Bool(bool),
     Null,
-    Regex(RegexValue),
+    /// Boxed: a regex payload is two `CompactString`s, and inlining it would
+    /// widen every `JsNode` by 24 bytes for a variant that is vanishingly rare.
+    Regex(Box<RegexValue>),
 }
 
 impl Serialize for LiteralValue {
@@ -115,7 +117,8 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         value: LiteralValue,
         raw: CompactString,
-        regex: Option<RegexValue>,
+        /// Boxed for the same reason as [`LiteralValue::Regex`].
+        regex: Option<Box<RegexValue>>,
     },
     BinaryExpression {
         start: u32,
@@ -2422,13 +2425,12 @@ impl JsNode {
                         name: get_str(obj, "name"),
                     },
                     "Literal" => {
-                        let regex =
-                            obj.get("regex")
-                                .and_then(|r| r.as_object())
-                                .map(|r| RegexValue {
-                                    pattern: get_str(r, "pattern"),
-                                    flags: get_str(r, "flags"),
-                                });
+                        let regex = obj.get("regex").and_then(|r| r.as_object()).map(|r| {
+                            Box::new(RegexValue {
+                                pattern: get_str(r, "pattern"),
+                                flags: get_str(r, "flags"),
+                            })
+                        });
                         let lit_value = match obj.get("value") {
                             Some(Value::String(s)) => LiteralValue::String(s.as_str().into()),
                             Some(Value::Number(n)) => {
