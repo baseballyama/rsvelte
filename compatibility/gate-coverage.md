@@ -48,7 +48,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 5 | Generated shape matrix | per-case × target JS text | `.svelte.(js\|ts)` shapes; CSS; warnings; template positions | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
-| 8 | css-prune sweep | `css.code` of 1430 generated components | **an empty population exits 0** | [D] |
+| 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1430 generated components | `js.code`; **an empty population exits 0** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
@@ -331,8 +331,9 @@ the sharpest case. Cost: low.
 
 ## 8. css-prune sweep — `scripts/compat-corpus/css-prune-sweep.mjs`
 
-**Unit.** 1430 generated components, `css.code` compared after hash normalization
-(`:346-367`), `generate: 'client'`, `dev: false`, `css: 'external'` (`:351-355`).
+**Unit.** 1430 generated components; `css.code` after hash normalization plus the sorted
+`code@line:col` of every warning, compared by `css-prune-verdict.mjs`;
+`generate: 'client'`, `dev: false`, `css: 'external'`.
 
 ### Blind spot 8a — an empty population exits 0
 
@@ -361,10 +362,22 @@ carry floors — `artifacts.mjs:79` (`MIN_FULL_CORPUS_ENTRIES = 12000`),
 reads only `divergedIds`. **[S]** And CI does not pass `--both` anyway
 (`corpus-compat.yml:255`).
 
-### Blind spot 8c — `js.code` and `warnings` discarded
+### Blind spot 8c — `warnings` discarded — CLOSED
 
-`compileCss` (`:348-367`) returns `{ css }` only. **[S]** rsvelte can prune identically and
-omit the `css_unused_selector` warning; green.
+`compileCss` returned `{ css }` only, so rsvelte could prune identically and omit the
+`css_unused_selector` warning and still score green. It did: an outer rule whose enclosing
+selector matched no ancestor pruned to a byte-identical `(empty)` stylesheet either way, so
+the whole grid read 1430/1430 while 16 components diverged on warnings alone (#2474).
+
+**[D] Verified locally** on the fixed compiler, by deleting one warning from the rsvelte side
+of the comparison: with the `css.code`-only key the sweep still reported `matched: 1430,
+diverged: 0`; with the warning key it reports `warning-mismatch`. The verdict now compares the
+sorted `code@line:col` of every warning after the CSS compares equal, and
+`scripts/dev/test-css-prune-sweep-warning-verdict.mjs` pins that (it fails on the previous
+comparator, and also asserts the sweep still routes through it).
+
+`js.code` is still discarded — the sweep is a phase-2 gate and the corpus pipeline compares JS
+on real code, so this is deliberate rather than a gap.
 
 **Tracked:** #2445. **Closing 8a:** one assertion. Cost: trivial.
 

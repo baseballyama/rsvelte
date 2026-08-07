@@ -49,6 +49,7 @@
 		"test:corpus-verify-flags": "node scripts/dev/test-corpus-verify-baseline-flags.mjs",
 		"test:corpus-generation": "node scripts/dev/test-corpus-generation-guard.mjs",
 		"test:known-failures-md-check": "node scripts/dev/test-known-failures-md-check.mjs",
+		"test:css-prune-verdict": "node scripts/dev/test-css-prune-sweep-warning-verdict.mjs",
 		"test:vps-shim": "node scripts/dev/test-vps-shim.mjs",
 		"test:vps-fixture": "node scripts/dev/test-vps-vite-fixture.mjs",
 		"test:vps": "node scripts/dev/test-vps-shim.mjs && node scripts/dev/test-vps-vite-fixture.mjs",

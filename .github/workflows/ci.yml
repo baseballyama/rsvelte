@@ -949,6 +949,12 @@ jobs:
       - name: Check the known-failures doc count parser
         run: node scripts/dev/test-known-failures-md-check.mjs
 
+      # The CSS-prune sweep's comparison key. Same reason it lives here: the
+      # comparator is a pure module, so it needs neither the NAPI binding nor
+      # submodules that the sweep itself does.
+      - name: Check the CSS-prune sweep compares warnings
+        run: node scripts/dev/test-css-prune-sweep-warning-verdict.mjs
+
   vps-version-check:
     name: VPS native VERSION drift check
     runs-on: ubuntu-latest

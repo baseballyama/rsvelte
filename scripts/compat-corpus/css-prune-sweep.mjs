@@ -10,10 +10,13 @@
  * This script *generates* many tiny synthetic components from a grid of
  * ingredients — selector shape × sibling-producing markup context × an
  * unrelated "corruptor" node elsewhere in the template — compiles each with
- * BOTH the official `svelte/compiler` and rsvelte (NAPI binding), and diffs the
- * emitted `css.code`. The prune decision is visible in the CSS as
- * "(unused)" comments plus scoping-class (`.svelte-<hash>`) placement,
- * so a css.code divergence is a prune divergence.
+ * BOTH the official `svelte/compiler` and rsvelte (NAPI binding), and diffs both
+ * the emitted `css.code` and the `(code, line, column)` of every warning. The
+ * prune decision is visible in the CSS as "(unused)" comments plus
+ * scoping-class (`.svelte-<hash>`) placement, and stated outright by
+ * `css_unused_selector` — a stylesheet can be byte-identical while the two
+ * compilers disagree about which selectors are dead, so the CSS alone is not a
+ * sufficient oracle for pruning.
  *
  * CSS pruning is a phase-2 analysis and target-independent, so one compile
  * (generate: 'client', css: 'external') per component suffices; --both verifies
@@ -37,6 +40,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { normHash, verdictOf, warningKeys } from './css-prune-verdict.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -370,17 +374,6 @@ try {
 	process.exit(1);
 }
 
-// Collapse the scope-hash value (not its placement) so a diff isolates the
-// prune decision, not any hash-algorithm drift.
-const normHash = (css) => (css ?? '').replace(/svelte-[0-9a-z]+/g, 'svelte-X');
-
-// `css_unused_selector` is the prune decision stated directly, so a warning-only
-// divergence is a prune divergence the emitted CSS happens not to show.
-const warningKeys = (r) =>
-	(r.warnings ?? [])
-		.map((w) => `${w.code}@${w.start?.line ?? '?'}:${w.start?.column ?? '?'}`)
-		.sort();
-
 function compileCss(compiler, source) {
 	try {
 		const r = compiler.compile(source, {
@@ -432,16 +425,6 @@ if (ONE_ID) {
 	console.log('----- rsvelte warnings  -----\n' + ((a.warnings ?? []).join('\n') || '(none)'));
 	console.log('----- verdict -----\n' + verdictOf(e, a));
 	process.exit(0);
-}
-
-function verdictOf(e, a) {
-	if (e.error && a.error) return e.error.code === a.error.code ? 'match (error parity)' : `error-mismatch (official ${e.error.code} / rsvelte ${a.error.code})`;
-	if (e.error && !a.error) return `error-mismatch (official errors ${e.error.code}, rsvelte compiles)`;
-	if (!e.error && a.error) return `error-mismatch (rsvelte errors ${a.error.code}, official compiles)`;
-	// Warnings are captured and shown by --id but deliberately not part of the
-	// verdict yet: enabling them surfaces 16 real divergences that need a
-	// baseline measured from a binding of established provenance.
-	return e.css === a.css ? 'match' : 'css-mismatch';
 }
 
 // full sweep
