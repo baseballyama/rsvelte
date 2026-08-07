@@ -9,7 +9,7 @@ use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::special_element::validate_special_element_placement;
-use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteElement};
+use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:self.
 pub fn visit<'a, 'b: 'a>(
@@ -19,20 +19,23 @@ pub fn visit<'a, 'b: 'a>(
     // Validate placement
     validate_special_element_placement("svelte:self", context)?;
 
-    // Emit deprecation warning
-    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/SvelteSelf.js
-    // w.svelte_self_deprecated(node, state.analysis.name, filename.replace('./', ''));
-    //
-    // The component name is derived from the filename in ComponentAnalysis::new()
-    // If no filename was provided, it defaults to "Component"
-    let component_name = &context.analysis.name;
-
-    // Construct the basename (filename.svelte format)
-    // The official compiler uses the actual filename's basename, but since
-    // we only have the component name, we construct it as "{name}.svelte"
-    let basename = format!("{}.svelte", component_name);
-
-    context.emit_warning(warnings::svelte_self_deprecated(component_name, &basename));
+    // `<svelte:self>` is the supported spelling in legacy mode; only runes
+    // components have self-imports to be deprecated in favour of.
+    if context.analysis.runes {
+        // The identifier and the path are independent: the identifier is the
+        // component name, the path must stay the real file so the suggestion
+        // resolves on a case-sensitive filesystem.
+        let filename = &context.analysis.location_filename;
+        let (name, basename) = if filename == "(unknown)" {
+            ("Self", "Self.svelte")
+        } else {
+            (
+                context.analysis.name.as_str(),
+                filename.rsplit(['/', '\\']).next().unwrap_or(filename),
+            )
+        };
+        context.emit_warning(warnings::svelte_self_deprecated(name, basename));
+    }
 
     // Analyze attributes — upstream's SvelteSelf.js delegates to the shared
     // `visit_component(node, context)`, which visits every attribute (and
@@ -42,13 +45,7 @@ pub fn visit<'a, 'b: 'a>(
     for attr in &mut self_.attributes {
         match attr {
             Attribute::Attribute(a) => {
-                // Check attribute_quoted for svelte:self
-                if let AttributeValue::Sequence(parts) = &a.value
-                    && parts.len() == 1
-                    && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
-                {
-                    context.emit_warning(warnings::attribute_quoted());
-                }
+                super::shared::attribute::warn_attribute_quoted(context, a);
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }

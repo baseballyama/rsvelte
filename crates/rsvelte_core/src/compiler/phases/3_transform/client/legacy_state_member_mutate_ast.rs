@@ -492,18 +492,20 @@ pub(crate) fn transform_legacy_state_member_mutate_in_place(
     non_reactive_state_vars: &[String],
     raw_state_vars: &[String],
     invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if state_vars.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
-    memchr::memchr(b'=', source.as_bytes())?;
+    if memchr::memchr(b'=', source.as_bytes()).is_none() {
+        return ast_rewrite::Rewrite::Unchanged;
+    }
     if !state_vars
         .iter()
         .filter(|v| !non_reactive_state_vars.iter().any(|nr| nr == *v))
         .filter(|v| !raw_state_vars.iter().any(|r| r == *v))
         .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_program_mut(

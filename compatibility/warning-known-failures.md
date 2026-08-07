@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 70 entries; the three position files hold the same 529. That is not a
+the same 51 entries; the three position files hold the same 528. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -46,25 +46,49 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all six files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 70 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 28 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Treat every entry here as a real defect awaiting a root cause. Clusters
-identified so far:
+Not every entry is equally bad. Of the 28 entries that still diverge, **6 are
+under-warnings** — rsvelte stays silent where upstream warns
+(`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
+`options_missing_custom_element` ×1); neither burn-down below touched that half.
+The other 22 are noise the user cannot suppress. Both are defects, but a missing
+diagnostic and an extra one fail differently, and the ratchet count alone does
+not distinguish them; no entry diverges in both directions at once.
 
-- **`attribute_quoted` over-warning on namespaced SVG child components** —
-  rsvelte emits the warning for attributes the official compiler does not
-  consider quoted-redundant.
+Clusters identified so far:
+
 - **`component_name_lowercase` over-warning** — rsvelte flags lowercase names
   that upstream accepts (seen across `svelte-maplibre` example routes).
-- **`svelte_self_deprecated` / `reactive_declaration_module_script_dependency`
-  over-warning** — concentrated in the Svelte migrate fixtures, which are out of
-  scope for codegen but still compile here.
+- **`reactive_declaration_module_script_dependency` over-warning** —
+  concentrated in the Svelte migrate fixtures, which are out of scope for
+  codegen but still compile here.
 
-## Warning positions (`warning-position-known-failures.<target>.json`, 529 entries each)
+The `svelte_self_deprecated` half of that last cluster is fixed: the warning is
+gated on `analysis.runes` upstream, and rsvelte emitted it in legacy mode too,
+where `<svelte:self>` is the supported spelling. That removed 19 entries from
+each of the three files, verified per entry against official 5.56.8 on all three
+targets.
+
+`attribute_quoted` was burned down independently: 19 further entries — the two
+burn-downs together take the ratchet from 70 to 28 — four of the entries needed
+both fixes, so neither burn-down could remove them alone — with **0 remaining tuples
+in either direction**. Both counts are read off
+`verify.mjs --no-fmt --update-warning-baseline` runs over the same 14,130-entry
+corpus, not off the issue that motivated the fix. It was **one
+predicate**, not the SVG-namespace story this file previously recorded: upstream
+reaches the check only through `validate_attribute`, and both callers guard it
+with `analysis.runes`, so legacy components never warn. rsvelte ran it
+unconditionally at all four emission sites. The earlier description was inferred
+from where the entries happened to cluster in the corpus rather than from
+upstream's control flow — worth remembering when reading the clusters above,
+which were written the same way.
+
+## Warning positions (`warning-position-known-failures.<target>.json`, 528 entries each)
 
 The codes agree but a `(line, column)` does not. There are **two** systemic
 causes, not one, and they need different edits. Measured over the 625 entries
@@ -137,13 +161,24 @@ missing-position code. It never was: rsvelte always emitted a span for it. That
 mis-attribution is exactly what a single-cause reading of this bucket produces —
 the split above was measured per tuple, not inferred from the code names.
 
-What is left is 650 tuples: the 649 missing-span ones, unchanged, plus a single
-`a11y_figcaption_index` that disagrees on **both** line and column. That one is a
-third cause, and it is structurally out of reach rather than merely unobserved:
-upstream raises it at `:532`, outside both attribute loops, on `children[index]`
-— so none of the four stamp sites can see it, and `stamp_attribute` skips
-anything that already carries a span. That argument holds regardless of what any
-run showed, which is why it is the one to record.
+What is left is the 649 missing-span tuples, unchanged.
+
+A single `a11y_figcaption_index` disagreeing on **both** line and column used to
+sit beside them, recorded here as a third cause that was "structurally out of
+reach rather than merely unobserved": upstream raises it at `:532`, outside both
+attribute loops, on `children[index]`, so none of the four stamp sites can see it
+and `stamp_attribute` skips anything that already carries a span. It was noted
+that the argument held "regardless of what any run showed".
+
+**The argument was sound and the conclusion was wrong** (#2490). Every step about
+the stamp sites was true; what did not follow is that the span was therefore
+unreachable. The fix does not stamp at all — it constructs the warning with
+`children[idx]`'s span at the emission site, which is what upstream does
+(`w.a11y_figcaption_index(children[index])`), and the caller's element fallback
+then leaves it alone. The reasoning enumerated the repair mechanisms that exist
+today and mistook that for the set of mechanisms available. An "out of reach"
+claim needs the second half stated: out of reach *of what*, and why no new
+emission site may be added.
 
 `perf_avoid_nested_class` was the first of these to be burned down (#2349),
 and it cost two entries rather than the one the `runed` / `svelte-toolbelt`

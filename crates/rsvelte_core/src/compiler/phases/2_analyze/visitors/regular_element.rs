@@ -1059,17 +1059,9 @@ pub fn visit<'a, 'b: 'a>(
                         context.uses_event_attributes = true;
                         context.analysis.uses_event_attributes = true;
                     }
-                    // attribute_quoted check for custom elements
-                    if is_custom_element_node(element)
-                        && let crate::ast::template::AttributeValue::Sequence(parts) =
-                            &attr_node.value
-                        && parts.len() == 1
-                        && matches!(
-                            &parts[0],
-                            crate::ast::template::AttributeValuePart::ExpressionTag(_)
-                        )
-                    {
-                        context.emit_warning(warnings::attribute_quoted());
+                    super::shared::attribute::record_event_attribute_arrow(context, attr_node);
+                    if is_custom_element_node(element) {
+                        super::shared::attribute::warn_attribute_quoted(context, attr_node);
                     }
                 }
                 // Mutable re-borrow so the visitor can populate
@@ -1129,19 +1121,6 @@ pub fn visit<'a, 'b: 'a>(
     for attr in &mut element.attributes {
         match attr {
             Attribute::OnDirective(on) => {
-                // In runes mode, warn about deprecated event directive usage
-                // on RegularElement (not components). This is done here because
-                // on_directive::visit doesn't have access to the parent type.
-                // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/OnDirective.js
-                if context.analysis.runes {
-                    context.emit_warning(warnings::event_directive_deprecated(&on.name));
-                }
-
-                // Track event directive for mixed_event_handler_syntaxes check
-                // This is a RegularElement, so we track it
-                if context.event_directive_node.is_none() {
-                    context.event_directive_node = Some(on.name.to_string());
-                }
                 on_directive::visit(on, context)?;
             }
             Attribute::ClassDirective(class_dir) => {

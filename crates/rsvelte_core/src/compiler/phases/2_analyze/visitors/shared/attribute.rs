@@ -58,6 +58,26 @@ pub fn validate_attribute(attribute: &AttributeNode) -> Result<(), AnalysisError
     Ok(())
 }
 
+/// Warn when a component or custom-element attribute wraps a lone expression in
+/// quotes. Upstream reaches this only through `validate_attribute`, which both
+/// of its callers guard with `analysis.runes`, so legacy components must stay
+/// silent.
+pub fn warn_attribute_quoted(context: &mut VisitorContext, attribute: &AttributeNode) {
+    if !context.analysis.runes || !is_quoted_single_expression(attribute) {
+        return;
+    }
+    let mut warning = super::super::super::warnings::attribute_quoted();
+    warning.start = Some(attribute.start);
+    warning.end = Some(attribute.end);
+    context.emit_warning(warning);
+}
+
+/// Whether the attribute's value is a lone expression tag inside quotes.
+pub fn is_quoted_single_expression(attribute: &AttributeNode) -> bool {
+    matches!(&attribute.value, AttributeValue::Sequence(parts)
+        if parts.len() == 1 && matches!(&parts[0], AttributeValuePart::ExpressionTag(_)))
+}
+
 /// Validate attribute name format.
 pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), AnalysisError> {
     // Check for empty attribute name
@@ -159,6 +179,24 @@ pub fn get_correct_attribute_name(name: &str) -> Option<&'static str> {
 /// Corresponds to `is_event_attribute` in ast.js.
 pub fn is_event_attribute(attribute: &AttributeNode<'_>) -> bool {
     attribute.name.starts_with("on") && is_expression_attribute(attribute)
+}
+
+/// Record an event attribute whose expression is a lone arrow, so Phase 3 can
+/// exempt that arrow's direct assignment body from the dev `$.assign` wrap.
+/// Upstream's test is node identity (`expression === context.path.at(-1)`), so
+/// only the arrow that *is* the attribute's expression qualifies — never one
+/// nested inside it. Call this for `RegularElement` and `SvelteElement` only:
+/// `<svelte:window>` and friends are absent from upstream's list.
+pub fn record_event_attribute_arrow(context: &mut VisitorContext, attribute: &AttributeNode<'_>) {
+    if !is_event_attribute(attribute) {
+        return;
+    }
+    if let AttributeValue::Expression(tag) = &attribute.value
+        && tag.expression.as_node().node_type() == Some("ArrowFunctionExpression")
+        && let Some(start) = tag.expression.as_node().start()
+    {
+        context.analysis.event_attribute_arrow_starts.insert(start);
+    }
 }
 
 /// Get the chunks of an attribute value.

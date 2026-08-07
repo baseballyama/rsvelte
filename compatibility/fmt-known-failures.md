@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: 19 entries**, concentrated in real-world corpus repos
+**Current baseline: `fmt-known-failures.json`, 19 entries**, concentrated in real-world corpus repos
 (skeleton, layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail).
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every

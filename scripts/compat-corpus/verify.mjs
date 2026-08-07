@@ -80,7 +80,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { flattenTemplateHoles, stripBlankLines, readIf, firstDiffLine, oxfmtTree } from './normalize.mjs';
 import { TARGET_KEYS as ALL_TARGET_KEYS, selectTargets } from './targets.mjs';
-import { MIN_FULL_CORPUS_ENTRIES, OUTPUT_TREES, cleanupArtifacts } from './artifacts.mjs';
+import { MIN_FULL_CORPUS_ENTRIES, OUTPUT_TREES, cleanupArtifacts, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -198,6 +198,8 @@ if (FROM_REPORT) {
 // ---- inputs ----------------------------------------------------------------
 
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
+// Captured before comparison, re-asserted before any verdict or baseline write.
+const generation = readGeneration(CORPUS);
 
 // A near-empty manifest (partial checkout, failed collect) would make the
 // comparison below pass vacuously instead of catching a real regression.
@@ -275,9 +277,32 @@ const failures = [];
 // definition of "equivalent" written here: same question, one answer. Output
 // that does not parse is its own verdict — never quietly demoted to a text
 // diff.
+//
+// NOT COVERED — comment parity. `ast_equiv_batch` applies
+// `CommentPolicy::Ignore` unless `--comments` is passed, and the call below
+// passes no arguments. A divergence that lives ONLY in comments is therefore
+// byte-different, AST-equivalent, and scored a pass — for every entry and every
+// target, not some subset. Nothing in this corpus gates comments.
+//
+// Flipping the flag would not close that on its own: under
+// `CommentPolicy::Meaningful` only directive-like comments count
+// (`is_meaningful_comment` matches `@ts-`, `svelte-ignore`, `@component`, …),
+// so JSDoc type tags such as `@type` are still filtered as prose. The gate is
+// blind to them under either policy. The path forward is rsvelte preserving
+// comments plus `--comments` here — see compatibility/ast-equivalence.md.
+//
+// Preservation is necessary but NOT sufficient. Official drops the comment in
+// 80 of 192 generated module positions and keeps it in the other 112 — the
+// choice is position-dependent, not per-comment-kind (#2399). Parity therefore
+// requires reproducing official's position rule; a blanket-preserve rsvelte
+// would diverge on those 80.
+//
+// A second, narrower cause compounds this for modules: `.svelte.ts` entries
+// reach both compilers TS-stripped, and esbuild drops all comments on the way
+// (see compile.mjs's `prepareSource`).
 
 const AST_EQUIV_BIN = path.join(ROOT, 'target/release/ast_equiv_batch');
-const jsKey = (id, target) => `${id} ${target}`;
+const jsKey = (id, target) => `${id}\0${target}`;
 const jsByteEqual = new Map();
 const astCandidates = new Map();
 
@@ -307,6 +332,7 @@ const astVerdicts = (() => {
 	}
 	console.log(`[verify] AST comparison for ${astCandidates.size} byte-different output(s)…`);
 	const pairs = [...astCandidates].map(([key, { left, right }]) => ({ id: key, left, right }));
+	// The empty argv is load-bearing: no `--comments` means comments are ignored.
 	const out = execFileSync(AST_EQUIV_BIN, [], {
 		input: JSON.stringify(pairs),
 		encoding: 'utf8',
@@ -468,6 +494,10 @@ const WARNING_RATCHETS = [
 	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline },
 	{ kind: 'warning-position', label: 'warning positions', file: (t) => t.warningPositionBaseline },
 ];
+
+// Before any verdict is written or any ratchet rewritten: the corpus these
+// results describe must still be the corpus on disk.
+requireGenerationUnchanged(CORPUS, generation, 'verify');
 
 const report = {
 	generatedAt: new Date().toISOString(),

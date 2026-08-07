@@ -827,16 +827,16 @@ pub(crate) fn transform_private_class_assign_in_place(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if state_qualified.is_empty() && other_qualified.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
     if !state_qualified
         .iter()
         .chain(other_qualified.iter())
         .any(|q| memchr::memmem::find(source.as_bytes(), q.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_class_fragment_program_mut(
@@ -1001,8 +1001,9 @@ mod in_place_tests {
         // A method definition is not a module, so this only reaches the rewriter
         // through the synthetic-`class` wrapper — and must come back without it.
         let src = "remove(item) {\n  this.#files = this.#files.filter((f) => f !== item);\n}";
-        let out =
-            transform_private_class_assign_in_place(src, &ssv(&["this.#files"]), &[]).unwrap();
+        let out = transform_private_class_assign_in_place(src, &ssv(&["this.#files"]), &[])
+            .into_option()
+            .unwrap();
         assert!(
             out.contains("$.set(this.#files,"),
             "expected $.set rewrite, got: {out}"
@@ -1022,7 +1023,9 @@ mod in_place_tests {
         );
         let state = ssv(&["this.#files"]);
         let spliced = transform_private_class_assign_ast(src, &state, &[]).unwrap();
-        let in_place = transform_private_class_assign_in_place(src, &state, &[]).unwrap();
+        let in_place = transform_private_class_assign_in_place(src, &state, &[])
+            .into_option()
+            .unwrap();
         // Reprinting is not byte-preserving — the in-place path re-emits the whole
         // fragment — so the two paths are compared the way the dual-run gate
         // compares them: through the printer.

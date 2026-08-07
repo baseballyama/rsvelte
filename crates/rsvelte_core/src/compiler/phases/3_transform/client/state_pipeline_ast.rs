@@ -741,7 +741,7 @@ fn transform_state_pipeline_in_place(
     is_runes: bool,
     non_proxy_vars: &[String],
     effective_read_names: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     ast_rewrite::with_program_mut(
         &STATE_PIPELINE_IN_PLACE_ALLOC,
         source,

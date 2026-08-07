@@ -612,13 +612,12 @@ node scripts/compat-corpus/collect.mjs                             # コーパ�
 
 ### NAPI ビルド + ステージ
 ```bash
-export CARGO_TARGET_DIR=/tmp/rsvelte-ssr-target CARGO_BUILD_JOBS=6 RAYON_NUM_THREADS=2
-nice -n 10 cargo build --release --features napi --lib            # ← 並行させない！ -p は使わない(フル再ビルドになる)
-cp /tmp/rsvelte-ssr-target/release/librsvelte_core.dylib .corpus-cache/rsvelte.node   # Linux は .so
+cargo build --release -p rsvelte_napi --lib
+mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node
 ```
-- ★教訓2: `cargo build --lib` は capi のリンク(遅い)まで待つが、**dylib は rsvelte_core 完了時点で更新される**。
-  `stat -f "%Sm" /tmp/rsvelte-ssr-target/release/librsvelte_core.dylib` の mtime が更新されたら、
-  capi リンク完了を待たずに即ステージ→検証してよい。
+- 旧記述（`--features napi` + `librsvelte_core.dylib` を自前で `cp`）は、cdylib が
+  `rsvelte_napi` に分離される前のもの。`rsvelte_core` は現在 rlib のみで dylib を出さず、
+  `napi` feature も存在しないため、当時の手順はいずれの行も再現しない。
 - ★教訓3: ポーリング（`grep Finished` 等）を毎ターン叩くと nice されたビルドの CPU を奪い遅くなる。
   バックグラウンドビルドの**完了通知を待つ**のが速い。
 
