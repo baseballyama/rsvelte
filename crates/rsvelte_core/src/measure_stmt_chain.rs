@@ -258,4 +258,111 @@ mod tests {
             "the per-statement chain is client-only, but SSR recorded stages"
         );
     }
+
+    const BINS: [(usize, &str); 5] = [
+        (1024, "0-1 KB"),
+        (3 * 1024, "1-3 KB"),
+        (8 * 1024, "3-8 KB"),
+        (20 * 1024, "8-20 KB"),
+        (usize::MAX, ">20 KB"),
+    ];
+
+    fn collect_svelte_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_svelte_files(&path, out);
+            } else if path.extension().is_some_and(|e| e == "svelte") {
+                out.push(path);
+            }
+        }
+    }
+
+    /// Which stage of the chain grows faster than the corpus it is fed.
+    ///
+    /// A stage whose bytes-per-file rises faster than the bin's source
+    /// bytes-per-file is the superlinear one; that comparison is what the
+    /// column ratios below are for, and it is load-independent.
+    ///
+    /// Point `RSVELTE_STMT_CHAIN_CORPUS` at a tree of `.svelte` files and run
+    /// with `--ignored --nocapture`.
+    #[test]
+    #[ignore = "needs a corpus directory in RSVELTE_STMT_CHAIN_CORPUS"]
+    fn stmt_chain_size_bins() {
+        let root = std::env::var("RSVELTE_STMT_CHAIN_CORPUS")
+            .expect("set RSVELTE_STMT_CHAIN_CORPUS to a directory of .svelte files");
+        let mut files = Vec::new();
+        collect_svelte_files(std::path::Path::new(&root), &mut files);
+        files.sort();
+        assert!(!files.is_empty(), "corpus {root} holds no .svelte files");
+
+        for (limit, label) in BINS {
+            let lower = BINS
+                .iter()
+                .take_while(|(l, _)| *l < limit)
+                .last()
+                .map_or(0, |(l, _)| *l);
+            let mut compiled = 0u64;
+            let mut source_bytes = 0u64;
+            let mut totals: Vec<Stage> = Vec::new();
+            for path in &files {
+                let Ok(source) = std::fs::read_to_string(path) else {
+                    continue;
+                };
+                if source.len() < lower || source.len() >= limit {
+                    continue;
+                }
+                reset();
+                let name = path.file_name().unwrap_or_default().to_string_lossy();
+                if compile(
+                    &source,
+                    CompileOptions {
+                        filename: Some(name.into_owned()),
+                        ..CompileOptions::default()
+                    },
+                )
+                .is_err()
+                {
+                    continue;
+                }
+                compiled += 1;
+                source_bytes += source.len() as u64;
+                for stage in snapshot() {
+                    match totals.iter_mut().find(|t| t.name == stage.name) {
+                        Some(total) => {
+                            total.owned += stage.owned;
+                            total.owned_bytes += stage.owned_bytes;
+                            total.borrowed += stage.borrowed;
+                            total.borrowed_bytes += stage.borrowed_bytes;
+                        }
+                        None => totals.push(stage),
+                    }
+                }
+            }
+            if compiled == 0 {
+                continue;
+            }
+            let per_file = |n: u64| n as f64 / compiled as f64;
+            println!(
+                "--- {label}: {compiled} files, {:.0} source B/file ---",
+                per_file(source_bytes)
+            );
+            totals.sort_by(|a, b| {
+                (b.owned_bytes + b.borrowed_bytes).cmp(&(a.owned_bytes + a.borrowed_bytes))
+            });
+            for stage in &totals {
+                let handled = stage.owned_bytes + stage.borrowed_bytes;
+                println!(
+                    "{:<34} {:>8.0} B/file  ({:>5.2}x source)  {:>6.1} runs/file",
+                    stage.name,
+                    per_file(handled),
+                    per_file(handled) / per_file(source_bytes),
+                    per_file(stage.owned + stage.borrowed),
+                );
+            }
+        }
+    }
 }
