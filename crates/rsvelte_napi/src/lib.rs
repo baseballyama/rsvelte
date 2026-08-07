@@ -1043,6 +1043,7 @@ fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
         opts.namespace = match v {
             "svg" => Svelte2TsxNamespace::Svg,
             "mathml" => Svelte2TsxNamespace::Mathml,
+            "foreign" => Svelte2TsxNamespace::Foreign,
             _ => Svelte2TsxNamespace::Html,
         };
     }

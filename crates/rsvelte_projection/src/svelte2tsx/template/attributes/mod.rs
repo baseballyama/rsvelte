@@ -118,8 +118,16 @@ pub(super) fn build_attributes_string(
     source: &str,
     comments: &ElementOpenerCommentIndex,
     in_slot_context: bool,
+    preserve_case: bool,
 ) -> String {
-    build_attributes_string_with_tag(attributes, source, comments, "", in_slot_context)
+    build_attributes_string_with_tag(
+        attributes,
+        source,
+        comments,
+        "",
+        in_slot_context,
+        preserve_case,
+    )
 }
 
 pub(super) fn build_attributes_string_with_tag(
@@ -128,6 +136,7 @@ pub(super) fn build_attributes_string_with_tag(
     comments: &ElementOpenerCommentIndex,
     parent_tag: &str,
     in_slot_context: bool,
+    preserve_case: bool,
 ) -> String {
     let segs = build_attribute_segments(
         attributes,
@@ -136,6 +145,7 @@ pub(super) fn build_attributes_string_with_tag(
         parent_tag,
         in_slot_context,
         None,
+        preserve_case,
     );
     segs_to_string(&segs, source)
 }
@@ -156,6 +166,7 @@ pub(super) fn build_attribute_segments(
     parent_tag: &str,
     in_slot_context: bool,
     opener_content_start: Option<u32>,
+    preserve_case: bool,
 ) -> Vec<Seg> {
     let mut segs: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
     let mut any_pushed = false;
@@ -194,7 +205,14 @@ pub(super) fn build_attribute_segments(
                     _ => "",
                 };
                 append_attribute_node_segments(
-                    &mut segs, node, source, comments, true, parent_tag, leading,
+                    &mut segs,
+                    node,
+                    source,
+                    comments,
+                    true,
+                    parent_tag,
+                    leading,
+                    preserve_case,
                 );
                 any_pushed = true;
                 prev_end = Some(node.end);
@@ -429,7 +447,9 @@ pub(super) fn build_component_props_segments(
                 // is_element=false: --* attrs get __sveltets_2_cssProp wrapping
                 // inside append_attribute_node_segments (mirrors Attribute.ts).
                 // Components preserve attribute-name case, so the tag is unused.
-                append_attribute_node_segments(&mut inner, node, source, comments, false, "", "");
+                append_attribute_node_segments(
+                    &mut inner, node, source, comments, false, "", "", false,
+                );
             }
             Attribute::SpreadAttribute(spread) => {
                 if let Some(part) = format_spread_attribute_segments(spread, source) {

@@ -93,6 +93,9 @@ fn projection_option_cache_keys_are_stable_and_cover_every_option() {
         ProjectionOptions::new()
             .namespace(MarkupNamespace::Mathml)
             .cache_key(),
+        ProjectionOptions::new()
+            .namespace(MarkupNamespace::Foreign)
+            .cache_key(),
         ProjectionOptions::new().runes(Some(false)).cache_key(),
         ProjectionOptions::new().runes(Some(true)).cache_key(),
         ProjectionOptions::new().emit_jsdoc(true).cache_key(),
