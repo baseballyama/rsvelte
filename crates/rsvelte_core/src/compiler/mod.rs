@@ -452,28 +452,32 @@ fn warning_position(table: &legacy::Utf8ToUtf16, offset: u32) -> Position {
 /// Generate a source code frame snippet for a warning/error.
 /// Shows 2 lines of context before and after, with a caret pointing to the column.
 /// Matches the official Svelte compiler's `locate_with_frame` output.
-fn generate_frame(source: &str, start_pos: &Position, end_pos: Option<&Position>) -> String {
+fn generate_frame(
+    source: &str,
+    table: &legacy::Utf8ToUtf16,
+    start_pos: &Position,
+    end_pos: Option<&Position>,
+) -> String {
     // Match the official compiler's get_code_frame behavior:
     // - Uses start.line - 1 (0-indexed) for the target line
     // - Uses end.column for the caret position
     // - Converts tabs to 2 spaces
-    // Use split('\n') to match JS behavior (includes trailing empty string after final newline)
-    let lines: Vec<&str> = source.split('\n').collect();
+    // A frame quotes five lines, so it reads them out of the line index the
+    // position conversion already built rather than splitting the whole source
+    // once per warning.
     let line_idx = start_pos.line.saturating_sub(1);
     let frame_start = line_idx.saturating_sub(2);
     // Match JS: Math.min(line + 3, lines.length) — exclusive upper bound
-    let frame_end = (line_idx + 3).min(lines.len());
+    let frame_end = (line_idx + 3).min(table.line_count());
 
     // Determine the column for the caret (official compiler uses end.column)
     let caret_column = end_pos.map_or(start_pos.column, |ep| ep.column);
 
     let digits = format!("{}", frame_end + 1).len();
 
-    lines[frame_start..frame_end]
-        .iter()
-        .enumerate()
-        .map(|(i, &line)| {
-            let actual_line = frame_start + i;
+    (frame_start..frame_end)
+        .map(|actual_line| {
+            let line = table.line_text(source, actual_line);
             let line_num = actual_line + 1;
             let line_content = tabs_to_spaces(line);
             if actual_line == line_idx {
@@ -793,7 +797,7 @@ pub(crate) fn finalize_compile_result(
                     let end_pos = w.end.map(|offset| warning_position(&pos_table, offset));
                     let frame = start_pos
                         .as_ref()
-                        .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                        .map(|sp| generate_frame(source, &pos_table, sp, end_pos.as_ref()));
                     let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
                     let message_with_url = if w.message.contains(&url_suffix) {
                         w.message
@@ -1053,7 +1057,7 @@ pub fn compile_module(
                     let end_pos = w.end.map(|offset| warning_position(&pos_table, offset));
                     let frame = start_pos
                         .as_ref()
-                        .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                        .map(|sp| generate_frame(source, &pos_table, sp, end_pos.as_ref()));
                     let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
                     let message_with_url = if w.message.contains(&url_suffix) {
                         w.message.clone()
