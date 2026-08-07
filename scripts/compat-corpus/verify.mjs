@@ -125,8 +125,10 @@ if (UPDATE_FAMILIES.length) {
 }
 
 // Target subsets are safe here because every target ratchets to its own file,
-// so a narrowed run rewrites only the files it measured; --no-fmt is not.
-if (UPDATE_FAMILIES.length) {
+// so a narrowed run rewrites only the files it measured. --no-fmt is not, but
+// only for the output family: warning comparison needs no oxfmt normalization,
+// so --update-warning-baseline is specified to run under it.
+if (UPDATE_BASELINE) {
 	refuseUnrepresentativeBaseline('verify', [
 		NO_FMT &&
 			'--no-fmt counts formatting-only differences as failures, which the corpus gate tolerates by contract',
