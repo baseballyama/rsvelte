@@ -18,7 +18,7 @@ use rsvelte_diagnostics::Diagnostic;
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{blank_comments, is_ident_byte, script_blocks, script_is_ts};
+use crate::svelte_scan::{blank_comments, is_ascii_ident_byte, script_blocks, script_is_ts};
 use crate::validator::{range_from_byte, to_dsev};
 
 pub static META: RuleMeta = RuleMeta {
@@ -89,7 +89,7 @@ fn collect_dispatcher_locals(content: &str, out: &mut Vec<String>) {
     while let Some(rel) = content[i..].find("import") {
         let imp = i + rel;
         // The keyword must be at a boundary.
-        if (imp == 0 || !is_ident_byte(bytes[imp - 1]))
+        if (imp == 0 || !is_ascii_ident_byte(bytes[imp - 1]))
             && let Some(stmt_end) = find_svelte_import_end(content, imp)
         {
             let segment = &content[imp..stmt_end];
@@ -117,9 +117,12 @@ fn dispatcher_local_in_import(import_segment: &str) -> Option<String> {
     // Check every occurrence at an identifier boundary (a suffix like
     // `xcreateEventDispatcher` must not match).
     for (pos, _) in import_segment.match_indices(needle) {
-        let before_ok = pos == 0 || !is_ident_byte(bytes[pos - 1]);
+        let before_ok = pos == 0 || !is_ascii_ident_byte(bytes[pos - 1]);
         let after = &import_segment[pos + needle.len()..];
-        let after_ok = after.as_bytes().first().is_none_or(|&c| !is_ident_byte(c));
+        let after_ok = after
+            .as_bytes()
+            .first()
+            .is_none_or(|&c| !is_ascii_ident_byte(c));
         if !(before_ok && after_ok) {
             continue;
         }
@@ -154,9 +157,11 @@ fn call_sites_without_type_args(content: &str, locals: &[String]) -> Vec<usize> 
         let mut i = 0;
         while i + lb.len() <= bytes.len() {
             if &bytes[i..i + lb.len()] == lb {
-                let before_ok = i == 0 || !is_ident_byte(bytes[i - 1]);
+                let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
                 let after_idx = i + lb.len();
-                let after_ok = bytes.get(after_idx).is_none_or(|&c| !is_ident_byte(c));
+                let after_ok = bytes
+                    .get(after_idx)
+                    .is_none_or(|&c| !is_ascii_ident_byte(c));
                 if before_ok && after_ok {
                     // Peek the next non-whitespace char.
                     let mut k = after_idx;
