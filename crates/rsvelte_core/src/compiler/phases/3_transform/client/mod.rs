@@ -370,7 +370,9 @@ pub fn transform_client_module(
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
         super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
-            let print_opts = rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
+            let print_opts = rsvelte_esrap::PrintOptions::default()
+                .with_empty_statements(true)
+                .with_unlocated_program(true);
             match &converted.comment_source {
                 Some(cs) => {
                     rsvelte_esrap::print_split(
@@ -2473,7 +2475,7 @@ static CLIENT_USE_OXC: LazyLock<bool> =
 static CLIENT_TO_OXC_DEBUG: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some());
 
-fn is_ident_char(b: u8) -> bool {
+fn is_ascii_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -2517,7 +2519,7 @@ fn extract_rest_excludes_hoists(code: &mut String) -> Vec<(String, String)> {
                     end += 1;
                 }
             }
-            let prev_ok = abs == 0 || !is_ident_char(bytes[abs - 1]);
+            let prev_ok = abs == 0 || !is_ascii_ident_byte(bytes[abs - 1]);
             if prev_ok {
                 taken.insert(code[abs..end].to_string());
             }
@@ -6907,8 +6909,9 @@ fn replace_standalone_pattern(text: &str, from: &str, to: &str) -> String {
             result.push_str(to);
             search_from = after_pos;
         } else {
-            result.push_str(&text[search_from..abs_pos + 1]);
-            search_from = abs_pos + 1;
+            let next = crate::compiler::utils::next_char_boundary(text, abs_pos);
+            result.push_str(&text[search_from..next]);
+            search_from = next;
         }
     }
     result.push_str(&text[search_from..]);

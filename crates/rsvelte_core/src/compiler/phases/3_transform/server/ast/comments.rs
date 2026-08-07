@@ -2,9 +2,9 @@
 //!
 //! Phase 3 rebuilds the module from re-parsed source slices, so the printer has
 //! no single buffer the program's spans index into. This module gives it one: a
-//! producer that keeps a statement *registers* the comment region preceding it
-//! and stamps the emitted statement with the returned anchor, parking it in a
-//! provisional address range. Once the program is assembled, only the ranges the
+//! producer that keeps a statement *registers* the comment region around it and
+//! places the emitted statement on the returned base ([`Place`]), parking it in
+//! a provisional address range. Once the program is assembled, only the ranges the
 //! walk actually reaches are laid out — in encounter order — into a synthetic
 //! buffer, every span is remapped onto it, and the surviving comments go to
 //! [`rsvelte_esrap::print_split`].
@@ -50,15 +50,16 @@ pub struct ChunkRegistry {
 
 impl ChunkRegistry {
     /// Register the source region `text` holding `comments` (spans relative to
-    /// `text`) and return the anchor to stamp on the statement they precede.
-    /// `None` when there is nothing to carry.
+    /// `text`) and return the region's provisional base — add a `text`-relative
+    /// offset to it to get the address to place a node at. `None` when there is
+    /// nothing to carry.
     pub fn register(&mut self, text: &str, comments: &[Comment]) -> Option<u32> {
         if comments.is_empty() || text.is_empty() {
             return None;
         }
         let len = u32::try_from(text.len()).ok()?;
         let prov_base = PROV_BASE.checked_add(self.next_prov)?;
-        // The anchor sits at the region's end, so the next region starts past it.
+        // Regions are disjoint, so the next one starts past this one's end.
         self.next_prov = self.next_prov.checked_add(len)?.checked_add(1)?;
         self.chunks.push(Chunk {
             prov_base,
@@ -67,7 +68,7 @@ impl ChunkRegistry {
         });
         super::comment_stats::bump::REGISTERED_CHUNKS(1);
         super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
-        Some(prov_base + len)
+        Some(prov_base)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -75,14 +76,30 @@ impl ChunkRegistry {
     }
 }
 
-/// Stamps every span of an emitted statement with its anchor, so the printer
-/// flushes the registered comments immediately before it.
-pub struct SetSpans(pub u32);
+/// How an emitted statement is placed onto its registered region.
+pub enum Place {
+    /// Collapse every span onto one address, so the whole region's comments
+    /// flush immediately before the statement. The only option when the
+    /// statement was rebuilt from sub-slices, since its nodes then carry no
+    /// coherent set of source positions.
+    At(u32),
+    /// Shift the spans of a statement re-parsed VERBATIM from the region onto
+    /// it, so comments interior to the statement land where the source put
+    /// them (upstream keeps the original nodes' `loc` for the same effect).
+    Shift(u32),
+}
 
-impl VisitMut<'_> for SetSpans {
+impl VisitMut<'_> for Place {
     fn visit_span(&mut self, span: &mut Span) {
-        if !is_sentinel(*span) {
-            *span = Span::new(self.0, self.0);
+        if is_sentinel(*span) {
+            return;
+        }
+        match *self {
+            Place::At(at) => *span = Span::new(at, at),
+            // A synthesized node's `SPAN` placeholder must stay location-less;
+            // no re-parsed node is empty at offset 0.
+            Place::Shift(_) if span.start == 0 && span.end == 0 => {}
+            Place::Shift(by) => *span = Span::new(span.start + by, span.end + by),
         }
     }
 }

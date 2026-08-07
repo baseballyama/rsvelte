@@ -26,7 +26,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { selectTargets } from './targets.mjs';
-import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace } from './artifacts.mjs';
+import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -46,6 +46,8 @@ const TARGETS = selectTargets(args);
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8')).filter(
 	(e) => !FILTER || e.id.includes(FILTER)
 );
+// Captured before any work, re-asserted before reporting.
+const generation = readGeneration(CORPUS);
 
 // ---------------------------------------------------------------------------
 // worker mode: compile manifest[start..end) and print `IDX <i>` before each
@@ -73,6 +75,13 @@ if (args.includes('--worker')) {
 	// feeds BOTH compilers, so the parity verdict stays meaningful regardless
 	// of the stripper. Falls back to the raw source when esbuild rejects the
 	// file (both compilers then see identical input).
+	//
+	// What that verdict does NOT cover: esbuild removes all comments, so for
+	// `.svelte.ts` entries neither compiler ever sees one. This is the narrower
+	// of two reasons comment parity is ungated — verify.mjs's comparator ignores
+	// comments for the WHOLE corpus regardless, so a comment-preserving stripper
+	// here would buy no observability on its own. See the "AST equivalence" note
+	// in verify.mjs.
 	function prepareSource(id, source) {
 		if (!id.endsWith('.svelte.ts')) return source;
 		try {
@@ -180,7 +189,7 @@ if (args.includes('--worker')) {
 if (!fs.existsSync(BINDING)) {
 	console.error(`[compile] rsvelte NAPI binding missing at ${BINDING}`);
 	console.error('  build: cargo build --release -p rsvelte_napi --lib');
-	console.error('  stage: cp target/release/librsvelte_core.{dylib,so} .corpus-cache/rsvelte.node');
+	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node');
 	process.exit(1);
 }
 
@@ -266,6 +275,11 @@ console.log(
 	`[compile] ${manifest.length} entries × ${TARGETS.length} targets (${TARGETS.map((t) => t.key).join(', ')}) across ${ranges.length} workers…`
 );
 await Promise.all(ranges.map(([s, e]) => runRange(s, e)));
+
+// The inputs this run compiled must still be the inputs on disk. A parallel
+// clean that truncated them would otherwise leave a run that quietly compiled
+// fewer entries and reported success.
+requireGenerationUnchanged(CORPUS, generation, 'compile');
 
 if (panics.length) {
 	console.error(`[compile] ${panics.length} entries PANICKED in rsvelte:`);
