@@ -140,7 +140,7 @@ pub(super) fn collect_type_body_deps<'a>(
             let preceded_by_typeof = j >= 6
                 && body.is_char_boundary(j - 6)
                 && &body[j - 6..j] == "typeof"
-                && (j == 6 || !is_ident_byte(bytes[j - 7]));
+                && (j == 6 || !is_ascii_ident_byte(bytes[j - 7]));
             // Detect property-key context: `key:` or `key?:` (with optional
             // whitespace) — these are object-type member keys, not type
             // references, so they shouldn't count as deps even if they
@@ -268,7 +268,7 @@ pub(super) fn is_ts_structural_keyword(ident: &str) -> bool {
 }
 
 #[inline]
-fn is_ident_byte(b: u8) -> bool {
+fn is_ascii_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -442,7 +442,7 @@ pub(super) fn resolve_hoistable_type_decls(
                 for part in inner.split(',') {
                     let trimmed = part.trim();
                     let name = trimmed
-                        .split(|ch: char| !is_ident_char_for_str(ch))
+                        .split(|ch: char| !is_ascii_ident_char(ch))
                         .find(|s| !s.is_empty())
                         .unwrap_or("");
                     if !name.is_empty() {
@@ -639,7 +639,7 @@ pub(super) fn resolve_hoistable_type_decls(
 }
 
 #[inline]
-pub(super) fn is_ident_char_for_str(ch: char) -> bool {
+pub(super) fn is_ascii_ident_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
 }
 
@@ -664,7 +664,7 @@ pub(super) fn hoist_dollar_generic_referenced_types(
         .dollar_generics
         .iter()
         .filter_map(|(_, c)| c.as_deref())
-        .filter(|s| s.chars().all(is_ident_char_for_str) && !s.is_empty())
+        .filter(|s| s.chars().all(is_ascii_ident_char) && !s.is_empty())
         .collect();
     if referenced.is_empty() {
         return;
