@@ -12,7 +12,6 @@
 //! allocation rather than the `Cow` discriminant, which a pass-through would
 //! otherwise report as owned forever after the first real rewrite.
 
-use std::borrow::Cow;
 use std::cell::RefCell;
 
 /// One chain stage's tally for the current thread.
@@ -29,7 +28,7 @@ thread_local! {
     static STAGES: RefCell<Vec<Stage>> = const { RefCell::new(Vec::new()) };
 }
 
-pub fn record(name: &'static str, input: *const u8, value: &Cow<'_, str>) {
+pub fn record(name: &'static str, input: *const u8, value: &str) {
     let owned = !std::ptr::eq(value.as_ptr(), input);
     let len = value.len() as u64;
     STAGES.with(|s| {
@@ -81,7 +80,7 @@ pub fn reset() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::{CompileOptions, compile};
+    use crate::compiler::{CompileOptions, GenerateMode, compile};
 
     /// A legacy (non-runes) component: every guarded stage in the chain fires.
     const LEGACY: &str = r#"<script>
@@ -169,17 +168,22 @@ mod tests {
 <Child {rows} {summary} {selected} />
 "#;
 
-    fn measure(source: &str, filename: &str) -> Vec<Stage> {
+    fn measure_with(source: &str, filename: &str, generate: GenerateMode) -> Vec<Stage> {
         reset();
         compile(
             source,
             CompileOptions {
                 filename: Some(filename.to_string()),
+                generate,
                 ..CompileOptions::default()
             },
         )
         .expect("fixture must compile");
         snapshot()
+    }
+
+    fn measure(source: &str, filename: &str) -> Vec<Stage> {
+        measure_with(source, filename, GenerateMode::Client)
     }
 
     fn report(label: &str, stages: &[Stage]) {
@@ -205,6 +209,13 @@ mod tests {
         );
     }
 
+    fn stage_of<'a>(stages: &'a [Stage], name: &str) -> &'a Stage {
+        stages
+            .iter()
+            .find(|s| s.name == name)
+            .unwrap_or_else(|| panic!("stage {name} never ran, so it measures nothing"))
+    }
+
     #[test]
     fn stmt_chain_allocation_report() {
         let legacy = measure(LEGACY, "Legacy.svelte");
@@ -215,6 +226,36 @@ mod tests {
         assert!(
             !legacy.is_empty() && !runes.is_empty(),
             "the chain must have run at all — an empty report measures nothing"
+        );
+
+        // Each converted stage has to be observed handing its input through at
+        // least once. Byte-identical output is not evidence that it does: a
+        // conversion that never takes the borrowed path passes every
+        // correctness test while saving nothing.
+        for name in [
+            "runes",
+            "destructure_assignments",
+            "store_unsub_for_state_sets",
+            "member_mutations",
+            "prop_update_expressions",
+            "prop_assignments",
+            "legacy_destructure_declarations",
+            "legacy_state_declarations",
+            "state_reads",
+        ] {
+            assert!(
+                stage_of(&legacy, name).borrowed > 0,
+                "stage {name} never handed its input through"
+            );
+        }
+
+        // Negative control: SSR does not run this chain at all, so no stage may
+        // report anything for it — if one does, the counter is not measuring
+        // the chain it claims to.
+        let server = measure_with(LEGACY, "Legacy.svelte", GenerateMode::Server);
+        assert!(
+            server.is_empty(),
+            "the per-statement chain is client-only, but SSR recorded stages"
         );
     }
 }

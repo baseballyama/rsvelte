@@ -4446,6 +4446,17 @@ fn instance_has_top_level_multi_declarator(ast: &Root, script: &str) -> bool {
     })
 }
 
+/// A pass's answer read as "did it rewrite?". A borrowed result is the very
+/// text the pass was handed, so the chain keeps the string it already owns
+/// instead of taking a copy of it.
+#[inline]
+fn rewritten(out: Cow<'_, str>) -> Option<String> {
+    match out {
+        Cow::Borrowed(_) => None,
+        Cow::Owned(text) => Some(text),
+    }
+}
+
 /// Run one stage of the per-statement transform chain, so the split between a
 /// stage that rewrote and one that handed its input through stays measurable.
 #[inline]
@@ -5506,14 +5517,15 @@ fn transform_instance_script_for_visitors(
                 // Destructured export let: flatten using extract_paths pattern
                 if let Some(flattened) = transform_destructured_export_let(&statement, analysis) {
                     let flattened = if analysis.runes {
-                        flattened // AST transform handles state var wrapping
+                        Cow::Owned(flattened) // AST transform handles state var wrapping
                     } else {
-                        wrap_state_vars_in_expr(
+                        rewritten(wrap_state_vars_in_expr(
                             &flattened,
                             state_vars,
                             non_reactive_state_vars,
                             proxy_vars,
-                        )
+                        ))
+                        .map_or(Cow::Owned(flattened), Cow::Owned)
                     };
                     result.push_str(&flattened);
                     result.push('\n');
@@ -5624,7 +5636,7 @@ fn transform_instance_script_for_visitors(
         // Transform runes ($state, $derived, $effect, $props)
         let _runes_start = super::profile::timer_start();
         let mut transformed = stage("runes", Cow::Borrowed(statement.as_str()), |t| {
-            Cow::Owned(transform_client_runes_with_skip_and_state(
+            rewritten(transform_client_runes_with_skip_and_state(
                 &t,
                 non_reactive_state_vars,
                 state_vars,
@@ -5637,6 +5649,8 @@ fn transform_instance_script_for_visitors(
                 store_sub_vars,
                 read_only_props,
             ))
+            .map(Cow::Owned)
+            .unwrap_or(t)
         });
         super::profile::record_st_runes(super::profile::timer_elapsed(_runes_start));
 
@@ -5718,13 +5732,15 @@ fn transform_instance_script_for_visitors(
             {
                 t
             } else {
-                Cow::Owned(transform_destructure_assignments_with_props(
+                rewritten(transform_destructure_assignments_with_props(
                     &t,
                     state_vars,
                     non_reactive_state_vars,
                     store_sub_vars,
                     prop_assignment_transform_vars,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             }
         });
 
@@ -5746,11 +5762,13 @@ fn transform_instance_script_for_visitors(
                 .unwrap_or(t)
             });
             stage("store_unsub_for_state_sets", transformed, |t| {
-                Cow::Owned(wrap_store_unsub_for_state_sets(
+                rewritten(wrap_store_unsub_for_state_sets(
                     &t,
                     state_vars,
                     store_sub_vars,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             })
         };
 
@@ -5760,13 +5778,15 @@ fn transform_instance_script_for_visitors(
         // and BEFORE wrap_state_vars_in_expr (which will apply $.get() inside the $.mutate()).
         let transformed = stage("member_mutations", transformed, |t| {
             if !analysis.runes && !state_vars.is_empty() {
-                Cow::Owned(transform_member_mutations(
+                rewritten(transform_member_mutations(
                     &t,
                     state_vars,
                     non_reactive_state_vars,
                     raw_state_vars,
                     &prop_invalidate_bodies,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             } else {
                 t
             }
@@ -5778,10 +5798,12 @@ fn transform_instance_script_for_visitors(
         // In runes mode, deferred to AST-based transform after main loop.
         let transformed = stage("prop_update_expressions", transformed, |t| {
             if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
-                Cow::Owned(transform_prop_update_expressions(
+                rewritten(transform_prop_update_expressions(
                     &t,
                     prop_assignment_transform_vars,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             } else {
                 t
             }
@@ -5813,12 +5835,14 @@ fn transform_instance_script_for_visitors(
         // In runes mode, deferred to AST-based transform after main loop.
         let transformed = stage("prop_assignments", transformed, |t| {
             if !analysis.runes {
-                Cow::Owned(transform_prop_assignments(
+                rewritten(transform_prop_assignments(
                     &t,
                     prop_assignment_transform_vars,
                     &non_bindable_prop_vars,
                     &prop_invalidate_bodies,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             } else {
                 t
             }
@@ -5872,12 +5896,14 @@ fn transform_instance_script_for_visitors(
         // Reference: create_state_declarators in VariableDeclaration.js
         let transformed = stage("legacy_destructure_declarations", transformed, |t| {
             if !analysis.runes && !legacy_state_vars.is_empty() {
-                Cow::Owned(transform_legacy_destructure_declarations(
+                rewritten(transform_legacy_destructure_declarations(
                     &t,
                     &legacy_state_var_names,
                     analysis.immutable,
                     dev,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             } else {
                 t
             }
@@ -5892,12 +5918,14 @@ fn transform_instance_script_for_visitors(
         // and then wrap_state_vars_in_expr correctly skips them since each starts with `let `.
         let transformed = stage("legacy_state_declarations", transformed, |t| {
             if !analysis.runes && !legacy_state_vars.is_empty() {
-                Cow::Owned(transform_legacy_state_declarations(
+                rewritten(transform_legacy_state_declarations(
                     &t,
                     legacy_state_vars,
                     analysis.immutable,
                     dev,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             } else {
                 t
             }
@@ -5909,12 +5937,14 @@ fn transform_instance_script_for_visitors(
             if analysis.runes {
                 t
             } else {
-                Cow::Owned(wrap_state_vars_in_expr(
+                rewritten(wrap_state_vars_in_expr(
                     &t,
                     state_vars,
                     non_reactive_state_vars,
                     proxy_vars,
                 ))
+                .map(Cow::Owned)
+                .unwrap_or(t)
             }
         });
 
@@ -6437,8 +6467,14 @@ fn transform_instance_script_for_visitors(
                 result = ast_result;
             }
             // Apply store_unsub wrapping after AST transform (searches for $.set patterns)
-            if !store_sub_vars.is_empty() {
-                result = wrap_store_unsub_for_state_sets(&result, &state_vars, &store_sub_vars);
+            if !store_sub_vars.is_empty()
+                && let Some(wrapped) = rewritten(wrap_store_unsub_for_state_sets(
+                    &result,
+                    &state_vars,
+                    &store_sub_vars,
+                ))
+            {
+                result = wrapped;
             }
             // The post-AST `wrap_state_derived_with_tag(&result)` pass that
             // used to tag AST-emitted `$.state(...)` / `$.derived(...)`

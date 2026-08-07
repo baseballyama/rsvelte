@@ -1,6 +1,7 @@
 //! Reactive statement handling and state mutation transformations.
 
 use memchr::memmem;
+use std::borrow::Cow;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
@@ -429,7 +430,7 @@ pub(super) fn transform_reactive_statement(
     // This involves:
     // 1. Transform prop reads to prop() calls
     // 2. Transform prop assignments to prop(value) calls
-    let transformed_body;
+    let transformed_body: String;
 
     // First, check if this is an assignment statement: `c = expr`
     // We must guard against ternary expressions like `a ? b = x : b = y` where
@@ -481,7 +482,8 @@ pub(super) fn transform_reactive_statement(
             let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             transformed_body =
-                wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
+                wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars)
+                    .into_owned();
         } else if (lhs.starts_with('[') || lhs.starts_with('{')) && {
             // Check if the LHS contains reactive targets that need destructure expansion
             let targets = extract_destructure_targets(lhs);
@@ -503,7 +505,7 @@ pub(super) fn transform_reactive_statement(
                 store_sub_vars,
                 prop_assignment_transform_vars,
             );
-            let body = body.as_str();
+            let body: &str = body;
             let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
             let temp =
                 transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
@@ -527,7 +529,8 @@ pub(super) fn transform_reactive_statement(
                 &temp,
                 state_vars,
                 store_sub_vars,
-            );
+            )
+            .into_owned();
         } else {
             // If the LHS is a prop variable, transform to prop(value) call
             if prop_assignment_transform_vars.contains(&lhs.to_string()) {
@@ -685,7 +688,7 @@ pub(super) fn transform_reactive_statement(
             store_sub_vars,
             prop_assignment_transform_vars,
         );
-        let body = body.as_str();
+        let body: &str = body;
         // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
         // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
         let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
@@ -732,7 +735,8 @@ pub(super) fn transform_reactive_statement(
             &temp,
             state_vars,
             store_sub_vars,
-        );
+        )
+        .into_owned();
     }
 
     // Apply store subscription transformations to body.
@@ -972,12 +976,15 @@ pub(super) fn unwrap_block_statement_owned(body: &str) -> (String, bool) {
 ///
 /// Converts `x++` to `$.update_prop(x)`, `++x` to `$.update_pre_prop(x)`,
 /// `x--` to `$.update_prop(x, -1)`, and `--x` to `$.update_pre_prop(x, -1)`.
-pub(super) fn transform_prop_update_expressions(expr: &str, prop_vars: &[String]) -> String {
+pub(super) fn transform_prop_update_expressions<'a>(
+    expr: &'a str,
+    prop_vars: &[String],
+) -> Cow<'a, str> {
     if prop_vars.is_empty() {
-        return expr.to_string();
+        return Cow::Borrowed(expr);
     }
     super::reactive_update_ast::transform_reactive_update_ast(expr, prop_vars, &[], &[])
-        .unwrap_or_else(|| expr.to_string())
+        .map_or(Cow::Borrowed(expr), Cow::Owned)
 }
 
 /// Transform update expressions (++ / --) for state variables.
