@@ -43,7 +43,30 @@ prefix so iteration order is deterministic.
 | `07-snippets.svelte`        | runes  | `{#snippet}` / `{@render}`, `{@const}`, snippet props |
 | `08-control-flow.svelte`    | runes  | `{#if}`/`{#each}`/`{#await}`/`{#key}` mix, `{@html}` |
 | `09-typescript-generics.svelte` | runes + TS | generic `$props`, typed snippets/callbacks, type assertions |
+| `10-legacy-typescript-props.svelte` | legacy + TS | `export let` with type annotations, `$:` chains, `$store` reads, typed `createEventDispatcher` |
+| `11-store-heavy-legacy.svelte` | legacy + TS | `$store` autosubscription throughout script *and* markup, `$store` assignment, `getContext` stores, `$:` over store reads |
 
 Synthetic *scale* inputs (large, deterministic, generated in-code) live in the
 bench files themselves, not here — they're pure functions, so they're stable
 without needing to commit a huge file.
+
+## Distribution, not just coverage
+
+Fixtures 01–09 were picked to *cover features* — one distinct compiler slice
+each. That makes them a poor proxy for the *mix* of shipped Svelte code, and
+the benchmarks aggregate over them, so the mix is what the numbers report.
+Measured over 3,509 `.svelte` files from four shipped projects (huly/plugins,
+open-webui, carbon-components-svelte, SMUI):
+
+| axis | shipped | fixtures 01–09 |
+|------|---------|----------------|
+| uses `$state` / `$derived` | 8.0% | 88.9% |
+| uses `$:` | 0–60% by project | 11% |
+| uses `export let` | 0–90% by project | 11% |
+| `lang="ts"` | 0–99% by project | 11% |
+| p90 source size | 4.9–15.7 KB | 2.6 KB |
+
+An optimization that only pays off on legacy, TypeScript, or store-heavy
+components — which is most of the shipped population — reads as 0% here.
+Fixtures 10–11 exist to close that gap; keep the distribution in mind when
+adding more.
