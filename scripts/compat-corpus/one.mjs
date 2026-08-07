@@ -11,7 +11,7 @@
  *
  * --raw skips oxfmt normalization. Requires a staged NAPI binding at
  * .corpus-cache/rsvelte.node (cargo build --release -p rsvelte_napi --lib,
- * then cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node).
+ * then mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node).
  */
 
 import fs from 'node:fs';
