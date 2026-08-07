@@ -18,7 +18,9 @@ use rustc_hash::FxHashSet;
 use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, BindDirective};
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::{
+    convert_bind_expression, convert_expression,
+};
 use crate::compiler::phases::phase3_transform::js_ast::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -59,10 +61,7 @@ pub fn unified_build_bind_this(
         apply_transforms_to_expression, apply_transforms_to_expression_with_shadowed,
     };
 
-    let saved_in_bind = context.state.in_bind_directive;
-    context.state.in_bind_directive = true;
-    let raw_expr = convert_expression(expression, context);
-    context.state.in_bind_directive = saved_in_bind;
+    let raw_expr = convert_bind_expression(expression, context);
 
     let (getter_expr, setter_expr) = if let JsExpr::Sequence(ref seq) = raw_expr {
         if seq.expressions.len() == 2 {
@@ -389,7 +388,7 @@ fn bind_directive_inner(
 
     // Visit the expression to transform it using the full expression converter
     // (supports ArrowFunctionExpression, MemberExpression, etc.)
-    let expression = convert_expression(&node.expression, context);
+    let expression = convert_bind_expression(&node.expression, context);
 
     // In dev mode with runes, validate binding to non-reactive properties.
     // Reference: BindDirective.js lines 26-41

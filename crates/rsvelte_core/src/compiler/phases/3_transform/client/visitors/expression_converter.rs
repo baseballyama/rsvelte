@@ -151,6 +151,33 @@ pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> 
     convert_js_node(&node, context)
 }
 
+/// Convert a `bind:` directive's expression, exempting the arrows upstream
+/// exempts from the dev `$.assign` wrap.
+///
+/// Upstream's test is positional (`AssignmentExpression.js`): the assignment's
+/// parent arrow must be the directive's own expression or a direct element of
+/// its `SequenceExpression`, so an arrow handed over by a call — or one nested
+/// inside a setter body — is not covered.
+pub fn convert_bind_expression(expr: &Expression, context: &mut ComponentContext) -> JsExpr {
+    let node = expr.as_node();
+    let exempt: Vec<u32> = match node.node_type() {
+        Some("ArrowFunctionExpression") => node.start().into_iter().collect(),
+        Some("SequenceExpression") => context
+            .state
+            .parse_arena
+            .get_js_children(node.expressions())
+            .iter()
+            .filter(|child| child.node_type() == Some("ArrowFunctionExpression"))
+            .filter_map(|child| child.start())
+            .collect(),
+        _ => Vec::new(),
+    };
+    let saved = std::mem::replace(&mut context.state.bind_exempt_arrows, exempt);
+    let converted = convert_js_node(&node, context);
+    context.state.bind_exempt_arrows = saved;
+    converted
+}
+
 /// Convert a JsNode directly to JsExpr via pattern matching, bypassing serde_json::Value
 /// for simple expression types. Complex types fall back to convert_json_value.
 fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
@@ -841,7 +868,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 .analysis
                 .event_attribute_arrow_starts
                 .contains(arrow_start);
+            let is_bind_exempt_arrow = context.state.bind_exempt_arrows.contains(arrow_start);
             context.state.event_handler_arrow_body_level = if (is_event_attribute_arrow
+                || is_bind_exempt_arrow
                 || context.state.in_component_attribute)
                 && body_is_assignment
             {
@@ -3117,18 +3146,19 @@ fn convert_arrow_function(
                 body_obj.get("type").and_then(|t| t.as_str()),
                 Some("AssignmentExpression")
             );
-            let is_event_attribute_arrow =
-                obj.get("start")
-                    .and_then(|v| v.as_u64())
-                    .is_some_and(|start| {
-                        context
-                            .state
-                            .analysis
-                            .event_attribute_arrow_starts
-                            .contains(&(start as u32))
-                    });
+            let arrow_start = obj.get("start").and_then(|v| v.as_u64()).map(|s| s as u32);
+            let is_event_attribute_arrow = arrow_start.is_some_and(|start| {
+                context
+                    .state
+                    .analysis
+                    .event_attribute_arrow_starts
+                    .contains(&start)
+            });
+            let is_bind_exempt_arrow =
+                arrow_start.is_some_and(|start| context.state.bind_exempt_arrows.contains(&start));
             let saved_level = context.state.event_handler_arrow_body_level;
             context.state.event_handler_arrow_body_level = if (is_event_attribute_arrow
+                || is_bind_exempt_arrow
                 || context.state.in_component_attribute)
                 && body_is_assignment
             {
@@ -5133,7 +5163,6 @@ fn try_dev_assign_wrap_typed(
     if !context.state.dev
         || is_statement
         || !is_non_coercive_operator(operator)
-        || context.state.in_bind_directive
         || context.state.event_handler_arrow_body_level > 0
     {
         return None;
@@ -5251,12 +5280,6 @@ fn try_coercive_assignment_transform(
 
     // Right side must not be a known primitive
     if is_known_primitive_json(obj.get("right")) {
-        return None;
-    }
-
-    // Skip inside bind directive / component binding contexts
-    // Reference: AssignmentExpression.js lines 211-225
-    if context.state.in_bind_directive {
         return None;
     }
 

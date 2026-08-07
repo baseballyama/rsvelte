@@ -10,7 +10,9 @@ use crate::ast::template::{
     SvelteElement, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::{
+    convert_bind_expression, convert_expression,
+};
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event_handler;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -1358,10 +1360,7 @@ fn process_bind_directive<'a>(
     ignored_codes: &[String],
 ) {
     // Convert the expression without transforms first
-    let saved_in_bind = context.state.in_bind_directive;
-    context.state.in_bind_directive = true;
-    let raw_expression = convert_expression(&bind.expression, context);
-    context.state.in_bind_directive = saved_in_bind;
+    let raw_expression = convert_bind_expression(&bind.expression, context);
 
     // Apply transforms to get the proper getter expression (e.g., $store.value -> $store().value)
     let transformed_expression =

@@ -188,7 +188,7 @@ pub fn fragment(
         module_level_snippets: Vec::new(),
         snippet_names: context.state.snippet_names.clone(),
         in_direct_assignment_lhs: false,
-        in_bind_directive: false,
+        bind_exempt_arrows: Vec::new(),
         in_component_attribute: false,
         parent_is_regular_element: false,
         state_declarator_name: None,

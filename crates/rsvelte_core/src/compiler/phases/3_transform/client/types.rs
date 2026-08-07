@@ -1882,9 +1882,12 @@ pub struct ComponentClientTransformState<'a> {
     /// This is used to skip rest_prop → $$props transformation for direct property assignments.
     pub in_direct_assignment_lhs: bool,
 
-    /// Flag indicating if we're inside a bind directive expression.
-    /// Used to skip coercive assignment transforms ($.assign_nullish, etc.) for bind setters.
-    pub in_bind_directive: bool,
+    /// Start offsets of the arrows a `bind:` directive exempts from the dev
+    /// `$.assign` wrap. Upstream asks a path question — the arrow must *be* the
+    /// directive's expression or a direct element of its `SequenceExpression`
+    /// (`AssignmentExpression.js`) — so an arrow reached through a call, or one
+    /// nested inside a setter body, keeps the wrap.
+    pub bind_exempt_arrows: Vec<u32>,
 
     /// Set while converting a component attribute / `on:` directive value: upstream
     /// exempts every such arrow body from the `$.assign` wrap, not just event ones.
@@ -2206,7 +2209,7 @@ impl<'a> ComponentClientTransformState<'a> {
             module_level_snippets: Vec::new(),
             snippet_names: ImHashSet::new(),
             in_direct_assignment_lhs: false,
-            in_bind_directive: false,
+            bind_exempt_arrows: Vec::new(),
             in_component_attribute: false,
             parent_is_regular_element: false,
             state_declarator_name: None,
