@@ -64,7 +64,7 @@ const BINDING = path.resolve(ROOT, '.corpus-cache/rsvelte.node');
 if (!fs.existsSync(BINDING)) {
 	console.error(`[matrix] rsvelte NAPI binding missing at ${path.relative(ROOT, BINDING)}`);
 	console.error('  build: cargo build --release -p rsvelte_napi --lib');
-	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node');
+	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node');
 	process.exit(2);
 }
 const OFFICIAL = path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js');

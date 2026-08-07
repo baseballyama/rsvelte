@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 // use rayon::prelude::*;  // Disabled for sequential execution
 use common::{
     FixtureCoverage, SkipReason, error_code_matches, get_svelte_test_samples, read_fixture_file,
-    sample_name,
+    sample_name, svelte_samples_dir,
 };
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, compile,
@@ -299,7 +299,11 @@ fn run_error_test(fixture: &ErrorFixture) -> TestResult {
 fn test_compiler_errors() {
     let samples = get_compiler_error_samples();
 
-    let mut coverage = FixtureCoverage::new("compiler-errors", samples.len());
+    let mut coverage = FixtureCoverage::new(
+        "compiler-errors",
+        svelte_samples_dir("compiler-errors"),
+        samples.len(),
+    );
     let mut fixtures: Vec<ErrorFixture> = Vec::new();
     for sample_dir in &samples {
         match load_error_fixture(sample_dir.as_path()) {
