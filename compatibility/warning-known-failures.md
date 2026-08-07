@@ -46,20 +46,22 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all six files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 51 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 32 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Treat every entry here as a real defect awaiting a root cause. Clusters
-identified so far:
+Not every entry is equally bad. Of the 32 entries that still diverge, **6 are
+under-warnings** — rsvelte stays silent where upstream warns
+(`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
+`options_missing_custom_element` ×1); neither burn-down below touched that half.
+The other 26 are noise the user cannot suppress. Both are defects, but a missing
+diagnostic and an extra one fail differently, and the ratchet count alone does
+not distinguish them; no entry diverges in both directions at once.
 
-- **`attribute_quoted` over-warning** — rsvelte emits the warning for attributes
-  the official compiler does not consider quoted-redundant. Seen on namespaced
-  SVG child components, and on `<svelte:self>` (the four remaining
-  `self-reference` / `svelte-self-css-custom-properties-dynamic` entries fail
-  for this cause alone).
+Clusters identified so far:
+
 - **`component_name_lowercase` over-warning** — rsvelte flags lowercase names
   that upstream accepts (seen across `svelte-maplibre` example routes).
 - **`reactive_declaration_module_script_dependency` over-warning** —
@@ -69,8 +71,21 @@ identified so far:
 The `svelte_self_deprecated` half of that last cluster is fixed: the warning is
 gated on `analysis.runes` upstream, and rsvelte emitted it in legacy mode too,
 where `<svelte:self>` is the supported spelling. That removed 19 entries from
-each of the three files (70 → 51), verified per entry against official 5.56.8 on
-all three targets.
+each of the three files, verified per entry against official 5.56.8 on all three
+targets.
+
+`attribute_quoted` was burned down independently: 19 further entries — the two
+burn-downs together take the ratchet from 70 to 32 — with **0 remaining tuples
+in either direction**. Both counts are read off
+`verify.mjs --no-fmt --update-warning-baseline` runs over the same 14,130-entry
+corpus, not off the issue that motivated the fix. It was **one
+predicate**, not the SVG-namespace story this file previously recorded: upstream
+reaches the check only through `validate_attribute`, and both callers guard it
+with `analysis.runes`, so legacy components never warn. rsvelte ran it
+unconditionally at all four emission sites. The earlier description was inferred
+from where the entries happened to cluster in the corpus rather than from
+upstream's control flow — worth remembering when reading the clusters above,
+which were written the same way.
 
 ## Warning positions (`warning-position-known-failures.<target>.json`, 529 entries each)
 
