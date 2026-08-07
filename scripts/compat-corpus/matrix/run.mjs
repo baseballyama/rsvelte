@@ -36,6 +36,7 @@ import { createRequire } from 'node:module';
 import { flattenTemplateHoles, stripBlankLines, firstDiffLine, oxfmtTree } from '../normalize.mjs';
 import { selectTargets, TARGET_KEYS } from '../targets.mjs';
 import { refuseUnrepresentativeBaseline } from '../baseline-guard.mjs';
+import { unattributedBindingReason } from '../binding.mjs';
 import { generate, FAMILIES } from './generate.mjs';
 
 const require = createRequire(import.meta.url);
@@ -63,6 +64,7 @@ const FAMILY_KEYS = (() => {
 // for in full before its result is thrown away.
 if (UPDATE_BASELINE) {
 	refuseUnrepresentativeBaseline('matrix', [
+		unattributedBindingReason(ROOT),
 		NO_FMT &&
 			'--no-fmt counts formatting-only differences as failures, which the corpus gate tolerates by contract',
 		FAMILY_KEYS.length !== Object.keys(FAMILIES).length &&
