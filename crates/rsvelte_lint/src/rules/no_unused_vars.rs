@@ -237,9 +237,9 @@ fn occurs_outside(source: &str, name: &str, decl_start: u32) -> bool {
         if at as u32 == decl_start {
             continue;
         }
-        let before_ok = at == 0 || !is_ident_byte(bytes[at - 1]);
+        let before_ok = at == 0 || !is_ident_or_non_ascii_byte(bytes[at - 1]);
         let after = at + name.len();
-        let after_ok = after >= bytes.len() || !is_ident_byte(bytes[after]);
+        let after_ok = after >= bytes.len() || !is_ident_or_non_ascii_byte(bytes[after]);
         if before_ok && after_ok {
             return true;
         }
@@ -247,7 +247,11 @@ fn occurs_outside(source: &str, name: &str, decl_start: u32) -> bool {
     false
 }
 
-fn is_ident_byte(b: u8) -> bool {
+/// Byte-level boundary guard: every non-ASCII byte counts as glue, so a hit
+/// abutting one is not a standalone occurrence. Wider than a JS identifier
+/// character, and the name says so — `svelte_scan::is_ascii_ident_byte` is the
+/// narrower guard used elsewhere in this crate.
+fn is_ident_or_non_ascii_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80
 }
 

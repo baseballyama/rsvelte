@@ -2475,7 +2475,7 @@ static CLIENT_USE_OXC: LazyLock<bool> =
 static CLIENT_TO_OXC_DEBUG: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_TO_OXC_DEBUG").is_some());
 
-fn is_ident_char(b: u8) -> bool {
+fn is_ascii_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -2519,7 +2519,7 @@ fn extract_rest_excludes_hoists(code: &mut String) -> Vec<(String, String)> {
                     end += 1;
                 }
             }
-            let prev_ok = abs == 0 || !is_ident_char(bytes[abs - 1]);
+            let prev_ok = abs == 0 || !is_ascii_ident_byte(bytes[abs - 1]);
             if prev_ok {
                 taken.insert(code[abs..end].to_string());
             }
