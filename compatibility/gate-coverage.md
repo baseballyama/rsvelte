@@ -809,6 +809,15 @@ three targets yields 10,464 modules; acorn under these options rejects 0 of them
 control in the other direction: of the 30 components for which rsvelte emits output esbuild
 rejects, acorn rejects 30. Both figures are measured, not estimated.
 
+That calibration corpus was **not representative of this gate's population**, and the gate said
+so on its first CI run: official's own client output for
+`compiler-errors/samples/const-tag-snippet-invalid-reference-1` declares `foo` twice in one
+scope, which acorn rejects as an early error. Those pairs are enumerated in
+`parse-oracle-excluded.json` (2 entries, justified in the paired `.md`) and skipped on **both**
+sides — where the reference does not parse there is no claim to make about rsvelte. The list is
+shrink-only in both directions: an unlisted oracle rejection exits 2, and a listed pair whose
+official output now parses also exits 2.
+
 ### Blind spot 19a — it says nothing about whether the output is correct
 
 A module that parses can compute the wrong thing, and this gate scores it a pass. **[S]** The
@@ -832,6 +841,16 @@ carbon and SMUI — none of which is a corpus source. The ratchet is therefore e
 inputs are absent**, not because the class is fixed. This gate is a regression gate for that
 class, not a burn-down of it. Enrolling those repositories would change the number; nothing else
 in this gate's design would.
+
+### Blind spot 19f — an excluded pair is checked on neither side
+
+**[S]** A `parse-oracle-excluded.json` entry removes rsvelte's output from the gate as well as
+official's, so rsvelte could emit anything at all for those 2 pairs and this gate would not
+notice. That is deliberate (there is no reference), but it is a hole, which is why the list is
+enumerated per `(id, target)` and shrink-only rather than a predicate. `scripts/dev/test-corpus-parse-gate.mjs`
+pins it: the "listing the pair skips it on BOTH sides" case seeds an unparseable rsvelte output
+alongside the excluded official one and asserts the run is green *and* that the pair is not
+counted in the parsed population.
 
 ### Blind spot 19d — one parser, so a shared acceptance bug is unobservable
 

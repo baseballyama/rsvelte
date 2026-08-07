@@ -201,9 +201,13 @@ claim is about what the compiler emitted rather than what survived oxfmt. And it
 population is **every entry rsvelte compiled**, including the ones official
 rejected, where there is nothing to diff and the byte comparison never looks at
 rsvelte's text. Official's output is parsed too, purely as the oracle's control: a
-rejection there exits `2` as a harness misconfiguration and is never ratcheted.
-The gate also refuses to run if rsvelte produced fewer than 90% as many modules as
-official did, so it cannot go green by the compiler refusing to compile. See
+rejection there exits `2` and is never ratcheted — either acorn is too strict, or
+official really does emit that, in which case the `(id, target)` pair goes on
+`parse-oracle-excluded.json` (shrink-only both ways) and is skipped on **both**
+sides, because where the reference does not parse there is nothing to hold
+rsvelte to. The gate also refuses to run if rsvelte produced fewer than 90% as
+many modules as official did, so it cannot go green by the compiler refusing to
+compile. See
 [compatibility/parse-known-failures.md](../../compatibility/parse-known-failures.md)
 for the oracle's calibration figures and why the baseline is 0.
 

@@ -60,6 +60,12 @@ every consumer of the compiler unconditionally; there is no "formatting differen
 it. If an entry must be listed, give it a heading here with the acorn message, the target, and
 the mechanism.
 
+## Related list
+
+`parse-oracle-excluded.json` is a different thing and is documented in its own paired `.md`: it
+enumerates the `(id, target)` pairs where **official's** output does not parse, which the gate
+skips on both sides because there is no reference to hold rsvelte to.
+
 ## What this gate does not look at
 
 See `compatibility/gate-coverage.md` § 19 for the surveyed list. In short: CSS output, source

@@ -295,14 +295,27 @@ if (compiled < manifest.length * 0.99) {
 // asserting something about the formatter's input, not about what the compiler
 // emitted. This is also why it is meaningful under `--no-fmt`.
 //
-// Official's side is parsed as the oracle's own positive control. Every gate
-// here compares rsvelte to official; this one does not, so nothing else would
-// notice a parser configuration that rejects legal output. A rejection on the
-// official side is therefore a harness failure (exit 2), never a ratchet entry.
+// Official's side is parsed first, as the oracle's own control. Every gate here
+// compares rsvelte to official; this one does not, so nothing else would notice
+// a parser configuration that rejects legal output. An unexpected rejection on
+// the official side is a harness failure (exit 2), never a ratchet entry.
+//
+// A handful of official outputs genuinely do not parse — acorn enforces early
+// errors such as a duplicate lexical declaration, and the deliberately-invalid
+// inputs under `compiler-errors/samples` can drive official into emitting one.
+// Where the REFERENCE does not parse there is no claim to make about rsvelte, so
+// those (id, target) pairs are skipped on both sides. They are enumerated in
+// `parse-oracle-excluded.json` rather than absorbed silently, and that list is
+// shrink-only in both directions like every other ratchet here.
+
+const PARSE_ORACLE_EXCLUDED_FILE = path.join(CORPUS, 'parse-oracle-excluded.json');
+const parseOracleExcluded = new Set(JSON.parse(readIf(PARSE_ORACLE_EXCLUDED_FILE) ?? '[]'));
+const oracleKey = (id, target) => `${id} [${target}]`;
 
 const parseCounts = { match: 0, 'output-unparseable': 0 };
 const parseFailures = [];
 const oracleRejections = [];
+const oracleExcludedSeen = new Set();
 let parsedModules = 0;
 let oracleModules = 0;
 
@@ -312,9 +325,14 @@ for (const { id } of manifest) {
 		const target = targetDef.key;
 		const expJs = readIf(path.join(EXPECTED, id, `${target}.js`));
 		if (expJs != null) {
-			oracleModules++;
 			const why = parseFailure(expJs);
-			if (why) oracleRejections.push({ id, target, why });
+			if (why) {
+				const key = oracleKey(id, target);
+				if (parseOracleExcluded.has(key)) oracleExcludedSeen.add(key);
+				else oracleRejections.push({ id, target, why });
+				continue;
+			}
+			oracleModules++;
 		}
 		// Present whenever rsvelte compiled — including entries official
 		// rejected, where the output comparison has nothing to diff and so never
@@ -335,12 +353,32 @@ for (const { id } of manifest) {
 
 if (oracleRejections.length) {
 	console.error(
-		`\n[verify] ❌ the parse oracle rejected ${oracleRejections.length} OFFICIAL output(s) — the oracle is misconfigured, not rsvelte`,
+		`\n[verify] ❌ the parse oracle rejected ${oracleRejections.length} OFFICIAL output(s) that are not on the exclusion list`,
 	);
 	for (const { id, target, why } of oracleRejections.slice(0, MAX_PRINT)) {
-		console.error(`  - ${id} (${target}): ${why}`);
+		console.error(`  - ${oracleKey(id, target)}: ${why}`);
 	}
-	console.error('  fix: widen OPTIONS in scripts/compat-corpus/parseable.mjs (and re-state its calibration)');
+	console.error('  Decide which it is before listing anything:');
+	console.error('    - acorn rejects legal output  -> widen OPTIONS in scripts/compat-corpus/parseable.mjs');
+	console.error('    - official really emits it    -> add the key above to compatibility/parse-oracle-excluded.json');
+	console.error('                                     and justify it in the paired .md');
+	process.exit(2);
+}
+
+// Shrink-only in the other direction too: an excluded pair whose official output
+// now parses must come off the list, or the exclusion silently keeps covering an
+// rsvelte output nobody is checking any more.
+// Scoped to the selected targets: a `--targets client` run never looks at the
+// server pairs and must not report them as stale.
+const staleExclusions = [...parseOracleExcluded].filter(
+	(key) => TARGET_KEYS.some((t) => key.endsWith(` [${t}]`)) && !oracleExcludedSeen.has(key),
+);
+if (staleExclusions.length) {
+	console.error(
+		`\n[verify] ❌ ${staleExclusions.length} parse-oracle exclusion(s) no longer needed — official's output parses now`,
+	);
+	for (const key of staleExclusions.slice(0, MAX_PRINT)) console.error(`  - ${key}`);
+	console.error('  fix: delete them from compatibility/parse-oracle-excluded.json');
 	process.exit(2);
 }
 

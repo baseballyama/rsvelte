@@ -60,6 +60,7 @@ const PARSE_RATCHETS = [
 	'parse-known-failures.server.json',
 	'parse-known-failures.client-dev.json',
 ];
+const ORACLE_EXCLUDED = 'parse-oracle-excluded.json';
 const OTHER_RATCHETS = [
 	'known-failures.client.json',
 	'warning-known-failures.client.json',
@@ -131,7 +132,7 @@ function stage(id, { expected, actual }) {
 }
 
 function seedRatchets(entries = {}) {
-	for (const f of [...PARSE_RATCHETS, ...OTHER_RATCHETS]) {
+	for (const f of [...PARSE_RATCHETS, ...OTHER_RATCHETS, ORACLE_EXCLUDED]) {
 		fs.writeFileSync(path.join(CORPUS, f), JSON.stringify(entries[f] ?? [], null, '\t') + '\n');
 	}
 }
@@ -202,14 +203,39 @@ console.log('\na listed entry that now parses fails — the ratchet is two-sided
 	check('reports the stale ratchet', /output-parseability baseline entries already PASS/.test(r.stdout), r.stdout.slice(-600));
 }
 
-console.log('\nan unparseable OFFICIAL output is a harness failure, never a ratchet entry');
+console.log('\nan unlisted unparseable OFFICIAL output is a harness failure, never a ratchet entry');
 {
 	const restore = stage('e11', { expected: BAD });
 	seedRatchets({ 'parse-known-failures.client.json': ['e11'] });
 	const r = run();
 	check('exit 2', r.status === 2, `status ${r.status}`);
-	check('blames the oracle, not rsvelte', /oracle is misconfigured/.test(r.stderr), r.stderr.slice(-600));
+	check(
+		'reports it as an oracle rejection, not an rsvelte failure',
+		/parse oracle rejected 1 OFFICIAL output/.test(r.stderr),
+		r.stderr.slice(-800),
+	);
 	restore();
+}
+
+console.log('\nlisting the pair skips it on BOTH sides — the exclusion is not a way to ratchet rsvelte');
+{
+	// Official unparseable AND rsvelte unparseable, with only the oracle
+	// exclusion seeded: the run is green because there is no reference, not
+	// because rsvelte's output was checked and passed.
+	const restore = stage('e11', { expected: BAD, actual: BAD });
+	seedRatchets({ [ORACLE_EXCLUDED]: ['e11 [client]'] });
+	const r = run();
+	check('exit 0', r.status === 0, `status ${r.status}\n${r.stderr.slice(-800)}`);
+	check('the pair is not counted as parsed', /parsed 12499\/12499/.test(r.stdout), r.stdout.slice(-400));
+	restore();
+}
+
+console.log('\nan exclusion whose official output now parses fails the run');
+{
+	seedRatchets({ [ORACLE_EXCLUDED]: ['e11 [client]'] });
+	const r = run();
+	check('exit 2', r.status === 2, `status ${r.status}`);
+	check('says the exclusion is no longer needed', /no longer needed/.test(r.stderr), r.stderr.slice(-600));
 }
 
 console.log('\na collapsed population fails instead of going green');
