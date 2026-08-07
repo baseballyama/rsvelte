@@ -34,6 +34,9 @@ pub enum MarkupNamespace {
     Svg,
     /// MathML namespace.
     Mathml,
+    /// Foreign namespace: element attribute names keep their source casing
+    /// instead of being folded to match the intrinsic-element typings.
+    Foreign,
 }
 
 #[derive(Debug, Clone)]
@@ -166,6 +169,7 @@ impl ProjectionOptions {
                 MarkupNamespace::Html => "html",
                 MarkupNamespace::Svg => "svg",
                 MarkupNamespace::Mathml => "mathml",
+                MarkupNamespace::Foreign => "foreign",
             }),
         );
         push_cache_field(
@@ -223,6 +227,7 @@ impl ProjectionOptions {
                 MarkupNamespace::Html => Svelte2TsxNamespace::Html,
                 MarkupNamespace::Svg => Svelte2TsxNamespace::Svg,
                 MarkupNamespace::Mathml => Svelte2TsxNamespace::Mathml,
+                MarkupNamespace::Foreign => Svelte2TsxNamespace::Foreign,
             },
             version: rsvelte_projection::SvelteVersion::V5,
             runes: self.runes,

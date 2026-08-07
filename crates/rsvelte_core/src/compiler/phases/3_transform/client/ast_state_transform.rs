@@ -255,6 +255,8 @@ struct StateVarCollector<'a, 's> {
     in_shorthand_property: bool,
     /// Subtrees carrying a `svelte-ignore await_reactivity_loss`.
     await_ignore_ranges: super::await_reactivity_loss_ast::AwaitIgnoreRanges,
+    /// Comment runs the `await` wrap has to carry inside the call.
+    await_comment_runs: super::await_reactivity_loss_ast::AwaitCommentRuns,
     /// Starts of `await` expressions that are a whole statement relying on ASI.
     /// Statement start → end of the statement a `;` has to separate it from.
     await_separators: FxHashMap<u32, u32>,
@@ -385,6 +387,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             scoped_vars: vec![FxHashSet::default()],
             in_shorthand_property: false,
             await_ignore_ranges: Default::default(),
+            await_comment_runs: Default::default(),
             await_separators: FxHashMap::default(),
             prop_source_vars: prop_source_set,
             non_bindable_prop_vars: non_bindable_set,
@@ -2029,18 +2032,29 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_start = expr.span.start + "await".len() as u32;
         let arg_text = self.apply_and_drain_inner_replacements(arg_start, expr.span.end);
 
-        let wrap = format!("(await $.track_reactivity_loss({}))()", arg_text.trim());
+        let wrap = |argument: &str| format!("(await $.track_reactivity_loss({argument}))()");
         // The `;` rides inside this replacement rather than being appended to
         // the statement before it, which may have no replacement of its own.
         let (start, replacement) = match self.await_separators.get(&expr.span.start) {
             Some(&prev_end) => (
                 prev_end,
                 format!(
-                    ";{}{wrap}",
-                    &self.source[prev_end as usize..expr.span.start as usize]
+                    ";{}{}",
+                    &self.source[prev_end as usize..expr.span.start as usize],
+                    wrap(arg_text.trim())
                 ),
             ),
-            None => (expr.span.start, wrap),
+            // A statement whose own start is the `await` is exactly the shape
+            // that keeps its leading comments outside, so the two never mix.
+            None => match self
+                .await_comment_runs
+                .relocatable_run(self.source, expr.span.start)
+            {
+                Some((run_start, comments)) => {
+                    (run_start, wrap(&format!("{comments}{}", arg_text.trim())))
+                }
+                None => (expr.span.start, wrap(arg_text.trim())),
+            },
         };
         self.add_replacement(start, expr.span.end, replacement);
         true
@@ -2089,6 +2103,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             self.source,
             self.is_runes,
         );
+        self.await_comment_runs =
+            super::await_reactivity_loss_ast::AwaitCommentRuns::collect(program);
     }
 
     /// Walk every argument of a `CallExpression` so inner state-var refs

@@ -2,6 +2,26 @@
 //!
 //! Corresponds to Svelte's `utils.js`.
 
+/// Can `c` start a JavaScript identifier?
+///
+/// The official parser asks acorn's `isIdentifierStart(code, true)`, i.e. the
+/// `ID_Start` set plus `$` and `_`. Anything narrower (ASCII) or wider (every
+/// byte `>= 0x80`) answers a different question; scanners that need the ASCII
+/// subset say so in their name.
+#[inline]
+pub fn is_js_ident_start(c: char) -> bool {
+    oxc_syntax::identifier::is_identifier_start(c)
+}
+
+/// Can `c` continue a JavaScript identifier?
+///
+/// Mirrors acorn's `isIdentifierChar(code, true)`: `ID_Continue` plus `$`, and
+/// the zero-width joiners.
+#[inline]
+pub fn is_js_ident_continue(c: char) -> bool {
+    oxc_syntax::identifier::is_identifier_part(c)
+}
+
 /// Slice a fixed-size look-back window ending at `end`, clamped to a UTF-8
 /// char boundary so it can never panic.
 ///
@@ -209,6 +229,36 @@ pub fn get_locator(
 
         crate::compiler::preprocess::types::Location { line, column }
     })
+}
+
+#[cfg(test)]
+mod ident_classifier_tests {
+    use super::{is_js_ident_continue, is_js_ident_start};
+
+    #[test]
+    fn js_ident_classifiers_follow_the_official_rule() {
+        for c in ['a', 'Z', '_', '$', '名', 'é', 'ש', '々'] {
+            assert!(is_js_ident_start(c), "{c:?} starts an identifier");
+            assert!(is_js_ident_continue(c), "{c:?} continues an identifier");
+        }
+        // Digits continue but do not start.
+        assert!(!is_js_ident_start('7'));
+        assert!(is_js_ident_continue('7'));
+
+        // Neither an ASCII-only test nor an "every byte >= 0x80" test gets these
+        // right: they are non-ASCII and not identifier characters.
+        for c in [
+            '\u{00a0}',
+            '\u{3000}',
+            '\u{3001}',
+            '\u{2014}',
+            '\u{1f600}',
+            '×',
+        ] {
+            assert!(!is_js_ident_start(c), "{c:?} cannot start an identifier");
+            assert!(!is_js_ident_continue(c), "{c:?} cannot continue one");
+        }
+    }
 }
 
 #[cfg(test)]

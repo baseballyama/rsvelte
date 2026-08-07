@@ -2,7 +2,7 @@
 //! whether the synthesised `$$ComponentProps` alias can be hoisted above
 //! `function $$render()`. Mirrors `svelte2tsx/nodes/Generics.ts`.
 
-use super::super::utils::lexical::is_ident_char;
+use super::super::utils::lexical::is_ascii_ident_byte;
 
 /// Return true if `type_text` mentions any of `names` as a whole identifier
 /// (i.e. surrounded by non-identifier characters on both sides).
@@ -27,9 +27,9 @@ pub(crate) fn type_text_references_any(
         let mut i = 0usize;
         while i + nbytes.len() <= bytes.len() {
             if &bytes[i..i + nbytes.len()] == nbytes {
-                let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
+                let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
                 let after_idx = i + nbytes.len();
-                let after_ok = after_idx == bytes.len() || !is_ident_char(bytes[after_idx]);
+                let after_ok = after_idx == bytes.len() || !is_ascii_ident_byte(bytes[after_idx]);
                 if before_ok && after_ok {
                     return true;
                 }
@@ -65,7 +65,7 @@ pub(crate) fn type_text_typeof_references_local_value(
     let mut i = 0usize;
     while i + kw.len() <= bytes.len() {
         if &bytes[i..i + kw.len()] == kw {
-            let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
+            let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
             let mut j = i + kw.len();
             // `typeof` must be followed by whitespace (a value query), not be a
             // prefix of a longer identifier like `typeofX`.
@@ -77,7 +77,7 @@ pub(crate) fn type_text_typeof_references_local_value(
                 // Capture the root identifier (stop at `.` / non-ident), e.g.
                 // `foo.bar.baz` -> `foo`.
                 let start = j;
-                while j < bytes.len() && is_ident_char(bytes[j]) {
+                while j < bytes.len() && is_ascii_ident_byte(bytes[j]) {
                     j += 1;
                 }
                 if j > start {
