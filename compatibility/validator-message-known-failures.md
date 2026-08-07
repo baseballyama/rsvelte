@@ -10,7 +10,7 @@ official, and is deliberately independent of `validator-known-failures.json`.
 
 `validator-known-failures.json` is per-fixture and all-or-nothing. Once a fixture is listed —
 almost always because a span is missing — it stops being watched for its **message text** too.
-The entry below was suppressed that way, as were the two already burned down, and
+All three entries this ratchet was created for were suppressed that way, and
 `attribute_quoted` shipped a message asserting the warning applies to plain elements, which it
 never does (#2391).
 
@@ -43,17 +43,19 @@ construction — it runs both compilers on the same source in the same process. 
 gate has to reproduce that property deliberately**, which is the whole reason this test reads
 the generated tree rather than the sample directory.
 
-## Current baseline: `validator-message-known-failures.json`, 1 entry
+## Current baseline: `validator-message-known-failures.json`, 0 entries
 
-## Entries
+Empty. Every fixture matches upstream's rendered warning text. Both entries this ratchet was
+created with are fixed:
 
-### `svelte-self-deprecated` — `svelte_self_deprecated`
+- `a11y-anchor-in-svg-is-valid` — `a11y_invalid_attribute` named `href` where the source
+  spells it `xlink:href`, sending the reader to fix an attribute that is not there (#2413,
+  fixed by #2451).
+- `svelte-self-deprecated` — the suggested self-import path was capitalised, so following the
+  suggestion breaks the build on a case-sensitive filesystem (#2411, fixed by #2477).
 
-- rsvelte: ``<svelte:self>` is deprecated — use self-imports (e.g. `import Input from './Input.svelte'`) instead`
-- official: ``<svelte:self>` is deprecated — use self-imports (e.g. `import Input from './input.svelte'`) instead`
-
-The identifier is right; the **path** is capitalised and does not exist. Following the
-suggestion breaks the build on a case-sensitive filesystem. Tracked in #2411.
+Keep it empty: a new entry means a message regression, and the honest fix is the format
+string, not the baseline.
 
 ## Removing an entry
 
