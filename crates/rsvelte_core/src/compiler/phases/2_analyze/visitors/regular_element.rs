@@ -1123,22 +1123,6 @@ pub fn visit<'a, 'b: 'a>(
     for attr in &mut element.attributes {
         match attr {
             Attribute::OnDirective(on) => {
-                // In runes mode, warn about deprecated event directive usage
-                // on RegularElement (not components). This is done here because
-                // on_directive::visit doesn't have access to the parent type.
-                // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/OnDirective.js
-                if context.analysis.runes {
-                    let mut warning = warnings::event_directive_deprecated(&on.name);
-                    warning.start = Some(on.start);
-                    warning.end = Some(on.end);
-                    context.emit_warning(warning);
-                }
-
-                // Track event directive for mixed_event_handler_syntaxes check
-                // This is a RegularElement, so we track it
-                if context.event_directive_node.is_none() {
-                    context.event_directive_node = Some(on.name.to_string());
-                }
                 on_directive::visit(on, context)?;
             }
             Attribute::ClassDirective(class_dir) => {
