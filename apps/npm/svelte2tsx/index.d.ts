@@ -3,7 +3,8 @@ export interface Svelte2TsxOptions {
 	isTsFile?: boolean;
 	mode?: 'ts' | 'dts';
 	accessors?: boolean;
-	namespace?: 'html' | 'svg' | 'mathml';
+	/** `'foreign'` preserves element attribute-name casing. */
+	namespace?: 'html' | 'svg' | 'mathml' | 'foreign';
 	version?: '4' | '5';
 }
 
