@@ -4,7 +4,7 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: empty (`[]`)** — full parity, no tracked divergences.
+**Current baseline: `svelte2tsx-known-failures.json`, 0 entries** — full parity, no tracked divergences.
 
 The only justified reason to add an entry is that **official svelte2tsx is buggy
 and rsvelte is more correct** — matching the oracle would require reproducing a

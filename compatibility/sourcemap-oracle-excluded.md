@@ -5,6 +5,8 @@ The source-map gate (`crates/rsvelte_core/tests/sourcemaps_gate.rs`) ports the
 `submodules/svelte/packages/svelte/tests/sourcemaps/samples/*/_config.js` and
 runs them against rsvelte's map.
 
+**Current baseline: `sourcemap-oracle-excluded.json`, 0 entries.**
+
 Before an anchor is held against rsvelte it is run against the **official
 compiler's own map** for the same sample — the `client.js.map` / `server.js.map`
 fixtures that `scripts/fixtures/generate-fixtures.mjs` produces by calling

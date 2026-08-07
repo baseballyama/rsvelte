@@ -944,6 +944,11 @@ jobs:
       - name: Check --update-baseline / --update-warning-baseline compose
         run: node scripts/dev/test-corpus-verify-baseline-flags.mjs
 
+      # The ratchet-doc count parser. Lives here rather than in Corpus Compat so
+      # it runs without the corpus: it needs no submodules and no build.
+      - name: Check the known-failures doc count parser
+        run: node scripts/dev/test-known-failures-md-check.mjs
+
   vps-version-check:
     name: VPS native VERSION drift check
     runs-on: ubuntu-latest
