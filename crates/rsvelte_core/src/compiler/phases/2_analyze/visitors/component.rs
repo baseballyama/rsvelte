@@ -92,5 +92,18 @@ pub fn visit<'a, 'b: 'a>(
     // Delegate to shared visit_component for full analysis (includes directive validation)
     visit_component(component, context)?;
 
+    // Upstream's lone-arrow arm also requires `path.at(-3) === 'Fragment'`, and a
+    // `RegularElement`'s children are the one container reached without an
+    // intervening `Fragment` node.
+    let parent_is_regular_element = matches!(
+        context.path.iter().nth_back(1),
+        Some(crate::ast::template::TemplateNode::RegularElement(_))
+    );
+    super::shared::attribute::record_component_assign_exempt(
+        context,
+        &component.attributes,
+        !parent_is_regular_element,
+    );
+
     Ok(())
 }

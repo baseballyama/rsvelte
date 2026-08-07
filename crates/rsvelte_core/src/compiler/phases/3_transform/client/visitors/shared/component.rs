@@ -982,15 +982,12 @@ fn process_on_directive(
     // `context` is reborrowed mutably by `build_event_handler`. The arena
     // outlives this borrow and traversal is single-threaded (no aliasing).
     let arena_local = unsafe { &*(&context.arena as *const _) };
-    let saved_in_component_attribute = context.state.in_component_attribute;
-    context.state.in_component_attribute = !context.state.parent_is_regular_element;
     let mut handler = build_event_handler(
         arena_local,
         on_directive.expression.as_ref(),
         on_directive,
         context,
     );
-    context.state.in_component_attribute = saved_in_component_attribute;
 
     // Apply once modifier
     if on_directive.modifiers.iter().any(|m| m.as_str() == "once") {
@@ -1141,8 +1138,6 @@ fn process_regular_attribute(
     // Build attribute value with per-chunk memoization (matches JS compiler).
     // The closure is invoked for each chunk's transformed expression.
     let arena_ptr = (&context.arena) as *const _;
-    let saved_in_component_attribute = context.state.in_component_attribute;
-    context.state.in_component_attribute = !context.state.parent_is_regular_element;
     let result = build_attribute_value(&attr.value, context, |value, metadata| {
         let has_await = metadata.has_await();
         let has_state = metadata.has_state();
@@ -1167,7 +1162,6 @@ fn process_regular_attribute(
             memo_id
         }
     });
-    context.state.in_component_attribute = saved_in_component_attribute;
 
     let final_value = result.value.clone();
 
@@ -1358,10 +1352,7 @@ fn process_bind_directive<'a>(
     ignored_codes: &[String],
 ) {
     // Convert the expression without transforms first
-    let saved_in_bind = context.state.in_bind_directive;
-    context.state.in_bind_directive = true;
     let raw_expression = convert_expression(&bind.expression, context);
-    context.state.in_bind_directive = saved_in_bind;
 
     // Apply transforms to get the proper getter expression (e.g., $store.value -> $store().value)
     let transformed_expression =
@@ -2314,8 +2305,6 @@ fn visit_slot_children(
 
     // Save the current state
     // This mirrors Fragment.js which creates a new state with fresh consts, init, update, etc.
-    let saved_parent_is_regular_element =
-        std::mem::take(&mut context.state.parent_is_regular_element);
     let saved_init = std::mem::take(&mut context.state.init);
     let saved_update = std::mem::take(&mut context.state.update);
     let saved_after_update = std::mem::take(&mut context.state.after_update);
@@ -2844,7 +2833,6 @@ fn visit_slot_children(
     context.state.node = saved_node;
     context.state.is_standalone = saved_is_standalone;
     context.state.metadata.namespace = saved_namespace;
-    context.state.parent_is_regular_element = saved_parent_is_regular_element;
 
     result
 }
