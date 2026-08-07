@@ -388,7 +388,17 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
                 scan.depth = scan.depth.saturating_sub(1);
                 if scan.depth == base_depth && opened_block {
                     scan.note_code(c);
-                    return i + 1;
+                    // `else`, `catch` and `finally` can never begin a statement,
+                    // so a block closing in front of one has not ended the
+                    // statement — `$: if (a) { … } else if (b) { … }` is one.
+                    match continuation_keyword(source, i + 1) {
+                        Some(at) => {
+                            opened_block = false;
+                            i = at;
+                            continue;
+                        }
+                        None => return i + 1,
+                    }
                 }
             }
             b';' if scan.depth == base_depth => {
@@ -401,6 +411,39 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
         i += 1;
     }
     len
+}
+
+/// Where the `else` / `catch` / `finally` that continues a just-closed block
+/// starts, skipping whitespace and comments. `do … while` is deliberately not
+/// recognised: unlike these three, `while` also begins a statement, so absorbing
+/// it would swallow the statement after a plain `$: { … }`.
+fn continuation_keyword(source: &str, from: usize) -> Option<usize> {
+    let bytes = source.as_bytes();
+    let mut i = from;
+    loop {
+        match bytes.get(i) {
+            Some(b) if b.is_ascii_whitespace() => i += 1,
+            Some(b'/') if bytes.get(i + 1) == Some(&b'/') => {
+                i = source[i..].find('\n').map_or(source.len(), |nl| i + nl + 1);
+            }
+            Some(b'/') if bytes.get(i + 1) == Some(&b'*') => {
+                i = source[i + 2..]
+                    .find("*/")
+                    .map_or(source.len(), |end| i + 2 + end + 2);
+            }
+            _ => break,
+        }
+    }
+    let rest = source.get(i..)?;
+    ["else", "catch", "finally"]
+        .iter()
+        .find(|keyword| {
+            rest.starts_with(*keyword)
+                && !rest.as_bytes()[keyword.len()..]
+                    .first()
+                    .is_some_and(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$'))
+        })
+        .map(|_| i)
 }
 
 /// Whether the next line continues the statement rather than starting a new

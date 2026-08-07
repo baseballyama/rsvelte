@@ -104,3 +104,54 @@ fn rehomes_a_comment_trailing_the_statement() {
     assert!(out.contains("\t// this too\n\tlet z = 1;"), "{out}");
     assert_eq!(out.matches("// this too").count(), 1, "{out}");
 }
+
+/// `$: if (…) { … } else if (…) { … }` — the statement does not end at the
+/// first `}`. Re-homing inserts text at the statement's end, so a short span
+/// splits the chain: the `else if` escaped the effect and the re-homed comment
+/// landed in front of it, producing `// fa else if (…) {` and unparseable
+/// output. `svelte-ux`'s `Icon.svelte` is the corpus entry that caught it.
+#[test]
+fn an_else_if_chain_is_one_statement() {
+    const EXPECTED: &str = "export default function T($$anchor, $$props) {\n\t$.push($$props, false);\n\n\tlet data;\n\tlet out = $.mutable_source(1);\n\n\t// fa\n\t// str\n\tconsole.log($.get(out));\n\n\t$.legacy_pre_effect(() => {}, () => {\n\t\tif (typeof data === \"object\") {\n\t\t\t// fa\n\t\t\t$.set(out, 2);\n\t\t} else if (typeof data === \"string\") {\n\t\t\t// str\n\t\t\t$.set(out, 3);\n\t\t}\n\t});\n\n\t$.legacy_pre_effect_reset();\n\t$.pop();\n}";
+    assert_eq!(
+        client(
+            "<script>\n\tlet data;\n\tlet out = 1;\n\t$: if (typeof data === \"object\") {\n\t\t// fa\n\t\tout = 2;\n\t} else if (typeof data === \"string\") {\n\t\t// str\n\t\tout = 3;\n\t}\n\tconsole.log(out);\n</script>"
+        ),
+        EXPECTED
+    );
+}
+
+/// `catch` and `finally` continue a statement the same way `else` does. Only
+/// the effect body is compared: upstream parenthesizes the dependency thunk
+/// differently, which the corpus normalizer erases and this fix does not touch.
+#[test]
+fn catch_and_finally_continue_the_statement() {
+    let out = client(
+        "<script>\n\tlet a;\n\tlet out = 1;\n\t$: try {\n\t\t// t\n\t\tout = a;\n\t} catch (e) {\n\t\t// c\n\t\tout = 0;\n\t} finally {\n\t\t// f\n\t\tout += 1;\n\t}\n\tconsole.log(out);\n</script>",
+    );
+    assert!(
+        out.contains(
+            "\t\ttry {\n\t\t\t// t\n\t\t\t$.set(out, a);\n\t\t} catch(e) {\n\t\t\t// c\n\t\t\t$.set(out, 0);\n\t\t} finally {\n\t\t\t// f\n\t\t\t$.set(out, $.get(out) + 1);\n\t\t}\n"
+        ),
+        "{out}"
+    );
+    assert!(
+        out.contains("\t// t\n\t// c\n\t// f\n\tconsole.log("),
+        "{out}"
+    );
+}
+
+/// The negative control for the rule above: `while` also *begins* a statement,
+/// so a `while` after a plain `$: { … }` must stay a statement of its own. A
+/// fix that absorbed every keyword following the closing brace would swallow it
+/// and both tests above would still pass.
+#[test]
+fn a_while_after_the_block_is_not_absorbed() {
+    const EXPECTED: &str = "export default function T($$anchor, $$props) {\n\t$.push($$props, false);\n\n\tlet bar = $.mutable_source();\n\tlet i = 0;\n\n\t// inner\n\twhile (i < 1) {\n\t\ti += 1;\n\t}\n\n\tconsole.log($.get(bar), i);\n\n\t$.legacy_pre_effect(() => {}, () => {\n\t\t$.set(bar, []);\n\t});\n\n\t$.legacy_pre_effect_reset();\n\t$.pop();\n}";
+    assert_eq!(
+        client(
+            "<script>\n\tlet bar;\n\tlet i = 0;\n\t$: {\n\t\t// inner\n\t\tbar = [];\n\t}\n\twhile (i < 1) {\n\t\ti += 1;\n\t}\n\tconsole.log(bar, i);\n</script>"
+        ),
+        EXPECTED
+    );
+}
