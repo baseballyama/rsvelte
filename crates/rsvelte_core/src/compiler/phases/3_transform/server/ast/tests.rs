@@ -5173,3 +5173,92 @@ fn ast_matches_oracle_async_const_cluster() {
         "async-context-after-await-const SSR output differs from oracle:\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}",
     );
 }
+
+/// A comment INTERIOR to a top-level script statement reaches server output, at
+/// the position the source put it — not just the LEADING comments in the gap
+/// before the statement.
+///
+/// Upstream gets this for free: its server transform keeps the ORIGINAL nodes,
+/// so every one of them still carries the `loc` esrap places comments against
+/// (`transform-server.js` only widens the enclosing block's `loc` to the
+/// instance's, "trick esrap into including comments"). Ours re-parses each
+/// top-level statement from its source slice, so the region it is placed on has
+/// to cover the statement itself for its interior positions to exist at all.
+///
+/// Every expectation below is the official compiler's `generate: 'server'`
+/// output for the same source at the pinned `submodules/svelte`. The last three
+/// cases are the CONTROL: a leading comment, a same-line trailing comment and a
+/// hoisted import were already carried, and must not move.
+#[test]
+fn server_ast_keeps_interior_script_comments() {
+    let cases: &[(&str, &str, &str)] = &[
+        (
+            "interior /* */ in an `if` block",
+            "<script>\n\tlet a = 1;\n\tlet b = 0;\n\tif (a) {\n\t\t/* inner */\n\t\tb = 1;\n\t}\n</script>\n{b}",
+            "\tif (a) {\n\t\t/* inner */\n\t\tb = 1;\n\t}",
+        ),
+        (
+            "interior // in an `if` block",
+            "<script>\n\tlet a = 1;\n\tlet b = 0;\n\tif (a) {\n\t\t// inner\n\t\tb = 1;\n\t}\n</script>\n{b}",
+            "\tif (a) {\n\t\t// inner\n\t\tb = 1;\n\t}",
+        ),
+        (
+            "interior in a bare block",
+            "<script>\n\tlet b = 0;\n\t{\n\t\t/* inner */\n\t\tb = 1;\n\t}\n</script>\n{b}",
+            "\t{\n\t\t/* inner */\n\t\tb = 1;\n\t}",
+        ),
+        (
+            "interior in a function body",
+            "<script>\n\tfunction f() {\n\t\t/* inner */\n\t\treturn 1;\n\t}\n\tlet b = f();\n</script>\n{b}",
+            "\tfunction f() {\n\t\t/* inner */\n\t\treturn 1;\n\t}",
+        ),
+        (
+            "interior nested two levels deep",
+            "<script>\n\tfunction f() {\n\t\tif (1) {\n\t\t\t/* deep */\n\t\t\treturn 2;\n\t\t}\n\t\treturn 1;\n\t}\n\tlet b = f();\n</script>\n{b}",
+            "\t\tif (1) {\n\t\t\t/* deep */\n\t\t\treturn 2;\n\t\t}",
+        ),
+        (
+            "interior in a legacy `$:` block",
+            "<script>\n\tlet a = 1;\n\tlet b = 0;\n\t$: {\n\t\t/* inner */\n\t\tb = a;\n\t}\n</script>\n{b}",
+            "\t$: {\n\t\t/* inner */\n\t\tb = a;\n\t}",
+        ),
+        (
+            "interior in a module `export function`",
+            "<script module>\n\texport function g() {\n\t\t/* mod */\n\t\treturn 1;\n\t}\n</script>\n<script>\n\tlet b = g();\n</script>\n{b}",
+            "export function g() {\n\t/* mod */\n\treturn 1;\n}",
+        ),
+        (
+            "CONTROL: leading comment before a statement",
+            "<script>\n\tlet a = 1;\n\t/* lead */\n\tfunction f() { return 1; }\n\tlet b = f();\n</script>\n{a}{b}",
+            "\t/* lead */\n\tfunction f() {\n\t\treturn 1;\n\t}",
+        ),
+        (
+            "CONTROL: same-line trailing comment inside a statement",
+            "<script>\n\tlet b = 0;\n\tif (b) {\n\t\tb = 1; // tail\n\t}\n</script>\n{b}",
+            "\tif (b) {\n\t\tb = 1; // tail\n\t}",
+        ),
+        (
+            // Upstream hoists the import out of the component function but
+            // leaves its comments behind INSIDE it, so replaying this one in
+            // place would put it in the wrong function.
+            "CONTROL: comment inside a hoisted import is not replayed in place",
+            "<script>\n\timport { /* pick */ noop } from 'svelte/internal/client';\n\tlet b = 1;\n</script>\n{b}{noop}",
+            "import { noop } from 'svelte/internal/client';",
+        ),
+    ];
+
+    let mut failures: Vec<String> = Vec::new();
+    for (name, src, expected) in cases {
+        let ours = run(src);
+        if !ours.contains(expected) {
+            failures.push(format!(
+                "=== {name} ===\n--- EXPECTED TO CONTAIN ---\n{expected}\n--- GOT ---\n{ours}"
+            ));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "server output lost or misplaced a script comment:\n{}",
+        failures.join("\n")
+    );
+}

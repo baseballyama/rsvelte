@@ -180,7 +180,7 @@ fn declares_type_in(content: &str, name: &str) -> bool {
         while let Some(rel) = content[from..].find(kw) {
             let kw_start = from + rel;
             let kw_end = kw_start + kw.len();
-            let before_ok = kw_start == 0 || !is_ident_byte(content.as_bytes()[kw_start - 1]);
+            let before_ok = kw_start == 0 || !is_ascii_ident_byte(content.as_bytes()[kw_start - 1]);
             // Require whitespace then the name then a non-identifier boundary.
             let rest = &content[kw_end..];
             let trimmed = rest.trim_start();
@@ -191,7 +191,7 @@ fn declares_type_in(content: &str, name: &str) -> bool {
                 && after_name
                     .as_bytes()
                     .first()
-                    .is_none_or(|&c| !is_ident_byte(c))
+                    .is_none_or(|&c| !is_ascii_ident_byte(c))
             {
                 return true;
             }
@@ -201,7 +201,7 @@ fn declares_type_in(content: &str, name: &str) -> bool {
     false
 }
 
-pub(crate) fn is_ident_byte(c: u8) -> bool {
+pub(crate) fn is_ascii_ident_byte(c: u8) -> bool {
     c == b'_' || c == b'$' || c.is_ascii_alphanumeric()
 }
 
