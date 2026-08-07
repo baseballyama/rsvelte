@@ -95,10 +95,7 @@ pub fn process_template_inplace(
     str: &mut MagicString<'_>,
     element_opener_comments: impl IntoIterator<Item = (u32, u32)>,
 ) {
-    let mut counter = Counter::new(
-        element_opener_comments,
-        _options.namespace == super::interfaces::Svelte2TsxNamespace::Foreign,
-    );
+    let mut counter = Counter::new(element_opener_comments);
     // depth 0 = root fragment; elements and components increment it for their children
     process_fragment_inplace(fragment, source, _options, str, &mut counter, 0);
 

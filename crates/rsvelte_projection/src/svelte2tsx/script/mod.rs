@@ -46,7 +46,7 @@ use component_events::collect_event_dispatcher_facts;
 use export_decl::{handle_export_named_decl, leading_jsdoc_comment};
 use exported_names::PossibleExport;
 use hoistable_types::{
-    HoistCandidate, hoist_dollar_generic_referenced_types, is_ident_char_for_str,
+    HoistCandidate, hoist_dollar_generic_referenced_types, is_ascii_ident_char,
     is_special_type_name, resolve_hoistable_type_decls, rewrite_interface_to_type_dts,
 };
 use nested_special_types::{apply_special_type_name, scan_nested_special_type_decls};
@@ -680,7 +680,7 @@ pub fn process_instance_script(
             let props_named_ref: Option<String> = if effective_is_named_ref {
                 effective_type_text.map(|t| {
                     // `Props` or `Props<T>` → root name `Props`.
-                    t.split(|ch: char| !is_ident_char_for_str(ch))
+                    t.split(|ch: char| !is_ascii_ident_char(ch))
                         .find(|s| !s.is_empty())
                         .unwrap_or("")
                         .to_string()

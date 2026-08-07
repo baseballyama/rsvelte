@@ -180,7 +180,7 @@ pub(crate) fn handle_svelte_special_element(
             source,
             &counter.element_opener_comments,
             saved_slot.is_some(),
-            counter.preserve_attribute_case,
+            options.namespace.preserves_attribute_case(),
         )
     };
 

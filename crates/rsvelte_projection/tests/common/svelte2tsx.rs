@@ -56,7 +56,8 @@ fn build_options(sample_name: &str, sample_dir: &Path, svelte_filename: &str) ->
         Svelte2TsxMode::Ts
     };
     let accessors = sample_name.starts_with("accessors-config");
-    // Mirrors `get_svelte2tsx_config`: the `-foreign-ns` suffix selects `foreign`.
+    // Mirrors upstream `test/helpers.ts`, which derives the namespace from the
+    // sample-name suffix rather than from a config file.
     let namespace = if sample_name.ends_with("-foreign-ns") {
         Svelte2TsxNamespace::Foreign
     } else {

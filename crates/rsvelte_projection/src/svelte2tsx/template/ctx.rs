@@ -103,23 +103,16 @@ pub(super) struct Counter {
     /// so `handle_component` must NOT re-emit them as the component's own
     /// default-slot let block. Consumed once at the top of `handle_component`.
     pub(super) suppress_component_lets: bool,
-    /// `namespace: 'foreign'` — element attribute names keep their authored
-    /// case (there are no intrinsic-element typings to match).
-    pub(super) preserve_attribute_case: bool,
 }
 
 impl Counter {
-    pub(super) fn new(
-        element_opener_comments: impl IntoIterator<Item = (u32, u32)>,
-        preserve_attribute_case: bool,
-    ) -> Self {
+    pub(super) fn new(element_opener_comments: impl IntoIterator<Item = (u32, u32)>) -> Self {
         Self {
             slot: 0,
             element_opener_comments: ElementOpenerCommentIndex::new(element_opener_comments),
             slot_inst: None,
             named_slot_component_close: false,
             suppress_component_lets: false,
-            preserve_attribute_case,
         }
     }
     pub(super) fn next_slot(&mut self) -> u32 {
@@ -138,7 +131,7 @@ mod tests {
 
     #[test]
     fn slot_counter_is_monotonic() {
-        let mut counter = Counter::new([], false);
+        let mut counter = Counter::new([]);
 
         assert_eq!(counter.next_slot(), 0);
         assert_eq!(counter.next_slot(), 1);

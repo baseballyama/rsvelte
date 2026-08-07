@@ -19,7 +19,7 @@ use rsvelte_diagnostics::Diagnostic;
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{blank_comments, is_ident_byte, script_blocks, script_is_ts};
+use crate::svelte_scan::{blank_comments, is_ascii_ident_byte, script_blocks, script_is_ts};
 use crate::validator::{range_from_byte, to_dsev};
 
 pub static META: RuleMeta = RuleMeta {
@@ -227,7 +227,7 @@ fn find_named_type_body(
         while let Some(rel) = blanked[search_from..].find(kw) {
             let kw_start = search_from + rel;
             let kw_end = kw_start + kw.len();
-            let before_ok = kw_start == 0 || !is_ident_byte(bytes[kw_start - 1]);
+            let before_ok = kw_start == 0 || !is_ascii_ident_byte(bytes[kw_start - 1]);
             if !before_ok {
                 search_from = kw_end;
                 continue;
@@ -242,7 +242,7 @@ fn find_named_type_body(
             let after_name = rest_start + nb.len();
             // Name must end at a non-ident boundary.
             let after_char = bytes.get(after_name).copied();
-            if after_char.is_some_and(is_ident_byte) {
+            if after_char.is_some_and(is_ascii_ident_byte) {
                 search_from = kw_end;
                 continue;
             }
@@ -378,7 +378,7 @@ fn classify_member(segment: &str, name_abs_offset: usize) -> Option<TypeMember> 
     // Extract the leading name (identifier chars, then optionally `?`).
     let name_end = bytes
         .iter()
-        .position(|&c| !is_ident_byte(c))
+        .position(|&c| !is_ascii_ident_byte(c))
         .unwrap_or(bytes.len());
     if name_end == 0 {
         return None;

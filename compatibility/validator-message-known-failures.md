@@ -45,12 +45,17 @@ the generated tree rather than the sample directory.
 
 ## Current baseline: `validator-message-known-failures.json`, 0 entries
 
-Empty. Every fixture matches upstream's rendered warning text. Both former entries —
-`a11y-anchor-in-svg-is-valid` (`a11y_invalid_attribute` naming `href` where the source spells
-it `xlink:href`) and `svelte-self-deprecated` (the suggested self-import path capitalised, so
-following it breaks the build on a case-sensitive filesystem) — are fixed.
+Empty. Every fixture matches upstream's rendered warning text. Both entries this ratchet was
+created with are fixed:
 
-Keep it empty: a new entry means a message regression, and the honest fix is the format string.
+- `a11y-anchor-in-svg-is-valid` — `a11y_invalid_attribute` named `href` where the source
+  spells it `xlink:href`, sending the reader to fix an attribute that is not there (#2413,
+  fixed by #2451).
+- `svelte-self-deprecated` — the suggested self-import path was capitalised, so following the
+  suggestion breaks the build on a case-sensitive filesystem (#2411, fixed by #2477).
+
+Keep it empty: a new entry means a message regression, and the honest fix is the format
+string, not the baseline.
 
 ## Removing an entry
 

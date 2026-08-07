@@ -216,9 +216,9 @@ pub(crate) fn is_js_numeric(data: &str) -> bool {
 
 /// Lowercase an element attribute name so it matches the intrinsic-elements
 /// typings, mirroring official `transformAttributeCase`. Preserves the name for
-/// SVG attributes, custom elements (tag contains `-`), svelte-5 `on*` event
-/// attributes, and the foreign namespace (`preserve_case`); non-element
-/// (component/slot) attributes are never transformed.
+/// SVG attributes, custom elements (tag contains `-`), and svelte-5 `on*` event
+/// attributes; non-element (component/slot) attributes are never transformed.
+/// `preserve_case` (the `foreign` namespace) suppresses the fold entirely.
 pub(crate) fn transform_attribute_case<'a>(
     name: &'a str,
     tag: &str,
@@ -226,8 +226,8 @@ pub(crate) fn transform_attribute_case<'a>(
     preserve_case: bool,
 ) -> Cow<'a, str> {
     let is_custom_element = tag.contains('-');
-    if is_element
-        && !preserve_case
+    if !preserve_case
+        && is_element
         && !is_svg_attribute(name)
         && !is_custom_element
         && !name.starts_with("on")
