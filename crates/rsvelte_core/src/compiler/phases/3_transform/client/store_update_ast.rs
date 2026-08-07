@@ -316,15 +316,15 @@ pub(crate) fn transform_store_update_in_place(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if store_sub_vars.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
     if !store_sub_vars
         .iter()
         .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_program_mut(

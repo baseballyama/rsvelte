@@ -353,15 +353,18 @@ thread_local! {
 /// valid across the rewrite — replacing a child leaves its ancestors' spans
 /// alone — and the rewrite is still post-order, so an inner assignment is
 /// wrapped before the one enclosing it.
-pub(crate) fn transform_prop_assign_in_place(source: &str, prop_vars: &[String]) -> Option<String> {
+pub(crate) fn transform_prop_assign_in_place(
+    source: &str,
+    prop_vars: &[String],
+) -> ast_rewrite::Rewrite {
     if prop_vars.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
     if !prop_vars
         .iter()
         .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_program_mut(
