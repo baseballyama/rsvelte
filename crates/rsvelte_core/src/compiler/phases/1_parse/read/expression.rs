@@ -29,6 +29,7 @@ use oxc_parser::Parser as OxcParser;
 use oxc_span::{GetSpan, SourceType};
 use serde_json::{Map, Value};
 
+use super::super::utils::TrimWs;
 use crate::ast::arena::{IdRange, ParseArena};
 use crate::ast::js::Expression;
 use crate::ast::typed_expr::{
@@ -449,7 +450,7 @@ fn try_parse_call_expression<'a>(
     //
     // `args_region` is the raw byte slice between `(` and `)`. `args_str` is
     // its trimmed form, used for the comma-split scan. We must add the byte
-    // count of the *leading* whitespace that `.trim()` stripped back into
+    // count of the *leading* whitespace that `.trim_ws()` stripped back into
     // every per-argument offset — otherwise multi-line argument lists like
     //
     //     {@render fn(
@@ -464,8 +465,8 @@ fn try_parse_call_expression<'a>(
     let args_start = paren_pos + 1;
     let args_end = bytes.len() - 1;
     let args_region = &content[args_start..args_end];
-    let args_str = args_region.trim();
-    let args_leading_ws = args_region.len() - args_region.trim_start().len();
+    let args_str = args_region.trim_ws();
+    let args_leading_ws = args_region.len() - args_region.trim_start_ws().len();
 
     let arguments = if args_str.is_empty() {
         Vec::new()
@@ -494,13 +495,13 @@ fn try_parse_call_expression<'a>(
                     depth -= 1;
                 }
                 b',' if depth == 0 => {
-                    let arg_str = args_str[start..i].trim();
+                    let arg_str = args_str[start..i].trim_ws();
                     let arg_bytes = arg_str.as_bytes();
                     let arg_offset = offset
                         + args_start
                         + args_leading_ws
                         + start
-                        + (args_str[start..i].len() - args_str[start..i].trim_start().len());
+                        + (args_str[start..i].len() - args_str[start..i].trim_start_ws().len());
                     let arg = try_parse_atom(arena, arg_str, arg_bytes, arg_offset, line_offsets)?;
                     args.push(expr_to_node(arg));
                     start = i + 1;
@@ -512,14 +513,14 @@ fn try_parse_call_expression<'a>(
             return None;
         }
         // Last argument
-        let arg_str = args_str[start..].trim();
+        let arg_str = args_str[start..].trim_ws();
         if !arg_str.is_empty() {
             let arg_bytes = arg_str.as_bytes();
             let arg_offset = offset
                 + args_start
                 + args_leading_ws
                 + start
-                + (args_str[start..].len() - args_str[start..].trim_start().len());
+                + (args_str[start..].len() - args_str[start..].trim_start_ws().len());
             let arg = try_parse_atom(arena, arg_str, arg_bytes, arg_offset, line_offsets)?;
             args.push(expr_to_node(arg));
         }
@@ -661,18 +662,18 @@ fn try_parse_ternary<'a>(
     let cons_raw = &content[q_pos + 1..colon_pos];
     let alt_raw = &content[colon_pos + 1..];
 
-    let test_str = test_raw.trim();
-    let cons_str = cons_raw.trim();
-    let alt_str = alt_raw.trim();
+    let test_str = test_raw.trim_ws();
+    let cons_str = cons_raw.trim_ws();
+    let alt_str = alt_raw.trim_ws();
 
     if test_str.is_empty() || cons_str.is_empty() || alt_str.is_empty() {
         return None;
     }
 
     // Calculate precise offsets accounting for leading whitespace
-    let test_offset = offset + (test_raw.len() - test_raw.trim_start().len());
-    let cons_offset = offset + q_pos + 1 + (cons_raw.len() - cons_raw.trim_start().len());
-    let alt_offset = offset + colon_pos + 1 + (alt_raw.len() - alt_raw.trim_start().len());
+    let test_offset = offset + (test_raw.len() - test_raw.trim_start_ws().len());
+    let cons_offset = offset + q_pos + 1 + (cons_raw.len() - cons_raw.trim_start_ws().len());
+    let alt_offset = offset + colon_pos + 1 + (alt_raw.len() - alt_raw.trim_start_ws().len());
 
     let test = try_parse_atom(
         arena,
@@ -772,7 +773,7 @@ fn try_parse_parenthesized<'a>(
 
     // Simple parenthesized: (expr) with nothing after
     if close + 1 == bytes.len() {
-        let inner = content[1..close].trim();
+        let inner = content[1..close].trim_ws();
         if inner.is_empty() {
             return None;
         }
@@ -795,7 +796,7 @@ fn try_parse_arrow_function<'a>(
     ws_after_paren: usize,
 ) -> Option<Expression<'a>> {
     let arrow_start = close_paren + 1 + ws_after_paren + 2; // past "=>"
-    let body_str = content[arrow_start..].trim();
+    let body_str = content[arrow_start..].trim_ws();
 
     if body_str.is_empty() {
         return None;
@@ -809,7 +810,7 @@ fn try_parse_arrow_function<'a>(
     let body_bytes = body_str.as_bytes();
     let body_offset = offset
         + arrow_start
-        + (content[arrow_start..].len() - content[arrow_start..].trim_start().len());
+        + (content[arrow_start..].len() - content[arrow_start..].trim_start_ws().len());
 
     // Parse body as expression
     let body = try_parse_atom(arena, body_str, body_bytes, body_offset, line_offsets)
@@ -830,11 +831,11 @@ fn try_parse_arrow_function<'a>(
     let region_base = offset + 1; // absolute position of `content[1]`
     let mut params_nodes = Vec::new();
 
-    if !region.trim().is_empty() {
+    if !region.trim_ws().is_empty() {
         let mut cursor = 0usize; // byte index within `region`
         for chunk in region.split(',') {
-            let lead_ws = chunk.len() - chunk.trim_start().len();
-            let p = chunk.trim();
+            let lead_ws = chunk.len() - chunk.trim_start_ws().len();
+            let p = chunk.trim_ws();
             if p.is_empty() {
                 return None;
             }
@@ -930,8 +931,8 @@ fn try_parse_compound_expression<'a>(
         return None;
     }
 
-    let left_content = content[..i].trim_end();
-    let right_content = content[right_start..].trim_end();
+    let left_content = content[..i].trim_end_ws();
+    let right_content = content[right_start..].trim_end_ws();
 
     let left_bytes = left_content.as_bytes();
     let right_bytes = right_content.as_bytes();
@@ -2245,7 +2246,7 @@ fn split_top_level_params(content: &str) -> Vec<String> {
         }
     }
 
-    if !current.trim().is_empty() {
+    if !current.trim_ws().is_empty() {
         parts.push(current);
     }
 
@@ -2361,7 +2362,7 @@ pub fn parse_typescript_params<'a>(
         let parts = split_top_level_params(content);
         let mut search_from = 0usize;
         for part in &parts {
-            let part = part.trim();
+            let part = part.trim_ws();
             if part.is_empty() {
                 continue;
             }
@@ -2407,10 +2408,10 @@ pub fn parse_typescript_params<'a>(
     }
 
     // Fallback: parse as comma-separated simple identifiers
-    if params.is_empty() && !content.trim().is_empty() {
+    if params.is_empty() && !content.trim_ws().is_empty() {
         let mut search_from = 0usize;
         for part in content.split(',') {
-            let part = part.trim();
+            let part = part.trim_ws();
             if !part.is_empty() {
                 let part_pos = content[search_from..]
                     .find(part)
@@ -2418,7 +2419,7 @@ pub fn parse_typescript_params<'a>(
                     .unwrap_or(search_from);
                 search_from = part_pos + part.len();
                 // Extract just the name (before colon for typed params)
-                let name = part.split(':').next().unwrap_or(part).trim();
+                let name = part.split(':').next().unwrap_or(part).trim_ws();
                 // Strip optional marker '?' from the end (e.g., "c?" -> "c")
                 let name = name.strip_suffix('?').unwrap_or(name);
                 let part_offset = offset + part_pos;
@@ -7172,7 +7173,7 @@ impl CommentAttacher<'_> {
 
     fn record_leading(&mut self, start: u32, index: usize) {
         let text = self.comments[index].text.clone();
-        if !text.trim_start().starts_with("svelte-ignore") {
+        if !text.trim_start_ws().starts_with("svelte-ignore") {
             return;
         }
         match self.map.last_mut() {
@@ -10883,7 +10884,7 @@ pub fn parse_binding_pattern<'a>(
 ) -> Result<Expression<'a>, crate::error::ParseError> {
     // Check for reserved words in simple identifier contexts
     // (e.g., {#each cases as case} where "case" is a reserved word)
-    let trimmed = content.trim();
+    let trimmed = content.trim_ws();
     if !trimmed.is_empty()
         && !trimmed.starts_with('{')
         && !trimmed.starts_with('[')
@@ -10902,7 +10903,7 @@ pub fn parse_binding_pattern<'a>(
     // `{#each xs as item}` / `{#await p then v}` bind a bare identifier in the
     // vast majority of cases; skip the `let … = null` wrap + full JS parse.
     if is_plain_ascii_identifier(trimmed) {
-        let start = offset + (content.len() - content.trim_start().len());
+        let start = offset + (content.len() - content.trim_start_ws().len());
         let end = start + trimmed.len();
         return Ok(Expression::from_node(
             create_identifier_for_binding_toplevel(trimmed, start, end, line_offsets),
@@ -10917,11 +10918,11 @@ pub fn parse_binding_pattern<'a>(
         let result = parser.parse();
 
         if !result.diagnostics.is_empty() {
-            let trimmed = content.trim();
+            let trimmed = content.trim_ws();
             if trimmed.starts_with('{') || trimmed.starts_with('[') {
                 let err = &result.diagnostics[0];
                 let msg = format!("{}", err);
-                let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim().to_string();
+                let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim_ws().to_string();
                 let err_pos = offset;
                 return Err(crate::error::ParseError::svelte(
                     "js_parse_error",
@@ -10949,10 +10950,10 @@ pub fn parse_binding_pattern<'a>(
         }
 
         // Fallback: return as simple identifier
-        let trimmed = content.trim();
+        let trimmed = content.trim_ws();
         let name = if let Some(colon_pos) = trimmed.find(':') {
             if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
-                trimmed[..colon_pos].trim()
+                trimmed[..colon_pos].trim_ws()
             } else {
                 trimmed
             }

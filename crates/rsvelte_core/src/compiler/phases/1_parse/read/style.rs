@@ -21,7 +21,8 @@ use crate::ast::css::{StyleSheet, StyleSheetContent, StyleSheetType};
 use crate::ast::template::{AttributeValue, AttributeValuePart, TemplateNode};
 use crate::error::ParseResult;
 
-use super::super::parser::{MAX_NESTING_DEPTH, Parser};
+use super::super::parser::{MAX_NESTING_DEPTH, Parser, is_js_whitespace};
+use super::super::utils::TrimWs;
 
 /// Returns `true` when the `<style>` has a `lang` attribute whose value is not
 /// plain CSS (e.g. `sass`, `scss`, `stylus`, `less`, `postcss`). Such a block
@@ -35,7 +36,7 @@ fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
             && let AttributeValue::Sequence(parts) = &node.value
             && let Some(AttributeValuePart::Text(t)) = parts.first()
         {
-            let lang = t.data.as_ref().trim().to_ascii_lowercase();
+            let lang = t.data.as_ref().trim_ws().to_ascii_lowercase();
             return !lang.is_empty() && lang != "css";
         }
     }
@@ -285,7 +286,7 @@ impl<'a> Parser<'a> {
         // Skipped only for a non-CSS `lang` block in lenient (lint) mode (see
         // the string-quote check above).
         if !lenient_non_css {
-            let trimmed = style_content.trim();
+            let trimmed = style_content.trim_ws();
             if !trimmed.is_empty() {
                 // Fast path: no block comments present, so there is nothing to
                 // strip and `trimmed` itself already reflects the real content.
@@ -330,7 +331,7 @@ impl<'a> Parser<'a> {
                     if segment_start < bytes.len() {
                         stripped.push_str(&trimmed[segment_start..]);
                     }
-                    let stripped = stripped.trim();
+                    let stripped = stripped.trim_ws();
                     if !stripped.is_empty()
                         && !stripped.contains('{')
                         && !stripped.contains(';')
@@ -488,7 +489,7 @@ impl<'a> CssParser<'a> {
             }
             self.advance();
         }
-        let prelude = self.source[prelude_start..self.index].trim().to_string();
+        let prelude = self.source[prelude_start..self.index].trim_ws().to_string();
 
         // Check if there's a block
         let block = if self.current_char() == '{' {
@@ -628,7 +629,7 @@ impl<'a> CssParser<'a> {
         let selector_end = self.index;
         let selector_text = &self.source[selector_start..selector_end];
 
-        if selector_text.trim().is_empty() {
+        if selector_text.trim_ws().is_empty() {
             // An empty selector at a block start (e.g. `{}`) mirrors the official
             // `read_selector` → `read_identifier` path, which raises
             // `css_expected_identifier` at the block-start position.
@@ -647,7 +648,7 @@ impl<'a> CssParser<'a> {
         }
 
         // Calculate the actual start position (skipping leading whitespace)
-        let leading_ws = selector_text.len() - selector_text.trim_start().len();
+        let leading_ws = selector_text.len() - selector_text.trim_start_ws().len();
         let adjusted_start = self.offset + selector_start + leading_ws;
 
         let prelude = self.parse_selector_list(selector_text, adjusted_start);
@@ -775,7 +776,7 @@ impl<'a> CssParser<'a> {
             }
             if !bytes[i].is_ascii()
                 && let Some(ch) = text[i..].chars().next()
-                && ch.is_whitespace()
+                && is_js_whitespace(ch)
             {
                 i += ch.len_utf8();
                 continue;
@@ -982,7 +983,7 @@ impl<'a> CssParser<'a> {
 
             // Check for combinators (+, >, ~)
             if c == b'+' || c == b'>' || c == b'~' {
-                let selector_text = text[current_start..i].trim();
+                let selector_text = text[current_start..i].trim_ws();
                 if !selector_text.is_empty() {
                     let selector_offset = base_offset + current_start;
                     let rel_selector = self.create_relative_selector(
@@ -1038,7 +1039,7 @@ impl<'a> CssParser<'a> {
                         || bytes[j] == b'&'
                     {
                         // This is a descendant combinator (space)
-                        let selector_text = text[current_start..i].trim();
+                        let selector_text = text[current_start..i].trim_ws();
                         // Only treat as descendant if there's actual selector content before the whitespace
                         // (not just whitespace and comments)
                         if !selector_text.is_empty()
@@ -1072,9 +1073,9 @@ impl<'a> CssParser<'a> {
         // Add the last selector
         if current_start < text.len() {
             let selector_text = &text[current_start..];
-            if !selector_text.trim().is_empty() {
+            if !selector_text.trim_ws().is_empty() {
                 // Calculate offset skipping leading whitespace
-                let leading_ws = selector_text.len() - selector_text.trim_start().len();
+                let leading_ws = selector_text.len() - selector_text.trim_start_ws().len();
                 let selector_offset = base_offset + current_start + leading_ws;
                 let rel_selector =
                     self.create_relative_selector(selector_text, selector_offset, last_combinator);
@@ -1094,9 +1095,9 @@ impl<'a> CssParser<'a> {
         }
 
         // If no selectors were found, create one for the whole text
-        if result.is_empty() && !text.trim().is_empty() {
+        if result.is_empty() && !text.trim_ws().is_empty() {
             // Calculate offset skipping leading whitespace
-            let leading_ws = text.len() - text.trim_start().len();
+            let leading_ws = text.len() - text.trim_start_ws().len();
             let adjusted_offset = base_offset + leading_ws;
             let rel_selector = self.create_relative_selector(text, adjusted_offset, None);
             result.push(rel_selector);
@@ -1152,7 +1153,7 @@ impl<'a> CssParser<'a> {
 
         // Don't trim the text - we need to preserve Unicode escape sequence terminators
         // which may be whitespace characters
-        if text.trim().is_empty() {
+        if text.trim_ws().is_empty() {
             return selectors;
         }
 
@@ -1525,7 +1526,9 @@ impl<'a> CssParser<'a> {
             }
             self.advance();
         }
-        let property = self.source[property_start..self.index].trim().to_string();
+        let property = self.source[property_start..self.index]
+            .trim_ws()
+            .to_string();
 
         if property.is_empty() || self.is_eof() || self.current_char() != ':' {
             // No `property: value` shape. Upstream's `read_declaration` reads
@@ -1539,8 +1542,8 @@ impl<'a> CssParser<'a> {
             // `bar`, so it is NOT an error — keep skipping it silently.
             let upstream_property = property.split_whitespace().next().unwrap_or("");
             let upstream_value = property
-                .split_once(char::is_whitespace)
-                .map(|(_, rest)| rest.trim())
+                .split_once(is_js_whitespace)
+                .map(|(_, rest)| rest.trim_ws())
                 .unwrap_or("");
             if upstream_value.is_empty() && !upstream_property.starts_with("--") {
                 record_first_error(
@@ -1595,7 +1598,7 @@ impl<'a> CssParser<'a> {
             }
             self.advance();
         }
-        let value = self.source[value_start..self.index].trim().to_string();
+        let value = self.source[value_start..self.index].trim_ws().to_string();
 
         // End position is before the semicolon
         let end = self.offset + self.index;
@@ -1727,7 +1730,7 @@ impl<'a> CssParser<'a> {
     }
 
     fn skip_whitespace(&mut self) {
-        while !self.is_eof() && self.current_char().is_whitespace() {
+        while !self.is_eof() && is_js_whitespace(self.current_char()) {
             self.advance();
         }
     }
@@ -2133,8 +2136,8 @@ impl<'a> SelectorParser<'a> {
                 None
             } else if is_nth_pseudo {
                 // For nth-* pseudo-classes, parse the An+B syntax and optional 'of S' selector
-                let trimmed = content.trim();
-                let leading_ws = content.len() - content.trim_start().len();
+                let trimmed = content.trim_ws();
+                let leading_ws = content.len() - content.trim_start_ws().len();
                 let nth_start = args_start + leading_ws;
 
                 // Check for 'of ' keyword to split An+B from selector
@@ -2157,14 +2160,14 @@ impl<'a> SelectorParser<'a> {
                         || trimmed.starts_with('-');
 
                     if is_nth_pattern {
-                        let trailing_ws = content.len() - content.trim_end().len();
+                        let trailing_ws = content.len() - content.trim_end_ws().len();
                         let end_pos = self.offset + content_end - trailing_ws;
                         (trimmed, None, end_pos)
                     } else {
                         // Not an An+B pattern, treat as regular selector
                         // Fall through to the non-nth parsing below
-                        let mut trimmed_inner = content.trim();
-                        let mut leading_skip = content.len() - content.trim_start().len();
+                        let mut trimmed_inner = content.trim_ws();
+                        let mut leading_skip = content.len() - content.trim_start_ws().len();
 
                         loop {
                             if trimmed_inner.starts_with("/*") {
@@ -2173,9 +2176,9 @@ impl<'a> SelectorParser<'a> {
                                     leading_skip += end_pos + 2;
                                     trimmed_inner = &trimmed_inner[end_pos + 2..];
                                     let ws_skip =
-                                        trimmed_inner.len() - trimmed_inner.trim_start().len();
+                                        trimmed_inner.len() - trimmed_inner.trim_start_ws().len();
                                     leading_skip += ws_skip;
-                                    trimmed_inner = trimmed_inner.trim_start();
+                                    trimmed_inner = trimmed_inner.trim_start_ws();
                                 } else {
                                     break;
                                 }
@@ -2184,7 +2187,7 @@ impl<'a> SelectorParser<'a> {
                             }
                         }
 
-                        let trailing_ws = content.len() - content.trim_end().len();
+                        let trailing_ws = content.len() - content.trim_end_ws().len();
                         let trimmed_start = args_start + leading_skip;
                         let trimmed_end = self.offset + content_end - trailing_ws;
 
@@ -2237,7 +2240,7 @@ impl<'a> SelectorParser<'a> {
                 }
 
                 // Get the actual end position
-                let trailing_ws = content.len() - content.trim_end().len();
+                let trailing_ws = content.len() - content.trim_end_ws().len();
                 let actual_end = self.offset + content_end - trailing_ws;
 
                 // Wrap in RelativeSelector
@@ -2289,8 +2292,8 @@ impl<'a> SelectorParser<'a> {
                 Some(Value::Object(sel_list))
             } else {
                 // Calculate trimmed content positions (strip whitespace and leading comments)
-                let mut trimmed = content.trim();
-                let mut leading_skip = content.len() - content.trim_start().len();
+                let mut trimmed = content.trim_ws();
+                let mut leading_skip = content.len() - content.trim_start_ws().len();
 
                 // Also skip leading comments for the SelectorList start
                 // And update `trimmed` to not include the leading comment
@@ -2299,9 +2302,9 @@ impl<'a> SelectorParser<'a> {
                         if let Some(end_pos) = memmem::find(trimmed.as_bytes(), b"*/") {
                             leading_skip += end_pos + 2;
                             trimmed = &trimmed[end_pos + 2..];
-                            let ws_skip = trimmed.len() - trimmed.trim_start().len();
+                            let ws_skip = trimmed.len() - trimmed.trim_start_ws().len();
                             leading_skip += ws_skip;
-                            trimmed = trimmed.trim_start();
+                            trimmed = trimmed.trim_start_ws();
                         } else {
                             break;
                         }
@@ -2310,7 +2313,7 @@ impl<'a> SelectorParser<'a> {
                     }
                 }
 
-                let trailing_ws = content.len() - content.trim_end().len();
+                let trailing_ws = content.len() - content.trim_end_ws().len();
                 let trimmed_start = args_start + leading_skip;
                 let trimmed_end = self.offset + content_end - trailing_ws;
 
@@ -2346,9 +2349,9 @@ impl<'a> SelectorParser<'a> {
             .into_iter()
             .map(|(selector_text, selector_offset)| {
                 // Adjust offset for leading whitespace when trimming
-                let leading_ws = selector_text.len() - selector_text.trim_start().len();
+                let leading_ws = selector_text.len() - selector_text.trim_start_ws().len();
                 let adjusted_offset = selector_offset + leading_ws;
-                self.parse_complex_selector_from_text(selector_text.trim(), adjusted_offset)
+                self.parse_complex_selector_from_text(selector_text.trim_ws(), adjusted_offset)
             })
             .collect();
 
@@ -2422,7 +2425,7 @@ impl<'a> SelectorParser<'a> {
         loop {
             let before_len = current.len();
             // Strip leading whitespace
-            let trimmed = current.trim_start();
+            let trimmed = current.trim_start_ws();
             current_offset += before_len - trimmed.len();
             current = trimmed;
 
@@ -2442,7 +2445,7 @@ impl<'a> SelectorParser<'a> {
         // Strip trailing whitespace and comments
         let mut end_current = current;
         loop {
-            let trimmed = end_current.trim_end();
+            let trimmed = end_current.trim_end_ws();
             end_current = trimmed;
 
             // Strip trailing comment
@@ -2457,7 +2460,7 @@ impl<'a> SelectorParser<'a> {
             }
         }
 
-        let trimmed = end_current.trim();
+        let trimmed = end_current.trim_ws();
         let start = current_offset;
         let end = start + trimmed.len();
 
@@ -2527,7 +2530,7 @@ impl<'a> SelectorParser<'a> {
             // Check for combinators
             if c == b'+' || c == b'>' || c == b'~' {
                 // Found a combinator
-                let selector_text = text[current_start..i].trim();
+                let selector_text = text[current_start..i].trim_ws();
                 if !selector_text.is_empty() {
                     let selector_offset = base_offset + current_start;
                     let rel_selector = self.create_relative_selector(
@@ -2572,7 +2575,7 @@ impl<'a> SelectorParser<'a> {
                         || bytes[j] == b'&'
                     {
                         // This is a descendant combinator (space)
-                        let selector_text = text[current_start..i].trim();
+                        let selector_text = text[current_start..i].trim_ws();
                         if !selector_text.is_empty() {
                             let selector_offset = base_offset + current_start;
                             let rel_selector = self.create_relative_selector(
@@ -2602,9 +2605,9 @@ impl<'a> SelectorParser<'a> {
         // Add the last selector
         if current_start < text.len() {
             let selector_text = &text[current_start..];
-            if !selector_text.trim().is_empty() {
+            if !selector_text.trim_ws().is_empty() {
                 // Calculate offset skipping leading whitespace
-                let leading_ws = selector_text.len() - selector_text.trim_start().len();
+                let leading_ws = selector_text.len() - selector_text.trim_start_ws().len();
                 let selector_offset = base_offset + current_start + leading_ws;
                 let rel_selector =
                     self.create_relative_selector(selector_text, selector_offset, last_combinator);
@@ -2613,9 +2616,9 @@ impl<'a> SelectorParser<'a> {
         }
 
         // If no selectors were found, create one for the whole text
-        if result.is_empty() && !text.trim().is_empty() {
+        if result.is_empty() && !text.trim_ws().is_empty() {
             // Calculate offset skipping leading whitespace
-            let leading_ws = text.len() - text.trim_start().len();
+            let leading_ws = text.len() - text.trim_start_ws().len();
             let adjusted_offset = base_offset + leading_ws;
             let rel_selector = self.create_relative_selector(text, adjusted_offset, None);
             result.push(rel_selector);
@@ -2709,7 +2712,7 @@ impl<'a> SelectorParser<'a> {
         self.advance(); // consume '['
 
         // Skip whitespace
-        while !self.is_eof() && self.current_char().is_whitespace() {
+        while !self.is_eof() && is_js_whitespace(self.current_char()) {
             self.advance();
         }
 
@@ -2717,7 +2720,7 @@ impl<'a> SelectorParser<'a> {
         let name = self.read_identifier();
 
         // Skip whitespace
-        while !self.is_eof() && self.current_char().is_whitespace() {
+        while !self.is_eof() && is_js_whitespace(self.current_char()) {
             self.advance();
         }
 
@@ -2741,7 +2744,7 @@ impl<'a> SelectorParser<'a> {
 
         if matcher.is_some() {
             // Skip whitespace
-            while !self.is_eof() && self.current_char().is_whitespace() {
+            while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
 
@@ -2773,7 +2776,7 @@ impl<'a> SelectorParser<'a> {
                 let val_start = self.index;
                 while !self.is_eof() {
                     let ch = self.current_char();
-                    if ch == ']' || ch.is_whitespace() {
+                    if ch == ']' || is_js_whitespace(ch) {
                         break;
                     }
                     self.advance();
@@ -2784,7 +2787,7 @@ impl<'a> SelectorParser<'a> {
             }
 
             // Skip whitespace
-            while !self.is_eof() && self.current_char().is_whitespace() {
+            while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
 
@@ -2798,7 +2801,7 @@ impl<'a> SelectorParser<'a> {
                 flags = Some(self.source[flags_start..self.index].to_string());
 
                 // Skip whitespace
-                while !self.is_eof() && self.current_char().is_whitespace() {
+                while !self.is_eof() && is_js_whitespace(self.current_char()) {
                     self.advance();
                 }
             }
@@ -2889,7 +2892,7 @@ impl<'a> SelectorParser<'a> {
     }
 
     fn skip_whitespace(&mut self) {
-        while !self.is_eof() && self.current_char().is_whitespace() {
+        while !self.is_eof() && is_js_whitespace(self.current_char()) {
             self.advance();
         }
     }

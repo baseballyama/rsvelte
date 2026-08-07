@@ -76,7 +76,7 @@ function compileOne(compiler, target) {
 			const m = message.match(/svelte\.dev\/e\/([a-z0-9_]+)/) ?? message.match(/code: "([a-z0-9_]+)"/);
 			if (m) code = m[1];
 		}
-		return { error: { code, message } };
+		return { error: { code, message, line: e?.start?.line ?? null, column: e?.start?.column ?? null } };
 	}
 }
 
@@ -105,8 +105,14 @@ for (const target of selected) {
 	const e = compileOne(svelte, target);
 	const a = compileOne(rsvelte, target);
 	if (e.error || a.error) {
-		console.log('expected:', e.error ? `ERROR ${e.error.code}: ${e.error.message.split('\n')[0]}` : 'compiles');
-		console.log('actual:  ', a.error ? `ERROR ${a.error.code}: ${a.error.message.split('\n')[0]}` : 'compiles');
+		// Position is printed because verify.mjs ratchets it: an entry can fail
+		// error-position parity while both codes and messages read identical.
+		const show = (r) =>
+			r.error
+				? `ERROR ${r.error.code} @${r.error.line ?? '?'}:${r.error.column ?? '?'}: ${r.error.message.split('\n')[0]}`
+				: 'compiles';
+		console.log('expected:', show(e));
+		console.log('actual:  ', show(a));
 		continue;
 	}
 	const ef = fmt(e.js, 'e');

@@ -233,16 +233,76 @@ pub fn napi_parse_envelope(
     Ok(buf.into())
 }
 
+/// Throw a compile failure as an object shaped like the official compiler's
+/// `CompileError` (`code`, `message`, `filename`, `start`, `end`, `position`),
+/// so a consumer can place the diagnostic instead of parsing a Rust `Debug`
+/// dump out of `message`.
+///
+/// Returns a `PendingException` error: napi-rs surfaces the object thrown here
+/// rather than re-throwing a second one from the returned `Err`.
+fn throw_compile_error(
+    env: &Env,
+    source: &str,
+    filename: Option<&str>,
+    e: rsvelte_core::compiler::CompileError,
+) -> napi::Error {
+    let diagnostic = e.diagnostic();
+    let build = || -> napi::Result<()> {
+        let mut obj = env.create_error(napi::Error::from_reason(diagnostic.message.clone()))?;
+        obj.set("name", "CompileError")?;
+        // `create_error` seeds `code` with napi's status string; overwrite it so
+        // a raising site with no Svelte code reports `null` rather than the
+        // meaningless `GenericFailure`.
+        match &diagnostic.code {
+            Some(code) => obj.set("code", code.as_str())?,
+            None => obj.set("code", napi::bindgen_prelude::Null)?,
+        }
+        if let Some(filename) = filename {
+            obj.set("filename", filename)?;
+        }
+        if let Some((start, end)) = diagnostic.span {
+            let start = rsvelte_core::compiler::source_position(source, start);
+            let end = rsvelte_core::compiler::source_position(source, end);
+            let position = [start.character as u32, end.character as u32];
+            obj.set("start", position_object(env, &start)?)?;
+            obj.set("end", position_object(env, &end)?)?;
+            obj.set("position", position.to_vec())?;
+        }
+        env.throw(obj)
+    };
+    match build() {
+        Ok(()) => napi::Error::from_status(napi::Status::PendingException),
+        // Nothing was thrown, so the message still has to carry the failure.
+        Err(_) => napi::Error::from_reason(diagnostic.message),
+    }
+}
+
+fn position_object<'env>(
+    env: &'env Env,
+    p: &rsvelte_core::compiler::Position,
+) -> napi::Result<napi::bindgen_prelude::Object<'env>> {
+    let mut obj = napi::bindgen_prelude::Object::new(env)?;
+    obj.set("line", p.line as u32)?;
+    obj.set("column", p.column as u32)?;
+    obj.set("character", p.character as u32)?;
+    Ok(obj)
+}
+
 ///
 /// Takes source code and an options object, returns a result object
 /// matching the official `svelte/compiler` output shape.
 #[napi(js_name = "compile", catch_unwind)]
-pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi::Result<Value> {
+pub fn napi_compile(
+    env: Env,
+    source: String,
+    options: Option<NapiCompileOptions>,
+) -> napi::Result<Value> {
     let opts = options_to_compile(options)?;
+    let filename = opts.filename.clone();
 
     match rust_compile(&source, opts) {
         Ok(result) => Ok(compile_result_to_json(result)),
-        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+        Err(e) => Err(throw_compile_error(&env, &source, filename.as_deref(), e)),
     }
 }
 
@@ -253,17 +313,19 @@ pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi
 /// `{ client, server }`, each shaped like the `compile` return value.
 #[napi(js_name = "compileBoth", catch_unwind)]
 pub fn napi_compile_both(
+    env: Env,
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Value> {
     let opts = options_to_compile(options)?;
+    let filename = opts.filename.clone();
 
     match rust_compile_both(&source, opts) {
         Ok((client, server)) => Ok(serde_json::json!({
             "client": compile_result_to_json(client),
             "server": compile_result_to_json(server),
         })),
-        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+        Err(e) => Err(throw_compile_error(&env, &source, filename.as_deref(), e)),
     }
 }
 
@@ -976,10 +1038,12 @@ fn options_to_module_compile(
 /// Compile a Svelte module (.svelte.js/.svelte.ts).
 #[napi(js_name = "compileModule", catch_unwind)]
 pub fn napi_compile_module(
+    env: Env,
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<Value> {
     let opts = options_to_module_compile(options)?;
+    let filename = opts.filename.clone();
     match rust_compile_module(&source, opts) {
         Ok(result) => {
             let js_obj = serde_json::json!({
@@ -1002,7 +1066,7 @@ pub fn napi_compile_module(
 
             Ok(output)
         }
-        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+        Err(e) => Err(throw_compile_error(&env, &source, filename.as_deref(), e)),
     }
 }
 

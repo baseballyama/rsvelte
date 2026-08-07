@@ -37,6 +37,13 @@
 //! holds the `$state`-rune-type qualifieds (proxy-aware); other
 //! qualifieds (`$state.raw`, `$state.frozen`, `$derived`,
 //! `$derived.by`) go in `other_qualified`.
+//!
+//! The pass has two implementations — a text-splicing one and an
+//! in-place AST one, picked between by `ast_rewrite::dual_run::resolve`
+//! — that differ only in the representation they emit. Every decision
+//! they share ([`target_present`], [`classify`], [`compound_of`],
+//! [`needs_proxy`], [`update_call`]) is stated once here and called
+//! from both, so a rule cannot be changed for one representation only.
 
 use std::cell::RefCell;
 // mold principle P6: trusted-input compiler hot path uses FxHash, never SipHash.
@@ -164,6 +171,87 @@ impl<'ast> Visit<'ast> for BindingInfoCollector {
     }
 }
 
+#[derive(Clone, Copy)]
+enum Match {
+    State,
+    Other,
+}
+
+fn classify(text: &str, state_qualified: &[String], other_qualified: &[String]) -> Option<Match> {
+    if state_qualified.iter().any(|q| q.as_str() == text) {
+        Some(Match::State)
+    } else if other_qualified.iter().any(|q| q.as_str() == text) {
+        Some(Match::Other)
+    } else {
+        None
+    }
+}
+
+/// Whether a qualified name occurs in `source` at all — the cheap probe that
+/// keeps a source with no private-field writes from being parsed.
+fn target_present(source: &str, state_qualified: &[String], other_qualified: &[String]) -> bool {
+    state_qualified
+        .iter()
+        .chain(other_qualified.iter())
+        .any(|q| memchr::memmem::find(source.as_bytes(), q.as_bytes()).is_some())
+}
+
+/// How a compound assignment expands into the `$.set` value, mirroring upstream
+/// `build_assignment_value` (`utils/ast.js`): the logical compounds build a
+/// `LogicalExpression`, every other compound a `BinaryExpression`. `None` is
+/// plain `=`, whose value is the RHS verbatim.
+#[derive(Clone, Copy)]
+enum Compound {
+    Binary(oxc_syntax::operator::BinaryOperator),
+    Logical(oxc_syntax::operator::LogicalOperator),
+}
+
+impl Compound {
+    fn as_str(self) -> &'static str {
+        match self {
+            Compound::Binary(op) => op.as_str(),
+            Compound::Logical(op) => op.as_str(),
+        }
+    }
+}
+
+fn compound_of(operator: AssignmentOperator) -> Option<Compound> {
+    operator
+        .to_logical_operator()
+        .map(Compound::Logical)
+        .or_else(|| operator.to_binary_operator().map(Compound::Binary))
+}
+
+/// Whether the `$.set` call gets the trailing `, true` proxy flag, mirroring
+/// upstream `AssignmentExpression.js`: `needs_proxy = field.type === '$state' &&
+/// is_non_coercive_operator(operator) && should_proxy(value, scope)`, where
+/// `value` is the built assignment value. The non-coercive operators are
+/// `= || && ??`; arithmetic / bitwise / shift compounds are coercive and never
+/// proxy. For `=` the value is the RHS, so `should_proxy` traces it; for the
+/// logical ops the value is a `LogicalExpression`, which is never in
+/// `should_proxy`'s no-proxy set and so always proxies for a `$state` field.
+fn needs_proxy(
+    kind: Match,
+    compound: Option<Compound>,
+    right: &Expression<'_>,
+    var_proxy: &HashMap<String, bool>,
+    reassigned: &HashSet<String>,
+) -> bool {
+    matches!(kind, Match::State)
+        && match compound {
+            None => should_proxy_with_bindings(right, var_proxy, reassigned),
+            Some(Compound::Logical(_)) => true,
+            Some(Compound::Binary(_)) => false,
+        }
+}
+
+/// The runtime helper an update expression lowers to, and whether it needs the
+/// `-1` step argument: `q++` → `$.update(q)`, `--q` → `$.update_pre(q, -1)`.
+fn update_call(operator: UpdateOperator, prefix: bool) -> (&'static str, bool) {
+    let callee = if prefix { "$.update_pre" } else { "$.update" };
+    (callee, matches!(operator, UpdateOperator::Decrement))
+}
+
 thread_local! {
     static MODULE_PRIVATE_CLASS_ASSIGN_ALLOC: RefCell<Allocator> =
         RefCell::new(Allocator::default());
@@ -191,14 +279,7 @@ fn transform_private_class_assign_spliced(
     state_qualified: &[String],
     other_qualified: &[String],
 ) -> Option<String> {
-    if state_qualified.is_empty() && other_qualified.is_empty() {
-        return None;
-    }
-    if !state_qualified
-        .iter()
-        .chain(other_qualified.iter())
-        .any(|q| memchr::memmem::find(source.as_bytes(), q.as_bytes()).is_some())
-    {
+    if !target_present(source, state_qualified, other_qualified) {
         return None;
     }
 
@@ -319,36 +400,6 @@ struct PrivateClassAssignCollector<'a> {
     replacements: Vec<Edit>,
 }
 
-#[derive(Clone, Copy)]
-enum Match {
-    State,
-    Other,
-}
-
-/// How a compound assignment operator expands into the `$.set` value,
-/// mirroring upstream `build_assignment_value`.
-#[derive(Clone, Copy)]
-enum Compound {
-    /// Plain `=` — value is the RHS verbatim.
-    None,
-    /// Coercive `+= -= *= /= %= **= &= |= ^= <<= >>= >>>=` — value is
-    /// `$.get(q) <op> rhs` (a binary expression); never proxies.
-    Arith(&'static str),
-    /// Non-coercive `||= &&= ??=` — value is `$.get(q) <op> rhs` (a
-    /// logical expression); proxies for `$state` fields.
-    Logic(&'static str),
-}
-
-fn classify(text: &str, state_qualified: &[String], other_qualified: &[String]) -> Option<Match> {
-    if state_qualified.iter().any(|q| q.as_str() == text) {
-        Some(Match::State)
-    } else if other_qualified.iter().any(|q| q.as_str() == text) {
-        Some(Match::Other)
-    } else {
-        None
-    }
-}
-
 impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
@@ -362,67 +413,19 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         };
         let qualified = pf_text;
 
-        // Classify the compound operator, mirroring upstream
-        // `build_assignment_value` (`utils/ast.js`): `=` uses the RHS
-        // verbatim; `||= &&= ??=` expand to a *logical* expression
-        // `left <op> right`; every other compound (`+= -= … & | << …`)
-        // expands to a *binary* expression `left <op> right`.
-        let compound = match expr.operator {
-            AssignmentOperator::Assign => Compound::None,
-            AssignmentOperator::Addition => Compound::Arith("+"),
-            AssignmentOperator::Subtraction => Compound::Arith("-"),
-            AssignmentOperator::Multiplication => Compound::Arith("*"),
-            AssignmentOperator::Division => Compound::Arith("/"),
-            AssignmentOperator::Remainder => Compound::Arith("%"),
-            AssignmentOperator::Exponential => Compound::Arith("**"),
-            AssignmentOperator::BitwiseAnd => Compound::Arith("&"),
-            AssignmentOperator::BitwiseOR => Compound::Arith("|"),
-            AssignmentOperator::BitwiseXOR => Compound::Arith("^"),
-            AssignmentOperator::ShiftLeft => Compound::Arith("<<"),
-            AssignmentOperator::ShiftRight => Compound::Arith(">>"),
-            AssignmentOperator::ShiftRightZeroFill => Compound::Arith(">>>"),
-            AssignmentOperator::LogicalOr => Compound::Logic("||"),
-            AssignmentOperator::LogicalAnd => Compound::Logic("&&"),
-            AssignmentOperator::LogicalNullish => Compound::Logic("??"),
-        };
-
+        let compound = compound_of(expr.operator);
         let rhs_span = expr.right.span();
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
+        let needs_proxy = needs_proxy(kind, compound, &expr.right, self.var_proxy, self.reassigned);
 
-        // Proxy logic mirrors upstream `AssignmentExpression.js` private-state
-        // branch: `needs_proxy = field.type === '$state' &&
-        // is_non_coercive_operator(operator) && should_proxy(value, scope)`
-        // where `value` is the built (and visited) assignment value.
-        // The non-coercive operators are `= || && ??`. Compound arithmetic /
-        // bitwise / shift ops are coercive → never proxy. For `= `, `value`
-        // is the RHS, so `should_proxy` traces it. For the logical ops,
-        // `value` is a `LogicalExpression` (`$.get(q) <op> rhs`), which is
-        // never in `should_proxy`'s no-proxy set, so it always proxies for a
-        // `$state` field.
-        let needs_proxy = matches!(kind, Match::State)
-            && match compound {
-                Compound::None => {
-                    should_proxy_with_bindings(&expr.right, self.var_proxy, self.reassigned)
-                }
-                Compound::Logic(_) => true,
-                Compound::Arith(_) => false,
-            };
-
-        let rewrite = match compound {
-            Compound::None if needs_proxy => format!("$.set({}, {}, true)", qualified, rhs_text),
-            Compound::None => format!("$.set({}, {})", qualified, rhs_text),
-            Compound::Arith(op) => format!(
-                "$.set({}, $.get({}) {} {})",
-                qualified, qualified, op, rhs_text
-            ),
-            Compound::Logic(op) if needs_proxy => format!(
-                "$.set({}, $.get({}) {} {}, true)",
-                qualified, qualified, op, rhs_text
-            ),
-            Compound::Logic(op) => format!(
-                "$.set({}, $.get({}) {} {})",
-                qualified, qualified, op, rhs_text
-            ),
+        let value = match compound {
+            None => rhs_text.to_string(),
+            Some(op) => format!("$.get({}) {} {}", qualified, op.as_str(), rhs_text),
+        };
+        let rewrite = if needs_proxy {
+            format!("$.set({}, {}, true)", qualified, value)
+        } else {
+            format!("$.set({}, {})", qualified, value)
         };
 
         self.replacements
@@ -441,11 +444,11 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         }
         let qualified = pf_text;
 
-        let rewrite = match (expr.operator, expr.prefix) {
-            (UpdateOperator::Increment, false) => format!("$.update({})", qualified),
-            (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", qualified),
-            (UpdateOperator::Increment, true) => format!("$.update_pre({})", qualified),
-            (UpdateOperator::Decrement, true) => format!("$.update_pre({}, -1)", qualified),
+        let (callee, decrement) = update_call(expr.operator, expr.prefix);
+        let rewrite = if decrement {
+            format!("{}({}, -1)", callee, qualified)
+        } else {
+            format!("{}({})", callee, qualified)
         };
 
         self.replacements
@@ -790,36 +793,6 @@ thread_local! {
         RefCell::new(Allocator::default());
 }
 
-/// The compound operators as nodes: logical assignment lowers to a
-/// `LogicalExpression`, every other compound to a `BinaryExpression`.
-enum CompoundOp {
-    Binary(oxc_syntax::operator::BinaryOperator),
-    Logical(oxc_syntax::operator::LogicalOperator),
-}
-
-fn compound_op_node(op: AssignmentOperator) -> Option<CompoundOp> {
-    use AssignmentOperator::*;
-    use oxc_syntax::operator::{BinaryOperator as B, LogicalOperator as L};
-    Some(match op {
-        Addition => CompoundOp::Binary(B::Addition),
-        Subtraction => CompoundOp::Binary(B::Subtraction),
-        Multiplication => CompoundOp::Binary(B::Multiplication),
-        Division => CompoundOp::Binary(B::Division),
-        Remainder => CompoundOp::Binary(B::Remainder),
-        Exponential => CompoundOp::Binary(B::Exponential),
-        ShiftLeft => CompoundOp::Binary(B::ShiftLeft),
-        ShiftRight => CompoundOp::Binary(B::ShiftRight),
-        ShiftRightZeroFill => CompoundOp::Binary(B::ShiftRightZeroFill),
-        BitwiseOR => CompoundOp::Binary(B::BitwiseOR),
-        BitwiseXOR => CompoundOp::Binary(B::BitwiseXOR),
-        BitwiseAnd => CompoundOp::Binary(B::BitwiseAnd),
-        LogicalOr => CompoundOp::Logical(L::Or),
-        LogicalAnd => CompoundOp::Logical(L::And),
-        LogicalNullish => CompoundOp::Logical(L::Coalesce),
-        Assign => return None,
-    })
-}
-
 /// In-place equivalent of [`transform_private_class_assign_ast`]. Class method
 /// bodies reach this pass without their enclosing `class`, so the driver parses
 /// them inside a synthetic one and strips it back off what it prints.
@@ -828,14 +801,7 @@ pub(crate) fn transform_private_class_assign_in_place(
     state_qualified: &[String],
     other_qualified: &[String],
 ) -> ast_rewrite::Rewrite {
-    if state_qualified.is_empty() && other_qualified.is_empty() {
-        return ast_rewrite::Rewrite::Unchanged;
-    }
-    if !state_qualified
-        .iter()
-        .chain(other_qualified.iter())
-        .any(|q| memchr::memmem::find(source.as_bytes(), q.as_bytes()).is_some())
-    {
+    if !target_present(source, state_qualified, other_qualified) {
         return ast_rewrite::Rewrite::Unchanged;
     }
 
@@ -889,21 +855,14 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
         let Some(kind) = classify(pf_text, self.state_qualified, self.other_qualified) else {
             return;
         };
-        let operator = assign.operator;
-
-        // Mirrors upstream `AssignmentExpression.js`: only `=` and the logical
-        // compounds are non-coercive, and the logical ones build a
-        // `LogicalExpression`, which `should_proxy` always proxies.
-        let needs_proxy = matches!(kind, Match::State)
-            && match operator {
-                AssignmentOperator::Assign => {
-                    should_proxy_with_bindings(&assign.right, &self.var_proxy, &self.reassigned)
-                }
-                AssignmentOperator::LogicalOr
-                | AssignmentOperator::LogicalAnd
-                | AssignmentOperator::LogicalNullish => true,
-                _ => false,
-            };
+        let compound = compound_of(assign.operator);
+        let needs_proxy = needs_proxy(
+            kind,
+            compound,
+            &assign.right,
+            &self.var_proxy,
+            &self.reassigned,
+        );
 
         let taken = std::mem::replace(expr, self.b.void0());
         let Expression::AssignmentExpression(assign) = taken else {
@@ -914,10 +873,10 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
             unreachable!("checked above")
         };
 
-        let value = match compound_op_node(operator) {
+        let value = match compound {
             None => assign.right,
-            Some(CompoundOp::Binary(op)) => self.b.binary(op, self.field_read(&pf), assign.right),
-            Some(CompoundOp::Logical(op)) => self.b.logical(op, self.field_read(&pf), assign.right),
+            Some(Compound::Binary(op)) => self.b.binary(op, self.field_read(&pf), assign.right),
+            Some(Compound::Logical(op)) => self.b.logical(op, self.field_read(&pf), assign.right),
         };
 
         let mut args = vec![Expression::PrivateFieldExpression(pf), value];
@@ -939,12 +898,7 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
         if classify(pf_text, self.state_qualified, self.other_qualified).is_none() {
             return;
         }
-        let callee = if update.prefix {
-            "$.update_pre"
-        } else {
-            "$.update"
-        };
-        let decrement = matches!(update.operator, UpdateOperator::Decrement);
+        let (callee, decrement) = update_call(update.operator, update.prefix);
 
         let taken = std::mem::replace(expr, self.b.void0());
         let Expression::UpdateExpression(update) = taken else {
@@ -1034,5 +988,112 @@ mod in_place_tests {
             ast_rewrite::dual_run::normalize(&spliced),
         );
         assert_ne!(in_place, src, "the in-place path must have rewritten");
+    }
+}
+
+#[cfg(test)]
+mod shared_decision_tests {
+    use super::*;
+
+    fn ssv(names: &[&str]) -> Vec<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// `(source, $state qualifieds, other qualifieds, expected rewrite)`.
+    ///
+    /// One row per decision the two implementations used to state separately:
+    /// changing an operator's spelling, its binary-versus-logical class, the
+    /// proxy flag or an update's callee / step argument moves at least one
+    /// expected string here. The rows are single statements so both paths —
+    /// one splicing bytes, one reprinting the program — land on the same text.
+    const DECISIONS: &[(&str, &[&str], &[&str], &str)] = &[
+        (
+            "this.#a = { x: 1 };",
+            &["this.#a"],
+            &[],
+            "$.set(this.#a, { x: 1 }, true);",
+        ),
+        ("this.#a = 5;", &["this.#a"], &[], "$.set(this.#a, 5);"),
+        (
+            "this.#d = { x: 1 };",
+            &[],
+            &["this.#d"],
+            "$.set(this.#d, { x: 1 });",
+        ),
+        (
+            "this.#a += 3;",
+            &["this.#a"],
+            &[],
+            "$.set(this.#a, $.get(this.#a) + 3);",
+        ),
+        (
+            "this.#a += { x: 1 };",
+            &["this.#a"],
+            &[],
+            "$.set(this.#a, $.get(this.#a) + { x: 1 });",
+        ),
+        (
+            "this.#a >>>= 2;",
+            &["this.#a"],
+            &[],
+            "$.set(this.#a, $.get(this.#a) >>> 2);",
+        ),
+        (
+            "this.#a **= 2;",
+            &["this.#a"],
+            &[],
+            "$.set(this.#a, $.get(this.#a) ** 2);",
+        ),
+        (
+            "this.#a ??= run();",
+            &["this.#a"],
+            &[],
+            "$.set(this.#a, $.get(this.#a) ?? run(), true);",
+        ),
+        (
+            "this.#a ||= y;",
+            &["this.#a"],
+            &[],
+            "$.set(this.#a, $.get(this.#a) || y, true);",
+        ),
+        (
+            "this.#d &&= y;",
+            &[],
+            &["this.#d"],
+            "$.set(this.#d, $.get(this.#d) && y);",
+        ),
+        ("this.#a++;", &["this.#a"], &[], "$.update(this.#a);"),
+        ("this.#a--;", &["this.#a"], &[], "$.update(this.#a, -1);"),
+        ("++this.#a;", &["this.#a"], &[], "$.update_pre(this.#a);"),
+        (
+            "--this.#a;",
+            &["this.#a"],
+            &[],
+            "$.update_pre(this.#a, -1);",
+        ),
+    ];
+
+    /// The text path, which `resolve` returns under `RSVELTE_AST_SPLICE` and
+    /// falls back to when the in-place path cannot parse a fragment. Reached
+    /// only by calling it directly: which path answers is a process-wide
+    /// setting read once, so the public entry point cannot exercise both.
+    #[test]
+    fn spliced_path_lowers_every_decision() {
+        for (source, state, other, expected) in DECISIONS {
+            let out = transform_private_class_assign_spliced(source, &ssv(state), &ssv(other))
+                .unwrap_or_else(|| panic!("spliced path did not rewrite `{source}`"));
+            assert_eq!(&out, expected, "spliced path, source `{source}`");
+        }
+    }
+
+    /// The in-place path, which `resolve` returns by default.
+    #[test]
+    fn in_place_path_lowers_every_decision() {
+        for (source, state, other, expected) in DECISIONS {
+            let out = transform_private_class_assign_in_place(source, &ssv(state), &ssv(other))
+                .into_option()
+                .unwrap_or_else(|| panic!("in-place path did not rewrite `{source}`"));
+            assert_eq!(&out, expected, "in-place path, source `{source}`");
+        }
     }
 }

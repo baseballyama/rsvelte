@@ -145,6 +145,8 @@ compatibility/report.json
 compatibility/report-s2t.json
 compatibility/cluster.txt
 compatibility/matrix-artifacts/
+compatibility/mutant-artifacts/
+compatibility/.mutant-shards/
 
 # Lint-compat pipeline (generated; lint-known-failures.json is tracked)
 compatibility/lint-sources/
