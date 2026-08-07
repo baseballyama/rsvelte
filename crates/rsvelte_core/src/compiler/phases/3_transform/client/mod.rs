@@ -4571,7 +4571,7 @@ fn transform_instance_script_for_visitors(
     {
         std::borrow::Cow::Borrowed(script)
     } else {
-        std::borrow::Cow::Owned(strip_reactive_statement_comments(script))
+        std::borrow::Cow::Owned(rehome_reactive_statement_comments(script))
     };
 
     // Transform class fields only if the script contains class definitions with runes
