@@ -140,6 +140,7 @@ compatibility/actual/
 compatibility/expected-s2t/
 compatibility/actual-s2t/
 compatibility/manifest.json
+compatibility/.corpus-generation
 compatibility/report.json
 compatibility/report-s2t.json
 compatibility/cluster.txt

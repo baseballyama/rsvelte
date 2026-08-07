@@ -75,8 +75,86 @@ export const DISK_HEADROOM = 512 * MiB;
  * corpus silently shrinks the ratchets to whatever it happened to measure. The
  * corpus is 14025 entries with every submodule present; anything far below that
  * is a partial checkout, not a fix.
+ *
+ * Before adding a gate here: a ratio floor and an absolute floor answer
+ * different questions, and truncation is visible only to the second. A ratio is
+ * measured against the population the run was handed, so anything that shrinks
+ * that population shrinks the numerator and denominator together and the check
+ * still passes — `verify.mjs`'s >=99% coverage assertion and the shape matrix's
+ * subset refusals both have that shape. This constant is the one absolute floor
+ * in the pipeline, which is why it is the one that survives a truncated corpus.
  */
 export const MIN_FULL_CORPUS_ENTRIES = 12000;
+
+/**
+ * Corpus generation stamp.
+ *
+ * Every number this pipeline reports rests on a precondition nothing checked:
+ * that the inputs it started from are still the inputs it finished with. They
+ * are shared, mutable, and regenerable, so a parallel `corpus:clean`, a disk
+ * sweep or a plain `rm -rf` can replace or truncate them mid-run — and the
+ * consuming run reports numbers off whatever survived. Ratio guards cannot see
+ * this: 99% of a shrunken denominator still passes.
+ *
+ * `collect.mjs` stamps the generation it produced; consumers capture it at start
+ * and re-assert it before they report. This is deliberately a check rather than
+ * a lock: it fires whoever did the deleting, including something that never
+ * heard of the corpus scripts.
+ */
+export const GENERATION_FILE = '.corpus-generation';
+
+export function writeGeneration(corpusDir, { entries, sources }) {
+	const generation = {
+		id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+		createdAt: new Date().toISOString(),
+		entries,
+		sources,
+	};
+	fs.writeFileSync(path.join(corpusDir, GENERATION_FILE), JSON.stringify(generation, null, '\t') + '\n');
+	return generation;
+}
+
+export function readGeneration(corpusDir) {
+	try {
+		return JSON.parse(fs.readFileSync(path.join(corpusDir, GENERATION_FILE), 'utf8'));
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Throws when the corpus changed under a running consumer. Names WHICH file and
+ * HOW it changed — vanished, replaced, or truncated — because a guard that
+ * asserts one cause sends the next reader hunting for the wrong thing.
+ */
+export function assertGenerationUnchanged(corpusDir, before) {
+	if (!before) return;
+	const now = readGeneration(corpusDir);
+	if (!now) {
+		throw new Error(`${GENERATION_FILE} VANISHED — the corpus inputs were deleted while this run was using them`);
+	}
+	if (now.id !== before.id) {
+		throw new Error(`corpus was REPLACED mid-run — generation ${before.id} -> ${now.id} (something re-collected underneath this run)`);
+	}
+	if (now.entries !== before.entries) {
+		throw new Error(`corpus was TRUNCATED mid-run — manifest entries ${before.entries} -> ${now.entries}`);
+	}
+	if (now.sources !== before.sources) {
+		throw new Error(`corpus sources changed mid-run — ${before.sources} -> ${now.sources} files`);
+	}
+}
+
+/** Assert-or-exit wrapper for the scripts, which report rather than throw. */
+export function requireGenerationUnchanged(corpusDir, before, label) {
+	try {
+		assertGenerationUnchanged(corpusDir, before);
+	} catch (e) {
+		console.error(`\n[${label}] ${e.message}`);
+		console.error('  the numbers from this run describe a corpus that no longer exists — refusing to report them.');
+		console.error('  re-run: node scripts/compat-corpus/collect.mjs && …');
+		process.exit(2);
+	}
+}
 
 export function keepArtifacts(argv, { failed }) {
 	if (argv.includes('--clean-artifacts')) return false;

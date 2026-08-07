@@ -7,7 +7,7 @@ of only comparing diagnostic counts, mirroring what
 every listed fixture is a real divergence from the last confirmed test run, not
 a placeholder.
 
-## Current baseline: `validator-known-failures.json`, 207 entries — 207 divergences
+## Current baseline: `validator-known-failures.json`, 206 entries — 206 divergences
 
 The divergences fall into three clusters:
 
@@ -51,7 +51,7 @@ The divergences fall into three clusters:
   `a11y_figcaption_index`, #2490), the same fallback lands a **plausible wrong**
   span rather than none, which is the worse symptom of the same defect.
 
-- **Warning/error content differs from upstream wording (13).** The diagnostic
+- **Warning/error content differs from upstream wording (12).** The diagnostic
   fires on the right node but the message text itself — or, for one rule, the
   argument order — diverges from upstream. Not fixed in this change (deferred
   to keep the assertion-tightening change span-neutral); each is a self-contained

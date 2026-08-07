@@ -79,6 +79,10 @@ const rsvelte = require(BINDING);
 
 // ---- generate + compile ----------------------------------------------------
 
+// The axes generate 665 cases on an unmodified tree; the floor only has to
+// separate "generation broke" from "the gate got easier".
+const MIN_MATRIX_CASES = 400;
+
 const cases = generate(FAMILY_KEYS);
 console.log(`[matrix] families: ${FAMILY_KEYS.join(', ')}`);
 console.log(`[matrix] cases: ${cases.length}  targets: ${TARGETS.map((t) => t.key).join(', ')}  comparisons: ${cases.length * TARGETS.length}`);
@@ -188,6 +192,14 @@ if (UPDATE_BASELINE) {
 	if (FAMILY_KEYS.length !== Object.keys(FAMILIES).length) {
 		console.error('\n[matrix] refusing to baseline from a --families subset: the rewrite deletes');
 		console.error('  every baseline entry the run did not measure (FALSE-SHRINK).');
+		process.exit(2);
+	}
+	// Both guards above are relative to whatever population the run was handed,
+	// so an edit that collapsed generation would satisfy them and still empty the
+	// ratchet. This one is absolute.
+	if (cases.length < MIN_MATRIX_CASES) {
+		console.error(`\n[matrix] refusing to baseline from ${cases.length} generated cases (expected >= ${MIN_MATRIX_CASES}).`);
+		console.error('  the axes generate ~665; far below that means generation broke, not that the gate got easier.');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
