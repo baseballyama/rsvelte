@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+  <style>
+    :root { --svelte: #ff3e00; --rust: #5c6773; }
+    @media (prefers-color-scheme: dark) { :root { --svelte: #ff6a39; --rust: #8b96a2; } }
+  </style>
+  <path d="M19 8 13 18l-2-4 6-10 2 4Z" fill="var(--svelte)"/>
+  <path d="M5 16 11 6l2 4-6 10-2-4Z" fill="var(--rust)"/>
+</svg>

@@ -145,6 +145,12 @@ pub(super) fn transform_destructure_assignments_with_props(
 /// This ensures inner/nested destructures (e.g., in the RHS of an outer
 /// destructure) are processed before outer ones, so $$array counter
 /// values match the official compiler output.
+#[cold]
+#[inline(never)]
+fn bracket_offset_miss(byte: usize, len: usize) -> ! {
+    panic!("bracket byte offset {byte} is not a char start in a {len}-byte statement")
+}
+
 pub(super) fn find_and_transform_one_destructure(
     statement: &str,
     store_sub_vars: &[String],
@@ -220,10 +226,15 @@ pub(super) fn find_and_transform_one_destructure(
 
                 // Walk backwards from position `i` to find the matching open bracket.
                 // The helper works in byte offsets; this loop indexes by char.
-                if let Some(pattern_start) =
-                    find_matching_open_bracket(statement, b(i), open_bracket, close_bracket)
-                        .and_then(|byte| byte_offsets.binary_search(&byte).ok())
-                {
+                let matching_open =
+                    find_matching_open_bracket(statement, b(i), open_bracket, close_bracket);
+                // The helper only returns ASCII bracket positions, which are
+                // always char starts; a miss would be a bug, not input.
+                if let Some(pattern_start) = matching_open.map(|byte| {
+                    byte_offsets
+                        .binary_search(&byte)
+                        .unwrap_or_else(|_| bracket_offset_miss(byte, statement.len()))
+                }) {
                     let pattern_str = &statement[b(pattern_start)..b(i + 1)];
                     let rhs_start = j + 1;
 

@@ -12,7 +12,8 @@ mod constants;
 pub use constants::*;
 
 use crate::ast::template::{
-    Attribute as AttributeNode, AttributeValue, Fragment, RegularElement, TemplateNode,
+    Attribute as AttributeNode, AttributeNode as PlainAttribute, AttributeValue, Fragment,
+    RegularElement, TemplateNode,
 };
 use indexmap::IndexSet;
 use regex::Regex;
@@ -45,6 +46,28 @@ use crate::compiler::phases::phase2_analyze::warnings as w;
 ///
 /// # Returns
 /// A vector of warnings detected for this element.
+/// Codes upstream attaches to the *element* even though they are raised while
+/// walking an attribute (`a11y/index.js` passes `node`, not `attribute`); the
+/// caller's element-span fallback is correct for these.
+const ELEMENT_SCOPED_CODES: &[&str] = &[
+    "a11y_interactive_supports_focus",
+    "a11y_no_interactive_element_to_noninteractive_role",
+    "a11y_no_noninteractive_element_to_interactive_role",
+];
+
+/// Attach `attr`'s span to every warning raised while examining it, mirroring
+/// upstream's per-warning warn target. Without this the caller stamps the
+/// element's span and the column points at `<tag` instead of the attribute.
+fn stamp_attribute(warnings: &mut [w::AnalysisWarning], attr: &PlainAttribute) {
+    for warning in warnings {
+        if warning.start.is_some() || ELEMENT_SCOPED_CODES.contains(&warning.code.as_str()) {
+            continue;
+        }
+        warning.start = Some(attr.start);
+        warning.end = Some(attr.end);
+    }
+}
+
 pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w::AnalysisWarning> {
     let mut warnings = Vec::new();
     let mut attribute_map: FxHashMap<String, &AttributeNode> = FxHashMap::default();
@@ -93,6 +116,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     // Check ARIA attributes
     for attribute in &node.attributes {
         if let AttributeNode::Attribute(attr) = attribute {
+            let mark = warnings.len();
             let name = attr.name.to_lowercase();
 
             // aria-props
@@ -292,6 +316,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
             {
                 warnings.push(w::a11y_positive_tabindex());
             }
+
+            stamp_attribute(&mut warnings[mark..], attr);
         }
     }
 
@@ -335,6 +361,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
 
         for attr in &attributes {
             if let AttributeNode::Attribute(a) = attr {
+                let mark = warnings.len();
                 let attr_name = a.name.as_str();
                 if let Some(aria_suffix) = attr_name.strip_prefix("aria-") {
                     // Only check valid ARIA attributes - misspelled ones are caught
@@ -350,6 +377,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         }
                     }
                 }
+                stamp_attribute(&mut warnings[mark..], a);
             }
         }
     }
@@ -458,7 +486,11 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                             || href_value == "#"
                             || REGEX_JS_PREFIX.is_match(href_value))
                     {
+                        let mark = warnings.len();
                         warnings.push(w::a11y_invalid_attribute(href_value, "href"));
+                        if let AttributeNode::Attribute(a) = href_attr {
+                            stamp_attribute(&mut warnings[mark..], a);
+                        }
                     }
                 } else if !has_spread {
                     let id_attribute = attribute_map.get("id").and_then(|a| get_static_value(a));
@@ -502,7 +534,11 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 let autocomplete_value = get_static_value(autocomplete_attr);
                 if !is_valid_autocomplete(autocomplete_value) {
                     let display_value = autocomplete_value.unwrap_or("true");
+                    let mark = warnings.len();
                     warnings.push(w::a11y_autocomplete_valid(display_value, type_value));
+                    if let AttributeNode::Attribute(a) = autocomplete_attr {
+                        stamp_attribute(&mut warnings[mark..], a);
+                    }
                 }
             }
         }

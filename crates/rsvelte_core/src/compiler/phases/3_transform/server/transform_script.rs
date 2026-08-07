@@ -6153,39 +6153,24 @@ fn transform_reexported_prop_declarations(
 }
 
 /// Find assignment `=` in a simple declarator (not inside parentheses, brackets, etc.)
+/// Byte offset of the top-level `=`; callers slice `s` with it.
 fn find_simple_assignment(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
 
-    for (i, &c) in chars.iter().enumerate() {
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            continue;
-        }
-
+    for (i, c) in crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(bytes) {
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            '=' if depth == 0 => {
-                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
-                let next = chars.get(i + 1).copied();
-                if prev != Some('=')
-                    && prev != Some('!')
-                    && prev != Some('<')
-                    && prev != Some('>')
-                    && next != Some('=')
-                    && next != Some('>')
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                let prev = i.checked_sub(1).map(|k| bytes[k]);
+                let next = bytes.get(i + 1).copied();
+                if prev != Some(b'=')
+                    && prev != Some(b'!')
+                    && prev != Some(b'<')
+                    && prev != Some(b'>')
+                    && next != Some(b'=')
+                    && next != Some(b'>')
                 {
                     return Some(i);
                 }
@@ -7612,5 +7597,24 @@ class Last {
             !out.contains("set value(value)") && !out.contains("set result(value)"),
             "client-shaped setter leaked through:\n{out}"
         );
+    }
+}
+
+#[cfg(test)]
+mod simple_assignment_unit_tests {
+    use super::find_simple_assignment;
+
+    #[test]
+    fn assignment_position_is_a_byte_offset() {
+        for src in ["x = 1", "ああ = 1", "café = 'x'"] {
+            let pos = find_simple_assignment(src).unwrap();
+            assert_eq!(pos, src.find('=').unwrap(), "src {src:?}");
+            assert_eq!(src[..pos].trim(), src.split('=').next().unwrap().trim());
+        }
+    }
+
+    #[test]
+    fn commented_equals_is_not_an_assignment() {
+        assert_eq!(find_simple_assignment("x /* = */ 1"), None);
     }
 }

@@ -263,6 +263,13 @@ fn main() {
         ("  process_accum", ms(st.process_accumulated)),
         ("    runes_xform", ms(st.runes)),
         ("    reactive_stmt", ms(st.reactive_stmt)),
+        ("      rs_deps", ms(st.rs_deps)),
+        ("      rs_body", ms(st.rs_body)),
+        ("      rs_assigns", ms(st.rs_assigns)),
+        (
+            "      rs_rest",
+            residual(st.reactive_stmt, &[st.rs_deps, st.rs_body, st.rs_assigns]),
+        ),
         (
             "    pa_rest",
             residual(st.process_accumulated, &[st.runes, st.reactive_stmt]),
@@ -666,6 +673,13 @@ const SHIPPED_PROJECTS: [&str; 6] = [
 
 fn collect_files() -> Vec<(String, String)> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    // A corpus outside the repo (a pinned upstream checkout) is the only way to
+    // profile the projects the published benchmark uses but we do not vendor.
+    if let Some(dir) = std::env::args().find_map(|a| a.strip_prefix("--dir=").map(str::to_owned)) {
+        let mut files = Vec::new();
+        collect_svelte_files(&PathBuf::from(dir), &mut files);
+        return files;
+    }
     if std::env::args().any(|a| a == "--shipped") {
         // `--only=a,b` / `--skip=a,b` narrow the set, so a share that turns out
         // to sit in one project can be attributed to it instead of guessed at.

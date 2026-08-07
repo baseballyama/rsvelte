@@ -1,72 +1,62 @@
-<footer class="foot">
+<script lang="ts">
+	import { base } from '$app/paths';
+</script>
+
+<footer class="footer">
 	<div class="inner">
-		<div class="mark">
-			<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-				<path d="M19 8 13 18l-2-4 6-10 2 4Z" fill="var(--svelte)" />
-				<path d="M5 16 11 6l2 4-6 10-2-4Z" fill="var(--rust)" />
-			</svg>
-			<span>rsvelte</span>
-		</div>
-		<div class="meta">
-			<span>MIT licensed</span>
-			<span class="sep">·</span>
-			<span>Mirrors <a href="https://github.com/sveltejs/svelte" target="_blank" rel="noopener">sveltejs/svelte</a></span>
-			<span class="sep">·</span>
-			<a href="https://github.com/baseballyama/rsvelte" target="_blank" rel="noopener">
-				github.com/baseballyama/rsvelte
-			</a>
-		</div>
+		<p>rsvelte is an independent Rust port of the Svelte compiler and toolchain.</p>
+		<nav aria-label="Footer navigation">
+			<a href="{base}/docs">Docs</a>
+			<a href="{base}/playground">Playground</a>
+			<a href="{base}/progress">Compatibility</a>
+			<a href="https://github.com/baseballyama/rsvelte" target="_blank" rel="noopener">GitHub</a>
+		</nav>
 	</div>
 </footer>
 
 <style>
-	.foot {
+	.footer {
 		border-top: 1px solid var(--rule);
 		background: var(--paper);
 	}
 
 	.inner {
-		max-width: 1080px;
+		max-width: 1120px;
 		margin: 0 auto;
-		padding: 1.4rem clamp(1rem, 4vw, 2.5rem);
+		padding: 2rem 1.5rem;
 		display: flex;
+		align-items: center;
 		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		flex-wrap: wrap;
+		gap: 2rem;
 	}
 
-	.mark {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.45rem;
-		font-weight: 700;
-		font-size: 0.95rem;
-		color: var(--ink);
-	}
-
-	.meta {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.55rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.74rem;
+	p {
+		font-size: 0.82rem;
 		color: var(--ink-soft);
+	}
+
+	nav {
+		display: flex;
 		flex-wrap: wrap;
+		gap: 1.25rem;
 	}
 
-	.meta .sep {
-		opacity: 0.5;
-	}
-
-	.meta a {
+	a {
+		font-size: 0.82rem;
+		font-weight: 500;
 		color: var(--ink-soft);
-		text-decoration: underline;
-		text-decoration-thickness: 1px;
-		text-underline-offset: 3px;
 	}
 
-	.meta a:hover {
-		color: var(--svelte);
+	a:hover {
+		color: var(--accent);
+	}
+
+	@media (max-width: 700px) {
+		.inner {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 1rem;
+			padding-inline: 1rem;
+		}
 	}
 </style>

@@ -182,6 +182,13 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
     let mut result = expr.to_string();
 
     for prop_name in prop_vars {
+        // The walk below pushes every character it reads, so a name that does
+        // not occur rebuilds the expression unchanged -- at the cost of a
+        // `Vec<char>`, an offset table, a scan index and a `String` per name.
+        if memmem::find(result.as_bytes(), prop_name.as_bytes()).is_none() {
+            continue;
+        }
+
         // Use word boundary matching to replace identifier references
         // But avoid replacing function calls that already have ()
         // Note: Rust's regex crate doesn't support lookahead, so we use a different approach:
@@ -1308,49 +1315,26 @@ pub(super) fn transform_destructured_export_let(
 
 /// Find the end position of a destructuring pattern in `{ ... } = RHS` or `[ ... ] = RHS`.
 /// Returns the position after the closing `}` or `]`.
+/// Byte offset just past the pattern's closing bracket, relative to `s` as passed.
 pub(super) fn find_destructuring_pattern_end(s: &str) -> Option<usize> {
-    let s = s.trim();
-    let first = s.chars().next()?;
-    if first != '{' && first != '[' {
+    let trimmed = s.trim_start();
+    let base = s.len() - trimmed.len();
+    if !matches!(trimmed.as_bytes().first(), Some(b'{' | b'[')) {
         return None;
     }
 
-    let chars: Vec<char> = s.chars().collect();
     let mut depth = 0;
-    let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
-
-    while i < chars.len() {
-        if in_string {
-            if chars[i] == '\\' {
-                i += 2;
-                continue;
+    for (i, c) in code_bytes(trimmed.as_bytes()) {
+        match c {
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(base + i + 1);
+                }
             }
-            if chars[i] == string_char {
-                in_string = false;
-            }
-            i += 1;
-            continue;
+            _ => {}
         }
-
-        if chars[i] == '\'' || chars[i] == '"' || chars[i] == '`' {
-            in_string = true;
-            string_char = chars[i];
-            i += 1;
-            continue;
-        }
-
-        if chars[i] == '{' || chars[i] == '[' {
-            depth += 1;
-        } else if chars[i] == '}' || chars[i] == ']' {
-            depth -= 1;
-            if depth == 0 {
-                return Some(i + 1);
-            }
-        }
-
-        i += 1;
     }
     None
 }
@@ -4398,5 +4382,20 @@ mod props_pattern_span_tests {
         let line = "let { a, b } = $props();";
         let (open, close) = props_pattern_span(line).unwrap();
         assert_eq!(&line[open..=close], "{ a, b }");
+    }
+}
+
+#[cfg(test)]
+mod pattern_end_unit_tests {
+    use super::find_destructuring_pattern_end;
+
+    #[test]
+    fn pattern_end_is_a_byte_offset() {
+        // Callers slice `&str` with this, so it must be a byte offset. The
+        // leading-space case is the only one where the trim `base` is non-zero.
+        for pattern in ["{ a }", "{ café }", "{ ああ }", "[ あ, い ]", "  { café }"] {
+            let end = find_destructuring_pattern_end(pattern).unwrap();
+            assert_eq!(&pattern[..end], pattern, "pattern {pattern:?}");
+        }
     }
 }

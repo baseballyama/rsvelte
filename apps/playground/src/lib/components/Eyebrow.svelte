@@ -18,7 +18,7 @@
 		letterSpacing = '0.08em',
 		marginBottom = '0',
 		ruleWidth = '24px',
-		uppercase = true
+		uppercase = false,
 	}: Props = $props();
 </script>
 
@@ -28,26 +28,18 @@
 		? 'uppercase'
 		: 'none'};"
 >
-	<span class="rule"></span>{@render children()}
+	{@render children()}
 </p>
 
 <style>
 	.eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--eyebrow-gap);
-		font-family: 'JetBrains Mono', monospace;
-		font-size: var(--eyebrow-font-size);
-		letter-spacing: var(--eyebrow-letter-spacing);
-		text-transform: var(--eyebrow-text-transform);
-		color: var(--rust);
-		margin: 0 0 var(--eyebrow-margin-bottom);
-	}
-
-	.eyebrow .rule {
 		display: inline-block;
-		width: var(--eyebrow-rule-width);
-		height: 1px;
-		background: var(--rust);
+		font-family: var(--font-ui);
+		font-size: var(--eyebrow-font-size);
+		font-weight: 600;
+		letter-spacing: 0;
+		text-transform: var(--eyebrow-text-transform);
+		color: var(--ink-soft);
+		margin: 0 0 var(--eyebrow-margin-bottom);
 	}
 </style>
