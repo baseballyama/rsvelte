@@ -47,7 +47,12 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 328 entries
+### `comment-slot` — 578 entries
+
+Three sub-clusters with distinct causes: the `.svelte` template seeds below, the
+`.svelte.(js|ts)` module path (#2399) and the class-field relocation (#2437).
+
+#### `.svelte` template seeds — 328 entries
 
 One comment inserted at each line boundary inside every `<script>` region of 6 seeds,
 across 8 comment kinds. A comment is the one token that may appear between any two other
@@ -92,7 +97,7 @@ Server dominates (248 of 348) for a known structural reason: the SSR path recons
 statements it cannot carry comments through. See `server/ast/comments.rs` and the
 comment-carry-over work in #2312, which is the burn-down vehicle for the 224 server drops.
 
-### `comment-slot` module path (`.svelte.(js|ts)`) — 240 entries, all #2399
+#### module path (`.svelte.(js|ts)`) — 240 entries, all #2399
 
 Added with the module seeds that gave this family its `.svelte.(js|ts)` cases. Every one of
 these 240 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
@@ -111,7 +116,7 @@ not drop *every* Program-level comment.** Over the 192 generated module cases it
 (7 drops each). A fix built on "drop them all" would be wrong in 112 of 192 positions; the
 correct fix reproduces a position rule.
 
-### `comment-slot` class-field comment relocation — 10 entries, all #2437
+#### class-field comment relocation — 10 entries, all #2437
 
 `module-class-state__L02__*` for the five **line**-comment kinds (`line`, `line-with-brace`,
 `line-with-paren`, `line-with-semi`, `svelte-ignore`) on `client` and `client-dev`. Block
