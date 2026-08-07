@@ -259,7 +259,7 @@ fn is_current_fast_path(expr: &str) -> bool {
     }
     let first = bytes[0];
 
-    if is_ident_start(first) {
+    if is_ascii_ident_start_byte(first) {
         if is_ident_or_member(bytes) {
             return true;
         }
@@ -303,7 +303,7 @@ fn is_current_fast_path(expr: &str) -> bool {
 }
 
 fn is_ident_or_member(bytes: &[u8]) -> bool {
-    if bytes.is_empty() || !is_ident_start(bytes[0]) {
+    if bytes.is_empty() || !is_ascii_ident_start_byte(bytes[0]) {
         return false;
     }
     bytes
@@ -311,6 +311,6 @@ fn is_ident_or_member(bytes: &[u8]) -> bool {
         .all(|&b| b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b == b'.')
 }
 
-fn is_ident_start(b: u8) -> bool {
+fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }

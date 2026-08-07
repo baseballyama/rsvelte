@@ -80,7 +80,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { flattenTemplateHoles, stripBlankLines, readIf, firstDiffLine, oxfmtTree } from './normalize.mjs';
 import { TARGET_KEYS as ALL_TARGET_KEYS, selectTargets } from './targets.mjs';
-import { MIN_FULL_CORPUS_ENTRIES, OUTPUT_TREES, cleanupArtifacts } from './artifacts.mjs';
+import { MIN_FULL_CORPUS_ENTRIES, OUTPUT_TREES, cleanupArtifacts, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -198,6 +198,8 @@ if (FROM_REPORT) {
 // ---- inputs ----------------------------------------------------------------
 
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));
+// Captured before comparison, re-asserted before any verdict or baseline write.
+const generation = readGeneration(CORPUS);
 
 // A near-empty manifest (partial checkout, failed collect) would make the
 // comparison below pass vacuously instead of catching a real regression.
@@ -492,6 +494,10 @@ const WARNING_RATCHETS = [
 	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline },
 	{ kind: 'warning-position', label: 'warning positions', file: (t) => t.warningPositionBaseline },
 ];
+
+// Before any verdict is written or any ratchet rewritten: the corpus these
+// results describe must still be the corpus on disk.
+requireGenerationUnchanged(CORPUS, generation, 'verify');
 
 const report = {
 	generatedAt: new Date().toISOString(),
