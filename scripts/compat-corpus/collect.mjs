@@ -30,6 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeGeneration } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -189,3 +190,9 @@ if (manifest.length < MIN_MANIFEST_ENTRIES) {
 	console.error(`[collect] only ${manifest.length} corpus entries collected (expected >= ${MIN_MANIFEST_ENTRIES})`);
 	process.exit(2);
 }
+
+// Stamp the generation so a consumer can prove its inputs did not change under
+// it. Written last: a stamp that outlived a failed collect would vouch for a
+// tree that was never finished.
+const generation = writeGeneration(CORPUS, { entries: manifest.length, sources: manifest.length });
+console.log(`[collect] generation ${generation.id}`);

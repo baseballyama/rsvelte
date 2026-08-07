@@ -326,16 +326,18 @@ pub(crate) fn transform_state_set_reactive_in_place(
     source: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if state_vars.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
-    memchr::memchr(b'=', source.as_bytes())?;
+    if memchr::memchr(b'=', source.as_bytes()).is_none() {
+        return ast_rewrite::Rewrite::Unchanged;
+    }
     if !state_vars
         .iter()
         .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_program_mut(

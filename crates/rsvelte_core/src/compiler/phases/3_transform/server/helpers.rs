@@ -1359,7 +1359,10 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
                     }
                 }
 
-                search_start = abs_pos + 1;
+                // Step one *character*: `abs_pos + 1` lands inside a multi-byte
+                // `var_name` and the next `trimmed[search_start..]` panics.
+                search_start =
+                    abs_pos + trimmed[abs_pos..].chars().next().map_or(1, char::len_utf8);
                 if search_start >= trimmed.len() {
                     break;
                 }
