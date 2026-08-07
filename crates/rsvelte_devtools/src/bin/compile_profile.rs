@@ -64,6 +64,7 @@ fn main() {
 
     let compile_opts = CompileOptions {
         generate: GenerateMode::Client,
+        dev: std::env::args().any(|a| a == "--dev"),
         ..Default::default()
     };
 

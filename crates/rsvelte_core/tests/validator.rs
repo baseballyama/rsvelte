@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use common::{
     ExpectedValidatorError, FixtureCoverage, SkipReason, check_validator_error,
     get_svelte_test_samples, load_expected_validator_error, read_fixture_file, sample_name,
-    validator_error_result,
+    svelte_samples_dir, validator_error_result,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 use serde::Deserialize;
@@ -360,7 +360,8 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
 fn test_validator() {
     let samples = get_validator_samples();
 
-    let mut coverage = FixtureCoverage::new("validator", samples.len());
+    let mut coverage =
+        FixtureCoverage::new("validator", svelte_samples_dir("validator"), samples.len());
     let mut fixtures: Vec<ValidatorFixture> = Vec::new();
     for sample_dir in &samples {
         match load_validator_fixture(sample_dir.as_path()) {
