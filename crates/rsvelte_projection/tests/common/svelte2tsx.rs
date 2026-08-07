@@ -884,9 +884,19 @@ pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
 
     let mut outcomes: Vec<FixtureOutcome> = Vec::new();
 
+    // `None` means "submodule absent", which callers are entitled to skip on. A
+    // directory that exists but cannot be enumerated is a broken environment, and
+    // silently returning a short list would understate coverage instead.
     let mut entries: Vec<_> = fs::read_dir(&samples_dir)
-        .ok()?
-        .filter_map(|e| e.ok())
+        .unwrap_or_else(|e| panic!("{} exists but is not readable: {e}", samples_dir.display()))
+        .map(|e| {
+            e.unwrap_or_else(|err| {
+                panic!(
+                    "{}: directory entry unreadable: {err}",
+                    samples_dir.display()
+                )
+            })
+        })
         .collect();
     entries.sort_by_key(|e| e.file_name());
 

@@ -165,14 +165,14 @@ impl<'a> Parser<'a> {
         // But only if they're at the very end of the file (after script/style too)
         while let Some(TemplateNode::Text(text)) = fragment.nodes.last() {
             let after_special = text.end >= max_special_end;
-            // Fast byte-level whitespace check
-            let is_whitespace = text.data.as_bytes().iter().all(|&b| {
-                b == b' '
-                    || b == b'\t'
-                    || b == b'\n'
-                    || b == b'\r'
-                    || (b >= 0x80 && (b as char).is_whitespace())
-            });
+            // ASCII-only by design: the parser already dropped every trailing
+            // whitespace run via `trim_end()` when it set `content_end`, so a
+            // Unicode-aware test here would be unreachable, not more correct.
+            let is_whitespace = text
+                .data
+                .as_bytes()
+                .iter()
+                .all(|&b| b == b' ' || b == b'\t' || b == b'\n' || b == b'\r');
             if is_whitespace && after_special {
                 fragment.nodes.pop();
             } else {
