@@ -25,7 +25,7 @@ use crate::ast::template::{
 };
 use crate::error::ParseResult;
 
-use super::super::parser::{ElementType, Parser, StackEntry};
+use super::super::parser::{ElementType, Parser, StackEntry, is_js_whitespace};
 use super::super::utils::TrimWs;
 use super::super::utils::decode_html_entities;
 use super::super::utils::is_void_element;
@@ -845,9 +845,9 @@ impl<'a> Parser<'a> {
 
         let next_char = self.source[after_tag..].chars().next();
         match next_char {
-            Some('>') => true,                    // </textarea>
-            Some(c) if c.is_whitespace() => true, // </textarea ...> (valid, will find > eventually)
-            _ => false,                           // </textaread (not a valid closing tag)
+            Some('>') => true,                      // </textarea>
+            Some(c) if is_js_whitespace(c) => true, // </textarea ...> (valid, will find > eventually)
+            _ => false,                             // </textaread (not a valid closing tag)
         }
     }
 
@@ -1283,7 +1283,7 @@ impl<'a> Parser<'a> {
             if !self.options.loose
                 && let Some(bad) = shorthand_first_invalid_offset(&name)
             {
-                let leading_ws = expr_content.len() - expr_content.trim_start().len();
+                let leading_ws = expr_content.len() - expr_content.trim_start_ws().len();
                 return Err(crate::error::ParseError::expected_token(
                     "}",
                     expr_start + leading_ws + bad,
@@ -1854,7 +1854,7 @@ impl<'a> Parser<'a> {
                 while !self.is_eof() {
                     let c = self.current_char();
                     // End of unquoted value (but NOT / alone)
-                    if c.is_whitespace() || c == '>' {
+                    if is_js_whitespace(c) || c == '>' {
                         break;
                     }
                     // Expression start
@@ -2257,7 +2257,7 @@ impl<'a> Parser<'a> {
                 // Non-ASCII whitespace check
                 if cur_byte >= 0x80 {
                     let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                    if c.is_whitespace() {
+                    if is_js_whitespace(c) {
                         break;
                     }
                 }
@@ -2406,7 +2406,7 @@ impl<'a> Parser<'a> {
                         } else {
                             // Non-ASCII: check for Unicode whitespace
                             let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                            if c.is_whitespace() {
+                            if is_js_whitespace(c) {
                                 break;
                             }
                             self.index += c.len_utf8();
@@ -2520,7 +2520,7 @@ impl<'a> Parser<'a> {
                 // Check for {@html} or other @ tags in textarea - this is invalid
                 // Peek ahead: { followed by optional whitespace and @
                 let peek_content = self.source.get(self.index + 1..).unwrap_or("");
-                let trimmed_peek = peek_content.trim_start();
+                let trimmed_peek = peek_content.trim_start_ws();
                 if trimmed_peek.starts_with('@') {
                     // Extract the tag name after @
                     let after_at = trimmed_peek.get(1..).unwrap_or("");

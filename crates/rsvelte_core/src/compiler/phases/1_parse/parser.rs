@@ -40,6 +40,34 @@ static LANG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
 static COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"-->"));
 
+/// ECMAScript `WhiteSpace + LineTerminator` — the set every whitespace decision
+/// in upstream's parser consults, whether through `is_whitespace(cc)` in
+/// `1-parse/index.js`, a `\s` regex or `String.prototype.trim*`. Rust's
+/// `char::is_whitespace` is the Unicode `White_Space` property, which has the
+/// same 25 members but excludes `U+FEFF` and includes `U+0085`.
+pub(crate) fn is_js_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{9}'..='\u{d}'
+            | '\u{20}'
+            | '\u{a0}'
+            | '\u{1680}'
+            | '\u{2000}'..='\u{200a}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202f}'
+            | '\u{205f}'
+            | '\u{3000}'
+            | '\u{feff}'
+    )
+}
+
+/// ASCII fast path for `is_js_whitespace`, derived from it rather than restated;
+/// every non-ASCII byte answers `false` so the caller decodes and asks again.
+pub(crate) fn is_js_whitespace_byte(b: u8) -> bool {
+    b.is_ascii() && is_js_whitespace(b as char)
+}
+
 /// Last auto-closed tag information.
 ///
 /// Corresponds to `LastAutoClosedTag` in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
@@ -581,13 +609,14 @@ impl<'a> Parser<'a> {
         let mut i = self.index + 1;
         while i < self.bytes.len() {
             let b = self.bytes[i];
-            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+            if b.is_ascii() {
+                if !is_js_whitespace_byte(b) {
+                    return Some(i);
+                }
                 i += 1;
-            } else if b < 0x80 {
-                return Some(i);
             } else {
                 let c = self.source[i..].chars().next().unwrap_or('\0');
-                if c.is_whitespace() {
+                if is_js_whitespace(c) {
                     i += c.len_utf8();
                 } else {
                     return Some(i);
@@ -727,19 +756,39 @@ impl<'a> Parser<'a> {
 
     /// Skip whitespace.
     #[inline]
+    /// Whether the character starting at byte `i` is JS whitespace. Byte-level
+    /// scans need this because a multi-byte character's lead byte answers
+    /// nothing on its own.
+    pub(crate) fn is_js_whitespace_at(&self, i: usize) -> bool {
+        match self.bytes.get(i) {
+            None => false,
+            Some(&b) if b.is_ascii() => is_js_whitespace_byte(b),
+            _ => self.source[i..]
+                .chars()
+                .next()
+                .is_some_and(is_js_whitespace),
+        }
+    }
+
+    /// Byte index of the first non-whitespace character at or after `i`.
+    pub(crate) fn skip_js_whitespace_from(&self, mut i: usize) -> usize {
+        while self.is_js_whitespace_at(i) {
+            i += self.source[i..].chars().next().map_or(1, char::len_utf8);
+        }
+        i
+    }
+
     pub fn skip_whitespace(&mut self) {
-        // Fast path for ASCII whitespace (space, tab, newline, carriage return)
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
-            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+            if b.is_ascii() {
+                if !is_js_whitespace_byte(b) {
+                    break;
+                }
                 self.index += 1;
-            } else if b < 0x80 {
-                // ASCII non-whitespace: done
-                break;
             } else {
-                // Non-ASCII: check for Unicode whitespace via char
                 let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                if c.is_whitespace() {
+                if is_js_whitespace(c) {
                     self.index += c.len_utf8();
                 } else {
                     break;
@@ -833,23 +882,18 @@ impl<'a> Parser<'a> {
     pub fn read_tag_name(&mut self) -> &str {
         let start = self.index;
 
-        // Fast path: tag name characters are ASCII (stop at whitespace, >, /, =)
+        // Mirrors upstream `read_until(/(\s|\/|>)/)`; `=` additionally ends a
+        // name so `<p=` does not swallow the rest of the tag.
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
-            if b == b' '
-                || b == b'\t'
-                || b == b'\n'
-                || b == b'\r'
-                || b == b'>'
-                || b == b'/'
-                || b == b'='
-            {
-                break;
-            } else if b < 0x80 {
+            if b.is_ascii() {
+                if is_js_whitespace_byte(b) || b == b'>' || b == b'/' || b == b'=' {
+                    break;
+                }
                 self.index += 1;
             } else {
                 let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                if c.is_whitespace() {
+                if is_js_whitespace(c) {
                     break;
                 }
                 self.index += c.len_utf8();
@@ -864,25 +908,17 @@ impl<'a> Parser<'a> {
     pub fn read_attribute_name(&mut self) -> &str {
         let start = self.index;
 
-        // Fast path: attribute name characters are ASCII (stop at whitespace, =, >, /, ", ')
+        // Mirrors upstream `read_until(/[\s=\/>"']/)`.
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
-            if b == b' '
-                || b == b'\t'
-                || b == b'\n'
-                || b == b'\r'
-                || b == b'='
-                || b == b'>'
-                || b == b'/'
-                || b == b'"'
-                || b == b'\''
-            {
-                break;
-            } else if b < 0x80 {
+            if b.is_ascii() {
+                if is_js_whitespace_byte(b) || matches!(b, b'=' | b'>' | b'/' | b'"' | b'\'') {
+                    break;
+                }
                 self.index += 1;
             } else {
                 let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                if c.is_whitespace() {
+                if is_js_whitespace(c) {
                     break;
                 }
                 self.index += c.len_utf8();
@@ -975,7 +1011,7 @@ impl<'a> Parser<'a> {
     ///
     /// Corresponds to `require_whitespace()` in JavaScript Parser.
     pub fn require_whitespace(&mut self) -> ParseResult<()> {
-        if self.is_eof() || !self.current_char().is_whitespace() {
+        if self.is_eof() || !is_js_whitespace(self.current_char()) {
             return Err(ParseError::svelte(
                 "expected_whitespace",
                 "Expected whitespace",
