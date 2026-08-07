@@ -40,6 +40,32 @@ static LANG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
 static COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"-->"));
 
+/// ECMAScript `WhiteSpace + LineTerminator` — the set `String.prototype.trimEnd`
+/// consults, mirroring `is_whitespace` in `1-parse/index.js`. Rust's
+/// `char::is_whitespace` is the Unicode `White_Space` property, which is the same
+/// size but excludes `U+FEFF` and includes `U+0085`.
+fn is_js_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{9}'..='\u{d}'
+            | '\u{20}'
+            | '\u{a0}'
+            | '\u{1680}'
+            | '\u{2000}'..='\u{200a}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202f}'
+            | '\u{205f}'
+            | '\u{3000}'
+            | '\u{feff}'
+    )
+}
+
+/// Byte length of `source` after upstream's `template.trimEnd()`.
+fn js_trim_end_len(source: &str) -> usize {
+    source.trim_end_matches(is_js_whitespace).len()
+}
+
 /// Last auto-closed tag information.
 ///
 /// Corresponds to `LastAutoClosedTag` in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
@@ -233,7 +259,7 @@ impl<'a> Parser<'a> {
             source,
             bytes: source.as_bytes(),
             index: 0,
-            content_end: source.trim_end().len(),
+            content_end: js_trim_end_len(source),
             options,
             stack,
             line_offsets,
@@ -261,7 +287,7 @@ impl<'a> Parser<'a> {
         self.source = source;
         self.bytes = source.as_bytes();
         self.index = 0;
-        self.content_end = source.trim_end().len();
+        self.content_end = js_trim_end_len(source);
         self.options = options;
 
         self.stack.clear();
