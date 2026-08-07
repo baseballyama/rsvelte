@@ -71,6 +71,7 @@ const RATCHETS = [
 		jsons: perTarget('warning-position-known-failures'),
 	},
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', jsons: ['matrix-known-failures.json'] },
+	{ doc: 'dual-run-known-failures.md', key: 'dual-run-known-failures.json', jsons: ['dual-run-known-failures.json'] },
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', jsons: ['validator-known-failures.json'] },
 	{
 		doc: 'validator-message-known-failures.md',
