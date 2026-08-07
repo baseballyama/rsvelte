@@ -26,7 +26,7 @@ Sweep shape: 1222 components, ~4s. Client and server prune identically
 (`--both` reports 0 client≠server divergences), so the sweep compiles one target
 (`generate: 'client'`, `css: 'external'`) per component.
 
-## Divergence clusters (0 entries — all root causes fixed)
+## Divergence clusters (`css-prune-known-failures.json`, 0 entries — all root causes fixed)
 
 The ratchet is empty: the sweep reports 0 divergences. The three root causes
 found by this sweep are all fixed. The history is kept here as the record of why
@@ -112,4 +112,4 @@ node scripts/compat-corpus/css-prune-sweep.mjs --update-baseline
 
 Requires a staged NAPI binding at `.corpus-cache/rsvelte.node`
 (`cargo build --release -p rsvelte_napi --lib`, then
-`cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node`).
+`mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node`).

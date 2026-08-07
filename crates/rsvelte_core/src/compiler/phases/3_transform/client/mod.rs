@@ -370,7 +370,9 @@ pub fn transform_client_module(
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
         super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
-            let print_opts = rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
+            let print_opts = rsvelte_esrap::PrintOptions::default()
+                .with_empty_statements(true)
+                .with_unlocated_program(true);
             match &converted.comment_source {
                 Some(cs) => {
                     rsvelte_esrap::print_split(
@@ -6907,8 +6909,9 @@ fn replace_standalone_pattern(text: &str, from: &str, to: &str) -> String {
             result.push_str(to);
             search_from = after_pos;
         } else {
-            result.push_str(&text[search_from..abs_pos + 1]);
-            search_from = abs_pos + 1;
+            let next = crate::compiler::utils::next_char_boundary(text, abs_pos);
+            result.push_str(&text[search_from..next]);
+            search_from = next;
         }
     }
     result.push_str(&text[search_from..]);

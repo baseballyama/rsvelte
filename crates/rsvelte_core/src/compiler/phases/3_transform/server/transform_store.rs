@@ -11,6 +11,16 @@ fn is_js_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
 
+/// `$name`, where the character after `$` is a letter.
+///
+/// Decoding matters: the byte after `$` is a non-ASCII name's UTF-8 lead byte,
+/// and `0xD7` — which leads the entire Hebrew block — casts to `U+00D7` `×`,
+/// the one valid lead byte that is not alphabetic.
+fn is_store_subscription_name(s: &str) -> bool {
+    s.strip_prefix('$')
+        .and_then(|rest| rest.chars().next())
+        .is_some_and(char::is_alphabetic)
+}
 /// Transform `$store.prop = value` and `$store.prop op= value` into `$.store_mutate(...)` calls.
 ///
 /// This handles member expression mutations on store subscriptions.
@@ -593,10 +603,7 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool)
                 let key = part[..colon_pos].trim();
                 let target = part[colon_pos + 1..].trim();
 
-                if target.starts_with('$')
-                    && target.len() > 1
-                    && (target.as_bytes()[1] as char).is_alphabetic()
-                {
+                if is_store_subscription_name(target) {
                     let store_name = &target[1..];
                     set_calls.push(format!("$.store_set({}, {}.{})", store_name, rhs, key));
                 } else {
@@ -605,10 +612,7 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool)
                 }
             } else {
                 // Shorthand: `$userName2` means `$userName2: $userName2`
-                if part.starts_with('$')
-                    && part.len() > 1
-                    && (part.as_bytes()[1] as char).is_alphabetic()
-                {
+                if is_store_subscription_name(part) {
                     let store_name = &part[1..];
                     // The property key is the full name with $
                     set_calls.push(format!("$.store_set({}, {}.{})", store_name, rhs, part));
@@ -637,19 +641,13 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool)
                 let key = part[..colon_pos].trim();
                 let target = part[colon_pos + 1..].trim();
 
-                if target.starts_with('$')
-                    && target.len() > 1
-                    && (target.as_bytes()[1] as char).is_alphabetic()
-                {
+                if is_store_subscription_name(target) {
                     let store_name = &target[1..];
                     body_lines.push(format!("$.store_set({}, $$value.{});", store_name, key));
                 } else {
                     body_lines.push(format!("{} = $$value.{};", target, key));
                 }
-            } else if part.starts_with('$')
-                && part.len() > 1
-                && (part.as_bytes()[1] as char).is_alphabetic()
-            {
+            } else if is_store_subscription_name(part) {
                 let store_name = &part[1..];
                 body_lines.push(format!("$.store_set({}, $$value.{});", store_name, part));
             } else {
@@ -695,7 +693,7 @@ fn expand_array_store_destructure(
             continue;
         }
 
-        if part.starts_with('$') && part.len() > 1 && (part.as_bytes()[1] as char).is_alphabetic() {
+        if is_store_subscription_name(part) {
             let store_name = &part[1..];
             body_lines.push(format!(
                 "$.store_set({}, {}[{}]);",
@@ -1125,4 +1123,75 @@ fn find_statement_end(s: &str) -> usize {
     }
 
     s.len()
+}
+
+#[cfg(test)]
+mod store_name_tests {
+    use super::*;
+
+    const HEBREW: &str = "\u{05D0}\u{05DC}\u{05E3}";
+    const CJK: &str = "\u{540d}\u{524d}";
+
+    /// Discriminating. `0xD7` is the UTF-8 lead byte for the whole Hebrew
+    /// block and is the one valid lead byte whose Latin-1 cast (`U+00D7` `x`)
+    /// is not alphabetic, so the byte check rejected the store and the
+    /// expansion emitted a plain assignment to the subscription variable
+    /// instead of `$.store_set`.
+    #[test]
+    fn hebrew_store_name_expands_to_store_set() {
+        let pattern = format!("{{ a: ${HEBREW} }}");
+        assert_eq!(
+            expand_object_store_destructure(&pattern, "$$value", false),
+            format!("($.store_set({HEBREW}, $$value.a))")
+        );
+    }
+
+    #[test]
+    fn hebrew_store_name_expands_to_store_set_in_array_pattern() {
+        let pattern = format!("[${HEBREW}]");
+        let mut counter = 0usize;
+        let out = expand_array_store_destructure(&pattern, "arr", false, &mut counter);
+        assert!(
+            out.contains(&format!("$.store_set({HEBREW}, ")),
+            "expected a store_set for a Hebrew store name, got:\n{out}"
+        );
+    }
+
+    /// Guard, not discriminating: the CJK lead byte `0xE5` casts to `U+00E5`,
+    /// which is alphabetic, so the byte check returned the right answer for the
+    /// wrong reason and this passes before and after. It is the control showing
+    /// the accidental-correct path still works, and it is why a CJK-only
+    /// fixture cannot validate this fix.
+    #[test]
+    fn cjk_store_name_still_expands_to_store_set() {
+        let pattern = format!("{{ a: ${CJK} }}");
+        assert_eq!(
+            expand_object_store_destructure(&pattern, "$$value", false),
+            format!("($.store_set({CJK}, $$value.a))")
+        );
+    }
+
+    /// Guard, not discriminating: an ASCII byte and its `char` are the same
+    /// value, so the cast was a no-op here.
+    #[test]
+    fn ascii_store_name_still_expands_to_store_set() {
+        assert_eq!(
+            expand_object_store_destructure("{ a: $count }", "$$value", false),
+            "($.store_set(count, $$value.a))"
+        );
+    }
+
+    /// Guard: a non-store target must stay a plain assignment. Pins that the
+    /// fix widens the accepted set to real letters only, not to everything.
+    #[test]
+    fn non_store_target_stays_a_plain_assignment() {
+        assert_eq!(
+            expand_object_store_destructure("{ a: plain }", "$$value", false),
+            "(plain = $$value.a)"
+        );
+        assert_eq!(
+            expand_object_store_destructure("{ a: $1 }", "$$value", false),
+            "($1 = $$value.a)"
+        );
+    }
 }
