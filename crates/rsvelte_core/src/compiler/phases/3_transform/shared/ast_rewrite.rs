@@ -85,17 +85,20 @@ pub enum Rewrite {
     Changed(String),
     /// The source parsed and the pass found nothing to rewrite.
     Unchanged,
+    /// The source parsed and the pass found a construct it does not implement,
+    /// so only the text path can answer for this input.
+    Undecided,
     /// The source did not parse, so the pass could not decide anything.
     NotParsed,
 }
 
 impl Rewrite {
     /// `Some` only for [`Rewrite::Changed`] — for call sites that do not care
-    /// which of the two negative answers they got.
+    /// which of the negative answers they got.
     pub fn into_option(self) -> Option<String> {
         match self {
             Rewrite::Changed(s) => Some(s),
-            Rewrite::Unchanged | Rewrite::NotParsed => None,
+            Rewrite::Unchanged | Rewrite::Undecided | Rewrite::NotParsed => None,
         }
     }
 }
@@ -833,7 +836,7 @@ pub mod dual_run {
             // The source parsed and the pass found nothing. Re-running the text
             // path would parse it a second time only to reach the same answer.
             Rewrite::Unchanged => None,
-            Rewrite::NotParsed => spliced(),
+            Rewrite::Undecided | Rewrite::NotParsed => spliced(),
         }
     }
 
