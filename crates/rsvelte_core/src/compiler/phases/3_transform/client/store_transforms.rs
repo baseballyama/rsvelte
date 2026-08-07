@@ -196,6 +196,17 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
     false
 }
 
+fn is_ident_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// The character ending at byte offset `end`, when it satisfies `pred`.
+///
+/// `end` must be a char boundary; every caller advances by `len_utf8`, so it stays one.
+fn last_char_before(s: &str, end: usize, pred: impl Fn(char) -> bool) -> Option<char> {
+    s[..end].chars().next_back().filter(|c| pred(*c))
+}
+
 /// Pre-transform store sub names that are used as function calls with arguments.
 ///
 /// Handles cases like:
@@ -276,20 +287,19 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
                 if let Some(p) = open_paren_pos {
                     // Check what is immediately before the `(`, skipping whitespace
                     // and an optional identifier (the function name).
+                    // Character steps, not byte steps: `k` is a slice index below, and a
+                    // byte step lands mid-character (`0x85` reads as NEL, `0xAA` as `ª`).
                     let mut k = p;
-                    while k > 0 && (bytes[k - 1] as char).is_whitespace() {
-                        k -= 1;
+                    while let Some(c) = last_char_before(before_text, k, char::is_whitespace) {
+                        k -= c.len_utf8();
                     }
                     // Skip an optional identifier (function name) before `(`
-                    while k > 0 && {
-                        let ch = bytes[k - 1] as char;
-                        ch.is_alphanumeric() || ch == '_' || ch == '$'
-                    } {
-                        k -= 1;
+                    while let Some(c) = last_char_before(before_text, k, is_ident_char) {
+                        k -= c.len_utf8();
                     }
                     // Skip whitespace before identifier
-                    while k > 0 && (bytes[k - 1] as char).is_whitespace() {
-                        k -= 1;
+                    while let Some(c) = last_char_before(before_text, k, char::is_whitespace) {
+                        k -= c.len_utf8();
                     }
                     // Now check if preceded by `function` keyword
                     if k >= 8 {
@@ -297,10 +307,7 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
                             crate::compiler::utils::char_boundary_lookback(before_text, k, 8);
                         prefix == "function"
                             && (k == 8
-                                || !{
-                                    let c = bytes[k - 9] as char;
-                                    c.is_alphanumeric() || c == '_' || c == '$'
-                                })
+                                || last_char_before(before_text, k - 8, is_ident_char).is_none())
                     } else {
                         false
                     }
@@ -572,6 +579,65 @@ mod tests {
         assert_eq!(
             transform_store_reads_client("$\u{540d}\u{524d}();", &vars),
             "$\u{540d}\u{524d}();"
+        );
+    }
+
+    /// `$s` sits in a function parameter list, so `transform_store_sub_calls`
+    /// must leave it alone. The lookback walks back over the function name to
+    /// reach the `function` keyword, and it used to walk one byte at a time.
+    #[track_caller]
+    fn assert_param_list_is_left_alone(func_name: &str) {
+        let vars = vec!["$s".to_string()];
+        let line = format!("function {func_name}($s(1))");
+        assert_eq!(transform_store_sub_calls(&line, &vars), line);
+    }
+
+    /// Discriminating, and the quiet one. `\u{540d}`'s bytes are E5 90 8D; none of
+    /// them satisfies the identifier predicate, so the byte cursor stopped
+    /// immediately, never reached `function`, and the call was rewritten to
+    /// `$s()(1)` inside a parameter list. No panic — just the wrong answer.
+    #[test]
+    fn a_cjk_function_name_is_still_walked_back_over() {
+        assert_param_list_is_left_alone("foo\u{540d}");
+    }
+
+    /// Discriminating, and loud: `\u{3005}` is E3 80 85, and `0x85` reads as NEL,
+    /// so the whitespace loop stepped into the middle of the character.
+    #[test]
+    fn an_iteration_mark_in_the_function_name_does_not_split_a_character() {
+        assert_param_list_is_left_alone("foo\u{3005}");
+    }
+
+    /// Discriminating, and loud through the other door: `\u{05f2}` is D7 B2. The
+    /// identifier loop accepts `0xB2` (`\u{b2}`, category No) and then rejects the
+    /// lead byte `0xD7` (`\u{d7}`), stopping between the two.
+    #[test]
+    fn a_hebrew_function_name_does_not_split_a_character() {
+        assert_param_list_is_left_alone("foo\u{05f2}");
+    }
+
+    /// Same door as the Hebrew case but from a script whose lead byte passes:
+    /// `\u{306a}` is E3 81 AA, so `0xAA` (`\u{aa}`) is accepted and `0x81` rejected.
+    /// Picking one script and concluding is how this class stays hidden.
+    #[test]
+    fn a_kana_function_name_does_not_split_a_character() {
+        assert_param_list_is_left_alone("foo\u{306a}");
+    }
+
+    /// Control: byte and character steps coincide, so this passed before the fix.
+    #[test]
+    fn an_ascii_function_name_is_left_alone() {
+        assert_param_list_is_left_alone("foo");
+    }
+
+    /// Control on the other side: outside a parameter list the call *is* rewritten,
+    /// so a fix that made `is_in_func_params` always true would fail here.
+    #[test]
+    fn a_store_sub_call_outside_a_parameter_list_is_still_rewritten() {
+        let vars = vec!["$s".to_string()];
+        assert_eq!(
+            transform_store_sub_calls("x = $s(1);", &vars),
+            "x = $s()(1);"
         );
     }
 }
