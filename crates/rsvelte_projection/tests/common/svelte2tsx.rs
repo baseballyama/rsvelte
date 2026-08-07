@@ -56,7 +56,13 @@ fn build_options(sample_name: &str, sample_dir: &Path, svelte_filename: &str) ->
         Svelte2TsxMode::Ts
     };
     let accessors = sample_name.starts_with("accessors-config");
-    let namespace = Svelte2TsxNamespace::Html;
+    // Mirrors upstream `test/helpers.ts`, which derives the namespace from the
+    // sample-name suffix rather than from a config file.
+    let namespace = if sample_name.ends_with("-foreign-ns") {
+        Svelte2TsxNamespace::Foreign
+    } else {
+        Svelte2TsxNamespace::Html
+    };
     let version = SvelteVersion::V5;
     let emit_jsdoc = sample_name.starts_with("jsdoc-") || sample_name.starts_with("js-jsdoc-");
 

@@ -1,4 +1,4 @@
-use super::lexical::is_ident_char;
+use super::lexical::is_ascii_ident_byte;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct SourceFeatures {
@@ -89,9 +89,9 @@ fn scan_source_features_with(
                 }
             }
             b'a' if bytes[position..].starts_with(b"await") => {
-                let before_ok = position == 0 || !is_ident_char(bytes[position - 1]);
+                let before_ok = position == 0 || !is_ascii_ident_byte(bytes[position - 1]);
                 let after = position + b"await".len();
-                let after_ok = after == bytes.len() || !is_ident_char(bytes[after]);
+                let after_ok = after == bytes.len() || !is_ascii_ident_byte(bytes[after]);
                 features.has_await_word |= before_ok && after_ok;
             }
             b':' => {

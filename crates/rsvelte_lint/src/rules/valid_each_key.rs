@@ -33,12 +33,12 @@ static META: RuleMeta = RuleMeta {
 const MESSAGE: &str = "Expected key to use the variables which are defined by the `{#each}` block.";
 
 /// Is `c` a character that can appear inside a JS identifier?
-fn is_ident_char(c: char) -> bool {
+fn is_ascii_ident_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_' || c == '$'
 }
 
 /// Is `c` a character that can START a JS identifier?
-fn is_ident_start(c: char) -> bool {
+fn is_ascii_ident_start(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '_' || c == '$'
 }
 
@@ -48,10 +48,10 @@ fn collect_identifiers(src: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
-        if is_ident_start(bytes[i]) {
+        if is_ascii_ident_start(bytes[i]) {
             let start = i;
             i += 1;
-            while i < bytes.len() && is_ident_char(bytes[i]) {
+            while i < bytes.len() && is_ascii_ident_char(bytes[i]) {
                 i += 1;
             }
             out.push(bytes[start..i].iter().collect());
@@ -84,11 +84,11 @@ fn occurs_as_reference(key: &str, name: &str) -> bool {
                 p -= 1;
             }
             let prev = key[p..at].chars().next().unwrap_or(' ');
-            !is_ident_char(prev) && prev != '.'
+            !is_ascii_ident_char(prev) && prev != '.'
         };
         // Char immediately after must not be an identifier char.
         let after_ok = match key[end..].chars().next() {
-            Some(c) => !is_ident_char(c),
+            Some(c) => !is_ascii_ident_char(c),
             None => true,
         };
         if before_ok && after_ok {
