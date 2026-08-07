@@ -403,15 +403,15 @@ pub(crate) fn transform_store_member_mutate_in_place(
     source: &str,
     store_subs: &[String],
     prop_store_names: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if store_subs.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
     if !store_subs
         .iter()
         .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
     ast_rewrite::with_program_mut(
         &MODULE_STORE_MEMBER_IN_PLACE_ALLOC,

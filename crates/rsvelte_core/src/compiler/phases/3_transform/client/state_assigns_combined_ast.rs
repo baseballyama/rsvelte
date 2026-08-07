@@ -392,9 +392,9 @@ fn transform_state_assigns_in_place(
     raw_state_vars: &[String],
     is_runes: bool,
     non_proxy_vars: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if !has_candidate(source, state_vars) {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_program_mut(

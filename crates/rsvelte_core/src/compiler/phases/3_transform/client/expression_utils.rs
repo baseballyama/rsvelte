@@ -849,7 +849,8 @@ fn is_shadowed_by_function_param_indexed(
     var_start: usize,
     var_name: &str,
 ) -> bool {
-    let var_len = var_name.len();
+    // `var_len` only ever indexes `chars`, so it must be a character count.
+    let var_len = var_name.chars().count();
 
     // Concise arrow bodies: `(a, b) => expr` and `(a, b) => (expr)`.
     if let Some(arrow) = enclosing_concise_arrow(index, chars, var_start)
@@ -1057,7 +1058,7 @@ fn is_shadowed_by_function_param_by_scan(chars: &[char], var_start: usize, var_n
     // If we find a function with this variable as a parameter, it's shadowed.
     // We need to track brace depth to understand scope nesting.
 
-    let var_len = var_name.len();
+    let var_len = var_name.chars().count();
 
     // Check for concise arrow functions: (a, b) => expr or (a, b) => (expr)
     // Scan backwards from var_start to find `=>`, tracking paren depth, then check params.

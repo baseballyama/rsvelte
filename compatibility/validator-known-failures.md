@@ -17,7 +17,7 @@ compatibility/validator-known-failures.json (they already pass)` is your change
 succeeding, not unrelated breakage. Re-run the suite and delete the entries it
 names; never hand-edit a count to match.
 
-## Current baseline: `validator-known-failures.json`, 181 entries
+## Current baseline: `validator-known-failures.json`, 179 entries
 
 Every cluster count below is measured from the failure report the suite prints,
 by classifying each block on what actually diverges, not by subtracting from the
@@ -26,9 +26,9 @@ previous baseline:
 | cluster | entries | what diverges |
 |---|---:|---|
 | error span not populated | 141 | `start`/`end` come back `None..None` |
-| warning span-only | 36 | `code` and `message` match; spans differ |
-| warning content | 4 | codes, messages or their order differ |
-| | **181** | |
+| warning span-only | 35 | `code` and `message` match; spans differ |
+| warning content | 3 | codes, messages or their order differ |
+| | **179** | |
 
 - **Error spans not populated (141).** Many `AnalysisError` call sites construct
   the error without threading the triggering node's span through, so `start`/`end`
@@ -39,7 +39,7 @@ previous baseline:
   `crates/rsvelte_core/src/compiler/phases/2_analyze` rather than one bug — fixing
   it means auditing each `AnalysisError::*` construction individually.
 
-- **Warning span-only (36).** The warning `code` and `message` match upstream
+- **Warning span-only (35).** The warning `code` and `message` match upstream
   exactly and appear in the same order; only the reported `start`/`end` differs —
   and the divergence is **rsvelte reporting no span at all** (`None..None`) where
   upstream reports a real range, not a span that is merely too wide, because the
@@ -54,18 +54,11 @@ previous baseline:
   **plausible wrong** span rather than none, which is the worse symptom of the
   same defect.
 
-- **Warning content (4).** These are *not* span bugs, and fixing the spans would
+- **Warning content (3).** These are *not* span bugs, and fixing the spans would
   leave every one of them failing. They are listed individually below because a
-  cluster of four has no excuse to be described in aggregate.
+  cluster of three has no excuse to be described in aggregate.
 
-### The four content divergences
-
-- **`a11y-anchor-in-svg-is-valid` — the diagnostic names the wrong attribute.**
-  rsvelte reports `'' is not a valid href attribute` for `<a xlink:href=''>`
-  inside an `<svg>`; upstream reports `'' is not a valid xlink:href attribute`.
-  `a11y/mod.rs:490` passes the literal `"href"` where upstream passes
-  `href.name`, so the message names an attribute that is not in the source.
-  This is a user-visible correctness bug, not a formatting difference.
+### The three content divergences
 
 - **`unknown-code` — warning emission order, not spans.** All six warnings match
   on code and message and the multisets are equal, but rsvelte emits the three

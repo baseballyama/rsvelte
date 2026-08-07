@@ -154,21 +154,7 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
     // Extract the expression tag from the attribute value
     let expr_tag = extract_expression_tag(&node.value);
 
-    // Build the event handler
-    // Set in_event_attribute_handler flag so that coercive assignment transforms
-    // ($.assign) are skipped inside event handler arrow functions.
-    // Reference: AssignmentExpression.js lines 189-209
-    //
-    // Upstream's exemption is `path.at(-1) === 'ArrowFunctionExpression' &&
-    // path.at(-2) === 'RegularElement'`, so it only covers an arrow that IS the
-    // attribute's expression — `onsubmit={wrap(() => (o.x = v))}` still wraps.
-    let saved_in_event_attribute = context.state.in_event_attribute_handler;
-    context.state.in_event_attribute_handler = matches!(
-        expr_tag.expression.as_node().node_type(),
-        Some("ArrowFunctionExpression")
-    );
     let handler = build_event_handler(expr_tag, context);
-    context.state.in_event_attribute_handler = saved_in_event_attribute;
 
     // Determine if this event should be delegated.
     //
