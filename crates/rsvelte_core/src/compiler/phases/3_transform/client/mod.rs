@@ -4418,6 +4418,13 @@ fn legacy_script_has_dollar_token(script: &str) -> bool {
     false
 }
 
+/// `else` as a keyword, not as the prefix of `elsewhere`.
+fn starts_with_else_keyword(line: &str) -> bool {
+    line.strip_prefix("else").is_some_and(|rest| {
+        rest.is_empty() || !rest.starts_with(|c: char| c.is_alphanumeric() || c == '_' || c == '$')
+    })
+}
+
 fn might_have_comma_separated_declaration(script: &str) -> bool {
     let bytes = script.as_bytes();
     if memmem::find(bytes, b", ").is_none()
@@ -6210,6 +6217,12 @@ fn transform_instance_script_for_visitors(
                         || future_trimmed.starts_with("&&")
                         || future_trimmed.starts_with("||")
                         || future_trimmed.starts_with("??")
+                        // No JavaScript statement may BEGIN with `else`, so a line
+                        // that does is always the tail of the `if` above it — even
+                        // when that `if` looked complete because its brace-less
+                        // consequent sat on the same line (`$: if (a) b = 1` /
+                        // newline / `else b = 2`).
+                        || starts_with_else_keyword(future_trimmed)
                     {
                         next_continues = true;
                     }
