@@ -21,6 +21,23 @@ pub fn char_boundary_lookback(source: &str, end: usize, window: usize) -> &str {
     &source[lo..end]
 }
 
+/// Byte offset one *character* past `at`, for resuming a scan after a rejected
+/// `find()` match.
+///
+/// The idiom this replaces is `search_from = abs_pos + 1`, which is a character
+/// step written against a byte index. It is correct only while the needle's first
+/// character occupies one byte — a property of the *needle*, not of the cursor, so
+/// interpolating an identifier at position 0 (`format!("{var}++")` rather than
+/// `format!(".#{var}")`) silently turns the next `&text[search_from..]` into a
+/// mid-character slice, which panics. `at` must be a char boundary; a `find()`
+/// match offset always is.
+pub fn next_char_boundary(source: &str, at: usize) -> usize {
+    source[at..]
+        .chars()
+        .next()
+        .map_or(at + 1, |c| at + c.len_utf8())
+}
+
 /// List of Element events that will be delegated.
 ///
 /// Corresponds to `DELEGATED_EVENTS` in utils.js.
@@ -192,4 +209,31 @@ pub fn get_locator(
 
         crate::compiler::preprocess::types::Location { line, column }
     })
+}
+
+#[cfg(test)]
+mod char_step_tests {
+    use super::next_char_boundary;
+
+    /// Discriminating: the whole point of the helper is that the step is the
+    /// character's width, not 1.
+    #[test]
+    fn steps_over_a_whole_multibyte_character() {
+        assert_eq!(next_char_boundary("\u{540d}\u{524d}", 0), 3);
+        assert_eq!(next_char_boundary("x\u{3005}", 1), 4);
+    }
+
+    /// Control: one-byte characters step by one, so every already-safe caller
+    /// keeps byte-identical behaviour.
+    #[test]
+    fn steps_by_one_over_ascii() {
+        assert_eq!(next_char_boundary(".#field", 0), 1);
+        assert_eq!(next_char_boundary("(ident", 0), 1);
+    }
+
+    /// The cursor must still terminate at the end of input.
+    #[test]
+    fn steps_past_the_end_without_panicking() {
+        assert_eq!(next_char_boundary("ab", 2), 3);
+    }
 }

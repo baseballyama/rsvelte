@@ -529,6 +529,10 @@ pub(crate) fn analyze_prepared_component_with_retained(
         }
     }
 
+    // Must precede the walks: `svelte_self_deprecated` interpolates `analysis.name`
+    // while the template is being visited.
+    deconflict_component_name(ast, &mut analysis);
+
     // Analyze the template using visitors.
     // Take a pointer to the arena to avoid borrow conflict with &mut ast.
     let arena_ptr = &ast.arena as *const crate::ast::arena::ParseArena;
@@ -813,76 +817,80 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // handles CSS hash injection in its transform visitor.
     synthesize_class_style_attributes(&mut ast.fragment, &analysis);
 
-    // Deconflict component name with existing declarations and references.
-    // This mirrors the official Svelte compiler's `module.scope.generate(component_name)`
-    // which ensures the exported function name doesn't shadow imported identifiers or
-    // other declarations/references. For example, if a component uses `<Countdown .../>`
-    // (self-reference) and the filename is also `Countdown.svelte`, the function name
-    // should be `Countdown_1`.
-    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L468
-    {
-        // Collect all names that are used across all scopes (declarations + references)
-        // Use &str references to avoid String allocations.
-        // The root scope (analysis.root.scope) already has all declarations from all
-        // child scopes merged, so we only need to iterate it once for declarations.
-        // We still need to iterate all_scopes for references (those are not merged).
-        let mut used_names: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-        // Root scope has all declarations merged from all scopes
-        for key in analysis.root.scope.declarations.keys() {
-            used_names.insert(key.as_str());
-        }
-        // Collect references from all scopes (including root)
-        for scope in &analysis.root.all_scopes {
-            for r in &scope.references {
-                used_names.insert(r.name.as_str());
-            }
-        }
-        // Also collect component names from template AST since they're identifiers
-        // that need deconfliction but may not be in scope references
-        collect_template_component_names(&ast.fragment.nodes, &mut used_names);
+    Ok(analysis)
+}
 
-        // Walk script JSON to collect all identifier names that appear as references.
-        // This mirrors the official Svelte compiler's `scope.root.conflicts` set, which
-        // gets populated when a top-level identifier reference doesn't resolve to a
-        // declared binding (i.e., it's a global like `JSON`, `Math`, etc.).
-        // We only add identifiers that are NOT already declared, to approximate
-        // "unbound references at the top level".
-        let mut global_names: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
-        if let Some(script) = ast.instance.as_ref() {
-            collect_identifier_names_from_expression(&script.content, &mut global_names);
+/// Deconflict the component name with existing declarations and references.
+///
+/// Mirrors the official Svelte compiler's `module.scope.generate(component_name)`,
+/// which ensures the exported function name doesn't shadow imported identifiers or
+/// other declarations/references. For example, if a component uses `<Countdown .../>`
+/// (self-reference) and the filename is also `Countdown.svelte`, the function name
+/// should be `Countdown_1`.
+///
+/// Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L476.
+/// Upstream resolves the name before any of the walks, so a diagnostic emitted
+/// during them (`svelte_self_deprecated`) interpolates the deconflicted name.
+fn deconflict_component_name(ast: &Root<'_>, analysis: &mut ComponentAnalysis) {
+    // Collect all names that are used across all scopes (declarations + references)
+    // Use &str references to avoid String allocations.
+    // The root scope (analysis.root.scope) already has all declarations from all
+    // child scopes merged, so we only need to iterate it once for declarations.
+    // We still need to iterate all_scopes for references (those are not merged).
+    let mut used_names: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+    // Root scope has all declarations merged from all scopes
+    for key in analysis.root.scope.declarations.keys() {
+        used_names.insert(key.as_str());
+    }
+    // Collect references from all scopes (including root)
+    for scope in &analysis.root.all_scopes {
+        for r in &scope.references {
+            used_names.insert(r.name.as_str());
         }
-        if let Some(script) = ast.module.as_ref() {
-            collect_identifier_names_from_expression(&script.content, &mut global_names);
-        }
-        // Template expressions also produce references (`scope.reference()` is
-        // called on every identifier inside `{...}` mustaches, attribute values,
-        // directives and block heads). An unbound one (e.g. `{progress.current}`
-        // with no `let progress`) is a global and must enter `root.conflicts`.
-        collect_template_reference_names(&ast.fragment.nodes, &mut global_names);
-        // Filter to only those NOT already declared (true globals/unbound).
-        global_names.retain(|n| !used_names.contains(n.as_str()));
+    }
+    // Also collect component names from template AST since they're identifiers
+    // that need deconfliction but may not be in scope references
+    collect_template_component_names(&ast.fragment.nodes, &mut used_names);
 
-        // Unbound (global) references at the top level are added to
-        // `scope.root.conflicts` by the official compiler's `scope.reference()`
-        // (scope.js: "no binding was found ... which means this is a global").
-        // Mirror that so generated template variables (e.g. a `<canvas>` local
-        // named `canvas`) avoid colliding with a referenced-but-undeclared global
-        // of the same name and get suffixed (`canvas_1`).
-        for name in &global_names {
-            analysis.root.conflicts.insert(name.clone());
-        }
+    // Walk script JSON to collect all identifier names that appear as references.
+    // This mirrors the official Svelte compiler's `scope.root.conflicts` set, which
+    // gets populated when a top-level identifier reference doesn't resolve to a
+    // declared binding (i.e., it's a global like `JSON`, `Math`, etc.).
+    // We only add identifiers that are NOT already declared, to approximate
+    // "unbound references at the top level".
+    let mut global_names: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+    if let Some(script) = ast.instance.as_ref() {
+        collect_identifier_names_from_expression(&script.content, &mut global_names);
+    }
+    if let Some(script) = ast.module.as_ref() {
+        collect_identifier_names_from_expression(&script.content, &mut global_names);
+    }
+    // Template expressions also produce references (`scope.reference()` is
+    // called on every identifier inside `{...}` mustaches, attribute values,
+    // directives and block heads). An unbound one (e.g. `{progress.current}`
+    // with no `let progress`) is a global and must enter `root.conflicts`.
+    collect_template_reference_names(&ast.fragment.nodes, &mut global_names);
+    // Filter to only those NOT already declared (true globals/unbound).
+    global_names.retain(|n| !used_names.contains(n.as_str()));
 
-        let mut name = analysis.name.clone();
-        let base = name.clone();
-        let mut counter = 1u32;
-        while used_names.contains(name.as_str()) || global_names.contains(&name) {
-            name = format!("{}_{}", base, counter);
-            counter += 1;
-        }
-        analysis.name = name;
+    // Unbound (global) references at the top level are added to
+    // `scope.root.conflicts` by the official compiler's `scope.reference()`
+    // (scope.js: "no binding was found ... which means this is a global").
+    // Mirror that so generated template variables (e.g. a `<canvas>` local
+    // named `canvas`) avoid colliding with a referenced-but-undeclared global
+    // of the same name and get suffixed (`canvas_1`).
+    for name in &global_names {
+        analysis.root.conflicts.insert(name.clone());
     }
 
-    Ok(analysis)
+    let mut name = analysis.name.clone();
+    let base = name.clone();
+    let mut counter = 1u32;
+    while used_names.contains(name.as_str()) || global_names.contains(&name) {
+        name = format!("{}_{}", base, counter);
+        counter += 1;
+    }
+    analysis.name = name;
 }
 
 /// Synthesize empty class/style attributes for elements that need them.

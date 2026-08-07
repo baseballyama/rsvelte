@@ -38,7 +38,7 @@ found, split the ratchet then (a `.tsgo.json` sibling, same shrink-only +
 per-entry-justification convention) rather than papering over it in the shared
 file.
 
-## Current baseline: 0 entries — full parity
+## Current baseline: `check-known-failures.json`, 0 entries — full parity
 
 Every scenario agrees with official `svelte-check` diagnostic-for-diagnostic, so
 this is a **hard gate**: any divergence at all fails CI. The sections below

@@ -643,7 +643,13 @@ impl<'opt> Printer<'opt> {
 
     /// esrap's `reset_comment_index`: re-sync the cursor to the first comment
     /// at/after `node_start` (so a nested body doesn't replay earlier comments).
-    fn reset_comment_index(&mut self, node_start: u32) {
+    /// `None` is esrap's `!node.loc`, which discards every pending comment
+    /// instead of carrying the cursor forward.
+    fn reset_comment_index(&mut self, node_start: Option<u32>) {
+        let Some(node_start) = node_start else {
+            self.comment_index = self.comments.len();
+            return;
+        };
         if !self.has_loc(node_start) {
             return;
         }
@@ -794,13 +800,20 @@ impl<'opt> Printer<'opt> {
 
     pub fn print_program(&mut self, program: &Program, ctx: &mut Context) {
         let span = program.span();
+        // Upstream's program is builder-made and carries no `loc`, so its
+        // statement list discards the pending comments and only a nested body
+        // that does carry one re-finds them — which is why a comment inside a
+        // function body survives while a file header does not. Opt-in because
+        // the recovery needs located nested bodies, and rsvelte only has those
+        // where the chunks were re-parsed rather than assembled from builders.
+        let body_start = (!self.options.unlocated_program).then_some(span.start);
         // Directives (`"use strict"`) are a separate oxc node, but esrap (from
         // an acorn AST) sees them as leading string-literal ExpressionStatements
         // in `body`; thread them through the same `body` sequence so margins and
         // leading comments are computed identically.
         let mut elems: Vec<BodyElem> = program.directives.iter().map(BodyElem::Directive).collect();
         elems.extend(program.body.iter().map(BodyElem::Statement));
-        self.body_elems(&elems, span.start, span.end, ctx);
+        self.body_elems(&elems, body_start, span.end, ctx);
     }
 
     /// esrap's `body`: statements on their own lines, with a blank line between
@@ -816,7 +829,7 @@ impl<'opt> Printer<'opt> {
         ctx: &mut Context,
     ) {
         let elems: Vec<BodyElem> = statements.iter().map(BodyElem::Statement).collect();
-        self.body_elems(&elems, body_start, body_end, ctx);
+        self.body_elems(&elems, Some(body_start), body_end, ctx);
     }
 
     /// The element-based core of [`Self::body`], shared by `print_program` so a
@@ -824,7 +837,7 @@ impl<'opt> Printer<'opt> {
     fn body_elems(
         &mut self,
         elems: &[BodyElem],
-        body_start: u32,
+        body_start: Option<u32>,
         body_end: u32,
         ctx: &mut Context,
     ) {
@@ -1442,7 +1455,7 @@ impl<'opt> Printer<'opt> {
             .filter(|e| !matches!(e, ClassElement::TSIndexSignature(_)))
             .map(BodyElem::ClassMember)
             .collect();
-        self.body_elems(&elems, span.start, span.end, &mut child);
+        self.body_elems(&elems, Some(span.start), span.end, &mut child);
         if !child.empty() {
             ctx.indent();
             ctx.newline();
@@ -2916,7 +2929,12 @@ impl<'opt> Printer<'opt> {
 
         for (i, arg) in args.iter().enumerate() {
             let is_last = i == n - 1;
-            let arg_start = arg.span().start;
+            // Unwrapped, for the same reason the `ReturnStatement` rule is: an
+            // explicit paren would put the argument's start on the `(`, which can
+            // share the comment's line and hide it from the test below.
+            let arg_start = arg
+                .as_expression()
+                .map_or_else(|| arg.span().start, |e| unparen(e).span().start);
 
             // No `has_loc` guard needed: every comment offset is >= `loc_base` by
             // construction, so `c.start < arg_start` is already false for a
@@ -3580,7 +3598,7 @@ impl<'opt> Printer<'opt> {
         ctx.newline();
         let mut elems: Vec<BodyElem> = node.directives.iter().map(BodyElem::Directive).collect();
         elems.extend(node.body.iter().map(BodyElem::Statement));
-        self.body_elems(&elems, node.span.start, node.span.end, ctx);
+        self.body_elems(&elems, Some(node.span.start), node.span.end, ctx);
         ctx.dedent();
         ctx.newline();
         ctx.write("}");
