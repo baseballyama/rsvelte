@@ -1542,6 +1542,12 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
             return true;
         }
 
+        // ...and, more precisely, whether the enclosing selectors match an
+        // *ancestor* of a match rather than merely existing somewhere.
+        if is_nested_selector_unused_against_ancestors(rel_selectors, ctx) {
+            return true;
+        }
+
         // NestingSelector (&) compound check: When a relative selector contains & combined
         // with other simple selectors (e.g., &.b inside .a {}), the compound meaning is that
         // the element must satisfy BOTH the parent rule's constraints AND the current ones.
@@ -1753,6 +1759,42 @@ fn is_parent_chain_unused(ctx: &CssContext) -> bool {
     }
 
     false
+}
+
+/// Returns `true` when a nested rule without an explicit `&` cannot match,
+/// because no element satisfying it has an ancestor chain satisfying the
+/// enclosing rules.
+///
+/// Upstream `get_relative_selectors` prepends an implicit `&` + descendant
+/// combinator to such a selector, so `.grand { .foo > .a { … } }` resolves to
+/// `.grand .foo > .a` and `apply_selector` walks the real ancestor chain.
+/// [`is_parent_chain_unused`] only asks whether each enclosing selector matches
+/// *some* element, which keeps the rule alive when `.grand` exists elsewhere in
+/// the component.
+fn is_nested_selector_unused_against_ancestors(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    if ctx.has_dynamic_elements
+        || ctx.dom_structure.elements.is_empty()
+        || !structural_ancestry_is_lexical(ctx)
+    {
+        return false;
+    }
+    // Rejects an explicit `&` too, which upstream resolves compound-wise instead
+    // of prepending — those shapes are handled by the nesting-specific checks.
+    if !level_is_structurally_evaluable(rel_selectors) {
+        return false;
+    }
+
+    let parent_preludes = ctx.parent_preludes.borrow();
+    let Some(chains) = build_parent_chains(&parent_preludes, parent_preludes.len()) else {
+        return false;
+    };
+
+    chains.iter().all(|prefix| {
+        let mut chain = prefix.clone();
+        chain.push(with_descendant_head(&rel_selectors[0]));
+        chain.extend(rel_selectors[1..].iter().cloned());
+        is_structural_descendant_chain_unused(&chain, ctx)
+    })
 }
 
 /// Returns `true` when `rel_selectors` contains a NestingSelector (`&`) and the

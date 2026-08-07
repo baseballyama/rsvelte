@@ -911,16 +911,16 @@ pub(crate) fn transform_private_class_assign_in_place(
     state_qualified: &[String],
     other_qualified: &[String],
     v_read_qualified: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if state_qualified.is_empty() && other_qualified.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
     if !state_qualified
         .iter()
         .chain(other_qualified.iter())
         .any(|q| memchr::memmem::find(source.as_bytes(), q.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_class_fragment_program_mut(
@@ -1123,6 +1123,7 @@ mod in_place_tests {
         other_qualified: &[String],
     ) -> Option<String> {
         transform_private_class_assign_in_place(source, state_qualified, other_qualified, &[])
+            .into_option()
     }
 
     fn ctor_body_in_place(
@@ -1136,6 +1137,7 @@ mod in_place_tests {
             .cloned()
             .collect();
         transform_private_class_assign_in_place(source, state_qualified, other_qualified, &v_read)
+            .into_option()
     }
 
     #[test]

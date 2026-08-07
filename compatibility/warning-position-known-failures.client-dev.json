@@ -471,7 +471,6 @@
 	"svelte/packages/svelte/tests/server-side-rendering/samples/component-yield/Widget.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/head-no-duplicates-with-binding/Foo.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/textarea-value/main.svelte",
-	"svelte/packages/svelte/tests/validator/samples/a11y-figcaption-wrong-place/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/attribute-quoted/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-legacy-instantiation/input.svelte",
