@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 70 entries; the three position files hold the same 529. That is not a
+the same 51 entries; the three position files hold the same 529. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -46,23 +46,39 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all six files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 70 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 51 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Treat every entry here as a real defect awaiting a root cause. Clusters
-identified so far:
+Not every entry is equally bad. Of the 51 entries that still diverge, **6 are
+under-warnings** — rsvelte stays silent where upstream warns
+(`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
+`options_missing_custom_element` ×1). The other 45 are noise the user cannot
+suppress, 116 tuples over five codes. Both are defects, but a missing diagnostic
+and an extra one fail differently, and the ratchet count alone does not
+distinguish them; no entry diverges in both directions at once.
 
-- **`attribute_quoted` over-warning on namespaced SVG child components** —
-  rsvelte emits the warning for attributes the official compiler does not
-  consider quoted-redundant.
+Clusters identified so far:
+
 - **`component_name_lowercase` over-warning** — rsvelte flags lowercase names
   that upstream accepts (seen across `svelte-maplibre` example routes).
 - **`svelte_self_deprecated` / `reactive_declaration_module_script_dependency`
   over-warning** — concentrated in the Svelte migrate fixtures, which are out of
   scope for codegen but still compile here.
+
+`attribute_quoted` was burned down: 19 entries, taking the ratchet from 70 to 51,
+with **0 remaining tuples in either direction**. Both counts are read off
+`verify.mjs --no-fmt --update-warning-baseline` runs over the same 14,130-entry
+corpus, not off the issue that motivated the fix. It was **one
+predicate**, not the SVG-namespace story this file previously recorded: upstream
+reaches the check only through `validate_attribute`, and both callers guard it
+with `analysis.runes`, so legacy components never warn. rsvelte ran it
+unconditionally at all four emission sites. The earlier description was inferred
+from where the entries happened to cluster in the corpus rather than from
+upstream's control flow — worth remembering when reading the clusters above,
+which were written the same way.
 
 ## Warning positions (`warning-position-known-failures.<target>.json`, 529 entries each)
 

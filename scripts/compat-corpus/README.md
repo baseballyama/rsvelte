@@ -131,7 +131,10 @@ pnpm run corpus:sync        # init/update every corpus source submodule
 
 # build + stage the rsvelte NAPI binding
 cargo build --release -p rsvelte_napi --lib
-cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node   # .so on Linux
+mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node   # .so on Linux
+# Replace, never overwrite: a crashed loader keeps the old library mapped (macOS
+# ReportCrash holds it for seconds), and an in-place write then yields a binary the
+# kernel SIGKILLs. Rename lands a new inode, so the holder keeps the old file.
 
 pnpm run corpus             # sync + collect + compile + verify
 ```

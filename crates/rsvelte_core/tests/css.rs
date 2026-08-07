@@ -11,8 +11,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    FixtureCoverage, SkipReason, canonicalize_css, ensure_fixtures_exist, get_fixture_samples,
-    load_fixture_output, svelte_path, write_actual_output,
+    FixtureCoverage, SkipReason, canonicalize_css, ensure_fixtures_exist, fixture_samples_dir,
+    get_fixture_samples, load_fixture_output, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -193,7 +193,7 @@ fn test_css() {
 
     let samples = get_fixture_samples("css");
 
-    let mut coverage = FixtureCoverage::new("css", samples.len());
+    let mut coverage = FixtureCoverage::new("css", fixture_samples_dir("css"), samples.len());
     let mut fixtures: Vec<CssFixture> = Vec::new();
     for sample_dir in &samples {
         match load_css_fixture(sample_dir.as_path()) {

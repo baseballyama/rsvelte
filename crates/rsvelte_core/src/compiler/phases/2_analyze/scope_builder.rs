@@ -979,13 +979,16 @@ impl<'a> ScopeBuilder<'a> {
                         let param = *param;
                         let body = *body;
                         let old_scope = self.push_scope();
-                        // Declare catch parameter if present
+                        // Declare catch parameter if present. Upstream declares it
+                        // `let` (scope.js CatchClause), so `catch (e) { e = ... }`
+                        // is legal and must not report `constant_assignment`.
                         if let Some(param_id) = param {
                             let param_node = self.arena.get_js_node(param_id);
-                            self.declare_bindings_from_pattern_node(
+                            self.declare_bindings_from_pattern_node_with_kind(
                                 param_node,
                                 BindingKind::Normal,
                                 false,
+                                DeclarationKind::Let,
                             );
                         }
                         let body_node = self.arena.get_js_node(body);

@@ -300,7 +300,7 @@ const failures = [];
 // (see compile.mjs's `prepareSource`).
 
 const AST_EQUIV_BIN = path.join(ROOT, 'target/release/ast_equiv_batch');
-const jsKey = (id, target) => `${id} ${target}`;
+const jsKey = (id, target) => `${id}\0${target}`;
 const jsByteEqual = new Map();
 const astCandidates = new Map();
 
