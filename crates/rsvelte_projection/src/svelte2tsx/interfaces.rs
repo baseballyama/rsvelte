@@ -26,6 +26,17 @@ pub enum Svelte2TsxNamespace {
     Svg,
     /// MathML element namespace.
     Mathml,
+    /// Foreign (non-HTML/SVG/MathML) namespace: attribute names keep their
+    /// source casing instead of being folded to match the intrinsic typings.
+    Foreign,
+}
+
+impl Svelte2TsxNamespace {
+    /// Whether element attribute names keep their source casing. Mirrors
+    /// `htmlxtojsx_v2/index.ts`'s `options.namespace === 'foreign'`.
+    pub(crate) fn preserves_attribute_case(self) -> bool {
+        matches!(self, Self::Foreign)
+    }
 }
 
 /// Svelte version target.

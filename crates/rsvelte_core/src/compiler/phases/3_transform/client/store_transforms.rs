@@ -122,20 +122,12 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
         if let Some(found) = statement[pos..].find(store_sub) {
             let abs_found = pos + found;
             // Check word boundary before
-            let before_ok = if abs_found == 0 {
-                true
-            } else {
-                let prev = statement.as_bytes()[abs_found - 1] as char;
-                !prev.is_alphanumeric() && prev != '_' && prev != '$'
-            };
+            let before_ok = !crate::compiler::utils::char_before(statement, abs_found)
+                .is_some_and(is_ident_char);
             // Check word boundary after
             let after_pos = abs_found + store_sub_len;
-            let after_ok = if after_pos >= statement.len() {
-                true
-            } else {
-                let next = statement.as_bytes()[after_pos] as char;
-                !next.is_alphanumeric() && next != '_' && next != '$'
-            };
+            let after_ok =
+                !crate::compiler::utils::char_at(statement, after_pos).is_some_and(is_ident_char);
 
             if before_ok && after_ok {
                 // Check if followed by `=>` (with optional whitespace) = simple arrow param
@@ -242,13 +234,8 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
             let abs_pos = search_start + pos;
 
             // Check if this is a word boundary (not part of a larger identifier)
-            let before_ok = if abs_pos == 0 {
-                true
-            } else {
-                let prev_byte = result.as_bytes()[abs_pos - 1];
-                let prev_char = prev_byte as char;
-                !prev_char.is_alphanumeric() && prev_char != '_' && prev_char != '$'
-            };
+            let before_ok =
+                !crate::compiler::utils::char_before(&result, abs_pos).is_some_and(is_ident_char);
 
             if !before_ok {
                 // Not a word boundary, skip
@@ -273,6 +260,8 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
                 let mut i = bytes.len();
                 while i > 0 {
                     i -= 1;
+                    // Sound on a byte: the only targets are ASCII, and no byte of a
+                    // multi-byte UTF-8 character can equal an ASCII byte.
                     let ch = bytes[i] as char;
                     if ch == ')' {
                         depth += 1;
