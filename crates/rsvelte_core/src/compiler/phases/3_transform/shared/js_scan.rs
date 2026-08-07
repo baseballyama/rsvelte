@@ -128,3 +128,75 @@ pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(u
         _ => None,
     }
 }
+
+/// Does `name` occur in `source` as a whole identifier token?
+///
+/// The rewrite passes only ever replace an identifier spelled exactly `name`,
+/// so a substring hit inside a longer identifier (`count` in `counter`) can
+/// never become an edit — but it still costs a parse plus a `SemanticBuilder`
+/// build. Boundary characters are tested per `char`, so a multi-byte
+/// identifier neighbour is not mistaken for a separator.
+pub(crate) fn contains_identifier(source: &str, name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let bytes = source.as_bytes();
+    for at in memchr::memmem::find_iter(bytes, name.as_bytes()) {
+        let end = at + name.len();
+        if !source.is_char_boundary(at) || !source.is_char_boundary(end) {
+            continue;
+        }
+        if source[..at].chars().next_back().is_some_and(is_ident_char) {
+            continue;
+        }
+        if source[end..].chars().next().is_some_and(is_ident_char) {
+            continue;
+        }
+        return true;
+    }
+    false
+}
+
+fn is_ident_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+#[cfg(test)]
+mod tests {
+    use super::contains_identifier;
+
+    #[test]
+    fn whole_token_matches() {
+        assert!(contains_identifier("let count = 1;", "count"));
+        assert!(contains_identifier("count", "count"));
+        assert!(contains_identifier("obj.count += 1", "count"));
+        assert!(contains_identifier("{ count }", "count"));
+        assert!(contains_identifier("`${count}`", "count"));
+    }
+
+    #[test]
+    fn substring_of_longer_identifier_does_not_match() {
+        assert!(!contains_identifier("let counter = 1;", "count"));
+        assert!(!contains_identifier("discount = 1;", "count"));
+        assert!(!contains_identifier("$count2", "count"));
+        assert!(!contains_identifier("a_count_b", "count"));
+    }
+
+    #[test]
+    fn dollar_prefixed_store_names_need_the_dollar() {
+        assert!(contains_identifier("$store;", "$store"));
+        assert!(!contains_identifier("$store;", "store"));
+    }
+
+    #[test]
+    fn non_ascii_neighbours_are_read_as_chars() {
+        assert!(!contains_identifier("日count", "count"));
+        assert!(!contains_identifier("count日", "count"));
+        assert!(contains_identifier("「count」", "count"));
+    }
+
+    #[test]
+    fn later_occurrence_still_matches() {
+        assert!(contains_identifier("counter; count;", "count"));
+    }
+}

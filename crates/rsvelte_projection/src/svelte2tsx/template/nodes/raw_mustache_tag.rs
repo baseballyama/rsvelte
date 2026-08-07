@@ -14,9 +14,10 @@ pub(crate) fn handle_html_tag(html: &HtmlTag, _source: &str, str: &mut MagicStri
     }
 
     if let Some((expr_start, expr_end)) = get_expression_range(&html.expression) {
-        // Overwrite `{@html ` prefix
+        // `RawMustacheTag.ts` overwrites `{@html ` with a single space, not with
+        // nothing — the expression keeps its source column minus one.
         if html.start < expr_start {
-            str.overwrite(html.start, expr_start, "");
+            str.overwrite(html.start, expr_start, " ");
         }
         // Overwrite closing `}` with `;`
         if expr_end < html.end {
