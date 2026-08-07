@@ -1755,3 +1755,27 @@ fn an_ascii_rejected_match_is_unchanged() {
         "x.count++;"
     );
 }
+
+/// A `}` or `)` inside a comment is comment text. Read as a bracket it drops the
+/// scan's depth to 0 inside a `$:` block body, so the block's own `bar = []`
+/// reads as a top-level assignment and the `{`-prefixed left-hand side that
+/// produces is what reaches the destructure expansion.
+#[test]
+fn find_assignment_position_ignores_delimiters_inside_comments() {
+    use super::state_transforms::find_assignment_position;
+
+    assert_eq!(
+        find_assignment_position("{\n\t\t// } c\n\t\tbar = []\n\t}"),
+        None
+    );
+    assert_eq!(
+        find_assignment_position("{\n\t\t// ) c\n\t\tbar = []\n\t}"),
+        None
+    );
+    assert_eq!(
+        find_assignment_position("{\n\t\t/* } c */\n\t\tbar = []\n\t}"),
+        None
+    );
+    // A real top-level assignment is still found.
+    assert_eq!(find_assignment_position("bar = []"), Some(4));
+}
