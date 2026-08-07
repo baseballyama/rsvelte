@@ -138,13 +138,31 @@ fn tw_test_dir() -> Option<PathBuf> {
 }
 
 fn node_runnable() -> bool {
-    Command::new("node")
+    let ok = Command::new("node")
         .arg("--version")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
         .map(|s| s.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    // Only a job that promised Node may fail on its absence.
+    assert!(
+        ok || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "no `node` on $PATH in a job that declares RSVELTE_REQUIRE_PREREQS — the Tailwind sidecar \
+         assertions would be silently skipped."
+    );
+    ok
+}
+
+/// May this run fail on a missing Tailwind oracle? Both conditions are needed:
+/// `RSVELTE_REQUIRE_PREREQS` says the job promised its prerequisites, and
+/// `RSVELTE_FMT_TW_TEST_DIR` says the oracle is in scope for it. This binary
+/// also runs in the sharded `test` job, which sets the former but installs no
+/// oracle — and the latter is a user-facing knob, so either alone turns a
+/// legitimate skip into a failure.
+fn tw_oracle_declared() -> bool {
+    std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_some()
+        && std::env::var_os("RSVELTE_FMT_TW_TEST_DIR").is_some()
 }
 
 /// Build a fixture project (custom v4 stylesheet + `node_modules` symlinked from
@@ -152,9 +170,23 @@ fn node_runnable() -> bool {
 /// sidecar is copied into the fixture so Node resolves the plugin from there.
 #[cfg(unix)]
 fn tw_fixture(css: &str) -> Option<(PathBuf, PathBuf, PathBuf)> {
-    let tw_dir = tw_test_dir()?;
+    let Some(tw_dir) = tw_test_dir() else {
+        assert!(
+            !tw_oracle_declared(),
+            "RSVELTE_FMT_TW_TEST_DIR is set but does not contain both \
+             node_modules/tailwindcss and node_modules/prettier-plugin-tailwindcss \
+             — the JS-parity assertions would be silently skipped."
+        );
+        return None;
+    };
     let oxfmt = real_oxfmt_bin();
     if !real_oxfmt_runnable(&oxfmt) || !node_runnable() || !sidecar_script().is_file() {
+        assert!(
+            !tw_oracle_declared(),
+            "the Tailwind oracle is declared via RSVELTE_FMT_TW_TEST_DIR but \
+             oxfmt / node / the sidecar script is unusable — the JS-parity \
+             assertions would be silently skipped."
+        );
         return None;
     }
     let dir = tempdir();

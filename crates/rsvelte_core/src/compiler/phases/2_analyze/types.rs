@@ -513,7 +513,11 @@ pub fn extract_local_non_rune_declared_names(raw: &str) -> rustc_hash::FxHashSet
     let mut names = rustc_hash::FxHashSet::default();
     for line in raw.lines() {
         let trimmed = line.trim();
-        // Look for `const/let/var NAME = <rhs>`
+        // `export let x` is the legacy prop form and declares `x` just the same.
+        let trimmed = trimmed
+            .strip_prefix("export ")
+            .map_or(trimmed, str::trim_start);
+        // Look for `const/let/var NAME[: T][ = <rhs>]`
         let rest = trimmed
             .strip_prefix("const ")
             .or_else(|| trimmed.strip_prefix("let "))
@@ -522,24 +526,26 @@ pub fn extract_local_non_rune_declared_names(raw: &str) -> rustc_hash::FxHashSet
             Some(r) => r.trim(),
             None => continue,
         };
-        // Find the `= ` separator (simple assignment, not destructuring)
-        if let Some(eq_pos) = rest.find(" = ") {
-            let name_part = rest[..eq_pos].trim();
-            // Only simple identifiers (no destructuring patterns)
-            if name_part.is_empty()
-                || !name_part
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-            {
-                continue;
-            }
-            let rhs = rest[eq_pos + 3..].trim();
-            // If the RHS starts with a rune call, this variable IS rune-initialised
-            let is_rune_init = RUNE_PREFIXES.iter().any(|p| rhs.starts_with(p));
-            if !is_rune_init {
-                names.insert(name_part.to_string());
-            }
+        // A declarator with no initialiser cannot be rune-initialised.
+        let (declarator, rhs) = match rest.find(" = ") {
+            Some(eq_pos) => (&rest[..eq_pos], rest[eq_pos + 3..].trim()),
+            None => (rest.trim_end_matches(';'), ""),
+        };
+        // Drop a TypeScript annotation: `state: Writable<Record<string, any>>`.
+        let name_part = declarator.split(':').next().unwrap_or(declarator).trim();
+        // Only simple identifiers (no destructuring patterns)
+        if name_part.is_empty()
+            || !name_part
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+        {
+            continue;
         }
+        // If the RHS starts with a rune call, this variable IS rune-initialised
+        if RUNE_PREFIXES.iter().any(|p| rhs.starts_with(p)) {
+            continue;
+        }
+        names.insert(name_part.to_string());
     }
     names
 }

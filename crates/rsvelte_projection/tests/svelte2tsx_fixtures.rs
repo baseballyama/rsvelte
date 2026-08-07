@@ -22,6 +22,13 @@ use std::path::{Path, PathBuf};
 use common::TestStatus;
 use common::svelte2tsx::iter_svelte2tsx_outcomes;
 
+/// Grow-only coverage floor: the number of samples that must actually be
+/// compared, measured against the pinned `language-tools` submodule. Absolute on
+/// purpose — a floor expressed as a fraction of what the run happened to find
+/// shrinks together with its own numerator, so it cannot detect the erosion it
+/// exists to detect. Never lower it without saying why.
+const MIN_S2TSX_FIXTURES: u32 = 254;
+
 fn baseline_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -68,6 +75,13 @@ fn test_svelte2tsx_fixtures() {
     let outcomes = match iter_svelte2tsx_outcomes() {
         Some(o) => o,
         None => {
+            // Only a job that promised this submodule may fail on its absence.
+            assert!(
+                std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+                "submodules/language-tools is not checked out in a job that \
+                 declares RSVELTE_REQUIRE_PREREQS — every svelte2tsx fixture \
+                 assertion would be silently skipped."
+            );
             eprintln!("Skipping: language-tools submodule not available");
             return;
         }
@@ -138,9 +152,13 @@ fn test_svelte2tsx_fixtures() {
 
     let total_tested = passed + failed;
     assert!(
-        total_tested > 0,
-        "[s2tsx-fixtures] no fixture ran ({} discovered, {skipped} skipped) — \
-         the language-tools fixture layout changed?",
+        total_tested >= MIN_S2TSX_FIXTURES,
+        "[s2tsx-fixtures] only {total_tested} fixtures were compared, below the floor \
+         of {MIN_S2TSX_FIXTURES} ({} discovered, {skipped} skipped) — the ratchet below \
+         cannot see a regression in a fixture that never ran, so this is coverage \
+         erosion, not a passing run. Either the language-tools fixture layout changed \
+         or samples are being skipped; if upstream legitimately removed fixtures, lower \
+         the floor deliberately and say why.",
         outcomes.len(),
     );
     println!(

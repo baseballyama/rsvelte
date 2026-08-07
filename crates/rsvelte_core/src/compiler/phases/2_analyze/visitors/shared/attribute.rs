@@ -58,6 +58,26 @@ pub fn validate_attribute(attribute: &AttributeNode) -> Result<(), AnalysisError
     Ok(())
 }
 
+/// Warn when a component or custom-element attribute wraps a lone expression in
+/// quotes. Upstream reaches this only through `validate_attribute`, which both
+/// of its callers guard with `analysis.runes`, so legacy components must stay
+/// silent.
+pub fn warn_attribute_quoted(context: &mut VisitorContext, attribute: &AttributeNode) {
+    if !context.analysis.runes || !is_quoted_single_expression(attribute) {
+        return;
+    }
+    let mut warning = super::super::super::warnings::attribute_quoted();
+    warning.start = Some(attribute.start);
+    warning.end = Some(attribute.end);
+    context.emit_warning(warning);
+}
+
+/// Whether the attribute's value is a lone expression tag inside quotes.
+pub fn is_quoted_single_expression(attribute: &AttributeNode) -> bool {
+    matches!(&attribute.value, AttributeValue::Sequence(parts)
+        if parts.len() == 1 && matches!(&parts[0], AttributeValuePart::ExpressionTag(_)))
+}
+
 /// Validate attribute name format.
 pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), AnalysisError> {
     // Check for empty attribute name

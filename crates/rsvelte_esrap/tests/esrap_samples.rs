@@ -112,12 +112,26 @@ fn collect_samples(dir: &Path) -> Vec<Sample> {
 #[test]
 fn esrap_samples_match() {
     let Some(dir) = samples_dir() else {
+        // Only a job that promised this submodule may fail on its absence.
+        assert!(
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "submodules/esrap is not checked out in a job that declares RSVELTE_REQUIRE_PREREQS — the \
+             sample-parity assertions would be silently skipped."
+        );
         eprintln!("[esrap_samples] submodules/esrap absent — skipping");
         return;
     };
 
     let verbose = std::env::var("ESRAP_SAMPLES_VERBOSE").is_ok();
     let only = std::env::var("ESRAP_SAMPLES_ONLY").ok();
+
+    // Filtered-out samples can never reach the KNOWN_FAILURES reconciliation
+    // below, so a narrowed run reports green having checked one entry.
+    assert!(
+        only.is_none() || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "ESRAP_SAMPLES_ONLY narrows the run to a single sample in a job that declares \
+         RSVELTE_REQUIRE_PREREQS — the KNOWN_FAILURES ratchet would be hollowed out."
+    );
 
     let mut unexpected_fail = Vec::new();
     let mut unexpected_pass = Vec::new();

@@ -9,7 +9,7 @@
 //! exports. The same fixture pins #751 (named imports resolved *from* the
 //! companion via `./Foo.svelte.js`) so neither direction regresses.
 //!
-//! Real-tsc/tsgo e2e; skipped when no tsgo/tsc is found.
+//! Real-compiler e2e; skipped without TSGO_BIN or @typescript/native-preview.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -72,7 +72,15 @@ fn run_check(dir: &Path) -> Vec<String> {
 #[test]
 fn companion_svelte_ts_does_not_shadow_component_module() {
     if find_compiler(&PathBuf::from("."), true).is_err() {
-        eprintln!("skip #800: no tsgo/tsc found");
+        // Only a job that promised a TypeScript compiler may fail on its absence.
+        assert!(
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "no TypeScript 7 native compiler in a job that declares \
+             RSVELTE_REQUIRE_PREREQS — set TSGO_BIN, or install \
+             @typescript/native-preview. The companion-module assertions \
+             would be silently skipped."
+        );
+        eprintln!("skip #800: no TSGO_BIN and no @typescript/native-preview");
         return;
     }
     let dir = std::env::temp_dir().join(format!("rsvelte_800_{}", std::process::id()));
@@ -131,7 +139,15 @@ fn companion_svelte_ts_does_not_shadow_component_module() {
 #[test]
 fn no_companion_means_no_augmentation() {
     if find_compiler(&PathBuf::from("."), true).is_err() {
-        eprintln!("skip #800: no tsgo/tsc found");
+        // Only a job that promised a TypeScript compiler may fail on its absence.
+        assert!(
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "no TypeScript 7 native compiler in a job that declares \
+             RSVELTE_REQUIRE_PREREQS — set TSGO_BIN, or install \
+             @typescript/native-preview. The companion-module assertions \
+             would be silently skipped."
+        );
+        eprintln!("skip #800: no TSGO_BIN and no @typescript/native-preview");
         return;
     }
     let dir = std::env::temp_dir().join(format!("rsvelte_800_solo_{}", std::process::id()));

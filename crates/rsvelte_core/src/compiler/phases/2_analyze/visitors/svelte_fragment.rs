@@ -36,8 +36,16 @@ pub fn visit<'a, 'b: 'a>(
         context.scope = frag_scope;
     }
 
+    // Children are the fragment's, not the component's, so a `slot="…"` on one
+    // is `slot_attribute_invalid_placement` upstream (`owner !== parent`) and a
+    // nested `<svelte:fragment>` is invalid too.
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = false;
+
     // Analyze children
     fragment::analyze(&mut frag.fragment, context)?;
+
+    context.is_direct_child_of_component = was_direct_child;
 
     // Restore scope
     context.scope = old_scope;

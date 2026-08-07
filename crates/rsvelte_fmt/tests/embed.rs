@@ -24,13 +24,20 @@ process.stdout.write('/*FMT*/' + fs.readFileSync(0, 'utf8'));
 "#;
 
 fn node_runnable() -> bool {
-    Command::new("node")
+    let ok = Command::new("node")
         .arg("--version")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
         .map(|s| s.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    // Only a job that promised Node may fail on its absence.
+    assert!(
+        ok || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "no `node` on $PATH in a job that declares RSVELTE_REQUIRE_PREREQS — the oxfmt-bin resolution \
+         assertions would be silently skipped."
+    );
+    ok
 }
 
 fn tempdir(label: &str) -> PathBuf {

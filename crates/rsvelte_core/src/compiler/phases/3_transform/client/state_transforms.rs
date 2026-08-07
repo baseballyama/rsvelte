@@ -3,6 +3,7 @@
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 
+use super::STATE_TMP_COUNTER;
 use super::destructure_transforms::{ArrayHelperRead, extract_destructure_paths};
 use super::expression_utils::{
     byte_pos_to_char_index, find_statement_end_client, is_shadowed_by_for_loop_var,
@@ -11,9 +12,10 @@ use super::rune_transforms::{
     find_default_equals, find_derived_property_colon, split_derived_array_elements,
     split_derived_object_properties,
 };
-use super::{STATE_TMP_COUNTER, get_or_compile_regex};
 use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    code_bytes, code_bytes_from, skip_opaque,
+};
 
 // ---------------------------------------------------------------------------
 // Identifier reference detection (lines 7653-8602 of mod.rs)
@@ -30,44 +32,14 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 /// For block bodies like `{ c = a + b; count = count + 1; }`, we check each statement
 /// within the block.
 pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
-    // The Rust regex crate does NOT support lookbehind assertions.
-    // We use alternation-based boundary matching instead:
-    //   (^|[^a-zA-Z0-9_$])identifier([^a-zA-Z0-9_$]|$)
-    //
-    // This handles two important cases:
-    // 1. `$foo` (store subscriptions) - `\b` doesn't work because `$` is not a word char.
-    //    e.g., "bar = $foo" must match `$foo` but NOT "bar = $foobar"
-    // 2. For plain identifiers like `count`, we must NOT match `count` inside `$count`.
-    //    e.g., `$count * 2` - `count` should NOT be considered a dependency here
-    //    because `$count` already tracks the store subscription.
-    let escaped = regex::escape(identifier);
-    // Use alternation boundary for ALL identifiers (both `$foo` and `count`)
-    // to correctly handle the `$`-prefixed store subscription case.
-    // Also exclude `.` from valid preceding characters to avoid matching property
-    // accesses like `obj.prop` when checking for standalone `prop` references.
-    //
-    // EXCEPTION: the `$$`-prefixed compiler specials (`$$props` / `$$restProps` /
-    // `$$slots`) are never member-access targets, but they DO appear after a `.`
-    // in a spread — `{ ...$$restProps }`. Excluding `.` there made
-    // `body_references_identifier(body, "$$restProps")` miss the spread, so a
-    // `$: x = { ...$$restProps }` reactive statement dropped its
-    // `$.deep_read_state($$restProps)` dependency (emitting `() => {}`). Allow a
-    // leading `.` for `$$`-names so the spread form is detected.
-    let preceding = if identifier.starts_with("$$") {
-        r"[^a-zA-Z0-9_$]"
-    } else {
-        // Exclude `.` so member access (`obj.prop`) does not match a standalone
-        // `prop`, but DO allow a spread prefix (`...prop`): three dots before the
-        // name are a read, not a member access (`$: x = f(...prop)` reads `prop`).
-        // The regex crate has no lookbehind, so add `...` as an explicit
-        // alternative in the leading-boundary group.
-        r"[^a-zA-Z0-9_$\.]|\.\.\."
-    };
-    let pattern = format!(r"(^|{}){}([^a-zA-Z0-9_$]|$)", preceding, escaped);
-    let re = match get_or_compile_regex(&pattern) {
-        Some(re) => re,
-        None => return false,
-    };
+    // Every strip below only blanks or deletes characters, so a name absent from
+    // the raw body is absent from all of them. Callers ask this once per
+    // (statement, reactive variable) pair, and almost every pair is a miss.
+    if memmem::find(body.as_bytes(), identifier.as_bytes()).is_none() {
+        return false;
+    }
+
+    let matcher = IdentifierMatcher::new(identifier);
 
     // Before checking, strip out function/arrow bodies that shadow the identifier
     // as a parameter. This prevents false positives where a function parameter
@@ -87,12 +59,94 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
     let stripped_body = strip_object_property_keys(&stripped_body);
 
     // Check if identifier appears in the stripped body at all
-    if !re.is_match(&stripped_body) {
+    if !matcher.is_match(&stripped_body) {
         return false;
     }
 
     // Use the recursive check that handles if/else, blocks, and compound statements
-    body_references_identifier_recursive(stripped_body.trim(), identifier, &re)
+    body_references_identifier_recursive(stripped_body.trim(), identifier, &matcher)
+}
+
+/// Whether an identifier occurs in a body as a standalone reference.
+///
+/// This used to be a regex, rebuilt from a formatted pattern for every
+/// (statement, variable) pair the dependency scan asks about; escaping the name,
+/// formatting the pattern and hashing it to reach the cache was 70% of that
+/// scan's cost. The rule it encodes needs no engine:
+///
+/// - `(^|[^a-zA-Z0-9_$])name([^a-zA-Z0-9_$]|$)` for the `$$`-prefixed compiler
+///   specials, which are never member-access targets but do appear after a `.`
+///   in a spread (`{ ...$$restProps }`)
+/// - the same with `.` also excluded before the name for every other identifier,
+///   so `obj.prop` does not match a standalone `prop` — except for a spread
+///   prefix (`f(...prop)`), which reads it
+pub(super) struct IdentifierMatcher<'a> {
+    identifier: &'a str,
+    /// `$$`-names accept a `.` immediately before them; the rest do not.
+    allows_leading_dot: bool,
+}
+
+impl<'a> IdentifierMatcher<'a> {
+    pub(super) fn new(identifier: &'a str) -> Self {
+        Self {
+            identifier,
+            allows_leading_dot: identifier.starts_with("$$"),
+        }
+    }
+
+    pub(super) fn is_match(&self, text: &str) -> bool {
+        let needle = self.identifier.as_bytes();
+        if needle.is_empty() {
+            return false;
+        }
+        let bytes = text.as_bytes();
+        let mut from = 0;
+        // Advancing by one keeps overlapping occurrences reachable, which a
+        // non-overlapping iterator would skip.
+        while let Some(offset) = memmem::find(&bytes[from..], needle) {
+            let start = from + offset;
+            let end = start + needle.len();
+            if self.boundaries_hold(bytes, start, end) {
+                return true;
+            }
+            from = start + 1;
+        }
+        false
+    }
+
+    fn boundaries_hold(&self, bytes: &[u8], start: usize, end: usize) -> bool {
+        // A UTF-8 continuation byte is never one of the ASCII characters the
+        // classes below list, so comparing bytes answers the same question the
+        // char classes did.
+        if end < bytes.len() && continues_identifier(bytes[end]) {
+            return false;
+        }
+        if start == 0 {
+            return true;
+        }
+        let before = bytes[start - 1];
+        if !continues_identifier(before) && (self.allows_leading_dot || before != b'.') {
+            return true;
+        }
+        // `...name` is a spread, which reads the name rather than accessing it
+        // as a member.
+        !self.allows_leading_dot && start >= 3 && &bytes[start - 3..start] == b"..."
+    }
+}
+
+fn continues_identifier(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
+}
+
+/// Byte just past the comment or regex literal starting at `i`, plus whether it
+/// was a comment. Restricted to `/`-led runs on purpose: this scanner's whole job
+/// is to descend into string and template literals, which `skip_opaque` — the
+/// same lexer this delegates to — treats as opaque.
+fn skip_slash_run(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bool)> {
+    if bytes[i] != b'/' {
+        return None;
+    }
+    skip_opaque(bytes, i, prev)
 }
 
 /// Strip text content from string literals and template literals, keeping expression parts.
@@ -104,11 +158,11 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
 ///
 /// This prevents false identifier matches inside literal text, e.g., `<circle>` in
 /// a template literal won't match the variable name `circle`.
-pub(super) fn strip_string_literal_text(code: &str) -> String {
+pub(super) fn strip_string_literal_text(code: &str) -> std::borrow::Cow<'_, str> {
     // Fast path: if no string delimiters exist, return as-is
     // Uses memchr3 for SIMD-accelerated search of all three delimiters at once
     if memchr::memchr3(b'\'', b'"', b'`', code.as_bytes()).is_none() {
-        return code.to_string();
+        return std::borrow::Cow::Borrowed(code);
     }
 
     // Work with bytes for performance (string literal delimiters are all ASCII)
@@ -116,8 +170,22 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
     let mut result: Vec<u8> = bytes.to_vec();
     let len = bytes.len();
     let mut i = 0;
+    // Last significant code byte, to tell a regex literal from a division.
+    let mut prev: Option<u8> = None;
 
     while i < len {
+        // A quote inside a comment (`// don't`) or a regex literal (`/'/g`) must
+        // not open a string and blank out every live read that follows it.
+        if let Some((next, is_comment)) = skip_slash_run(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
         match bytes[i] {
             // Handle single/double-quoted strings
             b'\'' | b'"' => {
@@ -150,7 +218,18 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
                         i += 2; // skip `${`
                         // Find matching `}` - track depth
                         let mut depth = 1;
+                        let mut inner_prev: Option<u8> = None;
                         while i < len && depth > 0 {
+                            if let Some((next, is_comment)) = skip_slash_run(bytes, i, inner_prev) {
+                                if !is_comment {
+                                    inner_prev = Some(b'x');
+                                }
+                                i = next;
+                                continue;
+                            }
+                            if !bytes[i].is_ascii_whitespace() {
+                                inner_prev = Some(bytes[i]);
+                            }
                             match bytes[i] {
                                 b'{' => depth += 1,
                                 b'}' => {
@@ -226,7 +305,9 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
         }
     }
 
-    String::from_utf8(result).unwrap_or_else(|_| code.to_string())
+    String::from_utf8(result)
+        .map(std::borrow::Cow::Owned)
+        .unwrap_or(std::borrow::Cow::Borrowed(code))
 }
 
 /// Strip non-shorthand, non-computed object property keys from code.
@@ -239,7 +320,12 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
 /// - `{ key: value }` -> `{     value }` (non-shorthand key blanked)
 /// - `{ key }` -> `{ key }` (shorthand preserved)
 /// - `{ [expr]: value }` -> `{ [expr]: value }` (computed preserved)
-pub(super) fn strip_object_property_keys(code: &str) -> String {
+pub(super) fn strip_object_property_keys(code: &str) -> std::borrow::Cow<'_, str> {
+    // A key can only be blanked at a `:`, and the two `Vec<char>` below cost four
+    // bytes per source byte, so the absence of one is worth checking for.
+    if memchr::memchr(b':', code.as_bytes()).is_none() {
+        return std::borrow::Cow::Borrowed(code);
+    }
     let chars: Vec<char> = code.chars().collect();
     let len = chars.len();
     let mut result: Vec<char> = chars.clone();
@@ -311,7 +397,7 @@ pub(super) fn strip_object_property_keys(code: &str) -> String {
         i += 1;
     }
 
-    result.into_iter().collect()
+    std::borrow::Cow::Owned(result.into_iter().collect())
 }
 
 /// Strip out function/arrow expression bodies where the identifier is declared as a parameter.
@@ -322,7 +408,17 @@ pub(super) fn strip_object_property_keys(code: &str) -> String {
 /// - `function (a) { ... }` -> `                   `
 /// - `(a) => { ... }` -> `              `
 /// - `(a) => expr` -> `            `
-pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) -> String {
+pub(super) fn strip_function_scopes_that_shadow<'a>(
+    body: &'a str,
+    identifier: &str,
+) -> std::borrow::Cow<'a, str> {
+    // Only a `function` keyword or an arrow can introduce a shadowing parameter,
+    // and the common reactive body has neither.
+    if memmem::find(body.as_bytes(), b"function").is_none()
+        && memmem::find(body.as_bytes(), b"=>").is_none()
+    {
+        return std::borrow::Cow::Borrowed(body);
+    }
     let mut result = body.to_string();
 
     // Pattern: `function identifier(params) { body }` or `function (params) { body }`
@@ -347,15 +443,14 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
             }
 
             // Find the opening brace of the function body
-            let after_pat = &result[after_ident..];
             let mut found_paren_close = false;
             let mut brace_start = None;
             let mut depth = 1; // We're inside the opening (
-            for (i, ch) in after_pat.char_indices() {
+            for (i, ch) in code_bytes_from(result.as_bytes(), after_ident) {
                 if !found_paren_close {
                     match ch {
-                        '(' => depth += 1,
-                        ')' => {
+                        b'(' => depth += 1,
+                        b')' => {
                             depth -= 1;
                             if depth == 0 {
                                 found_paren_close = true;
@@ -363,10 +458,10 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
                         }
                         _ => {}
                     }
-                } else if ch == '{' {
-                    brace_start = Some(after_ident + i);
+                } else if ch == b'{' {
+                    brace_start = Some(i);
                     break;
-                } else if !ch.is_whitespace() {
+                } else if !ch.is_ascii_whitespace() {
                     break;
                 }
             }
@@ -374,34 +469,18 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
             if let Some(brace_pos) = brace_start {
                 // Find matching closing brace
                 let mut brace_depth = 1;
-                let mut in_string = false;
-                let mut string_char = ' ';
                 let mut end_pos = brace_pos + 1;
-                for (i, ch) in result[brace_pos + 1..].char_indices() {
-                    if in_string {
-                        if ch == '\\' {
-                            // Skip next char
-                            continue;
-                        }
-                        if ch == string_char {
-                            in_string = false;
-                        }
-                    } else {
-                        match ch {
-                            '"' | '\'' | '`' => {
-                                in_string = true;
-                                string_char = ch;
+                for (i, ch) in code_bytes_from(result.as_bytes(), brace_pos + 1) {
+                    match ch {
+                        b'{' => brace_depth += 1,
+                        b'}' => {
+                            brace_depth -= 1;
+                            if brace_depth == 0 {
+                                end_pos = i + 1;
+                                break;
                             }
-                            '{' => brace_depth += 1,
-                            '}' => {
-                                brace_depth -= 1;
-                                if brace_depth == 0 {
-                                    end_pos = brace_pos + 1 + i + 1;
-                                    break;
-                                }
-                            }
-                            _ => {}
                         }
+                        _ => {}
                     }
                 }
 
@@ -447,16 +526,15 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
             }
 
             // Find `) =>`  after the params
-            let after_params = &result[after_ident..];
             let mut paren_depth = 1;
             let mut paren_close_idx = None;
-            for (i, ch) in after_params.char_indices() {
+            for (i, ch) in code_bytes_from(result.as_bytes(), after_ident) {
                 match ch {
-                    '(' => paren_depth += 1,
-                    ')' => {
+                    b'(' => paren_depth += 1,
+                    b')' => {
                         paren_depth -= 1;
                         if paren_depth == 0 {
-                            paren_close_idx = Some(after_ident + i);
+                            paren_close_idx = Some(i);
                             break;
                         }
                     }
@@ -479,33 +557,18 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
                     if body_text.starts_with('{') {
                         // Block body arrow - find matching brace
                         let mut brace_depth = 1;
-                        let mut in_string = false;
-                        let mut string_char = ' ';
                         let mut end_pos = body_offset + 1;
-                        for (i, ch) in result[body_offset + 1..].char_indices() {
-                            if in_string {
-                                if ch == '\\' {
-                                    continue;
-                                }
-                                if ch == string_char {
-                                    in_string = false;
-                                }
-                            } else {
-                                match ch {
-                                    '"' | '\'' | '`' => {
-                                        in_string = true;
-                                        string_char = ch;
+                        for (i, ch) in code_bytes_from(result.as_bytes(), body_offset + 1) {
+                            match ch {
+                                b'{' => brace_depth += 1,
+                                b'}' => {
+                                    brace_depth -= 1;
+                                    if brace_depth == 0 {
+                                        end_pos = i + 1;
+                                        break;
                                     }
-                                    '{' => brace_depth += 1,
-                                    '}' => {
-                                        brace_depth -= 1;
-                                        if brace_depth == 0 {
-                                            end_pos = body_offset + 1 + i + 1;
-                                            break;
-                                        }
-                                    }
-                                    _ => {}
                                 }
+                                _ => {}
                             }
                         }
                         let spaces = " ".repeat(end_pos - pos);
@@ -513,56 +576,38 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
                     } else {
                         // Expression body arrow: scan forward from body_offset to find the
                         // end of the expression (top-level `,` `)` `]` `;` or end of string).
-                        let bytes = result.as_bytes();
-                        let mut p = body_offset;
+                        let mut end_pos = result.len();
                         let mut pdepth = 0i32;
                         let mut bdepth = 0i32;
                         let mut brdepth = 0i32;
-                        let mut in_s: Option<u8> = None;
-                        while p < bytes.len() {
-                            let c = bytes[p];
-                            if let Some(q) = in_s {
-                                if c == b'\\' && p + 1 < bytes.len() {
-                                    p += 2;
-                                    continue;
-                                }
-                                if c == q {
-                                    in_s = None;
-                                }
-                                p += 1;
-                                continue;
-                            }
+                        for (p, c) in code_bytes_from(result.as_bytes(), body_offset) {
+                            let at_top = pdepth == 0 && bdepth == 0 && brdepth == 0;
                             match c {
-                                b'\'' | b'"' | b'`' => in_s = Some(c),
                                 b'(' => pdepth += 1,
-                                b')' => {
-                                    if pdepth == 0 && bdepth == 0 && brdepth == 0 {
-                                        break;
-                                    }
-                                    pdepth -= 1;
+                                b')' if at_top => {
+                                    end_pos = p;
+                                    break;
                                 }
+                                b')' => pdepth -= 1,
                                 b'{' => bdepth += 1,
-                                b'}' => {
-                                    if bdepth == 0 && pdepth == 0 && brdepth == 0 {
-                                        break;
-                                    }
-                                    bdepth -= 1;
+                                b'}' if at_top => {
+                                    end_pos = p;
+                                    break;
                                 }
+                                b'}' => bdepth -= 1,
                                 b'[' => brdepth += 1,
-                                b']' => {
-                                    if brdepth == 0 && pdepth == 0 && bdepth == 0 {
-                                        break;
-                                    }
-                                    brdepth -= 1;
+                                b']' if at_top => {
+                                    end_pos = p;
+                                    break;
                                 }
-                                b',' | b';' if pdepth == 0 && bdepth == 0 && brdepth == 0 => {
+                                b']' => brdepth -= 1,
+                                b',' | b';' if at_top => {
+                                    end_pos = p;
                                     break;
                                 }
                                 _ => {}
                             }
-                            p += 1;
                         }
-                        let end_pos = p;
                         let spaces = " ".repeat(end_pos - pos);
                         result.replace_range(pos..end_pos, &spaces);
                     }
@@ -575,7 +620,7 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
         }
     }
 
-    result
+    std::borrow::Cow::Owned(result)
 }
 
 /// Recursively check if an identifier is read (not just assigned to) in a body of code.
@@ -583,7 +628,7 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
 pub(super) fn body_references_identifier_recursive(
     body: &str,
     identifier: &str,
-    re: &regex::Regex,
+    re: &IdentifierMatcher<'_>,
 ) -> bool {
     let trimmed = body.trim();
 
@@ -604,10 +649,10 @@ pub(super) fn body_references_identifier_recursive(
             // Find matching closing paren for the condition
             let mut depth = 0i32;
             let mut cond_end = None;
-            for (i, ch) in after_if.char_indices() {
+            for (i, ch) in code_bytes(after_if.as_bytes()) {
                 match ch {
-                    '(' => depth += 1,
-                    ')' => {
+                    b'(' => depth += 1,
+                    b')' => {
                         depth -= 1;
                         if depth == 0 {
                             cond_end = Some(i);
@@ -631,10 +676,10 @@ pub(super) fn body_references_identifier_recursive(
                     // Block body
                     let mut brace_depth = 0i32;
                     let mut block_end = None;
-                    for (i, ch) in after_cond.char_indices() {
+                    for (i, ch) in code_bytes(after_cond.as_bytes()) {
                         match ch {
-                            '{' => brace_depth += 1,
-                            '}' => {
+                            b'{' => brace_depth += 1,
+                            b'}' => {
                                 brace_depth -= 1;
                                 if brace_depth == 0 {
                                     block_end = Some(i);
@@ -678,20 +723,20 @@ pub(super) fn body_references_identifier_recursive(
 pub(super) fn body_references_identifier_in_statements(
     content: &str,
     identifier: &str,
-    re: &regex::Regex,
+    re: &IdentifierMatcher<'_>,
 ) -> bool {
     // Split by semicolons and newlines, but be careful with nested blocks
     // Simple approach: scan for statements at depth 0
     let mut depth = 0;
     let mut start = 0;
 
-    for (i, c) in content.char_indices() {
+    for (i, c) in code_bytes(content.as_bytes()) {
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' if depth > 0 => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' if depth > 0 => {
                 depth -= 1;
             }
-            ';' | '\n' if depth == 0 => {
+            b';' | b'\n' if depth == 0 => {
                 let stmt = content[start..i].trim();
                 if !stmt.is_empty() && check_identifier_in_statement(stmt, identifier, re) {
                     return true;
@@ -715,7 +760,7 @@ pub(super) fn body_references_identifier_in_statements(
 pub(super) fn check_identifier_in_statement(
     stmt: &str,
     identifier: &str,
-    re: &regex::Regex,
+    re: &IdentifierMatcher<'_>,
 ) -> bool {
     if !re.is_match(stmt) {
         return false;
@@ -912,37 +957,54 @@ pub(super) fn find_assignment_position(expr: &str) -> Option<usize> {
 
 /// Find the position of a `:` at depth 0 in an expression.
 /// This is used to split ternary expressions like `true_rhs : false_branch`.
+/// The returned position is a **byte** offset: the caller slices `expr` with it.
 pub(super) fn find_colon_at_depth0(expr: &str) -> Option<usize> {
-    let chars: Vec<char> = expr.chars().collect();
+    // Not `code_bytes`: `${`/`}` move the outer depth here and the bookkeeping is
+    // preserved exactly rather than re-derived. UTF-8 continuation bytes are all
+    // >= 0x80, so they never match an ASCII arm.
+    let bytes = expr.as_bytes();
     let mut depth = 0;
     let mut i = 0;
 
-    while i < chars.len() {
-        match chars[i] {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            ':' if depth == 0 => return Some(i),
-            '\'' | '"' => {
-                // Skip string literals
-                let quote = chars[i];
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b':' if depth == 0 => return Some(i),
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                    i += 1;
+                }
                 i += 1;
-                while i < chars.len() && chars[i] != quote {
-                    if chars[i] == '\\' && i + 1 < chars.len() {
+            }
+            quote @ (b'\'' | b'"') => {
+                // Skip string literals
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
                         i += 1;
                     }
                     i += 1;
                 }
             }
-            '`' => {
+            b'`' => {
                 // Skip template literals
                 i += 1;
-                while i < chars.len() && chars[i] != '`' {
-                    if chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                while i < bytes.len() && bytes[i] != b'`' {
+                    if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
                         depth += 1;
                         i += 1;
-                    } else if chars[i] == '}' && depth > 0 {
+                    } else if bytes[i] == b'}' && depth > 0 {
                         depth -= 1;
-                    } else if chars[i] == '\\' && i + 1 < chars.len() {
+                    } else if bytes[i] == b'\\' && i + 1 < bytes.len() {
                         i += 1;
                     }
                     i += 1;
@@ -1166,96 +1228,53 @@ pub(super) fn split_multi_declarator(line: &str) -> Option<Vec<String>> {
         ("var", r)
     };
 
-    // Check if there's a comma at depth 0 (indicating multiple declarators)
+    // Split at every top-level `,`, stopping at a top-level `;`. `code_bytes`
+    // yields only the delimiters that are code, so the text between two cut
+    // points — comments and literals included — is copied verbatim.
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
-    let mut has_top_level_comma = false;
-    let chars: Vec<char> = rest.chars().collect();
-
-    for (i, &c) in chars.iter().enumerate() {
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-        if in_string {
-            continue;
-        }
+    let mut cuts: Vec<(usize, u8)> = Vec::new();
+    for (i, c) in code_bytes(rest.as_bytes()) {
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' if depth > 0 => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' if depth > 0 => {
                 depth -= 1;
             }
-            ',' if depth == 0 => {
-                has_top_level_comma = true;
+            b',' if depth == 0 => cuts.push((i, c)),
+            b';' if depth == 0 => {
+                cuts.push((i, c));
                 break;
             }
             _ => {}
         }
     }
 
-    if !has_top_level_comma {
+    if !cuts.iter().any(|&(_, c)| c == b',') {
         return None;
     }
 
-    // Split into declarators at top-level commas
     let mut declarators: Vec<String> = Vec::new();
-    let mut current = String::new();
-    depth = 0;
-    in_string = false;
-    string_char = ' ';
-
-    for (i, &c) in chars.iter().enumerate() {
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
+    let mut start = 0usize;
+    let mut ended_at_semicolon = false;
+    for &(i, c) in &cuts {
+        let piece = &rest[start..i];
+        if c == b';' {
+            if !piece.trim().is_empty() {
+                declarators.push(piece.trim().to_string());
             }
-            current.push(c);
-            continue;
+            ended_at_semicolon = true;
+        } else {
+            declarators.push(piece.trim().trim_end_matches(';').trim().to_string());
         }
-        if in_string {
-            current.push(c);
-            continue;
-        }
-        match c {
-            '(' | '[' | '{' => {
-                depth += 1;
-                current.push(c);
-            }
-            ')' | ']' | '}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                // End of current declarator
-                declarators.push(current.trim().trim_end_matches(';').trim().to_string());
-                current = String::new();
-            }
-            ';' if depth == 0 => {
-                // End of statement
-                if !current.trim().is_empty() {
-                    declarators.push(current.trim().to_string());
-                }
-                current = String::new();
-                break;
-            }
-            _ => {
-                current.push(c);
-            }
+        start = i + 1;
+        if ended_at_semicolon {
+            break;
         }
     }
-    if !current.trim().is_empty() {
-        declarators.push(current.trim().trim_end_matches(';').trim().to_string());
+    if !ended_at_semicolon {
+        let piece = &rest[start..];
+        if !piece.trim().is_empty() {
+            declarators.push(piece.trim().trim_end_matches(';').trim().to_string());
+        }
     }
 
     if declarators.len() <= 1 {
@@ -1318,26 +1337,15 @@ pub(super) fn transform_legacy_destructure_declarations(
     let rest = full_trimmed[keyword_len..].trim();
 
     let is_object = rest.starts_with('{');
-    let close_bracket = if is_object { '}' } else { ']' };
+    let close_bracket = if is_object { b'}' } else { b']' };
 
     // Find the matching close bracket in the PATTERN (not the expression)
     let mut depth = 0i32;
     let mut pattern_end = None;
-    let mut in_string: Option<char> = None;
-    for (i, c) in rest.chars().enumerate() {
-        if let Some(quote) = in_string {
-            if c == quote && (i == 0 || rest.as_bytes().get(i - 1) != Some(&b'\\')) {
-                in_string = None;
-            }
-            continue;
-        }
-        if c == '\'' || c == '"' || c == '`' {
-            in_string = Some(c);
-            continue;
-        }
-        if c == '{' || c == '[' || c == '(' {
+    for (i, c) in code_bytes(rest.as_bytes()) {
+        if c == b'{' || c == b'[' || c == b'(' {
             depth += 1;
-        } else if c == '}' || c == ']' || c == ')' {
+        } else if c == b'}' || c == b']' || c == b')' {
             depth -= 1;
             if depth == 0 && c == close_bracket {
                 pattern_end = Some(i);
@@ -1529,6 +1537,12 @@ pub(super) fn transform_legacy_state_declarations(
     let mut result = line.to_string();
 
     for (var, _initial, decl_kind) in legacy_state_vars {
+        // Every pattern below is `"<keyword> <var>…"`, so one scan rules the whole
+        // variable out instead of formatting and searching four needles per keyword.
+        if memmem::find(result.as_bytes(), var.as_bytes()).is_none() {
+            continue;
+        }
+
         // Determine the keyword(s) to look for based on declaration kind
         let keywords: Vec<&str> = match decl_kind {
             DeclarationKind::Let => vec!["let"],
@@ -1820,6 +1834,93 @@ pub(super) fn transform_legacy_state_declarations(
 }
 
 #[cfg(test)]
+mod scan_lexing_tests {
+    use super::{
+        body_references_identifier, split_multi_declarator,
+        transform_legacy_destructure_declarations,
+    };
+
+    #[test]
+    fn apostrophe_in_a_line_comment_does_not_blank_the_code_after_it() {
+        // `don't` must not open a string literal and swallow the following read.
+        assert!(body_references_identifier(
+            "a = 1; // don't\nb = width",
+            "width"
+        ));
+    }
+
+    #[test]
+    fn apostrophe_in_a_regex_literal_does_not_blank_the_code_after_it() {
+        // `replace(/'/g, …)` — the quote is regex source, not a string opener.
+        assert!(body_references_identifier(
+            "a = raw.replace(/'/g, \"&#39;\");\nb = width",
+            "width"
+        ));
+    }
+
+    #[test]
+    fn a_division_after_a_value_is_not_read_as_a_regex() {
+        // Negative control for the regex arm: a `/` after a value divides, so the
+        // bytes after it are still code.
+        assert!(body_references_identifier("a = n / 2;\nb = width", "width"));
+    }
+
+    #[test]
+    fn brace_in_a_block_comment_does_not_close_a_shadowing_function() {
+        // `a` is a parameter of the arrow, so it is shadowed, not a dependency —
+        // the `}` inside the comment must not end the body early.
+        assert!(!body_references_identifier(
+            "f((a) => { /* } */ return a; })",
+            "a"
+        ));
+    }
+
+    #[test]
+    fn brace_in_a_line_comment_does_not_close_a_shadowing_function() {
+        assert!(!body_references_identifier(
+            "f(function (a) {\n\t// }\n\treturn a;\n})",
+            "a"
+        ));
+    }
+
+    #[test]
+    fn brace_in_a_comment_does_not_merge_two_statements() {
+        // Two statements; `x` is only ever assigned, so it is not a dependency.
+        // A `{` inside the comment must not raise the depth and swallow the `;`,
+        // which would fold both statements into one and read `x` off the RHS.
+        assert!(!body_references_identifier("{ y = 1 /* { */; x = 2 }", "x"));
+    }
+
+    #[test]
+    fn comma_in_a_comment_does_not_split_declarators() {
+        assert_eq!(split_multi_declarator("let a = 1 /* , */ + 2;"), None);
+    }
+
+    #[test]
+    fn non_ascii_identifier_in_a_destructure_pattern_does_not_panic() {
+        // The pattern scan enumerated chars but sliced by bytes.
+        let out = transform_legacy_destructure_declarations(
+            "let { ああ } = obj;",
+            &["ああ".to_string()],
+            false,
+            false,
+        );
+        assert!(out.contains("ああ"), "got: {out}");
+    }
+
+    #[test]
+    fn brace_in_a_comment_does_not_end_a_destructure_pattern() {
+        let out = transform_legacy_destructure_declarations(
+            "let { a = 1 /* } */ } = obj;",
+            &["a".to_string()],
+            false,
+            false,
+        );
+        assert!(out.contains("$.mutable_source("), "got: {out}");
+    }
+}
+
+#[cfg(test)]
 mod non_ascii_tests {
     use super::{body_references_identifier, transform_legacy_state_declarations};
     use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
@@ -1839,5 +1940,100 @@ mod non_ascii_tests {
         let vars = vec![("x".to_string(), None, DeclarationKind::Let)];
         let out = transform_legacy_state_declarations("let x: Café = 0", &vars, false, false);
         assert!(out.contains("$.mutable_source(0)"), "got: {out}");
+    }
+}
+
+#[cfg(test)]
+mod colon_depth0_tests {
+    use super::*;
+
+    #[test]
+    fn colon_position_is_a_byte_offset() {
+        // The caller slices `&str` with this, so it must be a byte offset.
+        let expr = "\"ああa\" : x";
+        let pos = find_colon_at_depth0(expr).unwrap();
+        assert_eq!(pos, expr.find(':').unwrap());
+    }
+
+    #[test]
+    fn colon_in_comment_is_not_depth0() {
+        assert_eq!(find_colon_at_depth0("a /* : */ : b"), Some(10));
+        assert_eq!(find_colon_at_depth0("a // : b"), None);
+    }
+
+    #[test]
+    fn identifier_matcher_agrees_with_the_regex_it_replaced() {
+        // The pattern this matcher encodes, kept here so the two can be
+        // compared rather than the rule being restated in prose.
+        fn reference_regex(identifier: &str) -> regex::Regex {
+            let preceding = if identifier.starts_with("$$") {
+                r"[^a-zA-Z0-9_$]"
+            } else {
+                r"[^a-zA-Z0-9_$\.]|\.\.\."
+            };
+            regex::Regex::new(&format!(
+                r"(^|{}){}([^a-zA-Z0-9_$]|$)",
+                preceding,
+                regex::escape(identifier)
+            ))
+            .unwrap()
+        }
+
+        let cases = [
+            ("count", "count + 1"),
+            ("count", "$count * 2"),
+            ("count", "counter + 1"),
+            ("count", "obj.count"),
+            ("count", "f(...count)"),
+            ("count", "a.b.count"),
+            ("count", "{ count }"),
+            ("count", "count"),
+            ("count", ""),
+            ("count", "\u{3042}count\u{3042}"),
+            ("count", "acount"),
+            ("count", "count.value"),
+            ("$foo", "bar = $foo"),
+            ("$foo", "bar = $foobar"),
+            ("$$restProps", "{ ...$$restProps }"),
+            ("$$restProps", "$$restPropsX"),
+            ("$$props", "a.$$props"),
+            ("x", "xx x xx"),
+            ("aa", "aaa"),
+            ("aa", "aa"),
+        ];
+        for (identifier, text) in cases {
+            assert_eq!(
+                IdentifierMatcher::new(identifier).is_match(text),
+                reference_regex(identifier).is_match(text),
+                "identifier {identifier:?} in {text:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn ternary_branch_split_survives_non_ascii() {
+        let re = IdentifierMatcher::new("component");
+        // `cond ? component = "ああa" : component = other`
+        let stmt = "cond ? component = \"ああa\" : component = other";
+        let _ = check_identifier_in_statement(stmt, "component", &re);
+    }
+}
+
+#[cfg(test)]
+mod prefilter_tests {
+    use super::*;
+
+    #[test]
+    fn transform_legacy_state_declarations_leaves_an_absent_name_alone() {
+        // The scan that rules a variable out has to agree with the four
+        // `"<keyword> <var>…"` patterns it stands in for.
+        let vars = vec![
+            ("absent".to_string(), None, DeclarationKind::Let),
+            ("x".to_string(), None, DeclarationKind::Let),
+        ];
+        let out = transform_legacy_state_declarations("let x = 1;", &vars, false, false);
+        assert_eq!(out, "let x = $.mutable_source(1);");
+        let untouched = transform_legacy_state_declarations("foo();", &vars, false, false);
+        assert_eq!(untouched, "foo();");
     }
 }
