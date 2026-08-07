@@ -41,10 +41,18 @@ previous baseline:
 
 - **Warning span-only (36).** The warning `code` and `message` match upstream
   exactly and appear in the same order; only the reported `start`/`end` differs —
-  typically rsvelte reports `None..None` or a whole-node span where upstream
-  reports a narrower sub-span (an attribute value, a role token, an identifier).
-  Each is a narrow-the-span fix once the underlying node's precise range is
-  identified (per-rule, not architectural).
+  and the divergence is **rsvelte reporting no span at all** (`None..None`) where
+  upstream reports a real range, not a span that is merely too wide, because the
+  warning is constructed without threading the triggering node through. On the
+  ~14k real-world corpus the same split is 2,082 missing against 3
+  present-but-different (99.86%). Each is therefore an *attach*-the-span fix, not
+  a narrow-the-span one: pass the triggering node to the warning constructor so
+  the caller's element-span fallback is not reached. Per-rule, not architectural —
+  one systemic cause but one emission site per code, so the work does not collapse
+  into a single edit. Where the check locates its subject by walking children (as
+  `figure` does for `a11y_figcaption_index`, #2490), the same fallback lands a
+  **plausible wrong** span rather than none, which is the worse symptom of the
+  same defect.
 
 - **Warning content (4).** These are *not* span bugs, and fixing the spans would
   leave every one of them failing. They are listed individually below because a

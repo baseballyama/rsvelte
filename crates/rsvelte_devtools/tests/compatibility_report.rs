@@ -17,10 +17,10 @@ use std::fs;
 use common::{
     CategoryResult, CompatibilityReport, FixtureCoverage, SampleDetails, SampleResult, SkipReason,
     TestCategory, TestStatus, canonicalize_css, check_validator_error, compare_js,
-    ensure_fixtures_exist, error_code_matches, fixtures_path, get_fixture_samples,
-    get_svelte_test_samples, load_expected_validator_error, load_fixture_output, read_fixture_file,
-    runtime_fixture_options, runtime_skip_names, svelte_path, validator_error_result,
-    write_actual_output,
+    ensure_fixtures_exist, error_code_matches, fixture_samples_dir, fixtures_path,
+    get_fixture_samples, get_svelte_test_samples, load_expected_validator_error,
+    load_fixture_output, read_fixture_file, runtime_fixture_options, runtime_skip_names,
+    svelte_path, svelte_samples_dir, validator_error_result, write_actual_output,
 };
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
@@ -64,7 +64,8 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     let svelte_dir = category.svelte_dir();
     let samples = get_svelte_test_samples(svelte_dir);
     let mut result = CategoryResult::new(svelte_dir);
-    let mut coverage = FixtureCoverage::new(svelte_dir, samples.len());
+    let mut coverage =
+        FixtureCoverage::new(svelte_dir, svelte_samples_dir(svelte_dir), samples.len());
 
     // Tests to skip for parser-legacy and parser-modern.
     //
@@ -260,7 +261,8 @@ fn run_snapshot_tests() -> CategoryResult {
 
     let samples = get_fixture_samples("snapshot");
     let mut result = CategoryResult::new("snapshot");
-    let mut coverage = FixtureCoverage::new("snapshot", samples.len());
+    let mut coverage =
+        FixtureCoverage::new("snapshot", fixture_samples_dir("snapshot"), samples.len());
 
     // Snapshot fixtures intentionally skipped. These exercise codegen clusters
     // tracked elsewhere in this file (and in tests/runtime.rs):
@@ -432,7 +434,7 @@ fn run_css_tests() -> CategoryResult {
 
     let samples = get_fixture_samples("css");
     let mut result = CategoryResult::new("css");
-    let mut coverage = FixtureCoverage::new("css", samples.len());
+    let mut coverage = FixtureCoverage::new("css", fixture_samples_dir("css"), samples.len());
 
     // CSS samples that exercise pruning/scoping edge cases rsvelte doesn't
     // fully match upstream on yet. Empty for now — the previous
@@ -582,7 +584,8 @@ fn run_css_tests() -> CategoryResult {
 fn run_validator_tests() -> CategoryResult {
     let samples = get_svelte_test_samples("validator");
     let mut result = CategoryResult::new("validator");
-    let mut coverage = FixtureCoverage::new("validator", samples.len());
+    let mut coverage =
+        FixtureCoverage::new("validator", svelte_samples_dir("validator"), samples.len());
     let warning_code_re = regex::Regex::new(r"'(\w+)'").unwrap();
 
     for sample_dir in &samples {
@@ -828,7 +831,11 @@ fn run_validator_tests() -> CategoryResult {
 fn run_compiler_error_tests() -> CategoryResult {
     let samples = get_svelte_test_samples("compiler-errors");
     let mut result = CategoryResult::new("compiler-errors");
-    let mut coverage = FixtureCoverage::new("compiler-errors", samples.len());
+    let mut coverage = FixtureCoverage::new(
+        "compiler-errors",
+        svelte_samples_dir("compiler-errors"),
+        samples.len(),
+    );
 
     for sample_dir in &samples {
         let name = sample_dir
@@ -996,7 +1003,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
 
     let samples = get_fixture_samples(category);
     let mut result = CategoryResult::new(category);
-    let mut coverage = FixtureCoverage::new(category, samples.len());
+    let mut coverage = FixtureCoverage::new(category, fixture_samples_dir(category), samples.len());
 
     for sample_dir in &samples {
         let name = sample_dir
@@ -1183,7 +1190,7 @@ fn run_print_tests() -> CategoryResult {
 
     let samples = get_svelte_test_samples("print");
     let mut result = CategoryResult::new("print");
-    let mut coverage = FixtureCoverage::new("print", samples.len());
+    let mut coverage = FixtureCoverage::new("print", svelte_samples_dir("print"), samples.len());
 
     // Print samples whose upstream re-formatter changed in Svelte 5.55.8
     // (upstream commit `ca3f35bf7` "fix(print): handle svelte:body and fix
@@ -1283,7 +1290,11 @@ fn run_preprocess_tests() -> CategoryResult {
 
     let samples = get_svelte_test_samples("preprocess");
     let mut result = CategoryResult::new("preprocess");
-    let mut coverage = FixtureCoverage::new("preprocess", samples.len());
+    let mut coverage = FixtureCoverage::new(
+        "preprocess",
+        svelte_samples_dir("preprocess"),
+        samples.len(),
+    );
 
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -1379,7 +1390,7 @@ fn run_preprocess_tests() -> CategoryResult {
 fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
     let samples = get_svelte_test_samples(category);
     let mut result = CategoryResult::new(category);
-    let mut coverage = FixtureCoverage::new(category, samples.len());
+    let mut coverage = FixtureCoverage::new(category, svelte_samples_dir(category), samples.len());
 
     for sample_dir in &samples {
         let name = sample_dir

@@ -120,6 +120,11 @@ pub struct ScriptTextBreakdown {
     /// The legacy `$:` reactive-statement branch.
     pub reactive_stmt: Duration,
     pub reactive_calls: u64,
+    /// `reactive_stmt` split three ways: dependency extraction, the body
+    /// rewrite, and the state-assignment AST pass that follows it.
+    pub rs_deps: Duration,
+    pub rs_body: Duration,
+    pub rs_assigns: Duration,
     /// Reactive-statement append plus the runes-mode AST transforms.
     pub ast_transforms: Duration,
     /// Shadowed-local post-pass and dev-mode instrumentation.
@@ -207,6 +212,9 @@ thread_local! {
     static ST_RUNES: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_REACTIVE_STMT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_REACTIVE_CALLS: Cell<u64> = const { Cell::new(0) };
+    static ST_RS_DEPS: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_RS_BODY: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static ST_RS_ASSIGNS: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_PARENT_CALLS: Cell<u64> = const { Cell::new(0) };
     static ST_DEPTH: Cell<u64> = const { Cell::new(0) };
     static ST_NESTED_ENTRIES: Cell<u64> = const { Cell::new(0) };
@@ -450,6 +458,21 @@ impl Drop for ReactiveStmtGuard {
 }
 
 #[inline]
+pub fn record_rs_deps(d: Duration) {
+    ST_RS_DEPS.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
+pub fn record_rs_body(d: Duration) {
+    ST_RS_BODY.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
+pub fn record_rs_assigns(d: Duration) {
+    ST_RS_ASSIGNS.with(|c| c.set(c.get() + d));
+}
+
+#[inline]
 pub fn record_st_prenormalize(d: Duration) {
     ST_PRENORMALIZE.with(|c| c.set(c.get() + d));
     ST_CALLS.with(|c| c.set(c.get() + 1));
@@ -488,6 +511,9 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         runes: ST_RUNES.with(|c| c.replace(Duration::ZERO)),
         reactive_stmt: ST_REACTIVE_STMT.with(|c| c.replace(Duration::ZERO)),
         reactive_calls: ST_REACTIVE_CALLS.with(|c| c.replace(0)),
+        rs_deps: ST_RS_DEPS.with(|c| c.replace(Duration::ZERO)),
+        rs_body: ST_RS_BODY.with(|c| c.replace(Duration::ZERO)),
+        rs_assigns: ST_RS_ASSIGNS.with(|c| c.replace(Duration::ZERO)),
         entries: ST_ENTRIES.with(|c| c.replace(0)),
         parent_calls: ST_PARENT_CALLS.with(|c| c.replace(0)),
         nested_entries: ST_NESTED_ENTRIES.with(|c| c.replace(0)),

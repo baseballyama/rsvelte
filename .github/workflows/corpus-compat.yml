@@ -45,6 +45,8 @@ on:
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
+      - 'submodules/eslint-plugin-svelte'
+      - 'submodules/svelte-eslint-parser'
       - 'submodules/bits-ui'
       - 'submodules/flowbite-svelte'
       - 'submodules/melt-ui'
@@ -83,6 +85,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/corpus-compat.yml'
+      - '.github/actions/**'
   pull_request:
     paths:
       - 'crates/**'
@@ -93,6 +96,8 @@ on:
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
+      - 'submodules/eslint-plugin-svelte'
+      - 'submodules/svelte-eslint-parser'
       - 'submodules/bits-ui'
       - 'submodules/flowbite-svelte'
       - 'submodules/melt-ui'
@@ -131,6 +136,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/corpus-compat.yml'
+      - '.github/actions/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -229,7 +235,11 @@ jobs:
           cargo build --release -p rsvelte_napi --lib
           cargo build --release --bin ast_equiv_batch
           mkdir -p .corpus-cache
-          cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node
+          cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node.staging
+          # Replace, never overwrite: if anything still has the old library mapped
+          # (a crashed loader keeps it mapped via ReportCrash), an in-place write
+          # leaves a binary the kernel SIGKILLs. Rename gives a new inode instead.
+          mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node
 
       - name: Collect corpus
         run: node scripts/compat-corpus/collect.mjs
@@ -568,7 +578,11 @@ jobs:
         run: |
           cargo build --release -p rsvelte_napi --lib
           mkdir -p .corpus-cache
-          cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node
+          cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node.staging
+          # Replace, never overwrite: if anything still has the old library mapped
+          # (a crashed loader keeps it mapped via ReportCrash), an in-place write
+          # leaves a binary the kernel SIGKILLs. Rename gives a new inode instead.
+          mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node
 
       - name: Shape matrix parity (ratchet against matrix-known-failures.json)
         run: node scripts/compat-corpus/matrix/run.mjs

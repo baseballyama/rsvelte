@@ -8,7 +8,9 @@ mod common;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use common::{FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name};
+use common::{
+    FixtureCoverage, SkipReason, get_svelte_test_samples, sample_name, svelte_samples_dir,
+};
 use rayon::prelude::*;
 
 /// Grow-only fixture floors, measured against the pinned Svelte submodule.
@@ -226,7 +228,7 @@ fn tally(
     samples: &[PathBuf],
     outcomes: Vec<Result<TestResult, SkipReason>>,
 ) -> (Vec<TestResult>, FixtureCoverage) {
-    let mut coverage = FixtureCoverage::new(what, samples.len());
+    let mut coverage = FixtureCoverage::new(what, svelte_samples_dir(what), samples.len());
     let mut results = Vec::new();
 
     for (sample_dir, outcome) in samples.iter().zip(outcomes) {
