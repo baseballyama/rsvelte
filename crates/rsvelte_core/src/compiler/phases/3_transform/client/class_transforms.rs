@@ -681,11 +681,16 @@ pub(super) fn transform_constructor_private_reads(
             if !field.is_private {
                 continue;
             }
-            let qualified = format!("this.#{}", field.private_backing_name);
-            match field.rune_type.as_str() {
-                "$state" | "$state.raw" | "$state.frozen" => state_qualified.push(qualified),
-                "$derived" | "$derived.by" => derived_qualified.push(qualified),
-                _ => {}
+            // Upstream keys the read form off `PrivateIdentifier`, not the
+            // receiver, so a field reached through an alias (`const inst = this`)
+            // reads exactly like `this.#x` does.
+            for prefix in find_private_field_prefixes(content, &field.private_backing_name) {
+                let qualified = format!("{}.#{}", prefix, field.private_backing_name);
+                match field.rune_type.as_str() {
+                    "$state" | "$state.raw" | "$state.frozen" => state_qualified.push(qualified),
+                    "$derived" | "$derived.by" => derived_qualified.push(qualified),
+                    _ => {}
+                }
             }
         }
 
@@ -1451,21 +1456,35 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 {
                     let mut state_qualified: Vec<String> = Vec::new();
                     let mut other_qualified: Vec<String> = Vec::new();
+                    let mut v_read_qualified: Vec<String> = Vec::new();
                     for field in &fields {
-                        // Constructor-declared fields keep a `this.#x = $.state(…)`
-                        // INITIALIZER in the body (handled above); AST-wrapping that
-                        // assignment would wrongly produce `$.set(this.#x, $.state(…))`.
-                        // Only class-body-declared fields have plain writes here.
-                        if field.constructor_declared {
+                        if !field.is_private {
                             continue;
                         }
-                        let qualified = format!("this.#{}", field.private_backing_name);
-                        if field.rune_type == "$state" {
-                            state_qualified.push(qualified);
-                        } else if field.rune_type == "$state.raw"
-                            || field.rune_type == "$state.frozen"
+                        for prefix in
+                            find_private_field_prefixes(&ctor_body, &field.private_backing_name)
                         {
-                            other_qualified.push(qualified);
+                            // A constructor-declared field keeps a `this.#x = $.state(…)`
+                            // INITIALIZER in the body (handled above); wrapping that
+                            // assignment would wrongly produce `$.set(this.#x, $.state(…))`.
+                            // Only the `this.` name can match that text, so a write
+                            // through any other receiver is still safe to rewrite.
+                            if prefix == "this" && field.constructor_declared {
+                                continue;
+                            }
+                            let qualified = format!("{}.#{}", prefix, field.private_backing_name);
+                            match field.rune_type.as_str() {
+                                "$state" => {
+                                    v_read_qualified.push(qualified.clone());
+                                    state_qualified.push(qualified);
+                                }
+                                "$state.raw" | "$state.frozen" => {
+                                    v_read_qualified.push(qualified.clone());
+                                    other_qualified.push(qualified);
+                                }
+                                "$derived" | "$derived.by" => other_qualified.push(qualified),
+                                _ => {}
+                            }
                         }
                     }
                     if (!state_qualified.is_empty() || !other_qualified.is_empty())
@@ -1474,7 +1493,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                                 &ctor_body,
                                 &state_qualified,
                                 &other_qualified,
-                                true,
+                                &v_read_qualified,
                             )
                     {
                         ctor_body = rewritten;
@@ -1829,11 +1848,12 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
                 }
             }
         }
+        // A method body is never `in_constructor`, so no name reads through `.v`.
         if let Some(rewritten) = super::private_class_assign_ast::transform_private_class_assign_ast(
             &result,
             &state_qualified,
             &other_qualified,
-            false,
+            &[],
         ) {
             result = rewritten;
         }
@@ -2170,6 +2190,19 @@ pub(super) fn transform_class_methods_non_this(
             let pre_dec = format!("--{}", qualified);
             while result.contains(&pre_dec) {
                 result = result.replacen(&pre_dec, &format!("$.update_pre({}, -1)", qualified), 1);
+            }
+
+            // This function only ever runs on a constructor body, where upstream
+            // `MemberExpression.js` reads a `$state` / `$state.raw` field as `q.v`
+            // rather than `$.get(q)`. Those are left to
+            // `transform_constructor_private_reads`; wrapping them here would emit
+            // the wrong form and bury the `.v` the assignment pass already
+            // produced inside a `$.get(…)`.
+            if matches!(
+                field.rune_type.as_str(),
+                "$state" | "$state.raw" | "$state.frozen"
+            ) {
+                continue;
             }
 
             // AST-based pre-pass for member-chain reads (`q.foo`, `q[i]`,
