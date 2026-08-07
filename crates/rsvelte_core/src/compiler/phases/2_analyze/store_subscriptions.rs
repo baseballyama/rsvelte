@@ -52,6 +52,7 @@ pub fn detect_store_subscriptions(
     analysis: &mut ComponentAnalysis,
     options_runes: Option<bool>,
     is_module_file: bool,
+    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
 ) -> Result<(), AnalysisError> {
     if memchr::memchr(b'$', analysis.source.as_bytes()).is_none() {
         return Ok(());
@@ -69,6 +70,7 @@ pub fn detect_store_subscriptions(
             &mut store_refs,
             false,
             analysis.is_typescript,
+            retained_scripts.and_then(|scripts| scripts.instance.as_ref()),
         );
     }
 
@@ -79,6 +81,7 @@ pub fn detect_store_subscriptions(
             &mut store_refs,
             true,
             analysis.is_typescript,
+            retained_scripts.and_then(|scripts| scripts.module.as_ref()),
         );
     }
 
@@ -477,6 +480,7 @@ fn collect_dollar_refs_from_script_with_context(
     refs: &mut Vec<StoreRef>,
     in_module: bool,
     is_typescript: bool,
+    retained: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
 ) {
     let start = script.content.start().unwrap_or(0) as usize;
     let end = script.content.end().unwrap_or(0) as usize;
@@ -493,7 +497,21 @@ fn collect_dollar_refs_from_script_with_context(
     // scope analysis, so it must not produce a `$$Props` store ref (which would
     // trigger `global_reference_invalid`). Blanking preserves byte positions.
     if is_typescript {
-        let blanked = super::types::blank_typescript(content);
+        // Reuse the parse the compiler already did for this exact script rather
+        // than making a third one; pointer identity is what proves it is the
+        // same bytes, since only then do the collected spans line up.
+        // Byte equality, not pointer identity: `analysis.source` is a copy of the
+        // component source, so the retained program's slice never shares an
+        // address with this one even when it holds the very same script.
+        let reusable = retained.filter(|program| {
+            !program.panicked() && program.diagnostics().is_empty() && program.source() == content
+        });
+        let blanked = match reusable {
+            Some(program) => {
+                super::types::blank_typescript_from_program(content, program.program())
+            }
+            None => super::types::blank_typescript(content),
+        };
         collect_dollar_identifiers_from_js_with_context(&blanked, start, refs, in_module);
         return;
     }
@@ -1420,6 +1438,33 @@ fn collect_dollar_refs_from_snippet_block(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The blanked text the lexical scan reads must be reachable without a third
+    /// parse of a script the compiler already parsed — and the two routes must
+    /// agree byte for byte, since the scan indexes into the result.
+    #[test]
+    fn a_typescript_script_is_blanked_without_reparsing_it() {
+        use crate::ast::oxc_program::RetainedProgram;
+        use crate::compiler::phases::phase2_analyze::types::{
+            BLANK_TYPESCRIPT_REPARSES, blank_typescript, blank_typescript_from_program,
+        };
+
+        let source = "interface $$Props { a: string }\nlet foo: $$Props['a'] = $bar;\n";
+        let expected = blank_typescript(source);
+        assert!(
+            expected.contains("$bar") && !expected.contains("$$Props"),
+            "the sample must actually exercise blanking: {expected:?}"
+        );
+
+        let retained = RetainedProgram::parse(source, true);
+        assert!(retained.diagnostics().is_empty());
+        BLANK_TYPESCRIPT_REPARSES.with(|count| count.set(0));
+
+        let reused = blank_typescript_from_program(source, retained.program());
+
+        assert_eq!(reused, expected);
+        BLANK_TYPESCRIPT_REPARSES.with(|count| assert_eq!(count.get(), 0));
+    }
 
     #[test]
     fn test_is_identifier_char() {

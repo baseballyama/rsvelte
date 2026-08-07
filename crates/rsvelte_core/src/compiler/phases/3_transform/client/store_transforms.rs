@@ -57,25 +57,24 @@ pub(super) fn transform_store_assignments_client(
         state_vars,
         non_reactive_state_vars,
     );
-    let mut result = after_assigns.unwrap_or_else(|| stage1.to_string());
+    let result = after_assigns.unwrap_or_else(|| stage1.to_string());
 
     // Member-expression mutations (`$store.prop = …`, `$store[0]++`, etc.)
-    // are handled per-store via the dedicated AST helper. The first
+    // are handled by the dedicated AST helper. The first
     // `$.store_mutate(...)` argument is the store *source* read the same way
     // any reference to its binding would be: a prop binding reads as the getter
     // call `store()`, so prop-backed stores need that form rather than the bare
     // name (other binding kinds keep the bare name).
-    for store_sub in store_sub_vars {
-        let store_name = store_sub[1..].to_string();
-        let prop_store_names: Vec<String> = if prop_vars.contains(&store_name) {
-            vec![store_name]
-        } else {
-            Vec::new()
-        };
-        result = transform_store_member_mutations(&result, store_sub, &prop_store_names);
-    }
-
-    result
+    //
+    // The rewriter matches every store in one traversal and looks `prop_store_names`
+    // up by name, so all of them go through a single parse+reprint rather than one
+    // per subscribed store.
+    let prop_store_names: Vec<String> = store_sub_vars
+        .iter()
+        .map(|store_sub| store_sub[1..].to_string())
+        .filter(|store_name| prop_vars.contains(store_name))
+        .collect();
+    transform_store_member_mutations(&result, store_sub_vars, &prop_store_names)
 }
 
 /// Check if a store subscription name appears as a function parameter in a statement.
@@ -538,12 +537,12 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
 /// - `$store.items[0] = x` -> `$.store_mutate(store, $.untrack($store).items[0] = x, $.untrack($store))`
 pub(super) fn transform_store_member_mutations(
     line: &str,
-    store_sub: &str,
+    store_subs: &[String],
     prop_store_names: &[String],
 ) -> String {
     super::store_member_mutate_ast::transform_store_member_mutate_ast_with_props(
         line,
-        std::slice::from_ref(&store_sub.to_string()),
+        store_subs,
         prop_store_names,
     )
     .unwrap_or_else(|| line.to_string())

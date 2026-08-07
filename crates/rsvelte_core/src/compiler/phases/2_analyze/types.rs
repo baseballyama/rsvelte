@@ -13,6 +13,13 @@ thread_local! {
     };
 }
 
+#[cfg(test)]
+thread_local! {
+    pub(crate) static BLANK_TYPESCRIPT_REPARSES: std::cell::Cell<usize> = const {
+        std::cell::Cell::new(0)
+    };
+}
+
 /// Pre-extracted script content to avoid re-parsing in Phase 3.
 #[derive(Debug, Clone)]
 pub struct ScriptContent {
@@ -829,6 +836,9 @@ pub fn blank_typescript(source: &str) -> String {
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
+    #[cfg(test)]
+    BLANK_TYPESCRIPT_REPARSES.with(|count| count.set(count.get() + 1));
+
     let allocator = Allocator::default();
     let source_type = SourceType::ts();
     let parser = Parser::new(&allocator, source, source_type);
@@ -838,8 +848,19 @@ pub fn blank_typescript(source: &str) -> String {
         return source.to_string();
     }
 
+    blank_typescript_from_program(source, &result.program)
+}
+
+/// [`blank_typescript`] against a program the caller already parsed.
+///
+/// The parse above is the third one this script goes through, and the caller on
+/// the real compile path is holding the retained one.
+pub(crate) fn blank_typescript_from_program(
+    source: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> String {
     let mut removals: Vec<(u32, u32)> = Vec::new();
-    collect_ts_removals_from_program(&result.program, source, &mut removals);
+    collect_ts_removals_from_program(program, source, &mut removals);
 
     if removals.is_empty() {
         return source.to_string();

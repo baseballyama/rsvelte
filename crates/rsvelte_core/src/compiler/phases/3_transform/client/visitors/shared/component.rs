@@ -3,12 +3,14 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js`.
 
+use crate::ast::arena::ParseArena;
 use crate::ast::js::Expression;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, Component,
     LetDirective, OnDirective, SnippetBlock, SpreadAttribute, SvelteComponentElement,
     SvelteElement, TemplateNode,
 };
+use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
@@ -1931,7 +1933,47 @@ fn process_bind_directive<'a>(
 /// Check if expression is a member expression where the object is a store subscription.
 /// E.g., $store.value or $store.nested.value
 fn is_store_member_expression(expr: &Expression, context: &ComponentContext) -> bool {
-    let val = expr.as_json();
+    // The typed walk needs the serialize arena to resolve child ids; without one
+    // installed there is nothing to walk but the JSON.
+    if let Some(node) = expr.try_as_node_ref()
+        && let Some(answer) = crate::ast::arena::try_with_current_serialize_arena(|arena| {
+            typed_is_store_member_expression(node, arena, context)
+        })
+    {
+        return answer;
+    }
+    json_is_store_member_expression(expr.as_json(), context)
+}
+
+/// Typed counterpart of `json_is_store_member_expression`.
+fn typed_is_store_member_expression(
+    node: &JsNode,
+    arena: &ParseArena,
+    context: &ComponentContext,
+) -> bool {
+    let JsNode::MemberExpression { object, .. } = node else {
+        return false;
+    };
+
+    // Walk to the root of the member chain (the `object` side only).
+    let mut root = arena.get_js_node(*object);
+    while let JsNode::MemberExpression { object, .. } = root {
+        root = arena.get_js_node(*object);
+    }
+
+    if let JsNode::Identifier { name, .. } = root
+        && let Some(binding) = context.state.get_binding(name.as_str())
+    {
+        return binding.kind
+            == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub;
+    }
+    false
+}
+
+/// JSON form of `is_store_member_expression` — kept as the fallback for an
+/// expression reached without a serialize arena, and as the oracle the typed
+/// walk is checked against.
+fn json_is_store_member_expression(val: &serde_json::Value, context: &ComponentContext) -> bool {
     if let Some(obj) = val.as_object()
         && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
     {
@@ -3267,6 +3309,110 @@ mod tests {
                 // Should be $.spread_props call
             }
             _ => panic!("Expected call expression"),
+        }
+    }
+
+    /// `(typed, json)` answers of `is_store_member_expression` for the
+    /// expression in `<Test a={…} />`, against a context holding one
+    /// `StoreSub` binding (`$store`) and one plain one (`plain`).
+    fn both_is_store_member(expr_src: &str) -> (bool, bool) {
+        use crate::compiler::ComponentAnalysis;
+        use crate::compiler::phases::phase2_analyze::scope::{
+            Binding, BindingKind, Scope, ScopeRoot,
+        };
+        use std::rc::Rc;
+
+        let input = format!("<Test a={{{expr_src}}} />");
+        let allocator = oxc_allocator::Allocator::default();
+        let mut result = crate::parse(&input, &allocator, Default::default()).unwrap();
+        // `parse()` may leave attribute expressions deferred; both paths need a
+        // resolved `Expression::Typed`.
+        assert!(
+            crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(
+                &mut result,
+                &input,
+            )
+            .is_none(),
+            "`{expr_src}` should parse"
+        );
+
+        let expr = result
+            .fragment
+            .nodes
+            .iter()
+            .find_map(|node| match node {
+                TemplateNode::Component(comp) => {
+                    comp.attributes.iter().find_map(|attr| match attr {
+                        Attribute::Attribute(a) => match &a.value {
+                            AttributeValue::Expression(tag) => Some(&tag.expression),
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
+            .expect("expression attribute");
+
+        let analysis = ComponentAnalysis::new("", &Default::default());
+        let scope = Scope::new(None);
+        let mut scope_root = ScopeRoot::new();
+        for binding in [
+            Binding::new("$store".to_string(), BindingKind::StoreSub, 0),
+            Binding::new("plain".to_string(), BindingKind::Normal, 0),
+        ] {
+            let name = binding.name.clone();
+            let idx = scope_root.push_binding(binding);
+            scope_root.scope.declarations.insert(name, idx);
+        }
+        let state = ComponentClientTransformState::new(
+            &result.arena,
+            &scope,
+            &scope_root,
+            &analysis,
+            b::id("node"),
+            Rc::new(TransformOptions::default()),
+        );
+        let context = ComponentContext::new(state, |_, _, _| TransformResult::None);
+
+        crate::ast::arena::with_serialize_arena(&result.arena, || {
+            (
+                is_store_member_expression(expr, &context),
+                json_is_store_member_expression(expr.as_json(), &context),
+            )
+        })
+    }
+
+    #[test]
+    fn typed_is_store_member_expression_agrees_with_the_json_walk() {
+        // (expression, expected answer) — expectations are spelled out as well
+        // as compared, so a walk that always says `false` can't pass by
+        // agreeing with an equally broken oracle.
+        let cases: &[(&str, bool)] = &[
+            ("$store.value", true),
+            ("$store.a.b.c", true),
+            ("$store['a'].b", true),
+            // Not a member expression at all.
+            ("$store", false),
+            ("$store()", false),
+            // Member chain rooted at a non-store binding / an unknown name.
+            ("plain.value", false),
+            ("missing.value", false),
+            // The root of the chain is the `object` side only — a computed
+            // property that mentions the store does not make it a store member.
+            ("plain[$store]", false),
+            // Chains whose root is not an identifier.
+            ("fn().value", false),
+            ("this.value", false),
+        ];
+
+        for (src, expected) in cases {
+            let (typed, json) = both_is_store_member(src);
+            assert_eq!(typed, json, "typed and JSON paths disagree on `{src}`");
+            assert_eq!(
+                &typed, expected,
+                "unexpected is_store_member_expression for `{src}`"
+            );
         }
     }
 }

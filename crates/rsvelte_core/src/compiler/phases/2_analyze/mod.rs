@@ -263,6 +263,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
         &mut analysis,
         options.runes,
         is_module_file,
+        retained_scripts,
     )?;
 
     // Detect await expressions and rune references in template and scripts.
@@ -294,8 +295,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
         rustc_hash::FxHashSet::default()
     };
 
-    let can_have_features = memchr::memchr(b'$', source.as_bytes()).is_some()
-        || memchr::memmem::find(source.as_bytes(), b"await").is_some();
+    let can_have_features = feature_walk_can_find_anything(source, needs_rune_detection);
 
     // Check the template fragment for both await expressions and rune references
     // in a single traversal (previously done as two separate walks).
@@ -3076,6 +3076,35 @@ fn expression_check_features(
     }
 }
 
+/// Whether the await / rune-reference walk can still find something this
+/// compile will read.
+///
+/// Every rune name starts with `$`, so ORing the two probes let the `$` half —
+/// true for most files — decide alone and cost `await`, present in about 1% of
+/// them, its say entirely. `await` only earns one once `$` can be false: with
+/// rune detection off, the walk's sole surviving output is `has_await`, which an
+/// `await`-free source already settles.
+fn feature_walk_can_find_anything(source: &str, needs_rune_detection: bool) -> bool {
+    (needs_rune_detection && memchr::memchr(b'$', source.as_bytes()).is_some())
+        || memchr::memmem::find(source.as_bytes(), b"await").is_some()
+}
+
+#[cfg(test)]
+mod feature_walk_gate_tests {
+    use super::feature_walk_can_find_anything;
+
+    #[test]
+    fn a_rune_looking_source_only_needs_the_walk_while_rune_detection_is_on() {
+        // The case the gate exists for: runes mode already decided, no `await`.
+        assert!(!feature_walk_can_find_anything("let x = $state(0);", false));
+        // Positive controls — each half must be able to open the gate on its own.
+        assert!(feature_walk_can_find_anything("let x = $state(0);", true));
+        assert!(feature_walk_can_find_anything("await go();", false));
+        // And a source with neither never opens it.
+        assert!(!feature_walk_can_find_anything("let x = 1;", true));
+    }
+}
+
 /// Collect `$`-prefixed identifier names from a function-parameter *pattern*
 /// (typed `JsNode` form) into `out`. Default values (`AssignmentPattern.right`)
 /// are expressions, not declarations, so they are not collected.
@@ -3118,90 +3147,15 @@ fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<S
     }
 }
 
-/// Walk a typed `JsNode` tree, accumulating await / rune-reference detection
-/// into `results`. Mirrors `json_check_features` semantics but avoids the
-/// `Expression::as_json()` materialization and `serde_json::Value` field
-/// lookups that dominated the analyze `feature_detect` bucket.
+/// Call `f` once for every direct child of `node`.
 ///
-/// The function boundary suppresses await detection inside
-/// `FunctionExpression` / `ArrowFunctionExpression` / `FunctionDeclaration`
-/// bodies (same as `json_check_features`), while rune detection continues
-/// across boundaries.
-///
-/// Fields skipped for the rune check (a non-computed property identifier is
-/// not a rune reference, and an `$effect:` label is not a rune reference
-/// either):
-/// - `LabeledStatement.label`
-/// - `MemberExpression.property` when `computed == false`
-/// - `Property.key` when `computed == false`
-///
-/// Those fields can't carry an `AwaitExpression`, so skipping them entirely
-/// is safe for the await check too.
-fn js_node_check_features(
-    node: &JsNode,
-    arena: &ParseArena,
-    store_subs: &rustc_hash::FxHashSet<&str>,
-    results: &mut JsonCheckResults,
-    inside_function: bool,
-    shadowed: &mut Vec<String>,
-) {
-    if results.all_found() {
-        return;
-    }
-
-    if !inside_function && matches!(node, JsNode::AwaitExpression { .. }) {
-        results.has_await = true;
-    }
-
-    if let JsNode::Identifier { name, .. } = node
-        && is_rune_name(name.as_str())
-        && !store_subs.contains(name.as_str())
-        && !shadowed.iter().any(|s| s == name.as_str())
-    {
-        results.has_rune_reference = true;
-    }
-
-    if results.all_found() {
-        return;
-    }
-
-    let child_inside_function = inside_function
-        || matches!(
-            node,
-            JsNode::FunctionExpression { .. }
-                | JsNode::ArrowFunctionExpression { .. }
-                | JsNode::FunctionDeclaration { .. }
-        );
-
-    // Shadow-aware rune detection: `$`-prefixed function parameters (e.g.
-    // `function bar($derived, $effect) {}`) shadow the rune names inside the
-    // function, mirroring upstream where such references resolve to the
-    // parameter binding and never reach `module.scope.references` (the set
-    // runes-mode detection is computed from).
-    let shadow_base = shadowed.len();
-    if let JsNode::FunctionDeclaration { params, .. }
-    | JsNode::FunctionExpression { params, .. }
-    | JsNode::ArrowFunctionExpression { params, .. } = node
-    {
-        for param in arena.get_js_children(*params) {
-            collect_dollar_param_names(param, arena, shadowed);
-        }
-    }
-
+/// This is the single place that knows what the children of each `JsNode`
+/// variant are; both the feature walk below and Phase 3's metadata-flag walk
+/// ride on it rather than each spelling out the variant list.
+pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl FnMut(&JsNode)) {
     macro_rules! walk_id {
         ($id:expr) => {{
-            js_node_check_features(
-                arena.get_js_node($id),
-                arena,
-                store_subs,
-                results,
-                child_inside_function,
-                shadowed,
-            );
-            if results.all_found() {
-                shadowed.truncate(shadow_base);
-                return;
-            }
+            f(arena.get_js_node($id));
         }};
     }
     macro_rules! walk_opt_id {
@@ -3214,18 +3168,7 @@ fn js_node_check_features(
     macro_rules! walk_range {
         ($range:expr) => {{
             for child in arena.get_js_children($range) {
-                js_node_check_features(
-                    child,
-                    arena,
-                    store_subs,
-                    results,
-                    child_inside_function,
-                    shadowed,
-                );
-                if results.all_found() {
-                    shadowed.truncate(shadow_base);
-                    return;
-                }
+                f(child);
             }
         }};
     }
@@ -3300,17 +3243,7 @@ fn js_node_check_features(
 
         JsNode::ArrayExpression { elements, .. } | JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
-                js_node_check_features(
-                    elem,
-                    arena,
-                    store_subs,
-                    results,
-                    child_inside_function,
-                    shadowed,
-                );
-                if results.all_found() {
-                    return;
-                }
+                f(elem);
             }
         }
 
@@ -3559,6 +3492,91 @@ fn js_node_check_features(
         | JsNode::TSTypeAssertion { expression, .. }
         | JsNode::TSInstantiationExpression { expression, .. } => walk_id!(*expression),
     }
+}
+
+/// Walk a typed `JsNode` tree, accumulating await / rune-reference detection
+/// into `results`. Mirrors `json_check_features` semantics but avoids the
+/// `Expression::as_json()` materialization and `serde_json::Value` field
+/// lookups that dominated the analyze `feature_detect` bucket.
+///
+/// The function boundary suppresses await detection inside
+/// `FunctionExpression` / `ArrowFunctionExpression` / `FunctionDeclaration`
+/// bodies (same as `json_check_features`), while rune detection continues
+/// across boundaries.
+///
+/// Fields skipped for the rune check (a non-computed property identifier is
+/// not a rune reference, and an `$effect:` label is not a rune reference
+/// either):
+/// - `LabeledStatement.label`
+/// - `MemberExpression.property` when `computed == false`
+/// - `Property.key` when `computed == false`
+///
+/// Those fields can't carry an `AwaitExpression`, so skipping them entirely
+/// is safe for the await check too.
+fn js_node_check_features(
+    node: &JsNode,
+    arena: &ParseArena,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+    results: &mut JsonCheckResults,
+    inside_function: bool,
+    shadowed: &mut Vec<String>,
+) {
+    if results.all_found() {
+        return;
+    }
+
+    if !inside_function && matches!(node, JsNode::AwaitExpression { .. }) {
+        results.has_await = true;
+    }
+
+    if let JsNode::Identifier { name, .. } = node
+        && is_rune_name(name.as_str())
+        && !store_subs.contains(name.as_str())
+        && !shadowed.iter().any(|s| s == name.as_str())
+    {
+        results.has_rune_reference = true;
+    }
+
+    if results.all_found() {
+        return;
+    }
+
+    let child_inside_function = inside_function
+        || matches!(
+            node,
+            JsNode::FunctionExpression { .. }
+                | JsNode::ArrowFunctionExpression { .. }
+                | JsNode::FunctionDeclaration { .. }
+        );
+
+    // Shadow-aware rune detection: `$`-prefixed function parameters (e.g.
+    // `function bar($derived, $effect) {}`) shadow the rune names inside the
+    // function, mirroring upstream where such references resolve to the
+    // parameter binding and never reach `module.scope.references` (the set
+    // runes-mode detection is computed from).
+    let shadow_base = shadowed.len();
+    if let JsNode::FunctionDeclaration { params, .. }
+    | JsNode::FunctionExpression { params, .. }
+    | JsNode::ArrowFunctionExpression { params, .. } = node
+    {
+        for param in arena.get_js_children(*params) {
+            collect_dollar_param_names(param, arena, shadowed);
+        }
+    }
+
+    for_each_js_child(node, arena, &mut |child| {
+        if results.all_found() {
+            return;
+        }
+        js_node_check_features(
+            child,
+            arena,
+            store_subs,
+            results,
+            child_inside_function,
+            shadowed,
+        );
+    });
 
     shadowed.truncate(shadow_base);
 }
