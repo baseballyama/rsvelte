@@ -16,6 +16,7 @@ use std::path::Path;
 use common::preprocess_fixtures::{build_preprocessors, filename_for};
 use common::{
     FixtureCoverage, SkipReason, get_svelte_test_samples, read_fixture_file, sample_name,
+    svelte_samples_dir,
 };
 use rsvelte_core::compiler::preprocess::preprocess;
 
@@ -117,7 +118,11 @@ pub fn run_preprocess_fixture(fixture: &PreprocessFixture) -> PreprocessResult {
 
 pub fn load_preprocess_fixtures() -> (Vec<PreprocessFixture>, FixtureCoverage) {
     let samples = get_svelte_test_samples("preprocess");
-    let mut coverage = FixtureCoverage::new("preprocess", samples.len());
+    let mut coverage = FixtureCoverage::new(
+        "preprocess",
+        svelte_samples_dir("preprocess"),
+        samples.len(),
+    );
     let mut fixtures = Vec::new();
 
     for sample_dir in &samples {

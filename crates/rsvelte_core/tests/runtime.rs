@@ -15,8 +15,8 @@ use std::path::Path;
 
 use common::{
     FixtureCoverage, RuntimeFixtureOptions, SkipReason, compare_js_with_debug as compare_js_debug,
-    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, runtime_fixture_options,
-    runtime_skip_names, sample_name, svelte_path, write_actual_output,
+    ensure_fixtures_exist, fixture_samples_dir, get_fixture_samples, load_fixture_output,
+    runtime_fixture_options, runtime_skip_names, sample_name, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -246,7 +246,7 @@ fn run_runtime_tests(category: &str, min_fixtures: usize) {
         .expect("Failed to build thread pool");
 
     // Load fixtures sequentially (fast, low memory)
-    let mut coverage = FixtureCoverage::new(category, samples.len());
+    let mut coverage = FixtureCoverage::new(category, fixture_samples_dir(category), samples.len());
     let mut fixtures: Vec<RuntimeFixture> = Vec::new();
     for sample_dir in &samples {
         match load_runtime_fixture(category, sample_dir.as_path()) {
