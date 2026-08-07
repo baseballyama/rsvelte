@@ -4881,15 +4881,15 @@ fn create_regex_literal<'a>(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        value: LiteralValue::Regex(RegexValue {
+        value: LiteralValue::Regex(Box::new(RegexValue {
             pattern: CompactString::from(pattern_str),
             flags: CompactString::from(flags_str),
-        }),
+        })),
         raw: CompactString::from(raw),
-        regex: Some(RegexValue {
+        regex: Some(Box::new(RegexValue {
             pattern: CompactString::from(regex.regex.pattern.text.as_ref()),
             flags: CompactString::from(regex.regex.flags.to_string()),
-        }),
+        })),
     })
 }
 
@@ -6987,9 +6987,11 @@ fn convert_parsed_program<'ast>(
                 loc,
                 body: arena.alloc_js_children(body),
                 source_type: CompactString::from("module"),
-                leading_comments: leading_comments_val,
-                trailing_comments: trailing_comments_val,
-                ignore_comment_map,
+                metadata: Box::new(crate::ast::typed_expr::ProgramMetadata {
+                    leading_comments: leading_comments_val,
+                    trailing_comments: trailing_comments_val,
+                    ignore_comment_map,
+                }),
             }),
             parse_error,
         )

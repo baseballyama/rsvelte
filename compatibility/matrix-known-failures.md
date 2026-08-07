@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 162 entries)
+## Matrix known failures (`matrix-known-failures.json`, 290 entries)
 
 ### `binding-position` — 2 entries
 
@@ -47,7 +47,13 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 160 entries
+### `comment-slot` — 288 entries
+
+Two sub-clusters with distinct causes: the `.svelte` template seeds below and the
+remainder of the `.svelte.(js|ts)` module path (#2399). The class-field relocation
+(#2437) cleared entirely.
+
+#### `.svelte` template seeds — 160 entries
 
 One comment inserted at each line boundary inside every `<script>` region of 6 seeds,
 across 8 comment kinds. A comment is the one token that may appear between any two other
@@ -93,11 +99,30 @@ address, so the only comments it could replay were the LEADING ones in the gap b
 statement. Statements that are re-parsed WHOLE now keep their relative positions, which is
 what upstream gets for free by keeping the original nodes' `loc`.
 
-Server still dominates (82 of 162), and its 56 remaining drops are one residual class: a
+Server still dominates (82 of these 160), and its 56 remaining drops are one residual class: a
 comment TRAILING the last top-level statement of a script region, which upstream flushes
 into the generated component function's parameter list or into a template interpolation
 (`$$renderer.push(\`…${$.escape(/* c */ b)}…\`)`). It is 7 line slots × 8 comment kinds.
 See `server/ast/comments.rs`.
+
+#### module path (`.svelte.(js|ts)`) — 128 entries, all #2399
+
+Added with the module seeds that gave this family its `.svelte.(js|ts)` cases. Every one of
+these 128 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
+official drops a Program-level comment in the module path and rsvelte keeps it.** They are
+listed as *expected to shrink when #2399 lands*, not as accepted behaviour. Do not treat this
+block as a specification of rsvelte's output.
+
+Classified mechanically, not by eye: for each entry the two normalized outputs are diffed as
+line multisets, and an entry qualifies only when nothing is missing from rsvelte's side and
+every extra line is a comment. The classifier is the same comparison the gate makes, run over
+the gate's own artifacts.
+
+One correction this measurement forces, because #2399's framing depends on it: **official does
+not drop *every* Program-level comment.** Over the 192 generated module cases it drops in
+**80** and preserves in **112** — position-dependent, and uniform across all 8 comment kinds
+(7 drops each). A fix built on "drop them all" would be wrong in 112 of 192 positions; the
+correct fix reproduces a position rule.
 
 ## Burn-down
 

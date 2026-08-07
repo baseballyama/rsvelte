@@ -1228,7 +1228,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_typed_loc(w, loc.as_deref());
             write_literal_value(w, value);
             write_str(w, raw.as_str());
-            write_regex(w, regex.as_ref());
+            write_regex(w, regex.as_deref());
         }
         JsNode::BinaryExpression {
             start,
@@ -1627,17 +1627,14 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             loc,
             body,
             source_type,
-            leading_comments,
-            trailing_comments,
-            // Internal analyze-only metadata; not part of the serialized AST.
-            ignore_comment_map: _,
+            metadata,
         } => {
             write_preamble(w, JS_PROGRAM, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_id_range(w, *body, arena)?;
             write_str(w, source_type.as_str());
-            write_opt_inline_json(w, trailing_comments.as_ref())?;
-            write_opt_inline_json(w, leading_comments.as_ref())?;
+            write_opt_inline_json(w, metadata.trailing_comments.as_ref())?;
+            write_opt_inline_json(w, metadata.leading_comments.as_ref())?;
         }
         JsNode::ExpressionStatement {
             start,
