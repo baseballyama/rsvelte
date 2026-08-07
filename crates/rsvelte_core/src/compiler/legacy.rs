@@ -156,6 +156,24 @@ impl Utf8ToUtf16 {
         // Return column as offset from line start in UTF-16
         abs_utf16_pos.saturating_sub(line_start_utf16)
     }
+
+    /// Number of lines, counted the way JavaScript's `split('\n')` does — a
+    /// trailing newline yields a final empty line.
+    pub fn line_count(&self) -> usize {
+        self.line_starts_byte.len()
+    }
+
+    /// The 0-indexed `line` of `source`, without its terminator. `source` must
+    /// be the string this table was built from.
+    pub fn line_text<'s>(&self, source: &'s str, line: usize) -> &'s str {
+        let start = self.line_starts_byte[line];
+        let end = match self.line_starts_byte.get(line + 1) {
+            // The next line starts one byte past this line's `\n`.
+            Some(&next) => next - 1,
+            None => source.len(),
+        };
+        &source[start..end]
+    }
 }
 
 /// Recursively convert positions in JSON from UTF-8 to UTF-16.

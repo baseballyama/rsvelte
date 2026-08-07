@@ -20,7 +20,7 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::error::ParseResult;
 
-use super::super::parser::{Parser, StackEntry};
+use super::super::parser::{Parser, StackEntry, is_js_whitespace};
 use super::super::utils::TrimWs;
 
 impl<'a> Parser<'a> {
@@ -128,7 +128,7 @@ impl<'a> Parser<'a> {
         if is_maybe_type {
             let body_after = &self.source[decl_start + 4..body_end];
             let ident_next = body_after
-                .trim_start()
+                .trim_start_ws()
                 .as_bytes()
                 .first()
                 .copied()
@@ -141,7 +141,7 @@ impl<'a> Parser<'a> {
             // covers the whole declaration (trailing whitespace trimmed),
             // mirroring upstream's `{ start: declaration.start, end:
             // declaration.end }`.
-            let decl_text_end = decl_start + self.source[decl_start..body_end].trim_end().len();
+            let decl_text_end = decl_start + self.source[decl_start..body_end].trim_end_ws().len();
             return Err(crate::error::ParseError::svelte(
                 "declaration_tag_invalid_type",
                 "Declaration tags must be `let` or `const` declarations",
@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
         self.index = decl_start + kw_len;
         self.skip_whitespace();
         let body_start = self.index;
-        let body_text = self.source[body_start..body_end].trim_end();
+        let body_text = self.source[body_start..body_end].trim_end_ws();
         self.index = body_end;
         self.advance(); // consume `}`
 
@@ -188,7 +188,7 @@ impl<'a> Parser<'a> {
                     // `js_parse_error` — only a parseable statement that
                     // isn't a `let`/`const` declaration becomes
                     // `declaration_tag_invalid_type`.
-                    let stmt_text = self.source[decl_start..body_end].trim_end();
+                    let stmt_text = self.source[decl_start..body_end].trim_end_ws();
                     if let Some((msg, pos)) =
                         super::super::read::expression::check_js_statement_parse_error(
                             stmt_text, self.ts,
@@ -347,7 +347,7 @@ impl<'a> Parser<'a> {
         let init_offset = body_start
             + eq_idx
             + 1
-            + (body_text[eq_idx + 1..].len() - body_text[eq_idx + 1..].trim_start().len());
+            + (body_text[eq_idx + 1..].len() - body_text[eq_idx + 1..].trim_start_ws().len());
         // In loose mode an initializer that is not a complete expression
         // (e.g. `a /`) cannot be parsed. Upstream always parses the declaration
         // statement with acorn (non-loose); only the *fallback* is loose. So
@@ -415,7 +415,7 @@ impl<'a> Parser<'a> {
 
         let mut declarators: Vec<Value> = Vec::with_capacity(segments.len());
         for (seg_off, raw) in segments {
-            let lead = raw.len() - raw.trim_start().len();
+            let lead = raw.len() - raw.trim_start_ws().len();
             let seg = raw.trim_ws();
             if seg.is_empty() {
                 continue;
@@ -424,7 +424,7 @@ impl<'a> Parser<'a> {
 
             let (pattern_str, init_str, init_off) = match find_top_level_assignment(seg) {
                 Some(eq) => {
-                    let init_lead = seg[eq + 1..].len() - seg[eq + 1..].trim_start().len();
+                    let init_lead = seg[eq + 1..].len() - seg[eq + 1..].trim_start_ws().len();
                     (
                         seg[..eq].trim_ws().to_string(),
                         seg[eq + 1..].trim_ws().to_string(),
@@ -796,16 +796,10 @@ impl<'a> Parser<'a> {
     /// Tolerates arbitrary whitespace (incl. newlines) on both sides so a
     /// newline-split header parses like a single-spaced one.
     fn looks_like_as_separator(&self) -> bool {
-        let mut j = self.index;
-        while j < self.bytes.len() && self.bytes[j].is_ascii_whitespace() {
-            j += 1;
-        }
+        let j = self.skip_js_whitespace_from(self.index);
         self.bytes.get(j) == Some(&b'a')
             && self.bytes.get(j + 1) == Some(&b's')
-            && self
-                .bytes
-                .get(j + 2)
-                .is_some_and(|c| c.is_ascii_whitespace())
+            && self.is_js_whitespace_at(j + 2)
     }
 
     pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
@@ -871,7 +865,10 @@ impl<'a> Parser<'a> {
                 // the same as `{#each cats as { id }}`. We trigger on the first
                 // whitespace byte of the run and skip the whole `WS* as` so it
                 // is not re-scanned; the rightmost top-level `as` wins.
-                _ if depth == 0 && b.is_ascii_whitespace() && self.looks_like_as_separator() => {
+                _ if depth == 0
+                    && self.is_js_whitespace_at(self.index)
+                    && self.looks_like_as_separator() =>
+                {
                     last_as = Some(self.index);
                     self.skip_whitespace();
                     self.index += 2; // consume `as`
@@ -958,7 +955,7 @@ impl<'a> Parser<'a> {
                             // can emit it; the parser no longer errors here.
                             let key_opt = if idx_has_key {
                                 let raw_slice = &self.source[expr_start..expr_end];
-                                let lead_ws = raw_slice.len() - raw_slice.trim_start().len();
+                                let lead_ws = raw_slice.len() - raw_slice.trim_start_ws().len();
                                 let base = expr_start + lead_ws;
                                 if let Some(rel_paren) = s[comma_pos + 1..].find('(') {
                                     let key_start = base + comma_pos + 1 + rel_paren + 1;
@@ -966,7 +963,7 @@ impl<'a> Parser<'a> {
                                         find_matching_bracket(self.source, key_start, '(')
                                             .unwrap_or(self.bytes.len());
                                     let key_raw = &self.source[key_start..key_end];
-                                    let key_lead = key_raw.len() - key_raw.trim_start().len();
+                                    let key_lead = key_raw.len() - key_raw.trim_start_ws().len();
                                     let key_content = key_raw.trim_ws().to_string();
                                     Some(self.parse_head_expression(
                                         &key_content,
@@ -1171,7 +1168,7 @@ impl<'a> Parser<'a> {
         let raw_content = &self.source[context_start..context_end];
         let trimmed_content = raw_content.trim_ws();
         // Calculate actual start position after trimming leading whitespace
-        let leading_ws = raw_content.len() - raw_content.trim_start().len();
+        let leading_ws = raw_content.len() - raw_content.trim_start_ws().len();
         let actual_context_start = context_start + leading_ws;
         let context = self.parse_binding_pattern(trimmed_content, actual_context_start)?;
 
@@ -1407,13 +1404,13 @@ impl<'a> Parser<'a> {
                     || self.source[..self.index]
                         .chars()
                         .next_back()
-                        .is_some_and(|c| c.is_whitespace() || c == ')' || c == ']');
+                        .is_some_and(|c| is_js_whitespace(c) || c == ')' || c == ']');
                 if preceded_by_ws && self.match_str("then") {
                     let after_idx = self.index + 4;
                     let is_word_boundary = self.source[after_idx.min(self.source.len())..]
                         .chars()
                         .next()
-                        .is_none_or(|c| c.is_whitespace() || c == '}');
+                        .is_none_or(|c| is_js_whitespace(c) || c == '}');
                     if is_word_boundary {
                         has_then = true;
                         break;
@@ -1424,7 +1421,7 @@ impl<'a> Parser<'a> {
                     let is_word_boundary = self.source[after_idx.min(self.source.len())..]
                         .chars()
                         .next()
-                        .is_none_or(|c| c.is_whitespace() || c == '}');
+                        .is_none_or(|c| is_js_whitespace(c) || c == '}');
                     if is_word_boundary {
                         has_catch = true;
                         break;
@@ -1436,10 +1433,10 @@ impl<'a> Parser<'a> {
         let expr_end = self.index;
         let expr_content = &self.source[expr_start..expr_end];
         // Calculate the actual start position after trimming leading whitespace
-        let trimmed_content = expr_content.trim_start();
+        let trimmed_content = expr_content.trim_start_ws();
         let leading_ws = expr_content.len() - trimmed_content.len();
         let adjusted_start = expr_start + leading_ws;
-        let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end().len());
+        let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end_ws().len());
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
         let expression = if let Some(lazy) =
@@ -2073,7 +2070,8 @@ impl<'a> Parser<'a> {
                     let init_offset = expr_start
                         + eq_idx
                         + 1
-                        + (trimmed[eq_idx + 1..].len() - trimmed[eq_idx + 1..].trim_start().len());
+                        + (trimmed[eq_idx + 1..].len()
+                            - trimmed[eq_idx + 1..].trim_start_ws().len());
                     let init_expr = self.parse_js_expression(init_str, init_offset);
 
                     // Reject a sequence-expression initializer, mirroring
@@ -2107,7 +2105,7 @@ impl<'a> Parser<'a> {
                     // upstream's `declarator_end = parser.index` captured right
                     // after `read_expression` (Svelte 5.56.4), rather than the
                     // bare `init.end` (which stops inside the parens).
-                    let declarator_end = init_offset + init_str.trim_end().len();
+                    let declarator_end = init_offset + init_str.trim_end_ws().len();
                     // The VariableDeclaration starts at the `const` keyword
                     // (`start + 2`, i.e. past the leading `{@`), matching
                     // upstream's `start: start + 2 // start at const, not at @const`.
@@ -2225,7 +2223,7 @@ impl<'a> Parser<'a> {
         // parse_js_expression_strict() creates Lazy expressions.
 
         // Adjust offset for leading whitespace that gets trimmed
-        let leading_ws = content.len() - content.trim_start().len();
+        let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         super::super::expression::parse_expression(
             &self.arena,
@@ -2257,7 +2255,7 @@ impl<'a> Parser<'a> {
         if self.should_defer_template_parse() {
             let trimmed = content.trim_ws();
             if !trimmed.is_empty() {
-                let leading_ws = content.len() - content.trim_start().len();
+                let leading_ws = content.len() - content.trim_start_ws().len();
                 return Ok(Expression::Lazy {
                     start: (offset + leading_ws) as u32,
                     end: (offset + leading_ws + trimmed.len()) as u32,
@@ -2268,7 +2266,7 @@ impl<'a> Parser<'a> {
         }
 
         // Adjust offset for leading whitespace that gets trimmed
-        let leading_ws = content.len() - content.trim_start().len();
+        let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
         super::super::expression::parse_expression(
@@ -2337,7 +2335,7 @@ impl<'a> Parser<'a> {
     /// identifier: `{@render …}` (its invalid-call check is an analysis-phase
     /// error) and the `{#await …}` head.
     pub fn parse_js_expression_lenient(&self, content: &str, offset: usize) -> Expression<'a> {
-        let leading_ws = content.len() - content.trim_start().len();
+        let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         match self.defer_expression(trimmed, offset + leading_ws, LazyKind::Lenient) {
             Some(lazy) => lazy,
@@ -2355,7 +2353,7 @@ impl<'a> Parser<'a> {
         offset: usize,
     ) -> crate::error::ParseResult<Expression<'a>> {
         // Adjust offset for leading whitespace that gets trimmed
-        let leading_ws = content.len() - content.trim_start().len();
+        let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
         if let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, LazyKind::Attribute) {
@@ -2403,7 +2401,7 @@ impl<'a> Parser<'a> {
         disallow_loose: bool,
         close_char: char,
     ) -> crate::error::ParseResult<Expression<'a>> {
-        let leading_ws = content.len() - content.trim_start().len();
+        let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
         let opening_token = if close_char == ')' { '(' } else { '{' };

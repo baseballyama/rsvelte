@@ -22,9 +22,16 @@ These fixtures are committed directly to the repo, so the workload is stable
 across submodule bumps and identical on every branch. **Treat each file as an
 append-only, stable benchmark identity** — the benchmark IDs are derived from
 the filenames (without the `.svelte` extension), so renaming a file resets its
-CodSpeed history. Adding a new file is free; editing an existing one changes
-what that benchmark measures (which is fine, but expect a one-time step in the
-trend).
+CodSpeed history. Editing an existing one changes what that benchmark measures
+(which is fine, but expect a one-time step in the trend).
+
+Adding a new file is free for the **per-file** benchmark IDs, but not for the
+two that aggregate the whole corpus into a single ID:
+`parallel_parse::corpus` (`benches/parser.rs`) parses every fixture in one
+iteration, and `compile_both` sums over the workload. Their cost is
+proportional to the corpus, so adding a fixture raises them by construction and
+CodSpeed reports it as a regression. That alert has to be acknowledged once, in
+the PR that adds the file — it is a workload change, not a slowdown.
 
 ## What's here
 
@@ -43,7 +50,30 @@ prefix so iteration order is deterministic.
 | `07-snippets.svelte`        | runes  | `{#snippet}` / `{@render}`, `{@const}`, snippet props |
 | `08-control-flow.svelte`    | runes  | `{#if}`/`{#each}`/`{#await}`/`{#key}` mix, `{@html}` |
 | `09-typescript-generics.svelte` | runes + TS | generic `$props`, typed snippets/callbacks, type assertions |
+| `10-legacy-typescript-props.svelte` | legacy + TS | `export let` with type annotations, `$:` chains, `$store` reads, typed `createEventDispatcher` |
+| `11-store-heavy-legacy.svelte` | legacy + TS | `$store` autosubscription throughout script *and* markup, `$store` assignment, `getContext` stores, `$:` over store reads |
 
 Synthetic *scale* inputs (large, deterministic, generated in-code) live in the
 bench files themselves, not here — they're pure functions, so they're stable
 without needing to commit a huge file.
+
+## Distribution, not just coverage
+
+Fixtures 01–09 were picked to *cover features* — one distinct compiler slice
+each. That makes them a poor proxy for the *mix* of shipped Svelte code, and
+the benchmarks aggregate over them, so the mix is what the numbers report.
+Measured over 3,509 `.svelte` files from four shipped projects (huly/plugins,
+open-webui, carbon-components-svelte, SMUI):
+
+| axis | shipped | fixtures 01–09 |
+|------|---------|----------------|
+| uses `$state` / `$derived` | 8.0% | 88.9% |
+| uses `$:` | 0–60% by project | 11% |
+| uses `export let` | 0–90% by project | 11% |
+| `lang="ts"` | 0–99% by project | 11% |
+| p90 source size | 4.9–15.7 KB | 2.6 KB |
+
+An optimization that only pays off on legacy, TypeScript, or store-heavy
+components — which is most of the shipped population — reads as 0% here.
+Fixtures 10–11 exist to close that gap; keep the distribution in mind when
+adding more.

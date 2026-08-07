@@ -287,9 +287,7 @@ impl<'a> Parser<'a> {
                 loc: None,
                 body: crate::ast::arena::IdRange::empty(),
                 source_type: CompactString::from("module"),
-                leading_comments: None,
-                trailing_comments: None,
-                ignore_comment_map: Vec::new(),
+                metadata: Box::default(),
             });
             Script {
                 node_type: ScriptType::Script,
@@ -335,9 +333,7 @@ impl<'a> Parser<'a> {
                     loc: None,
                     body: crate::ast::arena::IdRange::empty(),
                     source_type: CompactString::from("module"),
-                    leading_comments: None,
-                    trailing_comments: None,
-                    ignore_comment_map: Vec::new(),
+                    metadata: Box::default(),
                 });
                 Script {
                     node_type: ScriptType::Script,

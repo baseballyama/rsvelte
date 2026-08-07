@@ -33,6 +33,15 @@ pub fn visit<'a, 'b: 'a>(
     // This is crucial for legacy state promotion to work correctly
     super::script::walk_expression(&component.expression, context)?;
 
+    // Upstream lists `SvelteComponent` only for `path.at(-1)` and for the
+    // `SequenceExpression` arm, never for a lone arrow at `path.at(-2)`.
+    super::shared::attribute::record_assign_exempt_expression(
+        context,
+        &component.expression,
+        false,
+    );
+    super::shared::attribute::record_component_assign_exempt(context, &component.attributes, false);
+
     // Analyze attributes (mirrors visit_component logic from shared/component.rs)
     for attr in &mut component.attributes {
         match attr {
