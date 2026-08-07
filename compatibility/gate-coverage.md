@@ -57,7 +57,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
 | 15 | `ast_gate_preconditions` | "rsvelte's own output parses" | compile **failures** are skipped — errors make it greener | [S] |
 | 16 | Validator fixture suite | per-fixture error code / warning set | ratchet staleness is **not** asserted (207 entries) | [S] |
-| 17 | svelte2tsx fixture suite | per-fixture TSX text | no erosion floor — 1-of-253 measured reads green | [S] |
+| 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
 | 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | warnings compared by **count only** | [S] |
 
 Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors) are in
@@ -695,15 +695,15 @@ silently re-covers a future regression on that same fixture. Per
 **Unit.** Per upstream fixture, TSX text. Ratchet:
 `compatibility/svelte2tsx-fixtures-known-failures.json`, 5 entries.
 
-### Blind spot 17a — no erosion floor
+### Blind spot 17a — closed: absolute floor (#2454) and two-sided ratchet (#2507)
 
-The only count guard is `assert!(total_tested > 0, …)` (`:147-152`); `fixed_known` is printed
-but never asserted (`:169-178`); the single hard assert is `regressions.is_empty()` (`:180`).
-**[S]** An upstream layout change under `packages/svelte2tsx/test/svelte2tsx/samples` that
-leaves 1 readable sample instead of 253 passes `total_tested > 0`, puts the 5 baseline names
-into `fixed_known` (printed as "🎉 known failures now PASS"), and reports green having measured
-1 of 253. Contrast `sourcemaps_gate.rs:1011-1028`, which carries three explicit floors for
-exactly this reason.
+`MIN_S2TSX_FIXTURES = 254` (`:30`, asserted at `:155`) is an absolute floor on the samples
+actually compared, and both `regressions.is_empty()` (`:192`) and `fixed_known.is_empty()`
+(`:210`) are fatal. **[S]** The erosion this recorded — an upstream layout change under
+`packages/svelte2tsx/test/svelte2tsx/samples` leaving 1 readable sample instead of 254 —
+now fails twice: below the floor, and on the 5 baseline names landing in `fixed_known`.
+Measured when the staleness assert was added: 249 pass / 5 fail / 0 stale, so the ratchet
+was truthful at 5 entries and needed no re-baseline.
 
 ### Blind spot 17b — vacuous skip on a missing submodule
 
@@ -717,6 +717,18 @@ on manifest/HEAD SHA mismatch, `:124-137`); submodule-sourced suites reach
 `assert!(self.found > 0)` (`:295-300`). The centralized skip lists total **8 entries**
 (`common/mod.rs:383,403,406,414,728`), plus 3 outside `common/` (`css.rs:76`, `print.rs:141`,
 `parser_fixtures.rs:120,132`), all audited by `crates/rsvelte_core/tests/audit_skipped.rs`.
+
+### Blind spot 17c — the tail after the cut is dropped from both sides
+
+`relaxed_compare_structural` (`tests/common/svelte2tsx.rs:122-141`) truncates **both** texts at
+the last `\n\nexport default class` / `\nexport const ` / `\n/** @template ` /
+`\nclass __sveltets_Render` / `\nconst ` and compares only what precedes it. **[S]** The
+exported component class and the `__sveltets_Render` wrapper are therefore never compared.
+What survives the cut is then run through a chain of normalizations (from `:143`), and one of
+those stages has already hidden a real divergence: `strip_return_statement` deleted the whole
+`return {…}`, so `$$slot_def["b"]` vs official's `'b'` matched — **[D]**, closed in #2145 by
+re-verifying the return statement on its own (`:515`), which in turn concedes the fixture when
+either side has no `return` statement (`:520-523`).
 
 ---
 
@@ -781,7 +793,7 @@ while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked
 | sourcemaps gate | 3 floors (samples, anchors, identical outputs) | `sourcemaps_gate.rs:1011-1028` |
 | fmt Rust corpus | non-empty samples + `assert!(!in_corpus_job())` on every skip | `svelte_dev_corpus.rs:71-74,262` |
 | ast gate preconditions | input files > 1000 — **no output floor** | `ast_gate_preconditions.rs:57`; gap at `:90` |
-| svelte2tsx fixtures | `total_tested > 0` only | `svelte2tsx_fixtures.rs:147` |
+| svelte2tsx fixtures | `total_tested >= 254`, absolute | `svelte2tsx_fixtures.rs:30,155` |
 | **css-prune sweep** | **none** | `css-prune-sweep.mjs:482` is a `console.log` |
 | check / check-e2e | scenarios > 0; **no diagnostic floor**, ratchets are `[]` | `check-verify.mjs:179`; gap at `:240` |
 
@@ -848,7 +860,7 @@ sees.
 | **`lint-verify.mjs`** | `files.length === 0` (`:163`) | oracle gets `files` (`:178`); **rsvelte gets the whole `SOURCES` dir** (`:124`) | **NO** — two populations inside one comparison; this is the mechanism of blind spot 11a |
 | **`ast_gate_preconditions.rs`** | `files.len() > 1000` on *discovered inputs* (`:57`) | only successfully-**compiled** files (`continue` at `:90`) | **NO** → blind spot 15a; the difference is unmeasured |
 | **`matrix/run.mjs`** | *nothing* — `cases.length` is printed at `:84`, never asserted | generated `cases` | **NO** — same shape as #2445 |
-| `svelte2tsx_fixtures.rs` | `total_tested > 0` (`:147`), derived from the loop itself | same | yes, but the floor is degenerate → blind spot 17a |
+| `svelte2tsx_fixtures.rs` | `total_tested >= 254` (`:155`), derived from the loop itself | same | **yes** |
 
 **5 of 9 fail**, two of which (`matrix/run.mjs`, and the `lint-verify.mjs` framing) this predicate
 found rather than a full read.
