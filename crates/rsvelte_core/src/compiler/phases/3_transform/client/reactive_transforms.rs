@@ -1,5 +1,7 @@
 //! Reactive statement handling and state mutation transformations.
 
+use memchr::memmem;
+
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 use super::{
@@ -106,6 +108,12 @@ pub(super) fn extract_reactive_statement_deps(
 /// Check if a variable is assigned anywhere in a code body (including nested blocks).
 /// Detects `var = ...`, `var += ...`, `var++`, `var--`, `++var`, `--var` patterns.
 pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
+    // Every pattern below contains `var_name`, so one SIMD scan rules them all
+    // out at once instead of formatting and searching twenty of them.
+    if memmem::find(body.as_bytes(), var_name.as_bytes()).is_none() {
+        return false;
+    }
+
     // Check for update expressions: `var++`, `var--`, `++var`, `--var`
     let pp = format!("{}++", var_name);
     let mm = format!("{}--", var_name);
