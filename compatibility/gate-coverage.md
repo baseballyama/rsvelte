@@ -44,7 +44,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 1 | Compiler output parity (`verify.mjs`) | per-entry × per-target JS text + CSS text | comments, on every entry and every target | [D] |
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403) | [S] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
-| 4 | Compiler **error** parity | `error.json` `code` only | error **message text and span** — never captured | [S] |
+| 4 | Compiler **error** parity | `error.json` `code`, `message`, `start` | error **`end`** and `frame` — never captured | [D] |
 | 5 | Generated shape matrix | per-case × target JS text | `.svelte.(js\|ts)` shapes; CSS; warnings; template positions | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
@@ -168,28 +168,48 @@ alongside a compile error are never compared for that target.
 
 ## 4. Compiler error parity
 
-**Unit.** `verify.mjs:331-348`. Both sides error → compare `code`; one side errors →
-`error-mismatch`.
+**Unit.** Two independent comparisons. The *output* verdict compares `code` only (both sides
+error → same code, else `error-mismatch`; one side errors → `error-mismatch`). Separately,
+`verify.mjs`'s "error parity" section compares the first message line and `(line, column)` of
+`start` for every `(id, target)` pair both sides reject with the same code, on two ratchets of
+their own (`error-message-known-failures.<target>.json`,
+`error-position-known-failures.<target>.json` — see
+`compatibility/error-known-failures.md`).
 
-### Blind spot 4a — error message text and error span are never captured at all
+Measured population, from the run that seeded those ratchets: 14,131 entries, 948 rejected by
+both compilers, 2,843 `(id, target)` pairs with two errors to compare. Divergences by field:
+`code` **0**, `message` **362 pairs / 121 ids**, `(line, column)` **1,209 pairs / 403 ids**.
+The `code` column being saturated at 0 is why the two new columns were worth adding: no amount
+of corpus growth could have moved a comparison that already agreed everywhere.
 
-`compile.mjs:85-96` `errorInfo` returns `{ code, message: message.split('\n')[0] }`. The
-`message` is written to `error.json` but `verify.mjs:332` compares **only** `e.code !== a.code`.
-No `start`, no `end`, no frame is recorded on either side. **[S]**
+### Blind spot 4a — the error `end` span and `frame` are still never captured
 
-This matters more than it looks: the single largest cluster in
-`compatibility/validator-known-failures.json` (207 entries) is ~141 entries of *"error spans
-not populated — `start`/`end` come back `None..None`"*. The corpus gate runs over 14,025
-real-world entries and **cannot see that class at all**, so the burn-down pressure comes
-entirely from a 332-fixture suite whose ratchet is not two-sided (see gate 16).
+`compile.mjs`'s `errorInfo` records `{ code, message, line, column }` — the `line`/`column` of
+`start` only. Upstream highlights a **range**, and rsvelte's `end` is frequently `start + 1`
+where `start` agrees: `attribute_duplicate` on `<div a="1" a="2">` reports `position: [11, 12]`
+against upstream's `[11, 16]` (**[D]**, `crates/rsvelte_core/src/compiler/mod.rs`
+`diagnostic_reports_code_message_and_span`). A wrong highlight *length* is invisible to this
+gate. The rendered `frame` is likewise neither captured nor compared. **[D]**
 
 ### Blind spot 4b — a code-less error on either side degrades to error-parity
 
-`verify.mjs:332` guards with `e.code && a.code &&`. If either side's `code` is `null`, no
-mismatch is recorded and the verdict falls through to `error-parity` (`verify.mjs:335-337`).
-`compile.mjs:90-94` leaves `code` `null` when the error object carries no `code` and the
-message matches neither `svelte.dev/e/<code>` nor `code: "<code>"`. **[S]** — reachability of
-a `null` code from the NAPI boundary is **[U]**; I did not construct one.
+`verify.mjs` guards the output verdict with `e.code && a.code &&`. If either side's `code` is
+`null`, no mismatch is recorded and the verdict falls through to `error-parity`.
+`compile.mjs` leaves `code` `null` when the error object carries no `code` and the message
+matches neither `svelte.dev/e/<code>` nor `code: "<code>"`.
+
+Reachability is now measured rather than **[U]**: over the 2,843 both-reject pairs, a `null`
+code occurs on **1** pair and on **0** pairs one-sidedly
+(`svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte`, where both
+compilers raise an uncoded `Not implemented: LetDirective`). The guard has therefore never
+degraded a real divergence in this corpus — and the message comparison covers that pair anyway,
+since it treats two `null` codes as agreeing. **[D]**
+
+### Blind spot 4c — entries only one side rejects have nothing to compare
+
+The message/position comparisons skip any pair where one side compiles, or where the two codes
+differ: the prose and span of two unrelated errors say nothing. Those pairs are
+`error-mismatch` on the output ratchet, which sees the code and nothing else. **[S]**
 
 ---
 

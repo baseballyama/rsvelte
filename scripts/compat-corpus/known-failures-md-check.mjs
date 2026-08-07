@@ -70,8 +70,26 @@ const RATCHETS = [
 		key: 'warning-position-known-failures.<target>.json',
 		jsons: perTarget('warning-position-known-failures'),
 	},
+	// Declared per target rather than with the `<target>` placeholder: `server`
+	// legitimately holds one entry fewer (an error only the client codegen
+	// raises), and a placeholder would report that as a drift to fix.
+	...TARGETS.map((t) => ({
+		doc: 'error-known-failures.md',
+		key: `error-message-known-failures.${t}.json`,
+		jsons: [`error-message-known-failures.${t}.json`],
+	})),
+	{
+		doc: 'error-known-failures.md',
+		key: 'error-position-known-failures.<target>.json',
+		jsons: perTarget('error-position-known-failures'),
+	},
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', jsons: ['matrix-known-failures.json'] },
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', jsons: ['validator-known-failures.json'] },
+	{
+		doc: 'validator-message-known-failures.md',
+		key: 'validator-message-known-failures.json',
+		jsons: ['validator-message-known-failures.json'],
+	},
 	{ doc: 'sourcemap-known-failures.md', key: 'sourcemap-known-failures.json', jsons: ['sourcemap-known-failures.json'] },
 	{ doc: 'sourcemap-oracle-excluded.md', key: 'sourcemap-oracle-excluded.json', jsons: ['sourcemap-oracle-excluded.json'] },
 	{ doc: 'css-prune-known-failures.md', key: 'css-prune-known-failures.json', jsons: ['css-prune-known-failures.json'] },

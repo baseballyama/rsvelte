@@ -98,6 +98,14 @@ invisible **by construction, at any corpus size** — that is how #2256 shipped 
 scored the very entry that reproduces it as `MATCH`. When adding a gate, ask what the oracle does
 not look at, not only what the input does not contain.
 
+Compiler **errors** ratchet the same way and for the same reason
+(`error-message-known-failures.{client,server,client-dev}.json` and
+`error-position-known-failures.*`, justified in `compatibility/error-known-failures.md`). The
+output verdict compares an error's `code` and nothing else, and that field is **saturated**: 0
+divergences over the 2,843 `(id, target)` pairs both compilers reject. The message text (121
+entries) and `start` position (403) were invisible until they were captured, so growing the
+corpus could never have found them — the same lesson as the warning gate, one field over.
+
 ### Generated shape matrix (`scripts/compat-corpus/matrix/`)
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),

@@ -44,6 +44,8 @@ the generated tree rather than the sample directory.
 
 ## Entries
 
+`validator-message-known-failures.json` currently holds 2 entries.
+
 ### `svelte-self-deprecated` — `svelte_self_deprecated`
 
 - rsvelte: ``<svelte:self>` is deprecated — use self-imports (e.g. `import Input from './Input.svelte'`) instead`

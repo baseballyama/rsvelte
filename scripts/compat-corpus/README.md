@@ -172,17 +172,31 @@ dimensions:
 | `warning-code-mismatch` | the multiset of warning codes differs — rsvelte warns where upstream does not, or is silent where it warns | `warning-known-failures.<target>.json` |
 | `warning-position-mismatch` | codes agree, a `(line, column)` does not — usually rsvelte attaching no span at that emission site | `warning-position-known-failures.<target>.json` |
 
-Warning comparison needs no normalization, so it is meaningful under `--no-fmt`;
-`--update-warning-baseline` rewrites only the warning ratchets, so a `--no-fmt`
-run (which inflates JS failures) can seed them safely. The two update flags
-**compose**: passing both rewrites both families in one run, each run announces
-which families it will write, and a rewrite run that reaches no write exits `2`
-instead of reporting success (`scripts/dev/test-corpus-verify-baseline-flags.mjs`
-guards this). `--from-report` derives output failures only, so it rejects
-`--update-warning-baseline` rather than ignoring it. See
+It gates compiler **errors** the same way. The output verdict above sees only
+whether both sides rejected an entry with the same `code` — which is saturated
+at **0 divergences over 2,843 both-reject pairs**, so no amount of corpus growth
+could move it. `compile.mjs` therefore also records each error's first message
+line and its `(line, column)`, compared here for every pair both sides reject
+with the same code:
+
+| Verdict | Meaning | Ratchet |
+|---|---|---|
+| `error-message-mismatch` | codes agree, the prose does not — 121 entries | `error-message-known-failures.<target>.json` |
+| `error-position-mismatch` | codes agree, `start` does not — 403 entries, 349 of them rsvelte reporting no span at all | `error-position-known-failures.<target>.json` |
+
+Warning and error comparison need no normalization, so they are meaningful under
+`--no-fmt`; `--update-warning-baseline` / `--update-error-baseline` rewrite only
+their own ratchets, so a `--no-fmt` run (which inflates JS failures) can seed
+them safely. The three update flags **compose**: passing all of them rewrites all
+three families in one run, each run announces which families it will write, and a
+rewrite run that reaches no write exits `2` instead of reporting success
+(`scripts/dev/test-corpus-verify-baseline-flags.mjs` guards this).
+`--from-report` derives output failures only, so it rejects the diagnostic flags
+rather than ignoring them. See
 [compatibility/warning-known-failures.md](../../compatibility/warning-known-failures.md)
-— including why this gate did not exist until #2281, and the corpus entry that
-proved it was needed.
+— including why the warning gate did not exist until #2281, and the corpus entry
+that proved it was needed — and
+[compatibility/error-known-failures.md](../../compatibility/error-known-failures.md).
 
 The compared targets (their `generate` / `dev` options, whether CSS is compared,
 and which baseline file they ratchet against) are declared once in
