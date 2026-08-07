@@ -22,9 +22,16 @@ These fixtures are committed directly to the repo, so the workload is stable
 across submodule bumps and identical on every branch. **Treat each file as an
 append-only, stable benchmark identity** — the benchmark IDs are derived from
 the filenames (without the `.svelte` extension), so renaming a file resets its
-CodSpeed history. Adding a new file is free; editing an existing one changes
-what that benchmark measures (which is fine, but expect a one-time step in the
-trend).
+CodSpeed history. Editing an existing one changes what that benchmark measures
+(which is fine, but expect a one-time step in the trend).
+
+Adding a new file is free for the **per-file** benchmark IDs, but not for the
+two that aggregate the whole corpus into a single ID:
+`parallel_parse::corpus` (`benches/parser.rs`) parses every fixture in one
+iteration, and `compile_both` sums over the workload. Their cost is
+proportional to the corpus, so adding a fixture raises them by construction and
+CodSpeed reports it as a regression. That alert has to be acknowledged once, in
+the PR that adds the file — it is a workload change, not a slowdown.
 
 ## What's here
 
