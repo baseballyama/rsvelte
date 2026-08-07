@@ -177,11 +177,13 @@ pub(crate) fn transform_store_unsub_wrap_in_place(
     source: &str,
     state_vars: &[String],
     store_sub_vars: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if state_vars.is_empty() || store_sub_vars.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
-    memchr::memmem::find(source.as_bytes(), b"$.set(")?;
+    if memchr::memmem::find(source.as_bytes(), b"$.set(").is_none() {
+        return ast_rewrite::Rewrite::Unchanged;
+    }
 
     ast_rewrite::with_program_mut(
         &MODULE_STORE_UNSUB_WRAP_IN_PLACE_ALLOC,

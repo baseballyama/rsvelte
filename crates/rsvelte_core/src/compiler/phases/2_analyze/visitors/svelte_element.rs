@@ -229,6 +229,12 @@ pub fn visit<'a, 'b: 'a>(
         }
     }
 
+    for attr in &element.attributes {
+        if let Attribute::Attribute(attr_node) = attr {
+            super::shared::attribute::record_event_attribute_arrow(context, attr_node);
+        }
+    }
+
     // Check for invalid bindings on svelte:element
     // bind:value, bind:files, bind:group can only be used with specific elements
     for attr in &element.attributes {

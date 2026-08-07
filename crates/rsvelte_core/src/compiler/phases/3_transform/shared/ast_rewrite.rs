@@ -75,11 +75,36 @@ pub fn with_program<R>(
     })
 }
 
+/// What an in-place pass did. `resolve` needs "nothing to rewrite" and "could
+/// not parse" apart: only the second has to fall back to the text path, and
+/// conflating them made every no-op pass re-parse the whole source a second
+/// time.
+#[derive(Debug)]
+pub enum Rewrite {
+    /// The pass rewrote the source.
+    Changed(String),
+    /// The source parsed and the pass found nothing to rewrite.
+    Unchanged,
+    /// The source parsed and the pass found a construct it does not implement,
+    /// so only the text path can answer for this input.
+    Undecided,
+    /// The source did not parse, so the pass could not decide anything.
+    NotParsed,
+}
+
+impl Rewrite {
+    /// `Some` only for [`Rewrite::Changed`] — for call sites that do not care
+    /// which of the negative answers they got.
+    pub fn into_option(self) -> Option<String> {
+        match self {
+            Rewrite::Changed(s) => Some(s),
+            Rewrite::Unchanged | Rewrite::Undecided | Rewrite::NotParsed => None,
+        }
+    }
+}
+
 /// Parse `source`, hand the program to `f` for in-place mutation, and print the
-/// result. `f` returns whether it changed anything; `None` comes back when it
-/// did not, when the source fails to parse, or when the printed form is byte-
-/// identical to the input — the same "nothing to report" contract the splice
-/// helpers use.
+/// result. `f` returns whether it changed anything.
 ///
 /// This is the port target for the collect-and-splice passes. Mutating in place
 /// removes the reason `splice`'s `innermost_only` exists: a pass that moves an
@@ -97,7 +122,7 @@ pub fn with_program_mut(
     source_type: SourceType,
     parse_options: ParseOptions,
     f: impl for<'p> FnOnce(&'p Allocator, &mut Program<'p>) -> bool,
-) -> Option<String> {
+) -> Rewrite {
     let pass = dual_run::current_or(std::panic::Location::caller().file());
     dual_run::in_path(dual_run::Path::Ast, || {
         dual_run::count_parse(pass, source.len());
@@ -106,13 +131,19 @@ pub fn with_program_mut(
             let mut parsed = Parser::new(&allocator, source, source_type)
                 .with_options(parse_options)
                 .parse();
-            let out = if parsed.diagnostics.is_empty() && f(&allocator, &mut parsed.program) {
+            let out = if !parsed.diagnostics.is_empty() {
+                Rewrite::NotParsed
+            } else if f(&allocator, &mut parsed.program) {
                 let mut printed = rsvelte_esrap::print(&parsed.program, source);
                 dual_run::count_print(pass, printed.len());
                 keep_fragment_termination(source, &mut printed);
-                (printed != source).then_some(printed)
+                if printed == source {
+                    Rewrite::Unchanged
+                } else {
+                    Rewrite::Changed(printed)
+                }
             } else {
-                None
+                Rewrite::Unchanged
             };
             *cell.borrow_mut() = allocator;
             out
@@ -198,7 +229,7 @@ pub fn with_class_fragment_program_mut(
     source: &str,
     parse_options: ParseOptions,
     f: impl for<'p> FnOnce(&'p Allocator, &mut Program<'p>, &str) -> bool,
-) -> Option<String> {
+) -> Rewrite {
     let pass = dual_run::current_or(std::panic::Location::caller().file());
     dual_run::in_path(dual_run::Path::Ast, || {
         dual_run::count_parse(pass, source.len());
@@ -218,25 +249,33 @@ pub fn with_class_fragment_program_mut(
                         .with_options(parse_options)
                         .parse();
                     if !ret.diagnostics.is_empty() {
-                        return None;
+                        return Rewrite::NotParsed;
                     }
                     (ret, wrapped_source.as_str(), true)
                 };
                 if !f(&allocator, &mut parsed.program, parse_str) {
-                    return None;
+                    return Rewrite::Unchanged;
                 }
                 // `unwrap_class_fragment` strips exactly one level of the
                 // printer's indentation, so `CLASS_FRAGMENT_INDENT` has to stay
                 // equal to the printer's — which is what it is set to.
                 let printed = rsvelte_esrap::print(&parsed.program, parse_str);
                 dual_run::count_print(pass, printed.len());
-                let mut printed = if wrapped {
-                    unwrap_class_fragment(&printed)?
+                let Some(mut printed) = (if wrapped {
+                    unwrap_class_fragment(&printed)
                 } else {
-                    printed
+                    Some(printed)
+                }) else {
+                    // The wrapper survived printing, so the fragment cannot be
+                    // recovered — the text path still has to run.
+                    return Rewrite::NotParsed;
                 };
                 keep_fragment_termination(source, &mut printed);
-                (printed != source).then_some(printed)
+                if printed == source {
+                    Rewrite::Unchanged
+                } else {
+                    Rewrite::Changed(printed)
+                }
             })();
             *cell.borrow_mut() = allocator;
             out
@@ -419,7 +458,7 @@ mod tests {
     /// without this it could stop working and only say so the first time someone
     /// needs the fallback.
     #[test]
-    fn a_pass_falls_back_to_the_text_path_when_the_in_place_path_declines() {
+    fn a_pass_falls_back_to_the_text_path_only_when_the_source_did_not_parse() {
         assert!(
             dual_run::prefer_in_place(),
             "RSVELTE_AST_SPLICE must not be set while running the tests"
@@ -428,9 +467,28 @@ mod tests {
             "fallback:test",
             "x = 1",
             || Some("SPLICED".to_string()),
-            || None,
+            || Rewrite::NotParsed,
         );
         assert_eq!(out.as_deref(), Some("SPLICED"));
+    }
+
+    /// The distinction the fallback turns on: a pass that parsed the source and
+    /// found nothing has already answered, so running the text path over it
+    /// would only parse the same source a second time to reach the same answer.
+    #[test]
+    fn a_pass_that_parsed_and_found_nothing_does_not_run_the_text_path() {
+        let mut spliced_ran = false;
+        let out = dual_run::resolve(
+            "fallback:test",
+            "x = 1",
+            || {
+                spliced_ran = true;
+                Some("SPLICED".to_string())
+            },
+            || Rewrite::Unchanged,
+        );
+        assert_eq!(out, None);
+        assert!(!spliced_ran, "the text path must not run for Unchanged");
     }
 
     #[test]
@@ -439,7 +497,7 @@ mod tests {
             "fallback:test",
             "x = 1",
             || Some("SPLICED".to_string()),
-            || Some("IN_PLACE".to_string()),
+            || Rewrite::Changed("IN_PLACE".to_string()),
         );
         assert_eq!(out.as_deref(), Some("IN_PLACE"));
     }
@@ -752,11 +810,17 @@ pub mod dual_run {
         pass: &'static str,
         source: &str,
         spliced: impl FnOnce() -> Option<String>,
-        in_place: impl FnOnce() -> Option<String>,
+        in_place: impl FnOnce() -> super::Rewrite,
     ) -> Option<String> {
+        use super::Rewrite;
         if enabled() {
             let spliced = spliced();
             let in_place = in_place();
+            let unchanged_but_spliced = matches!(in_place, Rewrite::Unchanged) && spliced.is_some();
+            if unchanged_but_spliced {
+                FALLBACK_WOULD_DIVERGE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            let in_place = in_place.into_option();
             compare_pass(pass, source, spliced.as_deref(), in_place.as_deref());
             return if prefer_in_place() {
                 in_place.or(spliced)
@@ -767,7 +831,24 @@ pub mod dual_run {
         if !prefer_in_place() {
             return spliced();
         }
-        in_place().or_else(spliced)
+        match in_place() {
+            Rewrite::Changed(rewritten) => Some(rewritten),
+            // The source parsed and the pass found nothing. Re-running the text
+            // path would parse it a second time only to reach the same answer.
+            Rewrite::Unchanged => None,
+            Rewrite::Undecided | Rewrite::NotParsed => spliced(),
+        }
+    }
+
+    /// How many times the text path produced a rewrite the in-place path
+    /// reported as `Unchanged` — i.e. how many times dropping the fallback
+    /// would change the output. Only counted under the gate; must stay 0.
+    pub static FALLBACK_WOULD_DIVERGE: std::sync::atomic::AtomicU64 =
+        std::sync::atomic::AtomicU64::new(0);
+
+    /// Reads [`FALLBACK_WOULD_DIVERGE`].
+    pub fn fallback_would_diverge() -> u64 {
+        FALLBACK_WOULD_DIVERGE.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Which implementation of a pass did the work being counted.

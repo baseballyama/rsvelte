@@ -344,37 +344,31 @@ pub(crate) fn transform_store_destructure_assignments(script: &str) -> String {
 }
 
 /// Find and transform one store destructure assignment.
+///
+/// Every offset here is a byte offset: the scan matches only ASCII syntax, so a
+/// byte walk sees exactly what a char walk would, and the helpers it hands
+/// offsets to index bytes.
 fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> String {
-    let chars: Vec<char> = script.chars().collect();
-    let len = chars.len();
-    // Build byte offset mapping: char index -> byte index
-    let byte_offsets: Vec<usize> = script.char_indices().map(|(b, _)| b).collect();
-    let byte_len = script.len();
-    let b = |char_idx: usize| -> usize {
-        if char_idx >= byte_offsets.len() {
-            byte_len
-        } else {
-            byte_offsets[char_idx]
-        }
-    };
+    let bytes = script.as_bytes();
+    let len = bytes.len();
     let mut i = 0;
-    let mut in_string: Option<char> = None;
+    let mut in_string: Option<u8> = None;
     let mut in_line_comment = false;
     let mut in_block_comment = false;
 
     while i < len {
-        let c = chars[i];
+        let c = bytes[i];
 
         // Handle comments
         if in_line_comment {
-            if c == '\n' {
+            if c == b'\n' {
                 in_line_comment = false;
             }
             i += 1;
             continue;
         }
         if in_block_comment {
-            if c == '*' && i + 1 < len && chars[i + 1] == '/' {
+            if c == b'*' && i + 1 < len && bytes[i + 1] == b'/' {
                 in_block_comment = false;
                 i += 2;
             } else {
@@ -382,12 +376,12 @@ fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> S
             }
             continue;
         }
-        if in_string.is_none() && c == '/' && i + 1 < len {
-            if chars[i + 1] == '/' {
+        if in_string.is_none() && c == b'/' && i + 1 < len {
+            if bytes[i + 1] == b'/' {
                 in_line_comment = true;
                 i += 2;
                 continue;
-            } else if chars[i + 1] == '*' {
+            } else if bytes[i + 1] == b'*' {
                 in_block_comment = true;
                 i += 2;
                 continue;
@@ -396,7 +390,7 @@ fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> S
 
         // Handle strings
         if let Some(q) = in_string {
-            if c == '\\' {
+            if c == b'\\' {
                 i += 2;
                 continue;
             }
@@ -406,41 +400,41 @@ fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> S
             i += 1;
             continue;
         }
-        if c == '\'' || c == '"' || c == '`' {
+        if c == b'\'' || c == b'"' || c == b'`' {
             in_string = Some(c);
             i += 1;
             continue;
         }
 
         // Look for `] =` or `} =` patterns (destructure assignments)
-        if (c == ']' || c == '}') && i + 1 < len {
-            let close_bracket = c;
-            let open_bracket = if c == ']' { '[' } else { '{' };
+        if (c == b']' || c == b'}') && i + 1 < len {
+            let close_bracket = c as char;
+            let open_bracket = if c == b']' { '[' } else { '{' };
 
             // Find `=` after the bracket
             let mut j = i + 1;
-            while j < len && (chars[j] == ' ' || chars[j] == '\t' || chars[j] == '\n') {
+            while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
                 j += 1;
             }
 
             if j < len
-                && chars[j] == '='
-                && (j + 1 >= len || chars[j + 1] != '=' && chars[j + 1] != '>')
+                && bytes[j] == b'='
+                && (j + 1 >= len || bytes[j + 1] != b'=' && bytes[j + 1] != b'>')
             {
                 // Find the matching opening bracket
                 if let Some(pattern_start) =
                     find_matching_open(script, i, open_bracket, close_bracket)
                 {
-                    let pattern_str = &script[b(pattern_start)..b(i + 1)];
+                    let pattern_str = &script[pattern_start..i + 1];
 
                     // For array patterns, check if `[` is actually member access
                     if open_bracket == '[' && pattern_start > 0 {
-                        let before = chars[pattern_start - 1];
+                        let before = bytes[pattern_start - 1];
                         if before.is_ascii_alphanumeric()
-                            || before == '_'
-                            || before == '$'
-                            || before == ')'
-                            || before == ']'
+                            || before == b'_'
+                            || before == b'$'
+                            || before == b')'
+                            || before == b']'
                         {
                             i = j + 1;
                             continue;
@@ -448,7 +442,7 @@ fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> S
                     }
 
                     // Skip declaration destructures (let/const/var)
-                    let before_pattern = script[..b(pattern_start)].trim_end();
+                    let before_pattern = script[..pattern_start].trim_end();
                     if before_pattern.ends_with("let")
                         || before_pattern.ends_with("const")
                         || before_pattern.ends_with("var")
@@ -474,7 +468,7 @@ fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> S
                     // Find RHS
                     let rhs_start = j + 1;
                     let rhs_end = find_expression_end(script, rhs_start);
-                    let rhs_str = script[b(rhs_start)..b(rhs_end)].trim();
+                    let rhs_str = script[rhs_start..rhs_end].trim();
 
                     if rhs_str.is_empty() {
                         i = j + 1;
@@ -482,16 +476,15 @@ fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> S
                     }
 
                     // Check for surrounding parens
-                    // Note: actual_start/actual_end are now BYTE indices
-                    let mut actual_start_byte = b(pattern_start);
-                    let mut actual_end_byte = b(rhs_end);
-                    let before = script[..b(pattern_start)].trim_end();
+                    let mut actual_start_byte = pattern_start;
+                    let mut actual_end_byte = rhs_end;
+                    let before = script[..pattern_start].trim_end();
                     if before.ends_with('(') {
-                        let paren_pos = script[..b(pattern_start)].rfind('(').unwrap();
-                        let after_rhs = &script[b(rhs_end)..];
+                        let paren_pos = script[..pattern_start].rfind('(').unwrap();
+                        let after_rhs = &script[rhs_end..];
                         if let Some(close_paren_offset) = after_rhs.find(')') {
                             actual_start_byte = paren_pos;
-                            actual_end_byte = b(rhs_end) + close_paren_offset + 1;
+                            actual_end_byte = rhs_end + close_paren_offset + 1;
                         }
                     }
 
@@ -711,15 +704,15 @@ fn expand_array_store_destructure(
     format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
 }
 
-/// Find matching opening bracket by walking backwards.
-fn find_matching_open(s: &str, close_pos: usize, open: char, close: char) -> Option<usize> {
-    // open/close are always ASCII brackets (`(`, `)`, `[`, `]`, `{`, `}`)
-    // at the call sites, so byte indexing is safe.
+/// Find matching opening bracket by walking backwards from the byte offset
+/// `close_byte`, returning a byte offset. The brackets are ASCII, so a hit can
+/// only land on a character boundary and the result is always a slice index.
+fn find_matching_open(s: &str, close_byte: usize, open: char, close: char) -> Option<usize> {
     let bytes = s.as_bytes();
     let open_b = open as u8;
     let close_b = close as u8;
     let mut depth = 1i32;
-    let mut i = close_pos;
+    let mut i = close_byte;
     while i > 0 {
         i -= 1;
         if bytes[i] == close_b {
@@ -734,12 +727,14 @@ fn find_matching_open(s: &str, close_pos: usize, open: char, close: char) -> Opt
     None
 }
 
-/// Find the end of an expression at the given start position.
-fn find_expression_end(s: &str, start: usize) -> usize {
+/// Find the end of the expression starting at the byte offset `start_byte`,
+/// returning a byte offset. Every exit is an ASCII terminator or the length, so
+/// the result is always a character boundary.
+fn find_expression_end(s: &str, start_byte: usize) -> usize {
     let bytes = s.as_bytes();
     let len = bytes.len();
     let mut depth = 0i32;
-    let mut i = start;
+    let mut i = start_byte;
     let mut in_string: Option<u8> = None;
 
     while i < len {
@@ -1123,6 +1118,92 @@ fn find_statement_end(s: &str) -> usize {
     }
 
     s.len()
+}
+
+#[cfg(test)]
+mod destructure_offset_tests {
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    use super::*;
+
+    /// The failure mode is invalid JavaScript, not a wrong-but-valid rewrite, so
+    /// pin the stronger property first.
+    #[track_caller]
+    fn assert_parses(script: &str) {
+        let allocator = Allocator::default();
+        let ret = Parser::new(&allocator, script, SourceType::mjs()).parse();
+        assert!(
+            ret.diagnostics.is_empty(),
+            "transformed script does not parse: {:?}\n--- script ---\n{script}",
+            ret.diagnostics
+        );
+    }
+
+    /// Discriminating. The store name and the destructure are pure ASCII; the
+    /// only non-ASCII character is in an unrelated literal *before* them, which
+    /// is what shifted the scan's offsets against the helpers' byte offsets.
+    #[test]
+    fn a_non_ascii_character_before_the_destructure_does_not_corrupt_it() {
+        let out =
+            transform_store_destructure_assignments("const s = '\u{540d}'; ({ a: $count } = obj);");
+        assert_parses(&out);
+        assert_eq!(out, "const s = '\u{540d}'; ($.store_set(count, obj.a));");
+    }
+
+    /// The all-ASCII half of the minimal pair: units coincide here, so this
+    /// passed before the fix and only shows nothing else moved.
+    #[test]
+    fn an_ascii_character_before_the_destructure_is_unaffected() {
+        let out = transform_store_destructure_assignments("const s = 'x'; ({ a: $count } = obj);");
+        assert_parses(&out);
+        assert_eq!(out, "const s = 'x'; ($.store_set(count, obj.a));");
+    }
+
+    /// Array patterns take the other expansion branch and reach the same two
+    /// helpers, so they need their own discriminating row.
+    #[test]
+    fn a_non_ascii_character_before_an_array_destructure_does_not_corrupt_it() {
+        let ascii = transform_store_destructure_assignments("const s = 'x'; [$count] = arr;");
+        let non_ascii =
+            transform_store_destructure_assignments("const s = '\u{540d}'; [$count] = arr;");
+        assert_parses(&ascii);
+        assert_parses(&non_ascii);
+        assert_eq!(
+            non_ascii,
+            ascii.replacen("'x'", "'\u{540d}'", 1),
+            "the multibyte literal changed the transform, not just the literal"
+        );
+    }
+
+    /// A bracket inside the window the mis-scaled cursor skipped: the backward
+    /// walk started early enough to match the *inner* `{`, so this is the row
+    /// that fails if only the opening-bracket search reverts to characters.
+    #[test]
+    fn a_nested_pattern_matches_the_outer_bracket() {
+        let ascii =
+            transform_store_destructure_assignments("const s = 'x'; ({ a: { b: $c } } = obj);");
+        let non_ascii = transform_store_destructure_assignments(
+            "const s = '\u{540d}'; ({ a: { b: $c } } = obj);",
+        );
+        assert_parses(&ascii);
+        assert_parses(&non_ascii);
+        assert_eq!(non_ascii, ascii.replacen("'x'", "'\u{540d}'", 1));
+    }
+
+    /// No space before `=`, so the RHS scan's start offset sits one character
+    /// past the closing bracket: this is the row that fails if only the
+    /// expression-end search reverts to characters.
+    #[test]
+    fn the_rhs_scan_starts_after_the_assignment_operator() {
+        let ascii = transform_store_destructure_assignments("const s = 'x'; ({ a: $c }= obj);");
+        let non_ascii =
+            transform_store_destructure_assignments("const s = '\u{540d}'; ({ a: $c }= obj);");
+        assert_parses(&ascii);
+        assert_parses(&non_ascii);
+        assert_eq!(non_ascii, ascii.replacen("'x'", "'\u{540d}'", 1));
+    }
 }
 
 #[cfg(test)]

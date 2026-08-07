@@ -993,3 +993,22 @@ jobs:
       # these are the controls that show it can still fail.
       - name: Run workflow trigger guard tests
         run: node scripts/ci/test-workflow-trigger-guard.mjs
+
+  prereq-coverage-guard:
+    name: Prerequisite coverage guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # `RSVELTE_REQUIRE_PREREQS` guards are one-sided: a job that does not
+      # declare the prerequisite may skip. Nothing asserted that some job both
+      # runs the target and declares it, so dropping the variable retired the
+      # ratchet everywhere while every check stayed green. See #2431.
+      - name: Check every prerequisite-guarded target is enforced by some job
+        run: node scripts/ci/prereq-coverage-guard.mjs
+
+      - name: Run prerequisite coverage guard tests
+        run: node scripts/ci/test-prereq-coverage-guard.mjs

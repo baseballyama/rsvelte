@@ -26,7 +26,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { selectTargets } from './targets.mjs';
-import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace } from './artifacts.mjs';
+import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -46,6 +46,8 @@ const TARGETS = selectTargets(args);
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8')).filter(
 	(e) => !FILTER || e.id.includes(FILTER)
 );
+// Captured before any work, re-asserted before reporting.
+const generation = readGeneration(CORPUS);
 
 // ---------------------------------------------------------------------------
 // worker mode: compile manifest[start..end) and print `IDX <i>` before each
@@ -273,6 +275,11 @@ console.log(
 	`[compile] ${manifest.length} entries × ${TARGETS.length} targets (${TARGETS.map((t) => t.key).join(', ')}) across ${ranges.length} workers…`
 );
 await Promise.all(ranges.map(([s, e]) => runRange(s, e)));
+
+// The inputs this run compiled must still be the inputs on disk. A parallel
+// clean that truncated them would otherwise leave a run that quietly compiled
+// fewer entries and reported success.
+requireGenerationUnchanged(CORPUS, generation, 'compile');
 
 if (panics.length) {
 	console.error(`[compile] ${panics.length} entries PANICKED in rsvelte:`);
