@@ -689,8 +689,66 @@ pub(super) fn extract_root_identifier(s: &str) -> Option<String> {
     }
 }
 
+/// Whether a character at the end of a line can be the last character of a
+/// complete expression. A trailing operator means the expression continues, so
+/// no semicolon is inserted after it.
+fn can_end_expression(c: char) -> bool {
+    !matches!(
+        c,
+        '+' | '-'
+            | '*'
+            | '/'
+            | '%'
+            | '&'
+            | '|'
+            | '^'
+            | '~'
+            | '!'
+            | '='
+            | '<'
+            | '>'
+            | ','
+            | '.'
+            | '?'
+            | ':'
+            | '('
+            | '['
+            | '{'
+    )
+}
+
+/// Whether a character starting the next line can continue the expression on the
+/// previous one. These are exactly the tokens for which JavaScript does *not*
+/// insert a semicolon — which is why semicolon-free style writes a leading `;`
+/// before a line opening with `(` or `[`.
+fn can_continue_expression(c: char) -> bool {
+    matches!(
+        c,
+        '.' | '?'
+            | ':'
+            | ','
+            | ')'
+            | ']'
+            | '}'
+            | '='
+            | '+'
+            | '-'
+            | '*'
+            | '/'
+            | '%'
+            | '&'
+            | '|'
+            | '^'
+            | '<'
+            | '>'
+            | '('
+            | '['
+            | '`'
+    )
+}
+
 /// Find the end of the RHS expression in a destructure assignment.
-/// Handles balanced brackets, parentheses, and semicolons.
+/// Handles balanced brackets, parentheses, semicolons and line breaks.
 pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> CharOffset {
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
@@ -763,6 +821,24 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
             ',' if depth == 0 => {
                 // Could be end of expression in sequence
                 return CharOffset::new(i);
+            }
+            '\n' if depth == 0 => {
+                // Semicolon-free source ends the assignment here, by ASI. Apply
+                // the same rule: the break ends the RHS unless one of its two
+                // sides is a token that carries the expression across it.
+                let ends = chars[expr_start..i]
+                    .iter()
+                    .rev()
+                    .find(|c| !c.is_whitespace())
+                    .is_some_and(|&c| can_end_expression(c));
+                let continues_next = chars[i + 1..]
+                    .iter()
+                    .find(|c| !c.is_whitespace())
+                    .is_some_and(|&c| can_continue_expression(c));
+                if ends && !continues_next {
+                    return CharOffset::new(i);
+                }
+                i += 1;
             }
             _ => {
                 i += 1;
