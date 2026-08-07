@@ -126,20 +126,31 @@ the line **after the seed's last statement**. So the residue is not "Program-lev
 in general — it is a **comment trailing the end of the module**, which is the same shape as
 the `.svelte` server residual above. Every other slot in all three seeds now matches, and the
 diverging set is *identical* on `client`, `server` and `client-dev`, so this is one
-target-independent rule and not three defects.
+target-independent rule and not three defects:
+
+| seed | entries | of which server |
+|---|---:|---:|
+| `module-class-state` | 24 | 8 |
+| `module-rune-exports` | 24 | 8 |
+| `module-ts-extension` | 24 | 8 |
 
 **Correction to the previous baseline's framing.** This block was recorded as 128 entries
 "every one of these 128 is the same open bug #2399", and that was wrong for 56 of them. Those
-56 were all `server`, and they were rsvelte's own #2307 defect — comments a server
-`.svelte.(js|ts)` module cannot own — already fixed by #2566 before #2435 merged. #2435's
-baseline was measured on a branch cut before #2566, so it enrolled 56 entries that already
-passed on `main`, and the gate went red on `main` itself; the run that would have caught it
-was cancelled by the merge rate rather than failing. That is the same hazard as
-[compatibility/gate-coverage.md](gate-coverage.md)'s "what the gate cannot see": a baseline
-taken against a stale merge base is a measurement of a tree nobody ships. The old claim that
-official "drops in 80 of 192 and preserves in 112" was that same server-only count read as a
-property of the official compiler; the honest number is **24 of 192 positions**, the trailing
-slot of each seed, and it is uniform across all 8 comment kinds.
+56 were all `server` — 32 `module-rune-exports`, 16 `module-ts-extension`, 8
+`module-class-state`, and all in the seeds' **leading** slots — and they were rsvelte's own
+#2307 defect, comments a server `.svelte.(js|ts)` module cannot own, already fixed by #2566
+before #2435 merged. So **nothing was fixed to clear them**: read the shrink as a correction,
+not as progress. #2435's baseline was measured on a branch cut before #2566, so it enrolled 56
+entries that already passed on the merged tree, and the gate went red on `main` itself; the run
+that would have caught it was cancelled by the merge rate rather than failing (#2594). That is
+the same hazard as [compatibility/gate-coverage.md](gate-coverage.md)'s "what the gate cannot
+see": a baseline taken against a stale merge base is a measurement of a tree nobody ships.
+
+The old claim that official "drops in 80 of 192 and preserves in 112" was that same server-only
+entry count read as a property of the official compiler. Measured now: the three seeds have 24
+insertion slots between them, so 24 × 8 comment kinds = **192 module cases**, and official
+drops the comment in **3 of the 24 slots** — the trailing one of each seed, uniformly across
+all 8 kinds, i.e. **24 of the 192 cases**.
 
 ## Burn-down
 
