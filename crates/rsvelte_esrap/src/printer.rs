@@ -561,15 +561,6 @@ impl<'opt> Printer<'opt> {
         anchor.map(|(l, _)| l) == Some(line)
     }
 
-    /// Whether any source comment starts within `[start, end)` — used to decide
-    /// if an unwrapped `ParenthesizedExpression` must keep its literal parens to
-    /// bracket a comment that leads its inner expression (`(/*c*/ x)`).
-    fn comment_in_span(&self, start: u32, end: u32) -> bool {
-        self.comments
-            .iter()
-            .any(|c| c.start >= start && c.start < end)
-    }
-
     // ----- comments ---------------------------------------------------------
 
     /// esrap's `flush_comments_until`: emit every pending comment that starts
@@ -930,10 +921,14 @@ impl<'opt> Printer<'opt> {
                     // esrap: when a comment sits between `return` and the
                     // argument, wrap the argument in parens (`return (/*c*/ x);`)
                     // so the comment can't be read as ending the statement.
+                    // Compared against the UNWRAPPED argument because esrap's
+                    // acorn AST has no paren node: with oxc's preserved parens
+                    // `return (/*c*/ x)` would otherwise anchor at the `(`, which
+                    // precedes the comment, and the rule would never fire.
                     let contains_comment = self
                         .comments
                         .get(self.comment_index)
-                        .is_some_and(|c| c.start < arg.span().start);
+                        .is_some_and(|c| c.start < unparen(arg).span().start);
                     let start = s.span().start;
                     if contains_comment {
                         self.write_keyword(ctx, start, "return", " (");
@@ -2131,34 +2126,13 @@ impl<'opt> Printer<'opt> {
                 // (`child_with_parens` / `binary_needs_parens` at each parent)
                 // re-add only the parens the grammar requires.
                 //
-                // Two exceptions keep the literal parens:
-                //
-                // 1. A comment between the `(` and the inner expression:
-                //    dropping the parens would leave it dangling (`return (/*c*/
-                //    x)`, `return (// hey\n x)`). The comment is flushed as a
-                //    leading comment of the inner expression, so the parens must
-                //    stay to bracket it as in the source. The window stops at the
-                //    inner expression's start — a comment anywhere deeper is
-                //    already bracketed by that expression's own syntax, and
-                //    keeping the parens for it doubles those a parent adds from
-                //    precedence (`(await f(/*c*/ x))()` → `((await f(/*c*/ x)))()`).
-                // 2. A sequence: `(a, b)` parses as `Paren(Sequence)`, and the
-                //    `SequenceExpression` visitor already emits its own
-                //    surrounding parens, so the paren layer is dropped to avoid
-                //    doubling. (An explicit redundant `((a, b))` is handled
-                //    recursively — the outer layer here, the inner by the
-                //    sequence visitor.)
-                if matches!(p.expression, Expression::SequenceExpression(_)) {
-                    self.print_expression(&p.expression, ctx);
-                // No `has_loc` guard needed: every comment offset is >= `loc_base`
-                // by construction, so a synthesized span never contains one.
-                } else if self.comment_in_span(p.span.start, p.expression.span().start) {
-                    ctx.write("(");
-                    self.print_expression(&p.expression, ctx);
-                    ctx.write(")");
-                } else {
-                    self.print_expression(&p.expression, ctx);
-                }
+                // There is no exception. A comment leading the inner expression
+                // does need bracketing (`return (/*c*/ x)`, `return (// hey\n x)`),
+                // but esrap emits those parens from `ReturnStatement` — the one
+                // place it parenthesizes for a comment — not from the operand, so
+                // reproducing them here instead would double whatever a parent
+                // adds from precedence.
+                self.print_expression(&p.expression, ctx);
             }
             Expression::ChainExpression(c) => match &c.expression {
                 ChainElement::CallExpression(call) => self.call_expression(call, ctx),

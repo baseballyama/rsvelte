@@ -66,9 +66,9 @@ if (!fs.existsSync(META_PATH)) {
 const meta = JSON.parse(fs.readFileSync(META_PATH, "utf8"));
 const included = meta.included ?? [];
 
-// Guard against a silently-empty gate: if the oracle produced almost nothing
-// (e.g. corpus not collected, or oxfmt rejected everything) the byte compare
-// below would pass vacuously. The real corpus has thousands of components.
+// Guard against a truncated collection. This counts manifest entries, NOT
+// oracle files on disk — the vacuous-pass case (a manifest promising work that
+// the oracle tree no longer holds) is caught after the loop instead.
 if (included.length < 1000) {
   fail(
     `only ${included.length} components in the parity set — the corpus looks incomplete; re-run collect.mjs + fmt.mjs`,
@@ -84,6 +84,7 @@ const excludedSet = new Set(excludedEntries.map((e) => e.id));
 
 const includedSet = new Set(included);
 const failures = [];
+const missingOracle = [];
 let matched = 0;
 let excluded = 0;
 for (const id of included) {
@@ -94,7 +95,10 @@ for (const id of included) {
   }
   const oracle = readIf(path.join(ORACLE, id));
   const actual = readIf(path.join(ACTUAL, id));
-  if (oracle === null) continue; // not part of the parity set
+  if (oracle === null) {
+    missingOracle.push(id);
+    continue;
+  }
   if (actual === null) {
     failures.push({ id, kind: "missing", detail: { line: 0 } });
     continue;
@@ -104,6 +108,30 @@ for (const id of included) {
     continue;
   }
   failures.push({ id, kind: "diff", detail: firstDiffLine(oracle, actual) });
+}
+
+// fmt.mjs writes meta.included as exactly the ids whose oracle output it
+// copied, so a missing oracle file means the cached tree disagrees with its own
+// manifest and every such id was skipped without being compared.
+if (missingOracle.length) {
+  console.error(
+    `[fmt-verify] ${missingOracle.length} of ${included.length} components have no oracle output — ` +
+      `compared ${matched + failures.length} of ${included.length - excluded} comparable components`,
+  );
+  for (const id of missingOracle.slice(0, MAX_PRINT)) console.error(`  - ${id}`);
+  if (missingOracle.length > MAX_PRINT)
+    console.error(`  … and ${missingOracle.length - MAX_PRINT} more`);
+  fail("the oracle tree is incomplete; regenerate it with `node scripts/compat-corpus/fmt.mjs --force`");
+}
+
+// Every included id must leave the loop through exactly one counter; a silent
+// path added later would otherwise shrink the comparison set unnoticed.
+const accounted = matched + failures.length + excluded + missingOracle.length;
+if (accounted !== included.length) {
+  fail(
+    `accounting mismatch: ${accounted} ids accounted for (matched ${matched} + failed ${failures.length} + ` +
+      `excluded ${excluded} + no-oracle ${missingOracle.length}) but the parity set has ${included.length}`,
+  );
 }
 
 // Staleness checks for excluded entries.
@@ -213,5 +241,8 @@ if (failures.length) {
     `\n[fmt-verify] ✅ no regressions (${failures.length} known failures remain — burn down then --update-baseline)`,
   );
 } else {
-  console.log("\n[fmt-verify] ✅ all corpus components format identically to the oracle");
+  console.log(
+    `\n[fmt-verify] ✅ all ${matched} compared components format identically to the oracle ` +
+      `(${included.length} in the parity set, ${excluded} oracle-excluded)`,
+  );
 }

@@ -971,3 +971,20 @@ jobs:
       # A guard that only misfires on a cron 24h later needs its own test.
       - name: Run auto-update branch guard tests
         run: node scripts/ci/test-bot-branch-guard.mjs
+
+  workflow-trigger-guard:
+    name: Workflow trigger guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Check PR triggers are not base-branch filtered
+        run: node scripts/ci/workflow-trigger-guard.mjs
+
+      # The guard passing on the tree it was written against proves nothing;
+      # these are the controls that show it can still fail.
+      - name: Run workflow trigger guard tests
+        run: node scripts/ci/test-workflow-trigger-guard.mjs

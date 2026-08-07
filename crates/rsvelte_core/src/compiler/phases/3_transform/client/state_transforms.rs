@@ -1537,6 +1537,12 @@ pub(super) fn transform_legacy_state_declarations(
     let mut result = line.to_string();
 
     for (var, _initial, decl_kind) in legacy_state_vars {
+        // Every pattern below is `"<keyword> <var>…"`, so one scan rules the whole
+        // variable out instead of formatting and searching four needles per keyword.
+        if memmem::find(result.as_bytes(), var.as_bytes()).is_none() {
+            continue;
+        }
+
         // Determine the keyword(s) to look for based on declaration kind
         let keywords: Vec<&str> = match decl_kind {
             DeclarationKind::Let => vec!["let"],
@@ -2010,5 +2016,24 @@ mod colon_depth0_tests {
         // `cond ? component = "ああa" : component = other`
         let stmt = "cond ? component = \"ああa\" : component = other";
         let _ = check_identifier_in_statement(stmt, "component", &re);
+    }
+}
+
+#[cfg(test)]
+mod prefilter_tests {
+    use super::*;
+
+    #[test]
+    fn transform_legacy_state_declarations_leaves_an_absent_name_alone() {
+        // The scan that rules a variable out has to agree with the four
+        // `"<keyword> <var>…"` patterns it stands in for.
+        let vars = vec![
+            ("absent".to_string(), None, DeclarationKind::Let),
+            ("x".to_string(), None, DeclarationKind::Let),
+        ];
+        let out = transform_legacy_state_declarations("let x = 1;", &vars, false, false);
+        assert_eq!(out, "let x = $.mutable_source(1);");
+        let untouched = transform_legacy_state_declarations("foo();", &vars, false, false);
+        assert_eq!(untouched, "foo();");
     }
 }

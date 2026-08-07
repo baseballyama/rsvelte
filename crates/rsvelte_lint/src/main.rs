@@ -1,6 +1,7 @@
 //! `rsvelte-lint` — the CLI.
 //!
-//! Lints `.svelte` files (passed directly or discovered under directories),
+//! Lints `.svelte`, `.svelte.js` and `.svelte.ts` files (passed directly or
+//! discovered under directories),
 //! merging compiler warnings/a11y (validator wrap) with native rules, and
 //! prints diagnostics through the shared `svelte_check` writers (plus a local
 //! SARIF writer) so the output matches `rsvelte check`.
@@ -20,7 +21,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Parser, Debug)]
 #[command(name = "rsvelte-lint", about = "Fast native Svelte linter", version = VERSION)]
 struct Cli {
-    /// Files or directories to lint. Directories are searched for `.svelte`.
+    /// Files or directories to lint. Directories are searched for `.svelte`,
+    /// `.svelte.js` and `.svelte.ts`.
     paths: Vec<PathBuf>,
 
     /// Output format: human | human-verbose | machine | machine-verbose | github-actions | sarif.
@@ -62,17 +64,24 @@ struct Cli {
     print_eslint_config: bool,
 }
 
+/// `Path::extension()` of `a.svelte.js` is `js`, so a module's Svelte-ness is
+/// only visible in the whole file name.
+fn is_lintable(path: &Path) -> bool {
+    path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+        n.ends_with(".svelte") || n.ends_with(".svelte.js") || n.ends_with(".svelte.ts")
+    })
+}
+
 fn collect_files(paths: &[PathBuf]) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for p in paths {
         if p.is_dir() {
             for entry in walkdir::WalkDir::new(p).into_iter().flatten() {
-                let path = entry.path();
-                if path.extension().is_some_and(|e| e == "svelte") {
-                    files.push(path.to_path_buf());
+                if entry.file_type().is_file() && is_lintable(entry.path()) {
+                    files.push(entry.path().to_path_buf());
                 }
             }
-        } else if p.extension().is_some_and(|e| e == "svelte") {
+        } else if is_lintable(p) {
             files.push(p.clone());
         }
     }
@@ -257,5 +266,36 @@ fn internal_error(file: &Path) -> Diagnostic {
         message: "internal error while linting this file (skipped)".into(),
         range: None,
         source: "svelte",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lintable_covers_components_and_svelte_modules() {
+        for name in ["A.svelte", "a.svelte.js", "a.svelte.ts", "dir/a.svelte.js"] {
+            assert!(is_lintable(Path::new(name)), "{name} should be lintable");
+        }
+    }
+
+    #[test]
+    fn lintable_rejects_plain_scripts_and_others() {
+        // `a.js`/`a.ts` are the negative control: collecting every script in a
+        // directory is a separate product decision, not this predicate's job.
+        for name in [
+            "a.js",
+            "a.ts",
+            "a.svelte.jsx",
+            "svelte",
+            "README.md",
+            "a.sveltefoo",
+        ] {
+            assert!(
+                !is_lintable(Path::new(name)),
+                "{name} should not be lintable"
+            );
+        }
     }
 }
