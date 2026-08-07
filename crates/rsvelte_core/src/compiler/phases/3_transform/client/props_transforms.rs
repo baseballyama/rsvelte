@@ -189,6 +189,11 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
             continue;
         }
 
+        // Every use below indexes `chars`, so the name's length has to be a
+        // character count; `prop_name.len()` is bytes and overshoots for a
+        // non-ASCII prop name.
+        let prop_len = prop_name.chars().count();
+
         // Use word boundary matching to replace identifier references
         // But avoid replacing function calls that already have ()
         // Note: Rust's regex crate doesn't support lookahead, so we use a different approach:
@@ -298,7 +303,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 };
 
                 // Check character after (must be non-identifier char)
-                let after_idx = i + prop_name.len();
+                let after_idx = i + prop_len;
                 let after_ok = if after_idx >= chars.len() {
                     true
                 } else {
@@ -384,9 +389,9 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 // than the subset of call sites that survive short-circuiting.
                 if super::super::profile::index_oracle_enabled() {
                     is_shadowed_by_function_param(&index, &chars, i, prop_name);
-                    is_explicit_property_key(&index, &chars, i, prop_name.len());
-                    is_arrow_param_binding(&index, &chars, i, prop_name.len());
-                    is_shorthand_object_property(&index, &chars, i, prop_name.len());
+                    is_explicit_property_key(&index, &chars, i, prop_len);
+                    is_arrow_param_binding(&index, &chars, i, prop_len);
+                    is_shorthand_object_property(&index, &chars, i, prop_len);
                 }
 
                 if before_ok
@@ -396,14 +401,13 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                     && !is_inside_update_call
                     && !is_sole_derived_arg
                     && !is_shadowed_by_function_param(&index, &chars, i, prop_name)
-                    && !is_explicit_property_key(&index, &chars, i, prop_name.len())
-                    && !is_arrow_param_binding(&index, &chars, i, prop_name.len())
+                    && !is_explicit_property_key(&index, &chars, i, prop_len)
+                    && !is_arrow_param_binding(&index, &chars, i, prop_len)
                 {
                     // Check if this is a shorthand property in an object literal.
                     // e.g., `{ value }` should become `{ value: value() }` not `{ value() }`
                     // because `{ value() }` is a method definition, not a property.
-                    let is_shorthand =
-                        is_shorthand_object_property(&index, &chars, i, prop_name.len());
+                    let is_shorthand = is_shorthand_object_property(&index, &chars, i, prop_len);
 
                     if is_shorthand {
                         // Expand shorthand: { foo } -> { foo: foo() }
@@ -416,7 +420,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                         new_result.push_str(prop_name);
                         new_result.push_str("()");
                     }
-                    i += prop_name.len();
+                    i += prop_len;
                     continue;
                 }
             }

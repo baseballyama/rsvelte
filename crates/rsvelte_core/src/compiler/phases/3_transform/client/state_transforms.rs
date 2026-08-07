@@ -521,14 +521,14 @@ pub(super) fn strip_function_scopes_that_shadow<'a>(
             if !crate::compiler::utils::char_at(&result, after_ident)
                 .is_some_and(ends_a_parameter_name)
             {
-                search_from = pos + 1;
+                search_from = crate::compiler::utils::next_char_boundary(&result, pos);
                 continue;
             }
 
             // Check if preceded by `function` keyword - already handled above
             let before = result[..pos].trim_end();
             if before.ends_with("function") {
-                search_from = pos + 1;
+                search_from = crate::compiler::utils::next_char_boundary(&result, pos);
                 continue;
             }
 
@@ -622,7 +622,7 @@ pub(super) fn strip_function_scopes_that_shadow<'a>(
                     search_from = paren_close + 1;
                 }
             } else {
-                search_from = pos + 1;
+                search_from = crate::compiler::utils::next_char_boundary(&result, pos);
             }
         }
     }

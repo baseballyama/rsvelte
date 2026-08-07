@@ -61,6 +61,8 @@
 		"test:bot-branch-guard": "node scripts/ci/test-bot-branch-guard.mjs",
 		"check:workflow-triggers": "node scripts/ci/workflow-trigger-guard.mjs",
 		"test:workflow-trigger-guard": "node scripts/ci/test-workflow-trigger-guard.mjs",
+		"check:prereq-coverage": "node scripts/ci/prereq-coverage-guard.mjs",
+		"test:prereq-coverage-guard": "node scripts/ci/test-prereq-coverage-guard.mjs",
 		"test:esrap-version-gate": "node scripts/release/test-esrap-version-bump-check.mjs",
 		"check:lint-types-lock": "node scripts/ci/check-lint-types-lock.mjs",
 		"fix:lint-types-lock": "node scripts/ci/check-lint-types-lock.mjs --fix",

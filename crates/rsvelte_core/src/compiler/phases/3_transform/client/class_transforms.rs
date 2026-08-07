@@ -1737,7 +1737,7 @@ pub(super) fn find_private_field_prefixes(content: &str, field_name: &str) -> Ve
         if crate::compiler::utils::char_at(content, after_pos)
             .is_some_and(|next_char| next_char.is_alphanumeric() || next_char == '_')
         {
-            search_from = abs_pos + 1;
+            search_from = crate::compiler::utils::next_char_boundary(content, abs_pos);
             continue;
         }
 
@@ -1760,7 +1760,7 @@ pub(super) fn find_private_field_prefixes(content: &str, field_name: &str) -> Ve
                 }
             }
         }
-        search_from = abs_pos + 1;
+        search_from = crate::compiler::utils::next_char_boundary(content, abs_pos);
     }
 
     // Always include "this" if not already present
