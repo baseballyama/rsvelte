@@ -3,10 +3,13 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/element.js`.
 
+use crate::ast::arena::ParseArena;
 use crate::ast::template::{
     AttributeValue, AttributeValuePart, ClassDirective, ExpressionTag,
     RegularElement as RegularElementNode, StyleDirective,
 };
+use crate::ast::typed_expr::JsNode;
+use crate::compiler::phases::phase2_analyze::for_each_js_child;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 #[cfg(test)]
@@ -336,25 +339,109 @@ fn extract_expression_from_tag_with_context(
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
     let mut metadata = ExpressionMetadata::default();
 
-    let val = expr_tag.expression.as_json();
-    if !is_literal_value(val) {
-        let mut has_call = false;
-        let mut has_member = false;
-        let mut has_assignment = false;
-        let mut has_await = false;
-        walk_metadata_flags(
-            val,
-            &mut has_call,
-            &mut has_member,
-            &mut has_assignment,
-            &mut has_await,
-        );
-        metadata.set_has_call(has_call);
-        metadata.set_has_member_expression(has_member);
-        metadata.set_has_assignment(has_assignment);
-        metadata.set_has_await(has_await);
+    // The typed walk needs the serialize arena to resolve child ids; without one
+    // installed there is nothing to walk but the JSON.
+    let flags = expr_tag
+        .expression
+        .try_as_node_ref()
+        .and_then(|node| {
+            crate::ast::arena::try_with_current_serialize_arena(|arena| {
+                typed_metadata_flags(node, arena)
+            })
+        })
+        .unwrap_or_else(|| json_metadata_flags(expr_tag.expression.as_json()));
+
+    if !flags.is_literal {
+        metadata.set_has_call(flags.has_call);
+        metadata.set_has_member_expression(flags.has_member);
+        metadata.set_has_assignment(flags.has_assignment);
+        metadata.set_has_await(flags.has_await);
     }
     metadata
+}
+
+/// The four AST-derived flags `extract_metadata_from_tag` sets, plus the
+/// literal short-circuit that suppresses setting them at all.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct MetadataFlags {
+    is_literal: bool,
+    has_call: bool,
+    has_member: bool,
+    has_assignment: bool,
+    has_await: bool,
+}
+
+impl MetadataFlags {
+    #[inline]
+    fn all_found(&self) -> bool {
+        self.has_call && self.has_member && self.has_assignment && self.has_await
+    }
+}
+
+/// JSON form of the flag computation — kept as the oracle the typed walk is
+/// checked against.
+fn json_metadata_flags(val: &serde_json::Value) -> MetadataFlags {
+    let mut flags = MetadataFlags::default();
+    if is_literal_value(val) {
+        flags.is_literal = true;
+        return flags;
+    }
+    walk_metadata_flags(
+        val,
+        &mut flags.has_call,
+        &mut flags.has_member,
+        &mut flags.has_assignment,
+        &mut flags.has_await,
+    );
+    flags
+}
+
+/// Typed equivalent of `json_metadata_flags`, walking `JsNode` children through
+/// `for_each_js_child` instead of materializing the expression as JSON.
+fn typed_metadata_flags(node: &JsNode, arena: &ParseArena) -> MetadataFlags {
+    let mut flags = MetadataFlags::default();
+    if is_literal_node(node) {
+        flags.is_literal = true;
+        return flags;
+    }
+    walk_metadata_flags_typed(node, arena, &mut flags);
+    flags
+}
+
+/// Typed counterpart of `walk_metadata_flags`, node-type for node-type.
+fn walk_metadata_flags_typed(node: &JsNode, arena: &ParseArena, flags: &mut MetadataFlags) {
+    if flags.all_found() {
+        return;
+    }
+    match node {
+        JsNode::CallExpression { .. } => flags.has_call = true,
+        // A spread counts as a call — see `walk_metadata_flags`.
+        JsNode::SpreadElement { .. } => flags.has_call = true,
+        JsNode::MemberExpression { .. } => flags.has_member = true,
+        JsNode::AssignmentExpression { .. } | JsNode::UpdateExpression { .. } => {
+            flags.has_assignment = true
+        }
+        JsNode::AwaitExpression { .. } => flags.has_await = true,
+        JsNode::ArrowFunctionExpression { .. }
+        | JsNode::FunctionExpression { .. }
+        | JsNode::FunctionDeclaration { .. } => return,
+        _ => {}
+    }
+
+    for_each_js_child(node, arena, &mut |child| {
+        if flags.all_found() {
+            return;
+        }
+        walk_metadata_flags_typed(child, arena, flags);
+    });
+}
+
+/// Typed counterpart of `is_literal_value`. The Babel-style aliases that
+/// function also accepts (`NumericLiteral`, `StringLiteral`, `BooleanLiteral`,
+/// `NullLiteral`) have no `JsNode` variant; `JsNode::Null` serializes to a bare
+/// JSON `null`, which `is_literal_value` also reports as a literal.
+fn is_literal_node(node: &JsNode) -> bool {
+    matches!(node, JsNode::Literal { .. } | JsNode::Null)
 }
 
 /// Single-pass walk that sets the four AST-derived flags on which
@@ -1667,5 +1754,149 @@ mod tests {
             }
         }
         assert!(found_component, "Should find Component node");
+    }
+
+    /// `(typed, json)` flags for the expression in `<Test a={…} />`.
+    fn both_metadata_flags(expr_src: &str) -> (MetadataFlags, MetadataFlags) {
+        let input = format!("<Test a={{{expr_src}}} />");
+        let allocator = oxc_allocator::Allocator::default();
+        let mut result = crate::parse(&input, &allocator, Default::default()).unwrap();
+        // `parse()` may leave attribute expressions deferred; both walks need
+        // a resolved `Expression::Typed`.
+        assert!(
+            crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(
+                &mut result,
+                &input,
+            )
+            .is_none(),
+            "`{expr_src}` should parse"
+        );
+
+        let expr_tag = result
+            .fragment
+            .nodes
+            .iter()
+            .find_map(|node| match node {
+                crate::ast::template::TemplateNode::Component(comp) => {
+                    comp.attributes.iter().find_map(|attr| match attr {
+                        crate::ast::template::Attribute::Attribute(a) => match &a.value {
+                            AttributeValue::Expression(tag) => Some(tag),
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
+            .expect("expression attribute");
+
+        crate::ast::arena::with_serialize_arena(&result.arena, || {
+            (
+                typed_metadata_flags(expr_tag.expression.as_node_ref(), &result.arena),
+                json_metadata_flags(expr_tag.expression.as_json()),
+            )
+        })
+    }
+
+    #[test]
+    fn typed_metadata_flags_agree_with_the_json_walk() {
+        // (expression, expected typed flags) — expectations are spelled out as
+        // well as compared, so a walk that silently stops finding anything can't
+        // pass by agreeing with an equally broken oracle.
+        let cases: &[(&str, MetadataFlags)] = &[
+            // Literal short-circuit.
+            (
+                "5",
+                MetadataFlags {
+                    is_literal: true,
+                    ..Default::default()
+                },
+            ),
+            // CallExpression.
+            (
+                "foo()",
+                MetadataFlags {
+                    has_call: true,
+                    ..Default::default()
+                },
+            ),
+            // SpreadElement also counts as a call.
+            (
+                "[...items]",
+                MetadataFlags {
+                    has_call: true,
+                    ..Default::default()
+                },
+            ),
+            // MemberExpression.
+            (
+                "a.b",
+                MetadataFlags {
+                    has_member: true,
+                    ..Default::default()
+                },
+            ),
+            // Computed member — the property is walked here but not above.
+            (
+                "a[b()]",
+                MetadataFlags {
+                    has_call: true,
+                    has_member: true,
+                    ..Default::default()
+                },
+            ),
+            // AssignmentExpression / UpdateExpression.
+            (
+                "(count = 1)",
+                MetadataFlags {
+                    has_assignment: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "count++",
+                MetadataFlags {
+                    has_assignment: true,
+                    ..Default::default()
+                },
+            ),
+            // AwaitExpression.
+            (
+                "await promise",
+                MetadataFlags {
+                    has_await: true,
+                    ..Default::default()
+                },
+            ),
+            // Function root — the walk stops before looking at the body.
+            ("() => other()", MetadataFlags::default()),
+            ("(function () { other(); })", MetadataFlags::default()),
+            // Function nested inside a walked parent — stops at the boundary,
+            // but the sibling is still seen.
+            (
+                "[() => other(), a.b]",
+                MetadataFlags {
+                    has_member: true,
+                    ..Default::default()
+                },
+            ),
+            // All four flags at once (the short-circuit path).
+            (
+                "(await a.b(c = 1))",
+                MetadataFlags {
+                    has_call: true,
+                    has_member: true,
+                    has_assignment: true,
+                    has_await: true,
+                    ..Default::default()
+                },
+            ),
+        ];
+
+        for (src, expected) in cases {
+            let (typed, json) = both_metadata_flags(src);
+            assert_eq!(typed, json, "typed and JSON walks disagree on `{src}`");
+            assert_eq!(&typed, expected, "unexpected flags for `{src}`");
+        }
     }
 }

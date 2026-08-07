@@ -836,19 +836,13 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let body_node = pa.get_js_node(*body);
             let body_is_assignment = body_node.node_type() == Some("AssignmentExpression");
             let saved_arrow_level = context.state.event_handler_arrow_body_level;
-            let is_event_attribute_arrow = context
+            let is_exempt_arrow = context
                 .state
                 .analysis
-                .event_attribute_arrow_starts
+                .assign_exempt_arrow_starts
                 .contains(arrow_start);
-            context.state.event_handler_arrow_body_level = if (is_event_attribute_arrow
-                || context.state.in_component_attribute)
-                && body_is_assignment
-            {
-                1
-            } else {
-                0
-            };
+            context.state.event_handler_arrow_body_level =
+                u32::from(is_exempt_arrow && body_is_assignment);
 
             let conv_body = match body_node {
                 JsNode::BlockStatement { body, .. } => {
@@ -1065,6 +1059,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 transformed
             } else if let Some(wrapped) = try_dev_assign_wrap_typed(
                 operator_str,
+                *start,
                 left_node,
                 right_node,
                 &conv_left,
@@ -3117,25 +3112,19 @@ fn convert_arrow_function(
                 body_obj.get("type").and_then(|t| t.as_str()),
                 Some("AssignmentExpression")
             );
-            let is_event_attribute_arrow =
-                obj.get("start")
-                    .and_then(|v| v.as_u64())
-                    .is_some_and(|start| {
-                        context
-                            .state
-                            .analysis
-                            .event_attribute_arrow_starts
-                            .contains(&(start as u32))
-                    });
+            let is_exempt_arrow = obj
+                .get("start")
+                .and_then(|v| v.as_u64())
+                .is_some_and(|start| {
+                    context
+                        .state
+                        .analysis
+                        .assign_exempt_arrow_starts
+                        .contains(&(start as u32))
+                });
             let saved_level = context.state.event_handler_arrow_body_level;
-            context.state.event_handler_arrow_body_level = if (is_event_attribute_arrow
-                || context.state.in_component_attribute)
-                && body_is_assignment
-            {
-                1
-            } else {
-                0
-            };
+            context.state.event_handler_arrow_body_level =
+                u32::from(is_exempt_arrow && body_is_assignment);
             let __tmp = convert_json_value(&Value::Object(body_obj.clone()), context);
             let result = JsArrowBody::Expression(context.arena.alloc_expr(__tmp));
             context.state.event_handler_arrow_body_level = saved_level;
@@ -5121,6 +5110,7 @@ fn is_known_primitive_jsnode(node: &JsNode, pa: &ParseArena) -> bool {
 #[allow(clippy::too_many_arguments)]
 fn try_dev_assign_wrap_typed(
     operator: &str,
+    assignment_start: u32,
     left_node: &JsNode,
     right_node: &JsNode,
     conv_left: &JsExpr,
@@ -5133,8 +5123,12 @@ fn try_dev_assign_wrap_typed(
     if !context.state.dev
         || is_statement
         || !is_non_coercive_operator(operator)
-        || context.state.in_bind_directive
         || context.state.event_handler_arrow_body_level > 0
+        || context
+            .state
+            .analysis
+            .assign_exempt_assignment_starts
+            .contains(&assignment_start)
     {
         return None;
     }
@@ -5254,18 +5248,25 @@ fn try_coercive_assignment_transform(
         return None;
     }
 
-    // Skip inside bind directive / component binding contexts
-    // Reference: AssignmentExpression.js lines 211-225
-    if context.state.in_bind_directive {
+    // Skip when this assignment IS the expression a component attribute or a
+    // `bind:` directive visits (upstream's `path.at(-1)` arm).
+    // Reference: AssignmentExpression.js lines 204-215
+    if obj
+        .get("start")
+        .and_then(|v| v.as_u64())
+        .is_some_and(|start| {
+            context
+                .state
+                .analysis
+                .assign_exempt_assignment_starts
+                .contains(&(start as u32))
+        })
+    {
         return None;
     }
 
-    // Skip when this assignment IS the direct body expression of an event handler
-    // arrow function. This matches Svelte's path-based check:
-    // path.at(-1) === 'ArrowFunctionExpression' && path.at(-2) is RegularElement/SvelteElement.
-    // The event_handler_arrow_body_level flag is set to 1 only when the arrow body
-    // IS an AssignmentExpression and we're in an event attribute handler.
-    // Reference: AssignmentExpression.js lines 189-209
+    // Skip when this assignment IS the direct body expression of an exempt arrow.
+    // Reference: AssignmentExpression.js lines 182-215
     if context.state.event_handler_arrow_body_level > 0 {
         return None;
     }

@@ -44,11 +44,11 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 1 | Compiler output parity (`verify.mjs`) | per-entry × per-target JS text + CSS text | comments, on every entry and every target | [D] |
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403) | [S] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
-| 4 | Compiler **error** parity | `error.json` `code` only | error **message text and span** — never captured | [S] |
+| 4 | Compiler **error** parity | `error.json` `code`, `message`, `start` | error **`end`** and `frame` — never captured | [D] |
 | 5 | Generated shape matrix | per-case × target JS text | `.svelte.(js\|ts)` shapes; CSS; warnings; template positions | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
-| 8 | css-prune sweep | `css.code` of 1430 generated components | **an empty population exits 0** | [D] |
+| 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1430 generated components | `js.code`; **an empty population exits 0** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
@@ -57,7 +57,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
 | 15 | `ast_gate_preconditions` | "rsvelte's own output parses" | compile **failures** are skipped — errors make it greener | [S] |
 | 16 | Validator fixture suite | per-fixture error code / warning set | ratchet staleness is **not** asserted (207 entries) | [S] |
-| 17 | svelte2tsx fixture suite | per-fixture TSX text | no erosion floor — 1-of-253 measured reads green | [S] |
+| 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
 | 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | warnings compared by **count only** | [S] |
 
 Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors) are in
@@ -168,28 +168,48 @@ alongside a compile error are never compared for that target.
 
 ## 4. Compiler error parity
 
-**Unit.** `verify.mjs:331-348`. Both sides error → compare `code`; one side errors →
-`error-mismatch`.
+**Unit.** Two independent comparisons. The *output* verdict compares `code` only (both sides
+error → same code, else `error-mismatch`; one side errors → `error-mismatch`). Separately,
+`verify.mjs`'s "error parity" section compares the first message line and `(line, column)` of
+`start` for every `(id, target)` pair both sides reject with the same code, on two ratchets of
+their own (`error-message-known-failures.<target>.json`,
+`error-position-known-failures.<target>.json` — see
+`compatibility/error-known-failures.md`).
 
-### Blind spot 4a — error message text and error span are never captured at all
+Measured population, from the run that seeded those ratchets: 14,131 entries, 948 rejected by
+both compilers, 2,843 `(id, target)` pairs with two errors to compare. Divergences by field:
+`code` **0**, `message` **362 pairs / 121 ids**, `(line, column)` **1,209 pairs / 403 ids**.
+The `code` column being saturated at 0 is why the two new columns were worth adding: no amount
+of corpus growth could have moved a comparison that already agreed everywhere.
 
-`compile.mjs:85-96` `errorInfo` returns `{ code, message: message.split('\n')[0] }`. The
-`message` is written to `error.json` but `verify.mjs:332` compares **only** `e.code !== a.code`.
-No `start`, no `end`, no frame is recorded on either side. **[S]**
+### Blind spot 4a — the error `end` span and `frame` are still never captured
 
-This matters more than it looks: the single largest cluster in
-`compatibility/validator-known-failures.json` (207 entries) is ~141 entries of *"error spans
-not populated — `start`/`end` come back `None..None`"*. The corpus gate runs over 14,025
-real-world entries and **cannot see that class at all**, so the burn-down pressure comes
-entirely from a 332-fixture suite whose ratchet is not two-sided (see gate 16).
+`compile.mjs`'s `errorInfo` records `{ code, message, line, column }` — the `line`/`column` of
+`start` only. Upstream highlights a **range**, and rsvelte's `end` is frequently `start + 1`
+where `start` agrees: `attribute_duplicate` on `<div a="1" a="2">` reports `position: [11, 12]`
+against upstream's `[11, 16]` (**[D]**, `crates/rsvelte_core/src/compiler/mod.rs`
+`diagnostic_reports_code_message_and_span`). A wrong highlight *length* is invisible to this
+gate. The rendered `frame` is likewise neither captured nor compared. **[D]**
 
 ### Blind spot 4b — a code-less error on either side degrades to error-parity
 
-`verify.mjs:332` guards with `e.code && a.code &&`. If either side's `code` is `null`, no
-mismatch is recorded and the verdict falls through to `error-parity` (`verify.mjs:335-337`).
-`compile.mjs:90-94` leaves `code` `null` when the error object carries no `code` and the
-message matches neither `svelte.dev/e/<code>` nor `code: "<code>"`. **[S]** — reachability of
-a `null` code from the NAPI boundary is **[U]**; I did not construct one.
+`verify.mjs` guards the output verdict with `e.code && a.code &&`. If either side's `code` is
+`null`, no mismatch is recorded and the verdict falls through to `error-parity`.
+`compile.mjs` leaves `code` `null` when the error object carries no `code` and the message
+matches neither `svelte.dev/e/<code>` nor `code: "<code>"`.
+
+Reachability is now measured rather than **[U]**: over the 2,843 both-reject pairs, a `null`
+code occurs on **1** pair and on **0** pairs one-sidedly
+(`svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte`, where both
+compilers raise an uncoded `Not implemented: LetDirective`). The guard has therefore never
+degraded a real divergence in this corpus — and the message comparison covers that pair anyway,
+since it treats two `null` codes as agreeing. **[D]**
+
+### Blind spot 4c — entries only one side rejects have nothing to compare
+
+The message/position comparisons skip any pair where one side compiles, or where the two codes
+differ: the prose and span of two unrelated errors say nothing. Those pairs are
+`error-mismatch` on the output ratchet, which sees the code and nothing else. **[S]**
 
 ---
 
@@ -331,8 +351,9 @@ the sharpest case. Cost: low.
 
 ## 8. css-prune sweep — `scripts/compat-corpus/css-prune-sweep.mjs`
 
-**Unit.** 1430 generated components, `css.code` compared after hash normalization
-(`:346-367`), `generate: 'client'`, `dev: false`, `css: 'external'` (`:351-355`).
+**Unit.** 1430 generated components; `css.code` after hash normalization plus the sorted
+`code@line:col` of every warning, compared by `css-prune-verdict.mjs`;
+`generate: 'client'`, `dev: false`, `css: 'external'`.
 
 ### Blind spot 8a — an empty population exits 0
 
@@ -361,10 +382,22 @@ carry floors — `artifacts.mjs:79` (`MIN_FULL_CORPUS_ENTRIES = 12000`),
 reads only `divergedIds`. **[S]** And CI does not pass `--both` anyway
 (`corpus-compat.yml:255`).
 
-### Blind spot 8c — `js.code` and `warnings` discarded
+### Blind spot 8c — `warnings` discarded — CLOSED
 
-`compileCss` (`:348-367`) returns `{ css }` only. **[S]** rsvelte can prune identically and
-omit the `css_unused_selector` warning; green.
+`compileCss` returned `{ css }` only, so rsvelte could prune identically and omit the
+`css_unused_selector` warning and still score green. It did: an outer rule whose enclosing
+selector matched no ancestor pruned to a byte-identical `(empty)` stylesheet either way, so
+the whole grid read 1430/1430 while 16 components diverged on warnings alone (#2474).
+
+**[D] Verified locally** on the fixed compiler, by deleting one warning from the rsvelte side
+of the comparison: with the `css.code`-only key the sweep still reported `matched: 1430,
+diverged: 0`; with the warning key it reports `warning-mismatch`. The verdict now compares the
+sorted `code@line:col` of every warning after the CSS compares equal, and
+`scripts/dev/test-css-prune-sweep-warning-verdict.mjs` pins that (it fails on the previous
+comparator, and also asserts the sweep still routes through it).
+
+`js.code` is still discarded — the sweep is a phase-2 gate and the corpus pipeline compares JS
+on real code, so this is deliberate rather than a gap.
 
 **Tracked:** #2445. **Closing 8a:** one assertion. Cost: trivial.
 
@@ -695,15 +728,15 @@ silently re-covers a future regression on that same fixture. Per
 **Unit.** Per upstream fixture, TSX text. Ratchet:
 `compatibility/svelte2tsx-fixtures-known-failures.json`, 5 entries.
 
-### Blind spot 17a — no erosion floor
+### Blind spot 17a — closed: absolute floor (#2454) and two-sided ratchet (#2507)
 
-The only count guard is `assert!(total_tested > 0, …)` (`:147-152`); `fixed_known` is printed
-but never asserted (`:169-178`); the single hard assert is `regressions.is_empty()` (`:180`).
-**[S]** An upstream layout change under `packages/svelte2tsx/test/svelte2tsx/samples` that
-leaves 1 readable sample instead of 253 passes `total_tested > 0`, puts the 5 baseline names
-into `fixed_known` (printed as "🎉 known failures now PASS"), and reports green having measured
-1 of 253. Contrast `sourcemaps_gate.rs:1011-1028`, which carries three explicit floors for
-exactly this reason.
+`MIN_S2TSX_FIXTURES = 254` (`:30`, asserted at `:155`) is an absolute floor on the samples
+actually compared, and both `regressions.is_empty()` (`:192`) and `fixed_known.is_empty()`
+(`:210`) are fatal. **[S]** The erosion this recorded — an upstream layout change under
+`packages/svelte2tsx/test/svelte2tsx/samples` leaving 1 readable sample instead of 254 —
+now fails twice: below the floor, and on the 5 baseline names landing in `fixed_known`.
+Measured when the staleness assert was added: 249 pass / 5 fail / 0 stale, so the ratchet
+was truthful at 5 entries and needed no re-baseline.
 
 ### Blind spot 17b — vacuous skip on a missing submodule
 
@@ -717,6 +750,18 @@ on manifest/HEAD SHA mismatch, `:124-137`); submodule-sourced suites reach
 `assert!(self.found > 0)` (`:295-300`). The centralized skip lists total **8 entries**
 (`common/mod.rs:383,403,406,414,728`), plus 3 outside `common/` (`css.rs:76`, `print.rs:141`,
 `parser_fixtures.rs:120,132`), all audited by `crates/rsvelte_core/tests/audit_skipped.rs`.
+
+### Blind spot 17c — the tail after the cut is dropped from both sides
+
+`relaxed_compare_structural` (`tests/common/svelte2tsx.rs:122-141`) truncates **both** texts at
+the last `\n\nexport default class` / `\nexport const ` / `\n/** @template ` /
+`\nclass __sveltets_Render` / `\nconst ` and compares only what precedes it. **[S]** The
+exported component class and the `__sveltets_Render` wrapper are therefore never compared.
+What survives the cut is then run through a chain of normalizations (from `:143`), and one of
+those stages has already hidden a real divergence: `strip_return_statement` deleted the whole
+`return {…}`, so `$$slot_def["b"]` vs official's `'b'` matched — **[D]**, closed in #2145 by
+re-verifying the return statement on its own (`:515`), which in turn concedes the fixture when
+either side has no `return` statement (`:520-523`).
 
 ---
 
@@ -781,7 +826,7 @@ while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked
 | sourcemaps gate | 3 floors (samples, anchors, identical outputs) | `sourcemaps_gate.rs:1011-1028` |
 | fmt Rust corpus | non-empty samples + `assert!(!in_corpus_job())` on every skip | `svelte_dev_corpus.rs:71-74,262` |
 | ast gate preconditions | input files > 1000 — **no output floor** | `ast_gate_preconditions.rs:57`; gap at `:90` |
-| svelte2tsx fixtures | `total_tested > 0` only | `svelte2tsx_fixtures.rs:147` |
+| svelte2tsx fixtures | `total_tested >= 254`, absolute | `svelte2tsx_fixtures.rs:30,155` |
 | **css-prune sweep** | **none** | `css-prune-sweep.mjs:482` is a `console.log` |
 | check / check-e2e | scenarios > 0; **no diagnostic floor**, ratchets are `[]` | `check-verify.mjs:179`; gap at `:240` |
 
@@ -848,7 +893,7 @@ sees.
 | **`lint-verify.mjs`** | `files.length === 0` (`:163`) | oracle gets `files` (`:178`); **rsvelte gets the whole `SOURCES` dir** (`:124`) | **NO** — two populations inside one comparison; this is the mechanism of blind spot 11a |
 | **`ast_gate_preconditions.rs`** | `files.len() > 1000` on *discovered inputs* (`:57`) | only successfully-**compiled** files (`continue` at `:90`) | **NO** → blind spot 15a; the difference is unmeasured |
 | **`matrix/run.mjs`** | *nothing* — `cases.length` is printed at `:84`, never asserted | generated `cases` | **NO** — same shape as #2445 |
-| `svelte2tsx_fixtures.rs` | `total_tested > 0` (`:147`), derived from the loop itself | same | yes, but the floor is degenerate → blind spot 17a |
+| `svelte2tsx_fixtures.rs` | `total_tested >= 254` (`:155`), derived from the loop itself | same | **yes** |
 
 **5 of 9 fail**, two of which (`matrix/run.mjs`, and the `lint-verify.mjs` framing) this predicate
 found rather than a full read.

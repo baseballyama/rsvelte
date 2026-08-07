@@ -25,32 +25,47 @@ pub use fuzzymatch::fuzzymatch;
 )]
 pub use html::{decode_character_references, is_void_element, validate_code};
 
-/// `str::trim` without the UTF-8 decode: template sources are ASCII at the
-/// trimmed edges in practice, and only a non-ASCII edge falls back to `trim`.
+/// Upstream's `String.prototype.trim` without the UTF-8 decode, so the trimmed
+/// set is JS whitespace rather than Unicode `White_Space` — the two differ on
+/// `U+0085` and `U+FEFF`. Only a non-ASCII edge pays for the decode.
 pub trait TrimWs {
     fn trim_ws(&self) -> &str;
+    fn trim_start_ws(&self) -> &str;
+    fn trim_end_ws(&self) -> &str;
 }
 
 impl TrimWs for str {
     #[inline]
     fn trim_ws(&self) -> &str {
-        const fn is_ascii_ws(b: u8) -> bool {
-            matches!(b, b' ' | b'\t' | b'\n' | b'\r' | 0x0b | 0x0c)
-        }
+        self.trim_start_ws().trim_end_ws()
+    }
+
+    #[inline]
+    fn trim_start_ws(&self) -> &str {
         let bytes = self.as_bytes();
         let mut start = 0;
-        let mut end = bytes.len();
-        while start < end && is_ascii_ws(bytes[start]) {
+        while start < bytes.len() && super::parser::is_js_whitespace_byte(bytes[start]) {
             start += 1;
         }
-        while end > start && is_ascii_ws(bytes[end - 1]) {
+        // Only ASCII bytes were skipped, so `start` is a char boundary.
+        let rest = &self[start..];
+        match rest.as_bytes().first() {
+            Some(&b) if b >= 0x80 => rest.trim_start_matches(super::parser::is_js_whitespace),
+            _ => rest,
+        }
+    }
+
+    #[inline]
+    fn trim_end_ws(&self) -> &str {
+        let bytes = self.as_bytes();
+        let mut end = bytes.len();
+        while end > 0 && super::parser::is_js_whitespace_byte(bytes[end - 1]) {
             end -= 1;
         }
-        // Only ASCII bytes were skipped, so both ends are char boundaries.
-        let trimmed = &self[start..end];
-        match (trimmed.as_bytes().first(), trimmed.as_bytes().last()) {
-            (Some(&first), Some(&last)) if first >= 0x80 || last >= 0x80 => trimmed.trim(),
-            _ => trimmed,
+        let head = &self[..end];
+        match head.as_bytes().last() {
+            Some(&b) if b >= 0x80 => head.trim_end_matches(super::parser::is_js_whitespace),
+            _ => head,
         }
     }
 }

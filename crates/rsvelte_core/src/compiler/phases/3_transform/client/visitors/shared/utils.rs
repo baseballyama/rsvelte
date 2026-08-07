@@ -4738,11 +4738,35 @@ fn analyze_props_json(
 ///
 /// Returns true if the expression contains identifiers that reference
 /// reactive bindings ($state, $derived, props, stores, etc.).
+///
+/// The answer is taken off the typed nodes whenever `typed_has_reactive_state`
+/// recognises every shape it meets, so the common case never materializes
+/// `as_json()`. Everything else falls through to the JSON walk.
 #[inline]
 pub fn expression_has_reactive_state(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> bool {
+    if let Some(node) = expr.try_as_node_ref() {
+        use crate::ast::typed_expr::JsNode;
+        let typed = match node {
+            // Leaves answer without an arena; every deeper shape needs one to
+            // resolve child ids.
+            JsNode::Identifier { name, start, .. } => Some(identifier_has_reactive_state(
+                name.as_str(),
+                Some(*start),
+                context,
+            )),
+            JsNode::Literal { .. } => Some(false),
+            _ => crate::ast::arena::try_with_current_serialize_arena(|arena| {
+                typed_has_reactive_state(node, arena, context)
+            })
+            .flatten(),
+        };
+        if let Some(answer) = typed {
+            return answer;
+        }
+    }
     has_reactive_state_json(expr.as_json(), context)
 }
 
@@ -4866,6 +4890,444 @@ pub fn resolve_shadowing_snippet_binding<'a>(
         .or(direct)
 }
 
+/// The `"Identifier"` case of `has_reactive_state_json`, lifted out so the typed
+/// front end of `expression_has_reactive_state` can answer a bare identifier
+/// without materializing the expression as JSON. `start` is the identifier's
+/// source offset, used only to replay Phase 2's scope-correct resolution.
+fn identifier_has_reactive_state(
+    name: &str,
+    start: Option<u32>,
+    context: &ComponentContext,
+) -> bool {
+    // An enclosing `{#each … as <item>[, <index>]}` loop variable shadows
+    // any outer binding of the same name; inside the block it is the loop
+    // variable, not the outer constant. `get_binding` below walks
+    // `self.scope`, which is NOT switched to the each scope during the body
+    // transform, so a shadowed name would resolve to the outer (possibly
+    // non-reactive) binding and wrongly report the text as static. Mirror the
+    // `get_literal_value` each-shadow guard: an each ITEM is always reactive
+    // (matching the `BindingKind::EachItem` rule below); an each INDEX uses
+    // its analyzer-computed reactivity. Innermost context wins (rev()).
+    for c in context.state.each_binding_context.iter().rev() {
+        if c.item_name == name {
+            return true;
+        }
+        if !c.index_name.is_empty() && c.index_name == name {
+            return c.index_reactive;
+        }
+    }
+
+    // Replay Phase 2's scope-correct resolution for this reference.
+    // A template declaration (`{@const}` / `{#await}`) that shadows a
+    // component-scope binding is invisible to the name-based lookups
+    // below, which would report the outer (reactive) binding and
+    // force an unnecessary template_effect. `let:` bindings are
+    // excluded: their reactivity is decided by whether the directive's
+    // transform is installed (see the `BindingKind::Let` arm below),
+    // not by the binding itself.
+    let by_position = start
+        .and_then(|start| context.state.scope_root.binding_at_reference(name, start))
+        .filter(|b| {
+            !matches!(
+                b.kind,
+                crate::compiler::phases::phase2_analyze::scope::BindingKind::Let
+            )
+        });
+
+    // Check if identifier has a transform registered (e.g., @const, snippet parameter)
+    // Identifiers with transforms are derived values that need reactive tracking,
+    // BUT only if the transform has is_reactive=true.
+    // This check comes FIRST because @const creates both a binding (Normal) and a transform,
+    // but the transform indicates it's a derived value needing reactive tracking.
+    //
+    // EXCEPTION: Derived bindings always have transforms (for $.get() wrapping),
+    // but their reactivity depends on whether their dependencies are known constants.
+    // For Derived bindings, skip this early return and fall through to the
+    // detailed binding kind check below.
+    if let Some(transform) = context.state.transform.get(name) {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+        // Resolve the binding this reference actually refers to. `get_binding`
+        // walks the root-scope-polluted map, which prefers an OUTER same-named
+        // binding; when an in-scope `{@const}` shadows it, that resolves to the
+        // outer binding instead of the `{@const}`.
+        let resolved = by_position.or_else(|| context.state.get_binding(name));
+
+        // Check if this is a Derived binding - if so, skip the early return
+        // and fall through to the detailed binding kind check below.
+        let is_derived = resolved.is_some_and(|b| matches!(b.kind, BindingKind::Derived));
+        if !is_derived {
+            // For Template bindings (@const), check if the initial value is known
+            // instead of blindly using transform.is_reactive.
+            // This matches the official Svelte compiler's scope.evaluate() behavior.
+            if let Some(binding) = resolved
+                && matches!(binding.kind, BindingKind::Template)
+            {
+                // A function-valued `{@const}` (`{@const f = (e) => …}`)
+                // mirrors upstream's `!binding.is_function()` term in
+                // Identifier.js: reading it is not reactive state, so a
+                // component prop `onclick={f}` is emitted as a plain
+                // `onclick: $.get(f)` value rather than a getter.
+                if binding.is_function() {
+                    return false;
+                }
+                if let Some(initial_json) = binding.initial_json() {
+                    return !is_expression_known_json(initial_json, context);
+                }
+                // No initial stored → conservatively treat as reactive
+                return true;
+            }
+            // Use the is_reactive flag from the transform
+            // Non-reactive transforms (like unkeyed each block index) should not be treated as reactive
+            return transform.is_reactive;
+        }
+    }
+    if let Some(binding) = by_position.or_else(|| context.state.get_binding(name)) {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+        // Match Svelte's logic from Identifier.js (lines 95-101):
+        // has_state ||= binding.kind !== 'static' &&
+        //     (binding.kind === 'prop' || ... || !binding.is_function()) &&
+        //     !context.state.scope.evaluate(node).is_known;
+
+        // Static bindings are never reactive
+        if matches!(binding.kind, BindingKind::Static) {
+            return false;
+        }
+
+        // Bindings that are always reactive (props, stores, each items, etc.)
+        // These don't go through the is_known check because their values
+        // are inherently dynamic/external.
+        if matches!(
+            binding.kind,
+            BindingKind::Prop
+                | BindingKind::BindableProp
+                | BindingKind::RestProp
+                | BindingKind::Store
+                | BindingKind::StoreSub
+                | BindingKind::EachItem
+                | BindingKind::SnippetParam
+        ) {
+            return true;
+        }
+
+        // Let directive bindings (let:thing) are only reactive when
+        // they have a corresponding transform registered. If there's
+        // no transform, it means we're in a context where the let
+        // directive doesn't apply (e.g., a named slot), so the binding
+        // is effectively an undefined/static reference.
+        if matches!(binding.kind, BindingKind::Let) {
+            return context.state.transform.contains_key(name);
+        }
+
+        // For Derived bindings, check if the derived value is "known"
+        // (i.e., its dependencies are all non-reactive constants).
+        // This matches the official Svelte compiler's scope.evaluate() behavior
+        // where $derived(expr) is known if `expr` only depends on known values.
+        if matches!(binding.kind, BindingKind::Derived) {
+            if binding.reassigned || binding.mutated {
+                return true;
+            }
+            // If the binding has a stored initial expression (the $derived argument),
+            // parse it as JSON and check if it can be evaluated at compile time.
+            // This approximates scope.evaluate().is_known from the official compiler.
+            if let Some(initial_json) = binding.initial_json() {
+                // Check if the expression is "known" (compile-time evaluable)
+                // If known, the derived value is effectively constant → not reactive
+                return !is_expression_known_json(initial_json, context);
+            }
+            // If no initial or couldn't parse, conservatively treat as reactive
+            return true;
+        }
+
+        // For Template bindings (@const tag), apply the same scope.evaluate()
+        // logic as Derived bindings. @const values are wrapped in
+        // $.derived_safe_equal() and accessed via $.get(), but their reactivity
+        // depends on whether their initial expression depends on reactive state.
+        // E.g., `@const bar = 'world'` → is_known=true (non-reactive)
+        //        `@const doubled = count * 2` → is_known depends on `count`
+        if matches!(binding.kind, BindingKind::Template) {
+            // Function-valued `{@const}` mirrors upstream's
+            // `!binding.is_function()` term (see the Template branch
+            // above): a read of it is not reactive state.
+            if binding.is_function() {
+                return false;
+            }
+            if let Some(initial_json) = binding.initial_json() {
+                return !is_expression_known_json(initial_json, context);
+            }
+            // If no initial or couldn't parse, conservatively treat as reactive
+            return true;
+        }
+
+        // For State/RawState bindings in runes mode (immutable=true) with no initial
+        // value AT ALL (i.e., `$state()` called with no args):
+        // - is_state_source = false (not reassigned)
+        // - initial_node_type = None (no arg expression → compiles to `void 0`)
+        // - The binding effectively compiles to `undefined`, which is a known constant.
+        // → treat as non-reactive (is_known = true).
+        //
+        // IMPORTANT: Only apply when initial_node_type is None (no argument),
+        // NOT when initial_is_defined is false. The latter can be false for
+        // `$state(member.expr)` where the arg might evaluate to undefined at
+        // runtime, but the binding is still reactive via $.proxy() wrapping.
+        if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+            && binding.initial_node_type.is_none()
+        {
+            use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
+            if !is_state_source(binding, context.state.analysis) {
+                return false;
+            }
+        }
+
+        // For State, RawState, Derived, and Normal bindings:
+        // Match Svelte's logic: has_state is true when:
+        //   binding.kind !== 'static' &&
+        //   (binding.kind === 'prop' || ... || !binding.is_function()) &&
+        //   !context.state.scope.evaluate(node).is_known
+        //
+        // The official compiler uses scope.evaluate() to determine if a
+        // binding's value is "known" at compile time. Even $state bindings
+        // can be "known" if they're never updated (reassigned/mutated) and
+        // their initial value is a known literal. For example:
+        //   let y = $state('y1')  // never reassigned -> is_known = true
+        //   let x = $state('x1')  // reassigned via x = 'x2' -> is_known = false
+        //
+        // We approximate scope.evaluate().is_known by checking:
+        // 1. For const/let declarations with literal initial values -> is_known = true if never reassigned/mutated
+        // 2. For imports -> is_known = false (we don't know what they'll return)
+        if !binding.is_function() {
+            use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+
+            // Check if this is a declaration with a known value
+            // (approximation of scope.evaluate().is_known)
+            // Both const and let declarations can be "known" if they:
+            // - Are never reassigned
+            // - Are never mutated
+            // - Have an initial value that's a literal or known value
+            //   (includes undefined identifier: `let x = undefined`)
+            //   Note: initial_is_defined is NOT required here because
+            //   `undefined` is a compile-time constant even if it's falsy.
+            //   is_initial_value_literal_or_known handles None → false.
+            let decl_known_eligible = matches!(
+                binding.declaration_kind,
+                DeclarationKind::Const | DeclarationKind::Let
+            ) && !binding.reassigned
+                && !binding.mutated;
+            let is_known = decl_known_eligible
+                && (is_initial_value_literal_or_known(&binding.initial)
+                    // Recursive `scope.evaluate`-style fallback for an
+                    // interpolated-template-literal initializer whose
+                    // interpolations are themselves non-reactive
+                    // (e.g. `const url = `…${KNOWN_CONST}…``). Depth-guarded.
+                    || initial_is_non_reactive(binding, context));
+
+            // has_state is true when the value is NOT known at compile time
+            return !is_known;
+        }
+
+        return false;
+    }
+    // $$props and $$restProps are always reactive - they change when props change.
+    // They don't have bindings or transforms because they are generated variables,
+    // but they reference reactive state (component props).
+    if name == "$$props" || name == "$$restProps" {
+        return true;
+    }
+
+    // Unknown identifier - conservatively assume non-reactive
+    // (could be a global or module-level binding)
+    false
+}
+
+/// Global functions whose result depends only on their arguments.
+const PURE_GLOBALS: &[&str] = &[
+    "encodeURIComponent",
+    "decodeURIComponent",
+    "encodeURI",
+    "decodeURI",
+    "parseInt",
+    "parseFloat",
+    "isNaN",
+    "isFinite",
+    "String",
+    "Number",
+    "Boolean",
+    "Array",
+    "Object",
+    "JSON",
+];
+
+/// Objects whose methods depend only on their arguments (`Math.max(…)`).
+const PURE_OBJECTS: &[&str] = &["Math", "JSON", "Object", "Array", "String", "Number"];
+
+/// Typed counterpart of `has_reactive_state_json`, arm for arm, so the answer
+/// can be given without materializing the expression as JSON.
+///
+/// `None` means the walk met a shape it has no typed answer for — the caller
+/// falls back to the JSON walk for the whole expression rather than guessing.
+fn typed_has_reactive_state(
+    node: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+    context: &ComponentContext,
+) -> Option<bool> {
+    use crate::ast::typed_expr::JsNode;
+
+    match node {
+        JsNode::Identifier { name, start, .. } => Some(identifier_has_reactive_state(
+            name.as_str(),
+            Some(*start),
+            context,
+        )),
+        JsNode::Literal { .. } => Some(false),
+        // Serializes to a bare JSON `null`, which the JSON walk rejects before
+        // it reads a type.
+        JsNode::Null => Some(false),
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            let object = arena.get_js_node(*object);
+            if typed_has_reactive_state(object, arena, context)? {
+                return Some(true);
+            }
+            // A property of a local variable may be reactive itself (a class
+            // instance with `$state` fields), which is not visible from here.
+            if let JsNode::Identifier { name, .. } = object
+                && context.state.get_binding(name.as_str()).is_some()
+            {
+                return Some(true);
+            }
+            if *computed && typed_has_reactive_state(arena.get_js_node(*property), arena, context)?
+            {
+                return Some(true);
+            }
+            Some(false)
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            let callee = arena.get_js_node(*callee);
+            let arguments = arena.get_js_children(*arguments);
+            match callee {
+                JsNode::Identifier { name, .. } => {
+                    let name = name.as_str();
+                    if PURE_GLOBALS.contains(&name) {
+                        return typed_any_has_reactive_state(arguments, arena, context);
+                    }
+                    if let Some(binding) = context.state.get_binding(name) {
+                        if binding.kind.is_reactive() {
+                            return Some(true);
+                        }
+                    } else if context.state.transform.contains_key(name) {
+                        return Some(true);
+                    } else {
+                        return typed_any_has_reactive_state(arguments, arena, context);
+                    }
+                }
+                JsNode::MemberExpression { object, .. } => {
+                    if let JsNode::Identifier { name, .. } = arena.get_js_node(*object)
+                        && PURE_OBJECTS.contains(&name.as_str())
+                    {
+                        return typed_any_has_reactive_state(arguments, arena, context);
+                    }
+                }
+                _ => {}
+            }
+            if typed_has_reactive_state(callee, arena, context)? {
+                return Some(true);
+            }
+            typed_any_has_reactive_state(arguments, arena, context)
+        }
+        JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            if typed_has_reactive_state(arena.get_js_node(*callee), arena, context)? {
+                return Some(true);
+            }
+            typed_any_has_reactive_state(arena.get_js_children(*arguments), arena, context)
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            if typed_has_reactive_state(arena.get_js_node(*left), arena, context)? {
+                return Some(true);
+            }
+            typed_has_reactive_state(arena.get_js_node(*right), arena, context)
+        }
+        JsNode::UnaryExpression { argument, .. } => {
+            typed_has_reactive_state(arena.get_js_node(*argument), arena, context)
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            for id in [test, consequent, alternate] {
+                if typed_has_reactive_state(arena.get_js_node(*id), arena, context)? {
+                    return Some(true);
+                }
+            }
+            Some(false)
+        }
+        JsNode::TemplateLiteral { expressions, .. }
+        | JsNode::SequenceExpression { expressions, .. } => {
+            typed_any_has_reactive_state(arena.get_js_children(*expressions), arena, context)
+        }
+        JsNode::ChainExpression { expression, .. } => {
+            typed_has_reactive_state(arena.get_js_node(*expression), arena, context)
+        }
+        // Only the right-hand side, matching the JSON walk.
+        JsNode::AssignmentExpression { right, .. } => {
+            typed_has_reactive_state(arena.get_js_node(*right), arena, context)
+        }
+        JsNode::ObjectExpression { properties, .. } => {
+            for property in arena.get_js_children(*properties) {
+                match property {
+                    JsNode::SpreadElement { .. } => return Some(true),
+                    JsNode::Property { value, .. } => {
+                        if typed_has_reactive_state(arena.get_js_node(*value), arena, context)? {
+                            return Some(true);
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+            Some(false)
+        }
+        JsNode::ArrayExpression { elements, .. } => {
+            for element in elements.iter().flatten() {
+                if typed_has_reactive_state(element, arena, context)? {
+                    return Some(true);
+                }
+            }
+            Some(false)
+        }
+        JsNode::AwaitExpression { .. }
+        | JsNode::UpdateExpression { .. }
+        | JsNode::SpreadElement { .. } => Some(true),
+        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => Some(false),
+        _ => None,
+    }
+}
+
+/// True as soon as any of `nodes` references reactive state; `None` propagates
+/// the first shape the typed walk could not answer.
+fn typed_any_has_reactive_state(
+    nodes: &[crate::ast::typed_expr::JsNode],
+    arena: &crate::ast::arena::ParseArena,
+    context: &ComponentContext,
+) -> Option<bool> {
+    for node in nodes {
+        if typed_has_reactive_state(node, arena, context)? {
+            return Some(true);
+        }
+    }
+    Some(false)
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// This eliminates expensive cloning and deserialization in recursive calls.
 fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
@@ -4880,253 +5342,8 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         "Identifier" => {
             // Check if identifier is a reactive binding
             if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                // An enclosing `{#each … as <item>[, <index>]}` loop variable shadows
-                // any outer binding of the same name; inside the block it is the loop
-                // variable, not the outer constant. `get_binding` below walks
-                // `self.scope`, which is NOT switched to the each scope during the body
-                // transform, so a shadowed name would resolve to the outer (possibly
-                // non-reactive) binding and wrongly report the text as static. Mirror the
-                // `get_literal_value` each-shadow guard: an each ITEM is always reactive
-                // (matching the `BindingKind::EachItem` rule below); an each INDEX uses
-                // its analyzer-computed reactivity. Innermost context wins (rev()).
-                for c in context.state.each_binding_context.iter().rev() {
-                    if c.item_name == name {
-                        return true;
-                    }
-                    if !c.index_name.is_empty() && c.index_name == name {
-                        return c.index_reactive;
-                    }
-                }
-
-                // Replay Phase 2's scope-correct resolution for this reference.
-                // A template declaration (`{@const}` / `{#await}`) that shadows a
-                // component-scope binding is invisible to the name-based lookups
-                // below, which would report the outer (reactive) binding and
-                // force an unnecessary template_effect. `let:` bindings are
-                // excluded: their reactivity is decided by whether the directive's
-                // transform is installed (see the `BindingKind::Let` arm below),
-                // not by the binding itself.
-                let by_position = obj
-                    .get("start")
-                    .and_then(|v| v.as_u64())
-                    .and_then(|start| {
-                        context
-                            .state
-                            .scope_root
-                            .binding_at_reference(name, start as u32)
-                    })
-                    .filter(|b| {
-                        !matches!(
-                            b.kind,
-                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Let
-                        )
-                    });
-
-                // Check if identifier has a transform registered (e.g., @const, snippet parameter)
-                // Identifiers with transforms are derived values that need reactive tracking,
-                // BUT only if the transform has is_reactive=true.
-                // This check comes FIRST because @const creates both a binding (Normal) and a transform,
-                // but the transform indicates it's a derived value needing reactive tracking.
-                //
-                // EXCEPTION: Derived bindings always have transforms (for $.get() wrapping),
-                // but their reactivity depends on whether their dependencies are known constants.
-                // For Derived bindings, skip this early return and fall through to the
-                // detailed binding kind check below.
-                if let Some(transform) = context.state.transform.get(name) {
-                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-
-                    // Resolve the binding this reference actually refers to. `get_binding`
-                    // walks the root-scope-polluted map, which prefers an OUTER same-named
-                    // binding; when an in-scope `{@const}` shadows it, that resolves to the
-                    // outer binding instead of the `{@const}`.
-                    let resolved = by_position.or_else(|| context.state.get_binding(name));
-
-                    // Check if this is a Derived binding - if so, skip the early return
-                    // and fall through to the detailed binding kind check below.
-                    let is_derived =
-                        resolved.is_some_and(|b| matches!(b.kind, BindingKind::Derived));
-                    if !is_derived {
-                        // For Template bindings (@const), check if the initial value is known
-                        // instead of blindly using transform.is_reactive.
-                        // This matches the official Svelte compiler's scope.evaluate() behavior.
-                        if let Some(binding) = resolved
-                            && matches!(binding.kind, BindingKind::Template)
-                        {
-                            // A function-valued `{@const}` (`{@const f = (e) => …}`)
-                            // mirrors upstream's `!binding.is_function()` term in
-                            // Identifier.js: reading it is not reactive state, so a
-                            // component prop `onclick={f}` is emitted as a plain
-                            // `onclick: $.get(f)` value rather than a getter.
-                            if binding.is_function() {
-                                return false;
-                            }
-                            if let Some(initial_json) = binding.initial_json() {
-                                return !is_expression_known_json(initial_json, context);
-                            }
-                            // No initial stored → conservatively treat as reactive
-                            return true;
-                        }
-                        // Use the is_reactive flag from the transform
-                        // Non-reactive transforms (like unkeyed each block index) should not be treated as reactive
-                        return transform.is_reactive;
-                    }
-                }
-                if let Some(binding) = by_position.or_else(|| context.state.get_binding(name)) {
-                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-
-                    // Match Svelte's logic from Identifier.js (lines 95-101):
-                    // has_state ||= binding.kind !== 'static' &&
-                    //     (binding.kind === 'prop' || ... || !binding.is_function()) &&
-                    //     !context.state.scope.evaluate(node).is_known;
-
-                    // Static bindings are never reactive
-                    if matches!(binding.kind, BindingKind::Static) {
-                        return false;
-                    }
-
-                    // Bindings that are always reactive (props, stores, each items, etc.)
-                    // These don't go through the is_known check because their values
-                    // are inherently dynamic/external.
-                    if matches!(
-                        binding.kind,
-                        BindingKind::Prop
-                            | BindingKind::BindableProp
-                            | BindingKind::RestProp
-                            | BindingKind::Store
-                            | BindingKind::StoreSub
-                            | BindingKind::EachItem
-                            | BindingKind::SnippetParam
-                    ) {
-                        return true;
-                    }
-
-                    // Let directive bindings (let:thing) are only reactive when
-                    // they have a corresponding transform registered. If there's
-                    // no transform, it means we're in a context where the let
-                    // directive doesn't apply (e.g., a named slot), so the binding
-                    // is effectively an undefined/static reference.
-                    if matches!(binding.kind, BindingKind::Let) {
-                        return context.state.transform.contains_key(name);
-                    }
-
-                    // For Derived bindings, check if the derived value is "known"
-                    // (i.e., its dependencies are all non-reactive constants).
-                    // This matches the official Svelte compiler's scope.evaluate() behavior
-                    // where $derived(expr) is known if `expr` only depends on known values.
-                    if matches!(binding.kind, BindingKind::Derived) {
-                        if binding.reassigned || binding.mutated {
-                            return true;
-                        }
-                        // If the binding has a stored initial expression (the $derived argument),
-                        // parse it as JSON and check if it can be evaluated at compile time.
-                        // This approximates scope.evaluate().is_known from the official compiler.
-                        if let Some(initial_json) = binding.initial_json() {
-                            // Check if the expression is "known" (compile-time evaluable)
-                            // If known, the derived value is effectively constant → not reactive
-                            return !is_expression_known_json(initial_json, context);
-                        }
-                        // If no initial or couldn't parse, conservatively treat as reactive
-                        return true;
-                    }
-
-                    // For Template bindings (@const tag), apply the same scope.evaluate()
-                    // logic as Derived bindings. @const values are wrapped in
-                    // $.derived_safe_equal() and accessed via $.get(), but their reactivity
-                    // depends on whether their initial expression depends on reactive state.
-                    // E.g., `@const bar = 'world'` → is_known=true (non-reactive)
-                    //        `@const doubled = count * 2` → is_known depends on `count`
-                    if matches!(binding.kind, BindingKind::Template) {
-                        // Function-valued `{@const}` mirrors upstream's
-                        // `!binding.is_function()` term (see the Template branch
-                        // above): a read of it is not reactive state.
-                        if binding.is_function() {
-                            return false;
-                        }
-                        if let Some(initial_json) = binding.initial_json() {
-                            return !is_expression_known_json(initial_json, context);
-                        }
-                        // If no initial or couldn't parse, conservatively treat as reactive
-                        return true;
-                    }
-
-                    // For State/RawState bindings in runes mode (immutable=true) with no initial
-                    // value AT ALL (i.e., `$state()` called with no args):
-                    // - is_state_source = false (not reassigned)
-                    // - initial_node_type = None (no arg expression → compiles to `void 0`)
-                    // - The binding effectively compiles to `undefined`, which is a known constant.
-                    // → treat as non-reactive (is_known = true).
-                    //
-                    // IMPORTANT: Only apply when initial_node_type is None (no argument),
-                    // NOT when initial_is_defined is false. The latter can be false for
-                    // `$state(member.expr)` where the arg might evaluate to undefined at
-                    // runtime, but the binding is still reactive via $.proxy() wrapping.
-                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
-                        && binding.initial_node_type.is_none()
-                    {
-                        use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
-                        if !is_state_source(binding, context.state.analysis) {
-                            return false;
-                        }
-                    }
-
-                    // For State, RawState, Derived, and Normal bindings:
-                    // Match Svelte's logic: has_state is true when:
-                    //   binding.kind !== 'static' &&
-                    //   (binding.kind === 'prop' || ... || !binding.is_function()) &&
-                    //   !context.state.scope.evaluate(node).is_known
-                    //
-                    // The official compiler uses scope.evaluate() to determine if a
-                    // binding's value is "known" at compile time. Even $state bindings
-                    // can be "known" if they're never updated (reassigned/mutated) and
-                    // their initial value is a known literal. For example:
-                    //   let y = $state('y1')  // never reassigned -> is_known = true
-                    //   let x = $state('x1')  // reassigned via x = 'x2' -> is_known = false
-                    //
-                    // We approximate scope.evaluate().is_known by checking:
-                    // 1. For const/let declarations with literal initial values -> is_known = true if never reassigned/mutated
-                    // 2. For imports -> is_known = false (we don't know what they'll return)
-                    if !binding.is_function() {
-                        use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
-
-                        // Check if this is a declaration with a known value
-                        // (approximation of scope.evaluate().is_known)
-                        // Both const and let declarations can be "known" if they:
-                        // - Are never reassigned
-                        // - Are never mutated
-                        // - Have an initial value that's a literal or known value
-                        //   (includes undefined identifier: `let x = undefined`)
-                        //   Note: initial_is_defined is NOT required here because
-                        //   `undefined` is a compile-time constant even if it's falsy.
-                        //   is_initial_value_literal_or_known handles None → false.
-                        let decl_known_eligible = matches!(
-                            binding.declaration_kind,
-                            DeclarationKind::Const | DeclarationKind::Let
-                        ) && !binding.reassigned
-                            && !binding.mutated;
-                        let is_known = decl_known_eligible
-                            && (is_initial_value_literal_or_known(&binding.initial)
-                                // Recursive `scope.evaluate`-style fallback for an
-                                // interpolated-template-literal initializer whose
-                                // interpolations are themselves non-reactive
-                                // (e.g. `const url = `…${KNOWN_CONST}…``). Depth-guarded.
-                                || initial_is_non_reactive(binding, context));
-
-                        // has_state is true when the value is NOT known at compile time
-                        return !is_known;
-                    }
-
-                    return false;
-                }
-                // $$props and $$restProps are always reactive - they change when props change.
-                // They don't have bindings or transforms because they are generated variables,
-                // but they reference reactive state (component props).
-                if name == "$$props" || name == "$$restProps" {
-                    return true;
-                }
-
-                // Unknown identifier - conservatively assume non-reactive
-                // (could be a global or module-level binding)
-                return false;
+                let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
+                return identifier_has_reactive_state(name, start, context);
             }
             false
         }
@@ -5176,23 +5393,6 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 if callee_type == Some("Identifier")
                     && let Some(name) = callee.get("name").and_then(|n| n.as_str())
                 {
-                    // List of known pure global functions
-                    const PURE_GLOBALS: &[&str] = &[
-                        "encodeURIComponent",
-                        "decodeURIComponent",
-                        "encodeURI",
-                        "decodeURI",
-                        "parseInt",
-                        "parseFloat",
-                        "isNaN",
-                        "isFinite",
-                        "String",
-                        "Number",
-                        "Boolean",
-                        "Array",
-                        "Object",
-                        "JSON",
-                    ];
                     if PURE_GLOBALS.contains(&name) {
                         // Check if any arguments are reactive - recurse with JSON reference
                         if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
@@ -5231,20 +5431,17 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     && let Some(object) = callee.get("object").and_then(|o| o.as_object())
                     && let Some("Identifier") = object.get("type").and_then(|t| t.as_str())
                     && let Some(obj_name) = object.get("name").and_then(|n| n.as_str())
+                    && PURE_OBJECTS.contains(&obj_name)
                 {
-                    const PURE_OBJECTS: &[&str] =
-                        &["Math", "JSON", "Object", "Array", "String", "Number"];
-                    if PURE_OBJECTS.contains(&obj_name) {
-                        // Check if any arguments are reactive - recurse with JSON reference
-                        if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
-                            for arg in args {
-                                if has_reactive_state_json(arg, context) {
-                                    return true;
-                                }
+                    // Check if any arguments are reactive - recurse with JSON reference
+                    if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                        for arg in args {
+                            if has_reactive_state_json(arg, context) {
+                                return true;
                             }
                         }
-                        return false;
                     }
+                    return false;
                 }
             }
 
@@ -6543,5 +6740,241 @@ mod tests {
 
         // Test regular identifier - should be false
         assert!(!is_initial_value_literal_or_known(&Some("foo".to_string())));
+    }
+
+    /// A reactive `count`, a compile-time-known `konst`, and a `Static` binding —
+    /// enough for the identifier fast path to return both answers rather than a
+    /// constant.
+    fn reactive_state_bindings() -> Vec<Binding> {
+        use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+
+        let mut count = Binding::with_declaration_kind(
+            "count".to_string(),
+            BindingKind::State,
+            DeclarationKind::Let,
+            0,
+        );
+        // A `$state` with an initial node skips the "no argument at all" branch;
+        // being reassigned makes it not compile-time known → reactive.
+        count.initial_node_type = Some("Literal".to_string());
+        count.reassigned = true;
+
+        let mut konst = Binding::with_declaration_kind(
+            "konst".to_string(),
+            BindingKind::Normal,
+            DeclarationKind::Const,
+            0,
+        );
+        konst.initial = Some("42".to_string());
+
+        let stat = Binding::new("stat".to_string(), BindingKind::Static, 0);
+
+        vec![count, konst, stat]
+    }
+
+    /// Run `f` on the expression in `<Test a={…} />` with a context carrying
+    /// `reactive_state_bindings`, under the serialize arena both walks resolve
+    /// child ids through.
+    fn with_reactive_state_context<R>(
+        expr_src: &str,
+        f: impl FnOnce(&crate::ast::js::Expression, &ComponentContext) -> R,
+    ) -> R {
+        use crate::compiler::ComponentAnalysis;
+        use crate::compiler::phases::phase2_analyze::scope::{Scope, ScopeRoot};
+        use std::rc::Rc;
+
+        let input = format!("<Test a={{{expr_src}}} />");
+        let allocator = oxc_allocator::Allocator::default();
+        let mut result = crate::parse(&input, &allocator, Default::default()).unwrap();
+        // `parse()` may leave attribute expressions deferred; both paths need a
+        // resolved `Expression::Typed`.
+        assert!(
+            crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(
+                &mut result,
+                &input,
+            )
+            .is_none(),
+            "`{expr_src}` should parse"
+        );
+
+        let expr = result
+            .fragment
+            .nodes
+            .iter()
+            .find_map(|node| match node {
+                crate::ast::template::TemplateNode::Component(comp) => {
+                    comp.attributes.iter().find_map(|attr| match attr {
+                        crate::ast::template::Attribute::Attribute(a) => match &a.value {
+                            crate::ast::template::AttributeValue::Expression(tag) => {
+                                Some(&tag.expression)
+                            }
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
+            .expect("expression attribute");
+
+        let analysis = ComponentAnalysis::new("", &Default::default());
+        let scope = Scope::new(None);
+        let mut scope_root = ScopeRoot::new();
+        for binding in reactive_state_bindings() {
+            let name = binding.name.clone();
+            let idx = scope_root.push_binding(binding);
+            scope_root.scope.declarations.insert(name, idx);
+        }
+        let state = ComponentClientTransformState::new(
+            &result.arena,
+            &scope,
+            &scope_root,
+            &analysis,
+            b::id("node"),
+            Rc::new(TransformOptions::default()),
+        );
+        let context = ComponentContext::new(state, |_, _, _| TransformResult::None);
+
+        crate::ast::arena::with_serialize_arena(&result.arena, || f(expr, &context))
+    }
+
+    /// `(typed, json)` answers of `expression_has_reactive_state` /
+    /// `has_reactive_state_json`.
+    fn both_has_reactive_state(expr_src: &str) -> (bool, bool) {
+        with_reactive_state_context(expr_src, |expr, context| {
+            (
+                expression_has_reactive_state(expr, context),
+                has_reactive_state_json(expr.as_json(), context),
+            )
+        })
+    }
+
+    /// Whether answering `expression_has_reactive_state` materialized the
+    /// expression as JSON — i.e. whether it fell back to the JSON walk.
+    fn typed_walk_materialized_json(expr_src: &str) -> bool {
+        with_reactive_state_context(expr_src, |expr, context| {
+            expression_has_reactive_state(expr, context);
+            expr.json_is_materialized()
+        })
+    }
+
+    #[test]
+    fn typed_reactive_state_front_end_agrees_with_the_json_walk() {
+        // (expression, expected answer) — expectations are spelled out as well
+        // as compared, so a front end that always says `false` can't pass by
+        // agreeing with an equally broken oracle.
+        let cases: &[(&str, bool)] = &[
+            // Identifier fast path — reactive binding.
+            ("count", true),
+            // Identifier fast path — compile-time-known binding.
+            ("konst", false),
+            // Identifier fast path — `Static` binding and unknown global.
+            ("stat", false),
+            ("Math", false),
+            // Identifier fast path — the generated props objects.
+            ("$$props", true),
+            ("$$restProps", true),
+            // Literal fast path (string / number / boolean / null).
+            ("5", false),
+            ("'text'", false),
+            ("true", false),
+            ("null", false),
+            // MemberExpression — reactive object.
+            ("count.foo", true),
+            // MemberExpression — a non-reactive local binding, whose property
+            // may still be reactive.
+            ("konst.foo", true),
+            ("stat.foo", true),
+            // MemberExpression — no local binding at all.
+            ("Math.PI", false),
+            ("unknown.foo", false),
+            // Computed member — the property is only read when `computed`.
+            ("({ a: 1 })[count]", true),
+            ("({ a: 1 })[konst]", false),
+            ("({ a: 1 }).count", false),
+            // Optional chaining wraps the member.
+            ("count?.foo", true),
+            // CallExpression — pure global / pure object callee, reactive only
+            // through its arguments.
+            ("String(count)", true),
+            ("parseInt(konst)", false),
+            ("Math.max(count, 1)", true),
+            ("Math.max(1, 2)", false),
+            // CallExpression — reactive binding as callee.
+            ("count(1)", true),
+            // CallExpression — non-reactive binding / unknown global callee.
+            ("konst(1)", false),
+            ("unknownFn(count)", true),
+            ("unknownFn(1)", false),
+            // NewExpression.
+            ("new Foo(count)", true),
+            ("new Foo(1)", false),
+            // Operators and groupings.
+            ("count + konst", true),
+            ("konst + konst", false),
+            ("!count", true),
+            ("count ? 1 : 2", true),
+            ("konst ? 1 : 2", false),
+            ("(konst, count)", true),
+            ("`${count}`", true),
+            ("`${konst}`", false),
+            // Only the right-hand side of an assignment is read.
+            ("(count = 1)", false),
+            ("(konst = count)", true),
+            ("count++", true),
+            ("await count", true),
+            // Function bodies are not read.
+            ("() => count", false),
+            ("(function () { return count; })", false),
+            // Object / array literals, including a spread and an array hole.
+            ("({ a: count })", true),
+            ("({ a: konst })", false),
+            ("({ ...konst })", true),
+            ("[konst, konst]", false),
+            ("[, count]", true),
+            ("[...konst]", true),
+            // `this` parses as an ordinary identifier, so this is a plain
+            // member access on a name with no binding.
+            ("this.foo", false),
+            // Shapes the typed walk deliberately does NOT answer — these reach
+            // the JSON fallback, so they agree by construction.
+            ("tag`x`", true),
+            ("(class {})", true),
+        ];
+
+        for (src, expected) in cases {
+            let (typed, json) = both_has_reactive_state(src);
+            assert_eq!(typed, json, "typed and JSON paths disagree on `{src}`");
+            assert_eq!(
+                &typed, expected,
+                "unexpected has_reactive_state for `{src}`"
+            );
+        }
+    }
+
+    #[test]
+    fn the_typed_walk_answers_covered_shapes_without_materializing_json() {
+        for src in [
+            "count",
+            "5",
+            "count.foo",
+            "Math.max(count, 1)",
+            "`${konst}`",
+            "({ a: count })",
+            "konst ? 1 : 2",
+        ] {
+            assert!(
+                !typed_walk_materialized_json(src),
+                "`{src}` should be answered off the typed AST"
+            );
+        }
+        // Negative control: a shape the typed walk does not cover still
+        // materializes, so the assertions above are measuring something.
+        for src in ["tag`x`", "(class {})"] {
+            assert!(
+                typed_walk_materialized_json(src),
+                "`{src}` should fall back to the JSON walk"
+            );
+        }
     }
 }
