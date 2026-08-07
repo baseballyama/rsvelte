@@ -11,7 +11,7 @@ The exact-fixture oracle gate (`crates/rsvelte_lint/tests/eslint_plugin_oracle.r
 is the authoritative behaviour check and must stay 100%; this corpus is the
 real-world volume check.
 
-## Current baseline: 80 divergences (32 FP, 48 FN)
+## Current baseline: `lint-known-failures.json`, 80 entries — 80 divergences (32 FP, 48 FN)
 
 The former largest cluster — `no-top-level-browser-globals` (136 FP) — is now
 resolved: an oxc-semantic scope resolver (`rsvelte_lint::compiler_scope` +

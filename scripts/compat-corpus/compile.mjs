@@ -73,6 +73,13 @@ if (args.includes('--worker')) {
 	// feeds BOTH compilers, so the parity verdict stays meaningful regardless
 	// of the stripper. Falls back to the raw source when esbuild rejects the
 	// file (both compilers then see identical input).
+	//
+	// What that verdict does NOT cover: esbuild removes all comments, so for
+	// `.svelte.ts` entries neither compiler ever sees one. This is the narrower
+	// of two reasons comment parity is ungated — verify.mjs's comparator ignores
+	// comments for the WHOLE corpus regardless, so a comment-preserving stripper
+	// here would buy no observability on its own. See the "AST equivalence" note
+	// in verify.mjs.
 	function prepareSource(id, source) {
 		if (!id.endsWith('.svelte.ts')) return source;
 		try {
