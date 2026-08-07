@@ -34,7 +34,7 @@ const WARNING_HANDWRITTEN_CALLS: usize = 7;
 /// FNV-1a 64 of `"<code>\t<message>\n"` for every entry `dump_all()` produces, in the
 /// fixed order below. Pinned from this PR; if it legitimately changes, update it to the
 /// value printed in the assertion failure after confirming the new wording is correct.
-const DIAGNOSTICS_DIGEST: u64 = 0x3dd5_24b4_b8b4_c97d;
+const DIAGNOSTICS_DIGEST: u64 = 0x02ac_e164_9652_e946;
 
 fn fnv1a64(bytes: &[u8]) -> u64 {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;

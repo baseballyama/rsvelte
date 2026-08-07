@@ -65,3 +65,47 @@ fn ts_module_and_mapped_type() {
         "declare module \"svelte\" {\n}\n\ntype M = {[K in keyof JSON]: K};"
     );
 }
+
+/// oxc preserves explicit parens as a `ParenthesizedExpression`; acorn (esrap's
+/// own parser) elides them, so the printer unwraps them unconditionally and lets
+/// precedence re-add what the grammar requires. A comment is not an exception:
+/// reproducing the literal parens for one doubles whatever a parent adds.
+/// Oracle: the Svelte compiler (esrap 2.x) on the equivalent module sources.
+#[test]
+fn redundant_parens_are_always_unwrapped() {
+    assert_eq!(print_src("f((/* c */ x));", false), "f(/* c */ x);");
+    assert_eq!(print_src("f((g(/* c */ x)));", false), "f(g(/* c */ x));");
+    assert_eq!(print_src("f((x));", false), "f(x);");
+    // Precedence still supplies the parens the grammar needs, exactly once.
+    assert_eq!(
+        print_src("async function f() {\n\t(await g(/* c */ x))();\n}", false),
+        "async function f() {\n\t(await g(/* c */ x))();\n}"
+    );
+    assert_eq!(
+        print_src("((/* c */ a + b)) * 2;", false),
+        "(/* c */ a + b) * 2;"
+    );
+}
+
+/// `ReturnStatement` is the ONE place esrap parenthesizes because of a comment:
+/// when the next pending comment starts before the argument. The test is against
+/// the *unwrapped* argument — esrap's acorn AST has no paren node, so oxc's
+/// preserved parens would otherwise anchor the comparison at the `(`, which
+/// precedes the comment, and the rule would never fire.
+#[test]
+fn return_argument_is_parenthesized_for_a_leading_comment() {
+    assert_eq!(
+        print_src("function f() {\n\treturn (/* c */ x);\n}", false),
+        "function f() {\n\treturn (/* c */ x);\n}"
+    );
+    // A sequence keeps both layers: the return rule's, and its own.
+    assert_eq!(
+        print_src("function f() {\n\treturn (/* c */ a, b);\n}", false),
+        "function f() {\n\treturn (/* c */ (a, b));\n}"
+    );
+    // The comment trails the argument — the rule does not fire.
+    assert_eq!(
+        print_src("function f() {\n\treturn (x /* c */);\n}", false),
+        "function f() {\n\treturn x; /* c */\n}"
+    );
+}
