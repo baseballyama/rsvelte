@@ -47,6 +47,10 @@ fn visit_common(
     directive: &BindDirective,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
+    // On an element the `BindDirective` node stays on upstream's visitor path,
+    // so it grants the exemption itself.
+    super::shared::attribute::record_assign_exempt_expression(context, &directive.expression, true);
+
     // Handle getter/setter syntax (SequenceExpression)
     if directive.expression.node_type() == Some("SequenceExpression") {
         if directive.name == "group" {

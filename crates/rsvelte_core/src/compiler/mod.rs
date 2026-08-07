@@ -460,28 +460,32 @@ fn warning_position(table: &legacy::Utf8ToUtf16, offset: u32) -> Position {
 /// Generate a source code frame snippet for a warning/error.
 /// Shows 2 lines of context before and after, with a caret pointing to the column.
 /// Matches the official Svelte compiler's `locate_with_frame` output.
-fn generate_frame(source: &str, start_pos: &Position, end_pos: Option<&Position>) -> String {
+fn generate_frame(
+    source: &str,
+    table: &legacy::Utf8ToUtf16,
+    start_pos: &Position,
+    end_pos: Option<&Position>,
+) -> String {
     // Match the official compiler's get_code_frame behavior:
     // - Uses start.line - 1 (0-indexed) for the target line
     // - Uses end.column for the caret position
     // - Converts tabs to 2 spaces
-    // Use split('\n') to match JS behavior (includes trailing empty string after final newline)
-    let lines: Vec<&str> = source.split('\n').collect();
+    // A frame quotes five lines, so it reads them out of the line index the
+    // position conversion already built rather than splitting the whole source
+    // once per warning.
     let line_idx = start_pos.line.saturating_sub(1);
     let frame_start = line_idx.saturating_sub(2);
     // Match JS: Math.min(line + 3, lines.length) — exclusive upper bound
-    let frame_end = (line_idx + 3).min(lines.len());
+    let frame_end = (line_idx + 3).min(table.line_count());
 
     // Determine the column for the caret (official compiler uses end.column)
     let caret_column = end_pos.map_or(start_pos.column, |ep| ep.column);
 
     let digits = format!("{}", frame_end + 1).len();
 
-    lines[frame_start..frame_end]
-        .iter()
-        .enumerate()
-        .map(|(i, &line)| {
-            let actual_line = frame_start + i;
+    (frame_start..frame_end)
+        .map(|actual_line| {
+            let line = table.line_text(source, actual_line);
             let line_num = actual_line + 1;
             let line_content = tabs_to_spaces(line);
             if actual_line == line_idx {
@@ -801,7 +805,7 @@ pub(crate) fn finalize_compile_result(
                     let end_pos = w.end.map(|offset| warning_position(&pos_table, offset));
                     let frame = start_pos
                         .as_ref()
-                        .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                        .map(|sp| generate_frame(source, &pos_table, sp, end_pos.as_ref()));
                     let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
                     let message_with_url = if w.message.contains(&url_suffix) {
                         w.message
@@ -1062,7 +1066,7 @@ pub fn compile_module(
                     let end_pos = w.end.map(|offset| warning_position(&pos_table, offset));
                     let frame = start_pos
                         .as_ref()
-                        .map(|sp| generate_frame(source, sp, end_pos.as_ref()));
+                        .map(|sp| generate_frame(source, &pos_table, sp, end_pos.as_ref()));
                     let url_suffix = format!("\nhttps://svelte.dev/e/{}", w.code);
                     let message_with_url = if w.message.contains(&url_suffix) {
                         w.message.clone()
@@ -1526,6 +1530,74 @@ impl From<TransformError> for CompileError {
     }
 }
 
+/// The parts of a [`CompileError`] a diagnostic consumer needs: the Svelte
+/// error code, the human-readable message, and the byte span it points at.
+///
+/// `code`/`span` are `None` for the internal variants that carry neither, which
+/// is a real state a caller can observe — not a placeholder.
+#[derive(Debug, Clone)]
+pub struct CompileErrorDiagnostic {
+    /// Svelte error code (e.g. `attribute_duplicate`), when the raising site has one.
+    pub code: Option<String>,
+    /// Message text, in the same wording the official compiler emits.
+    pub message: String,
+    /// Source byte span, when the raising site attributed the error to a node.
+    pub span: Option<(u32, u32)>,
+}
+
+impl CompileError {
+    /// Destructure this error the way the official compiler's `CompileError`
+    /// exposes itself to JS consumers (`code`, `message`, `start`/`end`).
+    pub fn diagnostic(&self) -> CompileErrorDiagnostic {
+        match self {
+            CompileError::Parse(e) => {
+                let (code, message) = match e {
+                    crate::error::ParseError::SvelteError { code, message, .. } => {
+                        (Some(code.clone()), message.clone())
+                    }
+                    other => (None, other.to_string()),
+                };
+                let (start, end) = e.span();
+                CompileErrorDiagnostic {
+                    code,
+                    message,
+                    span: Some((start as u32, end as u32)),
+                }
+            }
+            CompileError::Analysis(AnalysisError::ValidationWithCode {
+                code,
+                message,
+                start,
+                end,
+            }) => CompileErrorDiagnostic {
+                code: Some(code.clone()),
+                message: message.clone(),
+                span: (*start).zip(*end),
+            },
+            CompileError::Analysis(e) => CompileErrorDiagnostic {
+                code: None,
+                message: e.to_string(),
+                span: None,
+            },
+            CompileError::Transform(e) => CompileErrorDiagnostic {
+                code: None,
+                message: e.to_string(),
+                span: None,
+            },
+            CompileError::Panic(msg) => CompileErrorDiagnostic {
+                code: None,
+                message: format!("Internal panic: {msg}"),
+                span: None,
+            },
+        }
+    }
+}
+
+/// Resolve a byte `offset` in `source` to a JS-indexed [`Position`].
+pub fn source_position(source: &str, offset: u32) -> Position {
+    warning_position(&legacy::Utf8ToUtf16::new(source), offset)
+}
+
 impl std::fmt::Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -1558,6 +1630,36 @@ mod tests {
         // Past-the-end offset clamps to the string length.
         let end = warning_position(&table, 999);
         assert_eq!(end.character, 3);
+    }
+
+    #[test]
+    fn diagnostic_reports_code_message_and_span() {
+        let source = "<div a=\"1\" a=\"2\"></div>";
+        let err = compile(source, CompileOptions::default()).unwrap_err();
+        let d = err.diagnostic();
+        assert_eq!(d.code.as_deref(), Some("attribute_duplicate"));
+        assert!(!d.message.starts_with("Analysis("), "{}", d.message);
+        let (start, _) = d.span.expect("attribute_duplicate carries a span");
+        assert_eq!(&source[start as usize..], "a=\"2\"></div>");
+    }
+
+    #[test]
+    fn diagnostic_span_is_a_utf16_position_not_a_byte_offset() {
+        // The JS side indexes by UTF-16 unit; a byte offset would report 30.
+        let source = "<!-- ééééé --><div a=\"1\" a=\"2\"></div>";
+        let d = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        let (start, _) = d.span.unwrap();
+        assert_eq!(source_position(source, start).character, 25);
+    }
+
+    #[test]
+    fn diagnostic_reports_no_code_for_an_internal_failure() {
+        // `code` absent is a state a consumer can observe, not a placeholder.
+        let d = CompileError::Panic("boom".into()).diagnostic();
+        assert_eq!(d.code, None);
+        assert_eq!(d.span, None);
     }
 
     #[test]

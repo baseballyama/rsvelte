@@ -250,6 +250,28 @@ jobs:
       - name: Verify (oxfmt-normalized outputs must be identical)
         run: node scripts/compat-corpus/verify.mjs
 
+      # Gate 3 (#2281): the corpus entries as a SEED set, not a test set. Runs
+      # here because it needs `sources/` + `manifest.json`, which verify.mjs
+      # leaves in place (it only reclaims expected/ and actual/). A PR gets a
+      # deterministic sample; main gets the full sweep, which is what the
+      # two-sided ratchet needs to judge a stale entry.
+      - name: Mutation fuzz parity (ratchet against mutation-known-failures.json)
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            node scripts/compat-corpus/mutate-corpus.mjs --full
+          else
+            node scripts/compat-corpus/mutate-corpus.mjs --seeds 1500
+          fi
+
+      - name: Upload mutant artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-mutant-artifacts
+          path: compatibility/mutant-artifacts
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Convert corpus to TSX (official svelte2tsx + rsvelte)
         run: node scripts/compat-corpus/svelte2tsx-compile.mjs
 

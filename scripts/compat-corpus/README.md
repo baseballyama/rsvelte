@@ -172,17 +172,31 @@ dimensions:
 | `warning-code-mismatch` | the multiset of warning codes differs — rsvelte warns where upstream does not, or is silent where it warns | `warning-known-failures.<target>.json` |
 | `warning-position-mismatch` | codes agree, a `(line, column)` does not — usually rsvelte attaching no span at that emission site | `warning-position-known-failures.<target>.json` |
 
-Warning comparison needs no normalization, so it is meaningful under `--no-fmt`;
-`--update-warning-baseline` rewrites only the warning ratchets, so a `--no-fmt`
-run (which inflates JS failures) can seed them safely. The two update flags
-**compose**: passing both rewrites both families in one run, each run announces
-which families it will write, and a rewrite run that reaches no write exits `2`
-instead of reporting success (`scripts/dev/test-corpus-verify-baseline-flags.mjs`
-guards this). `--from-report` derives output failures only, so it rejects
-`--update-warning-baseline` rather than ignoring it. See
+It gates compiler **errors** the same way. The output verdict above sees only
+whether both sides rejected an entry with the same `code` — which is saturated
+at **0 divergences over 2,843 both-reject pairs**, so no amount of corpus growth
+could move it. `compile.mjs` therefore also records each error's first message
+line and its `(line, column)`, compared here for every pair both sides reject
+with the same code:
+
+| Verdict | Meaning | Ratchet |
+|---|---|---|
+| `error-message-mismatch` | codes agree, the prose does not — 121 entries | `error-message-known-failures.<target>.json` |
+| `error-position-mismatch` | codes agree, `start` does not — 403 entries, 349 of them rsvelte reporting no span at all | `error-position-known-failures.<target>.json` |
+
+Warning and error comparison need no normalization, so they are meaningful under
+`--no-fmt`; `--update-warning-baseline` / `--update-error-baseline` rewrite only
+their own ratchets, so a `--no-fmt` run (which inflates JS failures) can seed
+them safely. The three update flags **compose**: passing all of them rewrites all
+three families in one run, each run announces which families it will write, and a
+rewrite run that reaches no write exits `2` instead of reporting success
+(`scripts/dev/test-corpus-verify-baseline-flags.mjs` guards this).
+`--from-report` derives output failures only, so it rejects the diagnostic flags
+rather than ignoring them. See
 [compatibility/warning-known-failures.md](../../compatibility/warning-known-failures.md)
-— including why this gate did not exist until #2281, and the corpus entry that
-proved it was needed.
+— including why the warning gate did not exist until #2281, and the corpus entry
+that proved it was needed — and
+[compatibility/error-known-failures.md](../../compatibility/error-known-failures.md).
 
 The compared targets (their `generate` / `dev` options, whether CSS is compared,
 and which baseline file they ratchet against) are declared once in
@@ -352,6 +366,49 @@ disagree about what "identical output" means.
 `--update-baseline` refuses to run under `--no-fmt` (counts formatting-only
 differences the corpus tolerates by contract) or under a `--families` subset
 (would delete every baseline entry the run did not measure).
+
+## Mutation fuzz (`mutate-corpus.mjs`)
+
+Gate 2 generates inputs from declared axes with hand-picked seeds. This is the
+same mutation applied to the **real corpus entries** (#2281 Gate 3) — they stop
+being the test set and become a seed set:
+
+```bash
+pnpm run corpus:mutate                 # deterministic sample (600 seeds)
+pnpm run corpus:mutate -- --seeds 1500 # what CI runs on a PR
+pnpm run corpus:mutate:full            # every eligible seed (what main runs)
+pnpm run corpus:mutate:update          # re-baseline (requires --full)
+```
+
+Needs `collect.mjs` to have run (`sources/` + `manifest.json`), which is why it
+lives in the `corpus` CI job — `verify.mjs` only reclaims `expected/`+`actual/`.
+
+**Only the code class is ratcheted.** A divergent mutant is:
+
+| verdict | ratcheted | meaning |
+|---|---|---|
+| `code-mismatch` | yes | difference survives normalizing comments, whitespace and trailing commas away |
+| `compiler-crash` | yes | rsvelte aborted the process |
+| `error-mismatch` | yes | exactly one compiler rejected the mutant |
+| `comment-mismatch` | no | comment dropped/duplicated/relocated, or a line broke differently |
+
+The full sweep yields 213 code and 13,242 comment divergences. Ratcheting per id
+without the split would be a 13,000-entry file churning on every submodule bump;
+comment fidelity is ratcheted per id by Gate 2 instead, on generated seeds that
+do not move when a submodule bumps.
+
+**Design properties that make the ratchet stable**
+
+- The mutant a seed contributes comes from **that seed's own hash**, not its
+  index, so adding a corpus entry does not reshuffle everyone else's mutants.
+- The `__L<line>__<kind>` tag goes **before** the extension, so the compiler
+  still sees a `.svelte` / `.svelte.js` / `.svelte.ts` filename. Appending it
+  produced 9 spurious `error-mismatch` entries that vanished once fixed.
+- Seeds already in `known-failures.<target>.json` are excluded — they diverge
+  before anything is inserted.
+- Compilation runs in **child processes** (like `compile.mjs`): a panic aborts
+  the process, and the worker's `IDX <i>` lets the parent name the crashing
+  seed, record it, and resume. Without this one bad mutant kills the sweep.
 
 ## Formatter parity (`fmt.mjs` / `fmt-verify.mjs`)
 

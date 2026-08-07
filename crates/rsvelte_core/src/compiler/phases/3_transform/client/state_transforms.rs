@@ -1102,7 +1102,39 @@ pub(super) fn is_inside_string_literal(code: &str, pos: usize) -> bool {
             if c == string_char {
                 in_string = false;
             }
-        } else if !template_interp_depth.is_empty() {
+            continue;
+        }
+
+        // A quote inside a comment is text: `// it doesn't matter` would
+        // otherwise open a string that nothing closes, so every position after
+        // it reads as "inside a string" and its rewrite is skipped.
+        if c == '/' {
+            match chars.peek() {
+                Some('/') => {
+                    chars.next();
+                    for ch in chars.by_ref() {
+                        if ch == '\n' {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                Some('*') => {
+                    chars.next();
+                    let mut prev = '\0';
+                    for ch in chars.by_ref() {
+                        if prev == '*' && ch == '/' {
+                            break;
+                        }
+                        prev = ch;
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+        }
+
+        if !template_interp_depth.is_empty() {
             // Inside a template literal interpolation - track braces
             if c == '{' {
                 if let Some(depth) = template_interp_depth.last_mut() {

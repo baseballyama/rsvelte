@@ -13,6 +13,13 @@ thread_local! {
     };
 }
 
+#[cfg(test)]
+thread_local! {
+    pub(crate) static BLANK_TYPESCRIPT_REPARSES: std::cell::Cell<usize> = const {
+        std::cell::Cell::new(0)
+    };
+}
+
 /// Pre-extracted script content to avoid re-parsing in Phase 3.
 #[derive(Debug, Clone)]
 pub struct ScriptContent {
@@ -829,6 +836,9 @@ pub fn blank_typescript(source: &str) -> String {
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
+    #[cfg(test)]
+    BLANK_TYPESCRIPT_REPARSES.with(|count| count.set(count.get() + 1));
+
     let allocator = Allocator::default();
     let source_type = SourceType::ts();
     let parser = Parser::new(&allocator, source, source_type);
@@ -838,8 +848,19 @@ pub fn blank_typescript(source: &str) -> String {
         return source.to_string();
     }
 
+    blank_typescript_from_program(source, &result.program)
+}
+
+/// [`blank_typescript`] against a program the caller already parsed.
+///
+/// The parse above is the third one this script goes through, and the caller on
+/// the real compile path is holding the retained one.
+pub(crate) fn blank_typescript_from_program(
+    source: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> String {
     let mut removals: Vec<(u32, u32)> = Vec::new();
-    collect_ts_removals_from_program(&result.program, source, &mut removals);
+    collect_ts_removals_from_program(program, source, &mut removals);
 
     if removals.is_empty() {
         return source.to_string();
@@ -1566,12 +1587,17 @@ pub struct ComponentAnalysis {
     /// Whether the component uses event attributes (on:event={handler})
     pub uses_event_attributes: bool,
 
-    /// Start offsets of the arrow functions that *are* the expression of an event
-    /// attribute on a `RegularElement` or `SvelteElement` — not arrows nested
-    /// inside one, and not arrows on `<svelte:window>` and friends. A syntactic
-    /// fact about the template, recorded here because this is where the elements
-    /// are already walked.
-    pub event_attribute_arrow_starts: rustc_hash::FxHashSet<u32>,
+    /// Start offsets of the arrow functions whose *direct* assignment body is
+    /// exempt from the dev `$.assign` wrap. Upstream decides this by node
+    /// identity over the visitor path, so an arrow nested inside an exempt one
+    /// never qualifies. A syntactic fact about the template, recorded here
+    /// because this is where the elements are already walked.
+    pub assign_exempt_arrow_starts: rustc_hash::FxHashSet<u32>,
+
+    /// Start offsets of the assignments that are themselves the expression of a
+    /// component attribute or a `bind:` directive (upstream's `path.at(-1)`
+    /// arm of the same predicate).
+    pub assign_exempt_assignment_starts: rustc_hash::FxHashSet<u32>,
 
     /// The first on: directive node encountered (for error reporting about mixed syntax)
     pub event_directive_node: Option<EventDirectiveInfo>,
@@ -1752,7 +1778,8 @@ impl ComponentAnalysis {
             uses_render_tags: false,
             uses_component_bindings: false,
             uses_event_attributes: false,
-            event_attribute_arrow_starts: rustc_hash::FxHashSet::default(),
+            assign_exempt_arrow_starts: rustc_hash::FxHashSet::default(),
+            assign_exempt_assignment_starts: rustc_hash::FxHashSet::default(),
             event_directive_node: None,
             needs_context: false,
             needs_props: false,

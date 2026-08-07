@@ -48,6 +48,13 @@ impl<'a> TypedExpr<'a> {
             value
         })
     }
+
+    /// Whether `as_json()` has already materialized this expression, so a test
+    /// can assert that a typed reader never reached for the JSON.
+    #[cfg(test)]
+    pub fn json_is_materialized(&self) -> bool {
+        self.json_cache.get().is_some()
+    }
 }
 
 /// Deterministic counters for how much `serde_json::Value` the lazy JSON cache
@@ -237,6 +244,15 @@ impl<'a> Expression<'a> {
             Expression::Lazy { .. } => panic!(
                 "Expression::Lazy must be resolved before access. Call ensure_expressions_parsed() first."
             ),
+        }
+    }
+
+    /// See `TypedExpr::json_is_materialized`.
+    #[cfg(test)]
+    pub fn json_is_materialized(&self) -> bool {
+        match self {
+            Expression::Typed(te) => te.json_is_materialized(),
+            Expression::Lazy { .. } => false,
         }
     }
 

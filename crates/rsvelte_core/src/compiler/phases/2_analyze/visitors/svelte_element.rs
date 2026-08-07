@@ -239,6 +239,11 @@ pub fn visit<'a, 'b: 'a>(
     // bind:value, bind:files, bind:group can only be used with specific elements
     for attr in &element.attributes {
         if let Attribute::BindDirective(bind) = attr {
+            super::shared::attribute::record_assign_exempt_expression(
+                context,
+                &bind.expression,
+                true,
+            );
             let name = bind.name.as_str();
             match name {
                 "value" => {

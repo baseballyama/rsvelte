@@ -450,9 +450,12 @@ pub(super) fn transform_reactive_statement(
             // This ensures that a bare `value = null` is not first converted to
             // `value(null)` and then mistakenly re-wrapped by the read pass as
             // `value()(null)`.
-            let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
-            let temp =
-                transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+            let temp = transform_update_expressions(
+                body,
+                prop_assignment_transform_vars,
+                state_vars,
+                non_reactive_state_vars,
+            );
             // Route prop reads through the scope-aware AST wrapper so a prop name
             // used as a local binding inside the keyword body — e.g.
             // `$: if (cond) { const [x, y] = f(); … }` where `x`/`y` shadow props —
@@ -504,9 +507,12 @@ pub(super) fn transform_reactive_statement(
                 prop_assignment_transform_vars,
             );
             let body = body.as_str();
-            let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
-            let temp =
-                transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+            let temp = transform_update_expressions(
+                body,
+                prop_assignment_transform_vars,
+                state_vars,
+                non_reactive_state_vars,
+            );
             let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
             let temp = transform_prop_assignments(
                 &temp,
@@ -688,9 +694,12 @@ pub(super) fn transform_reactive_statement(
         let body = body.as_str();
         // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
         // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
-        let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
-        // Also transform state update expressions before compound assignments
-        let temp = transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+        let temp = transform_update_expressions(
+            body,
+            prop_assignment_transform_vars,
+            state_vars,
+            non_reactive_state_vars,
+        );
         // Transform prop reads BEFORE prop assignments, so that function calls like
         // `callback(args)` become `callback()(args)` (double-invoke for prop getters).
         // This must happen before transform_prop_assignments to avoid double-wrapping
@@ -980,18 +989,23 @@ pub(super) fn transform_prop_update_expressions(expr: &str, prop_vars: &[String]
         .unwrap_or_else(|| expr.to_string())
 }
 
-/// Transform update expressions (++ / --) for state variables.
+/// Transform update expressions (++ / --) for prop **and** state variables.
 ///
-/// Converts `x++` to `$.update(x)`, `++x` to `$.update_pre(x)`,
-/// `x--` to `$.update(x, -1)`, and `--x` to `$.update_pre(x, -1)`.
-pub(super) fn transform_state_update_expressions(
+/// One visitor classifies both kinds — props first, exactly as running the prop
+/// pass before the state pass did — so this parses and re-prints the statement
+/// once where two chained calls did it twice.
+pub(super) fn transform_update_expressions(
     expr: &str,
+    prop_vars: &[String],
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> String {
+    if prop_vars.is_empty() && state_vars.is_empty() {
+        return expr.to_string();
+    }
     super::reactive_update_ast::transform_reactive_update_ast(
         expr,
-        &[],
+        prop_vars,
         state_vars,
         non_reactive_vars,
     )

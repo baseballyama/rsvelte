@@ -6221,37 +6221,17 @@ pub(crate) fn split_comma_separated_declarations(script: &str) -> String {
         // Check if this line starts at top level (before counting this line's braces)
         let is_top_level = brace_depth == 0;
 
-        // Update brace depth tracking using a simple char scan.
-        // This is approximate (doesn't handle braces inside strings/comments)
-        // but works well for typical Svelte instance script code.
-        let mut in_string = false;
-        let mut string_char = ' ';
-        let mut prev_char = ' ';
-        let mut in_template = false;
-        for ch in trimmed.chars() {
-            if in_string {
-                if ch == string_char && prev_char != '\\' {
-                    in_string = false;
-                }
-            } else if in_template {
-                if ch == '`' && prev_char != '\\' {
-                    in_template = false;
-                } else if ch == '{' {
-                    brace_depth += 1;
-                } else if ch == '}' {
-                    brace_depth -= 1;
-                }
-            } else if ch == '\'' || ch == '"' {
-                in_string = true;
-                string_char = ch;
-            } else if ch == '`' {
-                in_template = true;
-            } else if ch == '{' {
-                brace_depth += 1;
-            } else if ch == '}' {
-                brace_depth -= 1;
+        // A brace inside a comment or literal is text; `code_bytes` yields only
+        // code bytes, so `${` in a template still opens a depth the way the old
+        // hand-rolled scan did.
+        for (_, byte) in crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(
+            trimmed.as_bytes(),
+        ) {
+            match byte {
+                b'{' => brace_depth += 1,
+                b'}' => brace_depth -= 1,
+                _ => {}
             }
-            prev_char = ch;
         }
 
         // Check if this is a const/let/var declaration
@@ -6341,6 +6321,23 @@ fn is_declaration_complete(s: &str) -> bool {
     if trimmed.is_empty() {
         return false;
     }
+    // The continuation test below reads the last character as an operator, so a
+    // trailing comment has to come off first: `*/` would otherwise read as a
+    // division and keep the declaration open to the end of the script.
+    let last_code =
+        crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(trimmed.as_bytes())
+            .map(|(i, _)| i)
+            .last();
+    let Some(last_code) = last_code else {
+        return false;
+    };
+    // `code_bytes` yields a multi-byte character one byte at a time, so the last
+    // code byte is not necessarily a char boundary.
+    let mut end = last_code + 1;
+    while end < trimmed.len() && !trimmed.is_char_boundary(end) {
+        end += 1;
+    }
+    let trimmed = trimmed[..end].trim_end();
 
     // Check that all brackets/parens/braces are balanced
     let balanced = are_brackets_balanced(trimmed);
@@ -6376,46 +6373,20 @@ fn is_declaration_complete(s: &str) -> bool {
 }
 
 /// Check if all brackets/parens/braces are balanced in the string.
+///
+/// Comment-aware, like `split_top_level_commas` below: the two run over the same
+/// accumulated string, and a `}` inside a comment counted here but not there is
+/// what emitted a `const` declarator with no initializer (#2546).
 fn are_brackets_balanced(s: &str) -> bool {
     let mut depth = 0i32;
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    let len = bytes.len();
-    while i < len {
-        match bytes[i] {
+    for (_, byte) in
+        crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(s.as_bytes())
+    {
+        match byte {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
-            b'\'' | b'"' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < len && bytes[i] != quote {
-                    if bytes[i] == b'\\' {
-                        i += 1;
-                    }
-                    i += 1;
-                }
-            }
-            b'`' => {
-                i += 1;
-                let mut tmpl_depth = 0i32;
-                while i < len {
-                    if bytes[i] == b'`' && tmpl_depth == 0 {
-                        break;
-                    }
-                    if bytes[i] == b'\\' {
-                        i += 1;
-                    } else if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-                        tmpl_depth += 1;
-                        i += 1;
-                    } else if bytes[i] == b'}' && tmpl_depth > 0 {
-                        tmpl_depth -= 1;
-                    }
-                    i += 1;
-                }
-            }
             _ => {}
         }
-        i += 1;
     }
     depth == 0
 }

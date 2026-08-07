@@ -91,17 +91,26 @@ if (args.includes('--worker')) {
 		}
 	}
 
+	// An error is compared as (code, message, line, column) — see verify.mjs.
+	// `message` is the first line only: everything after it is the
+	// `https://svelte.dev/e/<code>` link, which restates the code.
 	const errorInfo = (e) => {
 		const message = String(e?.message ?? e);
-		// rsvelte NAPI errors carry a generic `code` ("GenericFailure"); the
-		// real svelte error code is embedded in the message — extract it so
-		// error-code parity can be compared against the official compiler.
+		// A pre-#2446 rsvelte binding carried a generic `code`
+		// ("GenericFailure") with the real svelte code embedded in a Rust
+		// `Debug` dump; keep extracting it so an older binding still scores
+		// code parity instead of silently reporting `null` everywhere.
 		let code = e?.code ?? null;
 		if (!code || code === 'GenericFailure') {
 			const m = message.match(/svelte\.dev\/e\/([a-z0-9_]+)/) ?? message.match(/code: "([a-z0-9_]+)"/);
 			if (m) code = m[1];
 		}
-		return { code, message: message.split('\n')[0] };
+		return {
+			code,
+			message: message.split('\n')[0],
+			line: e?.start?.line ?? null,
+			column: e?.start?.column ?? null,
+		};
 	};
 
 	function compileOne(compiler, kind, source, id, target) {

@@ -14,8 +14,9 @@
  *   - js-unparseable  one side's output does not parse, so there is no
  *     comparison to make (see compatibility/ast-equivalence.md)
  *
- * Compiler WARNINGS are gated separately, on their own ratchets, and never
- * touch the output verdicts above — see "warning parity" further down.
+ * Compiler WARNINGS and the detail of a compiler ERROR are gated separately, on
+ * their own ratchets, and never touch the output verdicts above — see "warning
+ * parity" and "error parity" further down.
  *
  * Writes compatibility/report.json.
  *
@@ -66,12 +67,37 @@
  * so a `--no-fmt` run (which inflates JS failures) can seed them without
  * corrupting the output baselines.
  *
- * The two update flags compose: passing both rewrites both ratchet families in
- * one run (the families are disjoint). Every run that asks for a rewrite prints
- * up front which families it will write, and a run that writes nothing is never
+ * ---- error parity ----------------------------------------------------------
+ *
+ * The output verdicts see an error only as "did both sides reject, with the
+ * same `code`". `compile.mjs` also records each error's first message line and
+ * its (line, column), which this file compares for every entry BOTH compilers
+ * reject with the same code:
+ *
+ *   - error-message-mismatch   the codes agree but the prose does not. Not
+ *                              tolerated as "upstream rewords things": both
+ *                              sides run on the same input in the same process
+ *                              at the same version, so a difference is rsvelte's
+ *                              (the argument settled for warnings in #2403).
+ *                              Ratchet: error-message-known-failures.<target>.json
+ *   - error-position-mismatch  the codes agree but `start` does not — usually
+ *                              because rsvelte attaches no span at that raising
+ *                              site, so an editor has nowhere to put the
+ *                              squiggle.
+ *                              Ratchet: error-position-known-failures.<target>.json
+ *
+ * Split for the same reason the warning ratchets are: wrong prose is a semantic
+ * bug fixed one string at a time, a wrong span is one systemic cause, and folded
+ * together the larger span backlog would hide every semantic regression. The two
+ * are compared independently of each other, so fixing a message cannot surface a
+ * position failure that was previously masked.
+ *
+ * The update flags compose: passing several rewrites each ratchet family in one
+ * run (the families are disjoint). Every run that asks for a rewrite prints up
+ * front which families it will write, and a run that writes nothing is never
  * reported as a successful rewrite.
  *
- * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
+ * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--update-error-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
  */
 
 import fs from 'node:fs';
@@ -94,6 +120,7 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max-print') + 1]) || 20 : 20;
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const UPDATE_WARNING_BASELINE = args.includes('--update-warning-baseline');
+const UPDATE_ERROR_BASELINE = args.includes('--update-error-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
 const TARGETS = selectTargets(args);
 const TARGET_KEYS = TARGETS.map((t) => t.key);
@@ -118,16 +145,20 @@ const FROM_REPORT = (() => {
 
 // State an update run's intent before doing any work: the failure mode this
 // guards against is a rewrite that silently writes nothing and still exits 0.
-const UPDATE_FAMILIES = [UPDATE_BASELINE && 'output', UPDATE_WARNING_BASELINE && 'warning'].filter(Boolean);
+const UPDATE_FAMILIES = [
+	UPDATE_BASELINE && 'output',
+	UPDATE_WARNING_BASELINE && 'warning',
+	UPDATE_ERROR_BASELINE && 'error',
+].filter(Boolean);
 if (UPDATE_FAMILIES.length) {
 	console.log(`[verify] rewriting ${UPDATE_FAMILIES.join(' + ')} ratchets for ${TARGET_KEYS.join(', ')}`);
 }
 
-// --from-report reconstructs only the output ratchets, so pairing it with the
-// warning flag would write half of what was asked for.
-if (FROM_REPORT && UPDATE_WARNING_BASELINE) {
-	console.error('[verify] --from-report cannot rewrite the warning ratchets (it derives output failures only)');
-	console.error('  fix: drop --update-warning-baseline, then re-run a full verify with it');
+// --from-report reconstructs only the output ratchets, so pairing it with a
+// diagnostic flag would write half of what was asked for.
+if (FROM_REPORT && (UPDATE_WARNING_BASELINE || UPDATE_ERROR_BASELINE)) {
+	console.error('[verify] --from-report cannot rewrite the warning/error ratchets (it derives output failures only)');
+	console.error('  fix: drop --update-warning-baseline / --update-error-baseline, then re-run a full verify with it');
 	process.exit(2);
 }
 
@@ -476,11 +507,11 @@ for (const { id } of manifest) {
 	warningFailures.push({ id, verdict, details });
 }
 
-// Two ratchets per target, partitioned by detail kind so a position divergence
-// never lands in the semantic baseline (and vice versa).
-function partitionWarnings(kind) {
+// Ratchets are partitioned by detail kind so a position divergence never lands
+// in the semantic baseline (and vice versa).
+function partitionDetails(failureList, kind) {
 	const byTarget = new Map(TARGET_KEYS.map((key) => [key, new Set()]));
-	for (const f of warningFailures) {
+	for (const f of failureList) {
 		for (const d of f.details) {
 			if (d.kind !== kind) continue;
 			const set = byTarget.get(d.target);
@@ -495,6 +526,66 @@ const WARNING_RATCHETS = [
 	{ kind: 'warning-position', label: 'warning positions', file: (t) => t.warningPositionBaseline },
 ];
 
+// ---- error parity ----------------------------------------------------------
+//
+// Independent of the output verdicts above, exactly like warning parity. The
+// output ratchet already covers "one side rejects" and "the codes differ"; what
+// it cannot see is a right-coded error carrying the wrong prose or pointing at
+// the wrong place, which is what these two comparisons add.
+//
+// Message and position are compared INDEPENDENTLY (not chained the way warning
+// positions are gated behind matching codes): there is exactly one error per
+// entry and target, so there is no pairing problem to solve, and chaining would
+// make a message fix surface a brand-new position regression on the PR that
+// fixes it.
+
+const errorCounts = { match: 0, 'error-message-mismatch': 0, 'error-position-mismatch': 0 };
+const errorFailures = [];
+const errorPosKey = (e) => `${e.line ?? '?'}:${e.column ?? '?'}`;
+
+for (const { id } of manifest) {
+	const expErr = JSON.parse(readIf(path.join(EXPECTED, id, 'error.json')) ?? '{}');
+	const actErr = JSON.parse(readIf(path.join(ACTUAL, id, 'error.json')) ?? '{}');
+
+	const details = [];
+	for (const targetDef of TARGETS) {
+		const target = targetDef.key;
+		const e = expErr[target];
+		const a = actErr[target];
+		// Only both-reject entries have two errors to compare. A one-sided
+		// rejection, or two different codes, is an output failure already; the
+		// message and span of two unrelated errors say nothing.
+		if (!e || !a || e.code !== a.code) continue;
+
+		if (e.message !== a.message) {
+			details.push({ target, kind: 'error-message', expected: e.message, actual: a.message });
+		}
+		if (errorPosKey(e) !== errorPosKey(a)) {
+			details.push({
+				target,
+				kind: 'error-position',
+				expected: errorPosKey(e),
+				actual: errorPosKey(a),
+			});
+		}
+	}
+
+	if (!details.length) {
+		errorCounts.match++;
+		continue;
+	}
+	const verdict = details.some((d) => d.kind === 'error-message')
+		? 'error-message-mismatch'
+		: 'error-position-mismatch';
+	errorCounts[verdict]++;
+	errorFailures.push({ id, verdict, details });
+}
+
+const ERROR_RATCHETS = [
+	{ kind: 'error-message', label: 'error messages', file: (t) => t.errorMessageBaseline },
+	{ kind: 'error-position', label: 'error positions', file: (t) => t.errorPositionBaseline },
+];
+
 // Before any verdict is written or any ratchet rewritten: the corpus these
 // results describe must still be the corpus on disk.
 requireGenerationUnchanged(CORPUS, generation, 'verify');
@@ -506,6 +597,8 @@ const report = {
 	failures,
 	warningCounts,
 	warningFailures,
+	errorCounts,
+	errorFailures,
 };
 fs.writeFileSync(path.join(CORPUS, 'report.json'), JSON.stringify(report, null, '\t') + '\n');
 
@@ -513,63 +606,95 @@ console.log('\n[verify] results:');
 for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
 console.log('\n[verify] warning parity:');
 for (const [k, v] of Object.entries(warningCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
+console.log('\n[verify] error parity:');
+for (const [k, v] of Object.entries(errorCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report.json'))}`);
 
-// ---- warning ratchets ------------------------------------------------------
+// ---- diagnostic ratchets ---------------------------------------------------
+//
+// Warnings and errors ratchet the same way and must not bleed into each other,
+// so one loop runs both families off their descriptors below.
 
-const warningRegressions = [];
-const warningFailById = new Map(warningFailures.map((f) => [f.id, f]));
-let warningFixed = 0;
+const DIAGNOSTIC_FAMILIES = [
+	{
+		family: 'warning',
+		noun: 'warning',
+		flag: '--update-warning-baseline',
+		update: UPDATE_WARNING_BASELINE,
+		ratchets: WARNING_RATCHETS,
+		failures: warningFailures,
+	},
+	{
+		family: 'error',
+		noun: 'error',
+		flag: '--update-error-baseline',
+		update: UPDATE_ERROR_BASELINE,
+		ratchets: ERROR_RATCHETS,
+		failures: errorFailures,
+	},
+];
 
-// `--update-baseline` alone is about the OUTPUT ratchets; leave the warning ones
-// alone so an output burn-down cannot silently absorb a warning regression. Ask
-// for both and both are rewritten.
-const SKIP_WARNING_RATCHETS = UPDATE_BASELINE && !UPDATE_WARNING_BASELINE;
-for (const ratchet of SKIP_WARNING_RATCHETS ? [] : WARNING_RATCHETS) {
-	const byTarget = partitionWarnings(ratchet.kind);
-	for (const target of TARGETS) {
-		const p = path.resolve(CORPUS, ratchet.file(target));
-		const ids = byTarget.get(target.key);
+const diagnosticRegressions = [];
+let diagnosticFixed = 0;
 
-		if (UPDATE_WARNING_BASELINE) {
-			// Same FALSE-SHRINK trap as the output baselines: this rewrite drops
-			// every id the run did not measure.
-			requireFullCorpus(manifest.length, 'corpus entries');
-			fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
-			WRITTEN.add('warning');
-			console.log(`[verify] ${ratchet.label} baseline: ${ids.size} known -> ${path.relative(ROOT, p)}`);
-			continue;
+for (const spec of DIAGNOSTIC_FAMILIES) {
+	const regressions = [];
+	const failById = new Map(spec.failures.map((f) => [f.id, f]));
+	let fixed = 0;
+
+	// `--update-baseline` alone is about the OUTPUT ratchets; leave these alone
+	// so an output burn-down cannot silently absorb a diagnostic regression. Ask
+	// for both and both are rewritten.
+	const skip = UPDATE_BASELINE && !spec.update;
+	for (const ratchet of skip ? [] : spec.ratchets) {
+		const byTarget = partitionDetails(spec.failures, ratchet.kind);
+		for (const target of TARGETS) {
+			const p = path.resolve(CORPUS, ratchet.file(target));
+			const ids = byTarget.get(target.key);
+
+			if (spec.update) {
+				// Same FALSE-SHRINK trap as the output baselines: this rewrite drops
+				// every id the run did not measure.
+				requireFullCorpus(manifest.length, 'corpus entries');
+				fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
+				WRITTEN.add(spec.family);
+				console.log(`[verify] ${ratchet.label} baseline: ${ids.size} known -> ${path.relative(ROOT, p)}`);
+				continue;
+			}
+
+			const baseline = new Set(!STRICT && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []);
+			for (const id of ids) {
+				if (!baseline.has(id)) regressions.push({ id, target: target.key, kind: ratchet.kind });
+			}
+			fixed += [...baseline].filter((id) => !ids.has(id)).length;
 		}
-
-		const baseline = new Set(!STRICT && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []);
-		for (const id of ids) {
-			if (!baseline.has(id)) warningRegressions.push({ id, target: target.key, kind: ratchet.kind });
-		}
-		warningFixed += [...baseline].filter((id) => !ids.has(id)).length;
 	}
-}
 
-// Hand off to the output rewrite below when both were asked for.
-if (UPDATE_WARNING_BASELINE && !UPDATE_BASELINE) finish(0);
+	// Two-sided, like the output ratchets: a listed entry that already passes
+	// fails the run, so the PR that fixes entries re-baselines in the same PR.
+	if (fixed) {
+		console.log(`\n[verify] ❌ ${fixed} ${spec.noun} baseline entries already PASS — the ratchet is stale.`);
+		console.log(`  node scripts/compat-corpus/verify.mjs --no-fmt ${spec.flag}`);
+	}
 
-// Two-sided, like the output ratchets: a listed entry that already passes fails
-// the run, so the PR that fixes entries re-baselines in the same PR.
-if (warningFixed) {
-	console.log(`\n[verify] ❌ ${warningFixed} warning baseline entries already PASS — the ratchet is stale.`);
-	console.log('  node scripts/compat-corpus/verify.mjs --no-fmt --update-warning-baseline');
-}
-
-if (warningRegressions.length) {
-	console.log(`\n[verify] ❌ ${warningRegressions.length} NEW warning failures (not in baseline); first ${Math.min(MAX_PRINT, warningRegressions.length)}:`);
-	for (const { id, target, kind } of warningRegressions.slice(0, MAX_PRINT)) {
-		const f = warningFailById.get(id);
-		console.log(`  - ${id} [${f.verdict}] (${target})`);
-		for (const d of f.details.filter((d) => d.target === target && d.kind === kind)) {
-			console.log(`      expected: ${d.expected}`);
-			console.log(`      actual:   ${d.actual}`);
+	if (regressions.length) {
+		console.log(`\n[verify] ❌ ${regressions.length} NEW ${spec.noun} failures (not in baseline); first ${Math.min(MAX_PRINT, regressions.length)}:`);
+		for (const { id, target, kind } of regressions.slice(0, MAX_PRINT)) {
+			const f = failById.get(id);
+			console.log(`  - ${id} [${f.verdict}] (${target})`);
+			for (const d of f.details.filter((d) => d.target === target && d.kind === kind)) {
+				console.log(`      expected: ${d.expected}`);
+				console.log(`      actual:   ${d.actual}`);
+			}
 		}
 	}
+
+	diagnosticRegressions.push(...regressions);
+	diagnosticFixed += fixed;
 }
+
+// Hand off to the output rewrite below when that was asked for too.
+if (!UPDATE_BASELINE && DIAGNOSTIC_FAMILIES.some((s) => s.update)) finish(0);
 
 const failById = new Map(failures.map((f) => [f.id, f]));
 const failsByTarget = partitionFailures(failures);
@@ -645,9 +770,9 @@ if (regressions.length) {
 	}
 }
 
-// Both gates report before either exits, so one run shows every regression
-// rather than hiding the warning ones behind an output failure.
-if (regressions.length || fixedKnown || warningRegressions.length || warningFixed) finish(1);
+// Every gate reports before any of them exits, so one run shows every
+// regression rather than hiding the diagnostic ones behind an output failure.
+if (regressions.length || fixedKnown || diagnosticRegressions.length || diagnosticFixed) finish(1);
 
 if (failures.length) {
 	const breakdown = TARGET_KEYS.map((key) => `${key} ${failsByTarget.get(key).size}`).join(', ');
@@ -660,6 +785,12 @@ if (warningFailures.length) {
 	console.log(`[verify] ✅ no warning regressions (${warningFailures.length} known warning failures remain — see compatibility/warning-known-failures.md)`);
 } else {
 	console.log('[verify] ✅ all corpus warnings identical');
+}
+
+if (errorFailures.length) {
+	console.log(`[verify] ✅ no error regressions (${errorFailures.length} known error failures remain — see compatibility/error-known-failures.md)`);
+} else {
+	console.log('[verify] ✅ all corpus compile errors identical');
 }
 
 finish(0);

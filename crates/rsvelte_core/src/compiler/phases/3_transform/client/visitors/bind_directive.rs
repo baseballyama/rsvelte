@@ -59,10 +59,7 @@ pub fn unified_build_bind_this(
         apply_transforms_to_expression, apply_transforms_to_expression_with_shadowed,
     };
 
-    let saved_in_bind = context.state.in_bind_directive;
-    context.state.in_bind_directive = true;
     let raw_expr = convert_expression(expression, context);
-    context.state.in_bind_directive = saved_in_bind;
 
     let (getter_expr, setter_expr) = if let JsExpr::Sequence(ref seq) = raw_expr {
         if seq.expressions.len() == 2 {
