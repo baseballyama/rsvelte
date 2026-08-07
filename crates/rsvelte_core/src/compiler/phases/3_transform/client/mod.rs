@@ -6,6 +6,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/`.
 
 pub(crate) use super::shared::ast_rewrite;
+use std::borrow::Cow;
 use std::fmt::Write as _;
 mod assign_dev_ast;
 mod ast;
@@ -4445,6 +4446,28 @@ fn instance_has_top_level_multi_declarator(ast: &Root, script: &str) -> bool {
     })
 }
 
+/// Run one stage of the per-statement transform chain, so the split between a
+/// stage that rewrote and one that handed its input through stays measurable.
+#[inline]
+fn stage<'a>(
+    name: &'static str,
+    input: Cow<'a, str>,
+    f: impl FnOnce(Cow<'a, str>) -> Cow<'a, str>,
+) -> Cow<'a, str> {
+    #[cfg(feature = "measure-stmt-chain")]
+    {
+        let before = input.as_ptr();
+        let out = f(input);
+        crate::measure_stmt_chain::record(name, before, &out);
+        out
+    }
+    #[cfg(not(feature = "measure-stmt-chain"))]
+    {
+        let _ = name;
+        f(input)
+    }
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -5600,19 +5623,21 @@ fn transform_instance_script_for_visitors(
 
         // Transform runes ($state, $derived, $effect, $props)
         let _runes_start = super::profile::timer_start();
-        let mut transformed = transform_client_runes_with_skip_and_state(
-            &statement,
-            non_reactive_state_vars,
-            state_vars,
-            non_reactive_state_vars,
-            prop_source_vars,
-            exported_names,
-            proxy_vars,
-            dev,
-            analysis,
-            store_sub_vars,
-            read_only_props,
-        );
+        let mut transformed = stage("runes", Cow::Borrowed(statement.as_str()), |t| {
+            Cow::Owned(transform_client_runes_with_skip_and_state(
+                &t,
+                non_reactive_state_vars,
+                state_vars,
+                non_reactive_state_vars,
+                prop_source_vars,
+                exported_names,
+                proxy_vars,
+                dev,
+                analysis,
+                store_sub_vars,
+                read_only_props,
+            ))
+        });
         super::profile::record_st_runes(super::profile::timer_elapsed(_runes_start));
 
         // In dev mode, if the previous output line carries a
@@ -5644,7 +5669,7 @@ fn transform_instance_script_for_visitors(
             };
             if prev_has_ignore {
                 let mut new_transformed = String::new();
-                let mut remaining = transformed.as_str();
+                let mut remaining: &str = &transformed;
                 while let Some(pos) = memmem::find(remaining.as_bytes(), b"$state.snapshot(") {
                     new_transformed.push_str(&remaining[..pos]);
                     let call_start = pos + "$state.snapshot(".len();
@@ -5658,7 +5683,7 @@ fn transform_instance_script_for_visitors(
                     }
                 }
                 new_transformed.push_str(remaining);
-                transformed = new_transformed;
+                transformed = Cow::Owned(new_transformed);
             }
         }
 
@@ -5686,20 +5711,22 @@ fn transform_instance_script_for_visitors(
         // transforms can then process.
         // Corresponds to visit_assignment_expression in shared/assignments.js.
         // Skip if there is no reactive target (state / store / prop) to destructure against
-        let transformed = if state_vars.is_empty()
-            && store_sub_vars.is_empty()
-            && prop_assignment_transform_vars.is_empty()
-        {
-            transformed
-        } else {
-            transform_destructure_assignments_with_props(
-                &transformed,
-                state_vars,
-                non_reactive_state_vars,
-                store_sub_vars,
-                prop_assignment_transform_vars,
-            )
-        };
+        let transformed = stage("destructure_assignments", transformed, |t| {
+            if state_vars.is_empty()
+                && store_sub_vars.is_empty()
+                && prop_assignment_transform_vars.is_empty()
+            {
+                t
+            } else {
+                Cow::Owned(transform_destructure_assignments_with_props(
+                    &t,
+                    state_vars,
+                    non_reactive_state_vars,
+                    store_sub_vars,
+                    prop_assignment_transform_vars,
+                ))
+            }
+        });
 
         // Transform state variable assignments to $.set()
         // In runes mode, deferred to AST-based transform after main loop.
@@ -5707,74 +5734,95 @@ fn transform_instance_script_for_visitors(
             transformed
         } else {
             // Unified AST pass — see Site 1 comment for rationale.
-            let transformed = state_assigns_combined_ast::transform_state_assigns_ast(
-                &transformed,
-                state_vars,
-                raw_state_vars,
-                analysis.runes,
-                &non_proxy_vars,
-            )
-            .unwrap_or(transformed);
-            wrap_store_unsub_for_state_sets(&transformed, state_vars, store_sub_vars)
+            let transformed = stage("state_assigns", transformed, |t| {
+                state_assigns_combined_ast::transform_state_assigns_ast(
+                    &t,
+                    state_vars,
+                    raw_state_vars,
+                    analysis.runes,
+                    &non_proxy_vars,
+                )
+                .map(Cow::Owned)
+                .unwrap_or(t)
+            });
+            stage("store_unsub_for_state_sets", transformed, |t| {
+                Cow::Owned(wrap_store_unsub_for_state_sets(
+                    &t,
+                    state_vars,
+                    store_sub_vars,
+                ))
+            })
         };
 
         // Transform member mutations to $.mutate() calls (only in legacy/non-runes mode).
         // This handles patterns like `obj.self = obj` → `$.mutate(obj, obj.self = obj)`.
         // Must run AFTER transform_state_assignments (which handles direct assignments like `x = v`)
         // and BEFORE wrap_state_vars_in_expr (which will apply $.get() inside the $.mutate()).
-        let transformed = if !analysis.runes && !state_vars.is_empty() {
-            transform_member_mutations(
-                &transformed,
-                state_vars,
-                non_reactive_state_vars,
-                raw_state_vars,
-                &prop_invalidate_bodies,
-            )
-        } else {
-            transformed
-        };
+        let transformed = stage("member_mutations", transformed, |t| {
+            if !analysis.runes && !state_vars.is_empty() {
+                Cow::Owned(transform_member_mutations(
+                    &t,
+                    state_vars,
+                    non_reactive_state_vars,
+                    raw_state_vars,
+                    &prop_invalidate_bodies,
+                ))
+            } else {
+                t
+            }
+        });
 
         // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
         // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
         // and before wrap_prop_source_reads (which would turn `count` → `count()`, causing `count()++`)
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
-            transform_prop_update_expressions(&transformed, prop_assignment_transform_vars)
-        } else {
-            transformed
-        };
+        let transformed = stage("prop_update_expressions", transformed, |t| {
+            if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
+                Cow::Owned(transform_prop_update_expressions(
+                    &t,
+                    prop_assignment_transform_vars,
+                ))
+            } else {
+                t
+            }
+        });
 
         // Transform prop source variable reads to prop() calls BEFORE prop assignments.
         // This handles props used as function calls: `callback(args)` → `callback()(args)`.
         // Must come BEFORE transform_prop_assignments so that `callback = value` (assignment)
         // doesn't get incorrectly double-wrapped as `callback()(value)`.
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
-            prop_source_reads_ast::wrap_prop_source_reads_ast(
-                &transformed,
-                prop_assignment_transform_vars,
-                &non_bindable_prop_vars,
-            )
-            .unwrap_or(transformed)
-        } else {
-            transformed
-        };
+        let transformed = stage("prop_source_reads", transformed, |t| {
+            if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
+                prop_source_reads_ast::wrap_prop_source_reads_ast(
+                    &t,
+                    prop_assignment_transform_vars,
+                    &non_bindable_prop_vars,
+                )
+                .map(Cow::Owned)
+                .unwrap_or(t)
+            } else {
+                t
+            }
+        });
 
         // Transform prop assignments to prop(prop() + value) syntax
         // This handles props declared with `export let` in legacy mode
         // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
         // because rest_props use $.rest_props() which returns a plain object, not getter/setter
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = if !analysis.runes {
-            transform_prop_assignments(
-                &transformed,
-                prop_assignment_transform_vars,
-                &non_bindable_prop_vars,
-                &prop_invalidate_bodies,
-            )
-        } else {
-            transformed
-        };
+        let transformed = stage("prop_assignments", transformed, |t| {
+            if !analysis.runes {
+                Cow::Owned(transform_prop_assignments(
+                    &t,
+                    prop_assignment_transform_vars,
+                    &non_bindable_prop_vars,
+                    &prop_invalidate_bodies,
+                ))
+            } else {
+                t
+            }
+        });
 
         // Store transforms: skip entirely when there are no store subscriptions
         // In runes mode, deferred to AST-based transform after main loop.
@@ -5799,15 +5847,21 @@ fn transform_instance_script_for_visitors(
                     store_sub_vars
                 };
 
-            let transformed = transform_store_sub_calls(&transformed, effective_store_sub_vars);
-            let transformed = transform_store_assignments_client(
-                &transformed,
-                effective_store_sub_vars,
-                prop_assignment_transform_vars,
-                state_vars,
-                non_reactive_state_vars,
-            );
-            transform_store_reads_client(&transformed, effective_store_sub_vars)
+            let transformed = stage("store_sub_calls", transformed, |t| {
+                Cow::Owned(transform_store_sub_calls(&t, effective_store_sub_vars))
+            });
+            let transformed = stage("store_assignments", transformed, |t| {
+                Cow::Owned(transform_store_assignments_client(
+                    &t,
+                    effective_store_sub_vars,
+                    prop_assignment_transform_vars,
+                    state_vars,
+                    non_reactive_state_vars,
+                ))
+            });
+            stage("store_reads", transformed, |t| {
+                Cow::Owned(transform_store_reads_client(&t, effective_store_sub_vars))
+            })
         } else {
             transformed
         };
@@ -5816,16 +5870,18 @@ fn transform_instance_script_for_visitors(
         // individual declarations BEFORE mutable_source wrapping.
         // e.g., `let { foo, bar } = expr` -> `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar`
         // Reference: create_state_declarators in VariableDeclaration.js
-        let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
-            transform_legacy_destructure_declarations(
-                &transformed,
-                &legacy_state_var_names,
-                analysis.immutable,
-                dev,
-            )
-        } else {
-            transformed
-        };
+        let transformed = stage("legacy_destructure_declarations", transformed, |t| {
+            if !analysis.runes && !legacy_state_vars.is_empty() {
+                Cow::Owned(transform_legacy_destructure_declarations(
+                    &t,
+                    &legacy_state_var_names,
+                    analysis.immutable,
+                    dev,
+                ))
+            } else {
+                t
+            }
+        });
 
         // Transform legacy state declarations to $.mutable_source() BEFORE wrapping reads.
         // This must come before wrap_state_vars_in_expr because multi-variable declarations
@@ -5834,46 +5890,55 @@ fn transform_instance_script_for_visitors(
         // By transforming declarations first, `let a, b;` becomes:
         //   `let a = $.mutable_source();\nlet b = $.mutable_source();`
         // and then wrap_state_vars_in_expr correctly skips them since each starts with `let `.
-        let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
-            transform_legacy_state_declarations(
-                &transformed,
-                legacy_state_vars,
-                analysis.immutable,
-                dev,
-            )
-        } else {
-            transformed
-        };
+        let transformed = stage("legacy_state_declarations", transformed, |t| {
+            if !analysis.runes && !legacy_state_vars.is_empty() {
+                Cow::Owned(transform_legacy_state_declarations(
+                    &t,
+                    legacy_state_vars,
+                    analysis.immutable,
+                    dev,
+                ))
+            } else {
+                t
+            }
+        });
 
         // Wrap state variable reads in $.get() for ALL statements including declarations.
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = if analysis.runes {
-            transformed
-        } else {
-            wrap_state_vars_in_expr(
-                &transformed,
-                state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
-            )
-        };
+        let transformed = stage("state_reads", transformed, |t| {
+            if analysis.runes {
+                t
+            } else {
+                Cow::Owned(wrap_state_vars_in_expr(
+                    &t,
+                    state_vars,
+                    non_reactive_state_vars,
+                    proxy_vars,
+                ))
+            }
+        });
 
         // Transform rest_prop member access to $$props (only in non-runes mode here;
         // in runes mode, deferred to AST-based transform after main loop)
-        let transformed = if !analysis.runes && !rest_prop_vars.is_empty() {
-            transform_rest_prop_member_access(&transformed, rest_prop_vars)
-        } else {
-            transformed
-        };
+        let transformed = stage("rest_prop_member_access", transformed, |t| {
+            if !analysis.runes && !rest_prop_vars.is_empty() {
+                Cow::Owned(transform_rest_prop_member_access(&t, rest_prop_vars))
+            } else {
+                t
+            }
+        });
 
         // Transform read-only props to $$props.propName (only in non-runes mode here;
         // in runes mode, deferred to AST-based transform after main loop).
-        let transformed = if !analysis.runes && !read_only_props.is_empty() {
-            read_only_props_ast::transform_read_only_props_ast(&transformed, read_only_props)
-                .unwrap_or(transformed)
-        } else {
-            transformed
-        };
+        let transformed = stage("read_only_props", transformed, |t| {
+            if !analysis.runes && !read_only_props.is_empty() {
+                read_only_props_ast::transform_read_only_props_ast(&t, read_only_props)
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+            } else {
+                t
+            }
+        });
 
         // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
         // to detect when state proxies are logged directly.
@@ -5884,18 +5949,17 @@ fn transform_instance_script_for_visitors(
         // fragment fails to parse standalone (rare — the parser is lenient
         // for any complete expression / statement). The AST path fixes the
         // quote-counting string-skip heuristic that the text version uses.
-        let transformed = if dev {
-            let is_ts =
-                analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-            console_dev_ast::transform_console_calls_dev_fragment(
-                &transformed,
-                is_ts,
-                Some(analysis),
-            )
-            .unwrap_or(transformed)
-        } else {
-            transformed
-        };
+        let transformed = stage("console_dev", transformed, |t| {
+            if dev {
+                let is_ts =
+                    analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+                console_dev_ast::transform_console_calls_dev_fragment(&t, is_ts, Some(analysis))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+            } else {
+                t
+            }
+        });
 
         result.push_str(&transformed);
         result.push('\n');

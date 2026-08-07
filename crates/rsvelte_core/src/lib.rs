@@ -38,6 +38,8 @@ pub mod measure_module_source;
 pub mod measure_prop_reads;
 #[cfg(feature = "measure-slot-key")]
 pub mod measure_slot_key;
+#[cfg(feature = "measure-stmt-chain")]
+pub mod measure_stmt_chain;
 pub mod toolchain;
 
 pub use compiler::legacy::convert_to_legacy;
