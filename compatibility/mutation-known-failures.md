@@ -40,6 +40,7 @@ whitespace and trailing commas away:
 | `code-mismatch` | yes | the generated **code** changed because a comment moved |
 | `compiler-crash` | yes | rsvelte aborted the process on the mutant |
 | `error-mismatch` | yes | exactly one compiler rejected the mutant |
+| `unparseable` | yes | rsvelte emitted JavaScript that does not parse |
 | `comment-mismatch` | **no** | the comment was dropped, duplicated or relocated, or a line broke differently |
 
 The split is the difference between a gate and a backlog dump. The full sweep produces
@@ -67,11 +68,30 @@ Full sweep: 14,129 seeds → 12,116 mutants → 36,348 comparisons, under oxfmt 
 
 | verdict | entries |
 |---|---|
-| `code-mismatch` | 525 |
+| `code-mismatch` | 523 |
+| `unparseable` | 2 |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
 
 By target: `client-dev` 222, `client` 220, `server` 83.
+
+### The two `unparseable` entries — [#2546](https://github.com/baseballyama/rsvelte/issues/2546)
+
+`svelte-calendar/src/lib/docs/SvgThing__m0__block-with-brace.svelte` on `client` and
+`client-dev`: rsvelte emits `const h;`, which is a syntax error, where official compiles the
+mutant fine. **rsvelte's output here is wrong, not accepted** — these are parked so the gate
+can land, and they clear when #2546 does.
+
+`split_comma_separated_declarations` accumulates source lines until the declaration looks
+finished, and its `are_brackets_balanced` counts the `}` inside `/* } c */` as code, so
+`const wrap = …` swallows the following `let w, h;`. `split_top_level_commas`, run on that
+same accumulated string a few lines later, **is** comment-aware and splits at the `,`, and
+every part is re-prefixed with the first line's keyword. The defect is the inconsistency
+between two scans over one string, and it is the #2253 signature that #2283 consolidated five
+other scans out of.
+
+The seed also carried the same id as a `code-mismatch` before this; one comparison yields one
+verdict, so those two entries are superseded, not additional.
 
 ### The delimiter is one mechanism, no longer the dominant one
 

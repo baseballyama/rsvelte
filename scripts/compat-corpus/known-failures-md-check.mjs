@@ -222,7 +222,7 @@ const mutationMdPath = path.join(CORPUS, 'mutation-known-failures.md');
 if (fs.existsSync(mutationMdPath)) {
 	const mutationMd = fs.readFileSync(mutationMdPath, 'utf8');
 	const mutationEntries = JSON.parse(fs.readFileSync(path.join(CORPUS, 'mutation-known-failures.json'), 'utf8'));
-	for (const verdict of ['code-mismatch', 'compiler-crash', 'error-mismatch']) {
+	for (const verdict of ['code-mismatch', 'unparseable', 'compiler-crash', 'error-mismatch']) {
 		const vm = mutationMd.match(new RegExp('\\| `' + escape(verdict) + '` \\| (\\d+) \\|'));
 		if (!vm) continue;
 		const claimed = Number(vm[1]);
