@@ -112,6 +112,9 @@ pub enum ComponentApi {
 /// that is the whole signal upstream's `validate-options.js` acts on.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct LegacyOptions {
+    /// `generate: 'dom' | 'ssr'` — the pre-Svelte-5 spellings of
+    /// `'client'` / `'server'`, still honoured but renamed.
+    pub generate_dom_ssr: bool,
     /// `loopGuardTimeout` — removed in Svelte 5.
     pub loop_guard_timeout: bool,
     /// `enableSourcemap` — removed in Svelte 5.
@@ -709,6 +712,11 @@ pub(crate) fn finalize_compile_result(
     // before parsing, so they lead the list — and in the declaration order of
     // the validator's key table, since that is the order it walks them in.
     let mut option_warnings: Vec<phases::phase3_transform::TransformWarning> = Vec::new();
+    if options.legacy_options.generate_dom_ssr {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
+        ));
+    }
     if options.accessors && runes_mode {
         option_warnings.push(phases::phase3_transform::TransformWarning {
             code: "options_deprecated_accessors".to_string(),
@@ -834,6 +842,10 @@ pub struct ModuleCompileOptions {
     pub warning_filter: Option<WarningFilterFn>,
     /// Experimental options.
     pub experimental: ExperimentalOptions,
+    /// Svelte-4 options that only produce a diagnostic. Upstream's
+    /// `validate_module_options` stubs out every component-only key, so only
+    /// the shared `generate` alias is reported for a module.
+    pub legacy_options: LegacyOptions,
 }
 
 impl Default for ModuleCompileOptions {
@@ -845,6 +857,7 @@ impl Default for ModuleCompileOptions {
             root_dir: None,
             warning_filter: None,
             experimental: ExperimentalOptions::default(),
+            legacy_options: LegacyOptions::default(),
         }
     }
 }
@@ -986,8 +999,18 @@ pub fn compile_module(
     let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
 
     // Phase 2: Analyze (reuses component analysis infrastructure)
-    let analysis =
+    let mut analysis =
         phases::phase2_analyze::analyze_prepared_component(&mut ast, source, &compile_options)?;
+
+    // `validate_module_options` shares `common_options` with the component
+    // validator, so the renamed `generate` spelling is diagnosed here too — and
+    // ahead of everything the analysis found, since validation runs first.
+    if options.legacy_options.generate_dom_ssr {
+        analysis.warnings.insert(
+            0,
+            phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
+        );
+    }
 
     // Module-specific validation: check for store subscriptions.
     // In modules, $store references (where `store` is a binding) are invalid.

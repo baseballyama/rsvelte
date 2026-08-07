@@ -2,7 +2,9 @@
 //! them. The oracle for every expectation here is the official compiler run
 //! over the same source and options (`validate-options.js`).
 
-use rsvelte_core::compiler::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::compiler::{
+    CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module,
+};
 
 const SOURCE: &str = "<script>let a = 1;</script><p>{a}</p>";
 
@@ -87,6 +89,60 @@ fn loop_guard_timeout_message_matches_upstream() {
     );
 }
 
+#[test]
+fn renamed_generate_spelling_is_reported() {
+    let mut options = base();
+    options.legacy_options.generate_dom_ssr = true;
+    let warnings = compile(SOURCE, options)
+        .expect("compile should succeed")
+        .warnings;
+    assert_eq!(
+        warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
+        vec!["options_renamed_ssr_dom"]
+    );
+    assert_eq!(
+        warnings[0].message,
+        "`generate: \"dom\"` and `generate: \"ssr\"` options have been renamed to \"client\" and \"server\" respectively\nhttps://svelte.dev/e/options_renamed_ssr_dom"
+    );
+}
+
+/// `generate` lives in upstream's `common_options`, so `compileModule` reports
+/// the renamed spelling as well.
+#[test]
+fn renamed_generate_spelling_is_reported_for_modules() {
+    let options = ModuleCompileOptions {
+        filename: Some("Foo.svelte.js".to_string()),
+        legacy_options: rsvelte_core::compiler::LegacyOptions {
+            generate_dom_ssr: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let codes: Vec<String> = compile_module("export let a = 1;", options)
+        .expect("compile_module should succeed")
+        .warnings
+        .into_iter()
+        .map(|w| w.code)
+        .collect();
+    assert_eq!(codes, vec!["options_renamed_ssr_dom"]);
+}
+
+/// Negative control: the component-only removed options are stubbed out by
+/// upstream's `validate_module_options`, so a module never reports them.
+#[test]
+fn removed_component_options_are_not_reported_for_modules() {
+    let options = ModuleCompileOptions {
+        filename: Some("Foo.svelte.js".to_string()),
+        ..Default::default()
+    };
+    assert!(
+        compile_module("export let a = 1;", options)
+            .expect("compile_module should succeed")
+            .warnings
+            .is_empty()
+    );
+}
+
 /// Upstream walks its validator key table in declaration order, and
 /// `loopGuardTimeout` is declared ahead of `enableSourcemap`, which is ahead of
 /// `hydratable`.
@@ -96,9 +152,11 @@ fn removed_options_are_reported_in_upstream_key_order() {
     options.legacy_options.enable_sourcemap = true;
     options.legacy_options.hydratable = true;
     options.legacy_options.loop_guard_timeout = true;
+    options.legacy_options.generate_dom_ssr = true;
     assert_eq!(
         codes(options),
         vec![
+            "options_renamed_ssr_dom",
             "options_removed_loop_guard_timeout",
             "options_removed_enable_sourcemap",
             "options_removed_hydratable"

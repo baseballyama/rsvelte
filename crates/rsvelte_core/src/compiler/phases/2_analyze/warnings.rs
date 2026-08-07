@@ -271,6 +271,9 @@ diagnostics! {
     /// The `immutable` option has been deprecated. It will have no effect in runes mode
     options_deprecated_immutable() => "The `immutable` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_immutable";
 
+    /// `generate: "dom"` / `generate: "ssr"` have been renamed
+    options_renamed_ssr_dom() => "`generate: \"dom\"` and `generate: \"ssr\"` options have been renamed to \"client\" and \"server\" respectively\nhttps://svelte.dev/e/options_renamed_ssr_dom";
+
     /// The `loopGuardTimeout` option has been removed
     options_removed_loop_guard_timeout() => "The `loopGuardTimeout` option has been removed\nhttps://svelte.dev/e/options_removed_loop_guard_timeout";
 

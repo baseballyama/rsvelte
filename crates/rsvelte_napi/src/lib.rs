@@ -645,20 +645,28 @@ fn coerce_runes(v: &LenientScalar) -> Option<bool> {
     }
 }
 
-fn coerce_generate(v: &LenientScalar) -> napi::Result<GenerateMode> {
+/// Returns the mode plus whether the pre-Svelte-5 `dom`/`ssr` spelling was used
+/// (which upstream reports as `options_renamed_ssr_dom`).
+fn coerce_generate(v: &LenientScalar) -> napi::Result<(GenerateMode, bool)> {
     let msg = "generate must be \"client\", \"server\" or false";
     match v {
-        LenientScalar::Bool(false) => Ok(GenerateMode::None),
-        // `dom`/`ssr` are the pre-Svelte-5 spellings of `client`/`server`.
+        LenientScalar::Bool(false) => Ok((GenerateMode::None, false)),
         LenientScalar::Str(s) => match s.as_str() {
-            "client" | "dom" => Ok(GenerateMode::Client),
-            "server" | "ssr" => Ok(GenerateMode::Server),
-            "false" => Ok(GenerateMode::None),
+            "client" => Ok((GenerateMode::Client, false)),
+            "dom" => Ok((GenerateMode::Client, true)),
+            "server" => Ok((GenerateMode::Server, false)),
+            "ssr" => Ok((GenerateMode::Server, true)),
+            "false" => Ok((GenerateMode::None, false)),
             _ => Err(invalid_option(msg)),
         },
         _ => Err(invalid_option(msg)),
     }
 }
+
+// Both validators call the same `w.options_renamed_ssr_dom`, so component and
+// module compiles share one `warn_once` latch.
+static WARNED_RENAMED_SSR_DOM: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 fn coerce_namespace(v: &LenientScalar) -> napi::Result<Namespace> {
     let msg = "namespace should be one of \"html\", \"mathml\" or \"svg\"";
@@ -801,7 +809,11 @@ impl NapiCompileOptions {
             opts.dev = coerce_bool("dev", v)?;
         }
         if let Some(v) = &self.generate {
-            opts.generate = coerce_generate(v)?;
+            let (mode, renamed) = coerce_generate(v)?;
+            opts.generate = mode;
+            if renamed {
+                opts.legacy_options.generate_dom_ssr = warn_once(&WARNED_RENAMED_SSR_DOM);
+            }
         }
         if let Some(v) = &self.filename {
             opts.filename = Some(coerce_string("filename", v)?);
@@ -923,7 +935,11 @@ impl NapiModuleCompileOptions {
             opts.dev = coerce_bool("dev", v)?;
         }
         if let Some(v) = &self.generate {
-            opts.generate = coerce_generate(v)?;
+            let (mode, renamed) = coerce_generate(v)?;
+            opts.generate = mode;
+            if renamed {
+                opts.legacy_options.generate_dom_ssr = warn_once(&WARNED_RENAMED_SSR_DOM);
+            }
         }
         if let Some(v) = &self.filename {
             opts.filename = Some(coerce_string("filename", v)?);
