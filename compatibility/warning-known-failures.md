@@ -46,17 +46,17 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all six files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 32 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 28 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 32 entries that still diverge, **6 are
+Not every entry is equally bad. Of the 28 entries that still diverge, **6 are
 under-warnings** — rsvelte stays silent where upstream warns
 (`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
 `options_missing_custom_element` ×1); neither burn-down below touched that half.
-The other 26 are noise the user cannot suppress. Both are defects, but a missing
+The other 22 are noise the user cannot suppress. Both are defects, but a missing
 diagnostic and an extra one fail differently, and the ratchet count alone does
 not distinguish them; no entry diverges in both directions at once.
 
@@ -75,7 +75,8 @@ each of the three files, verified per entry against official 5.56.8 on all three
 targets.
 
 `attribute_quoted` was burned down independently: 19 further entries — the two
-burn-downs together take the ratchet from 70 to 32 — with **0 remaining tuples
+burn-downs together take the ratchet from 70 to 28 — four of the entries needed
+both fixes, so neither burn-down could remove them alone — with **0 remaining tuples
 in either direction**. Both counts are read off
 `verify.mjs --no-fmt --update-warning-baseline` runs over the same 14,130-entry
 corpus, not off the issue that motivated the fix. It was **one
