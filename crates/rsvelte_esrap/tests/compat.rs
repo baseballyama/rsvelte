@@ -65,3 +65,26 @@ fn ts_module_and_mapped_type() {
         "declare module \"svelte\" {\n}\n\ntype M = {[K in keyof JSON]: K};"
     );
 }
+
+/// oxc preserves explicit parens as a `ParenthesizedExpression`; acorn (esrap's
+/// own parser) elides them, so the printer unwraps them and lets precedence
+/// re-add what the grammar needs. The one case that must keep its literal parens
+/// is a comment *leading* the inner expression, which would otherwise dangle.
+/// A comment deeper inside is already bracketed by that expression's own syntax:
+/// keeping the parens for it doubles the pair a parent adds from precedence.
+/// Oracle: the Svelte compiler (esrap 2.x) on the equivalent module sources.
+#[test]
+fn redundant_parens_survive_only_for_a_leading_comment() {
+    // Leading comment — parens stay.
+    assert_eq!(print_src("f((/* c */ x));", false), "f((/* c */ x));");
+    // Comment deeper inside — parens go, and the argument keeps the comment.
+    assert_eq!(print_src("f((g(/* c */ x)));", false), "f(g(/* c */ x));");
+    // No comment at all — parens go.
+    assert_eq!(print_src("f((x));", false), "f(x);");
+    // The doubling this guards against: the callee's parens come from
+    // precedence, so the paren node must not add a second pair.
+    assert_eq!(
+        print_src("async function f() {\n\t(await g(/* c */ x))();\n}", false),
+        "async function f() {\n\t(await g(/* c */ x))();\n}"
+    );
+}

@@ -3,6 +3,7 @@
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 
+use super::STATE_TMP_COUNTER;
 use super::destructure_transforms::{ArrayHelperRead, extract_destructure_paths};
 use super::expression_utils::{
     byte_pos_to_char_index, find_statement_end_client, is_shadowed_by_for_loop_var,
@@ -11,7 +12,6 @@ use super::rune_transforms::{
     find_default_equals, find_derived_property_colon, split_derived_array_elements,
     split_derived_object_properties,
 };
-use super::{STATE_TMP_COUNTER, get_or_compile_regex};
 use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
     code_bytes, code_bytes_from, skip_opaque,
@@ -32,44 +32,14 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::{
 /// For block bodies like `{ c = a + b; count = count + 1; }`, we check each statement
 /// within the block.
 pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
-    // The Rust regex crate does NOT support lookbehind assertions.
-    // We use alternation-based boundary matching instead:
-    //   (^|[^a-zA-Z0-9_$])identifier([^a-zA-Z0-9_$]|$)
-    //
-    // This handles two important cases:
-    // 1. `$foo` (store subscriptions) - `\b` doesn't work because `$` is not a word char.
-    //    e.g., "bar = $foo" must match `$foo` but NOT "bar = $foobar"
-    // 2. For plain identifiers like `count`, we must NOT match `count` inside `$count`.
-    //    e.g., `$count * 2` - `count` should NOT be considered a dependency here
-    //    because `$count` already tracks the store subscription.
-    let escaped = regex::escape(identifier);
-    // Use alternation boundary for ALL identifiers (both `$foo` and `count`)
-    // to correctly handle the `$`-prefixed store subscription case.
-    // Also exclude `.` from valid preceding characters to avoid matching property
-    // accesses like `obj.prop` when checking for standalone `prop` references.
-    //
-    // EXCEPTION: the `$$`-prefixed compiler specials (`$$props` / `$$restProps` /
-    // `$$slots`) are never member-access targets, but they DO appear after a `.`
-    // in a spread — `{ ...$$restProps }`. Excluding `.` there made
-    // `body_references_identifier(body, "$$restProps")` miss the spread, so a
-    // `$: x = { ...$$restProps }` reactive statement dropped its
-    // `$.deep_read_state($$restProps)` dependency (emitting `() => {}`). Allow a
-    // leading `.` for `$$`-names so the spread form is detected.
-    let preceding = if identifier.starts_with("$$") {
-        r"[^a-zA-Z0-9_$]"
-    } else {
-        // Exclude `.` so member access (`obj.prop`) does not match a standalone
-        // `prop`, but DO allow a spread prefix (`...prop`): three dots before the
-        // name are a read, not a member access (`$: x = f(...prop)` reads `prop`).
-        // The regex crate has no lookbehind, so add `...` as an explicit
-        // alternative in the leading-boundary group.
-        r"[^a-zA-Z0-9_$\.]|\.\.\."
-    };
-    let pattern = format!(r"(^|{}){}([^a-zA-Z0-9_$]|$)", preceding, escaped);
-    let re = match get_or_compile_regex(&pattern) {
-        Some(re) => re,
-        None => return false,
-    };
+    // Every strip below only blanks or deletes characters, so a name absent from
+    // the raw body is absent from all of them. Callers ask this once per
+    // (statement, reactive variable) pair, and almost every pair is a miss.
+    if memmem::find(body.as_bytes(), identifier.as_bytes()).is_none() {
+        return false;
+    }
+
+    let matcher = IdentifierMatcher::new(identifier);
 
     // Before checking, strip out function/arrow bodies that shadow the identifier
     // as a parameter. This prevents false positives where a function parameter
@@ -89,12 +59,83 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
     let stripped_body = strip_object_property_keys(&stripped_body);
 
     // Check if identifier appears in the stripped body at all
-    if !re.is_match(&stripped_body) {
+    if !matcher.is_match(&stripped_body) {
         return false;
     }
 
     // Use the recursive check that handles if/else, blocks, and compound statements
-    body_references_identifier_recursive(stripped_body.trim(), identifier, &re)
+    body_references_identifier_recursive(stripped_body.trim(), identifier, &matcher)
+}
+
+/// Whether an identifier occurs in a body as a standalone reference.
+///
+/// This used to be a regex, rebuilt from a formatted pattern for every
+/// (statement, variable) pair the dependency scan asks about; escaping the name,
+/// formatting the pattern and hashing it to reach the cache was 70% of that
+/// scan's cost. The rule it encodes needs no engine:
+///
+/// - `(^|[^a-zA-Z0-9_$])name([^a-zA-Z0-9_$]|$)` for the `$$`-prefixed compiler
+///   specials, which are never member-access targets but do appear after a `.`
+///   in a spread (`{ ...$$restProps }`)
+/// - the same with `.` also excluded before the name for every other identifier,
+///   so `obj.prop` does not match a standalone `prop` — except for a spread
+///   prefix (`f(...prop)`), which reads it
+pub(super) struct IdentifierMatcher<'a> {
+    identifier: &'a str,
+    /// `$$`-names accept a `.` immediately before them; the rest do not.
+    allows_leading_dot: bool,
+}
+
+impl<'a> IdentifierMatcher<'a> {
+    pub(super) fn new(identifier: &'a str) -> Self {
+        Self {
+            identifier,
+            allows_leading_dot: identifier.starts_with("$$"),
+        }
+    }
+
+    pub(super) fn is_match(&self, text: &str) -> bool {
+        let needle = self.identifier.as_bytes();
+        if needle.is_empty() {
+            return false;
+        }
+        let bytes = text.as_bytes();
+        let mut from = 0;
+        // Advancing by one keeps overlapping occurrences reachable, which a
+        // non-overlapping iterator would skip.
+        while let Some(offset) = memmem::find(&bytes[from..], needle) {
+            let start = from + offset;
+            let end = start + needle.len();
+            if self.boundaries_hold(bytes, start, end) {
+                return true;
+            }
+            from = start + 1;
+        }
+        false
+    }
+
+    fn boundaries_hold(&self, bytes: &[u8], start: usize, end: usize) -> bool {
+        // A UTF-8 continuation byte is never one of the ASCII characters the
+        // classes below list, so comparing bytes answers the same question the
+        // char classes did.
+        if end < bytes.len() && continues_identifier(bytes[end]) {
+            return false;
+        }
+        if start == 0 {
+            return true;
+        }
+        let before = bytes[start - 1];
+        if !continues_identifier(before) && (self.allows_leading_dot || before != b'.') {
+            return true;
+        }
+        // `...name` is a spread, which reads the name rather than accessing it
+        // as a member.
+        !self.allows_leading_dot && start >= 3 && &bytes[start - 3..start] == b"..."
+    }
+}
+
+fn continues_identifier(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
 }
 
 /// Byte just past the comment or regex literal starting at `i`, plus whether it
@@ -117,11 +158,11 @@ fn skip_slash_run(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bo
 ///
 /// This prevents false identifier matches inside literal text, e.g., `<circle>` in
 /// a template literal won't match the variable name `circle`.
-pub(super) fn strip_string_literal_text(code: &str) -> String {
+pub(super) fn strip_string_literal_text(code: &str) -> std::borrow::Cow<'_, str> {
     // Fast path: if no string delimiters exist, return as-is
     // Uses memchr3 for SIMD-accelerated search of all three delimiters at once
     if memchr::memchr3(b'\'', b'"', b'`', code.as_bytes()).is_none() {
-        return code.to_string();
+        return std::borrow::Cow::Borrowed(code);
     }
 
     // Work with bytes for performance (string literal delimiters are all ASCII)
@@ -264,7 +305,9 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
         }
     }
 
-    String::from_utf8(result).unwrap_or_else(|_| code.to_string())
+    String::from_utf8(result)
+        .map(std::borrow::Cow::Owned)
+        .unwrap_or(std::borrow::Cow::Borrowed(code))
 }
 
 /// Strip non-shorthand, non-computed object property keys from code.
@@ -277,7 +320,12 @@ pub(super) fn strip_string_literal_text(code: &str) -> String {
 /// - `{ key: value }` -> `{     value }` (non-shorthand key blanked)
 /// - `{ key }` -> `{ key }` (shorthand preserved)
 /// - `{ [expr]: value }` -> `{ [expr]: value }` (computed preserved)
-pub(super) fn strip_object_property_keys(code: &str) -> String {
+pub(super) fn strip_object_property_keys(code: &str) -> std::borrow::Cow<'_, str> {
+    // A key can only be blanked at a `:`, and the two `Vec<char>` below cost four
+    // bytes per source byte, so the absence of one is worth checking for.
+    if memchr::memchr(b':', code.as_bytes()).is_none() {
+        return std::borrow::Cow::Borrowed(code);
+    }
     let chars: Vec<char> = code.chars().collect();
     let len = chars.len();
     let mut result: Vec<char> = chars.clone();
@@ -349,7 +397,7 @@ pub(super) fn strip_object_property_keys(code: &str) -> String {
         i += 1;
     }
 
-    result.into_iter().collect()
+    std::borrow::Cow::Owned(result.into_iter().collect())
 }
 
 /// Strip out function/arrow expression bodies where the identifier is declared as a parameter.
@@ -360,7 +408,17 @@ pub(super) fn strip_object_property_keys(code: &str) -> String {
 /// - `function (a) { ... }` -> `                   `
 /// - `(a) => { ... }` -> `              `
 /// - `(a) => expr` -> `            `
-pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) -> String {
+pub(super) fn strip_function_scopes_that_shadow<'a>(
+    body: &'a str,
+    identifier: &str,
+) -> std::borrow::Cow<'a, str> {
+    // Only a `function` keyword or an arrow can introduce a shadowing parameter,
+    // and the common reactive body has neither.
+    if memmem::find(body.as_bytes(), b"function").is_none()
+        && memmem::find(body.as_bytes(), b"=>").is_none()
+    {
+        return std::borrow::Cow::Borrowed(body);
+    }
     let mut result = body.to_string();
 
     // Pattern: `function identifier(params) { body }` or `function (params) { body }`
@@ -562,7 +620,7 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
         }
     }
 
-    result
+    std::borrow::Cow::Owned(result)
 }
 
 /// Recursively check if an identifier is read (not just assigned to) in a body of code.
@@ -570,7 +628,7 @@ pub(super) fn strip_function_scopes_that_shadow(body: &str, identifier: &str) ->
 pub(super) fn body_references_identifier_recursive(
     body: &str,
     identifier: &str,
-    re: &regex::Regex,
+    re: &IdentifierMatcher<'_>,
 ) -> bool {
     let trimmed = body.trim();
 
@@ -665,7 +723,7 @@ pub(super) fn body_references_identifier_recursive(
 pub(super) fn body_references_identifier_in_statements(
     content: &str,
     identifier: &str,
-    re: &regex::Regex,
+    re: &IdentifierMatcher<'_>,
 ) -> bool {
     // Split by semicolons and newlines, but be careful with nested blocks
     // Simple approach: scan for statements at depth 0
@@ -702,7 +760,7 @@ pub(super) fn body_references_identifier_in_statements(
 pub(super) fn check_identifier_in_statement(
     stmt: &str,
     identifier: &str,
-    re: &regex::Regex,
+    re: &IdentifierMatcher<'_>,
 ) -> bool {
     if !re.is_match(stmt) {
         return false;
@@ -1898,8 +1956,57 @@ mod colon_depth0_tests {
     }
 
     #[test]
+    fn identifier_matcher_agrees_with_the_regex_it_replaced() {
+        // The pattern this matcher encodes, kept here so the two can be
+        // compared rather than the rule being restated in prose.
+        fn reference_regex(identifier: &str) -> regex::Regex {
+            let preceding = if identifier.starts_with("$$") {
+                r"[^a-zA-Z0-9_$]"
+            } else {
+                r"[^a-zA-Z0-9_$\.]|\.\.\."
+            };
+            regex::Regex::new(&format!(
+                r"(^|{}){}([^a-zA-Z0-9_$]|$)",
+                preceding,
+                regex::escape(identifier)
+            ))
+            .unwrap()
+        }
+
+        let cases = [
+            ("count", "count + 1"),
+            ("count", "$count * 2"),
+            ("count", "counter + 1"),
+            ("count", "obj.count"),
+            ("count", "f(...count)"),
+            ("count", "a.b.count"),
+            ("count", "{ count }"),
+            ("count", "count"),
+            ("count", ""),
+            ("count", "\u{3042}count\u{3042}"),
+            ("count", "acount"),
+            ("count", "count.value"),
+            ("$foo", "bar = $foo"),
+            ("$foo", "bar = $foobar"),
+            ("$$restProps", "{ ...$$restProps }"),
+            ("$$restProps", "$$restPropsX"),
+            ("$$props", "a.$$props"),
+            ("x", "xx x xx"),
+            ("aa", "aaa"),
+            ("aa", "aa"),
+        ];
+        for (identifier, text) in cases {
+            assert_eq!(
+                IdentifierMatcher::new(identifier).is_match(text),
+                reference_regex(identifier).is_match(text),
+                "identifier {identifier:?} in {text:?}"
+            );
+        }
+    }
+
+    #[test]
     fn ternary_branch_split_survives_non_ascii() {
-        let re = regex::Regex::new(r"\bcomponent\b").unwrap();
+        let re = IdentifierMatcher::new("component");
         // `cond ? component = "ああa" : component = other`
         let stmt = "cond ? component = \"ああa\" : component = other";
         let _ = check_identifier_in_statement(stmt, "component", &re);
