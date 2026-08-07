@@ -490,7 +490,7 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
             // Check it's not preceded by `this.`
             let before = &result[..abs_hash_pos];
             if before.trim_end().ends_with("this.") || before.ends_with("$.") {
-                search_from = abs_hash_pos + 1;
+                search_from = crate::compiler::utils::next_char_boundary(&result, abs_hash_pos);
                 continue;
             }
 
@@ -502,7 +502,7 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
                 .collect();
 
             if field_name.is_empty() {
-                search_from = abs_hash_pos + 1;
+                search_from = crate::compiler::utils::next_char_boundary(&result, abs_hash_pos);
                 continue;
             }
 

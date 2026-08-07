@@ -6909,8 +6909,9 @@ fn replace_standalone_pattern(text: &str, from: &str, to: &str) -> String {
             result.push_str(to);
             search_from = after_pos;
         } else {
-            result.push_str(&text[search_from..abs_pos + 1]);
-            search_from = abs_pos + 1;
+            let next = crate::compiler::utils::next_char_boundary(text, abs_pos);
+            result.push_str(&text[search_from..next]);
+            search_from = next;
         }
     }
     result.push_str(&text[search_from..]);

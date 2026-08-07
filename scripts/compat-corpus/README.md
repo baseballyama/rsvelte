@@ -269,6 +269,45 @@ not observe failing, silently emptying the ratchets. Two assertions close it:
   present, so anything far below that is a partial checkout, not a fix.
   `svelte2tsx-verify.mjs --update-baseline` enforces the same floor.
 
+### What this corpus does not gate: comments
+
+**Comment parity is not gated by this corpus, for any entry or any target.**
+Say it explicitly because the gate looks like it covers comments and does not.
+
+`verify.mjs` byte-compares first and sends only the byte-different pairs to
+`ast_equiv_batch`, which applies `CommentPolicy::Ignore` unless `--comments` is
+passed — and the call site passes no arguments. So a divergence that lives only
+in comments is byte-different, AST-equivalent, and scored a **pass**. That holds
+for all ~14025 entries, components and modules alike, on `client`, `server` and
+`client-dev`.
+
+This is why `flowbite-svelte/src/lib/utils/singleselection.svelte.js` diverges on
+a top-level `@type {symbol}` JSDoc while `known-failures.client.json` is `[]`:
+the ratchet is empty because the comparator never reported a failure, not
+because the file agrees.
+
+Two things follow that are easy to get wrong:
+
+- **Flipping `--comments` would not close it on its own.** Under
+  `CommentPolicy::Meaningful` only directive-like comments count —
+  `is_meaningful_comment` matches `@ts-`, `svelte-ignore`, `@component`,
+  `eslint-disable`, `prettier-ignore`, `# sourceMappingURL=` — so JSDoc type
+  tags like `@type` are still filtered as prose. The real prerequisite is
+  rsvelte preserving comments at all; see `compatibility/ast-equivalence.md`.
+- **Preserving them is necessary but not sufficient.** Official itself drops
+  the comment in 80 of 192 generated module positions and keeps it in the other
+  112, position-dependent rather than per-comment-kind (#2399). Parity means
+  reproducing that rule, so a blanket-preserve rsvelte would diverge on the 80.
+- **The esbuild TS-stripping in `compile.mjs` is the narrower second cause,
+  not the binding one.** `.svelte.ts` entries reach both compilers stripped of
+  comments (299 of 437 module entries, 52 of which carry real top-level
+  comments), but even the 138 `.svelte.js` modules and every component are
+  ungated by the comparator above. A comment-preserving stripper alone would
+  buy zero observability.
+
+Until rsvelte preserves comments, the [generated shape matrix](#generated-shape-matrix-matrix)
+is the only place comment behaviour can be observed at all.
+
 ## Generated shape matrix (`matrix/`)
 
 Everything above compares **collected** inputs. This track compares **generated**
