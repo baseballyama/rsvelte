@@ -303,30 +303,64 @@ fn build_dev_inspect<'a>(
     Some(rehomed)
 }
 
-/// Register the source region between the previous top-level statement and this
-/// one, so its comments can be replayed in front of whatever the statement
-/// lowers to. Returns the anchor to stamp, or `None` when the gap holds none.
-fn register_leading_comments(
+/// Register the source region `[prev_end, region_end)` a top-level statement's
+/// comments live in, so they can be replayed around whatever it lowers to.
+/// `region_end` is the statement's START when only its LEADING comments can be
+/// replayed, and its END when the emitted statement is a verbatim re-parse whose
+/// spans can be shifted onto the region — which is what carries the INTERIOR
+/// ones. Returns the region's provisional base, or `None` when it holds no
+/// comment.
+fn register_comment_region(
     registry: &mut comments::ChunkRegistry,
     src: &str,
     all: &[Comment],
     prev_end: u32,
-    stmt_start: u32,
+    region_end: u32,
 ) -> Option<u32> {
-    if stmt_start <= prev_end {
+    if region_end <= prev_end {
         return None;
     }
-    let gap = src.get(prev_end as usize..stmt_start as usize)?;
+    let text = src.get(prev_end as usize..region_end as usize)?;
     let kept: Vec<Comment> = all
         .iter()
-        .filter(|c| c.span.start >= prev_end && c.span.end <= stmt_start)
+        .filter(|c| c.span.start >= prev_end && c.span.end <= region_end)
         .map(|c| {
             let mut c = *c;
             c.span = Span::new(c.span.start - prev_end, c.span.end - prev_end);
             c
         })
         .collect();
-    registry.register(gap, &kept)
+    registry.register(text, &kept)
+}
+
+/// Source offset the spans of a statement re-parsed from `src[start..end]` are
+/// relative to — `reparse_statement` trims its input.
+fn reparse_origin(src: &str, start: u32, end: u32) -> u32 {
+    let slice = &src[start as usize..end as usize];
+    start + (slice.len() - slice.trim_start().len()) as u32
+}
+
+/// Resolve a top-level statement's registered region into the [`comments::Place`]
+/// its emitted statement is stamped with. `verbatim` is the source range the
+/// statement was re-parsed from, when it was re-parsed whole.
+fn place_on_region(
+    registry: &mut comments::ChunkRegistry,
+    src: &str,
+    all: &[Comment],
+    prev_end: u32,
+    stmt: Span,
+    verbatim: Option<Span>,
+) -> Option<comments::Place> {
+    let region_end = if verbatim.is_some() {
+        stmt.end
+    } else {
+        stmt.start
+    };
+    let base = register_comment_region(registry, src, all, prev_end, region_end)?;
+    Some(match verbatim {
+        Some(v) => comments::Place::Shift(base + reparse_origin(src, v.start, v.end) - prev_end),
+        None => comments::Place::At(base + stmt.start - prev_end),
+    })
 }
 
 /// Split a script's comments into the three classes the carry-over sees:
@@ -437,19 +471,21 @@ fn transform_script<'a>(
     let mut prev_end: u32 = 0;
 
     for stmt in ret.program.body.iter() {
-        let anchor = register_leading_comments(
-            &mut state.comments,
-            src,
-            &ret.program.comments,
-            prev_end,
-            stmt.span().start,
-        );
-        prev_end = stmt.span().end;
+        let region_start = prev_end;
+        let stmt_span = stmt.span();
+        prev_end = stmt_span.end;
         let out_len = out.len();
         let sink_len = import_sink.as_deref().map_or(0, Vec::len);
+        // Set by every branch that re-parses the statement WHOLE from a source
+        // range, to that range.
+        let mut verbatim: Option<Span> = None;
 
         'emit: {
             match stmt {
+                // Deliberately NOT `verbatim`: an import is hoisted out of the
+                // component function, but upstream leaves its comments behind
+                // inside it, so replaying them in place would put them in the
+                // wrong function.
                 Statement::ImportDeclaration(imp) => {
                     let slice = &src[imp.span.start as usize..imp.span.end as usize];
                     if let Some(rehomed) = state.reparse_statement(slice) {
@@ -496,6 +532,7 @@ fn transform_script<'a>(
                             count_export_keyword(&ret.program.comments, exp.span.start, span.start);
                             let slice = &src[span.start as usize..span.end as usize];
                             if let Some(mut rehomed) = state.reparse_statement(slice) {
+                                verbatim = Some(span);
                                 super::read_wrap::wrap_reads_in_statement(
                                     &mut rehomed,
                                     state.b,
@@ -517,6 +554,7 @@ fn transform_script<'a>(
                     let span = exp.span();
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
+                        verbatim = Some(span);
                         lower_module_export_runes(&mut rehomed, state);
                         super::read_wrap::wrap_reads_in_statement(
                             &mut rehomed,
@@ -624,6 +662,7 @@ fn transform_script<'a>(
                     }
                     let slice = &src[es.span.start as usize..es.span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
+                        verbatim = Some(es.span);
                         // Read-wrap the whole statement: derived / store reads (`d` →
                         // `d()`, `$x` → `$.store_get(...)`), derived / store WRITES &
                         // UPDATES (`count++` → `$.update_derived(count)`), and private
@@ -643,6 +682,7 @@ fn transform_script<'a>(
                     let span = other.span();
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
+                        verbatim = Some(span);
                         // Same whole-statement read-wrap for every other re-homed
                         // verbatim instance statement (function declarations, `if` /
                         // `for` / blocks, class declarations — the private-derived
@@ -662,15 +702,22 @@ fn transform_script<'a>(
         // Anchor the region on the FIRST statement this source statement emitted;
         // emitting nothing leaves the region unreferenced, so its comments die
         // with the statement instead of landing inside an unrelated node.
-        if let Some(anchor) = anchor {
+        if let Some(mut place) = place_on_region(
+            &mut state.comments,
+            src,
+            &ret.program.comments,
+            region_start,
+            stmt_span,
+            verbatim,
+        ) {
             if import_sink.as_deref().is_some_and(|s| s.len() > sink_len) {
                 if let Some(sink) = import_sink.as_deref_mut()
                     && let Some(first) = sink.get_mut(sink_len)
                 {
-                    comments::SetSpans(anchor).visit_statement(first);
+                    place.visit_statement(first);
                 }
             } else if let Some(first) = out.get_mut(out_len) {
-                comments::SetSpans(anchor).visit_statement(first);
+                place.visit_statement(first);
             }
         }
     }
@@ -2678,20 +2725,22 @@ fn transform_script_legacy<'a>(
     let mut prev_end: u32 = 0;
 
     for stmt in ret.program.body.iter() {
-        let anchor = register_leading_comments(
-            &mut state.comments,
-            src,
-            &ret.program.comments,
-            prev_end,
-            stmt.span().start,
-        );
-        prev_end = stmt.span().end;
+        let region_start = prev_end;
+        let stmt_span = stmt.span();
+        prev_end = stmt_span.end;
         let out_len = out.len();
         let reactive_len = reactive.len();
         let sink_len = import_sink.as_deref().map_or(0, Vec::len);
+        // Set by every branch that re-parses the statement WHOLE from a source
+        // range, to that range.
+        let mut verbatim: Option<Span> = None;
 
         'emit: {
             match stmt {
+                // Deliberately NOT `verbatim`: an import is hoisted out of the
+                // component function, but upstream leaves its comments behind
+                // inside it, so replaying them in place would put them in the
+                // wrong function.
                 Statement::ImportDeclaration(imp) => {
                     let slice = &src[imp.span.start as usize..imp.span.end as usize];
                     if let Some(rehomed) = state.reparse_statement(slice) {
@@ -2706,6 +2755,7 @@ fn transform_script_legacy<'a>(
                         let span = stmt.span();
                         let slice = &src[span.start as usize..span.end as usize];
                         if let Some(rehomed) = state.reparse_statement(slice) {
+                            verbatim = Some(span);
                             out.push(rehomed);
                         }
                     }
@@ -2721,6 +2771,7 @@ fn transform_script_legacy<'a>(
                         let span = exp.span();
                         let slice = &src[span.start as usize..span.end as usize];
                         if let Some(rehomed) = state.reparse_statement(slice) {
+                            verbatim = Some(span);
                             out.push(rehomed);
                         }
                         break 'emit;
@@ -2758,6 +2809,7 @@ fn transform_script_legacy<'a>(
                             count_export_keyword(&ret.program.comments, exp.span.start, span.start);
                             let slice = &src[span.start as usize..span.end as usize];
                             if let Some(mut rehomed) = state.reparse_statement(slice) {
+                                verbatim = Some(span);
                                 if is_instance && is_fn {
                                     super::read_wrap::wrap_reads_in_statement_counted(
                                         &mut rehomed,
@@ -2789,6 +2841,7 @@ fn transform_script_legacy<'a>(
                     let span = ls.span();
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
+                        verbatim = Some(span);
                         // Assignment targets (for the hoisted `let <name>;` decl) and
                         // read dependencies (for the topological reorder) — both keyed
                         // by instance-scope binding index (写经 the `assignments` /
@@ -2822,6 +2875,7 @@ fn transform_script_legacy<'a>(
                     }
                     let slice = &src[es.span.start as usize..es.span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
+                        verbatim = Some(es.span);
                         // 写经 the global server visitor: every READ / store-or-derived
                         // WRITE inside an ordinary instance statement is lowered (e.g.
                         // top-level `$a.foo = 3` → `$.store_mutate(...)`,
@@ -2842,6 +2896,7 @@ fn transform_script_legacy<'a>(
                     let span = stmt.span();
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
+                        verbatim = Some(span);
                         // A function BODY is visited too (`function f() { return
                         // $count; }` → `$.store_get(...)`, `$foo++` → `$.update_store`).
                         if is_instance {
@@ -2860,6 +2915,7 @@ fn transform_script_legacy<'a>(
                     let span = other.span();
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
+                        verbatim = Some(span);
                         // Wrap store/derived reads inside instance-scope control-flow
                         // statements (`if ($store === …) …`, `for`, `while`, blocks…) —
                         // upstream's server visitor visits every statement, so reads
@@ -2883,24 +2939,33 @@ fn transform_script_legacy<'a>(
         // Anchor the region on the FIRST statement this source statement emitted;
         // emitting nothing leaves the region unreferenced, so its comments die
         // with the statement instead of landing inside an unrelated node.
-        if let Some(anchor) = anchor {
+        if let Some(mut place) = place_on_region(
+            &mut state.comments,
+            src,
+            &ret.program.comments,
+            region_start,
+            stmt_span,
+            verbatim,
+        ) {
             if import_sink.as_deref().is_some_and(|s| s.len() > sink_len) {
                 if let Some(sink) = import_sink.as_deref_mut()
                     && let Some(first) = sink.get_mut(sink_len)
                 {
-                    comments::SetSpans(anchor).visit_statement(first);
+                    place.visit_statement(first);
                 }
             } else if let Some(first) = out.get_mut(out_len) {
-                comments::SetSpans(anchor).visit_statement(first);
+                place.visit_statement(first);
             } else if let Some(entry) = reactive.get_mut(reactive_len) {
                 // Upstream rebuilds the `$` label as a loc-less `b.labeled(...)`
                 // whose body keeps the source loc, so the comments flush after
-                // the `$:` rather than before it.
+                // the `$:` rather than before it. Leaving the label out of the
+                // walk is what keeps it loc-less: its span stays outside the
+                // region and is blanked on the way out.
                 match &mut entry.stmt {
                     Statement::LabeledStatement(ls) => {
-                        comments::SetSpans(anchor).visit_statement(&mut ls.body);
+                        place.visit_statement(&mut ls.body);
                     }
-                    other => comments::SetSpans(anchor).visit_statement(other),
+                    other => place.visit_statement(other),
                 }
             }
         }

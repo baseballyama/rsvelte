@@ -76,6 +76,13 @@ pub use compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::Work 
 
 /// `(pass, text-path work, in-place work)`.
 #[doc(hidden)]
+/// How many times, under `RSVELTE_AST_DUAL_RUN`, the text path produced a
+/// rewrite the in-place path reported as `Unchanged`. Dropping the text-path
+/// fallback for `Unchanged` is only sound while this stays 0.
+pub fn ast_rewrite_fallback_would_diverge() -> u64 {
+    compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::fallback_would_diverge()
+}
+
 pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewriteWork)> {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::work()
 }

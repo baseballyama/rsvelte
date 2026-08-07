@@ -823,6 +823,33 @@ fn scan_reactive_line(line: &str, mut depth: i32, in_template: bool) -> (i32, bo
     (depth, false)
 }
 
+/// How one line is treated while accumulating the continuation lines of a `$:`
+/// statement.
+enum ContinuationLine {
+    /// Ends the statement.
+    Boundary,
+    /// Part of the statement, but carries no continuation signal of its own, so
+    /// whether the statement is complete is decided by the next code line.
+    Comment,
+    Code,
+}
+
+/// Both accumulation loops below must share this classification, or the decision
+/// scan mis-routes a statement the collection scan then splits differently.
+fn classify_continuation_line(trimmed: &str, in_template: bool) -> ContinuationLine {
+    // Inside a template literal every line is literal text.
+    if in_template {
+        return ContinuationLine::Code;
+    }
+    if trimmed.is_empty() || trimmed.starts_with("$:") || trimmed.starts_with("function ") {
+        ContinuationLine::Boundary
+    } else if trimmed.starts_with("//") {
+        ContinuationLine::Comment
+    } else {
+        ContinuationLine::Code
+    }
+}
+
 // The only live caller is `{@const}` lowering, whose input is a declaration, so no `$:`
 // reaches this in a shipping compile.
 pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> String {
@@ -845,8 +872,6 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
         let mut needs = false;
         let mut in_reactive_multiline = false;
         let mut reactive_depth: i32 = 0;
-        // Threaded like the collection loop below; if the two disagree on where a
-        // block ends, this scan mis-routes.
         let mut in_template = false;
         let mut i = 0;
         while i < lines.len() {
@@ -906,13 +931,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                         i += 1;
                         while i < lines.len() {
                             let nt = lines[i].trim();
-                            // Inside a template literal these are literal text, not
-                            // statement boundaries.
-                            if !acc_template
-                                && (nt.is_empty()
-                                    || nt.starts_with("$:")
-                                    || nt.starts_with("function "))
-                            {
+                            let kind = classify_continuation_line(nt, acc_template);
+                            if matches!(kind, ContinuationLine::Boundary) {
                                 break;
                             }
                             (acc_depth, acc_template) =
@@ -945,7 +965,12 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             } else {
                                 false
                             };
-                            if !is_cont && !following_starts && acc_depth <= 0 && !acc_template {
+                            if !matches!(kind, ContinuationLine::Comment)
+                                && !is_cont
+                                && !following_starts
+                                && acc_depth <= 0
+                                && !acc_template
+                            {
                                 break;
                             }
                         }
@@ -1053,14 +1078,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                     while i < lines.len() {
                         let next = lines[i];
                         let next_trimmed = next.trim();
-                        // Inside a template literal these are literal text, not
-                        // statement boundaries.
-                        if !acc_template
-                            && (next_trimmed.is_empty()
-                                || next_trimmed.starts_with("$:")
-                                || next_trimmed.starts_with("function ")
-                                || next_trimmed.starts_with("//"))
-                        {
+                        let kind = classify_continuation_line(next_trimmed, acc_template);
+                        if matches!(kind, ContinuationLine::Boundary) {
                             break;
                         }
                         stmt_lines.push(next);
@@ -1095,7 +1114,8 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                             false
                         };
                         i += 1;
-                        if !next_is_continuation
+                        if !matches!(kind, ContinuationLine::Comment)
+                            && !next_is_continuation
                             && !following_starts_cont
                             && accumulated_depth <= 0
                             && !acc_template
@@ -2281,6 +2301,47 @@ mod tests {
             extract_simple_assignments("const t = '\u{65e5}\u{672c}'; total = t.length;"),
             vec!["t".to_string(), "total".to_string()]
         );
+    }
+
+    #[test]
+    fn line_comment_does_not_end_a_reactive_continuation() {
+        // Official keeps `$: total = a + b` whole across an interleaved `// …` line.
+        for (script, stmt) in [
+            (
+                "let foo = 1;\n$: total =\n// pick the sum\na + b;\nlet after = 2;\n",
+                "$: total =\n// pick the sum\na + b;",
+            ),
+            (
+                "let foo = 1;\n$: total =\na +\n// second operand\nb;\nlet after = 2;\n",
+                "$: total =\na +\n// second operand\nb;",
+            ),
+        ] {
+            let out = reorder_reactive_statements_after_functions(script);
+            assert!(out.contains(stmt), "statement split at the comment: {out}");
+        }
+    }
+
+    #[test]
+    fn both_reactive_loops_share_one_line_classification() {
+        // A comment is neither a boundary nor a line that can complete the
+        // statement; the two accumulation loops used to disagree about the first
+        // half of that.
+        assert!(matches!(
+            classify_continuation_line("// pick the sum", false),
+            ContinuationLine::Comment
+        ));
+        for line in ["", "$: other = 1;", "function f() {}"] {
+            assert!(matches!(
+                classify_continuation_line(line, false),
+                ContinuationLine::Boundary
+            ));
+        }
+        for line in ["", "$: other = 1;", "function f() {}", "// c"] {
+            assert!(matches!(
+                classify_continuation_line(line, true),
+                ContinuationLine::Code
+            ));
+        }
     }
 
     #[test]
