@@ -13,7 +13,11 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  # Never on `main`: `github.ref` is the same for every merge, so cancelling
+  # meant each merge killed its predecessor's run and the branch carried no
+  # verdict at all. GitHub keeps at most one *pending* run per group, so the tip
+  # is still always scheduled — this costs a lag, not a runner per commit.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   CARGO_TERM_COLOR: always

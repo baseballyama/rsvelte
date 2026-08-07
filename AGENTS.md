@@ -65,6 +65,16 @@ does this gate not look at?" — which is not the same question as "what inputs 
 have". Corpus size is the saturated axis; the two that still find defects are what we compare
 and how inputs are constructed.
 
+**A baseline is a measurement of a tree, and the tree is the merge base.** `--update-baseline`
+run on a branch cut before a fix that the ratchet observes enrols entries that already pass on
+`main`, and the two-sided check then fails on `main` itself and on every branch cut from it —
+which is how #2435 shipped 56 stale shape-matrix entries. Rebase (or merge `main`) *before*
+re-baselining, never after. The reason nothing caught it is worth remembering separately: every
+workflow set `cancel-in-progress: true` on a concurrency group keyed by `github.ref`, which is the
+same string for every push to `main`, so at a high merge rate each merge cancelled its
+predecessor and `main` carried no verdict at all. **A cancelled run and a green run are
+indistinguishable in the branch header.**
+
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus
