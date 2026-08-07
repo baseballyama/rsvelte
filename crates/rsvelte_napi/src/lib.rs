@@ -779,6 +779,9 @@ pub struct NapiCompileOptions {
     pub enable_sourcemap: Option<LenientScalar>,
     /// Svelte-4 `hydratable`, kept only to raise `options_removed_hydratable`.
     pub hydratable: Option<LenientScalar>,
+    /// Svelte-4 `loopGuardTimeout`, kept only to raise
+    /// `options_removed_loop_guard_timeout`.
+    pub loop_guard_timeout: Option<LenientScalar>,
 }
 
 // Upstream's `warn_once` keeps its `warned` set for the lifetime of the
@@ -883,6 +886,11 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.fragments {
             opts.fragments = coerce_fragments(v)?;
+        }
+        if self.loop_guard_timeout.is_some() {
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.loop_guard_timeout = warn_once(&WARNED);
         }
         if self.enable_sourcemap.is_some() {
             static WARNED: std::sync::atomic::AtomicBool =

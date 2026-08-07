@@ -67,16 +67,39 @@ fn hydratable_message_matches_upstream() {
     );
 }
 
-/// Upstream walks its validator key table in declaration order, so
-/// `enableSourcemap` is reported before `hydratable` when both are passed.
+#[test]
+fn loop_guard_timeout_is_reported_as_removed() {
+    let mut options = base();
+    options.legacy_options.loop_guard_timeout = true;
+    assert_eq!(codes(options), vec!["options_removed_loop_guard_timeout"]);
+}
+
+#[test]
+fn loop_guard_timeout_message_matches_upstream() {
+    let mut options = base();
+    options.legacy_options.loop_guard_timeout = true;
+    let warnings = compile(SOURCE, options)
+        .expect("compile should succeed")
+        .warnings;
+    assert_eq!(
+        warnings[0].message,
+        "The `loopGuardTimeout` option has been removed\nhttps://svelte.dev/e/options_removed_loop_guard_timeout"
+    );
+}
+
+/// Upstream walks its validator key table in declaration order, and
+/// `loopGuardTimeout` is declared ahead of `enableSourcemap`, which is ahead of
+/// `hydratable`.
 #[test]
 fn removed_options_are_reported_in_upstream_key_order() {
     let mut options = base();
     options.legacy_options.enable_sourcemap = true;
     options.legacy_options.hydratable = true;
+    options.legacy_options.loop_guard_timeout = true;
     assert_eq!(
         codes(options),
         vec![
+            "options_removed_loop_guard_timeout",
             "options_removed_enable_sourcemap",
             "options_removed_hydratable"
         ]

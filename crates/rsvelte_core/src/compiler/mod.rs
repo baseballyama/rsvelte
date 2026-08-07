@@ -112,6 +112,8 @@ pub enum ComponentApi {
 /// that is the whole signal upstream's `validate-options.js` acts on.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct LegacyOptions {
+    /// `loopGuardTimeout` — removed in Svelte 5.
+    pub loop_guard_timeout: bool,
     /// `enableSourcemap` — removed in Svelte 5.
     pub enable_sourcemap: bool,
     /// `hydratable` — removed in Svelte 5.
@@ -714,6 +716,11 @@ pub(crate) fn finalize_compile_result(
             start: None,
             end: None,
         });
+    }
+    if options.legacy_options.loop_guard_timeout {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_removed_loop_guard_timeout(),
+        ));
     }
     if options.legacy_options.enable_sourcemap {
         option_warnings.push(legacy_option_warning(

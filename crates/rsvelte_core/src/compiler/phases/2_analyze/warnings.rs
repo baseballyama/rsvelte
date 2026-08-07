@@ -271,6 +271,9 @@ diagnostics! {
     /// The `immutable` option has been deprecated. It will have no effect in runes mode
     options_deprecated_immutable() => "The `immutable` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_immutable";
 
+    /// The `loopGuardTimeout` option has been removed
+    options_removed_loop_guard_timeout() => "The `loopGuardTimeout` option has been removed\nhttps://svelte.dev/e/options_removed_loop_guard_timeout";
+
     /// The `enableSourcemap` option has been removed
     options_removed_enable_sourcemap() => "The `enableSourcemap` option has been removed. Source maps are always generated now, and tooling can choose to ignore them\nhttps://svelte.dev/e/options_removed_enable_sourcemap";
 
