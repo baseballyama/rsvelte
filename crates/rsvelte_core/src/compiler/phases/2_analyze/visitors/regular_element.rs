@@ -1059,17 +1059,8 @@ pub fn visit<'a, 'b: 'a>(
                         context.uses_event_attributes = true;
                         context.analysis.uses_event_attributes = true;
                     }
-                    // attribute_quoted check for custom elements
-                    if is_custom_element_node(element)
-                        && let crate::ast::template::AttributeValue::Sequence(parts) =
-                            &attr_node.value
-                        && parts.len() == 1
-                        && matches!(
-                            &parts[0],
-                            crate::ast::template::AttributeValuePart::ExpressionTag(_)
-                        )
-                    {
-                        context.emit_warning(warnings::attribute_quoted());
+                    if is_custom_element_node(element) {
+                        super::shared::attribute::warn_attribute_quoted(context, attr_node);
                     }
                 }
                 // Mutable re-borrow so the visitor can populate

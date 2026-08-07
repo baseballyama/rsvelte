@@ -180,7 +180,7 @@ if (args.includes('--worker')) {
 if (!fs.existsSync(BINDING)) {
 	console.error(`[compile] rsvelte NAPI binding missing at ${BINDING}`);
 	console.error('  build: cargo build --release -p rsvelte_napi --lib');
-	console.error('  stage: cp target/release/librsvelte_core.{dylib,so} .corpus-cache/rsvelte.node');
+	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node');
 	process.exit(1);
 }
 
