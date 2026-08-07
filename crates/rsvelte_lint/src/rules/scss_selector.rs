@@ -590,7 +590,7 @@ fn parse_single_selector(
             _ => {
                 // Possibly a type selector (element name like `div`, `span`, etc.)
                 // Only extract if it looks like an identifier.
-                if is_ident_start(b) {
+                if is_css_ident_start(b) {
                     let name_start = pos;
                     let name_end = consume_ident(seg_bytes, name_start);
                     let name = &selector_text[seg.start + name_start..seg.start + name_end];
@@ -664,19 +664,19 @@ fn skip_bracket_group(bytes: &[u8], pos: usize) -> usize {
 fn consume_ident(bytes: &[u8], start: usize) -> usize {
     let len = bytes.len();
     let mut pos = start;
-    while pos < len && is_ident_char(bytes[pos]) {
+    while pos < len && is_css_ident_char(bytes[pos]) {
         pos += 1;
     }
     pos
 }
 
 /// True for characters that can start a CSS identifier.
-fn is_ident_start(b: u8) -> bool {
+fn is_css_ident_start(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'-' || b >= 0x80
 }
 
 /// True for characters that can continue a CSS identifier.
-fn is_ident_char(b: u8) -> bool {
+fn is_css_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b >= 0x80
 }
 

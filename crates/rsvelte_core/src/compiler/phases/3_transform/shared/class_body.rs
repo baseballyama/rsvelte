@@ -9,6 +9,7 @@
 use memchr::memmem;
 
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::utils::is_js_ident_continue;
 
 /// Skip a `'`/`"` string literal starting at `i`, returning the index just past
 /// its closing quote (or end of line / input for an unterminated literal).
@@ -60,13 +61,9 @@ fn slash_starts_regex(prev: Option<u8>) -> bool {
     }
 }
 
-fn is_ident_byte(c: char) -> bool {
-    c.is_alphanumeric() || c == '_' || c == '$'
-}
-
 /// Does `s` end with the standalone keyword `kw` (not the tail of a longer identifier)?
 fn ends_with_keyword(s: &str, kw: &str) -> bool {
-    s.ends_with(kw) && !s[..s.len() - kw.len()].ends_with(is_ident_byte)
+    s.ends_with(kw) && !s[..s.len() - kw.len()].ends_with(is_js_ident_continue)
 }
 
 /// Only the tail of the source before a `{` can be its header; bounding the
@@ -94,7 +91,9 @@ fn brace_opens_class_body(prefix: &str) -> bool {
     // `extends <expr>` between the (optional) name and the brace.
     let mut search = p.len();
     while let Some(idx) = p[..search].rfind("extends") {
-        if ends_with_keyword(&p[..idx + 7], "extends") && !p[idx + 7..].starts_with(is_ident_byte) {
+        if ends_with_keyword(&p[..idx + 7], "extends")
+            && !p[idx + 7..].starts_with(is_js_ident_continue)
+        {
             p = p[..idx].trim_end();
             break;
         }
@@ -104,7 +103,7 @@ fn brace_opens_class_body(prefix: &str) -> bool {
         return true;
     }
     // Optional class name.
-    let p = p.trim_end_matches(is_ident_byte).trim_end();
+    let p = p.trim_end_matches(is_js_ident_continue).trim_end();
     ends_with_keyword(p, "class")
 }
 

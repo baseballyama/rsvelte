@@ -1384,9 +1384,9 @@ fn has_await_at_depth(s: &str, skip_functions: bool) -> bool {
         // statement's top level and requires async handling.
         if function_depth == 0 && ch == b'a' && i + 5 <= len && &s[i..i + 5] == "await" {
             // Make sure it's a word boundary
-            let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
+            let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
             let after = if i + 5 < len { bytes[i + 5] } else { 0 };
-            let after_ok = !is_ident_char(after);
+            let after_ok = !is_ascii_ident_byte(after);
             if before_ok && after_ok {
                 return true;
             }
@@ -1403,7 +1403,7 @@ fn has_await_in_expr(s: &str) -> bool {
     has_await_at_depth(s, true)
 }
 
-fn is_ident_char(c: u8) -> bool {
+fn is_ascii_ident_byte(c: u8) -> bool {
     c.is_ascii_alphanumeric() || c == b'_' || c == b'$'
 }
 
@@ -1940,7 +1940,7 @@ fn is_function_var_declaration(s: &str) -> bool {
             || {
                 let bytes = after_eq.as_bytes();
                 let mut j = 0;
-                while j < bytes.len() && is_ident_char(bytes[j]) {
+                while j < bytes.len() && is_ascii_ident_byte(bytes[j]) {
                     j += 1;
                 }
                 j > 0 && j < bytes.len() && after_eq[j..].trim_start().starts_with("=>")
@@ -2441,9 +2441,9 @@ fn extract_all_identifiers_from_statement(stmt: &str) -> Vec<String> {
         }
 
         // Extract identifier tokens
-        if is_ident_start(ch) {
+        if is_ascii_ident_start_byte(ch) {
             let start = i;
-            while i < len && is_ident_char(bytes[i]) {
+            while i < len && is_ascii_ident_byte(bytes[i]) {
                 i += 1;
             }
             let token = &stmt[start..i];
@@ -2462,7 +2462,7 @@ fn extract_all_identifiers_from_statement(stmt: &str) -> Vec<String> {
 }
 
 /// Check if a byte can start a JS identifier (letter, underscore, or dollar sign).
-fn is_ident_start(c: u8) -> bool {
+fn is_ascii_ident_start_byte(c: u8) -> bool {
     c.is_ascii_alphabetic() || c == b'_' || c == b'$'
 }
 
@@ -2763,7 +2763,7 @@ fn extract_function_decl_name(s: &str) -> Option<String> {
 
     let mut i = 0;
     let bytes = rest.as_bytes();
-    while i < bytes.len() && is_ident_char(bytes[i]) {
+    while i < bytes.len() && is_ascii_ident_byte(bytes[i]) {
         i += 1;
     }
     if i > 0 {
@@ -2782,7 +2782,7 @@ fn extract_class_decl_name(s: &str) -> Option<String> {
     let rest = rest.trim_start();
     let bytes = rest.as_bytes();
     let mut i = 0;
-    while i < bytes.len() && is_ident_char(bytes[i]) {
+    while i < bytes.len() && is_ascii_ident_byte(bytes[i]) {
         i += 1;
     }
     if i == 0 {
@@ -2811,7 +2811,7 @@ fn extract_var_decl_name(s: &str) -> Option<String> {
     let rest = rest.trim();
     let mut i = 0;
     let bytes = rest.as_bytes();
-    while i < bytes.len() && is_ident_char(bytes[i]) {
+    while i < bytes.len() && is_ascii_ident_byte(bytes[i]) {
         i += 1;
     }
     if i > 0 {
