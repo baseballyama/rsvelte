@@ -9,7 +9,7 @@ use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::special_element::validate_special_element_placement;
-use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteElement};
+use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:self.
 pub fn visit<'a, 'b: 'a>(
@@ -42,13 +42,7 @@ pub fn visit<'a, 'b: 'a>(
     for attr in &mut self_.attributes {
         match attr {
             Attribute::Attribute(a) => {
-                // Check attribute_quoted for svelte:self
-                if let AttributeValue::Sequence(parts) = &a.value
-                    && parts.len() == 1
-                    && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
-                {
-                    context.emit_warning(warnings::attribute_quoted());
-                }
+                super::shared::attribute::warn_attribute_quoted(context, a);
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
