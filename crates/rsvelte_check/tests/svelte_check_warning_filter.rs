@@ -31,11 +31,18 @@ fn sidecar_script() -> PathBuf {
 }
 
 fn node_available() -> bool {
-    Command::new("node")
+    let ok = Command::new("node")
         .arg("--version")
         .output()
         .map(|o| o.status.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    // Only a job that promised Node may fail on its absence.
+    assert!(
+        ok || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "no `node` on $PATH in a job that declares RSVELTE_REQUIRE_PREREQS — all nine warningFilter \
+         sidecar assertions would be silently skipped."
+    );
+    ok
 }
 
 fn workspace(tag: &str) -> PathBuf {

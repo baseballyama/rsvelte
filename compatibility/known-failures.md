@@ -47,13 +47,16 @@ and #2343 (the spurious `$.set` proxy flag for a `BinaryExpression`). #2307
 (spurious `/* @__PURE__ */`) is comment-only, so the AST-structural comparator
 does not see it at all; it burns down with the esrap comment epic (#2336).
 
-## Server (`known-failures.server.json`, 1 entry)
+## Server (`known-failures.server.json`, 0 entries)
 
-The one entry is #2308, from the `runed` / `svelte-toolbelt` enrolment:
-`watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracts** it to
+The last entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
+`watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
-round-trips through the client transform, which rewrites the assignment, and the
-server printer has no way back to the source form.
+round-trips through the client transform, which rewrote the assignment, so the
+operator was already gone before the server printer ran. Fixed by lowering
+`$state` to its bare initializer *before* the client transform, so state
+bindings on this path are never signal-wrapped and nothing has to be
+reconstructed.
 
 Its previous sole entry was the SSR half of the same #2031 divergence (the extra
 `<!---->` the dynamic form pushes), fixed by the same change.
@@ -63,7 +66,7 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Client dev (`known-failures.client-dev.json`, 1 entry)
+## Client dev (`known-failures.client-dev.json`, 0 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -212,18 +215,36 @@ that separator still carry source-map segments.
 
 ### What is left
 
-One entry, contributed by the `runed` / `svelte-toolbelt` enrolment:
-`runed/sites/docs/src/lib/components/demos/scroll-state.svelte` writes
-`onsubmit={preventDefault(() => (scroll.x = x))}`, and rsvelte emits the bare
-`scroll.x = $.get(x)` where upstream wraps it as
-`$.assign(scroll, "x", "=", $.get(x), "…scroll-state.svelte:41:69")`. That is
-the `$.assign` row of #2064 — the coerced-away-proxy dev warning
-(`AssignmentExpression.js:170-236`) — reached here through an assignment nested
-inside a call argument in a template attribute expression. Every other
-dev-helper cluster the enrolment-era table tracked — the equality
-instrumentation, `$.track_reactivity_loss`, ownership mutation validation,
-`$.tag()` / `$.tag_proxy()`, `console.*` wrapping and the signal read/write
-row — is empty.
+Nothing. The last entry — `runed/…/demos/scroll-state.svelte`, which writes
+`onsubmit={preventDefault(() => (scroll.x = x))}` and had rsvelte emitting the
+bare `scroll.x = $.get(x)` where upstream wraps it as
+`$.assign(scroll, "x", "=", $.get(x), "…scroll-state.svelte:41:69")` — is fixed.
+The event-attribute exemption from the coerced-away-proxy dev warning
+(`AssignmentExpression.js:170-236`) was applied to every arrow anywhere in the
+attribute expression, but upstream requires the arrow to *be* that expression
+(`path.at(-2) === 'RegularElement'`), so an arrow passed as a call argument was
+never exempt. Every other dev-helper cluster the enrolment-era table tracked —
+the equality instrumentation, `$.track_reactivity_loss`, ownership mutation
+validation, `$.tag()` / `$.tag_proxy()`, `console.*` wrapping and the signal
+read/write row — was already empty.
+
+Two divergences remain here, both deferred only because **no corpus entry
+reaches them** — each has a check that distinguishes fixing from not, so neither
+is unverifiable:
+
+- **Over-reach.** The exemption is carried by a level flag that stays set for the
+  whole body conversion, so an assignment nested *inside* an exempt arrow's body
+  is exempted too. `onclick={() => (a.b = f(() => (c.d = e)))}` must emit
+  `$.assign(c, 'd'` and must not emit `$.assign(a, 'b'` — one input, both signs.
+  A boolean cannot express upstream's third conjunct, which is the *identity*
+  test `expression === context.path.at(-1)`; the exempt arrow has to be carried
+  by identity, not by a level.
+- **Under-reach, the opposite direction.** Upstream's guard names
+  `SvelteElement` alongside `RegularElement`, but `visit_event_attribute` is
+  reached only from `regular_element.rs`, so `<svelte:element this={tag}
+  onclick={() => (o.x = v)}>` is never exempt and emits
+  `$.assign(o, 'x', '=', v, …)` where upstream emits none. Measured, not
+  inferred.
 
 Counting method, for whoever picks this up: attribute an entry by **comparing
 how many times each helper appears** on each side, never by the first differing

@@ -24,7 +24,7 @@ export interface EcoComponent {
 	originalUrl: string;
 	/** Link to the rsvelte package source (optional). */
 	pkgUrl?: string;
-	/** npm install id, when published. */
+	/** Package identifier, when published. */
 	install?: string;
 	status: EcoStatus;
 	/** Short, plain-language description of what it does. */
@@ -52,7 +52,7 @@ export const shipped: EcoComponent[] = [
 		dropInFor: 'svelte/compiler',
 		originalUrl: 'https://svelte.dev/docs/svelte/svelte-compiler',
 		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/compiler',
-		install: 'npm i @rsvelte/compiler',
+		install: 'pnpm add @rsvelte/compiler',
 		status: 'shipped',
 		blurb:
 			'The whole compile pipeline — parse, analyze, transform — for client, SSR and hydration. Output matches the official compiler across the in-scope test suite.',
@@ -64,7 +64,7 @@ export const shipped: EcoComponent[] = [
 		dropInFor: 'svelte2tsx',
 		originalUrl: 'https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx',
 		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/svelte2tsx',
-		install: 'npm i @rsvelte/svelte2tsx',
+		install: 'pnpm add @rsvelte/svelte2tsx',
 		status: 'shipped',
 		blurb:
 			'Turns a .svelte component into the TSX shadow file the TypeScript checker reads, with column-accurate source maps.',
@@ -76,7 +76,7 @@ export const shipped: EcoComponent[] = [
 		dropInFor: 'svelte-check',
 		originalUrl: 'https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check',
 		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/svelte-check',
-		install: 'npm i -D @rsvelte/svelte-check',
+		install: 'pnpm add -D @rsvelte/svelte-check',
 		status: 'shipped',
 		blurb:
 			'The project type-checker CLI. A Rust walker + overlay drives tsc or the native tsgo for the TypeScript half; diagnostics map back to .svelte positions. Watch + incremental cache included.',
@@ -88,7 +88,7 @@ export const shipped: EcoComponent[] = [
 		dropInFor: 'prettier-plugin-svelte',
 		originalUrl: 'https://github.com/sveltejs/prettier-plugin-svelte',
 		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/fmt',
-		install: 'npm i -D @rsvelte/fmt',
+		install: 'pnpm add -D @rsvelte/fmt',
 		status: 'shipped',
 		blurb:
 			'A Rust-native formatter for .svelte files — in-process, with no Node startup and no Prettier doc-IR round-trip. Routes .js / .ts / .css to oxfmt, with both pipelines running in parallel.',
@@ -100,7 +100,7 @@ export const shipped: EcoComponent[] = [
 		dropInFor: '@sveltejs/vite-plugin-svelte',
 		originalUrl: 'https://github.com/sveltejs/vite-plugin-svelte',
 		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte',
-		install: 'npm i -D @rsvelte/vite-plugin-svelte',
+		install: 'pnpm add -D @rsvelte/vite-plugin-svelte',
 		status: 'shipped',
 		blurb:
 			'A fork of the Vite plugin whose every transform / HMR / preprocess call routes through the rsvelte compiler over NAPI. Your vite.config.js does not change.',
@@ -111,7 +111,7 @@ export const shipped: EcoComponent[] = [
 		dropInFor: 'svelte-language-server',
 		originalUrl: 'https://github.com/sveltejs/language-tools/tree/master/packages/language-server',
 		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/language-server',
-		install: 'npm i @rsvelte/language-server',
+		install: 'pnpm add @rsvelte/language-server',
 		status: 'shipped',
 		blurb:
 			'The editor LSP — diagnostics, hover, completion, rename — backed by the rsvelte compiler + svelte2tsx. Ships as the `rsvelte` VS Code extension (Marketplace + Open VSX) and as a standalone package.',

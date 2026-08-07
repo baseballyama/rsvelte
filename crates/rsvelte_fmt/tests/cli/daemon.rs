@@ -14,6 +14,12 @@ fn node_bin() -> Option<PathBuf> {
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
+    // Only a job that promised Node may fail on its absence.
+    assert!(
+        ok || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "no `node` on $PATH in a job that declares RSVELTE_REQUIRE_PREREQS — the daemon-path \
+         assertions would be silently skipped."
+    );
     ok.then(|| PathBuf::from("node"))
 }
 

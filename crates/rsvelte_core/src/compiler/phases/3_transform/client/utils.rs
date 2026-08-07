@@ -128,13 +128,15 @@ fn extract_identifiers(text: &str) -> FxHashSet<&str> {
 /// are acceptable (the downstream transform handles them correctly).
 #[inline(always)]
 fn is_ident_start_byte(b: u8) -> bool {
-    b.is_ascii_alphabetic() || b == b'_' || b == b'$'
+    // Every byte of a non-ASCII character is >= 0x80, so admitting them keeps
+    // whole characters inside the word without decoding.
+    b.is_ascii_alphabetic() || b == b'_' || b == b'$' || b >= 0x80
 }
 
 /// Check if a byte can continue a JavaScript identifier (a-z, A-Z, 0-9, _, $).
 #[inline(always)]
 fn is_ident_continue_byte(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80
 }
 
 /// Check if a binding is a state source that needs reactive tracking.

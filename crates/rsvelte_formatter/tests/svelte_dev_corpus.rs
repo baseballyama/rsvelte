@@ -39,9 +39,15 @@ fn repo_root() -> PathBuf {
 }
 
 fn svelte_dev_short_sha(root: &Path) -> Option<String> {
+    let submodule = root.join("submodules/svelte.dev");
+    // An uninitialised submodule is an empty directory, and `git -C` there walks
+    // up to the superproject and reports *its* HEAD — a valid-looking wrong SHA.
+    if !submodule.join(".git").exists() {
+        return None;
+    }
     let out = Command::new("git")
         .args(["-C"])
-        .arg(root.join("submodules/svelte.dev"))
+        .arg(&submodule)
         .args(["rev-parse", "HEAD"])
         .output()
         .ok()?;
@@ -54,6 +60,17 @@ fn svelte_dev_short_sha(root: &Path) -> Option<String> {
         return None;
     }
     Some(sha[..12].to_string())
+}
+
+/// May this run fail on a missing prerequisite? Two conditions, because either
+/// alone is wrong: `RSVELTE_REQUIRE_PREREQS` says the *job* promised its
+/// prerequisites (the sharded `test` job omits svelte.dev and must stay green),
+/// and `FMT_CORPUS_OXFMT` says the corpus is in scope for it. `FMT_CORPUS_OXFMT`
+/// is a user-facing knob, so gating on it alone would turn a contributor's local
+/// export into a panic where they used to get a skip.
+fn in_corpus_job() -> bool {
+    std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_some()
+        && std::env::var_os("FMT_CORPUS_OXFMT").is_some()
 }
 
 fn oxfmt_bin() -> PathBuf {
@@ -194,6 +211,12 @@ fn svelte_dev_corpus_parity() {
     let root = repo_root();
 
     let Some(short_sha) = svelte_dev_short_sha(&root) else {
+        assert!(
+            !in_corpus_job(),
+            "submodules/svelte.dev is not checked out in the job that sets \
+             FMT_CORPUS_OXFMT — the corpus parity assertions would be silently \
+             skipped."
+        );
         eprintln!(
             "[fmt-corpus] svelte.dev submodule not checked out; skipping. \
              Run: git submodule update --init submodules/svelte.dev"
@@ -202,6 +225,12 @@ fn svelte_dev_corpus_parity() {
     };
     let fixtures = root.join("fixtures/fmt-corpus").join(&short_sha);
     if !fixtures.join("files").is_dir() {
+        assert!(
+            !in_corpus_job(),
+            "no fixtures at fixtures/fmt-corpus/{short_sha} in the job that sets \
+             FMT_CORPUS_OXFMT — `generate-fmt-corpus` produced nothing, or wrote \
+             a different svelte.dev SHA."
+        );
         eprintln!(
             "[fmt-corpus] no fixtures at fixtures/fmt-corpus/{short_sha}; skipping. \
              Run: pnpm run generate-fmt-corpus"
@@ -211,6 +240,12 @@ fn svelte_dev_corpus_parity() {
 
     let oxfmt = oxfmt_bin();
     if !oxfmt_runnable(&oxfmt) {
+        assert!(
+            !in_corpus_job(),
+            "FMT_CORPUS_OXFMT is set but oxfmt is not runnable at {} — the \
+             oracle is broken, not absent.",
+            oxfmt.display()
+        );
         eprintln!(
             "[fmt-corpus] oxfmt not runnable at {} (set FMT_CORPUS_OXFMT); skipping.",
             oxfmt.display()

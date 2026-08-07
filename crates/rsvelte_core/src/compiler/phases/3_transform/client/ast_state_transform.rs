@@ -2022,8 +2022,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // Walk the argument so inner state-var refs (and nested awaits)
         // register their replacements, then drain them into the argument text.
         self.visit_expression(&expr.argument);
-        let arg_span = expr.argument.span();
-        let arg_text = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+        // Copy from just past the `await` keyword, not from the argument's own
+        // start: the trivia between them holds comments upstream keeps inside
+        // the call. Widening only the start is safe because the drained inner
+        // replacements are re-based on whatever start is passed here.
+        let arg_start = expr.span.start + "await".len() as u32;
+        let arg_text = self.apply_and_drain_inner_replacements(arg_start, expr.span.end);
 
         let wrap = format!("(await $.track_reactivity_loss({}))()", arg_text.trim());
         // The `;` rides inside this replacement rather than being appended to

@@ -25,7 +25,6 @@
 	import AstViewer from '$lib/components/AstViewer.svelte';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
-	import Eyebrow from '$lib/components/Eyebrow.svelte';
 
 	let tool = $state<ToolId>('compiler');
 	let input = $state(DEFAULT_EXAMPLE);
@@ -283,16 +282,16 @@
 
 	const lintCount = $derived(lintDiagnostics.length);
 
-	const tabs = $derived<{ id: OutputTab; label: string; sub: string }[]>([
-		{ id: 'result', label: 'Result', sub: 'iframe preview' },
-		{ id: 'js', label: 'JS output', sub: 'compiled .js' },
-		{ id: 'css', label: 'CSS output', sub: 'scoped styles' },
-		{ id: 'ast', label: 'AST', sub: 'svelte AST · JSON' }
+	const tabs = $derived<{ id: OutputTab; label: string }[]>([
+		{ id: 'result', label: 'Result' },
+		{ id: 'js', label: 'JavaScript' },
+		{ id: 'css', label: 'CSS' },
+		{ id: 'ast', label: 'AST' }
 	]);
 
 	const cliFor = (id: ToolId): { lang: string; code: string } => {
 		if (id === 'svelte-check') {
-			return { lang: 'bash', code: 'npm i -D @rsvelte/svelte-check\nrsvelte-check --watch' };
+			return { lang: 'bash', code: 'pnpm add -D @rsvelte/svelte-check\nrsvelte-check --watch' };
 		}
 		return {
 			lang: 'js',
@@ -313,54 +312,49 @@
 	<SiteNav active="playground" />
 
 	<header class="play-head">
-		<div class="play-head-l">
-			<Eyebrow gap="0.6rem" fontSize="0.7rem" letterSpacing="0.1em" ruleWidth="20px"
-				>Live · WASM-compiled</Eyebrow
-			>
+		<div class="play-summary">
+			<nav class="breadcrumbs" aria-label="Breadcrumb">
+				<a href="{base}/">Documentation</a><span>/</span><span>Playground</span>
+			</nav>
 			<h1 class="title">Playground</h1>
-			{#if version}
-				<span class="version">v{version}</span>
-			{/if}
+			<p class="play-description">
+				Edit a Svelte component and inspect the generated output.{#if version}
+					<span class="version">rsvelte {version}</span>{/if}
+			</p>
 		</div>
 
-		<div class="head-r">
-			<div class="tool-switch" role="tablist" aria-label="Tool">
-				{#each TOOLS as t (t.id)}
-					<button
-						role="tab"
-						aria-selected={tool === t.id}
-						class:active={tool === t.id}
-						class:muted={!t.runnable}
-						title={t.tagline}
-						onclick={() => selectTool(t.id)}
-					>
-						{t.label}
-						{#if !t.runnable}<span class="cli-dot" aria-hidden="true">CLI</span>{/if}
-					</button>
-				{/each}
-			</div>
+		{#if currentTool.runnable}
+			<button
+				class="share"
+				class:copied
+				onclick={copyShareLink}
+				title="Copy a link to this code"
+			>
+				{copied ? 'Link copied' : 'Share'}
+			</button>
+		{/if}
 
-			{#if currentTool.runnable}
+		<div class="tool-switch" role="tablist" aria-label="Tool">
+			{#each TOOLS as t (t.id)}
 				<button
-					class="share"
-					class:copied
-					onclick={copyShareLink}
-					title="Copy a link to this code"
+					role="tab"
+					aria-selected={tool === t.id}
+					class:active={tool === t.id}
+					class:muted={!t.runnable}
+					title={t.tagline}
+					onclick={() => selectTool(t.id)}
 				>
-					{copied ? 'Link copied' : 'Share'}
+					{t.label}
 				</button>
-			{/if}
+			{/each}
 		</div>
 	</header>
 
 	{#if currentTool.runnable}
 		<main class="workspace">
-			<!-- LEFT — source editor -->
 			<section class="panel panel-input">
 				<header class="panel-head">
-					<span class="panel-num">01</span>
-					<h2 class="panel-title">Source <em>.svelte</em></h2>
-					<span class="panel-meta">debounced 300 ms</span>
+					<h2 class="panel-title">App.svelte</h2>
 				</header>
 				<div class="panel-body editor-host">
 					{#if wasmReady}
@@ -376,7 +370,6 @@
 				</div>
 			</section>
 
-			<!-- RIGHT — output, depends on the active tool -->
 			<section class="panel panel-output">
 				{#if tool === 'compiler'}
 					<header class="panel-head tab-head" role="tablist" aria-label="Output tab">
@@ -388,8 +381,7 @@
 								aria-selected={activeTab === t.id}
 								onclick={() => (activeTab = t.id)}
 							>
-								<span class="tab-label">{t.label}</span>
-								<span class="tab-sub">{t.sub}</span>
+								{t.label}
 							</button>
 						{/each}
 						<div class="head-aside" role="radiogroup" aria-label="Compilation mode">
@@ -403,8 +395,7 @@
 					</header>
 				{:else if tool === 'svelte2tsx'}
 					<header class="panel-head">
-						<span class="panel-num">02</span>
-						<h2 class="panel-title">TSX <em>shadow</em></h2>
+						<h2 class="panel-title">TSX output</h2>
 						<div class="head-aside">
 							<button class:active={tsxMode === 'ts'} onclick={() => (tsxMode = 'ts')}>ts</button>
 							<button class:active={tsxMode === 'dts'} onclick={() => (tsxMode = 'dts')}>
@@ -414,16 +405,14 @@
 					</header>
 				{:else if tool === 'fmt'}
 					<header class="panel-head">
-						<span class="panel-num">02</span>
-						<h2 class="panel-title">Formatted <em>output</em></h2>
+						<h2 class="panel-title">Formatted source</h2>
 						<button class="apply" disabled={!fmtChanged} onclick={applyFormatted}>
 							Apply to source
 						</button>
 					</header>
 				{:else if tool === 'lint'}
 					<header class="panel-head">
-						<span class="panel-num">02</span>
-						<h2 class="panel-title">Lint <em>diagnostics</em></h2>
+						<h2 class="panel-title">Lint diagnostics</h2>
 						<span class="panel-meta">{lintCount === 1 ? '1 finding' : `${lintCount} findings`}</span>
 					</header>
 				{/if}
@@ -528,43 +517,27 @@
 
 				<footer class="panel-foot">
 					{#if tool === 'compiler'}
-						<span>
-							<span class="dim">compile</span>
-							<strong>{stats.compileTime.toFixed(2)}<span class="unit">ms</span></strong>
-						</span>
-						<span>
-							<span class="dim">js</span>
-							<strong>{formatBytes(stats.outputSize)}</strong>
-						</span>
+						<span>Compile: {stats.compileTime.toFixed(2)} ms</span>
+						<span>Output: {formatBytes(stats.outputSize)}</span>
 					{:else if tool === 'svelte2tsx'}
-						<span><span class="dim">props</span> <strong>{tsxNames.length}</strong></span>
+						<span>{tsxNames.length} exported {tsxNames.length === 1 ? 'prop' : 'props'}</span>
 					{:else if tool === 'fmt'}
-						<span>
-							<span class="dim">status</span>
-							<strong>{fmtChanged ? 'reformatted' : 'already formatted'}</strong>
-						</span>
+						<span>{fmtChanged ? 'Formatting changes available' : 'Source is formatted'}</span>
 						{#if fmtVersion}
-							<span><span class="dim">format</span> <strong>v{fmtVersion}</strong></span>
+							<span>Formatter {fmtVersion}</span>
 						{/if}
-						<span class="note">&lt;style&gt; left verbatim in-browser</span>
 					{:else if tool === 'lint'}
-						<span><span class="dim">findings</span> <strong>{lintCount}</strong></span>
+						<span>{lintCount} {lintCount === 1 ? 'finding' : 'findings'}</span>
 					{/if}
 					<span class="grow"></span>
-					<span class="status-dot" class:ok={wasmReady && !error} class:err={!!error}></span>
-					<span class="status-text">
-						{#if !wasmReady}Initialising{:else if error}Error{:else}Live{/if}
-					</span>
+					<span>{#if !wasmReady}Loading{:else if error}Error{:else}Ready{/if}</span>
 				</footer>
 			</section>
 		</main>
 	{:else}
-		<!-- Non-runnable tools: explain why and link the guide + CLI -->
 		<main class="explainer">
 			<div class="explain-card">
-				<Eyebrow gap="0.6rem" fontSize="0.7rem" letterSpacing="0.1em" ruleWidth="20px"
-					>{currentTool.pkg}</Eyebrow
-				>
+				<p class="package-name">{currentTool.pkg}</p>
 				<h2 class="explain-title">{currentTool.label} can't run in a browser</h2>
 				<p class="explain-body">{currentTool.cantRunReason}</p>
 				<div class="explain-actions">
@@ -590,60 +563,71 @@
 		font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 	}
 
-	/* PAGE HEAD */
 	.play-head {
-		max-width: 100%;
+		max-width: 1440px;
 		margin: 0 auto;
 		width: 100%;
-		padding: clamp(1.4rem, 3vh, 2rem) clamp(1rem, 3vw, 2rem) clamp(0.8rem, 2vh, 1.2rem);
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: 1.2rem;
-	}
-
-	.play-head-l {
-		display: flex;
-		align-items: baseline;
-		gap: 1rem;
-		flex-wrap: wrap;
+		box-sizing: border-box;
+		padding: 2.75rem clamp(1rem, 3vw, 2rem) 1rem;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: end;
+		gap: 1rem 2rem;
 	}
 
 	.title {
-		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 800;
-		font-size: clamp(1.5rem, 2.5vw, 2rem);
-		letter-spacing: -0.025em;
+		font-family: var(--font-ui);
+		font-weight: 700;
+		font-size: clamp(2rem, 4vw, 2.75rem);
+		line-height: 1.15;
+		letter-spacing: -0.035em;
 		color: var(--ink);
 		margin: 0;
 	}
 
-	.version {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.74rem;
-		color: var(--rust);
-		padding: 0.2rem 0.5rem;
-		border: 1px solid currentColor;
-		border-radius: 2px;
-		line-height: 1;
+	.play-description {
+		max-width: 68ch;
+		margin: 0.7rem 0 0;
+		font-size: 1rem;
+		line-height: 1.65;
+		color: var(--ink-soft);
 	}
 
-	.head-r {
-		display: inline-flex;
+	.breadcrumbs {
+		display: flex;
+		gap: 0.45rem;
 		align-items: center;
-		gap: 0.6rem;
-		flex-wrap: wrap;
+		margin-bottom: 1.4rem;
+		font-size: 0.8rem;
+		color: var(--ink-faint);
 	}
 
-	/* SHARE */
+	.breadcrumbs a {
+		color: var(--ink-soft);
+		text-decoration: none;
+	}
+
+	.breadcrumbs a:hover {
+		color: var(--accent);
+		text-decoration: underline;
+	}
+
+	.version {
+		margin-left: 0.55rem;
+		font-family: var(--font-code);
+		font-size: 0.72rem;
+		color: var(--ink-faint);
+	}
+
 	.share {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.76rem;
-		padding: 0.45rem 0.85rem;
+		grid-column: 2;
+		grid-row: 1;
+		font-family: var(--font-ui);
+		font-size: 0.78rem;
+		padding: 0.42rem 0.8rem;
 		border: 1px solid var(--rule-strong);
-		border-radius: 6px;
-		background: var(--paper);
+		border-radius: 4px;
+		background: var(--bg);
 		color: var(--ink-soft);
 		cursor: pointer;
 		white-space: nowrap;
@@ -663,32 +647,28 @@
 		border-color: var(--ok);
 	}
 
-	/* TOOL SWITCHER */
 	.tool-switch {
-		display: inline-flex;
-		flex-wrap: wrap;
-		gap: 0.3rem;
-		padding: 0.25rem;
-		border: 1px solid var(--rule-strong);
-		border-radius: 6px;
-		background: var(--paper);
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+		gap: 0;
+		width: 100%;
+		border-bottom: 1px solid var(--rule);
 	}
 
 	.tool-switch button {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.76rem;
-		padding: 0.4rem 0.7rem;
+		font-family: var(--font-ui);
+		font-size: 0.78rem;
+		font-weight: 500;
+		padding: 0.45rem 0.7rem;
 		background: transparent;
 		border: 0;
-		border-radius: 4px;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -1px;
 		color: var(--ink-soft);
 		cursor: pointer;
-		transition:
-			background 0.16s,
-			color 0.16s;
+		text-align: center;
+		white-space: nowrap;
 	}
 
 	.tool-switch button:hover {
@@ -696,29 +676,19 @@
 	}
 
 	.tool-switch button.active {
-		background: var(--bg);
 		color: var(--ink);
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+		border-bottom-color: var(--accent);
 	}
 
-	.tool-switch button.active.muted {
-		color: var(--ink-soft);
-	}
-
-	.cli-dot {
-		font-size: 0.56rem;
-		letter-spacing: 0.06em;
+	.tool-switch button.muted:not(.active) {
 		color: var(--ink-faint);
-		border: 1px solid var(--rule-strong);
-		border-radius: 999px;
-		padding: 0.05rem 0.3rem;
 	}
 
-	/* WORKSPACE — two equal columns, full width */
 	.workspace {
-		max-width: 100%;
+		max-width: 1440px;
 		margin: 0 auto;
 		width: 100%;
+		box-sizing: border-box;
 		padding: 0 clamp(1rem, 3vw, 2rem) clamp(1.5rem, 4vh, 2.5rem);
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -734,7 +704,7 @@
 		min-width: 0;
 		background: var(--bg);
 		border: 1px solid var(--rule);
-		border-radius: 6px;
+		border-radius: 4px;
 		overflow: hidden;
 	}
 
@@ -753,27 +723,14 @@
 		flex-shrink: 0;
 	}
 
-	.panel-num {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.66rem;
-		letter-spacing: 0.16em;
-		color: var(--rust);
-	}
-
 	.panel-title {
-		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 700;
+		font-family: var(--font-ui);
+		font-weight: 650;
 		font-size: 0.92rem;
 		letter-spacing: -0.01em;
 		color: var(--ink);
 		margin: 0;
 		flex: 1;
-	}
-
-	.panel-title em {
-		font-style: italic;
-		color: var(--svelte);
-		font-weight: 700;
 	}
 
 	.panel-meta {
@@ -782,7 +739,6 @@
 		color: var(--ink-faint);
 	}
 
-	/* small inline button groups in panel heads (mode / ts-dts) */
 	.head-aside {
 		display: inline-flex;
 		border: 1px solid var(--rule-strong);
@@ -815,8 +771,9 @@
 	}
 
 	.head-aside button.active {
-		background: var(--ink);
-		color: var(--bg);
+		background: var(--paper);
+		box-shadow: inset 0 -2px var(--accent);
+		color: var(--ink);
 	}
 
 	.apply {
@@ -841,7 +798,6 @@
 		cursor: not-allowed;
 	}
 
-	/* RIGHT-PANEL TABS */
 	.tab-head {
 		gap: 0;
 		padding: 0;
@@ -851,22 +807,17 @@
 	.tab {
 		flex: 1;
 		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.12rem;
-		align-items: flex-start;
-		padding: 0.6rem 0.95rem;
+		padding: 0.72rem 0.95rem;
 		background: transparent;
 		border: 0;
 		border-right: 1px solid var(--rule);
 		border-bottom: 1px solid transparent;
+		font-family: var(--font-ui);
+		font-size: 0.8rem;
+		font-weight: 550;
 		color: var(--ink-soft);
 		cursor: pointer;
 		text-align: left;
-		transition:
-			background 0.18s,
-			color 0.18s,
-			border-color 0.18s;
 	}
 
 	.tab:hover {
@@ -878,23 +829,6 @@
 		background: var(--bg);
 		color: var(--ink);
 		border-bottom-color: var(--svelte);
-	}
-
-	.tab-label {
-		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 600;
-		font-size: 0.86rem;
-		letter-spacing: -0.005em;
-	}
-
-	.tab-sub {
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.62rem;
-		color: var(--ink-faint);
-	}
-
-	.tab.active .tab-sub {
-		color: var(--ink-soft);
 	}
 
 	.tab-head .head-aside {
@@ -1099,56 +1033,15 @@
 		gap: 1rem;
 		padding: 0.55rem 0.9rem;
 		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.76rem;
-		color: var(--ink);
+		font-size: 0.7rem;
+		color: var(--ink-soft);
 		background: var(--paper);
 		border-top: 1px solid var(--rule);
 		flex-shrink: 0;
 	}
 
-	.panel-foot .dim {
-		color: var(--ink-faint);
-		margin-right: 0.4em;
-	}
-
-	.panel-foot strong {
-		font-weight: 600;
-		color: var(--ink);
-	}
-
-	.panel-foot .note {
-		color: var(--ink-faint);
-		font-size: 0.7rem;
-	}
-
-	.unit {
-		font-weight: 400;
-		color: var(--ink-soft);
-		margin-left: 0.15em;
-	}
-
 	.grow {
 		flex: 1;
-	}
-
-	.status-dot {
-		display: inline-block;
-		width: 7px;
-		height: 7px;
-		border-radius: 999px;
-		background: var(--ink-faint);
-	}
-
-	.status-dot.ok {
-		background: var(--ok);
-	}
-
-	.status-dot.err {
-		background: var(--bad);
-	}
-
-	.status-text {
-		color: var(--ink-soft);
 	}
 
 	/* NON-RUNNABLE TOOL EXPLAINER */
@@ -1163,19 +1056,23 @@
 	.explain-card {
 		width: 100%;
 		max-width: 40rem;
-		border: 1px solid var(--rule);
-		border-radius: 10px;
-		background: var(--bg);
-		padding: clamp(1.4rem, 3vw, 2.2rem);
+		padding: clamp(1rem, 3vw, 2rem) 0;
+	}
+
+	.package-name {
+		margin: 0 0 0.55rem;
+		font-family: var(--font-code);
+		font-size: 0.75rem;
+		color: var(--ink-faint);
 	}
 
 	.explain-title {
-		font-family: 'Hanken Grotesk', sans-serif;
-		font-weight: 800;
+		font-family: var(--font-ui);
+		font-weight: 700;
 		font-size: clamp(1.3rem, 3vw, 1.7rem);
 		letter-spacing: -0.02em;
 		color: var(--ink);
-		margin: 0.5rem 0 0.7rem;
+		margin: 0 0 0.7rem;
 	}
 
 	.explain-body {
@@ -1209,6 +1106,10 @@
 
 	/* RESPONSIVE */
 	@media (max-width: 880px) {
+		.tool-switch {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
 		.workspace {
 			grid-template-columns: 1fr;
 		}
@@ -1222,6 +1123,16 @@
 		.tab {
 			flex: 1 1 50%;
 			border-bottom: 1px solid var(--rule);
+		}
+	}
+
+	@media (max-width: 520px) {
+		.play-head {
+			grid-template-columns: minmax(0, 1fr) auto;
+		}
+
+		.tool-switch {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 </style>

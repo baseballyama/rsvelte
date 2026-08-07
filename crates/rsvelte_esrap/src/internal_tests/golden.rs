@@ -103,7 +103,22 @@ fn reprint(source: &str) -> Option<Reprint> {
 
 #[test]
 fn golden_roundtrip_ratchet() {
+    // `EXACT_FLOOR` is calibrated against the committed `_expected` snapshots,
+    // so an external corpus satisfies it while measuring a different population.
+    assert!(
+        !using_external_oracle() || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "ESRAP_ORACLE_DIR replaces the conformance corpus in a job that declares \
+         RSVELTE_REQUIRE_PREREQS — the EXACT_FLOOR ratchet would no longer measure \
+         the corpus it was calibrated on."
+    );
+
     let Some(dir) = samples_dir() else {
+        // Only a job that promised this submodule may fail on its absence.
+        assert!(
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "submodules/svelte is not checked out in a job that declares \
+             RSVELTE_REQUIRE_PREREQS — the EXACT_FLOOR ratchet would be silently skipped."
+        );
         eprintln!("snapshot samples not found (submodule not initialised); skipping golden test");
         return;
     };

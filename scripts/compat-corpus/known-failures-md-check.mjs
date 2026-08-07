@@ -119,6 +119,31 @@ if (fs.existsSync(WARNING_MD_PATH)) {
 			}
 		}
 	}
+
+	// Header counts come from the JSON, so they are already guarded above. The
+	// numbers that drift are the per-cause tuple counts, which no ratchet can
+	// derive — they come from a run against the oracle. What *is* checkable
+	// without one is that a stated total equals the addends printed beside it,
+	// which is where the itemised lists have gone wrong: a list that reads as
+	// exhaustive, is not, and sums to less than the total it claims.
+	// Convention: write `summing to <total> (\`a + b + NxM\`)`.
+	const SUM_RE = /summing to (?:all )?([\d,]+)\s*\(`([\d\sx+]+)`\)/g;
+	for (const [, statedRaw, expression] of warningMd.matchAll(SUM_RE)) {
+		const stated = Number(statedRaw.replace(/,/g, ''));
+		const total = expression
+			.split('+')
+			.map((term) => {
+				const [a, b] = term.trim().split('x');
+				return b === undefined ? Number(a) : Number(a) * Number(b);
+			})
+			.reduce((a, b) => a + b, 0);
+		if (total !== stated) {
+			console.error(
+				`[known-failures-md-check] warning-known-failures.md claims ${stated} but \`${expression}\` sums to ${total}`,
+			);
+			failed = true;
+		}
+	}
 }
 
 // The generated shape matrix (matrix/run.mjs, #2281 Gate 2) gets the same

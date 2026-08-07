@@ -9,8 +9,8 @@ name: Changeset Gate
 # re-trigger the gate, since the default `pull_request` trigger types
 # (`opened`/`synchronize`/`reopened`) don't include `labeled`.
 on:
+  # Unfiltered: see ci.yml.
   pull_request:
-    branches: [main]
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 concurrency:

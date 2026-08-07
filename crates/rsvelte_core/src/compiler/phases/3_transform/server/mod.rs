@@ -109,6 +109,17 @@ pub fn transform_server_module(
     // (mirrors the instance-script path + upstream server CallExpression visitor).
     let source_without_effects = source_without_effects.replace("$effect.tracking()", "false");
 
+    // Lower `$state` to its bare initializer BEFORE the client transform, the way
+    // upstream's server `VariableDeclaration` visitor does. Otherwise the client
+    // transform signal-wraps the binding and collapses both `x = x + 1` and
+    // `x += 1` to the same `$.set(x, $.get(x) + 1)`, losing the operator that
+    // `post_process_for_server` would have to restore.
+    let source_without_effects = rune_call_ast::transform_rune_calls_combined(
+        &source_without_effects,
+        &["$state(", "$state.raw(", "$state.eager("],
+    )
+    .unwrap_or(source_without_effects);
+
     // Transform rune calls using the same infrastructure as client modules.
     let transformed =
         super::client::transform_module_source_for_module(&source_without_effects, analysis, false);
