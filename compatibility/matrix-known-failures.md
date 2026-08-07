@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 580 entries)
+## Matrix known failures (`matrix-known-failures.json`, 458 entries)
 
 ### `binding-position` — 2 entries
 
@@ -47,10 +47,11 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 578 entries
+### `comment-slot` — 456 entries
 
-Three sub-clusters with distinct causes: the `.svelte` template seeds below, the
-`.svelte.(js|ts)` module path (#2399) and the class-field relocation (#2437).
+Two sub-clusters with distinct causes: the `.svelte` template seeds below and the
+remainder of the `.svelte.(js|ts)` module path (#2399). The class-field relocation
+(#2437) cleared entirely.
 
 #### `.svelte` template seeds — 328 entries
 
@@ -97,10 +98,10 @@ Server dominates (248 of 348) for a known structural reason: the SSR path recons
 statements it cannot carry comments through. See `server/ast/comments.rs` and the
 comment-carry-over work in #2312, which is the burn-down vehicle for the 224 server drops.
 
-#### module path (`.svelte.(js|ts)`) — 240 entries, all #2399
+#### module path (`.svelte.(js|ts)`) — 128 entries, all #2399
 
 Added with the module seeds that gave this family its `.svelte.(js|ts)` cases. Every one of
-these 240 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
+these 128 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
 official drops a Program-level comment in the module path and rsvelte keeps it.** They are
 listed as *expected to shrink when #2399 lands*, not as accepted behaviour. Do not treat this
 block as a specification of rsvelte's output.
@@ -115,40 +116,6 @@ not drop *every* Program-level comment.** Over the 192 generated module cases it
 **80** and preserves in **112** — position-dependent, and uniform across all 8 comment kinds
 (7 drops each). A fix built on "drop them all" would be wrong in 112 of 192 positions; the
 correct fix reproduces a position rule.
-
-#### class-field comment relocation — 10 entries, all #2437
-
-`module-class-state__L02__*` for the five **line**-comment kinds (`line`, `line-with-brace`,
-`line-with-paren`, `line-with-semi`, `svelte-ignore`) on `client` and `client-dev`. Block
-comments at the same slot are unaffected.
-
-**This is not a preservation gap and must not be closed against #2399.** Both compilers *keep*
-the comment. rsvelte **relocates** it: a line comment that precedes a rune-initialized class
-field is moved off its own line and into the field's initializer position.
-
-```js
-// official                        // rsvelte (client-dev)
-export class Counter {             export class Counter {
-	// c                            	#n = // c
-	#n = $.state(0);                	$.state(0);
-```
-
-on `client` it lands as a trailing comment instead: `#n = $.state(0); // c`.
-
-**rsvelte's output here is wrong, not accepted.** These entries are parked so the module seeds
-could land; they are tracked by
-[#2437](https://github.com/baseballyama/rsvelte/issues/2437) and clear when it does.
-
-Two facts that make this a shipped bug rather than a matrix artefact, and that belong with any
-attempt to fix it:
-
-- **It reproduces through `compile`, not only `compileModule`** — the same class inside a
-  `<script module>` block of a `.svelte` component diverges identically. So it is neither
-  module-specific nor a consequence of this family's `compileModule` dispatch.
-- **The collected corpus cannot see it even where the shape occurs**, because `verify.mjs`
-  invokes `ast_equiv_batch` with empty argv and `CommentPolicy::Ignore` therefore applies
-  (#2424, documented by #2436). A comment-position divergence is scored a pass corpus-wide, so
-  this generated family is currently the only place in the project where one is observable.
 
 ## Burn-down
 
