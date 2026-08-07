@@ -295,8 +295,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
         rustc_hash::FxHashSet::default()
     };
 
-    let can_have_features = memchr::memchr(b'$', source.as_bytes()).is_some()
-        || memchr::memmem::find(source.as_bytes(), b"await").is_some();
+    let can_have_features = feature_walk_can_find_anything(source, needs_rune_detection);
 
     // Check the template fragment for both await expressions and rune references
     // in a single traversal (previously done as two separate walks).
@@ -3066,6 +3065,35 @@ fn expression_check_features(
         // `resolve_lazy_expressions` runs before analyze, so Lazy should never
         // reach here. Return empty results defensively rather than panicking.
         Expression::Lazy { .. } => JsonCheckResults::default(),
+    }
+}
+
+/// Whether the await / rune-reference walk can still find something this
+/// compile will read.
+///
+/// Every rune name starts with `$`, so ORing the two probes let the `$` half —
+/// true for most files — decide alone and cost `await`, present in about 1% of
+/// them, its say entirely. `await` only earns one once `$` can be false: with
+/// rune detection off, the walk's sole surviving output is `has_await`, which an
+/// `await`-free source already settles.
+fn feature_walk_can_find_anything(source: &str, needs_rune_detection: bool) -> bool {
+    (needs_rune_detection && memchr::memchr(b'$', source.as_bytes()).is_some())
+        || memchr::memmem::find(source.as_bytes(), b"await").is_some()
+}
+
+#[cfg(test)]
+mod feature_walk_gate_tests {
+    use super::feature_walk_can_find_anything;
+
+    #[test]
+    fn a_rune_looking_source_only_needs_the_walk_while_rune_detection_is_on() {
+        // The case the gate exists for: runes mode already decided, no `await`.
+        assert!(!feature_walk_can_find_anything("let x = $state(0);", false));
+        // Positive controls — each half must be able to open the gate on its own.
+        assert!(feature_walk_can_find_anything("let x = $state(0);", true));
+        assert!(feature_walk_can_find_anything("await go();", false));
+        // And a source with neither never opens it.
+        assert!(!feature_walk_can_find_anything("let x = 1;", true));
     }
 }
 
