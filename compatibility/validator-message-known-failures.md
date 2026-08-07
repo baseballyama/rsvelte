@@ -44,14 +44,6 @@ the generated tree rather than the sample directory.
 
 ## Entries
 
-### `attribute-quoted` — `attribute_quoted`
-
-- rsvelte: `Quoted attribute values will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes`
-- official: `Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes`
-
-rsvelte's wording claims the warning applies to plain elements; it only ever applies to
-components and custom elements. Tracked in #2391.
-
 ### `svelte-self-deprecated` — `svelte_self_deprecated`
 
 - rsvelte: ``<svelte:self>` is deprecated — use self-imports (e.g. `import Input from './Input.svelte'`) instead`
