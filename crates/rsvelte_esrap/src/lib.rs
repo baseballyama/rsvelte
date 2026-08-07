@@ -56,6 +56,13 @@ pub struct PrintOptions {
     /// real `EmptyStatement` nodes that the official *compiler* output keeps, so
     /// that path sets this to byte-match. Default `false` (filter, = esrap/server).
     keep_empty_statements: bool,
+    /// Treat the top-level `Program` as carrying no location, like the
+    /// builder-made program upstream hands esrap. Its statement list then
+    /// discards every pending comment (esrap's `!node.loc` branch), so only a
+    /// nested body that does carry one re-finds its own comments. Only a caller
+    /// whose nested bodies keep real locations may set this — otherwise the
+    /// comments have nothing to be recovered by. Default `false`.
+    unlocated_program: bool,
 }
 
 impl Default for PrintOptions {
@@ -63,6 +70,7 @@ impl Default for PrintOptions {
         Self {
             indent: String::from("\t"),
             keep_empty_statements: false,
+            unlocated_program: false,
         }
     }
 }
@@ -72,6 +80,17 @@ impl PrintOptions {
     #[must_use]
     pub fn with_empty_statements(mut self, keep: bool) -> Self {
         self.keep_empty_statements = keep;
+        self
+    }
+
+    /// Treat the top-level `Program` as carrying no location, like the
+    /// builder-made program upstream hands esrap: its statement list then
+    /// discards every pending comment, and only a nested body that does carry a
+    /// location re-finds its own. Only a caller whose nested bodies keep real
+    /// locations may set this — otherwise nothing can recover the comments.
+    #[must_use]
+    pub fn with_unlocated_program(mut self, unlocated: bool) -> Self {
+        self.unlocated_program = unlocated;
         self
     }
 }
