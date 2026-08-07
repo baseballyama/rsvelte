@@ -29,7 +29,7 @@ message text are not part of the key — see the header of `check-verify.mjs`.
 | `skeleton/playground` | `playgrounds/skeleton-svelte` of [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) — a SvelteKit app inside a pnpm workspace | Cross-package resolution: imports two **sibling workspace packages** whose `exports` point at the sibling's `src/index.ts`, so sibling `.svelte`/`.ts` sources really enter the program |
 | `skeleton/library` | `packages/skeleton-svelte` of the same monorepo — 300+ components | The library the playground resolves into: `.ts` barrels re-exporting types out of `<script module>`, `.svelte.ts` rune modules, `$props.id()` |
 
-## Current baseline: 0 entries / 0 surplus diagnostics — full parity
+## Current baseline: `check-e2e-known-failures.json`, 0 entries / 0 surplus diagnostics — full parity
 
 The gate landed with 404 entries across four clusters and is now empty. Every
 unit agrees with official `svelte-check` diagnostic-for-diagnostic, so this is a

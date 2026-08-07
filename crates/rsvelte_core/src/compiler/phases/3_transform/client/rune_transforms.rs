@@ -8,6 +8,7 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Transform runes for client-side usage with skip and state variable handling.
@@ -1400,19 +1401,64 @@ fn split_top_level_commas(inner: &str) -> Vec<&str> {
     segments
 }
 
+/// Drop comments from one destructuring-pattern segment.
+///
+/// `split_top_level_commas` skips comments when locating the separators, but the
+/// segment it returns still contains them and every consumer reads a segment as
+/// pattern text — so a `//` comment became a binding name and commented out the
+/// rest of the emitted line, `;` included.
+fn strip_pattern_comments(segment: &str) -> String {
+    let bytes = segment.as_bytes();
+    if !bytes.contains(&b'/') {
+        return segment.to_string();
+    }
+
+    let mut out = String::with_capacity(segment.len());
+    let mut kept_from = 0usize;
+    let mut prev: Option<u8> = None;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match skip_opaque(bytes, i, prev) {
+            // `skip_opaque`'s end is exclusive, so a `//` comment's newline is
+            // not part of it and survives — the next line still starts on its own.
+            Some((end, true)) => {
+                out.push_str(&segment[kept_from..i]);
+                // A separator, so stripping cannot glue two tokens together.
+                out.push(' ');
+                kept_from = end;
+                i = end;
+            }
+            // A string, template or regex literal is skipped over, not removed.
+            Some((end, false)) => {
+                prev = Some(bytes[end - 1]);
+                i = end;
+            }
+            None => {
+                if !bytes[i].is_ascii_whitespace() {
+                    prev = Some(bytes[i]);
+                }
+                i += 1;
+            }
+        }
+    }
+    out.push_str(&segment[kept_from..]);
+    out
+}
+
 pub(super) fn split_derived_object_properties(inner: &str) -> Vec<String> {
     split_top_level_commas(inner)
         .into_iter()
-        .map(str::trim)
+        .map(strip_pattern_comments)
+        .map(|segment| segment.trim().to_string())
         .filter(|segment| !segment.is_empty())
-        .map(str::to_string)
         .collect()
 }
 
 pub(super) fn split_derived_array_elements(inner: &str) -> Vec<String> {
+    // Not trimmed or filtered: an empty element is an elision and is positional.
     split_top_level_commas(inner)
         .into_iter()
-        .map(str::to_string)
+        .map(strip_pattern_comments)
         .collect()
 }
 

@@ -5913,10 +5913,14 @@ fn transform_private_derived_accesses_server(
 
 fn find_matching_paren_server(s: &str) -> Option<usize> {
     let mut depth = 1;
-    for (i, c) in s.char_indices() {
+    // Lexical: a bracket inside a comment or literal is text, and counting it
+    // ended the rune's argument early (#2434).
+    for (i, c) in
+        crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(s.as_bytes())
+    {
         match c {
-            '(' | '{' | '[' => depth += 1,
-            ')' | '}' | ']' => {
+            b'(' | b'{' | b'[' => depth += 1,
+            b')' | b'}' | b']' => {
                 depth -= 1;
                 if depth == 0 {
                     return Some(i);
