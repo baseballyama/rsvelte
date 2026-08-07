@@ -561,15 +561,6 @@ impl<'opt> Printer<'opt> {
         anchor.map(|(l, _)| l) == Some(line)
     }
 
-    /// Whether any source comment starts within `[start, end)` — used to decide
-    /// if an unwrapped `ParenthesizedExpression` must keep its literal parens to
-    /// bracket a comment that leads its inner expression (`(/*c*/ x)`).
-    fn comment_in_span(&self, start: u32, end: u32) -> bool {
-        self.comments
-            .iter()
-            .any(|c| c.start >= start && c.start < end)
-    }
-
     // ----- comments ---------------------------------------------------------
 
     /// esrap's `flush_comments_until`: emit every pending comment that starts
@@ -652,7 +643,13 @@ impl<'opt> Printer<'opt> {
 
     /// esrap's `reset_comment_index`: re-sync the cursor to the first comment
     /// at/after `node_start` (so a nested body doesn't replay earlier comments).
-    fn reset_comment_index(&mut self, node_start: u32) {
+    /// `None` is esrap's `!node.loc`, which discards every pending comment
+    /// instead of carrying the cursor forward.
+    fn reset_comment_index(&mut self, node_start: Option<u32>) {
+        let Some(node_start) = node_start else {
+            self.comment_index = self.comments.len();
+            return;
+        };
         if !self.has_loc(node_start) {
             return;
         }
@@ -803,13 +800,20 @@ impl<'opt> Printer<'opt> {
 
     pub fn print_program(&mut self, program: &Program, ctx: &mut Context) {
         let span = program.span();
+        // Upstream's program is builder-made and carries no `loc`, so its
+        // statement list discards the pending comments and only a nested body
+        // that does carry one re-finds them — which is why a comment inside a
+        // function body survives while a file header does not. Opt-in because
+        // the recovery needs located nested bodies, and rsvelte only has those
+        // where the chunks were re-parsed rather than assembled from builders.
+        let body_start = (!self.options.unlocated_program).then_some(span.start);
         // Directives (`"use strict"`) are a separate oxc node, but esrap (from
         // an acorn AST) sees them as leading string-literal ExpressionStatements
         // in `body`; thread them through the same `body` sequence so margins and
         // leading comments are computed identically.
         let mut elems: Vec<BodyElem> = program.directives.iter().map(BodyElem::Directive).collect();
         elems.extend(program.body.iter().map(BodyElem::Statement));
-        self.body_elems(&elems, span.start, span.end, ctx);
+        self.body_elems(&elems, body_start, span.end, ctx);
     }
 
     /// esrap's `body`: statements on their own lines, with a blank line between
@@ -825,7 +829,7 @@ impl<'opt> Printer<'opt> {
         ctx: &mut Context,
     ) {
         let elems: Vec<BodyElem> = statements.iter().map(BodyElem::Statement).collect();
-        self.body_elems(&elems, body_start, body_end, ctx);
+        self.body_elems(&elems, Some(body_start), body_end, ctx);
     }
 
     /// The element-based core of [`Self::body`], shared by `print_program` so a
@@ -833,7 +837,7 @@ impl<'opt> Printer<'opt> {
     fn body_elems(
         &mut self,
         elems: &[BodyElem],
-        body_start: u32,
+        body_start: Option<u32>,
         body_end: u32,
         ctx: &mut Context,
     ) {
@@ -930,10 +934,14 @@ impl<'opt> Printer<'opt> {
                     // esrap: when a comment sits between `return` and the
                     // argument, wrap the argument in parens (`return (/*c*/ x);`)
                     // so the comment can't be read as ending the statement.
+                    // Compared against the UNWRAPPED argument because esrap's
+                    // acorn AST has no paren node: with oxc's preserved parens
+                    // `return (/*c*/ x)` would otherwise anchor at the `(`, which
+                    // precedes the comment, and the rule would never fire.
                     let contains_comment = self
                         .comments
                         .get(self.comment_index)
-                        .is_some_and(|c| c.start < arg.span().start);
+                        .is_some_and(|c| c.start < unparen(arg).span().start);
                     let start = s.span().start;
                     if contains_comment {
                         self.write_keyword(ctx, start, "return", " (");
@@ -1447,7 +1455,7 @@ impl<'opt> Printer<'opt> {
             .filter(|e| !matches!(e, ClassElement::TSIndexSignature(_)))
             .map(BodyElem::ClassMember)
             .collect();
-        self.body_elems(&elems, span.start, span.end, &mut child);
+        self.body_elems(&elems, Some(span.start), span.end, &mut child);
         if !child.empty() {
             ctx.indent();
             ctx.newline();
@@ -2131,34 +2139,13 @@ impl<'opt> Printer<'opt> {
                 // (`child_with_parens` / `binary_needs_parens` at each parent)
                 // re-add only the parens the grammar requires.
                 //
-                // Two exceptions keep the literal parens:
-                //
-                // 1. A comment between the `(` and the inner expression:
-                //    dropping the parens would leave it dangling (`return (/*c*/
-                //    x)`, `return (// hey\n x)`). The comment is flushed as a
-                //    leading comment of the inner expression, so the parens must
-                //    stay to bracket it as in the source. The window stops at the
-                //    inner expression's start — a comment anywhere deeper is
-                //    already bracketed by that expression's own syntax, and
-                //    keeping the parens for it doubles those a parent adds from
-                //    precedence (`(await f(/*c*/ x))()` → `((await f(/*c*/ x)))()`).
-                // 2. A sequence: `(a, b)` parses as `Paren(Sequence)`, and the
-                //    `SequenceExpression` visitor already emits its own
-                //    surrounding parens, so the paren layer is dropped to avoid
-                //    doubling. (An explicit redundant `((a, b))` is handled
-                //    recursively — the outer layer here, the inner by the
-                //    sequence visitor.)
-                if matches!(p.expression, Expression::SequenceExpression(_)) {
-                    self.print_expression(&p.expression, ctx);
-                // No `has_loc` guard needed: every comment offset is >= `loc_base`
-                // by construction, so a synthesized span never contains one.
-                } else if self.comment_in_span(p.span.start, p.expression.span().start) {
-                    ctx.write("(");
-                    self.print_expression(&p.expression, ctx);
-                    ctx.write(")");
-                } else {
-                    self.print_expression(&p.expression, ctx);
-                }
+                // There is no exception. A comment leading the inner expression
+                // does need bracketing (`return (/*c*/ x)`, `return (// hey\n x)`),
+                // but esrap emits those parens from `ReturnStatement` — the one
+                // place it parenthesizes for a comment — not from the operand, so
+                // reproducing them here instead would double whatever a parent
+                // adds from precedence.
+                self.print_expression(&p.expression, ctx);
             }
             Expression::ChainExpression(c) => match &c.expression {
                 ChainElement::CallExpression(call) => self.call_expression(call, ctx),
@@ -2942,7 +2929,12 @@ impl<'opt> Printer<'opt> {
 
         for (i, arg) in args.iter().enumerate() {
             let is_last = i == n - 1;
-            let arg_start = arg.span().start;
+            // Unwrapped, for the same reason the `ReturnStatement` rule is: an
+            // explicit paren would put the argument's start on the `(`, which can
+            // share the comment's line and hide it from the test below.
+            let arg_start = arg
+                .as_expression()
+                .map_or_else(|| arg.span().start, |e| unparen(e).span().start);
 
             // No `has_loc` guard needed: every comment offset is >= `loc_base` by
             // construction, so `c.start < arg_start` is already false for a
@@ -3606,7 +3598,7 @@ impl<'opt> Printer<'opt> {
         ctx.newline();
         let mut elems: Vec<BodyElem> = node.directives.iter().map(BodyElem::Directive).collect();
         elems.extend(node.body.iter().map(BodyElem::Statement));
-        self.body_elems(&elems, node.span.start, node.span.end, ctx);
+        self.body_elems(&elems, Some(node.span.start), node.span.end, ctx);
         ctx.dedent();
         ctx.newline();
         ctx.write("}");

@@ -310,9 +310,7 @@ pub fn visit<'a, 'b: 'a>(
                 super::spread_attribute::visit(spread, context)?;
             }
             Attribute::OnDirective(on) => {
-                if let Some(ref expr) = on.expression {
-                    super::script::walk_expression(expr, context)?;
-                }
+                super::on_directive::visit(on, context)?;
             }
             _ => {}
         }
