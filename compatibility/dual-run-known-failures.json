@@ -1,0 +1,6 @@
+[
+	{
+		"id": "runtime-legacy/samples/store-auto-resubscribe-immediate/main.svelte",
+		"pass": "store_assign_ast:inplace"
+	}
+]

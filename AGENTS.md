@@ -98,6 +98,14 @@ invisible **by construction, at any corpus size** — that is how #2256 shipped 
 scored the very entry that reproduces it as `MATCH`. When adding a gate, ask what the oracle does
 not look at, not only what the input does not contain.
 
+Compiler **errors** ratchet the same way and for the same reason
+(`error-message-known-failures.{client,server,client-dev}.json` and
+`error-position-known-failures.*`, justified in `compatibility/error-known-failures.md`). The
+output verdict compares an error's `code` and nothing else, and that field is **saturated**: 0
+divergences over the 2,843 `(id, target)` pairs both compilers reject. The message text (121
+entries) and `start` position (403) were invisible until they were captured, so growing the
+corpus could never have found them — the same lesson as the warning gate, one field over.
+
 ### Generated shape matrix (`scripts/compat-corpus/matrix/`)
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
@@ -116,6 +124,29 @@ what we compare (warning parity above) and how inputs are constructed (this).
 Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
 `--families` subset (both would FALSE-SHRINK the ratchet).
+
+### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
+
+The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,027 corpus
+entries stop being the test set and become a **seed set**. One semantics-preserving comment is
+inserted at a line boundary inside a `<script>` region and parity is required on the mutant.
+PRs get a deterministic sample; main gets the full sweep (which is what the two-sided ratchet
+needs). It found **#2351** (a comment containing `}`/`)`/`;` in a `$:` block body **aborts the
+client compiler with SIGSEGV**) and **#2347** (a `//` comment before a `$props()` pattern's
+closing brace swallows the `$.rest_props` initializer — output parses, attributes silently
+vanish) in its first run.
+
+**Only the code class is ratcheted.** A divergent mutant is `code-mismatch` when the difference
+survives normalizing comments, whitespace and trailing commas away, `comment-mismatch`
+otherwise. The full sweep yields 213 of the former and 13,242 of the latter; ratcheting per id
+without that split would be a 13,000-entry file that churns on every submodule bump. Comment
+fidelity is ratcheted per id by Gate 2 instead, on generated seeds that do not move when a
+submodule bumps. Delimiter-carrying comments find code divergences **2.81×** as often as plain
+ones (22.4 vs 8.0 per 1,000 mutants) — the #2253 signature.
+
+Compilation runs in child processes (mirroring `compile.mjs`): a panic aborts the process, so a
+single-process sweep loses the whole run to one bad mutant — which is what happened first. The
+worker prints `IDX <i>`, the parent names the crashing seed, records `compiler-crash`, resumes.
 
 **Corpus artifacts clean themselves up.** A full run writes ~0.57 GiB of regenerable trees per
 checkout (`sources/` 60 MiB, `expected/` 254 MiB, `actual/` 254 MiB), and N parallel agent
@@ -178,6 +209,11 @@ cargo test --test parser_fixtures -- --nocapture     # Run a single suite
 pnpm run compatibility-report                        # Generate compatibility report JSON
 pnpm run test-and-update                             # Refresh report + docs
 ```
+
+A **debug** run needs `RUST_MIN_STACK=33554432` — the value CI already sets
+(`ci.yml`). Without it `ast_gate_preconditions` and `runtime::test_runtime_legacy`
+abort with a stack overflow, which reads as a defect in whatever you just changed.
+`--release` does not need it.
 
 Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically (`.githooks/pre-commit`).
 

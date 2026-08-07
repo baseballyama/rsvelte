@@ -8,9 +8,9 @@
 //! Prints per-sample status and a final pass-rate summary.
 //!
 //! Ratchet baseline: `compatibility/svelte2tsx-fixtures-known-failures.json`
-//! (checked in, may only shrink). The test fails when a sample NOT in the
-//! baseline fails (a regression). When previously-known failures now pass, a
-//! reminder to shrink the baseline is printed:
+//! (checked in, may only shrink). Two-sided: the test fails when a sample NOT
+//! in the baseline fails (a regression) AND when a baseline entry already
+//! passes (a stale entry). Re-baseline with:
 //!   UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 //! `STRICT_S2TSX_FIXTURES=1` ignores the baseline: any failure fails.
 
@@ -198,6 +198,23 @@ fn test_svelte2tsx_fixtures() {
          Re-run with `-- --nocapture` to see the diffs.",
         regressions.len(),
         regressions
+            .iter()
+            .map(|n| format!("  - {n}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+
+    // A listed entry suppresses *everything* about its fixture, not only the
+    // divergence its justification names, so a stale entry is a hole.
+    assert!(
+        fixed_known.is_empty(),
+        "\n[s2tsx-fixtures] ❌ {} stale entries in \
+         compatibility/svelte2tsx-fixtures-known-failures.json (they already pass):\n{}\n\
+         Shrink the baseline in the same change that fixed them, and drop their \
+         justification from compatibility/svelte2tsx-fixtures-known-failures.md:\n  \
+         UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures",
+        fixed_known.len(),
+        fixed_known
             .iter()
             .map(|n| format!("  - {n}"))
             .collect::<Vec<_>>()

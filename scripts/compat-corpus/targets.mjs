@@ -17,6 +17,11 @@
  *               independent burn-downs: a wrong *set of codes* is a semantic
  *               bug, a wrong *position* is one systemic cause (emission sites
  *               that attach no span) and would otherwise bury the semantic one.
+ *   - errorMessageBaseline / errorPositionBaseline
+ *               the same split, for the detail of a compile error the output
+ *               verdict cannot see: it compares the error `code` and nothing
+ *               else, so a right-coded error with the wrong prose or the wrong
+ *               span scores as parity.
  */
 export const TARGETS = [
 	{
@@ -27,6 +32,8 @@ export const TARGETS = [
 		baseline: 'known-failures.client.json',
 		warningBaseline: 'warning-known-failures.client.json',
 		warningPositionBaseline: 'warning-position-known-failures.client.json',
+		errorMessageBaseline: 'error-message-known-failures.client.json',
+		errorPositionBaseline: 'error-position-known-failures.client.json',
 	},
 	{
 		key: 'server',
@@ -36,6 +43,8 @@ export const TARGETS = [
 		baseline: 'known-failures.server.json',
 		warningBaseline: 'warning-known-failures.server.json',
 		warningPositionBaseline: 'warning-position-known-failures.server.json',
+		errorMessageBaseline: 'error-message-known-failures.server.json',
+		errorPositionBaseline: 'error-position-known-failures.server.json',
 	},
 	// `dev: true` gates 18 client codegen files plus the CSS transform (empty
 	// rules survive pruning in dev), so dev CSS is compared too.
@@ -47,6 +56,8 @@ export const TARGETS = [
 		baseline: 'known-failures.client-dev.json',
 		warningBaseline: 'warning-known-failures.client-dev.json',
 		warningPositionBaseline: 'warning-position-known-failures.client-dev.json',
+		errorMessageBaseline: 'error-message-known-failures.client-dev.json',
+		errorPositionBaseline: 'error-position-known-failures.client-dev.json',
 	},
 ];
 

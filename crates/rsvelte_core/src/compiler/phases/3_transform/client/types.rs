@@ -1882,21 +1882,6 @@ pub struct ComponentClientTransformState<'a> {
     /// This is used to skip rest_prop → $$props transformation for direct property assignments.
     pub in_direct_assignment_lhs: bool,
 
-    /// Flag indicating if we're inside a bind directive expression.
-    /// Used to skip coercive assignment transforms ($.assign_nullish, etc.) for bind setters.
-    pub in_bind_directive: bool,
-
-    /// Set while converting a component attribute / `on:` directive value: upstream
-    /// exempts every such arrow body from the `$.assign` wrap, not just event ones.
-    pub in_component_attribute: bool,
-
-    /// Whether the node being visited sits directly in a `RegularElement`'s
-    /// children. Upstream's component exemption above is spelled
-    /// `path.at(-2) === 'Component' && path.at(-3) === 'Fragment'`, and an
-    /// element's children are the one container it does not visit through a
-    /// `Fragment` node — so a component nested in an element is *not* exempt.
-    pub parent_is_regular_element: bool,
-
     /// Name of the declarator whose `$state(...)` initializer is being converted.
     /// `create_state_declarator` (`VariableDeclaration.js`) labels the proxy with
     /// it, and the expression converter has no other way back to the pattern.
@@ -2206,9 +2191,6 @@ impl<'a> ComponentClientTransformState<'a> {
             module_level_snippets: Vec::new(),
             snippet_names: ImHashSet::new(),
             in_direct_assignment_lhs: false,
-            in_bind_directive: false,
-            in_component_attribute: false,
-            parent_is_regular_element: false,
             state_declarator_name: None,
             assignment_is_statement: false,
             event_handler_arrow_body_level: 0,
