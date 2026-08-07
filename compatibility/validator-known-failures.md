@@ -7,7 +7,7 @@ comparing diagnostic counts, mirroring what
 every listed fixture would be a real divergence from the last confirmed test run,
 not a placeholder.
 
-## Current baseline: 0 divergences
+## Current baseline: `validator-known-failures.json`, 0 entries — 0 divergences
 
 All 332 runnable validator fixtures match upstream on code, message and position,
 for both errors and warnings. Keep the list empty: a new entry means a

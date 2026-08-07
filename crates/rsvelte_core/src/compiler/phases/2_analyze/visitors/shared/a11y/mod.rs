@@ -638,8 +638,14 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 && idx != 0
                 && idx != children.len() - 1
             {
-                let (start, end) = children[idx].span();
-                warnings.push(w::a11y_figcaption_index().at(start, end));
+                let mut warning = w::a11y_figcaption_index();
+                // Upstream warns on the offending child, not the visited
+                // `<figure>`; without this the caller stamps the element span.
+                if let TemplateNode::RegularElement(el) = children[idx] {
+                    warning.start = Some(el.start);
+                    warning.end = Some(el.end);
+                }
+                warnings.push(warning);
             }
         }
         _ => {}

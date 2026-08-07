@@ -28,7 +28,7 @@ UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 `STRICT_S2TSX_FIXTURES=1` ignores the baseline entirely (every failure fails),
 which is how you check whether an entry is still needed.
 
-## Current baseline: 0 of 254 (pass rate 100.0%)
+## Current baseline: `svelte2tsx-fixtures-known-failures.json`, 0 entries — 0 of 254 (pass rate 100.0%)
 
 The ratchet is empty — every upstream fixture matches byte-for-byte. Any new
 entry needs a justification section here.

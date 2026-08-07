@@ -49,7 +49,9 @@ fn compute_all_preceding_ignores(
                     runes,
                 );
                 pending_ignores.extend(extracted.ignores);
-                pending_warnings.extend(extracted.warnings);
+                // The official scan walks the preceding comment run backwards from the
+                // annotated node, so the comment nearest it reports first.
+                pending_warnings.splice(..0, extracted.warnings);
                 // Comments themselves get None
                 result.push(None);
             }
@@ -113,17 +115,20 @@ pub fn analyze<'a, 'b: 'a>(
 
     for (idx, node) in fragment.nodes.iter_mut().enumerate() {
         // Take ownership of ignore codes to avoid cloning
-        let (ignore_codes, extraction_warnings) = match ignore_info[idx].take() {
-            // Emitted at the node that collects the comment, so they interleave
-            // with the node's own warnings in source order. Only non-Text nodes
-            // collect, matching the official `_` visitor.
-            Some((preceding, false)) => (preceding.ignores, preceding.warnings),
-            Some((preceding, true)) => (preceding.ignores, Vec::new()),
-            None => (Vec::new(), Vec::new()),
+        let ignore_codes = match ignore_info[idx].take() {
+            Some((preceding, is_text)) => {
+                // The official `_` visitor extracts (and so reports) svelte-ignore codes
+                // as it reaches the annotated node, which interleaves these warnings with
+                // that node's own in source order. Text nodes only consume the codes.
+                if !is_text {
+                    for warning in preceding.warnings {
+                        context.analysis.warnings.push(warning);
+                    }
+                }
+                preceding.ignores
+            }
+            None => Vec::new(),
         };
-        for warning in extraction_warnings {
-            context.analysis.warnings.push(warning);
-        }
         let has_ignores = !ignore_codes.is_empty();
         if has_ignores {
             // Store ignored codes on element metadata for use during code generation

@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 51 entries; the three position files hold the same 529. That is not a
+the same 51 entries; the three position files hold the same 528. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -80,7 +80,7 @@ from where the entries happened to cluster in the corpus rather than from
 upstream's control flow — worth remembering when reading the clusters above,
 which were written the same way.
 
-## Warning positions (`warning-position-known-failures.<target>.json`, 529 entries each)
+## Warning positions (`warning-position-known-failures.<target>.json`, 528 entries each)
 
 The codes agree but a `(line, column)` does not. There are **two** systemic
 causes, not one, and they need different edits. Measured over the 625 entries
@@ -153,13 +153,24 @@ missing-position code. It never was: rsvelte always emitted a span for it. That
 mis-attribution is exactly what a single-cause reading of this bucket produces —
 the split above was measured per tuple, not inferred from the code names.
 
-What is left is 650 tuples: the 649 missing-span ones, unchanged, plus a single
-`a11y_figcaption_index` that disagrees on **both** line and column. That one is a
-third cause, and it is structurally out of reach rather than merely unobserved:
-upstream raises it at `:532`, outside both attribute loops, on `children[index]`
-— so none of the four stamp sites can see it, and `stamp_attribute` skips
-anything that already carries a span. That argument holds regardless of what any
-run showed, which is why it is the one to record.
+What is left is the 649 missing-span tuples, unchanged.
+
+A single `a11y_figcaption_index` disagreeing on **both** line and column used to
+sit beside them, recorded here as a third cause that was "structurally out of
+reach rather than merely unobserved": upstream raises it at `:532`, outside both
+attribute loops, on `children[index]`, so none of the four stamp sites can see it
+and `stamp_attribute` skips anything that already carries a span. It was noted
+that the argument held "regardless of what any run showed".
+
+**The argument was sound and the conclusion was wrong** (#2490). Every step about
+the stamp sites was true; what did not follow is that the span was therefore
+unreachable. The fix does not stamp at all — it constructs the warning with
+`children[idx]`'s span at the emission site, which is what upstream does
+(`w.a11y_figcaption_index(children[index])`), and the caller's element fallback
+then leaves it alone. The reasoning enumerated the repair mechanisms that exist
+today and mistook that for the set of mechanisms available. An "out of reach"
+claim needs the second half stated: out of reach *of what*, and why no new
+emission site may be added.
 
 `perf_avoid_nested_class` was the first of these to be burned down (#2349),
 and it cost two entries rather than the one the `runed` / `svelte-toolbelt`
