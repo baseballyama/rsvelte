@@ -19,24 +19,23 @@ pub fn visit<'a, 'b: 'a>(
     // Validate placement
     validate_special_element_placement("svelte:self", context)?;
 
+    // `<svelte:self>` is the supported spelling in legacy mode; only runes
+    // components have self-imports to be deprecated in favour of.
     if context.analysis.runes {
-        // Upstream reads `state.filename`, whose unset sentinel is `(unknown)`.
-        let filename = context.analysis.location_filename.as_str();
-        let (component_name, basename) = if filename == "(unknown)" {
-            ("Self", "Self.svelte".to_string())
+        // The identifier and the path are independent: the identifier is the
+        // component name, the path must stay the real file so the suggestion
+        // resolves on a case-sensitive filesystem.
+        let filename = &context.analysis.location_filename;
+        let (name, basename) = if filename == "(unknown)" {
+            ("Self", "Self.svelte")
         } else {
             (
                 context.analysis.name.as_str(),
-                filename
-                    .split(['/', '\\'])
-                    .next_back()
-                    .unwrap_or(filename)
-                    .to_string(),
+                filename.rsplit(['/', '\\']).next().unwrap_or(filename),
             )
         };
-
         context.emit_warning(
-            warnings::svelte_self_deprecated(component_name, &basename).at(self_.start, self_.end),
+            warnings::svelte_self_deprecated(name, basename).at(self_.start, self_.end),
         );
     }
 

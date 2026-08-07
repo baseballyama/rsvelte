@@ -55,24 +55,31 @@ noise they cannot suppress, or misses a diagnostic they should have seen.
 Not every entry is equally bad. Of the 28 entries that still diverge, **6 are
 under-warnings** — rsvelte stays silent where upstream warns
 (`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
-`options_missing_custom_element` ×1). The other 22 are noise the user cannot
-suppress, 81 tuples over four codes (`reactive_declaration_module_script_dependency`
-62, `component_name_lowercase` 10, `export_let_unused` 7,
-`state_referenced_locally` 2). Both are defects, but a missing diagnostic
-and an extra one fail differently, and the ratchet count alone does not
-distinguish them; no entry diverges in both directions at once.
+`options_missing_custom_element` ×1); neither burn-down below touched that half.
+The other 22 are noise the user cannot suppress — 81 tuples over four codes
+(`reactive_declaration_module_script_dependency` 62, `component_name_lowercase`
+10, `export_let_unused` 7, `state_referenced_locally` 2). Both are defects, but a
+missing diagnostic and an extra one fail differently, and the ratchet count alone
+does not distinguish them; no entry diverges in both directions at once.
 
 Clusters identified so far:
 
 - **`component_name_lowercase` over-warning** — rsvelte flags lowercase names
   that upstream accepts (seen across `svelte-maplibre` example routes).
 - **`reactive_declaration_module_script_dependency` over-warning** —
-  concentrated in the Svelte migrate fixtures, which are out of scope for codegen
-  but still compile here. `svelte_self_deprecated` sat beside it until the
-  filename fix cleared it.
+  concentrated in the Svelte migrate fixtures, which are out of scope for
+  codegen but still compile here.
 
-`attribute_quoted` was burned down: 19 entries, taking the ratchet from 70 to 51,
-with **0 remaining tuples in either direction**. Both counts are read off
+The `svelte_self_deprecated` half of that last cluster is fixed: the warning is
+gated on `analysis.runes` upstream, and rsvelte emitted it in legacy mode too,
+where `<svelte:self>` is the supported spelling. That removed 19 entries from
+each of the three files, verified per entry against official 5.56.8 on all three
+targets.
+
+`attribute_quoted` was burned down independently: 19 further entries — the two
+burn-downs together take the ratchet from 70 to 28 — four of the entries needed
+both fixes, so neither burn-down could remove them alone — with **0 remaining tuples
+in either direction**. Both counts are read off
 `verify.mjs --no-fmt --update-warning-baseline` runs over the same 14,130-entry
 corpus, not off the issue that motivated the fix. It was **one
 predicate**, not the SVG-namespace story this file previously recorded: upstream
