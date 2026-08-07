@@ -935,14 +935,29 @@ jobs:
   corpus-verify-flags:
     name: Corpus verify baseline-flag contract
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: false
 
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: 'true'
+
+      # verify.mjs parses generated output with acorn, so these sandbox runs need
+      # node_modules. Still no submodules and no Rust build.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Check --update-baseline / --update-warning-baseline compose
         run: node scripts/dev/test-corpus-verify-baseline-flags.mjs
+
+      # The output-parseability gate: that it is wired, that the OUTPUT ratchet
+      # does not suppress it, and that it cannot go green by rsvelte compiling
+      # less.
+      - name: Check the output-parseability gate
+        run: node scripts/dev/test-corpus-parse-gate.mjs
 
       # The ratchet-doc count parser. Lives here rather than in Corpus Compat so
       # it runs without the corpus: it needs no submodules and no build.
