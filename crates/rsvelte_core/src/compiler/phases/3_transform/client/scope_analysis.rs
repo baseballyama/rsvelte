@@ -70,11 +70,11 @@ where
     // Move the program into the arena so both it and the Semantic
     // can be borrowed for the closure lifetime.
     let program: &Program = allocator.alloc(parser_ret.program);
-    super::super::profile::record_semantic_build(
+    let semantic_ret = super::super::profile::semantic_build(
         super::super::profile::SEM_SCOPE_ANALYSIS,
         program.source_text.len(),
+        || SemanticBuilder::new().with_build_nodes(true).build(program),
     );
-    let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
     Some(f(program, &semantic_ret.semantic))
 }
 
