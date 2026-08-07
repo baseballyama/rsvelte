@@ -1713,3 +1713,69 @@ export function useInterval(callback, delay) {
         "derived read should be called on the server:\n{server}"
     );
 }
+
+/// Discriminating. `replace_standalone_pattern` is called with needles like
+/// `format!("{var}++")`, whose first character is the identifier — so a rejected
+/// match advanced the cursor one *byte* into a multi-byte name and the next
+/// slice split it. A member increment must be rejected, which is exactly the
+/// branch that advances.
+#[test]
+fn a_rejected_match_advances_by_a_whole_character() {
+    assert_eq!(
+        replace_standalone_pattern("x.\u{540d}\u{524d}++;", "\u{540d}\u{524d}++", "REPLACED"),
+        "x.\u{540d}\u{524d}++;"
+    );
+}
+
+/// The same rejection through the other guard (`after_ok`), so the fix cannot
+/// be passed by handling only the `before_ok` path.
+#[test]
+fn a_rejected_match_advances_by_a_whole_character_on_the_trailing_guard() {
+    assert_eq!(
+        replace_standalone_pattern("\u{540d}\u{524d}++x;", "\u{540d}\u{524d}++", "REPLACED"),
+        "\u{540d}\u{524d}++x;"
+    );
+}
+
+/// Control on the other side: an accepted match must still be replaced, so a
+/// "fix" that rejected everything would fail here.
+#[test]
+fn an_accepted_non_ascii_match_is_still_replaced() {
+    assert_eq!(
+        replace_standalone_pattern("\u{540d}\u{524d}++;", "\u{540d}\u{524d}++", "REPLACED"),
+        "REPLACED;"
+    );
+}
+
+/// Control: byte and character steps coincide, so this passed before the fix.
+#[test]
+fn an_ascii_rejected_match_is_unchanged() {
+    assert_eq!(
+        replace_standalone_pattern("x.count++;", "count++", "REPLACED"),
+        "x.count++;"
+    );
+}
+
+/// A `}` or `)` inside a comment is comment text. Read as a bracket it drops the
+/// scan's depth to 0 inside a `$:` block body, so the block's own `bar = []`
+/// reads as a top-level assignment and the `{`-prefixed left-hand side that
+/// produces is what reaches the destructure expansion.
+#[test]
+fn find_assignment_position_ignores_delimiters_inside_comments() {
+    use super::state_transforms::find_assignment_position;
+
+    assert_eq!(
+        find_assignment_position("{\n\t\t// } c\n\t\tbar = []\n\t}"),
+        None
+    );
+    assert_eq!(
+        find_assignment_position("{\n\t\t// ) c\n\t\tbar = []\n\t}"),
+        None
+    );
+    assert_eq!(
+        find_assignment_position("{\n\t\t/* } c */\n\t\tbar = []\n\t}"),
+        None
+    );
+    // A real top-level assignment is still found.
+    assert_eq!(find_assignment_position("bar = []"), Some(4));
+}

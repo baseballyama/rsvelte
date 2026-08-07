@@ -30,7 +30,7 @@
  *
  * Requires a staged NAPI binding at .corpus-cache/rsvelte.node
  * (cargo build --release -p rsvelte_napi --lib,
- *  then cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node).
+ *  then mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node).
  */
 
 import fs from 'node:fs';
@@ -44,6 +44,9 @@ const ROOT = path.resolve(__dirname, '../..');
 const CORPUS = path.join(ROOT, 'compatibility');
 const RATCHET = path.join(CORPUS, 'css-prune-known-failures.json');
 
+// Exact, not a floor: the grid is deterministic, so any drift is a source edit.
+const EXPECTED_COMPONENTS = 1430;
+
 const args = process.argv.slice(2);
 const argValue = (name, fallback = null) => {
 	const i = args.indexOf(name);
@@ -55,6 +58,17 @@ const LIST = args.includes('--list');
 const BOTH = args.includes('--both');
 const CHECK = args.includes('--check');
 const UPDATE_BASELINE = args.includes('--update-baseline');
+
+// A narrowed run measures a subset, so it can neither clear the ratchet nor
+// rewrite it: the ids it never compiled are not evidence of anything.
+if (FILTER && (CHECK || UPDATE_BASELINE)) {
+	const flag = CHECK ? '--check' : '--update-baseline';
+	const harm = CHECK
+		? 'would report "no regressions" for components it never compiled'
+		: 'would delete every baseline id outside the filter';
+	console.error(`[css-prune-sweep] --filter cannot be combined with ${flag}: a filtered run ${harm}`);
+	process.exit(2);
+}
 
 // ---------------------------------------------------------------------------
 // grid ingredients
@@ -321,11 +335,26 @@ function* generate() {
 // compile + compare
 // ---------------------------------------------------------------------------
 
-const all0 = [...generate()].filter((c) => !FILTER || c.id.includes(FILTER));
+const generated = [...generate()];
+const all0 = generated.filter((c) => !FILTER || c.id.includes(FILTER));
 if (LIST) {
 	for (const c of all0) console.log(c.id);
-	console.log(`\n${all0.length} components`);
+	console.log(`\n${all0.length} of ${generated.length} components`);
 	process.exit(0);
+}
+
+// The grid is a pure product of the axes above, so its size is a property of
+// this file rather than of the corpus on disk — pin it exactly.
+if (generated.length !== EXPECTED_COMPONENTS) {
+	console.error(
+		`[css-prune-sweep] grid produced ${generated.length} components, expected ${EXPECTED_COMPONENTS}`
+	);
+	console.error(
+		generated.length < EXPECTED_COMPONENTS
+			? '  the generator lost cases; a sweep over a shrunken grid passes by comparing less'
+			: `  the axes grew; if that is intended, set EXPECTED_COMPONENTS to ${generated.length}`
+	);
+	process.exit(2);
 }
 
 const svelte = await import(
@@ -337,13 +366,20 @@ try {
 } catch (e) {
 	console.error('[css-prune-sweep] rsvelte NAPI binding missing at .corpus-cache/rsvelte.node');
 	console.error('  build: cargo build --release -p rsvelte_napi --lib');
-	console.error('  stage: cp target/release/librsvelte_napi.dylib .corpus-cache/rsvelte.node');
+	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node');
 	process.exit(1);
 }
 
 // Collapse the scope-hash value (not its placement) so a diff isolates the
 // prune decision, not any hash-algorithm drift.
 const normHash = (css) => (css ?? '').replace(/svelte-[0-9a-z]+/g, 'svelte-X');
+
+// `css_unused_selector` is the prune decision stated directly, so a warning-only
+// divergence is a prune divergence the emitted CSS happens not to show.
+const warningKeys = (r) =>
+	(r.warnings ?? [])
+		.map((w) => `${w.code}@${w.start?.line ?? '?'}:${w.start?.column ?? '?'}`)
+		.sort();
 
 function compileCss(compiler, source) {
 	try {
@@ -353,7 +389,7 @@ function compileCss(compiler, source) {
 			css: 'external',
 			filename: 'Comp.svelte',
 		});
-		return { css: normHash(r.css?.code ?? '') };
+		return { css: normHash(r.css?.code ?? ''), warnings: warningKeys(r) };
 	} catch (e) {
 		const message = String(e?.message ?? e);
 		let code = e?.code ?? null;
@@ -392,6 +428,8 @@ if (ONE_ID) {
 	const a = compileCss(rsvelte, c.source);
 	console.log('----- official css -----\n' + (e.error ? `ERROR ${e.error.code}: ${e.error.message}` : e.css));
 	console.log('----- rsvelte css  -----\n' + (a.error ? `ERROR ${a.error.code}: ${a.error.message}` : a.css));
+	console.log('----- official warnings -----\n' + ((e.warnings ?? []).join('\n') || '(none)'));
+	console.log('----- rsvelte warnings  -----\n' + ((a.warnings ?? []).join('\n') || '(none)'));
 	console.log('----- verdict -----\n' + verdictOf(e, a));
 	process.exit(0);
 }
@@ -400,13 +438,17 @@ function verdictOf(e, a) {
 	if (e.error && a.error) return e.error.code === a.error.code ? 'match (error parity)' : `error-mismatch (official ${e.error.code} / rsvelte ${a.error.code})`;
 	if (e.error && !a.error) return `error-mismatch (official errors ${e.error.code}, rsvelte compiles)`;
 	if (!e.error && a.error) return `error-mismatch (rsvelte errors ${a.error.code}, official compiles)`;
+	// Warnings are captured and shown by --id but deliberately not part of the
+	// verdict yet: enabling them surfaces 16 real divergences that need a
+	// baseline measured from a binding of established provenance.
 	return e.css === a.css ? 'match' : 'css-mismatch';
 }
 
 // full sweep
 const diverged = [];
 let matched = 0;
-let clientServerDiffs = 0;
+const officialTargetDiffs = [];
+const rsvelteTargetDiffs = [];
 const t0 = Date.now();
 
 for (const c of all) {
@@ -421,7 +463,10 @@ for (const c of all) {
 	if (BOTH && !e.error && !a.error) {
 		const eServer = compileCssTarget(svelte, c.source, 'server');
 		const aServer = compileCssTarget(rsvelte, c.source, 'server');
-		if (eServer !== e.css || aServer !== a.css) clientServerDiffs++;
+		// Distinct findings: official differing per target falsifies the
+		// target-independence premise; rsvelte differing is an rsvelte bug.
+		if (eServer !== e.css) officialTargetDiffs.push(c.id);
+		if (aServer !== a.css) rsvelteTargetDiffs.push(c.id);
 	}
 }
 
@@ -442,6 +487,14 @@ function firstCssDiff(exp, act) {
 
 function clusterSig(d) {
 	if (d.verdict.startsWith('error-mismatch')) return `ERROR: ${d.verdict}`;
+	if (d.verdict === 'warning-mismatch') {
+		const ew = new Set(d.exp.warnings ?? []);
+		const aw = new Set(d.act.warnings ?? []);
+		const missing = [...ew].filter((w) => !aw.has(w));
+		const extra = [...aw].filter((w) => !ew.has(w));
+		const codes = (ws) => [...new Set(ws.map((w) => w.split('@')[0]))].join(',') || 'none';
+		return `WARNING-ONLY: rsvelte missing ${missing.length} (${codes(missing)}) / extra ${extra.length} (${codes(extra)})`;
+	}
 	const { e, a } = firstCssDiff(d.exp.css, d.act.css);
 	const dir =
 		e.includes('(unused)') && !a.includes('(unused)')
@@ -482,7 +535,10 @@ if (UPDATE_BASELINE) {
 console.log(`[css-prune-sweep] ${all.length} components in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 console.log(`  matched:  ${matched}`);
 console.log(`  diverged: ${diverged.length}`);
-if (BOTH) console.log(`  client!=server prune divergences: ${clientServerDiffs}`);
+if (BOTH) {
+	console.log(`  client!=server (official): ${officialTargetDiffs.length}`);
+	console.log(`  client!=server (rsvelte):  ${rsvelteTargetDiffs.length}`);
+}
 
 if (diverged.length) {
 	console.log(`\n${sortedClusters.length} divergence clusters:\n`);
@@ -490,6 +546,15 @@ if (diverged.length) {
 		console.log(`${String(ds.length).padStart(4)}  ${sig}`);
 		for (const d of ds.slice(0, 3)) console.log(`        - ${d.id}`);
 	}
+}
+
+// The sweep compiles one target per component because pruning is
+// target-independent. If that stops holding, every verdict above is suspect.
+if (BOTH && (officialTargetDiffs.length || rsvelteTargetDiffs.length)) {
+	console.error('\n[css-prune-sweep] target-independence violated — one compile per component is no longer sound:');
+	for (const id of officialTargetDiffs.slice(0, 10)) console.error(`  official client!=server: ${id}`);
+	for (const id of rsvelteTargetDiffs.slice(0, 10)) console.error(`  rsvelte  client!=server: ${id}`);
+	process.exit(1);
 }
 
 if (CHECK) {
@@ -512,7 +577,9 @@ if (CHECK) {
 	// fixed" delta left unmerged on a later PR reads as normal noise, so a
 	// real regression could hide inside it.
 	if (regressions.length > 0 || fixed.length > 0) process.exit(1);
-	console.log(`\n[css-prune-sweep] no regressions (${divergedIds.length} known divergences)`);
+	console.log(
+		`\n[css-prune-sweep] no regressions — compared ${all.length} of ${EXPECTED_COMPONENTS} components (${divergedIds.length} known divergences)`
+	);
 	process.exit(0);
 }
 
