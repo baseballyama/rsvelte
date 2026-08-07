@@ -10,13 +10,16 @@
  *   - dev       the `dev` compile option
  *   - css       whether CSS output is compared for this target
  *   - baseline  the ratchet file (relative to compatibility/) for this target
- *   - warningBaseline / warningPositionBaseline
- *               the two warning-parity ratchets (see verify.mjs). Warnings are
+ *   - warningBaseline / warningPositionBaseline / warningMessageBaseline
+ *               the three warning-parity ratchets (see verify.mjs). Warnings are
  *               gated separately from output so a warning divergence can never
- *               move an output ratchet, and the two warning failure modes get
+ *               move an output ratchet, and the three warning failure modes get
  *               independent burn-downs: a wrong *set of codes* is a semantic
  *               bug, a wrong *position* is one systemic cause (emission sites
- *               that attach no span) and would otherwise bury the semantic one.
+ *               that attach no span) and would otherwise bury the semantic one,
+ *               and a wrong *message* is the only failure a human reads — a
+ *               message can name an attribute that is not on the element while
+ *               code and position both match upstream exactly.
  */
 export const TARGETS = [
 	{
@@ -27,6 +30,7 @@ export const TARGETS = [
 		baseline: 'known-failures.client.json',
 		warningBaseline: 'warning-known-failures.client.json',
 		warningPositionBaseline: 'warning-position-known-failures.client.json',
+		warningMessageBaseline: 'warning-message-known-failures.client.json',
 	},
 	{
 		key: 'server',
@@ -36,6 +40,7 @@ export const TARGETS = [
 		baseline: 'known-failures.server.json',
 		warningBaseline: 'warning-known-failures.server.json',
 		warningPositionBaseline: 'warning-position-known-failures.server.json',
+		warningMessageBaseline: 'warning-message-known-failures.server.json',
 	},
 	// `dev: true` gates 18 client codegen files plus the CSS transform (empty
 	// rules survive pruning in dev), so dev CSS is compared too.
@@ -47,6 +52,7 @@ export const TARGETS = [
 		baseline: 'known-failures.client-dev.json',
 		warningBaseline: 'warning-known-failures.client-dev.json',
 		warningPositionBaseline: 'warning-position-known-failures.client-dev.json',
+		warningMessageBaseline: 'warning-message-known-failures.client-dev.json',
 	},
 ];
 

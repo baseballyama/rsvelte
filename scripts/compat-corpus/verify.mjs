@@ -42,8 +42,9 @@
  *
  * ---- warning parity --------------------------------------------------------
  *
- * `compile.mjs` records every compiler warning as (code, line, column) in
- * `warnings.json` next to the output. Two independent comparisons run here:
+ * `compile.mjs` records every compiler warning as (code, line, column, message)
+ * in `warnings.json` next to the output. Three independent comparisons run here,
+ * as a cascade — each is only reached when the one above it already agrees:
  *
  *   - warning-code-mismatch      the multiset of warning CODES differs. A
  *                                semantic bug: rsvelte warns where upstream
@@ -54,24 +55,33 @@
  *                                span at that emission site, so an editor has
  *                                nowhere to put the squiggle.
  *                                Ratchet: warning-position-known-failures.<target>.json
+ *   - warning-message-mismatch   code and position both agree and the prose
+ *                                differs. The only part a human reads, and the
+ *                                only dimension in which a diagnostic can name
+ *                                an attribute that is not on the element or
+ *                                suggest a path that does not exist while
+ *                                looking correct to the other two.
+ *                                Ratchet: warning-message-known-failures.<target>.json
  *
  * They are separate because they have different causes and different fixes;
  * folded together, the much larger position backlog would hide every semantic
- * regression. Both are shrink-only, like the output ratchets, and neither can
+ * regression. All three are shrink-only, like the output ratchets, and none can
  * ever change an output ratchet — a warning divergence is not an output
  * divergence.
  *
  * Warning comparison needs no normalization, so it is meaningful under
- * `--no-fmt`. `--update-warning-baseline` rewrites ONLY the warning ratchets,
- * so a `--no-fmt` run (which inflates JS failures) can seed them without
- * corrupting the output baselines.
+ * `--no-fmt`. `--update-warning-baseline` rewrites ONLY the code and position
+ * ratchets, so a `--no-fmt` run (which inflates JS failures) can seed them
+ * without corrupting the output baselines. `--update-message-baseline` is
+ * scoped to the message ratchets alone, so adding that dimension did not widen
+ * what an existing `--update-warning-baseline` command rewrites.
  *
- * The two update flags compose: passing both rewrites both ratchet families in
- * one run (the families are disjoint). Every run that asks for a rewrite prints
- * up front which families it will write, and a run that writes nothing is never
- * reported as a successful rewrite.
+ * The three update flags compose: passing several rewrites each of those ratchet
+ * families in one run (the families are disjoint). Every run that asks for a
+ * rewrite prints up front which families it will write, and a run that writes
+ * nothing is never reported as a successful rewrite.
  *
- * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
+ * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--update-message-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
  */
 
 import fs from 'node:fs';
@@ -94,6 +104,10 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max-print') + 1]) || 20 : 20;
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const UPDATE_WARNING_BASELINE = args.includes('--update-warning-baseline');
+// Scoped to the message ratchets alone. `--update-warning-baseline` deliberately
+// keeps its original meaning (codes + positions) so adding this dimension did not
+// silently widen what an existing command rewrites.
+const UPDATE_MESSAGE_BASELINE = args.includes('--update-message-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
 const TARGETS = selectTargets(args);
 const TARGET_KEYS = TARGETS.map((t) => t.key);
@@ -118,16 +132,20 @@ const FROM_REPORT = (() => {
 
 // State an update run's intent before doing any work: the failure mode this
 // guards against is a rewrite that silently writes nothing and still exits 0.
-const UPDATE_FAMILIES = [UPDATE_BASELINE && 'output', UPDATE_WARNING_BASELINE && 'warning'].filter(Boolean);
+const UPDATE_FAMILIES = [
+	UPDATE_BASELINE && 'output',
+	UPDATE_WARNING_BASELINE && 'warning',
+	UPDATE_MESSAGE_BASELINE && 'warning message',
+].filter(Boolean);
 if (UPDATE_FAMILIES.length) {
 	console.log(`[verify] rewriting ${UPDATE_FAMILIES.join(' + ')} ratchets for ${TARGET_KEYS.join(', ')}`);
 }
 
 // --from-report reconstructs only the output ratchets, so pairing it with the
 // warning flag would write half of what was asked for.
-if (FROM_REPORT && UPDATE_WARNING_BASELINE) {
+if (FROM_REPORT && (UPDATE_WARNING_BASELINE || UPDATE_MESSAGE_BASELINE)) {
 	console.error('[verify] --from-report cannot rewrite the warning ratchets (it derives output failures only)');
-	console.error('  fix: drop --update-warning-baseline, then re-run a full verify with it');
+	console.error('  fix: drop --update-warning-baseline / --update-message-baseline, then re-run a full verify');
 	process.exit(2);
 }
 
@@ -386,12 +404,35 @@ for (const { id } of manifest) {
 // its own ratchets. A warning divergence must never move an output ratchet, and
 // an output divergence must never move a warning ratchet.
 
-const warningCounts = { match: 0, 'warning-code-mismatch': 0, 'warning-position-mismatch': 0 };
+const warningCounts = {
+	match: 0,
+	'warning-code-mismatch': 0,
+	'warning-position-mismatch': 0,
+	'warning-message-mismatch': 0,
+};
 const warningFailures = [];
 
 const readWarnings = (dir) => JSON.parse(readIf(path.join(dir, 'warnings.json')) ?? '{}');
 const codeBag = (list) => list.map((w) => w.code).sort();
 const posKey = (w) => `${w.code}@${w.line ?? '?'}:${w.column ?? '?'}`;
+// Keyed by code so a message divergence names the rule it belongs to.
+const msgKey = (w) => `${w.code}: ${w.message}`;
+// A tree compiled before `message` was recorded has the field on neither side,
+// which would compare equal everywhere and score the message ratchet green
+// while measuring nothing. Counted here and asserted after the loop.
+let warningsSeen = 0;
+let warningsWithMessage = 0;
+// The message dimension only sees entries whose codes and positions already
+// agree, so "0 message divergences" is meaningless without saying over how many.
+// Printed beside the counts because a denominator kept only in prose gets
+// dropped when the number is quoted.
+const messageCoverage = { emitting: 0, reached: 0 };
+const countMessageCoverage = (list) => {
+	for (const w of list) {
+		warningsSeen++;
+		if (typeof w.message === 'string') warningsWithMessage++;
+	}
+};
 // Multiset difference a \ b, so a code emitted twice on one side and once on
 // the other is still a divergence.
 const bagDiff = (a, b) => {
@@ -413,11 +454,16 @@ for (const { id } of manifest) {
 	const actErr = JSON.parse(readIf(path.join(ACTUAL, id, 'error.json')) ?? '{}');
 
 	const details = [];
+	let emitsWarning = false;
+	let reachesMessage = false;
 	for (const targetDef of TARGETS) {
 		const target = targetDef.key;
 		if (expErr[target] || actErr[target]) continue;
 		const e = expWarn[target] ?? [];
 		const a = actWarn[target] ?? [];
+		countMessageCoverage(e);
+		countMessageCoverage(a);
+		if (e.length || a.length) emitsWarning = true;
 
 		const extra = bagDiff(codeBag(a), codeBag(e));
 		const missing = bagDiff(codeBag(e), codeBag(a));
@@ -436,21 +482,49 @@ for (const { id } of manifest) {
 		if (String(ePos) !== String(aPos)) {
 			const i = ePos.findIndex((x, k) => x !== aPos[k]);
 			details.push({ target, kind: 'warning-position', expected: ePos[i], actual: aPos[i] });
+			continue;
+		}
+
+		// Only reached when the codes and the positions both already agree, so a
+		// divergence here is the message text alone.
+		if (e.length) reachesMessage = true;
+		const eMsg = e.map(msgKey).sort();
+		const aMsg = a.map(msgKey).sort();
+		if (String(eMsg) !== String(aMsg)) {
+			const i = eMsg.findIndex((x, k) => x !== aMsg[k]);
+			details.push({ target, kind: 'warning-message', expected: eMsg[i], actual: aMsg[i] });
 		}
 	}
+
+	if (emitsWarning) messageCoverage.emitting++;
+	if (reachesMessage) messageCoverage.reached++;
 
 	if (!details.length) {
 		warningCounts.match++;
 		continue;
 	}
+	// Most-semantic wins, so an entry with both a code and a message divergence
+	// is counted once, as the code bug it is.
 	const verdict = details.some((d) => d.kind === 'warning-code')
 		? 'warning-code-mismatch'
-		: 'warning-position-mismatch';
+		: details.some((d) => d.kind === 'warning-position')
+			? 'warning-position-mismatch'
+			: 'warning-message-mismatch';
 	warningCounts[verdict]++;
 	warningFailures.push({ id, verdict, details });
 }
 
-// Two ratchets per target, partitioned by detail kind so a position divergence
+if (warningsSeen > 0 && warningsWithMessage < warningsSeen) {
+	console.error(
+		`[verify] ${warningsSeen - warningsWithMessage}/${warningsSeen} recorded warnings carry no \`message\`.`
+	);
+	console.error('  These trees predate the message ratchet: both sides would compare equal and the');
+	console.error('  message baseline would go green without comparing anything.');
+	console.error('  run: node scripts/compat-corpus/compile.mjs');
+	process.exit(2);
+}
+
+// Three ratchets per target, partitioned by detail kind so a position divergence
 // never lands in the semantic baseline (and vice versa).
 function partitionWarnings(kind) {
 	const byTarget = new Map(TARGET_KEYS.map((key) => [key, new Set()]));
@@ -465,8 +539,21 @@ function partitionWarnings(kind) {
 }
 
 const WARNING_RATCHETS = [
-	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline },
-	{ kind: 'warning-position', label: 'warning positions', file: (t) => t.warningPositionBaseline },
+	{ kind: 'warning-code', label: 'warning codes', file: (t) => t.warningBaseline, rewrite: () => UPDATE_WARNING_BASELINE, family: 'warning' },
+	{
+		kind: 'warning-position',
+		label: 'warning positions',
+		file: (t) => t.warningPositionBaseline,
+		rewrite: () => UPDATE_WARNING_BASELINE,
+		family: 'warning',
+	},
+	{
+		kind: 'warning-message',
+		label: 'warning messages',
+		file: (t) => t.warningMessageBaseline,
+		rewrite: () => UPDATE_MESSAGE_BASELINE,
+		family: 'warning message',
+	},
 ];
 
 const report = {
@@ -483,6 +570,14 @@ console.log('\n[verify] results:');
 for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
 console.log('\n[verify] warning parity:');
 for (const [k, v] of Object.entries(warningCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
+{
+	const { emitting, reached } = messageCoverage;
+	const pct = emitting ? ((reached / emitting) * 100).toFixed(1) : '0.0';
+	console.log(
+		`  message dimension reached ${reached}/${emitting} warning-emitting entries (${pct}%) — ` +
+			`the rest diverge earlier in the cascade, so this gate's reach grows as the code and position ratchets shrink`
+	);
+}
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report.json'))}`);
 
 // ---- warning ratchets ------------------------------------------------------
@@ -491,22 +586,25 @@ const warningRegressions = [];
 const warningFailById = new Map(warningFailures.map((f) => [f.id, f]));
 let warningFixed = 0;
 
-// `--update-baseline` alone is about the OUTPUT ratchets; leave the warning ones
-// alone so an output burn-down cannot silently absorb a warning regression. Ask
-// for both and both are rewritten.
-const SKIP_WARNING_RATCHETS = UPDATE_BASELINE && !UPDATE_WARNING_BASELINE;
-for (const ratchet of SKIP_WARNING_RATCHETS ? [] : WARNING_RATCHETS) {
+// Each family is rewritten only by its own flag, so an output burn-down cannot
+// silently absorb a warning regression and a message burn-down cannot absorb a
+// code one. Ask for several and all of them are rewritten.
+const ANY_UPDATE = UPDATE_BASELINE || UPDATE_WARNING_BASELINE || UPDATE_MESSAGE_BASELINE;
+for (const ratchet of WARNING_RATCHETS) {
+	// During an update run the comparison results are discarded anyway, so a
+	// family nobody asked to rewrite is skipped rather than half-measured.
+	if (ANY_UPDATE && !ratchet.rewrite()) continue;
 	const byTarget = partitionWarnings(ratchet.kind);
 	for (const target of TARGETS) {
 		const p = path.resolve(CORPUS, ratchet.file(target));
 		const ids = byTarget.get(target.key);
 
-		if (UPDATE_WARNING_BASELINE) {
+		if (ratchet.rewrite()) {
 			// Same FALSE-SHRINK trap as the output baselines: this rewrite drops
 			// every id the run did not measure.
 			requireFullCorpus(manifest.length, 'corpus entries');
 			fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, '\t') + '\n');
-			WRITTEN.add('warning');
+			WRITTEN.add(ratchet.family);
 			console.log(`[verify] ${ratchet.label} baseline: ${ids.size} known -> ${path.relative(ROOT, p)}`);
 			continue;
 		}
@@ -519,8 +617,8 @@ for (const ratchet of SKIP_WARNING_RATCHETS ? [] : WARNING_RATCHETS) {
 	}
 }
 
-// Hand off to the output rewrite below when both were asked for.
-if (UPDATE_WARNING_BASELINE && !UPDATE_BASELINE) finish(0);
+// Hand off to the output rewrite below when that was asked for too.
+if ((UPDATE_WARNING_BASELINE || UPDATE_MESSAGE_BASELINE) && !UPDATE_BASELINE) finish(0);
 
 // Two-sided, like the output ratchets: a listed entry that already passes fails
 // the run, so the PR that fixes entries re-baselines in the same PR.
