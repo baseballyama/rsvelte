@@ -182,6 +182,13 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
     let mut result = expr.to_string();
 
     for prop_name in prop_vars {
+        // The walk below pushes every character it reads, so a name that does
+        // not occur rebuilds the expression unchanged -- at the cost of a
+        // `Vec<char>`, an offset table, a scan index and a `String` per name.
+        if memmem::find(result.as_bytes(), prop_name.as_bytes()).is_none() {
+            continue;
+        }
+
         // Use word boundary matching to replace identifier references
         // But avoid replacing function calls that already have ()
         // Note: Rust's regex crate doesn't support lookahead, so we use a different approach:

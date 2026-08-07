@@ -49,17 +49,17 @@ fn every_comment_in_the_run_is_kept() {
     );
 }
 
-/// Preservation guard, not a regression test: this caller parses with
-/// `ParseOptions::default()`, where `preserve_parens` makes the argument span
-/// cover the parens, so it passes on either end bound. It would start
-/// discriminating only under `preserve_parens: false`, which is why the copy
-/// runs to the expression's own end — the read range then equals the written
-/// range by construction rather than by coincidence.
+/// The operand's own parens do NOT survive: esrap prints from the AST and
+/// recomputes parenthesisation from precedence, so a redundant `(load())`
+/// collapses to `load()` — official does the same. What this pins is the
+/// surrounding shape, where the source's trailing call and the wrap's own
+/// `()` stack into `…()()`; the balance check then catches a splice that
+/// reads and writes different ranges.
 #[test]
 fn a_parenthesized_operand_stays_balanced() {
     let src = "export async function f() {\n\treturn (await (load()))();\n}\n";
     let out = module(src);
-    assert_contains(&out, "$.track_reactivity_loss((load()))");
+    assert_contains(&out, "return (await $.track_reactivity_loss(load()))()();");
     assert_eq!(
         out.matches('(').count(),
         out.matches(')').count(),
