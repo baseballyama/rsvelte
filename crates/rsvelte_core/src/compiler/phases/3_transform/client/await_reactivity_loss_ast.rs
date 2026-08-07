@@ -325,7 +325,7 @@ impl AwaitCommentRuns {
             text.push_str(&source[start as usize..end as usize]);
             let next = self.comments[first + index + 1..]
                 .first()
-                .map_or(await_start, |&(next_start, ..)| next_start);
+                .map_or(await_start, |&(next_start, ..)| next_start.min(await_start));
             // Whether the comment stood on a line of its own survives the move,
             // because the printer reproduces that break rather than the offset.
             // A line comment always breaks, or it would swallow the wrapper.

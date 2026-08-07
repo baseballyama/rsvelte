@@ -136,6 +136,16 @@ fn a_comment_on_its_own_line_keeps_the_break() {
     );
 }
 
+/// The break is read from the gap up to the `await`, not up to the next comment
+/// anywhere in the file: a later comment must not make this run look broken.
+#[test]
+fn a_later_comment_does_not_break_the_moved_run() {
+    assert_contains(
+        &module("\treturn (/* c */ await load())();\n\t// tail\n"),
+        "return (await $.track_reactivity_loss(/* c */ load()))()();",
+    );
+}
+
 const RUNES: &str = "<script>\n\tlet x = $state(1);\n\tasync function f() {\n\t\treturn (/* c */ await load())();\n\t}\n</script>\n<p>{x}{f}</p>";
 
 /// A runes instance script reaches a second copy of this rewrite, in
