@@ -1618,6 +1618,24 @@ mod non_ascii_tests {
             vec!["a".to_string(), "c".to_string()]
         );
     }
+
+    /// An unbalanced `{`- or `[`-prefixed fragment strips to itself, so recursing
+    /// into it never shrinks the input — that overflowed the stack and aborted the
+    /// host process instead of producing output or an error.
+    #[test]
+    fn extract_destructure_targets_terminates_on_an_unbalanced_fragment() {
+        use super::extract_destructure_targets;
+
+        assert!(extract_destructure_targets("{\n\t\t// } c\n\t\tbar").is_empty());
+        assert!(extract_destructure_targets("{ a").is_empty());
+        assert!(extract_destructure_targets("[ a").is_empty());
+        assert!(extract_destructure_targets("{ a: [b").is_empty());
+        // A balanced pattern still yields its targets.
+        assert_eq!(
+            extract_destructure_targets("{ a: [b] }"),
+            vec!["b".to_string()]
+        );
+    }
 }
 
 #[cfg(test)]
