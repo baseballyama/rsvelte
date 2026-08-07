@@ -9,6 +9,7 @@ use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::Binding;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+use crate::compiler::utils::{is_js_ident_continue, is_js_ident_start};
 use rustc_hash::FxHashSet;
 
 /// Let the `{#snippet}` blocks a fragment declares shadow the inherited reads of
@@ -44,10 +45,10 @@ pub fn shadow_snippet_declarations(
 
 /// Check if `text` contains any identifier that appears in `vars`.
 ///
-/// This scans the text once (O(text_len)) extracting JavaScript identifiers by
-/// byte-scanning for word boundaries, then checks each extracted identifier against
-/// the set. This is dramatically faster than the naive approach of calling
-/// `text.contains(var)` for each variable (O(N * text_len)).
+/// This scans the text once (O(text_len)), cutting it into identifier tokens by
+/// the same start/continue rule the official parser uses, then checks each token
+/// against the set. This is dramatically faster than the naive approach of
+/// calling `text.contains(var)` for each variable (O(N * text_len)).
 ///
 /// Note: This is a conservative approximation -- it extracts identifiers from ALL
 /// positions including inside string literals and comments. This is acceptable because
@@ -55,31 +56,71 @@ pub fn shadow_snippet_declarations(
 /// in the downstream transform, while false negatives would cause correctness bugs.
 #[inline]
 pub fn text_contains_any_identifier(text: &str, vars: &FxHashSet<&str>) -> bool {
-    if vars.is_empty() || text.is_empty() {
+    if vars.is_empty() {
         return false;
     }
-    let bytes = text.as_bytes();
-    let len = bytes.len();
     let mut i = 0;
-    while i < len {
-        let b = bytes[i];
-        // Fast skip for non-identifier-start bytes (common case: operators, whitespace, punctuation)
-        if !is_ident_start_byte(b) {
-            i += 1;
-            continue;
-        }
-        let start = i;
-        i += 1;
-        while i < len && is_ident_continue_byte(bytes[i]) {
-            i += 1;
-        }
-        // SAFETY: identifier chars are always valid ASCII subset, so valid UTF-8
-        let word = unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) };
-        if vars.contains(word) {
+    while let Some((start, end)) = next_identifier(text, i) {
+        if vars.contains(&text[start..end]) {
             return true;
         }
+        i = end;
     }
     false
+}
+
+/// Byte length of the identifier-start character at `i`, or `None`.
+///
+/// Non-ASCII is decoded rather than admitted wholesale: `\u{a0}` and `\u{3000}`
+/// are JavaScript whitespace, so gluing them into a word hides the identifier
+/// next to them, and a missed identifier here is a correctness bug.
+#[inline]
+fn ident_start_len(text: &str, i: usize) -> Option<usize> {
+    let b = text.as_bytes()[i];
+    if b.is_ascii() {
+        return (b.is_ascii_alphabetic() || b == b'_' || b == b'$').then_some(1);
+    }
+    let c = text[i..].chars().next()?;
+    is_js_ident_start(c).then(|| c.len_utf8())
+}
+
+/// Byte length of the identifier-continue character at `i`, or `None`.
+#[inline]
+fn ident_continue_len(text: &str, i: usize) -> Option<usize> {
+    let b = text.as_bytes()[i];
+    if b.is_ascii() {
+        return (b.is_ascii_alphanumeric() || b == b'_' || b == b'$').then_some(1);
+    }
+    let c = text[i..].chars().next()?;
+    is_js_ident_continue(c).then(|| c.len_utf8())
+}
+
+/// Byte range of the first identifier at or after `from`.
+#[inline]
+fn next_identifier(text: &str, from: usize) -> Option<(usize, usize)> {
+    let len = text.len();
+    let mut i = from;
+    loop {
+        if i >= len {
+            return None;
+        }
+        match ident_start_len(text, i) {
+            Some(n) => {
+                let start = i;
+                i += n;
+                while i < len {
+                    match ident_continue_len(text, i) {
+                        Some(n) => i += n,
+                        None => break,
+                    }
+                }
+                return Some((start, i));
+            }
+            // Not a start character; step over it whole so `i` stays on a char
+            // boundary and the next character is judged on its own.
+            None => i += text[i..].chars().next().map_or(1, char::len_utf8),
+        }
+    }
 }
 
 /// Retain only those strings in `vars` whose name appears as an identifier in `text`.
@@ -96,47 +137,13 @@ pub fn text_retain_matching_identifiers(text: &str, vars: &mut Vec<String>) {
 
 /// Extract all unique identifiers from text into a FxHashSet.
 fn extract_identifiers(text: &str) -> FxHashSet<&str> {
-    let bytes = text.as_bytes();
-    let len = bytes.len();
     let mut set = FxHashSet::default();
     let mut i = 0;
-    while i < len {
-        let b = bytes[i];
-        if !is_ident_start_byte(b) {
-            i += 1;
-            continue;
-        }
-        let start = i;
-        i += 1;
-        while i < len && is_ident_continue_byte(bytes[i]) {
-            i += 1;
-        }
-        // SAFETY: `bytes` come from `text.as_bytes()`. The slice spans
-        // `start..i`, a run that begins at an ASCII ident-start byte and
-        // continues only over ASCII ident-continue bytes, so it is entirely
-        // ASCII and therefore valid UTF-8 lying on char boundaries.
-        let word = unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) };
-        set.insert(word);
+    while let Some((start, end)) = next_identifier(text, i) {
+        set.insert(&text[start..end]);
+        i = end;
     }
     set
-}
-
-/// Check if a byte can start a JavaScript identifier (a-z, A-Z, _, $).
-/// We only check ASCII since JS variable names in Svelte components are
-/// overwhelmingly ASCII. Non-ASCII identifier starts (e.g. Unicode letters)
-/// would be missed but this is a pre-filter so false negatives at boundaries
-/// are acceptable (the downstream transform handles them correctly).
-#[inline(always)]
-fn is_ident_start_byte(b: u8) -> bool {
-    // Every byte of a non-ASCII character is >= 0x80, so admitting them keeps
-    // whole characters inside the word without decoding.
-    b.is_ascii_alphabetic() || b == b'_' || b == b'$' || b >= 0x80
-}
-
-/// Check if a byte can continue a JavaScript identifier (a-z, A-Z, 0-9, _, $).
-#[inline(always)]
-fn is_ident_continue_byte(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80
 }
 
 /// Check if a binding is a state source that needs reactive tracking.
@@ -222,6 +229,47 @@ mod tests {
     }
 
     #[test]
+    fn text_scan_breaks_on_non_ascii_non_identifier_characters() {
+        let mut vars = FxHashSet::default();
+        vars.insert("count");
+
+        // NBSP and IDEOGRAPHIC SPACE are JavaScript whitespace, not identifier
+        // characters, so `count` stands alone in each of these.
+        assert!(text_contains_any_identifier("let\u{00a0}count = 0", &vars));
+        assert!(text_contains_any_identifier("let\u{3000}count = 0", &vars));
+        // IDEOGRAPHIC COMMA and EM DASH are punctuation, not identifier characters.
+        assert!(text_contains_any_identifier("a\u{3001}count", &vars));
+        assert!(text_contains_any_identifier("a\u{2014}count", &vars));
+        // An emoji is neither ID_Start nor ID_Continue.
+        assert!(text_contains_any_identifier("\u{1f600}count", &vars));
+    }
+
+    #[test]
+    fn text_scan_keeps_unicode_identifiers_whole() {
+        let mut vars = FxHashSet::default();
+        vars.insert("count");
+        vars.insert("名前");
+        vars.insert("々");
+
+        // `名` is ID_Start and `々` is ID_Continue, so these are single
+        // identifiers that do not mention `count`.
+        assert!(!text_contains_any_identifier("count名 + 1", &vars));
+        assert!(!text_contains_any_identifier("名count + 1", &vars));
+        assert!(!text_contains_any_identifier("count々 + 1", &vars));
+        // …and a Unicode identifier is found under its own name.
+        assert!(text_contains_any_identifier("名前 + 1", &vars));
+        assert!(text_contains_any_identifier("let x = 々;", &vars));
+
+        // Hebrew: every byte of `שם` is a 0xD7-led pair. Decoding per byte as
+        // Latin-1 would read the lead byte as `×`, which is not an identifier
+        // character at all.
+        let mut hebrew = FxHashSet::default();
+        hebrew.insert("שם");
+        assert!(text_contains_any_identifier("let שם = 1", &hebrew));
+        assert!(!text_contains_any_identifier("let שםx = 1", &hebrew));
+    }
+
+    #[test]
     fn test_text_retain_matching_identifiers() {
         let mut vars = vec![
             "count".to_string(),
@@ -234,5 +282,17 @@ mod tests {
         let mut vars2 = vec!["foo".to_string()];
         text_retain_matching_identifiers("bar + baz", &mut vars2);
         assert!(vars2.is_empty());
+    }
+
+    #[test]
+    fn retain_matching_identifiers_breaks_on_non_ascii_whitespace() {
+        let mut vars = vec!["count".to_string(), "総額".to_string()];
+        text_retain_matching_identifiers("let\u{00a0}count = 総額", &mut vars);
+        assert_eq!(vars, vec!["count".to_string(), "総額".to_string()]);
+
+        // `count名` is one identifier, so plain `count` is not mentioned.
+        let mut glued = vec!["count".to_string()];
+        text_retain_matching_identifiers("count名 = 1", &mut glued);
+        assert!(glued.is_empty());
     }
 }

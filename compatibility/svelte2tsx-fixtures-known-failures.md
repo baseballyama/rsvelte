@@ -25,7 +25,7 @@ UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures
 `STRICT_S2TSX_FIXTURES=1` ignores the baseline entirely (every failure fails),
 which is how you check whether an entry is still needed.
 
-## Current baseline: `svelte2tsx-fixtures-known-failures.json`, 5 entries — 5 of 254 (pass rate 98.0%)
+## Current baseline: `svelte2tsx-fixtures-known-failures.json`, 4 entries — 4 of 254 (pass rate 98.4%)
 
 ### #2145 note
 
@@ -39,18 +39,6 @@ rsvelte/official divergence — `$$slot_def["b"]` vs official's `$$slot_def['b']
 relaxations, on top of the existing chain. The entries below are pre-existing
 divergences this newly surfaced — none are new regressions, and none are related to the
 quoting bug itself (which is fixed in `collect/mod.rs`'s `push_let_reflection_scope`).
-
-### Harness gap — 1
-
-- **`attributes-foreign-ns`.** Upstream derives `namespace: 'foreign'` from the
-  sample-name suffix (`test/helpers.ts`: ``sampleName.endsWith('-foreign-ns') ?
-  'foreign' : null``); our `build_options` hardcodes `Svelte2TsxNamespace::Html`.
-  Under the HTML namespace rsvelte lowercases attribute names, so it emits
-  `svelteHTML.createElement("element", { "someattr": …, "someotherattribute": … })`
-  where the fixture expects `"someAttr"` / `"someOtherAttribute"` preserved.
-  Component props (`<Component someAttr="5" />`) already keep their case in both.
-  This is the cheapest entry to remove — it needs a runner change, not a compiler
-  change — but it is out of scope for the PR that introduced this ratchet.
 
 ### Statement ordering around `function $$render()` — 2
 
@@ -83,6 +71,14 @@ quoting bug itself (which is fixed in `collect/mod.rs`'s `push_let_reflection_sc
 - **`ts-await-generics.v5`.** One space after `type $$ComponentProps = { prop?: T };`
   — the fixture has two, rsvelte emits one. Cosmetic in effect, but the gate is
   byte-exact so it is tracked like any other divergence.
+
+### Removed by the `foreign` namespace fix
+
+`attributes-foreign-ns` now passes. It needed both halves: the runner derives
+the namespace from the `-foreign-ns` sample-name suffix like upstream
+`test/helpers.ts`, and `Svelte2TsxNamespace::Foreign` now actually suppresses
+the attribute-name case fold (previously `Svelte2TsxOptions::namespace` was
+never read by the projection at all).
 
 ### Removed by #2161
 
