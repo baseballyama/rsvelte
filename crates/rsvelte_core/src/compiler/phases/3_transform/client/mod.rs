@@ -3397,6 +3397,11 @@ fn cleanup_import_line(import: &str) -> String {
 /// holds iff `<kw> N = $state(` occurs for some keyword. The keyword is matched as
 /// a raw substring (no left word boundary), mirroring the original `contains`.
 fn collect_local_state_decls(script: &str) -> rustc_hash::FxHashSet<&str> {
+    // The only insert requires this exact suffix, so its absence settles the answer
+    // without the three keyword scans below.
+    if memmem::find(script.as_bytes(), b" = $state(").is_none() {
+        return rustc_hash::FxHashSet::default();
+    }
     let mut set: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
     for kw in ["let ", "const ", "var "] {
         let mut from = 0;
@@ -3802,6 +3807,10 @@ fn is_inside_function_with_param(script: &str, pos: usize, param_name: &str) -> 
 /// These variables will be transformed to $.proxy() and should NOT have $.get() wrapping
 /// when accessing their properties.
 fn extract_proxy_vars(script: &str) -> Vec<String> {
+    // Nothing is pushed without a `$state(` on the line, so no token means no result.
+    if memmem::find(script.as_bytes(), b"$state(").is_none() {
+        return Vec::new();
+    }
     let mut proxy_vars = Vec::new();
 
     for line in script.lines() {
@@ -4684,8 +4693,16 @@ fn transform_instance_script_for_visitors(
     // One pass each, shared by both loops below. Asking per variable walked
     // the whole script once per variable, which is where this stage's cost
     // grew faster than the script did.
-    let const_state_decls = index_const_state_decls(&script_rest);
-    let reassigned_in_text = index_reassigned_vars(&script_rest);
+    // Every read of either index happens while iterating `local_reactive_vars`, so
+    // an empty list makes both whole-script passes unobservable.
+    let (const_state_decls, reassigned_in_text) = if local_reactive_vars.is_empty() {
+        Default::default()
+    } else {
+        (
+            index_const_state_decls(&script_rest),
+            index_reassigned_vars(&script_rest),
+        )
+    };
     if super::profile::index_oracle_enabled() {
         for (var, ..) in &local_reactive_vars {
             super::profile::record_index_oracle(
