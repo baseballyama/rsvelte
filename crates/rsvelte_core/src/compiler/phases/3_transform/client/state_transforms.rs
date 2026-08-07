@@ -400,6 +400,13 @@ pub(super) fn strip_object_property_keys(code: &str) -> std::borrow::Cow<'_, str
     std::borrow::Cow::Owned(result.into_iter().collect())
 }
 
+/// Whether `c` can follow the last character of a parameter name. Spelled over
+/// characters rather than the single space the ASCII whitelist accepted, because
+/// `U+3000` and NBSP separate a parameter exactly as a space does.
+fn ends_a_parameter_name(c: char) -> bool {
+    c == ',' || c == ')' || c == ':' || c.is_whitespace()
+}
+
 /// Strip out function/arrow expression bodies where the identifier is declared as a parameter.
 /// This replaces the function body (including the function itself) with empty space,
 /// leaving only the parts of the code that don't shadow the identifier.
@@ -432,14 +439,13 @@ pub(super) fn strip_function_scopes_that_shadow<'a>(
         while let Some(pos) = result.find(pat.as_str()) {
             // Verify the identifier is actually a parameter (followed by `,` or `)`)
             let after_ident = pos + pat.len();
-            if after_ident < result.len() {
-                let next_char = result.as_bytes()[after_ident] as char;
-                if next_char != ',' && next_char != ')' && next_char != ' ' && next_char != ':' {
-                    // Not a word boundary - the pattern is a prefix of a longer name
-                    // Replace just this occurrence to prevent infinite loop
-                    result.replace_range(pos..pos + 1, " ");
-                    continue;
-                }
+            if crate::compiler::utils::char_at(&result, after_ident)
+                .is_some_and(|next_char| !ends_a_parameter_name(next_char))
+            {
+                // Not a word boundary - the pattern is a prefix of a longer name
+                // Replace just this occurrence to prevent infinite loop
+                result.replace_range(pos..pos + 1, " ");
+                continue;
             }
 
             // Find the opening brace of the function body
@@ -512,8 +518,9 @@ pub(super) fn strip_function_scopes_that_shadow<'a>(
             if after_ident >= result.len() {
                 break;
             }
-            let next_char = result.as_bytes()[after_ident] as char;
-            if next_char != ',' && next_char != ')' && next_char != ' ' && next_char != ':' {
+            if !crate::compiler::utils::char_at(&result, after_ident)
+                .is_some_and(ends_a_parameter_name)
+            {
                 search_from = crate::compiler::utils::next_char_boundary(&result, pos);
                 continue;
             }
