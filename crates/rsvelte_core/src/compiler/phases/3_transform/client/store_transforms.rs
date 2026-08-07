@@ -365,6 +365,12 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
     let mut result = line.to_string();
 
     for store_sub in store_sub_vars {
+        // The walk below copies every character it does not match, so a name
+        // that does not occur rebuilds the line unchanged.
+        if memmem::find(result.as_bytes(), store_sub.as_bytes()).is_none() {
+            continue;
+        }
+
         // Use word boundary matching to replace identifier references
         // But avoid replacing function calls that already have ()
         let mut new_result = String::with_capacity(result.len() * 2);
