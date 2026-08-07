@@ -9,8 +9,8 @@
  * pipeline exists to prevent — a gate reporting success without doing the work.
  *
  * The contract asserted here:
- *   - the flags compose; both together rewrite both families
- *   - each alone still rewrites only its own family
+ *   - --no-fmt bars the output family and only the output family
+ *   - each flag writes only its own family, whichever way the other resolves
  *   - a deselected target's ratchets are never touched
  *   - --from-report cannot rewrite the warning family (it derives output only)
  *   - a rewrite run that writes nothing exits non-zero
