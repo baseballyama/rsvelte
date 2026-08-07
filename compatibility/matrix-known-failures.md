@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 330 entries)
+## Matrix known failures (`matrix-known-failures.json`, 162 entries)
 
 ### `binding-position` — 2 entries
 
@@ -47,7 +47,7 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 328 entries
+### `comment-slot` — 160 entries
 
 One comment inserted at each line boundary inside every `<script>` region of 6 seeds,
 across 8 comment kinds. A comment is the one token that may appear between any two other
@@ -58,7 +58,7 @@ Classified by comparing the **multiset of comments** in each output:
 
 | what diverges | entries | of which server |
 |---|---|---|
-| rsvelte drops a comment the official compiler keeps | 268 | 224 |
+| rsvelte drops a comment the official compiler keeps | 100 | 56 |
 | the comment survives but lands somewhere else | 32 | 0 |
 | rsvelte emits a comment more than once | 28 | 24 |
 | **anything other than the comment itself** | **0** | — |
@@ -73,24 +73,31 @@ By seed:
 
 | seed | entries |
 |---|---|
-| `class-static-block` | 80 |
-| `class-private-state` | 72 |
-| `legacy-reactive` | 72 |
-| `module-script` | 72 |
+| `legacy-reactive` | 56 |
+| `module-script` | 56 |
 | `await-block` | 24 |
+| `class-private-state` | 8 |
+| `class-static-block` | 8 |
 | `snippet-render` | 8 |
 
 The 20 entries #2437 cleared were the `client` / `client-dev` halves of
 `class-private-state__L03__*` and `class-static-block__L07__*` — the line-comment kinds
 only, at the one line in each seed that is a private rune field declaration. Both seeds
 regressed the same way because `emit_class_field` applied the public-field comment
-placement (after the `=`) to private fields too. The `server` halves of those same cases
-remain listed: they are comment **drops**, not relocations, and belong to the #2312
-burn-down.
+placement (after the `=`) to private fields too.
 
-Server dominates (248 of 348) for a known structural reason: the SSR path reconstructs
-statements it cannot carry comments through. See `server/ast/comments.rs` and the
-comment-carry-over work in #2312, which is the burn-down vehicle for the 224 server drops.
+The 168 entries #2504's fix cleared were all on `server`, and all the same defect: a
+comment INTERIOR to a top-level script statement. The SSR path re-parses each top-level
+statement from its source slice and used to collapse every span of the result onto a single
+address, so the only comments it could replay were the LEADING ones in the gap before the
+statement. Statements that are re-parsed WHOLE now keep their relative positions, which is
+what upstream gets for free by keeping the original nodes' `loc`.
+
+Server still dominates (82 of 162), and its 56 remaining drops are one residual class: a
+comment TRAILING the last top-level statement of a script region, which upstream flushes
+into the generated component function's parameter list or into a template interpolation
+(`$$renderer.push(\`…${$.escape(/* c */ b)}…\`)`). It is 7 line slots × 8 comment kinds.
+See `server/ast/comments.rs`.
 
 ## Burn-down
 

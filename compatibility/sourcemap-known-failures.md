@@ -15,6 +15,13 @@ each sample's recorded `metadata.json` still says exactly that).
 | `map-parity` | `map-parity\t<sample>\t<target>\t<count>` | budget: official map segments that rsvelte does not reproduce, where the generated code is byte-identical (missing + wrong) |
 | `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: segments whose original position lies past the end of that source line, or past the last line |
 
+**Current baseline: `sourcemap-known-failures.json`, 74 entries.** The
+before/after tables further down record what one specific change did at the time
+it landed; they are history, not the current size. Reading the newest number in
+those tables as today's count is the mistake this line exists to prevent — the
+`73` under the anchoring fix was correct when written (#2264 took the list 75 →
+73), and #2312 later took it to 74.
+
 Ratchet semantics, matching `fmt-verify.mjs` / `verify.mjs`:
 
 - an `anchor` id **not** in this list fails CI;

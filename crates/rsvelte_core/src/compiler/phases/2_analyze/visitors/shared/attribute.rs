@@ -181,6 +181,24 @@ pub fn is_event_attribute(attribute: &AttributeNode<'_>) -> bool {
     attribute.name.starts_with("on") && is_expression_attribute(attribute)
 }
 
+/// Record an event attribute whose expression is a lone arrow, so Phase 3 can
+/// exempt that arrow's direct assignment body from the dev `$.assign` wrap.
+/// Upstream's test is node identity (`expression === context.path.at(-1)`), so
+/// only the arrow that *is* the attribute's expression qualifies — never one
+/// nested inside it. Call this for `RegularElement` and `SvelteElement` only:
+/// `<svelte:window>` and friends are absent from upstream's list.
+pub fn record_event_attribute_arrow(context: &mut VisitorContext, attribute: &AttributeNode<'_>) {
+    if !is_event_attribute(attribute) {
+        return;
+    }
+    if let AttributeValue::Expression(tag) = &attribute.value
+        && tag.expression.as_node().node_type() == Some("ArrowFunctionExpression")
+        && let Some(start) = tag.expression.as_node().start()
+    {
+        context.analysis.event_attribute_arrow_starts.insert(start);
+    }
+}
+
 /// Get the chunks of an attribute value.
 ///
 /// Corresponds to `get_attribute_chunks` in ast.js.

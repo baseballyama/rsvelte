@@ -93,6 +93,10 @@ const rsvelte = require(BINDING);
 
 // ---- generate + compile ----------------------------------------------------
 
+// The axes generate 665 cases on an unmodified tree; the floor only has to
+// separate "generation broke" from "the gate got easier".
+const MIN_MATRIX_CASES = 400;
+
 const cases = generate(FAMILY_KEYS);
 console.log(`[matrix] families: ${FAMILY_KEYS.join(', ')}`);
 console.log(`[matrix] cases: ${cases.length}  targets: ${TARGETS.map((t) => t.key).join(', ')}  comparisons: ${cases.length * TARGETS.length}`);
@@ -194,6 +198,14 @@ for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}
 const ids = new Set(failures.map((f) => `${f.id} [${f.verdict}] (${f.target})`));
 
 if (UPDATE_BASELINE) {
+	// The parse-time guards are relative to whatever population the run was handed,
+	// so an edit that collapsed generation would satisfy them and still empty the
+	// ratchet. This one is absolute.
+	if (cases.length < MIN_MATRIX_CASES) {
+		console.error(`\n[matrix] refusing to baseline from ${cases.length} generated cases (expected >= ${MIN_MATRIX_CASES}).`);
+		console.error('  the axes generate ~665; far below that means generation broke, not that the gate got easier.');
+		process.exit(2);
+	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
 	console.log(`\n[matrix] baseline: ${ids.size} known -> ${path.relative(ROOT, BASELINE)}`);
 	cleanup(0);

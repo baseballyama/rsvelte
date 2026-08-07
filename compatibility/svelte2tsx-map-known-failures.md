@@ -5,7 +5,7 @@ invariants in `scripts/compat-corpus/sourcemap.mjs`) checks the `mappings` strin
 rsvelte's svelte2tsx port returns for every component corpus entry. The ratchet
 may only shrink.
 
-**Current baseline: empty (`[]`)** — every rsvelte map is well-formed.
+**Current baseline: `svelte2tsx-map-known-failures.json`, 0 entries** — every rsvelte map is well-formed.
 
 ## Why this gate is structural rather than a diff against official
 

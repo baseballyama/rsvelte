@@ -193,7 +193,6 @@ pub fn fragment(
         parent_is_regular_element: false,
         state_declarator_name: None,
         assignment_is_statement: false,
-        in_event_attribute_handler: false,
         event_handler_arrow_body_level: 0,
         is_controlled_each: false,
         is_controlled_html: false,
