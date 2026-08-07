@@ -11,8 +11,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, get_fixture_samples,
-    load_fixture_output, sample_name, svelte_path, write_actual_output,
+    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, fixture_samples_dir,
+    get_fixture_samples, load_fixture_output, sample_name, svelte_path, write_actual_output,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -183,7 +183,11 @@ fn test_sourcemaps() {
 
     let samples = get_fixture_samples("sourcemaps");
 
-    let mut coverage = FixtureCoverage::new("sourcemaps", samples.len());
+    let mut coverage = FixtureCoverage::new(
+        "sourcemaps",
+        fixture_samples_dir("sourcemaps"),
+        samples.len(),
+    );
     let mut fixtures: Vec<SourcemapFixture> = Vec::new();
     for sample_dir in &samples {
         match load_sourcemap_fixture(sample_dir.as_path()) {

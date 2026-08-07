@@ -182,6 +182,13 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
     let mut result = expr.to_string();
 
     for prop_name in prop_vars {
+        // The walk below pushes every character it reads, so a name that does
+        // not occur rebuilds the expression unchanged -- at the cost of a
+        // `Vec<char>`, an offset table, a scan index and a `String` per name.
+        if memmem::find(result.as_bytes(), prop_name.as_bytes()).is_none() {
+            continue;
+        }
+
         // Use word boundary matching to replace identifier references
         // But avoid replacing function calls that already have ()
         // Note: Rust's regex crate doesn't support lookahead, so we use a different approach:
@@ -1308,49 +1315,26 @@ pub(super) fn transform_destructured_export_let(
 
 /// Find the end position of a destructuring pattern in `{ ... } = RHS` or `[ ... ] = RHS`.
 /// Returns the position after the closing `}` or `]`.
+/// Byte offset just past the pattern's closing bracket, relative to `s` as passed.
 pub(super) fn find_destructuring_pattern_end(s: &str) -> Option<usize> {
-    let s = s.trim();
-    let first = s.chars().next()?;
-    if first != '{' && first != '[' {
+    let trimmed = s.trim_start();
+    let base = s.len() - trimmed.len();
+    if !matches!(trimmed.as_bytes().first(), Some(b'{' | b'[')) {
         return None;
     }
 
-    let chars: Vec<char> = s.chars().collect();
     let mut depth = 0;
-    let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
-
-    while i < chars.len() {
-        if in_string {
-            if chars[i] == '\\' {
-                i += 2;
-                continue;
+    for (i, c) in code_bytes(trimmed.as_bytes()) {
+        match c {
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(base + i + 1);
+                }
             }
-            if chars[i] == string_char {
-                in_string = false;
-            }
-            i += 1;
-            continue;
+            _ => {}
         }
-
-        if chars[i] == '\'' || chars[i] == '"' || chars[i] == '`' {
-            in_string = true;
-            string_char = chars[i];
-            i += 1;
-            continue;
-        }
-
-        if chars[i] == '{' || chars[i] == '[' {
-            depth += 1;
-        } else if chars[i] == '}' || chars[i] == ']' {
-            depth -= 1;
-            if depth == 0 {
-                return Some(i + 1);
-            }
-        }
-
-        i += 1;
     }
     None
 }
@@ -3006,6 +2990,7 @@ pub(super) fn wrap_prop_mutation_validation(
     let _trimmed = stmt.trim();
 
     let mut result = stmt.to_string();
+    let scan = PropMutationScan::new(source);
 
     for (var_name, prop_alias) in prop_vars {
         let alias_literal = match prop_alias {
@@ -3016,7 +3001,7 @@ pub(super) fn wrap_prop_mutation_validation(
         // This handles the case where transform_prop_assignments skips member mutation wrapping in runes mode.
         let runes_prefix = format!("{}().", var_name);
         let mut runes_search_from = 0;
-        let mut sites = PropMutationSites::collect(source, var_name);
+        let mut sites = PropMutationSites::collect(source, var_name, &scan);
 
         while runes_search_from < result.len() {
             let Some(prefix_rel) = result[runes_search_from..].find(&runes_prefix) else {
@@ -3509,13 +3494,29 @@ pub(super) struct PropMutationSites {
     sites: Vec<PropMutationSite>,
 }
 
+/// The two source-wide scans every prop's site collection needs. Neither
+/// depends on the prop, so recomputing them per prop made the pass quadratic
+/// in the script length.
+pub(super) struct PropMutationScan {
+    reactive: Vec<(usize, usize)>,
+    code: CodeSpans,
+}
+
+impl PropMutationScan {
+    pub(super) fn new(source: &str) -> Self {
+        Self {
+            reactive: reactive_statement_ranges(source),
+            code: CodeSpans::scan(source),
+        }
+    }
+}
+
 impl PropMutationSites {
-    pub(super) fn collect(source: &str, var_name: &str) -> Self {
+    pub(super) fn collect(source: &str, var_name: &str, scan: &PropMutationScan) -> Self {
         let mut sites = Vec::new();
-        let reactive = reactive_statement_ranges(source);
-        let mut cursor = memchr::memmem::find(source.as_bytes(), b"<script").unwrap_or(0);
+        let reactive = &scan.reactive;
         let bytes = source.as_bytes();
-        let mut search = cursor;
+        let mut search = memchr::memmem::find(bytes, b"<script").unwrap_or(0);
         while search < source.len() {
             let Some(rel) = memchr::memmem::find(&bytes[search..], var_name.as_bytes()) else {
                 break;
@@ -3523,7 +3524,7 @@ impl PropMutationSites {
             let start = search + rel;
             let end = start + var_name.len();
             search = end;
-            if !is_in_code(source, cursor, start) {
+            if !scan.code.contains(start) {
                 continue;
             }
             if start > 0 {
@@ -3555,7 +3556,6 @@ impl PropMutationSites {
                         .any(|(from, to)| (*from..*to).contains(&start)),
                     used: false,
                 });
-                cursor = end;
             }
         }
         // A `$:` body is emitted at the end of the instance script as a
@@ -3763,69 +3763,228 @@ fn static_member_names(path_parts: &[String]) -> Option<Vec<String>> {
 /// Whether `target` sits in code rather than inside a comment or a string /
 /// template literal. `from` must itself be a code offset — the scan starts
 /// there in the code state, so callers pass the previous confirmed match.
-fn is_in_code(source: &str, from: usize, target: usize) -> bool {
-    #[derive(PartialEq)]
-    enum S {
-        Code,
-        Line,
-        Block,
-        Single,
-        Double,
-        Template,
-    }
-    let bytes = source.as_bytes();
-    let mut state = S::Code;
-    let mut i = from;
-    while i < target {
-        let c = bytes[i];
-        let next = bytes.get(i + 1).copied();
-        match state {
-            S::Code => match (c, next) {
-                (b'/', Some(b'/')) => {
-                    state = S::Line;
-                    i += 2;
-                    continue;
+/// Byte ranges of `source` the comment / string scanner reports as code.
+///
+/// The scanner is deterministic left-to-right, so running it once and looking
+/// a position up beats re-running it from the previous hit for every candidate
+/// occurrence of every prop — which was quadratic in the script length.
+pub(super) struct CodeSpans {
+    /// Sorted, non-overlapping `[start, end)` ranges. Everything before the
+    /// `<script` tag is code, matching the empty scan the old caller did there.
+    spans: Vec<(usize, usize)>,
+}
+
+impl CodeSpans {
+    fn scan(source: &str) -> Self {
+        #[derive(PartialEq)]
+        enum S {
+            Code,
+            Line,
+            Block,
+            Single,
+            Double,
+            Template,
+        }
+        let bytes = source.as_bytes();
+        let mut spans = Vec::new();
+        let mut state = S::Code;
+        let mut code_from = 0usize;
+        let mut i = memchr::memmem::find(bytes, b"<script").unwrap_or(0);
+        while i < bytes.len() {
+            let was_code = state == S::Code;
+            let c = bytes[i];
+            let next = bytes.get(i + 1).copied();
+            match state {
+                S::Code => match (c, next) {
+                    (b'/', Some(b'/')) => {
+                        spans.push((code_from, i + 1));
+                        state = S::Line;
+                        i += 2;
+                        continue;
+                    }
+                    (b'/', Some(b'*')) => {
+                        spans.push((code_from, i + 1));
+                        state = S::Block;
+                        i += 2;
+                        continue;
+                    }
+                    (b'\'', _) => state = S::Single,
+                    (b'"', _) => state = S::Double,
+                    (b'`', _) => state = S::Template,
+                    _ => {}
+                },
+                S::Line => {
+                    if c == b'\n' {
+                        state = S::Code;
+                    }
                 }
-                (b'/', Some(b'*')) => {
-                    state = S::Block;
-                    i += 2;
-                    continue;
+                S::Block => {
+                    if c == b'*' && next == Some(b'/') {
+                        state = S::Code;
+                        // `is_in_code` reported the byte after the `*` as code
+                        // because its two-byte skip overshot the query.
+                        code_from = i + 1;
+                        i += 2;
+                        continue;
+                    }
                 }
-                (b'\'', _) => state = S::Single,
-                (b'"', _) => state = S::Double,
-                (b'`', _) => state = S::Template,
+                S::Single | S::Double | S::Template => {
+                    if c == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    let closer = match state {
+                        S::Single => b'\'',
+                        S::Double => b'"',
+                        _ => b'`',
+                    };
+                    if c == closer {
+                        state = S::Code;
+                    }
+                }
+            }
+            i += 1;
+            // The old scanner reported the state *at* the queried byte, so a
+            // quote opens its string at the byte after it and closes at the
+            // byte after the closer.
+            match (was_code, state == S::Code) {
+                (true, false) => spans.push((code_from, i)),
+                (false, true) => code_from = i,
                 _ => {}
-            },
-            S::Line => {
-                if c == b'\n' {
-                    state = S::Code;
-                }
-            }
-            S::Block => {
-                if c == b'*' && next == Some(b'/') {
-                    state = S::Code;
-                    i += 2;
-                    continue;
-                }
-            }
-            S::Single | S::Double | S::Template => {
-                if c == b'\\' {
-                    i += 2;
-                    continue;
-                }
-                let closer = match state {
-                    S::Single => b'\'',
-                    S::Double => b'"',
-                    _ => b'`',
-                };
-                if c == closer {
-                    state = S::Code;
-                }
             }
         }
-        i += 1;
+        if state == S::Code {
+            spans.push((code_from, bytes.len()));
+        }
+        spans.retain(|(from, to)| from < to);
+        Self { spans }
     }
-    state == S::Code
+
+    fn contains(&self, pos: usize) -> bool {
+        self.spans
+            .binary_search_by(|&(from, to)| {
+                if pos < from {
+                    std::cmp::Ordering::Greater
+                } else if pos >= to {
+                    std::cmp::Ordering::Less
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
+            .is_ok()
+    }
+}
+
+#[cfg(test)]
+mod code_spans_tests {
+    use super::CodeSpans;
+
+    /// The scanner `CodeSpans` replaced, kept verbatim as the oracle.
+    fn is_in_code_reference(source: &str, from: usize, target: usize) -> bool {
+        #[derive(PartialEq)]
+        enum S {
+            Code,
+            Line,
+            Block,
+            Single,
+            Double,
+            Template,
+        }
+        let bytes = source.as_bytes();
+        let mut state = S::Code;
+        let mut i = from;
+        while i < target {
+            let c = bytes[i];
+            let next = bytes.get(i + 1).copied();
+            match state {
+                S::Code => match (c, next) {
+                    (b'/', Some(b'/')) => {
+                        state = S::Line;
+                        i += 2;
+                        continue;
+                    }
+                    (b'/', Some(b'*')) => {
+                        state = S::Block;
+                        i += 2;
+                        continue;
+                    }
+                    (b'\'', _) => state = S::Single,
+                    (b'"', _) => state = S::Double,
+                    (b'`', _) => state = S::Template,
+                    _ => {}
+                },
+                S::Line => {
+                    if c == b'\n' {
+                        state = S::Code;
+                    }
+                }
+                S::Block => {
+                    if c == b'*' && next == Some(b'/') {
+                        state = S::Code;
+                        i += 2;
+                        continue;
+                    }
+                }
+                S::Single | S::Double | S::Template => {
+                    if c == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    let closer = match state {
+                        S::Single => b'\'',
+                        S::Double => b'"',
+                        _ => b'`',
+                    };
+                    if c == closer {
+                        state = S::Code;
+                    }
+                }
+            }
+            i += 1;
+        }
+        state == S::Code
+    }
+
+    fn assert_agrees(source: &str) {
+        let script = memchr::memmem::find(source.as_bytes(), b"<script").unwrap_or(0);
+        let spans = CodeSpans::scan(source);
+        for pos in 0..source.len() {
+            let expected = if pos < script {
+                true
+            } else {
+                is_in_code_reference(source, script, pos)
+            };
+            assert_eq!(
+                spans.contains(pos),
+                expected,
+                "byte {pos} ({:?}) in {source:?}",
+                &source[pos..(pos + 1).min(source.len())]
+            );
+        }
+    }
+
+    #[test]
+    fn code_spans_agree_with_the_scanner_they_replaced() {
+        for source in [
+            "<script>let a = 1; // a.b = 2\na.c = 3;</script>",
+            "<script>/* a.b = 1 */ a.c = 2;</script>",
+            "<script>let s = 'a.b = 1'; a.c = 2;</script>",
+            "<script>let s = \"a.b = 1\"; a.c = 2;</script>",
+            "<script>let s = `a.b = ${x.y} 1`; a.c = 2;</script>",
+            "<script>let s = 'it\\'s'; a.c = 2;</script>",
+            // Unterminated: the tail is never code.
+            "<script>let s = 'oops; a.c = 2;</script>",
+            "<script>/* never closed a.c = 2;</script>",
+            // A `//` inside a string must not open a comment.
+            "<script>let s = '// a.b'; a.c = 2;</script>",
+            // Adjacent comment terminators.
+            "<script>/**/a.c = 2;/*x*/</script>",
+            // No script tag at all: everything is code.
+            "<p>a.b = 1</p>",
+        ] {
+            assert_agrees(source);
+        }
+    }
 }
 
 /// Advance past `.name` / `[expr]` accessors, returning the offset just after
@@ -4398,5 +4557,20 @@ mod props_pattern_span_tests {
         let line = "let { a, b } = $props();";
         let (open, close) = props_pattern_span(line).unwrap();
         assert_eq!(&line[open..=close], "{ a, b }");
+    }
+}
+
+#[cfg(test)]
+mod pattern_end_unit_tests {
+    use super::find_destructuring_pattern_end;
+
+    #[test]
+    fn pattern_end_is_a_byte_offset() {
+        // Callers slice `&str` with this, so it must be a byte offset. The
+        // leading-space case is the only one where the trim `base` is non-zero.
+        for pattern in ["{ a }", "{ café }", "{ ああ }", "[ あ, い ]", "  { café }"] {
+            let end = find_destructuring_pattern_end(pattern).unwrap();
+            assert_eq!(&pattern[..end], pattern, "pattern {pattern:?}");
+        }
     }
 }

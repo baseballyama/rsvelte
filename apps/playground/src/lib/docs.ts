@@ -44,7 +44,7 @@ const compiler: Guide = {
 	dropInFor: 'svelte/compiler',
 	tagline:
 		'The whole compile pipeline — parse, analyze, transform — for client, SSR and hydration, with output that matches the official compiler across the in-scope test suite.',
-	install: 'npm i @rsvelte/compiler',
+	install: 'pnpm add @rsvelte/compiler',
 	runnable: true,
 	sections: [
 		{
@@ -95,7 +95,7 @@ const svelte2tsx: Guide = {
 	dropInFor: 'svelte2tsx',
 	tagline:
 		'Turns a .svelte component into the TSX shadow file the TypeScript checker reads, with column-accurate source maps.',
-	install: 'npm i @rsvelte/svelte2tsx',
+	install: 'pnpm add @rsvelte/svelte2tsx',
 	runnable: true,
 	sections: [
 		{
@@ -146,7 +146,7 @@ const fmt: Guide = {
 	dropInFor: 'prettier-plugin-svelte',
 	tagline:
 		'A Rust-native formatter for .svelte files — in-process, with no Node startup and no Prettier doc-IR round-trip. JS / TS go through oxc_formatter; CSS routes to oxfmt.',
-	install: 'npm i -D @rsvelte/fmt',
+	install: 'pnpm add -D @rsvelte/fmt',
 	runnable: true,
 	sections: [
 		{
@@ -205,7 +205,7 @@ const svelteCheck: Guide = {
 	dropInFor: 'svelte-check',
 	tagline:
 		'The project type-checker CLI. A Rust walker + svelte2tsx overlay drives tsc — or Microsoft\'s native tsgo with --tsgo — for the TypeScript half; diagnostics map back to .svelte positions. Watch + incremental cache included.',
-	install: 'npm i -D @rsvelte/svelte-check',
+	install: 'pnpm add -D @rsvelte/svelte-check',
 	runnable: false,
 	sections: [
 		{
@@ -265,7 +265,7 @@ const vitePlugin: Guide = {
 	dropInFor: '@sveltejs/vite-plugin-svelte',
 	tagline:
 		'A fork of the Vite plugin whose every transform / HMR / preprocess call routes through the rsvelte compiler over NAPI. Your vite.config.js does not change.',
-	install: 'npm i -D @rsvelte/vite-plugin-svelte',
+	install: 'pnpm add -D @rsvelte/vite-plugin-svelte',
 	runnable: false,
 	sections: [
 		{

@@ -8,115 +8,117 @@
 	let { children }: Props = $props();
 </script>
 
-<svelte:head>
-	<link rel="preconnect" href="https://fonts.googleapis.com" />
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link
-		href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
-		rel="stylesheet"
-	/>
-</svelte:head>
-
 {@render children()}
 
 <style>
 	:global(*) {
 		box-sizing: border-box;
-		margin: 0;
-		padding: 0;
 	}
 
 	:global(html) {
 		scroll-behavior: smooth;
 	}
 
-	/* =================================================================
-	   THEME TOKENS — light (default)
-	   =================================================================
-	   Anything off-white/colored on the site should resolve through one
-	   of these names. Dark mode just overrides the same names in the
-	   `data-theme="dark"` block below, so pages never need to special-case.
-	*/
+	:global(body),
+	:global(h1),
+	:global(h2),
+	:global(h3),
+	:global(p),
+	:global(dl),
+	:global(dd),
+	:global(figure) {
+		margin: 0;
+	}
+
 	:global(:root),
 	:global(:root[data-theme='light']) {
 		--bg: #ffffff;
-		--paper: #f7f8fa;
+		--paper: #f6f8fa;
 		--paper-2: #eef1f4;
-		--ink: #0f1419;
-		--ink-soft: #4a5560;
-		--ink-faint: #8b96a2;
-		--rule: #e7eaee;
-		--rule-strong: #d2d7dd;
-		--selection: #ffe0cc;
+		--ink: #1f2328;
+		--ink-soft: #59636e;
+		--ink-faint: #818b98;
+		--rule: #d8dee4;
+		--rule-strong: #afb8c1;
+		--selection: #ffd2c2;
+		--accent: #ff3e00;
+		--accent-hover: #d63300;
+		--chrome: #ffffff;
+		--chrome-ink: #1f2328;
+		--chrome-soft: #59636e;
 
-		--svelte: #ff3e00;
-		--svelte-hover: #e83700;
-		/* Single accent is the Svelte orange; the former "rust" hue is now a
-		   restrained cool slate so eyebrows / labels read as neutral. */
-		--rust: #5c6773;
-		--rust-soft: #8b96a2;
+		--font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		--font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		--font-code: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 
-		--ok: #1f9d55;
-		--warn: #b07a00;
-		--bad: #d23a1f;
+		--svelte: var(--accent);
+		--svelte-hover: var(--accent-hover);
+		--rust: #8250df;
+		--rust-soft: #a475d9;
+		--ok: #1a7f37;
+		--warn: #9a6700;
+		--bad: #cf222e;
 
-		/* Editor / monaco surface — cool off-white in light, lifted ink in dark */
-		--editor-bg: #f7f8fa;
-		--editor-ink: #0f1419;
-
-		/* Blueprint-grid hairline, used for subtle technical backgrounds. */
-		--grid: #eceff3;
-
-		/* AST/code syntax highlighting (AstViewer, Monaco token map). */
-		--syntax-key: #5a3a8a;
-		--syntax-string: #7a4520;
-		--syntax-number: #2e5a3a;
+		--editor-bg: #f6f8fa;
+		--editor-ink: #1f2328;
+		--grid: #eaeef2;
+		--syntax-key: #8250df;
+		--syntax-string: #0a3069;
+		--syntax-number: #0550ae;
+		--code-bg: #24292f;
+		--code-ink: #f6f8fa;
+		--code-muted: #8c959f;
 
 		color-scheme: light;
 	}
 
 	:global(:root[data-theme='dark']) {
-		--bg: #0e1116;
+		--bg: #0d1117;
 		--paper: #161b22;
-		--paper-2: #1c232c;
-		--ink: #e6edf3;
-		--ink-soft: #9aa7b4;
-		--ink-faint: #6b7681;
-		--rule: #232b34;
-		--rule-strong: #313b45;
-		--selection: #5a2a10;
+		--paper-2: #21262d;
+		--ink: #f0f3f6;
+		--ink-soft: #b1bac4;
+		--ink-faint: #7d8590;
+		--rule: #30363d;
+		--rule-strong: #484f58;
+		--selection: #773018;
+		--accent: #ff5a24;
+		--accent-hover: #ff7a4d;
+		--chrome: #0d1117;
+		--chrome-ink: #f0f3f6;
+		--chrome-soft: #b1bac4;
 
-		--svelte: #ff6a39;
-		--svelte-hover: #ff855c;
-		--rust: #8b96a2;
-		--rust-soft: #6b7681;
-
+		--svelte: var(--accent);
+		--svelte-hover: var(--accent-hover);
+		--rust: #d2a8ff;
+		--rust-soft: #bc8cff;
 		--ok: #3fb950;
-		--warn: #e0b240;
-		--bad: #f0613f;
+		--warn: #d29922;
+		--bad: #f85149;
 
-		--editor-bg: #0f141a;
-		--editor-ink: #e6edf3;
-
-		--grid: #1a212a;
-
-		--syntax-key: #b19be0;
-		--syntax-string: #d9a66e;
-		--syntax-number: #8ccc95;
+		--editor-bg: #161b22;
+		--editor-ink: #f0f3f6;
+		--grid: #21262d;
+		--syntax-key: #d2a8ff;
+		--syntax-string: #a5d6ff;
+		--syntax-number: #79c0ff;
+		--code-bg: #161b22;
+		--code-ink: #f0f3f6;
+		--code-muted: #7d8590;
 
 		color-scheme: dark;
 	}
 
 	:global(body) {
-		font-family: 'Hanken Grotesk', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+		min-width: 320px;
+		margin: 0;
+		font-family: var(--font-ui);
+		font-size: 16px;
+		line-height: 1.5;
 		background: var(--bg);
 		color: var(--ink);
-		line-height: 1.6;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
-		transition:
-			background-color 0.2s ease,
-			color 0.2s ease;
 	}
 
 	:global(a) {
@@ -124,21 +126,19 @@
 		text-decoration: none;
 	}
 
+	:global(button),
+	:global(input),
+	:global(select),
+	:global(textarea) {
+		font: inherit;
+	}
+
 	:global(code),
 	:global(pre) {
-		font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+		font-family: var(--font-code);
 	}
 
 	:global(::selection) {
 		background: var(--selection);
-		color: var(--ink);
-	}
-
-	/* Don't animate theme transitions on first paint or for users who
-	   asked the OS not to. */
-	@media (prefers-reduced-motion: reduce) {
-		:global(body) {
-			transition: none;
-		}
 	}
 </style>

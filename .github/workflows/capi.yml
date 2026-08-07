@@ -23,8 +23,8 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/capi.yml'
+  # Unfiltered: see ci.yml.
   pull_request:
-    branches: [main]
     paths:
       - 'crates/rsvelte_capi/**'
       - 'crates/rsvelte_core/**'

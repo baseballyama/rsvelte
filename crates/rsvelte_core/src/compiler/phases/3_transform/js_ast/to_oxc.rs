@@ -17,9 +17,26 @@
 //! output.
 //!
 //! **CRITICAL RULE:** return `None` on ANY variant not explicitly handled
-//! here — in particular `JsExpr::Raw`, `JsExpr::Spanned`, `JsStatement::Raw`,
-//! and `JsStatement::RawMapped`, which carry opaque source text the structural
-//! esrap printer cannot reconstruct.
+//! here.
+//!
+//! The text-carrying variants are handled, not excluded, and each has its own
+//! route:
+//!
+//!   * `JsStatement::Raw` / `JsStatement::RawMapped` — source text that
+//!     [`Self::parse_raw_statements`] re-parses into real oxc statements, with
+//!     [`Self::expand_stmt`] flattening a multi-statement chunk inline at
+//!     statement-list sites. A whole module body emitted as one `Raw` converts.
+//!   * `JsExpr::Raw` — opaque expression text, re-parsed by
+//!     [`Self::parse_raw_expression`].
+//!   * `JsExpr::Spanned` — not raw text at all: a real inner expression carrying
+//!     the original-source byte span, converted normally and then stamped so
+//!     `print_with_map` maps it back to the user's source.
+//!
+//! Re-parsing **fails loudly when the text does not parse** (`chunk-parse`) and
+//! **can differ silently when it does**: [`Self::restore_legacy_pre_effect_deps`]
+//! and [`Self::restore_single_target_destructure_sequences`] exist precisely
+//! because a round-trip that parses can still print differently from the text it
+//! came from.
 //!
 //! # Comments and the unified coordinate space
 //!

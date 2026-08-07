@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import type { Guide } from '$lib/docs';
+	import { GUIDES, type Guide } from '$lib/docs';
+	import DocsSidebar from '$lib/components/DocsSidebar.svelte';
+	import DocsToc from '$lib/components/DocsToc.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
@@ -11,100 +13,147 @@
 	}
 
 	let { guide }: Props = $props();
+
+	const sectionId = (title: string): string =>
+		title
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/(^-|-$)/g, '');
+
+	const guideIndex = $derived(GUIDES.findIndex((item) => item.id === guide.id));
+	const previousGuide = $derived(guideIndex > 0 ? GUIDES[guideIndex - 1] : null);
+	const nextGuide = $derived(guideIndex < GUIDES.length - 1 ? GUIDES[guideIndex + 1] : null);
+	const toc = $derived(
+		guide.sections.map((section) => ({
+			label: section.title,
+			href: `#${sectionId(section.title)}`,
+		})),
+	);
 </script>
 
 <div class="page">
 	<SiteNav active="docs" />
 
-	<main class="wrap">
-		<nav class="crumbs" aria-label="Breadcrumb">
-			<a href="{base}/docs">Docs</a>
-			<span aria-hidden="true">/</span>
-			<span class="here">{guide.title}</span>
-		</nav>
+	<div class="docs-shell">
+		<DocsSidebar current={guide.id} />
 
-		<header class="head">
-			<Eyebrow gap="0.6rem" fontSize="0.72rem" letterSpacing="0.06em" ruleWidth="20px" uppercase={false}
-				>{guide.pkg}</Eyebrow
-			>
-			<h1 class="title">{guide.title}</h1>
-			<p class="dropin">drop-in for <code>{guide.dropInFor}</code></p>
-			<p class="tagline">{guide.tagline}</p>
+		<main class="wrap">
+			<nav class="crumbs" aria-label="Breadcrumb">
+				<a href="{base}/docs">Docs</a>
+				<span aria-hidden="true">/</span>
+				<span class="here">{guide.title}</span>
+			</nav>
 
-			<div class="actions">
-				{#if guide.runnable}
-					<a class="btn primary" href="{base}/playground?tool={guide.id}">Open in playground →</a>
-				{:else}
-					<span class="btn disabled" title="This tool can't run in a browser">
-						Not runnable in browser
-					</span>
-				{/if}
-			</div>
+			<header class="head">
+				<Eyebrow
+					gap="0.6rem"
+					fontSize="0.72rem"
+					letterSpacing="0.06em"
+					ruleWidth="20px"
+					uppercase={false}>{guide.pkg}</Eyebrow
+				>
+				<h1 class="title">{guide.title}</h1>
+				<p class="dropin">drop-in for <code>{guide.dropInFor}</code></p>
+				<p class="tagline">{guide.tagline}</p>
 
-			<div class="install">
-				<CodeBlock code={guide.install} lang="bash" caption="install" />
-			</div>
-		</header>
-
-		<div class="sections">
-			{#each guide.sections as section (section.title)}
-				<section class="sec">
-					<h2 class="sec-title">{section.title}</h2>
-
-					{#if section.body}
-						{#each section.body as p (p)}
-							<p class="prose">{p}</p>
-						{/each}
+				<div class="actions">
+					{#if guide.runnable}
+						<a class="btn primary" href="{base}/playground?tool={guide.id}">Open in playground →</a>
+					{:else}
+						<span class="btn disabled" title="This tool can't run in a browser">
+							Not runnable in browser
+						</span>
 					{/if}
+				</div>
 
-					{#if section.list}
-						<ul class="bullets">
-							{#each section.list as item (item)}
-								<li>{item}</li>
+				<div class="install">
+					<CodeBlock code={guide.install} lang="bash" caption="install" />
+				</div>
+			</header>
+
+			<div class="sections">
+				{#each guide.sections as section (section.title)}
+					<section class="sec" id={sectionId(section.title)}>
+						<h2 class="sec-title">{section.title}</h2>
+
+						{#if section.body}
+							{#each section.body as p (p)}
+								<p class="prose">{p}</p>
 							{/each}
-						</ul>
-					{/if}
+						{/if}
 
-					{#if section.code}
-						<div class="code">
-							<CodeBlock
-								code={section.code.code}
-								lang={section.code.lang}
-								caption={section.code.caption}
-							/>
-						</div>
-					{/if}
+						{#if section.list}
+							<ul class="bullets">
+								{#each section.list as item (item)}
+									<li>{item}</li>
+								{/each}
+							</ul>
+						{/if}
 
-					{#if section.table}
-						<div class="table-wrap">
-							<table>
-								<thead>
-									<tr>
-										{#each section.table.head as h (h)}
-											<th>{h}</th>
-										{/each}
-									</tr>
-								</thead>
-								<tbody>
-									{#each section.table.rows as row, i (i)}
+						{#if section.code}
+							<div class="code">
+								<CodeBlock
+									code={section.code.code}
+									lang={section.code.lang}
+									caption={section.code.caption}
+								/>
+							</div>
+						{/if}
+
+						{#if section.table}
+							<div class="table-wrap">
+								<table>
+									<thead>
 										<tr>
-											{#each row as cell, j (j)}
-												{#if j === 0}
-													<td><code>{cell}</code></td>
-												{:else}
-													<td>{cell}</td>
-												{/if}
+											{#each section.table.head as h (h)}
+												<th>{h}</th>
 											{/each}
 										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					{/if}
-				</section>
-			{/each}
-		</div>
-	</main>
+									</thead>
+									<tbody>
+										{#each section.table.rows as row, i (i)}
+											<tr>
+												{#each row as cell, j (j)}
+													{#if j === 0}
+														<td><code>{cell}</code></td>
+													{:else}
+														<td>{cell}</td>
+													{/if}
+												{/each}
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{/if}
+					</section>
+				{/each}
+			</div>
+
+			<nav class="page-nav" aria-label="Documentation pages">
+				{#if previousGuide}
+					<a href="{base}/docs/{previousGuide.id}">
+						<span>Previous</span>
+						<strong>← {previousGuide.title}</strong>
+					</a>
+				{:else}
+					<a href="{base}/docs">
+						<span>Previous</span>
+						<strong>← Overview</strong>
+					</a>
+				{/if}
+
+				{#if nextGuide}
+					<a href="{base}/docs/{nextGuide.id}">
+						<span>Next</span>
+						<strong>{nextGuide.title} →</strong>
+					</a>
+				{/if}
+			</nav>
+		</main>
+
+		<DocsToc items={toc} />
+	</div>
 
 	<SiteFooter />
 </div>
@@ -116,20 +165,28 @@
 		flex-direction: column;
 	}
 
-	.wrap {
+	.docs-shell {
 		flex: 1;
 		width: 100%;
-		max-width: 56rem;
+		max-width: 1440px;
 		margin: 0 auto;
-		padding: clamp(1.4rem, 3vh, 2.2rem) clamp(1rem, 4vw, 2rem) 3rem;
+		display: grid;
+		grid-template-columns: 230px minmax(0, 52rem) 200px;
+		justify-content: center;
+	}
+
+	.wrap {
+		width: 100%;
+		min-width: 0;
+		padding: 3.5rem clamp(2rem, 5vw, 4rem) 5rem;
 	}
 
 	.crumbs {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		font-family: 'JetBrains Mono', monospace;
-		font-size: 0.72rem;
+		font-family: var(--font-ui);
+		font-size: 0.78rem;
 		color: var(--ink-faint);
 		margin-bottom: 1.4rem;
 	}
@@ -140,8 +197,8 @@
 	}
 
 	.crumbs a:hover {
-		color: var(--ink);
-		border-bottom-color: var(--ink);
+		color: var(--accent);
+		border-bottom-color: var(--accent);
 	}
 
 	.crumbs .here {
@@ -149,9 +206,11 @@
 	}
 
 	.title {
-		font-weight: 800;
-		font-size: clamp(1.8rem, 4vw, 2.6rem);
-		letter-spacing: -0.025em;
+		font-family: var(--font-ui);
+		font-weight: 700;
+		font-size: clamp(2.25rem, 5vw, 3.25rem);
+		line-height: 1.12;
+		letter-spacing: -0.035em;
 		color: var(--ink);
 		margin: 0.5rem 0 0.3rem;
 	}
@@ -163,7 +222,7 @@
 	}
 
 	.dropin code {
-		font-family: 'JetBrains Mono', monospace;
+		font-family: var(--font-code);
 		font-size: 0.82rem;
 		color: var(--ink);
 		background: var(--paper-2);
@@ -172,8 +231,9 @@
 	}
 
 	.tagline {
+		font-family: var(--font-ui);
 		font-size: 1.02rem;
-		line-height: 1.65;
+		line-height: 1.7;
 		color: var(--ink-soft);
 		max-width: 42rem;
 		margin: 0 0 1.2rem;
@@ -191,7 +251,7 @@
 		font-size: 0.88rem;
 		font-weight: 600;
 		padding: 0.5rem 1rem;
-		border-radius: 5px;
+		border-radius: 6px;
 		border: 1px solid transparent;
 	}
 
@@ -221,9 +281,14 @@
 		gap: 2.2rem;
 	}
 
+	.sec {
+		scroll-margin-top: 5rem;
+	}
+
 	.sec-title {
-		font-size: 1.2rem;
-		font-weight: 700;
+		font-family: var(--font-ui);
+		font-size: 1.4rem;
+		font-weight: 650;
 		letter-spacing: -0.01em;
 		color: var(--ink);
 		margin: 0 0 0.7rem;
@@ -232,7 +297,8 @@
 	}
 
 	.prose {
-		font-size: 0.95rem;
+		font-family: var(--font-ui);
+		font-size: 0.98rem;
 		line-height: 1.7;
 		color: var(--ink-soft);
 		margin: 0 0 0.7rem;
@@ -302,5 +368,50 @@
 		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.8rem;
 		color: var(--ink);
+	}
+
+	.page-nav {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2rem;
+		margin-top: 3.5rem;
+		padding-top: 1.25rem;
+		border-top: 1px solid var(--rule);
+	}
+
+	.page-nav a {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.page-nav a:last-child {
+		align-items: flex-end;
+	}
+
+	.page-nav span {
+		font-size: 0.72rem;
+		color: var(--ink-faint);
+	}
+
+	.page-nav strong {
+		font-size: 0.88rem;
+		font-weight: 600;
+		color: var(--accent);
+	}
+
+	@media (max-width: 1120px) {
+		.docs-shell {
+			grid-template-columns: 230px minmax(0, 1fr);
+		}
+	}
+
+	@media (max-width: 800px) {
+		.docs-shell {
+			grid-template-columns: 1fr;
+		}
+		.wrap {
+			padding-inline: clamp(1rem, 5vw, 2.5rem);
+		}
 	}
 </style>

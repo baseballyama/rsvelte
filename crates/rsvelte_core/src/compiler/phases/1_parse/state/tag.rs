@@ -1401,20 +1401,19 @@ impl<'a> Parser<'a> {
             // Only honor `then`/`catch` at the top level of the expression
             if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 {
                 // Require preceding character to be a word-boundary (whitespace or start)
-                let preceded_by_ws = if self.index == expr_start {
-                    true
-                } else {
-                    let prev = self.source.as_bytes()[self.index - 1] as char;
-                    prev.is_whitespace() || prev == ')' || prev == ']'
-                };
+                // A byte here decodes as Latin-1, so `U+3000`'s last byte read as a
+                // control character and the keyword was swallowed into the expression.
+                let preceded_by_ws = self.index == expr_start
+                    || self.source[..self.index]
+                        .chars()
+                        .next_back()
+                        .is_some_and(|c| c.is_whitespace() || c == ')' || c == ']');
                 if preceded_by_ws && self.match_str("then") {
                     let after_idx = self.index + 4;
-                    let is_word_boundary = if after_idx >= self.source.len() {
-                        true
-                    } else {
-                        let next_char = self.source.as_bytes()[after_idx] as char;
-                        next_char.is_whitespace() || next_char == '}'
-                    };
+                    let is_word_boundary = self.source[after_idx.min(self.source.len())..]
+                        .chars()
+                        .next()
+                        .is_none_or(|c| c.is_whitespace() || c == '}');
                     if is_word_boundary {
                         has_then = true;
                         break;
@@ -1422,12 +1421,10 @@ impl<'a> Parser<'a> {
                 }
                 if preceded_by_ws && self.match_str("catch") {
                     let after_idx = self.index + 5;
-                    let is_word_boundary = if after_idx >= self.source.len() {
-                        true
-                    } else {
-                        let next_char = self.source.as_bytes()[after_idx] as char;
-                        next_char.is_whitespace() || next_char == '}'
-                    };
+                    let is_word_boundary = self.source[after_idx.min(self.source.len())..]
+                        .chars()
+                        .next()
+                        .is_none_or(|c| c.is_whitespace() || c == '}');
                     if is_word_boundary {
                         has_catch = true;
                         break;
