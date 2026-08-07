@@ -6,6 +6,7 @@
 
 use super::super::AnalysisError;
 use super::super::types::EventDirectiveInfo;
+use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::walk_js_expression_node;
@@ -15,12 +16,10 @@ use crate::ast::template::{OnDirective, TemplateNode};
 ///
 /// In Svelte 5 (runes mode), on: directives are deprecated in favor of event attributes.
 /// This visitor:
-/// 1. Tracks the first event directive (for detecting mixed syntax)
-/// 2. Marks the subtree as dynamic
-/// 3. Walks the expression to track dependencies
-///
-/// Note: The event_directive_deprecated warning is emitted by the parent element visitor
-/// (RegularElement, SvelteElement) because this visitor doesn't have access to the parent type.
+/// 1. Warns `event_directive_deprecated` in runes mode
+/// 2. Tracks the first event directive (for detecting mixed syntax)
+/// 3. Marks the subtree as dynamic
+/// 4. Walks the expression to track dependencies
 ///
 /// Corresponds to `OnDirective(node, context)` in OnDirective.js.
 pub fn visit(
@@ -37,6 +36,11 @@ pub fn visit(
         );
 
         if is_element {
+            // Component events might not be under the author's control, so they don't warn
+            if context.analysis.runes {
+                context.emit_warning(warnings::event_directive_deprecated(&directive.name));
+            }
+
             // Track in context for mixed_event_handler_syntaxes check
             if context.event_directive_node.is_none() {
                 context.event_directive_node = Some(directive.name.to_string());

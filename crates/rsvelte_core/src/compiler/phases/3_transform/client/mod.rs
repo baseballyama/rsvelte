@@ -370,7 +370,9 @@ pub fn transform_client_module(
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
         super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
-            let print_opts = rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
+            let print_opts = rsvelte_esrap::PrintOptions::default()
+                .with_empty_statements(true)
+                .with_unlocated_program(true);
             match &converted.comment_source {
                 Some(cs) => {
                     rsvelte_esrap::print_split(

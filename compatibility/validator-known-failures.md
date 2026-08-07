@@ -7,7 +7,7 @@ of only comparing diagnostic counts, mirroring what
 every listed fixture is a real divergence from the last confirmed test run, not
 a placeholder.
 
-## Current baseline: 206 divergences
+## Current baseline: `validator-known-failures.json`, 206 entries — 206 divergences
 
 The divergences fall into three clusters:
 
