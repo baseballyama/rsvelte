@@ -1,7 +1,7 @@
 //! Whole-word / identifier scanning over raw source text.
 
 #[inline]
-pub(crate) fn is_ident_char(b: u8) -> bool {
+pub(crate) fn is_ascii_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -19,9 +19,9 @@ pub(crate) fn contains_word(haystack: &[u8], needle: &[u8]) -> bool {
     let mut search = 0;
     while let Some(offset) = finder.find(&haystack[search..]) {
         let pos = search + offset;
-        let before_ok = pos == 0 || !is_ident_char(haystack[pos - 1]);
+        let before_ok = pos == 0 || !is_ascii_ident_byte(haystack[pos - 1]);
         let after = pos + needle.len();
-        let after_ok = after == haystack.len() || !is_ident_char(haystack[after]);
+        let after_ok = after == haystack.len() || !is_ascii_ident_byte(haystack[after]);
         if before_ok && after_ok {
             return true;
         }
@@ -68,10 +68,10 @@ pub(crate) fn lexical_identifiers(text: &str) -> Vec<String> {
             i = (i + 1).min(len);
             continue;
         }
-        if is_ident_char(b) && !b.is_ascii_digit() {
+        if is_ascii_ident_byte(b) && !b.is_ascii_digit() {
             let start = i;
             i += 1;
-            while i < len && is_ident_char(bytes[i]) {
+            while i < len && is_ascii_ident_byte(bytes[i]) {
                 i += 1;
             }
             out.push(text[start..i].to_string());
@@ -190,7 +190,7 @@ mod tests {
                     haystack[needle.len() + 1] = after;
                     assert_eq!(
                         contains_word(&haystack[..needle.len() + 2], needle),
-                        !is_ident_char(before) && !is_ident_char(after),
+                        !is_ascii_ident_byte(before) && !is_ascii_ident_byte(after),
                         "needle={needle:?}, before={before}, after={after}"
                     );
                 }

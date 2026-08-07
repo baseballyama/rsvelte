@@ -299,7 +299,7 @@ fn try_parse_simple_expression<'a>(
     let first = bytes[0];
 
     // Fast path for identifiers and member expressions (most common case)
-    if is_ident_start_byte(first) {
+    if is_ascii_ident_start_byte(first) {
         // Try simple ident/member first
         if let Some(expr) = try_parse_ident_or_member(arena, content, bytes, offset, line_offsets) {
             return Some(expr);
@@ -400,7 +400,7 @@ fn try_parse_atom<'a>(
         return None;
     }
     let first = bytes[0];
-    if is_ident_start_byte(first) {
+    if is_ascii_ident_start_byte(first) {
         return try_parse_ident_or_member(arena, content, bytes, offset, line_offsets);
     }
     if first.is_ascii_digit() {
@@ -440,7 +440,7 @@ fn try_parse_call_expression<'a>(
     // Parse callee as ident/member
     let callee_str = &content[..paren_pos];
     let callee_bytes = &bytes[..paren_pos];
-    if !is_ident_start_byte(callee_bytes[0]) {
+    if !is_ascii_ident_start_byte(callee_bytes[0]) {
         return None;
     }
     let callee = try_parse_ident_or_member(arena, callee_str, callee_bytes, offset, line_offsets)?;
@@ -555,7 +555,7 @@ fn try_parse_update_expression<'a>(
     if bytes[len - 2] == bytes[len - 1] && (bytes[len - 1] == b'+' || bytes[len - 1] == b'-') {
         let arg_str = &content[..len - 2];
         let arg_bytes = &bytes[..len - 2];
-        if !arg_str.is_empty() && is_ident_start_byte(arg_bytes[0]) {
+        if !arg_str.is_empty() && is_ascii_ident_start_byte(arg_bytes[0]) {
             let arg = try_parse_ident_or_member(arena, arg_str, arg_bytes, offset, line_offsets)?;
             let op = if bytes[len - 1] == b'+' { "++" } else { "--" };
             return Some(Expression::from_node(JsNode::UpdateExpression {
@@ -573,7 +573,7 @@ fn try_parse_update_expression<'a>(
     if bytes[0] == bytes[1] && (bytes[0] == b'+' || bytes[0] == b'-') {
         let arg_str = &content[2..];
         let arg_bytes = &bytes[2..];
-        if !arg_str.is_empty() && is_ident_start_byte(arg_bytes[0]) {
+        if !arg_str.is_empty() && is_ascii_ident_start_byte(arg_bytes[0]) {
             let arg =
                 try_parse_ident_or_member(arena, arg_str, arg_bytes, offset + 2, line_offsets)?;
             let op = if bytes[0] == b'+' { "++" } else { "--" };
@@ -839,10 +839,10 @@ fn try_parse_arrow_function<'a>(
                 return None;
             }
             let p_bytes = p.as_bytes();
-            if !is_ident_start_byte(p_bytes[0]) {
+            if !is_ascii_ident_start_byte(p_bytes[0]) {
                 return None; // Destructuring params — too complex
             }
-            if !p_bytes.iter().all(|&b| is_ident_continue_byte(b)) {
+            if !p_bytes.iter().all(|&b| is_ascii_ident_continue_byte(b)) {
                 return None; // Has type annotations or defaults — too complex
             }
             let p_start = region_base + cursor + lead_ws;
@@ -1004,10 +1004,10 @@ fn skip_simple_token(bytes: &[u8], start: usize) -> usize {
     }
 
     // Identifier or number with possible dots (member expressions)
-    if is_ident_start_byte(bytes[pos]) || bytes[pos].is_ascii_digit() {
+    if is_ascii_ident_start_byte(bytes[pos]) || bytes[pos].is_ascii_digit() {
         while pos < len {
             let b = bytes[pos];
-            if is_ident_continue_byte(b) || b == b'.' {
+            if is_ascii_ident_continue_byte(b) || b == b'.' {
                 pos += 1;
             } else {
                 break;
@@ -1200,15 +1200,22 @@ fn try_parse_string_literal<'a>(
     None
 }
 
-/// Check if a byte can start a JS identifier (ASCII subset).
+/// Can `b` start a JS identifier, restricted to ASCII?
+///
+/// Deliberately narrower than [`crate::compiler::utils::is_js_ident_start`]:
+/// every caller here gates a hand-rolled fast path that bails to the general
+/// parser, so rejecting `名` costs a fallback, while admitting a byte that is
+/// only half a character would build an expression the general parser never
+/// would.
 #[inline(always)]
-fn is_ident_start_byte(b: u8) -> bool {
+fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-/// Check if a byte can continue a JS identifier (ASCII subset).
+/// Can `b` continue a JS identifier, restricted to ASCII? See
+/// [`is_ascii_ident_start_byte`] for why the ASCII subset is the right gate here.
 #[inline(always)]
-fn is_ident_continue_byte(b: u8) -> bool {
+fn is_ascii_ident_continue_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -1228,7 +1235,7 @@ fn try_parse_ident_or_member<'a>(
 
     // Scan the first identifier segment
     let mut pos = 0;
-    while pos < len && is_ident_continue_byte(bytes[pos]) {
+    while pos < len && is_ascii_ident_continue_byte(bytes[pos]) {
         pos += 1;
     }
 
@@ -1297,10 +1304,10 @@ fn try_parse_ident_or_member<'a>(
 
         // Scan next identifier segment
         let seg_start = pos;
-        if pos >= len || !is_ident_start_byte(bytes[pos]) {
+        if pos >= len || !is_ascii_ident_start_byte(bytes[pos]) {
             return None; // e.g., `foo.123` or `foo.`
         }
-        while pos < len && is_ident_continue_byte(bytes[pos]) {
+        while pos < len && is_ascii_ident_continue_byte(bytes[pos]) {
             pos += 1;
         }
         segments.push((&content[seg_start..pos], seg_start, pos));
@@ -12076,5 +12083,37 @@ mod tests {
             Some("AssignmentExpression"),
             "Should be AssignmentExpression"
         );
+    }
+
+    /// The ASCII gates here are fast-path filters, so rejecting a non-ASCII
+    /// identifier must cost only a fallback — never a wrong parse.
+    #[test]
+    fn non_ascii_identifiers_fall_back_and_still_parse() {
+        let arena = ParseArena::new();
+        let line_offsets = vec![0];
+        for src in ["名前", "שם", "café", "名前.foo"] {
+            let expr = parse_expression_with_typescript(&arena, src, 0, &line_offsets, false);
+            let e = expr.unwrap_or_else(|| panic!("`{src}` should parse"));
+            let expected = if src.contains('.') {
+                "MemberExpression"
+            } else {
+                "Identifier"
+            };
+            assert_eq!(e.node_type(), Some(expected), "`{src}`");
+        }
+    }
+
+    /// Guards the direction of the fix: a byte gate that admitted every
+    /// `>= 0x80` byte would swallow U+3000 (JavaScript whitespace) into the
+    /// identifier and hand back an `Identifier` instead of a `BinaryExpression`.
+    #[test]
+    fn ascii_gate_does_not_swallow_non_ascii_whitespace() {
+        let arena = ParseArena::new();
+        let line_offsets = vec![0];
+        for src in ["名前\u{3000}+ 1", "名前\u{00a0}+ 1"] {
+            let expr = parse_expression_with_typescript(&arena, src, 0, &line_offsets, false);
+            let e = expr.unwrap_or_else(|| panic!("`{src}` should parse"));
+            assert_eq!(e.node_type(), Some("BinaryExpression"), "`{src}`");
+        }
     }
 }

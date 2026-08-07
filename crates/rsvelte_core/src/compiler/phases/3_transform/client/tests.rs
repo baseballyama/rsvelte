@@ -1779,3 +1779,159 @@ fn find_assignment_position_ignores_delimiters_inside_comments() {
     // A real top-level assignment is still found.
     assert_eq!(find_assignment_position("bar = []"), Some(4));
 }
+
+/// A private field whose name continues past the one being transformed must be
+/// left alone. `א` (`D7 90`) is the discriminating case: `0xD7` is the lead byte
+/// of the whole Hebrew block and is the one lead byte whose Latin-1 image (`×`)
+/// is not alphanumeric, so the byte scan saw a word boundary in the middle of an
+/// identifier and appended `.v` there — `this.#c.vא`.
+#[test]
+fn a_private_state_read_stops_at_a_non_ascii_identifier_character() {
+    use super::class_transforms::{ClassStateField, transform_constructor_private_reads};
+
+    let field = |rune: &str| ClassStateField {
+        name: "c".to_string(),
+        is_private: true,
+        rune_type: rune.to_string(),
+        value: "0".to_string(),
+        private_backing_name: "c".to_string(),
+        constructor_declared: false,
+        had_class_body_decl: false,
+        trailing_comment: None,
+    };
+
+    for rune in ["$state", "$derived"] {
+        // Control: an ASCII continuation was already rejected.
+        assert_eq!(
+            transform_constructor_private_reads("log(this.#cx);", &[field(rune)]),
+            "log(this.#cx);"
+        );
+        assert_eq!(
+            transform_constructor_private_reads("log(this.#c\u{5D0});", &[field(rune)]),
+            "log(this.#c\u{5D0});"
+        );
+    }
+}
+
+/// The `$derived` and standalone-read paths both spliced `$.get(...)` in the
+/// middle of the identifier, which is not JavaScript at all: `log($.get(this.#c)א)`.
+#[test]
+fn a_standalone_private_read_stops_at_a_non_ascii_identifier_character() {
+    use super::class_transforms::wrap_standalone_private_reads;
+
+    assert_eq!(
+        wrap_standalone_private_reads("log(this.#cx);", "this.#c"),
+        "log(this.#cx);"
+    );
+    assert_eq!(
+        wrap_standalone_private_reads("log(this.#c\u{5D0});", "this.#c"),
+        "log(this.#c\u{5D0});"
+    );
+    // Control on the other side: a real standalone read is still wrapped.
+    assert_eq!(
+        wrap_standalone_private_reads("log(this.#c);", "this.#c"),
+        "log($.get(this.#c));"
+    );
+}
+
+/// `obj.#cא` is a read of a different field, so `obj` is not a prefix of `#c`.
+#[test]
+fn a_private_field_prefix_is_not_collected_across_a_non_ascii_continuation() {
+    use super::class_transforms::find_private_field_prefixes;
+
+    assert_eq!(find_private_field_prefixes("obj.#cx = 1;", "c"), ["this"]);
+    assert_eq!(
+        find_private_field_prefixes("obj.#c\u{5D0} = 1;", "c"),
+        ["this"]
+    );
+    // Control on the other side: a real prefix is still collected.
+    assert_eq!(
+        find_private_field_prefixes("obj.#c = 1;", "c"),
+        ["obj", "this"]
+    );
+}
+
+/// `U+3000` and NBSP separate a parameter from its `)` exactly as a space does.
+/// The scan used an ASCII whitelist, so it decided the pattern was a prefix of a
+/// longer name, blanked the `f` of `function` and left the shadowing scope — and
+/// therefore the shadowed identifier — in the body it hands to dependency analysis.
+#[test]
+fn a_shadowing_scope_is_stripped_across_non_ascii_whitespace() {
+    use super::state_transforms::strip_function_scopes_that_shadow;
+
+    for body in [
+        "function (a ) { a }",
+        "function (a\u{3000}) { a }",
+        "function (a\u{A0}) { a }",
+    ] {
+        let stripped = strip_function_scopes_that_shadow(body, "a");
+        assert!(
+            stripped.trim().is_empty(),
+            "body {body:?} left {stripped:?}"
+        );
+    }
+    for body in ["(a ) => a", "(a\u{3000}) => a"] {
+        let stripped = strip_function_scopes_that_shadow(body, "a");
+        assert!(
+            stripped.trim().is_empty(),
+            "body {body:?} left {stripped:?}"
+        );
+    }
+    // Control: a body that does not shadow `a` is untouched.
+    assert_eq!(
+        strip_function_scopes_that_shadow("function (b) { a }", "a"),
+        "function (b) { a }"
+    );
+}
+
+/// `名$c` is one identifier, so `$c` is not an arrow parameter there. The byte
+/// before `$c` is `名`'s trailing `0x8D`, a C1 control that no identifier
+/// predicate accepts — so the scan saw a word boundary inside a name.
+#[test]
+fn a_store_name_inside_a_longer_non_ascii_identifier_is_not_a_parameter() {
+    use super::store_transforms::is_function_parameter_in_statement;
+
+    // Control: the ASCII form was already rejected.
+    assert!(!is_function_parameter_in_statement("x$c => 1", "$c"));
+    assert!(!is_function_parameter_in_statement("\u{540D}$c => 1", "$c"));
+    assert!(!is_function_parameter_in_statement("\u{5D0}$c => 1", "$c"));
+    // Control on the other side: a real arrow parameter is still recognised.
+    assert!(is_function_parameter_in_statement("$c => 1", "$c"));
+}
+
+/// The trailing side of the same check: `U+3000` before `=>` is whitespace, and
+/// its lead byte `0xE3` Latin-1-decodes to `ã`, which is alphanumeric — so the
+/// parameter looked like the prefix of a longer name and was not recognised.
+#[test]
+fn a_store_parameter_is_recognised_across_non_ascii_whitespace() {
+    use super::store_transforms::is_function_parameter_in_statement;
+
+    assert!(is_function_parameter_in_statement("$c => 1", "$c"));
+    assert!(is_function_parameter_in_statement("$c\u{3000}=> 1", "$c"));
+    assert!(is_function_parameter_in_statement("$c\u{A0}=> 1", "$c"));
+    // Control: a longer name is still not the parameter.
+    assert!(!is_function_parameter_in_statement("$c\u{5D0} => 1", "$c"));
+}
+
+/// `x名$c` is one identifier, so the getter call must not be inserted into it.
+/// The first `$c(1)` is there because the cheap pre-check that guards this
+/// transform is character-correct already — without it the loop is never reached
+/// and the test cannot see the branch it is about.
+#[test]
+fn a_store_call_is_not_inserted_into_a_longer_non_ascii_identifier() {
+    use super::store_transforms::transform_store_sub_calls;
+
+    let subs = ["$c".to_string()];
+    assert_eq!(
+        transform_store_sub_calls("$c(1); xy$c(2)", &subs),
+        "$c()(1); xy$c(2)"
+    );
+    assert_eq!(
+        transform_store_sub_calls("$c(1); x\u{540D}$c(2)", &subs),
+        "$c()(1); x\u{540D}$c(2)"
+    );
+    assert_eq!(
+        transform_store_sub_calls("$c(1); x\u{E0}$c(2)", &subs),
+        "$c()(1); x\u{E0}$c(2)"
+    );
+}
