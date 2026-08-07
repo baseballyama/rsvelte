@@ -177,6 +177,11 @@ pnpm run compatibility-report                        # Generate compatibility re
 pnpm run test-and-update                             # Refresh report + docs
 ```
 
+A **debug** run needs `RUST_MIN_STACK=33554432` — the value CI already sets
+(`ci.yml`). Without it `ast_gate_preconditions` and `runtime::test_runtime_legacy`
+abort with a stack overflow, which reads as a defect in whatever you just changed.
+`--release` does not need it.
+
 Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically (`.githooks/pre-commit`).
 
 ### Docker (optional)
