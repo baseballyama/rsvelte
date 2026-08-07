@@ -773,6 +773,17 @@ pub struct NapiCompileOptions {
     /// `cssHash` callback can't be called from Rust).
     pub css_hash_override: Option<String>,
     pub fragments: Option<LenientScalar>,
+    /// Svelte-4 `enableSourcemap`. Unrelated to the internal
+    /// `CompileOptions::enable_sourcemap` perf switch — the only thing this
+    /// key does is raise `options_removed_enable_sourcemap`.
+    pub enable_sourcemap: Option<LenientScalar>,
+}
+
+// Upstream's `warn_once` keeps its `warned` set for the lifetime of the
+// compiler module, so a removed option is reported once per process no matter
+// how many components are compiled; the addon is loaded once per process too.
+fn warn_once(warned: &std::sync::atomic::AtomicBool) -> bool {
+    !warned.swap(true, std::sync::atomic::Ordering::Relaxed)
 }
 
 impl NapiCompileOptions {
@@ -870,6 +881,11 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.fragments {
             opts.fragments = coerce_fragments(v)?;
+        }
+        if self.enable_sourcemap.is_some() {
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.enable_sourcemap = warn_once(&WARNED);
         }
         Ok(opts)
     }

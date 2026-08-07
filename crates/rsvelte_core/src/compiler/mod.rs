@@ -107,6 +107,15 @@ pub enum ComponentApi {
     V5,
 }
 
+/// Svelte-4 options that upstream still accepts solely in order to diagnose
+/// them. Only presence is recorded — the values never reach codegen — because
+/// that is the whole signal upstream's `validate-options.js` acts on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LegacyOptions {
+    /// `enableSourcemap` — removed in Svelte 5.
+    pub enable_sourcemap: bool,
+}
+
 /// Compatibility options for backward compatibility.
 #[derive(Debug, Clone, Default)]
 pub struct CompatibilityConfig {
@@ -257,6 +266,8 @@ pub struct CompileOptions {
     /// When false, sourcemap computation is skipped for better performance.
     /// Defaults to true for backward compatibility.
     pub enable_sourcemap: bool,
+    /// Svelte-4 options that only produce a diagnostic.
+    pub legacy_options: LegacyOptions,
 }
 
 impl Default for CompileOptions {
@@ -291,6 +302,7 @@ impl Default for CompileOptions {
             hmr: false,
             modern_ast: false,
             enable_sourcemap: true,
+            legacy_options: LegacyOptions::default(),
         }
     }
 }
@@ -666,6 +678,19 @@ pub fn compile_both(
     crate::toolchain::PreparedComponent::new(source, options)?.compile_both()
 }
 
+/// Option diagnostics carry no source position — upstream raises them from
+/// `validate-options.js`, which has no node to point at.
+fn legacy_option_warning(
+    warning: phases::phase2_analyze::warnings::AnalysisWarning,
+) -> phases::phase3_transform::TransformWarning {
+    phases::phase3_transform::TransformWarning {
+        code: warning.code,
+        message: warning.message,
+        start: None,
+        end: None,
+    }
+}
+
 /// Build a [`CompileResult`] from a finished transform — accessors-deprecation
 /// warning, source-position resolution, frame generation, and warning filtering.
 /// Shared by [`compile`] and [`compile_both`] so the two paths are identical.
@@ -676,18 +701,25 @@ pub(crate) fn finalize_compile_result(
     options: &CompileOptions,
     runes_mode: bool,
 ) -> CompileResult {
-    // Emit options_deprecated_accessors warning when accessors option is used in runes mode.
-    // Reference: svelte/packages/svelte/src/compiler/validate-options.js line 52
+    // Option diagnostics come from upstream's `validate-options.js`, which runs
+    // before parsing, so they lead the list — and in the declaration order of
+    // the validator's key table, since that is the order it walks them in.
+    let mut option_warnings: Vec<phases::phase3_transform::TransformWarning> = Vec::new();
     if options.accessors && runes_mode {
-        transform_result.warnings.insert(
-            0,
-            phases::phase3_transform::TransformWarning {
-                code: "options_deprecated_accessors".to_string(),
-                message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
-                start: None,
-                end: None,
-            },
-        );
+        option_warnings.push(phases::phase3_transform::TransformWarning {
+            code: "options_deprecated_accessors".to_string(),
+            message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
+            start: None,
+            end: None,
+        });
+    }
+    if options.legacy_options.enable_sourcemap {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_removed_enable_sourcemap(),
+        ));
+    }
+    if !option_warnings.is_empty() {
+        transform_result.warnings.splice(0..0, option_warnings);
     }
 
     // Convert to CompileResult
