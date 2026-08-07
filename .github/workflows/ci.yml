@@ -497,6 +497,9 @@ jobs:
         timeout-minutes: 15
         env:
           RUST_MIN_STACK: '33554432'
+          # This job checks the svelte submodule out above, so a `--lib` suite
+          # that skips itself for a missing prerequisite is a misconfigured job.
+          RSVELTE_REQUIRE_PREREQS: '1'
 
       # `parallel` is off by default, so the run above compiles neither
       # `compile_batch`'s rayon path nor the tests that pin its per-item panic
@@ -507,6 +510,7 @@ jobs:
         timeout-minutes: 15
         env:
           RUST_MIN_STACK: '33554432'
+          RSVELTE_REQUIRE_PREREQS: '1'
 
   # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
   # every .svelte file + markdown code block from svelte.dev and diff against an

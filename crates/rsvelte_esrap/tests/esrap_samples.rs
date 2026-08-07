@@ -125,6 +125,14 @@ fn esrap_samples_match() {
     let verbose = std::env::var("ESRAP_SAMPLES_VERBOSE").is_ok();
     let only = std::env::var("ESRAP_SAMPLES_ONLY").ok();
 
+    // Filtered-out samples can never reach the KNOWN_FAILURES reconciliation
+    // below, so a narrowed run reports green having checked one entry.
+    assert!(
+        only.is_none() || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+        "ESRAP_SAMPLES_ONLY narrows the run to a single sample in a job that declares \
+         RSVELTE_REQUIRE_PREREQS — the KNOWN_FAILURES ratchet would be hollowed out."
+    );
+
     let mut unexpected_fail = Vec::new();
     let mut unexpected_pass = Vec::new();
     let mut passed = 0;
