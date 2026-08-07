@@ -7,7 +7,7 @@ of only comparing diagnostic counts, mirroring what
 every listed fixture is a real divergence from the last confirmed test run, not
 a placeholder.
 
-## Current baseline: 207 divergences
+## Current baseline: `validator-known-failures.json`, 206 entries — 206 divergences
 
 The divergences fall into three clusters:
 
@@ -20,9 +20,12 @@ The divergences fall into three clusters:
   fixing it means auditing each `AnalysisError::*` construction individually.
 
 - **Warning span-only mismatches (53).** The warning `code` and `message` match
-  upstream exactly; only the reported `start`/`end` differs — typically rsvelte
-  reports a whole-line/whole-node span where upstream reports a narrower
-  sub-span (an attribute value, a role token, an identifier). Affects
+  upstream exactly; only the reported `start`/`end` differs — **rsvelte reports
+  no span at all** (`None..None`) where upstream reports a real range, because
+  the warning is constructed without threading the triggering node through.
+  Measured on both populations: 26 of 26 span-only divergences here are missing
+  spans and 0 are present-but-different, and on the ~14k real-world corpus the
+  split is 2,082 missing against 3 present-but-different (99.86%). Affects
   `component-name-lowercase`, `custom-element-props-identifier*`,
   `rest-eachblock-binding*`, `invalid-self-closing-tag`,
   `a11y-aria-proptypes-*`, `a11y-scope`, `a11y-no-abstract-roles`,
@@ -40,10 +43,15 @@ The divergences fall into three clusters:
   `script-unknown-attribute`, `script-context-module-runes-deprecated`,
   `script-invalid-spread-attribute`, `tag-custom-element-options-missing`,
   `runes-legacy-syntax-warnings`, and `a11y-aria-unsupported-element`.
-  Each is a narrow-the-span fix once the underlying node's precise range is
-  identified (per-rule, not architectural).
+  Each is an *attach*-the-span fix, not a narrow-the-span one: pass the
+  triggering node to the warning constructor so the caller's element-span
+  fallback is not reached. Per-rule, not architectural — one systemic cause but
+  one emission site per code, so the work does not collapse into a single edit.
+  Where the check locates its subject by walking children (as `figure` does for
+  `a11y_figcaption_index`, #2490), the same fallback lands a **plausible wrong**
+  span rather than none, which is the worse symptom of the same defect.
 
-- **Warning/error content differs from upstream wording (13).** The diagnostic
+- **Warning/error content differs from upstream wording (12).** The diagnostic
   fires on the right node but the message text itself — or, for one rule, the
   argument order — diverges from upstream. Not fixed in this change (deferred
   to keep the assertion-tightening change span-neutral); each is a self-contained

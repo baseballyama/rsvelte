@@ -796,6 +796,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
         // ArrowFunctionExpression: use to_value() for params/body helpers
         JsNode::ArrowFunctionExpression {
+            start: arrow_start,
             params,
             body,
             r#async: is_async,
@@ -835,11 +836,19 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let body_node = pa.get_js_node(*body);
             let body_is_assignment = body_node.node_type() == Some("AssignmentExpression");
             let saved_arrow_level = context.state.event_handler_arrow_body_level;
-            if (context.state.in_event_attribute_handler || context.state.in_component_attribute)
+            let is_event_attribute_arrow = context
+                .state
+                .analysis
+                .event_attribute_arrow_starts
+                .contains(arrow_start);
+            context.state.event_handler_arrow_body_level = if (is_event_attribute_arrow
+                || context.state.in_component_attribute)
                 && body_is_assignment
             {
-                context.state.event_handler_arrow_body_level = 1;
-            }
+                1
+            } else {
+                0
+            };
 
             let conv_body = match body_node {
                 JsNode::BlockStatement { body, .. } => {
@@ -3104,20 +3113,29 @@ fn convert_arrow_function(
         if body_obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
             JsArrowBody::Block(convert_block_statement(body_obj, context))
         } else {
-            // When inside an event attribute handler and the body IS an
-            // AssignmentExpression, set the arrow body level to skip the
-            // coercive assignment transform for this direct body expression only.
-            // This matches Svelte's path-based check: path.at(-1) === 'ArrowFunctionExpression'
             let body_is_assignment = matches!(
                 body_obj.get("type").and_then(|t| t.as_str()),
                 Some("AssignmentExpression")
             );
+            let is_event_attribute_arrow =
+                obj.get("start")
+                    .and_then(|v| v.as_u64())
+                    .is_some_and(|start| {
+                        context
+                            .state
+                            .analysis
+                            .event_attribute_arrow_starts
+                            .contains(&(start as u32))
+                    });
             let saved_level = context.state.event_handler_arrow_body_level;
-            if (context.state.in_event_attribute_handler || context.state.in_component_attribute)
+            context.state.event_handler_arrow_body_level = if (is_event_attribute_arrow
+                || context.state.in_component_attribute)
                 && body_is_assignment
             {
-                context.state.event_handler_arrow_body_level = 1;
-            }
+                1
+            } else {
+                0
+            };
             let __tmp = convert_json_value(&Value::Object(body_obj.clone()), context);
             let result = JsArrowBody::Expression(context.arena.alloc_expr(__tmp));
             context.state.event_handler_arrow_body_level = saved_level;

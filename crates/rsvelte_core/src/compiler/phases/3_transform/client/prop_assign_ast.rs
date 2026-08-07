@@ -367,7 +367,10 @@ pub(crate) fn transform_prop_assign_in_place(
         return ast_rewrite::Rewrite::Unchanged;
     }
 
-    ast_rewrite::with_program_mut(
+    // A logical compound assignment has no `BinaryOperator`, so this pass leaves
+    // the whole source to the text path rather than rewriting the rest of it.
+    let bailed = std::cell::Cell::new(false);
+    let rewrite = ast_rewrite::with_program_mut(
         &MODULE_PROP_ASSIGN_IN_PLACE_ALLOC,
         source,
         SourceType::mjs(),
@@ -379,11 +382,13 @@ pub(crate) fn transform_prop_assign_in_place(
                     prop_vars,
                     semantic: &semantic_ret.semantic,
                     targets: Vec::new(),
+                    bailed: false,
                 };
                 finder.visit_program(program);
+                bailed.set(finder.bailed);
                 finder.targets
             };
-            if targets.is_empty() {
+            if bailed.get() || targets.is_empty() {
                 return false;
             }
             let mut rewriter = PropAssignRewriter {
@@ -394,7 +399,11 @@ pub(crate) fn transform_prop_assign_in_place(
             oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
             rewriter.changed
         },
-    )
+    );
+    if bailed.get() && matches!(rewrite, ast_rewrite::Rewrite::Unchanged) {
+        return ast_rewrite::Rewrite::Undecided;
+    }
+    rewrite
 }
 
 /// The operators the text path rewrites. Bitwise and shift compound
@@ -417,6 +426,8 @@ struct PropAssignFinder<'a, 'sem> {
     semantic: &'sem Semantic<'sem>,
     /// `(span, prop name)` of each assignment to rewrite.
     targets: Vec<(oxc_span::Span, String)>,
+    /// An assignment this pass matches but cannot express in place.
+    bailed: bool,
 }
 
 impl<'a, 'sem, 'ast> Visit<'ast> for PropAssignFinder<'a, 'sem> {
@@ -437,6 +448,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PropAssignFinder<'a, 'sem> {
         // path's allowlist but have no `BinaryOperator`; they are handled by
         // the splice path until the logical form is ported.
         if prop_assign_operator(expr.operator).is_none() {
+            self.bailed = true;
             return;
         }
         self.targets.push((expr.span, name.to_string()));

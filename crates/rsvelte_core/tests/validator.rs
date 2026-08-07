@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use common::{
     ExpectedValidatorError, FixtureCoverage, SkipReason, check_validator_error,
     get_svelte_test_samples, load_expected_validator_error, read_fixture_file, sample_name,
-    validator_error_result,
+    svelte_samples_dir, validator_error_result,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 use serde::Deserialize;
@@ -360,7 +360,8 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
 fn test_validator() {
     let samples = get_validator_samples();
 
-    let mut coverage = FixtureCoverage::new("validator", samples.len());
+    let mut coverage =
+        FixtureCoverage::new("validator", svelte_samples_dir("validator"), samples.len());
     let mut fixtures: Vec<ValidatorFixture> = Vec::new();
     for sample_dir in &samples {
         match load_validator_fixture(sample_dir.as_path()) {
@@ -455,6 +456,121 @@ fn test_validator() {
         regressions.is_empty(),
         "{} validator regressions (not in compatibility/validator-known-failures.json)",
         regressions.len()
+    );
+}
+
+/// Grow-only floor, measured against the pinned Svelte submodule: 158 of the 334
+/// samples emit warnings whose codes already line up with official. Never lower it.
+const MIN_MESSAGE_COMPARISONS: usize = 158;
+
+/// Warning message text, ratcheted independently of `validator-known-failures.json`.
+///
+/// That ratchet is per-fixture and all-or-nothing, so a fixture listed for a
+/// missing span stops being watched for its message text as well — three wrong
+/// messages shipped behind position justifications exactly that way.
+///
+/// The oracle is the *generated* fixture (official run on this same input), not
+/// the sample's checked-in `warnings.json`: upstream committed those under a
+/// different filename, so a message interpolating the filename diverges
+/// spuriously against it.
+#[test]
+fn validator_warning_messages_match_official() {
+    common::ensure_fixtures_exist();
+
+    let known: BTreeSet<String> = load_ratchet("validator-message-known-failures.json")
+        .into_iter()
+        .collect();
+
+    let mut compared = 0usize;
+    let mut diverged: BTreeSet<String> = BTreeSet::new();
+    let mut detail = String::new();
+
+    for sample_dir in get_validator_samples() {
+        let Ok(fixture) = load_validator_fixture(sample_dir.as_path()) else {
+            continue;
+        };
+        let name = fixture.name.clone();
+
+        let Some(raw) = common::load_fixture_output("validator", &name, "warnings.json") else {
+            continue;
+        };
+        let Ok(expected) = serde_json::from_str::<Vec<ExpectedWarning>>(&raw) else {
+            panic!("{name}: generated warnings.json is not valid JSON");
+        };
+
+        let input = fixture.input.clone();
+        let compiled =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fixture.input_type {
+                InputType::Module => compile_module(
+                    &input,
+                    ModuleCompileOptions {
+                        generate: GenerateMode::Client,
+                        filename: Some(format!("{}/input.svelte.js", name)),
+                        ..Default::default()
+                    },
+                ),
+                InputType::Svelte => compile(
+                    &input,
+                    CompileOptions {
+                        generate: GenerateMode::Client,
+                        filename: Some(format!("{}/input.svelte", name)),
+                        runes: fixture.runes,
+                        custom_element: fixture.custom_element,
+                        ..Default::default()
+                    },
+                ),
+            }));
+        let Ok(Ok(result)) = compiled else {
+            continue;
+        };
+
+        // Codes and counts are the other ratchets' business; only compare text
+        // where the two sides already agree on which warnings were emitted.
+        if result.warnings.len() != expected.len()
+            || !result
+                .warnings
+                .iter()
+                .zip(expected.iter())
+                .all(|(a, e)| a.code == e.code)
+        {
+            continue;
+        }
+
+        compared += 1;
+        for (a, e) in result.warnings.iter().zip(expected.iter()) {
+            let actual = common::strip_error_link(&a.message);
+            let want = common::strip_error_link(&e.message);
+            if actual != want && diverged.insert(name.clone()) {
+                let _ = write!(
+                    detail,
+                    "\n  {name} [{}]\n    rsvelte:  {actual}\n    official: {want}",
+                    a.code
+                );
+            }
+        }
+    }
+
+    assert!(
+        compared >= MIN_MESSAGE_COMPARISONS,
+        "only {compared} fixture(s) reached message comparison, floor is \
+         {MIN_MESSAGE_COMPARISONS}. This floor is grow-only — if the comparison stopped \
+         running, fix it rather than lowering the floor."
+    );
+
+    let new_failures: Vec<&String> = diverged.iter().filter(|n| !known.contains(*n)).collect();
+    let now_passing: Vec<&String> = known.iter().filter(|n| !diverged.contains(*n)).collect();
+
+    assert!(
+        new_failures.is_empty(),
+        "{} validator warning message(s) diverge from official and are not in \
+         compatibility/validator-message-known-failures.json: {new_failures:?}\n{detail}",
+        new_failures.len()
+    );
+    assert!(
+        now_passing.is_empty(),
+        "{} entr(ies) in compatibility/validator-message-known-failures.json now match — \
+         remove them (and their justification in the paired .md): {now_passing:?}",
+        now_passing.len()
     );
 }
 

@@ -23,7 +23,7 @@ use rsvelte_diagnostics::Diagnostic;
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{blank_comments, is_ident_byte, script_blocks, script_is_ts};
+use crate::svelte_scan::{blank_comments, is_ascii_ident_byte, script_blocks, script_is_ts};
 use crate::validator::{range_from_byte, to_dsev};
 
 pub static META: RuleMeta = RuleMeta {
@@ -530,7 +530,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
                     let n = r
                         .as_bytes()
                         .iter()
-                        .position(|&c| !is_ident_byte(c))
+                        .position(|&c| !is_ascii_ident_byte(c))
                         .unwrap_or(r.len());
                     r[..n].to_string()
                 })
@@ -542,7 +542,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
         // Plain identifier key, optional `: local` / `= default`.
         let name_end = bytes
             .iter()
-            .position(|&c| !is_ident_byte(c))
+            .position(|&c| !is_ascii_ident_byte(c))
             .unwrap_or(bytes.len());
         if name_end == 0 {
             continue;
@@ -556,7 +556,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
                 let n = r
                     .as_bytes()
                     .iter()
-                    .position(|&c| !is_ident_byte(c))
+                    .position(|&c| !is_ascii_ident_byte(c))
                     .unwrap_or(r.len());
                 r[..n].to_string()
             })
@@ -565,6 +565,28 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
         entries.push((key, local));
     }
     entries
+}
+
+/// Step `pos` back over whitespace. Walks characters, not bytes: `0x85`/`0xA0`
+/// are UTF-8 continuation bytes that cast to whitespace `char`s, so a byte
+/// cursor walks into the middle of a character and the next slice panics.
+fn skip_ws_back(source: &str, mut pos: usize) -> usize {
+    while let Some(c) = source[..pos]
+        .chars()
+        .next_back()
+        .filter(|c| c.is_whitespace())
+    {
+        pos -= c.len_utf8();
+    }
+    pos
+}
+
+/// Step `pos` forward over whitespace, by characters — see [`skip_ws_back`].
+fn skip_ws_forward(source: &str, mut pos: usize) -> usize {
+    while let Some(c) = source[pos..].chars().next().filter(|c| c.is_whitespace()) {
+        pos += c.len_utf8();
+    }
+    pos
 }
 
 /// Collect member-access chains for `var` in `source` (e.g. `var.a.b` →
@@ -593,17 +615,14 @@ fn member_chains(
         }
         let before = start.checked_sub(1).map(|b| bytes[b]);
         let after = bytes.get(end).copied();
-        if before.is_some_and(is_ident_byte) || after.is_some_and(is_ident_byte) {
+        if before.is_some_and(is_ascii_ident_byte) || after.is_some_and(is_ascii_ident_byte) {
             continue; // not a whole-word match
         }
-        let mut p = start;
-        while p > 0 && (bytes[p - 1] as char).is_whitespace() {
-            p -= 1;
-        }
-        let is_spread = p >= 3 && &source[p - 3..p] == "...";
+        let p = skip_ws_back(source, start);
+        let is_spread = source[..p].ends_with("...");
         // Skip `obj.var` (member access where `var` is the property), but NOT
         // the spread `...var` (whose preceding char is also `.`).
-        if !is_spread && p > 0 && bytes[p - 1] == b'.' {
+        if !is_spread && source[..p].ends_with('.') {
             continue;
         }
         // Empty non-spread chains (a bare/whole reference, e.g. shorthand
@@ -624,9 +643,7 @@ fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
     let bytes = source.as_bytes();
     let mut chain = Vec::new();
     loop {
-        while pos < bytes.len() && (bytes[pos] as char).is_whitespace() {
-            pos += 1;
-        }
+        pos = skip_ws_forward(source, pos);
         if pos >= bytes.len() {
             break;
         }
@@ -637,12 +654,10 @@ fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
         } else {
             None
         };
-        if let Some(mut q) = dot {
-            while q < bytes.len() && (bytes[q] as char).is_whitespace() {
-                q += 1;
-            }
+        if let Some(q) = dot {
+            let mut q = skip_ws_forward(source, q);
             let s = q;
-            while q < bytes.len() && is_ident_byte(bytes[q]) {
+            while q < bytes.len() && is_ascii_ident_byte(bytes[q]) {
                 q += 1;
             }
             if q == s {
@@ -651,10 +666,7 @@ fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
             chain.push(source[s..q].to_string());
             pos = q;
         } else if bytes[pos] == b'[' {
-            let mut q = pos + 1;
-            while q < bytes.len() && (bytes[q] as char).is_whitespace() {
-                q += 1;
-            }
+            let mut q = skip_ws_forward(source, pos + 1);
             if q < bytes.len() && (bytes[q] == b'\'' || bytes[q] == b'"') {
                 let quote = bytes[q];
                 q += 1;
@@ -666,10 +678,7 @@ fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
                     break;
                 }
                 let name = source[s..q].to_string();
-                q += 1;
-                while q < bytes.len() && (bytes[q] as char).is_whitespace() {
-                    q += 1;
-                }
+                q = skip_ws_forward(source, q + 1);
                 if q < bytes.len() && bytes[q] == b']' {
                     chain.push(name);
                     pos = q + 1;
@@ -909,7 +918,8 @@ fn has_whole_object_spread(source: &str, var_name: &str) -> bool {
         if bytes[i..i + vb.len()] == *vb {
             // Check next char.
             let next = bytes.get(i + vb.len()).copied();
-            let next_is_member = next.is_some_and(|c| c == b'.' || c == b'[' || is_ident_byte(c));
+            let next_is_member =
+                next.is_some_and(|c| c == b'.' || c == b'[' || is_ascii_ident_byte(c));
             if !next_is_member {
                 return true;
             }
@@ -980,7 +990,7 @@ fn find_props_info(content: &str, blanked: &str, content_start: usize) -> Option
         let var_end_rel = before_colon.len();
         // Find start of var name (walk back over identifier chars).
         let var_name_start = blanked[..var_end_rel]
-            .rfind(|c: char| !is_ident_byte(c as u8))
+            .rfind(|c: char| !is_ascii_ident_byte(c as u8))
             .map(|i| i + 1)
             .unwrap_or(0);
         let var_name = content[var_name_start..var_end_rel].trim().to_string();
@@ -1036,7 +1046,7 @@ fn is_type_imported(blanked: &str, name: &str) -> bool {
     let mut i = 0;
     while i + 6 <= bytes.len() {
         if &bytes[i..i + 6] == b"import" {
-            let before_ok = i == 0 || !is_ident_byte(bytes[i - 1]);
+            let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
             if before_ok {
                 let end = blanked[i..]
                     .find(';')
@@ -1046,9 +1056,9 @@ fn is_type_imported(blanked: &str, name: &str) -> bool {
                 let import_stmt = &blanked[i..end];
                 if let Some(name_pos) = import_stmt.find(name) {
                     let before_ok2 =
-                        name_pos == 0 || !is_ident_byte(import_stmt.as_bytes()[name_pos - 1]);
+                        name_pos == 0 || !is_ascii_ident_byte(import_stmt.as_bytes()[name_pos - 1]);
                     let after_ok = name_pos + nb.len() >= import_stmt.len()
-                        || !is_ident_byte(import_stmt.as_bytes()[name_pos + nb.len()]);
+                        || !is_ascii_ident_byte(import_stmt.as_bytes()[name_pos + nb.len()]);
                     if before_ok2 && after_ok {
                         return true;
                     }
@@ -1078,7 +1088,7 @@ fn find_named_type_body_no_extends(
         while let Some(rel) = blanked[search_from..].find(kw) {
             let kw_start = search_from + rel;
             let kw_end = kw_start + kw.len();
-            let before_ok = kw_start == 0 || !is_ident_byte(bytes[kw_start - 1]);
+            let before_ok = kw_start == 0 || !is_ascii_ident_byte(bytes[kw_start - 1]);
             if !before_ok {
                 search_from = kw_end;
                 continue;
@@ -1092,7 +1102,7 @@ fn find_named_type_body_no_extends(
             }
             let after_name = rest_start + nb.len();
             let after_char = bytes.get(after_name).copied();
-            if after_char.is_some_and(is_ident_byte) {
+            if after_char.is_some_and(is_ascii_ident_byte) {
                 search_from = kw_end;
                 continue;
             }
@@ -1221,7 +1231,7 @@ fn extract_member_name(seg: &str) -> Option<String> {
     // Plain identifier (possibly followed by `?`, `:`, `(`)
     let name_end = bytes
         .iter()
-        .position(|&c| !is_ident_byte(c))
+        .position(|&c| !is_ascii_ident_byte(c))
         .unwrap_or(bytes.len());
     if name_end == 0 {
         return None;
@@ -1317,7 +1327,7 @@ fn extract_destructure_prop_name(seg: &str) -> Option<String> {
     // nested `{ ... }`)
     let name_end = bytes
         .iter()
-        .position(|&c| !is_ident_byte(c))
+        .position(|&c| !is_ascii_ident_byte(c))
         .unwrap_or(bytes.len());
     if name_end == 0 {
         return None;
@@ -1358,6 +1368,55 @@ mod tests {
         assert!(has_whole_object_spread("bar(...props)", "props"));
         // `...props.foo` is a member spread, not a whole-object spread.
         assert!(!has_whole_object_spread("baz({ ...props.foo })", "props"));
+    }
+
+    #[test]
+    fn member_chains_walks_back_over_multibyte_chars() {
+        // `々` is E3 80 85: its last byte cast to `char` is U+0085 NEL, which
+        // `is_whitespace` accepts — a byte cursor steps into the character.
+        assert_eq!(
+            member_chains("ab\u{3005}foo.bar", "foo", None).0,
+            vec![vec!["bar".to_string()]]
+        );
+        // NBSP reaches the same place through its 0xA0 continuation byte.
+        assert_eq!(
+            member_chains("ab\u{4EE0}foo.bar", "foo", None).0,
+            vec![vec!["bar".to_string()]]
+        );
+        // A newline between does not save it: the cursor eats the newline, then
+        // the continuation byte.
+        assert_eq!(
+            member_chains("// \u{4EBA}\u{3005}\nfoo.bar", "foo", None).0,
+            vec![vec!["bar".to_string()]]
+        );
+    }
+
+    #[test]
+    fn member_chains_spread_lookbehind_is_boundary_safe() {
+        // The `...` lookbehind slices three bytes back from a cursor that is
+        // already on a boundary, which still lands inside a 4-byte character.
+        assert_eq!(
+            member_chains("\u{1D54F}foo.bar", "foo", None).0,
+            vec![vec!["bar".to_string()]]
+        );
+        // Real Unicode whitespace before a spread is still recognised.
+        assert_eq!(
+            member_chains("...\u{3000}foo.bar", "foo", None).1,
+            vec![vec!["bar".to_string()]]
+        );
+    }
+
+    #[test]
+    fn parse_member_chain_skips_unicode_whitespace() {
+        // U+3000 / NBSP are valid JS whitespace inside a member expression.
+        assert_eq!(
+            parse_member_chain("foo.\u{3000}bar", 3),
+            vec!["bar".to_string()]
+        );
+        assert_eq!(
+            parse_member_chain("foo\u{a0}[\u{a0}'bar'\u{a0}]", 3),
+            vec!["bar".to_string()]
+        );
     }
 
     use crate::type_backend::{TypeBackend, TypeFacts};
@@ -1512,6 +1571,15 @@ mod tests {
             graph_msgs(src, cfg, props_with_imported_base()),
             vec!["'imported_unused' is an unused Props property.".to_string()]
         );
+    }
+
+    #[test]
+    fn graph_survives_multibyte_comment_before_usage() {
+        // Reaches `member_chains` through the public entry point: comments are
+        // not blanked for the usage scan, so a CJK comment is scanned as source.
+        let src = "<script lang=\"ts\">\n\tlet { age, name }: Props = $props();\n\t// \u{4EBA}\u{3005}\nage;\n\tname;\n</script>";
+        let cfg = r#"{ "rules": { "svelte/no-unused-props": "warn" } }"#;
+        assert!(graph_msgs(src, cfg, props_with_imported_base()).is_empty());
     }
 
     #[test]

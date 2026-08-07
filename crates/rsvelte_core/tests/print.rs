@@ -8,6 +8,7 @@ use std::path::Path;
 
 use common::{
     FixtureCoverage, SkipReason, get_svelte_test_samples, read_fixture_file, sample_name,
+    svelte_samples_dir,
 };
 use rsvelte_core::compiler::print::print_with_source;
 use rsvelte_core::{ParseOptions, parse};
@@ -151,7 +152,7 @@ const PRINT_SKIP_NAMES: &[&str] = &[
 fn test_print() {
     let samples = get_print_samples();
 
-    let mut coverage = FixtureCoverage::new("print", samples.len());
+    let mut coverage = FixtureCoverage::new("print", svelte_samples_dir("print"), samples.len());
     let mut fixtures: Vec<PrintFixture> = Vec::new();
     for sample_dir in &samples {
         match load_print_fixture(sample_dir.as_path()) {

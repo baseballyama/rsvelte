@@ -122,6 +122,7 @@ pub(crate) fn handle_regular_element(
         &el.name,
         saved_slot.is_some(),
         Some(opener_content_start),
+        options.namespace.preserves_attribute_case(),
     );
 
     let spacing = opener_spacing(
@@ -328,6 +329,7 @@ pub(crate) fn handle_title_element(
         source,
         &counter.element_opener_comments,
         saved_slot.is_some(),
+        options.namespace.preserves_attribute_case(),
     );
 
     let spacing = opener_spacing(

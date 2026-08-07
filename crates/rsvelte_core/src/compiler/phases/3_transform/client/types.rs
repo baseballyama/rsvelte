@@ -1614,11 +1614,10 @@ impl<'a> ComponentContext<'a> {
                             capture = true;
                         }
 
-                        // Extract and convert the handler expression
-                        let saved_in_event = self.state.in_event_attribute_handler;
-                        self.state.in_event_attribute_handler = true;
+                        // No exemption here: upstream's special case lists only
+                        // `RegularElement` and `SvelteElement`, so `<svelte:window>`
+                        // and friends never skip the `$.assign` wrap.
                         let handler = extract_event_handler(&event_attr.value, self);
-                        self.state.in_event_attribute_handler = saved_in_event;
 
                         // Build the $.event() call
                         // For special elements, events are never delegated and always go to init
@@ -1909,17 +1908,11 @@ pub struct ComponentClientTransformState<'a> {
     /// nested assignments do not inherit it.
     pub assignment_is_statement: bool,
 
-    /// Flag indicating if we're inside an event attribute handler (e.g., onclick={() => ...}).
-    /// Used to track the event handler context so that the expression converter can skip
-    /// coercive assignment transforms for the direct body of event handler arrow functions.
-    /// Reference: AssignmentExpression.js lines 189-209 in the official Svelte compiler.
-    pub in_event_attribute_handler: bool,
-
-    /// Depth counter for tracking whether we're at the direct body level of an event
-    /// handler arrow function. Set to 1 when processing the body expression of an
-    /// event handler arrow, and 0 otherwise. Nested expressions reset this to 0.
-    /// When this is 1 AND in_event_attribute_handler is true, coercive assignment
-    /// transforms ($.assign) are skipped (matching Svelte's path-based check).
+    /// 1 while converting the direct assignment body of an arrow that is exempt
+    /// from the coercive assignment transform, 0 otherwise. Which arrows are
+    /// exempt is decided by identity (`ComponentAnalysis::event_attribute_arrows`),
+    /// never by "somewhere inside a handler" — every other arrow clears it, so an
+    /// outer exemption cannot leak into one nested below it.
     pub event_handler_arrow_body_level: u32,
 
     /// Flag indicating if the current EachBlock should be treated as "controlled".
@@ -2218,7 +2211,6 @@ impl<'a> ComponentClientTransformState<'a> {
             parent_is_regular_element: false,
             state_declarator_name: None,
             assignment_is_statement: false,
-            in_event_attribute_handler: false,
             event_handler_arrow_body_level: 0,
             is_controlled_each: false,
             is_controlled_html: false,
