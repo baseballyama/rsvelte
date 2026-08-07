@@ -14,6 +14,7 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
 use oxc_parser::{ParseOptions, Parser};
 use oxc_span::SourceType;
+use std::borrow::Cow;
 
 pub(super) fn unthunk_string(expr: &str) -> String {
     let trimmed = expr.trim();
@@ -71,6 +72,7 @@ pub(super) fn transform_destructure_assignments(
     store_sub_vars: &[String],
 ) -> String {
     transform_destructure_assignments_with_props(statement, state_vars, &[], store_sub_vars, &[])
+        .into_owned()
 }
 
 /// Transform destructure assignments, with knowledge of prop variables.
@@ -87,16 +89,16 @@ pub(super) fn transform_destructure_assignments(
 /// `non_reactive_state_vars` is subtracted from `state_vars` for that same
 /// right-hand-side test: only a state variable whose read becomes `$.get(…)`
 /// makes the visited value a CallExpression.
-pub(super) fn transform_destructure_assignments_with_props(
-    statement: &str,
+pub(super) fn transform_destructure_assignments_with_props<'a>(
+    statement: &'a str,
     state_vars: &[String],
     non_reactive_state_vars: &[String],
     store_sub_vars: &[String],
     prop_vars: &[String],
-) -> String {
+) -> Cow<'a, str> {
     // Quick check: destructure assignments require `=` with `[` or `{` on the LHS
     if state_vars.is_empty() && store_sub_vars.is_empty() && prop_vars.is_empty() {
-        return statement.to_string();
+        return Cow::Borrowed(statement);
     }
 
     // Byte-level fast path: a destructure assignment requires either `]` or `}`
@@ -106,10 +108,10 @@ pub(super) fn transform_destructure_assignments_with_props(
     // is the common case for plain declarations like `let x = $state(0);` which
     // call this function once per statement when `state_vars` is non-empty.
     if memchr::memchr2(b']', b'}', statement.as_bytes()).is_none() {
-        return statement.to_string();
+        return Cow::Borrowed(statement);
     }
 
-    let mut result = statement.to_string();
+    let mut result = Cow::Borrowed(statement);
 
     // Build HashSets once for O(1) lookups across all iterations
     let store_set: rustc_hash::FxHashSet<&str> =
@@ -130,7 +132,7 @@ pub(super) fn transform_destructure_assignments_with_props(
         &prop_set,
         &reactive_state_set,
     ) {
-        result = transformed;
+        result = Cow::Owned(transformed);
     }
 
     result
@@ -1533,15 +1535,15 @@ pub(super) fn generate_destructure_iife(
 /// The subsequent `wrap_state_vars_in_expr` call will handle `$.get()` wrapping
 /// inside the mutation expression (the `in_mutate_first_arg` guard in that
 /// function ensures the first argument of `$.mutate()` is NOT double-wrapped).
-pub(super) fn transform_member_mutations(
-    line: &str,
+pub(super) fn transform_member_mutations<'a>(
+    line: &'a str,
     state_vars: &[String],
     non_reactive_state_vars: &[String],
     raw_state_vars: &[String],
     invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
-) -> String {
+) -> Cow<'a, str> {
     if state_vars.is_empty() {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
 
     // AST-based pre-pass for `obj.prop = rhs` (legacy state member
@@ -1559,10 +1561,7 @@ pub(super) fn transform_member_mutations(
             raw_state_vars,
             invalidate_bodies,
         );
-    if let Some(rewritten) = ast_result {
-        return rewritten;
-    }
-    line.to_string()
+    ast_result.map_or(Cow::Borrowed(line), Cow::Owned)
 }
 
 #[cfg(test)]

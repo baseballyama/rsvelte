@@ -45,6 +45,10 @@ measure-json = []
 # Repository-local instrumentation: decompose the per-prop re-scan in
 # `transform_prop_reads_in_expr`. Off by default.
 measure-prop-reads = []
+# Repository-local instrumentation: count, per stage, whether the per-statement
+# transform chain allocated a new string or handed its input through. Off by
+# default and zero-cost when off.
+measure-stmt-chain = []
 # Select the JavaScript entropy backend when the compiler is embedded in wasm.
 # Binding exports live in `rsvelte_lint_bindings`, not in this library.
 wasm-target = ["dep:getrandom", "getrandom/wasm_js"]

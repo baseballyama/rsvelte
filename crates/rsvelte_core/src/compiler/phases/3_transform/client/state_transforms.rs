@@ -2,6 +2,7 @@
 
 use memchr::memmem;
 use rustc_hash::FxHashSet;
+use std::borrow::Cow;
 
 use super::STATE_TMP_COUNTER;
 use super::destructure_transforms::{ArrayHelperRead, extract_destructure_paths};
@@ -1179,19 +1180,19 @@ pub(super) fn is_inside_string_literal(code: &str, pos: usize) -> bool {
 /// - `$.set(foo, writable(42))` → `$.store_unsub($.set(foo, writable(42)), '$foo', $$stores)`
 ///
 /// Reference: declarations.js `add_state_transformers` → `assign_value_with_store`
-pub(super) fn wrap_store_unsub_for_state_sets(
-    line: &str,
+pub(super) fn wrap_store_unsub_for_state_sets<'a>(
+    line: &'a str,
     state_vars: &[String],
     store_sub_vars: &[String],
-) -> String {
+) -> Cow<'a, str> {
     if state_vars.is_empty() || store_sub_vars.is_empty() {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
     if memmem::find(line.as_bytes(), b"$.set(").is_none() {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
     super::store_unsub_wrap_ast::transform_store_unsub_wrap_ast(line, state_vars, store_sub_vars)
-        .unwrap_or_else(|| line.to_string())
+        .map_or(Cow::Borrowed(line), Cow::Owned)
 }
 
 /// Transform prop assignments to getter/setter function call syntax.
@@ -1205,14 +1206,14 @@ pub(super) fn wrap_store_unsub_for_state_sets(
 ///
 /// Note: Update expressions (x++, --x, etc.) are handled by transform_prop_update_expressions
 /// which must be called BEFORE this function.
-pub(super) fn transform_prop_assignments(
-    line: &str,
+pub(super) fn transform_prop_assignments<'a>(
+    line: &'a str,
     prop_vars: &[String],
     non_bindable_prop_vars: &[String],
     prop_invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
-) -> String {
+) -> Cow<'a, str> {
     if prop_vars.is_empty() {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
 
     // Skip lines that are prop declarations (contain $.prop() or $.rest_props())
@@ -1223,13 +1224,13 @@ pub(super) fn transform_prop_assignments(
     if memmem::find(line.as_bytes(), b"$.prop(").is_some()
         || memmem::find(line.as_bytes(), b"$.rest_props(").is_some()
     {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
 
     // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
     let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(line, &var_set) {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
 
     // Two AST passes — both cover every shape the text loops
@@ -1240,13 +1241,15 @@ pub(super) fn transform_prop_assignments(
     //    member mutations) → `name(name().foo = expr, true)`
     let after_assigns = super::prop_assign_ast::transform_prop_assign_ast(line, prop_vars);
     let stage1: &str = after_assigns.as_deref().unwrap_or(line);
-    super::prop_member_mutate_ast::transform_prop_member_mutate_ast(
+    let mutated = super::prop_member_mutate_ast::transform_prop_member_mutate_ast(
         stage1,
         prop_vars,
         non_bindable_prop_vars,
         prop_invalidate_bodies,
-    )
-    .unwrap_or_else(|| stage1.to_string())
+    );
+    mutated
+        .or(after_assigns)
+        .map_or(Cow::Borrowed(line), Cow::Owned)
 }
 
 /// Split a multi-declarator variable statement into individual declarations.
@@ -1342,12 +1345,12 @@ pub(super) fn split_multi_declarator(line: &str) -> Option<Vec<String>> {
 ///   `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar;`
 ///
 /// Reference: `create_state_declarators` in VariableDeclaration.js
-pub(super) fn transform_legacy_destructure_declarations(
-    statement: &str,
+pub(super) fn transform_legacy_destructure_declarations<'a>(
+    statement: &'a str,
     legacy_state_var_names: &[String],
     immutable: bool,
     dev: bool,
-) -> String {
+) -> Cow<'a, str> {
     // Only look at the first line to determine if this is a destructuring declaration
     let first_line = statement.lines().next().unwrap_or("");
     let trimmed = first_line.trim();
@@ -1360,14 +1363,14 @@ pub(super) fn transform_legacy_destructure_declarations(
     } else if let Some(r) = trimmed.strip_prefix("var ") {
         ("var", r)
     } else {
-        return statement.to_string();
+        return Cow::Borrowed(statement);
     };
 
     let rest_start = rest_start.trim();
 
     // Check if this is a destructuring pattern (starts with { or [)
     if !rest_start.starts_with('{') && !rest_start.starts_with('[') {
-        return statement.to_string();
+        return Cow::Borrowed(statement);
     }
 
     // For the full pattern matching, we need the complete statement (multi-line)
@@ -1395,7 +1398,7 @@ pub(super) fn transform_legacy_destructure_declarations(
 
     let pattern_end = match pattern_end {
         Some(e) => e,
-        None => return statement.to_string(),
+        None => return Cow::Borrowed(statement),
     };
 
     let pattern_str = &rest[..=pattern_end];
@@ -1403,7 +1406,7 @@ pub(super) fn transform_legacy_destructure_declarations(
 
     // Must have `= expr` after the pattern
     if !after_pattern.starts_with('=') {
-        return statement.to_string();
+        return Cow::Borrowed(statement);
     }
 
     let expr = after_pattern[1..].trim().trim_end_matches(';').trim();
@@ -1417,7 +1420,7 @@ pub(super) fn transform_legacy_destructure_declarations(
         .any(|name| legacy_state_var_names.contains(name));
 
     if !has_state {
-        return statement.to_string();
+        return Cow::Borrowed(statement);
     }
 
     // Generate tmp variable name
@@ -1465,7 +1468,7 @@ pub(super) fn transform_legacy_destructure_declarations(
     }
 
     let trailing = if full_trimmed.ends_with(';') { ";" } else { "" };
-    format!("{} {}{}", keyword, parts.join(", "), trailing)
+    Cow::Owned(format!("{} {}{}", keyword, parts.join(", "), trailing))
 }
 
 /// Every name bound by a destructuring pattern, nested leaves included.
@@ -1549,14 +1552,14 @@ fn tag_legacy_source(call: String, name: &str, dev: bool) -> String {
 /// - `let state = 'foo'` → `let state = $.mutable_source('foo')`
 /// - `let count = 0` → `let count = $.mutable_source(0)`
 /// - `const arr = [1, 2]` → `const arr = $.mutable_source([1, 2])`
-pub(super) fn transform_legacy_state_declarations(
-    line: &str,
+pub(super) fn transform_legacy_state_declarations<'a>(
+    line: &'a str,
     legacy_state_vars: &[(String, Option<String>, DeclarationKind)],
     immutable: bool,
     dev: bool,
-) -> String {
+) -> Cow<'a, str> {
     if legacy_state_vars.is_empty() {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
 
     // Handle multi-declarator statements like `let a = 1, b = 2, c = 3;`
@@ -1566,14 +1569,16 @@ pub(super) fn transform_legacy_state_declarations(
     if !is_legacy_destructure_expansion(line)
         && let Some(split_lines) = split_multi_declarator(line)
     {
-        let transformed_lines: Vec<String> = split_lines
+        // The split itself re-renders the statement, so this branch answers with
+        // its own text even when no declarator was rewritten.
+        let transformed_lines: Vec<Cow<'_, str>> = split_lines
             .iter()
             .map(|l| transform_legacy_state_declarations(l, legacy_state_vars, immutable, dev))
             .collect();
-        return transformed_lines.join("\n");
+        return Cow::Owned(transformed_lines.join("\n"));
     }
 
-    let mut result = line.to_string();
+    let mut result = Cow::Borrowed(line);
 
     for (var, _initial, decl_kind) in legacy_state_vars {
         // Every pattern below is `"<keyword> <var>…"`, so one scan rules the whole
@@ -1655,12 +1660,12 @@ pub(super) fn transform_legacy_state_declarations(
                     );
 
                     // Replace the declaration
-                    result = format!(
+                    result = Cow::Owned(format!(
                         "{}{}{}",
                         &result[..pos],
                         replacement,
                         &result[pos + pattern_with_init.len() + ws + expr_end..]
-                    );
+                    ));
                     matched = true;
                     break;
                 }
@@ -1723,12 +1728,12 @@ pub(super) fn transform_legacy_state_declarations(
                             var,
                             tag_legacy_source(call, var, dev)
                         );
-                        result = format!(
+                        result = Cow::Owned(format!(
                             "{}{}{}",
                             &result[..pos],
                             replacement,
                             &result[after_eq + ws + expr_end..]
-                        );
+                        ));
                         matched = true;
                         break;
                     }
@@ -1768,12 +1773,12 @@ pub(super) fn transform_legacy_state_declarations(
                     );
 
                     // Replace the declaration
-                    result = format!(
+                    result = Cow::Owned(format!(
                         "{}{}{}",
                         &result[..pos],
                         replacement,
                         &result[pos + pattern_no_init.len()..]
-                    );
+                    ));
                     matched = true;
                     break;
                 }
@@ -1841,12 +1846,12 @@ pub(super) fn transform_legacy_state_declarations(
                             var,
                             tag_legacy_source(call, var, dev)
                         );
-                        result = format!(
+                        result = Cow::Owned(format!(
                             "{}{}{}",
                             &result[..pos],
                             replacement,
                             &result[after_eq + expr_end..]
-                        );
+                        ));
                         matched = true;
                         break;
                     }
@@ -1861,7 +1866,12 @@ pub(super) fn transform_legacy_state_declarations(
                         var,
                         tag_legacy_source(call, var, dev)
                     );
-                    result = format!("{}{}{}", &result[..pos], replacement, &result[after_pos..]);
+                    result = Cow::Owned(format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[after_pos..]
+                    ));
                     matched = true;
                     break;
                 }

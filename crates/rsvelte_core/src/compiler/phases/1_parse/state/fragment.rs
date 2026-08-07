@@ -166,8 +166,8 @@ impl<'a> Parser<'a> {
         while let Some(TemplateNode::Text(text)) = fragment.nodes.last() {
             let after_special = text.end >= max_special_end;
             // ASCII-only by design: the parser already dropped every trailing
-            // whitespace run via `trim_end()` when it set `content_end`, so a
-            // Unicode-aware test here would be unreachable, not more correct.
+            // run of JS whitespace when it set `content_end`, so a wider test
+            // here would be unreachable, not more correct.
             let is_whitespace = text
                 .data
                 .as_bytes()
