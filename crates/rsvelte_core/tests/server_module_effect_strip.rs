@@ -29,9 +29,13 @@ fn effect_text_in_string_is_preserved() {
     );
 }
 
+/// The comment sits inside a function body because a module's program-level
+/// comments are dropped by upstream regardless of their contents; only a
+/// located body keeps its own.
 #[test]
 fn effect_text_in_comment_is_preserved() {
-    let out = server_module(r#"/* $effect.pre(() => {}) */ export const a = 1;"#);
+    let out =
+        server_module("export function f() {\n\t/* $effect.pre(() => {}) */\n\treturn 1;\n}\n");
     assert!(
         out.contains("/* $effect.pre(() => {}) */"),
         "effect-shaped text in a comment must survive, got:\n{out}"
