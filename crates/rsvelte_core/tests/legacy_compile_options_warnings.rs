@@ -47,6 +47,42 @@ fn enable_sourcemap_message_matches_upstream() {
     assert!(warnings[0].frame.is_none());
 }
 
+#[test]
+fn hydratable_is_reported_as_removed() {
+    let mut options = base();
+    options.legacy_options.hydratable = true;
+    assert_eq!(codes(options), vec!["options_removed_hydratable"]);
+}
+
+#[test]
+fn hydratable_message_matches_upstream() {
+    let mut options = base();
+    options.legacy_options.hydratable = true;
+    let warnings = compile(SOURCE, options)
+        .expect("compile should succeed")
+        .warnings;
+    assert_eq!(
+        warnings[0].message,
+        "The `hydratable` option has been removed. Svelte components are always hydratable now\nhttps://svelte.dev/e/options_removed_hydratable"
+    );
+}
+
+/// Upstream walks its validator key table in declaration order, so
+/// `enableSourcemap` is reported before `hydratable` when both are passed.
+#[test]
+fn removed_options_are_reported_in_upstream_key_order() {
+    let mut options = base();
+    options.legacy_options.enable_sourcemap = true;
+    options.legacy_options.hydratable = true;
+    assert_eq!(
+        codes(options),
+        vec![
+            "options_removed_enable_sourcemap",
+            "options_removed_hydratable"
+        ]
+    );
+}
+
 /// Negative control: the option is absent, which is the only state the corpus
 /// and every other gate ever compiles in — nothing may be reported.
 #[test]

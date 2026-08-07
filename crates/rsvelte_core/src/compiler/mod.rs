@@ -114,6 +114,8 @@ pub enum ComponentApi {
 pub struct LegacyOptions {
     /// `enableSourcemap` — removed in Svelte 5.
     pub enable_sourcemap: bool,
+    /// `hydratable` — removed in Svelte 5.
+    pub hydratable: bool,
 }
 
 /// Compatibility options for backward compatibility.
@@ -716,6 +718,11 @@ pub(crate) fn finalize_compile_result(
     if options.legacy_options.enable_sourcemap {
         option_warnings.push(legacy_option_warning(
             phases::phase2_analyze::warnings::options_removed_enable_sourcemap(),
+        ));
+    }
+    if options.legacy_options.hydratable {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_removed_hydratable(),
         ));
     }
     if !option_warnings.is_empty() {

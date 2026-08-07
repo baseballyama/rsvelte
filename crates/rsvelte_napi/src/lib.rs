@@ -777,6 +777,8 @@ pub struct NapiCompileOptions {
     /// `CompileOptions::enable_sourcemap` perf switch — the only thing this
     /// key does is raise `options_removed_enable_sourcemap`.
     pub enable_sourcemap: Option<LenientScalar>,
+    /// Svelte-4 `hydratable`, kept only to raise `options_removed_hydratable`.
+    pub hydratable: Option<LenientScalar>,
 }
 
 // Upstream's `warn_once` keeps its `warned` set for the lifetime of the
@@ -886,6 +888,11 @@ impl NapiCompileOptions {
             static WARNED: std::sync::atomic::AtomicBool =
                 std::sync::atomic::AtomicBool::new(false);
             opts.legacy_options.enable_sourcemap = warn_once(&WARNED);
+        }
+        if self.hydratable.is_some() {
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.hydratable = warn_once(&WARNED);
         }
         Ok(opts)
     }

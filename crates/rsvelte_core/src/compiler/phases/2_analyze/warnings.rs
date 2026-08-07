@@ -274,6 +274,9 @@ diagnostics! {
     /// The `enableSourcemap` option has been removed
     options_removed_enable_sourcemap() => "The `enableSourcemap` option has been removed. Source maps are always generated now, and tooling can choose to ignore them\nhttps://svelte.dev/e/options_removed_enable_sourcemap";
 
+    /// The `hydratable` option has been removed
+    options_removed_hydratable() => "The `hydratable` option has been removed. Svelte components are always hydratable now\nhttps://svelte.dev/e/options_removed_hydratable";
+
     /// The customElement option is used when generating a custom element
     options_missing_custom_element() => "The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?\nhttps://svelte.dev/e/options_missing_custom_element";
 
