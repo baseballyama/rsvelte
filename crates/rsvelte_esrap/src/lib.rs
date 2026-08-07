@@ -83,7 +83,11 @@ impl PrintOptions {
         self
     }
 
-    /// Declare the top-level `Program` unlocated (see [`Self::unlocated_program`]).
+    /// Treat the top-level `Program` as carrying no location, like the
+    /// builder-made program upstream hands esrap: its statement list then
+    /// discards every pending comment, and only a nested body that does carry a
+    /// location re-finds its own. Only a caller whose nested bodies keep real
+    /// locations may set this — otherwise nothing can recover the comments.
     #[must_use]
     pub fn with_unlocated_program(mut self, unlocated: bool) -> Self {
         self.unlocated_program = unlocated;
