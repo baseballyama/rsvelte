@@ -303,17 +303,19 @@ pub(crate) fn transform_prop_member_mutate_in_place(
     prop_vars: &[String],
     non_bindable_prop_vars: &[String],
     prop_invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if prop_vars.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
-    memchr::memchr(b'=', source.as_bytes())?;
+    if memchr::memchr(b'=', source.as_bytes()).is_none() {
+        return ast_rewrite::Rewrite::Unchanged;
+    }
     if !prop_vars
         .iter()
         .filter(|p| !non_bindable_prop_vars.iter().any(|nb| nb == *p))
         .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_program_mut(

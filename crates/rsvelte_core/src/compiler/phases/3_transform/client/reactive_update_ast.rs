@@ -341,14 +341,14 @@ pub(crate) fn transform_reactive_update_in_place(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
-) -> Option<String> {
+) -> ast_rewrite::Rewrite {
     if prop_vars.is_empty() && state_vars.is_empty() {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
     let bytes = source.as_bytes();
     if memchr::memmem::find(bytes, b"++").is_none() && memchr::memmem::find(bytes, b"--").is_none()
     {
-        return None;
+        return ast_rewrite::Rewrite::Unchanged;
     }
 
     ast_rewrite::with_program_mut(
