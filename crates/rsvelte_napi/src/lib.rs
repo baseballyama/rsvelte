@@ -645,20 +645,28 @@ fn coerce_runes(v: &LenientScalar) -> Option<bool> {
     }
 }
 
-fn coerce_generate(v: &LenientScalar) -> napi::Result<GenerateMode> {
+/// Returns the mode plus whether the pre-Svelte-5 `dom`/`ssr` spelling was used
+/// (which upstream reports as `options_renamed_ssr_dom`).
+fn coerce_generate(v: &LenientScalar) -> napi::Result<(GenerateMode, bool)> {
     let msg = "generate must be \"client\", \"server\" or false";
     match v {
-        LenientScalar::Bool(false) => Ok(GenerateMode::None),
-        // `dom`/`ssr` are the pre-Svelte-5 spellings of `client`/`server`.
+        LenientScalar::Bool(false) => Ok((GenerateMode::None, false)),
         LenientScalar::Str(s) => match s.as_str() {
-            "client" | "dom" => Ok(GenerateMode::Client),
-            "server" | "ssr" => Ok(GenerateMode::Server),
-            "false" => Ok(GenerateMode::None),
+            "client" => Ok((GenerateMode::Client, false)),
+            "dom" => Ok((GenerateMode::Client, true)),
+            "server" => Ok((GenerateMode::Server, false)),
+            "ssr" => Ok((GenerateMode::Server, true)),
+            "false" => Ok((GenerateMode::None, false)),
             _ => Err(invalid_option(msg)),
         },
         _ => Err(invalid_option(msg)),
     }
 }
+
+// Both validators call the same `w.options_renamed_ssr_dom`, so component and
+// module compiles share one `warn_once` latch.
+static WARNED_RENAMED_SSR_DOM: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 fn coerce_namespace(v: &LenientScalar) -> napi::Result<Namespace> {
     let msg = "namespace should be one of \"html\", \"mathml\" or \"svg\"";
@@ -773,6 +781,22 @@ pub struct NapiCompileOptions {
     /// `cssHash` callback can't be called from Rust).
     pub css_hash_override: Option<String>,
     pub fragments: Option<LenientScalar>,
+    /// Svelte-4 `enableSourcemap`. Unrelated to the internal
+    /// `CompileOptions::enable_sourcemap` perf switch — the only thing this
+    /// key does is raise `options_removed_enable_sourcemap`.
+    pub enable_sourcemap: Option<LenientScalar>,
+    /// Svelte-4 `hydratable`, kept only to raise `options_removed_hydratable`.
+    pub hydratable: Option<LenientScalar>,
+    /// Svelte-4 `loopGuardTimeout`, kept only to raise
+    /// `options_removed_loop_guard_timeout`.
+    pub loop_guard_timeout: Option<LenientScalar>,
+}
+
+// Upstream's `warn_once` keeps its `warned` set for the lifetime of the
+// compiler module, so a removed option is reported once per process no matter
+// how many components are compiled; the addon is loaded once per process too.
+fn warn_once(warned: &std::sync::atomic::AtomicBool) -> bool {
+    !warned.swap(true, std::sync::atomic::Ordering::Relaxed)
 }
 
 impl NapiCompileOptions {
@@ -785,7 +809,11 @@ impl NapiCompileOptions {
             opts.dev = coerce_bool("dev", v)?;
         }
         if let Some(v) = &self.generate {
-            opts.generate = coerce_generate(v)?;
+            let (mode, renamed) = coerce_generate(v)?;
+            opts.generate = mode;
+            if renamed {
+                opts.legacy_options.generate_dom_ssr = warn_once(&WARNED_RENAMED_SSR_DOM);
+            }
         }
         if let Some(v) = &self.filename {
             opts.filename = Some(coerce_string("filename", v)?);
@@ -871,6 +899,21 @@ impl NapiCompileOptions {
         if let Some(v) = &self.fragments {
             opts.fragments = coerce_fragments(v)?;
         }
+        if self.loop_guard_timeout.is_some() {
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.loop_guard_timeout = warn_once(&WARNED);
+        }
+        if self.enable_sourcemap.is_some() {
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.enable_sourcemap = warn_once(&WARNED);
+        }
+        if self.hydratable.is_some() {
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.hydratable = warn_once(&WARNED);
+        }
         Ok(opts)
     }
 }
@@ -892,7 +935,11 @@ impl NapiModuleCompileOptions {
             opts.dev = coerce_bool("dev", v)?;
         }
         if let Some(v) = &self.generate {
-            opts.generate = coerce_generate(v)?;
+            let (mode, renamed) = coerce_generate(v)?;
+            opts.generate = mode;
+            if renamed {
+                opts.legacy_options.generate_dom_ssr = warn_once(&WARNED_RENAMED_SSR_DOM);
+            }
         }
         if let Some(v) = &self.filename {
             opts.filename = Some(coerce_string("filename", v)?);

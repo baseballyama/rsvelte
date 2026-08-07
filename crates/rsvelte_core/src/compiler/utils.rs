@@ -41,6 +41,25 @@ pub fn char_boundary_lookback(source: &str, end: usize, window: usize) -> &str {
     &source[lo..end]
 }
 
+/// The character that starts at byte offset `at`, or `None` past the end.
+///
+/// Replaces `source.as_bytes()[at] as char`, which Latin-1-decodes a single byte
+/// of a UTF-8 sequence: `名`'s lead byte reads as `å` and `א`'s as `×`, so an
+/// `is_alphanumeric` / `is_whitespace` predicate answers about a character that is
+/// not in the source. `at` must be a char boundary; a `find()` match offset always is.
+pub fn char_at(source: &str, at: usize) -> Option<char> {
+    source.get(at..).and_then(|rest| rest.chars().next())
+}
+
+/// The character that ends at byte offset `end`, or `None` at the start of `source`.
+///
+/// Replaces `source.as_bytes()[end - 1] as char`, which reads a *continuation*
+/// byte of the preceding character: `名` (`E5 90 8D`) reads as `U+008D`, a control
+/// that no identifier predicate accepts, so a letter is mistaken for a word boundary.
+pub fn char_before(source: &str, end: usize) -> Option<char> {
+    source.get(..end).and_then(|head| head.chars().next_back())
+}
+
 /// Byte offset one *character* past `at`, for resuming a scan after a rejected
 /// `find()` match.
 ///
