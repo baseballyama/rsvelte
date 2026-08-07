@@ -195,7 +195,91 @@ pub fn record_event_attribute_arrow(context: &mut VisitorContext, attribute: &At
         && tag.expression.as_node().node_type() == Some("ArrowFunctionExpression")
         && let Some(start) = tag.expression.as_node().start()
     {
-        context.analysis.event_attribute_arrow_starts.insert(start);
+        context.analysis.assign_exempt_arrow_starts.insert(start);
+    }
+}
+
+/// Record the nodes exempted by upstream's second `$.assign` special case
+/// (`AssignmentExpression.js:204-215`), for one expression that a `Component`,
+/// `<svelte:component>` or `bind:` directive visits directly: the expression
+/// itself when it is an assignment, an arrow that *is* the expression, or an
+/// arrow that is a direct element of a getter/setter `SequenceExpression`.
+/// `lone_arrow_exempt` is false for `<svelte:component>`, whose `path.at(-2)`
+/// form upstream omits.
+pub fn record_assign_exempt_expression(
+    context: &mut VisitorContext,
+    expression: &crate::ast::js::Expression<'_>,
+    lone_arrow_exempt: bool,
+) {
+    use crate::ast::typed_expr::JsNode;
+
+    let Some(node) = expression.try_as_node_ref() else {
+        return;
+    };
+    match node {
+        JsNode::AssignmentExpression { start, .. } => {
+            context
+                .analysis
+                .assign_exempt_assignment_starts
+                .insert(*start);
+        }
+        JsNode::ArrowFunctionExpression { start, .. } if lone_arrow_exempt => {
+            context.analysis.assign_exempt_arrow_starts.insert(*start);
+        }
+        JsNode::SequenceExpression { expressions, .. } => {
+            let arena = context.parse_arena;
+            for child in arena.get_js_children(*expressions) {
+                if let JsNode::ArrowFunctionExpression { start, .. } = child {
+                    context.analysis.assign_exempt_arrow_starts.insert(*start);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// `record_assign_exempt_expression` for every expression a component visits
+/// directly. Spread attributes are excluded: upstream keeps the
+/// `SpreadAttribute` node on the path, so nothing under one qualifies.
+pub fn record_component_assign_exempt(
+    context: &mut VisitorContext,
+    attributes: &[crate::ast::template::Attribute<'_>],
+    lone_arrow_exempt: bool,
+) {
+    use crate::ast::template::Attribute;
+
+    for attr in attributes {
+        match attr {
+            Attribute::Attribute(a) => match &a.value {
+                AttributeValue::Expression(tag) => {
+                    record_assign_exempt_expression(context, &tag.expression, lone_arrow_exempt);
+                }
+                AttributeValue::Sequence(parts) => {
+                    for part in parts {
+                        if let AttributeValuePart::ExpressionTag(tag) = part {
+                            record_assign_exempt_expression(
+                                context,
+                                &tag.expression,
+                                lone_arrow_exempt,
+                            );
+                        }
+                    }
+                }
+                AttributeValue::True(_) => {}
+            },
+            Attribute::BindDirective(bind) => {
+                record_assign_exempt_expression(context, &bind.expression, lone_arrow_exempt);
+            }
+            Attribute::OnDirective(on) => {
+                if let Some(expression) = &on.expression {
+                    record_assign_exempt_expression(context, expression, lone_arrow_exempt);
+                }
+            }
+            Attribute::AttachTag(attach) => {
+                record_assign_exempt_expression(context, &attach.expression, lone_arrow_exempt);
+            }
+            _ => {}
+        }
     }
 }
 

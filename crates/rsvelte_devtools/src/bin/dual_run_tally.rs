@@ -10,6 +10,10 @@
 //! so the count is a triage obligation rather than a verdict. Every raw diff
 //! still has to be classified before this migration flips, which is what
 //! `RSVELTE_AST_DUAL_RUN_DUMP` is for.
+//!
+//! `--per-fixture` prints `MISMATCH\t<id>\t<pass>` instead of the report, which
+//! is what the ratcheted gate in `tests/dual_run_gate.rs` consumes: a total
+//! that moved says a pass diverged, not on which input.
 
 use std::path::{Path, PathBuf};
 
@@ -36,7 +40,8 @@ fn main() {
     }
 
     // A caller scoping the tally to one fixture subtree needs to say which.
-    let arg = std::env::args().nth(1);
+    let per_fixture = std::env::args().any(|a| a == "--per-fixture");
+    let arg = std::env::args().skip(1).find(|a| !a.starts_with("--"));
     let root = arg.as_deref().map_or_else(
         || Path::new("submodules/svelte/packages/svelte/tests"),
         Path::new,
@@ -55,10 +60,18 @@ fn main() {
         std::process::exit(1);
     }
 
+    // The aggregate tally names the pass that diverged but not the input, and a
+    // ratchet needs the input. Resetting per file is what turns one into the
+    // other; it costs a `Vec::clear` and changes no totals.
+    let mut per_fixture_mismatches: Vec<String> = Vec::new();
+
     for path in &files {
         let Ok(source) = std::fs::read_to_string(path) else {
             continue;
         };
+        if per_fixture {
+            rsvelte_core::ast_rewrite_dual_run_reset();
+        }
         for dev in [false, true] {
             let _ = compile(
                 &source,
@@ -70,6 +83,31 @@ fn main() {
                 },
             );
         }
+        if per_fixture {
+            let id = path
+                .strip_prefix(root)
+                .unwrap_or(path)
+                .display()
+                .to_string();
+            for (pass, _, _, mismatches, unverified) in rsvelte_core::ast_rewrite_dual_run_tally() {
+                if mismatches > 0 || unverified > 0 {
+                    per_fixture_mismatches.push(format!("{id}\t{pass}"));
+                }
+            }
+        }
+    }
+
+    if per_fixture {
+        per_fixture_mismatches.sort();
+        per_fixture_mismatches.dedup();
+        println!("{} fixtures", files.len());
+        for entry in &per_fixture_mismatches {
+            println!("MISMATCH\t{entry}");
+        }
+        if !per_fixture_mismatches.is_empty() {
+            std::process::exit(2);
+        }
+        return;
     }
 
     let tally = rsvelte_core::ast_rewrite_dual_run_tally();

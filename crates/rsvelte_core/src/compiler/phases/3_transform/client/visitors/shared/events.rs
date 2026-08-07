@@ -5,8 +5,11 @@
 
 use compact_str::CompactString;
 
+use crate::ast::arena::ParseArena;
 use crate::ast::js::Expression;
 use crate::ast::template::OnDirective;
+use crate::ast::typed_expr::JsNode;
+use crate::compiler::phases::phase2_analyze::for_each_js_child;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -89,7 +92,37 @@ pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> 
 /// `expression_tag_has_call` in `shared/element.rs` for the same broad
 /// semantics applied to `ExpressionTag`.
 fn expression_has_any_call(expr: &Expression) -> bool {
+    // The typed walk needs the serialize arena to resolve child ids; without one
+    // installed there is nothing to walk but the JSON.
+    if let Some(node) = expr.try_as_node_ref()
+        && let Some(found) = crate::ast::arena::try_with_current_serialize_arena(|arena| {
+            typed_walk_for_call(node, arena)
+        })
+    {
+        return found;
+    }
     json_walk_for_call(expr.as_json())
+}
+
+/// Typed counterpart of `json_walk_for_call`, including its function boundary:
+/// a function node answers `false` without its body, params or id being looked
+/// at, even when it is the root.
+fn typed_walk_for_call(node: &JsNode, arena: &ParseArena) -> bool {
+    match node {
+        JsNode::CallExpression { .. } => return true,
+        JsNode::ArrowFunctionExpression { .. }
+        | JsNode::FunctionExpression { .. }
+        | JsNode::FunctionDeclaration { .. } => return false,
+        _ => {}
+    }
+
+    let mut found = false;
+    for_each_js_child(node, arena, &mut |child| {
+        if !found {
+            found = typed_walk_for_call(child, arena);
+        }
+    });
+    found
 }
 
 fn json_walk_for_call(val: &serde_json::Value) -> bool {
@@ -347,4 +380,81 @@ mod tests {
     }
 
     // Note: Removed test_build_event_handler_function as it requires Expression type which is complex to create
+
+    /// `(typed, json)` call-search answers for the handler in `<div onclick={…}>`.
+    fn both_walk_for_call(expr_src: &str) -> (bool, bool) {
+        let input = format!("<div onclick={{{expr_src}}}></div>");
+        let allocator = oxc_allocator::Allocator::default();
+        let mut result = crate::parse(&input, &allocator, Default::default()).unwrap();
+        // `parse()` may leave attribute expressions deferred; both walks need a
+        // resolved `Expression::Typed`.
+        assert!(
+            crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(
+                &mut result,
+                &input,
+            )
+            .is_none(),
+            "`{expr_src}` should parse"
+        );
+
+        let expr = result
+            .fragment
+            .nodes
+            .iter()
+            .find_map(|node| match node {
+                crate::ast::template::TemplateNode::RegularElement(el) => {
+                    el.attributes.iter().find_map(|attr| match attr {
+                        crate::ast::template::Attribute::Attribute(a) => match &a.value {
+                            crate::ast::template::AttributeValue::Expression(tag) => {
+                                Some(&tag.expression)
+                            }
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
+            .expect("expression attribute");
+
+        crate::ast::arena::with_serialize_arena(&result.arena, || {
+            (
+                typed_walk_for_call(expr.as_node_ref(), &result.arena),
+                json_walk_for_call(expr.as_json()),
+            )
+        })
+    }
+
+    #[test]
+    fn typed_walk_for_call_agrees_with_the_json_walk() {
+        // (expression, expected answer) — expectations are spelled out as well
+        // as compared, so a walk that never finds anything can't pass by
+        // agreeing with an equally broken oracle.
+        let cases: &[(&str, bool)] = &[
+            ("handler", false),
+            ("obj.handler", false),
+            ("handler()", true),
+            ("obj.handler(1)", true),
+            ("a?.b()", true),
+            ("new Foo(bar())", true),
+            ("new Foo()", false),
+            ("[a, b(), c]", true),
+            ("({ k: v() })", true),
+            ("cond ? a() : b", true),
+            ("`x${a()}`", true),
+            // Function boundary — the walk stops before the body, even at the root.
+            ("() => other()", false),
+            ("(function () { other(); })", false),
+            // …but a sibling outside the function is still seen.
+            ("[() => other(), more()]", true),
+            // A call in a nested function's body stays invisible.
+            ("[() => other(), plain]", false),
+        ];
+
+        for (src, expected) in cases {
+            let (typed, json) = both_walk_for_call(src);
+            assert_eq!(typed, json, "typed and JSON walks disagree on `{src}`");
+            assert_eq!(&typed, expected, "unexpected call search for `{src}`");
+        }
+    }
 }

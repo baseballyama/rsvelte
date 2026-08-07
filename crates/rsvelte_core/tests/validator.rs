@@ -433,8 +433,9 @@ fn test_validator() {
 
     if !fixed.is_empty() {
         println!(
-            "\n{} ratchet entries now pass — shrink compatibility/validator-known-failures.json \
-             (and compatibility/validator-known-failures.md):",
+            "\n❌ {} ratchet entries already pass — the ratchet is stale; shrink \
+             compatibility/validator-known-failures.json (and \
+             compatibility/validator-known-failures.md):",
             fixed.len()
         );
         for id in &fixed {
@@ -456,6 +457,14 @@ fn test_validator() {
         regressions.is_empty(),
         "{} validator regressions (not in compatibility/validator-known-failures.json)",
         regressions.len()
+    );
+    // A stale entry suppresses *everything* about its fixture, not just the divergence
+    // its justification names, so an entry that already passes must go in the change
+    // that made it pass — matching `sourcemaps_gate.rs`.
+    assert!(
+        fixed.is_empty(),
+        "{} stale entries in compatibility/validator-known-failures.json (they already pass)",
+        fixed.len()
     );
 }
 

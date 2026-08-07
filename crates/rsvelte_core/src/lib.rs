@@ -56,6 +56,13 @@ pub fn ast_rewrite_dual_run_tally() -> Vec<(&'static str, u32, u32, u32, u32)> {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::tally()
 }
 
+/// Clear the tally, so a driver can attribute what follows to one input
+/// instead of reading a total that says only that something diverged.
+#[doc(hidden)]
+pub fn ast_rewrite_dual_run_reset() {
+    compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::reset();
+}
+
 /// How many times a Phase-3 rewrite pass re-parsed an intermediate script.
 #[doc(hidden)]
 pub fn ast_rewrite_dual_run_parses() -> u32 {

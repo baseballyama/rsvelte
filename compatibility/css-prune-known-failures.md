@@ -4,10 +4,13 @@ The CSS-prune differential sweep (`scripts/compat-corpus/css-prune-sweep.mjs`)
 generates many tiny synthetic components from a grid of ingredients — CSS
 selector shape × the markup context that produces the candidate siblings × an
 unrelated "corruptor" node elsewhere in the template — and compiles each with
-BOTH the official `svelte/compiler` and rsvelte, diffing the emitted `css.code`.
-The unused-CSS prune decision is visible in the CSS as `(unused)` / `(empty)`
-comments plus scoping-class (`.svelte-<hash>`) placement, so a `css.code`
-divergence **is** a prune divergence.
+BOTH the official `svelte/compiler` and rsvelte, diffing the emitted `css.code`
+**and** the `code@line:column` of every warning. The unused-CSS prune decision is
+visible in the CSS as `(unused)` / `(empty)` comments plus scoping-class
+(`.svelte-<hash>`) placement, so a `css.code` divergence **is** a prune
+divergence — but the converse does not hold: a nest whose outer rule is dead
+prunes to the same byte-identical `(empty)` stylesheet whether or not that outer
+rule is reported unused, so `css_unused_selector` has to be compared too.
 
 This ratchet exists because the happy-path corpus (`compile.mjs` / `verify.mjs`)
 compares real-world code, and real components almost never hit the odd
@@ -22,13 +25,18 @@ correct official output), not an oracle bug — so the goal is to drive this fil
 to empty, not to accept the entries permanently. They are ratcheted rather than
 hard-failed only so the harness can land before every underlying fix does.
 
-Sweep shape: 1222 components, ~4s. Client and server prune identically
+Sweep shape: 1430 components, ~5s. Client and server prune identically
 (`--both` reports 0 client≠server divergences), so the sweep compiles one target
 (`generate: 'client'`, `css: 'external'`) per component.
 
+The comparison key lives in `scripts/compat-corpus/css-prune-verdict.mjs`, apart
+from the sweep so it can be exercised without the NAPI binding;
+`scripts/dev/test-css-prune-sweep-warning-verdict.mjs` pins it in CI and fails on
+a comparator that stops looking at warnings.
+
 ## Divergence clusters (`css-prune-known-failures.json`, 0 entries — all root causes fixed)
 
-The ratchet is empty: the sweep reports 0 divergences. The three root causes
+The ratchet is empty: the sweep reports 0 divergences. The four root causes
 found by this sweep are all fixed. The history is kept here as the record of why
 the ratchet could shrink.
 
@@ -88,6 +96,22 @@ Fixed in this PR: `extract_selector_info_resolving_nesting` resolves `&` against
 the parent rule's subject compound (`.a`) before matching. 65 sweep entries
 cleared. Representative: `A/&+&/literal/none`, `A/&+&/each_all/none`. Regression
 test: `crates/rsvelte_core/tests/css_nested_sibling_1703.rs`.
+
+### 4. Outer rule of an unused nest, warning-only — FIXED (issue #2474)
+
+`.grand { .foo > .a { & + & {} } }` where no `.grand` is an ancestor of `.foo`:
+rsvelte warned about the innermost `& + &` but not about the enclosing
+`.foo > .a`, because it asked only whether each enclosing selector matched *some*
+element rather than an **ancestor** of a match. 16 entries — the `.grand{...&+&}`
+and `.grand{...&~&}` families in the `no_grand` arrangement across all 8
+structural corruptors, which is why the corruptor axis is irrelevant to it.
+
+Two separate failures, and they must not be collapsed. The compiler bug was fixed
+in #2534 (regression test
+`crates/rsvelte_core/tests/css_nested_ancestor_2474.rs`). The *gate* bug is that
+the sweep never saw it: the pruned stylesheet is byte-identical in both
+directions, so a `css.code`-only key scored all 16 as `match`. The comparison key
+now includes warnings.
 
 ### Known limitation: combinators inside a resolved compound (issue #1719)
 

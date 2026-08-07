@@ -276,6 +276,31 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 }
             }
 
+            // A quote inside a comment is text: an apostrophe in `// it's not
+            // defined` would otherwise open a string that nothing closes, and
+            // every identifier after it would be left untransformed.
+            if c == '/' && i + 1 < chars.len() && (chars[i + 1] == '/' || chars[i + 1] == '*') {
+                let line = chars[i + 1] == '/';
+                new_result.push(c);
+                new_result.push(chars[i + 1]);
+                i += 2;
+                while i < chars.len() {
+                    if line {
+                        if chars[i] == '\n' {
+                            break;
+                        }
+                    } else if chars[i] == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                        new_result.push(chars[i]);
+                        new_result.push(chars[i + 1]);
+                        i += 2;
+                        break;
+                    }
+                    new_result.push(chars[i]);
+                    i += 1;
+                }
+                continue;
+            }
+
             // Check for string literal start
             if c == '\'' || c == '"' || c == '`' {
                 in_string = Some(c);

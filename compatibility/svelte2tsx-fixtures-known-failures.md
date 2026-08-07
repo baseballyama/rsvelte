@@ -15,8 +15,15 @@ reported `ok`, so none of the entries below were gating anything. Recording them
 is what makes the suite a gate; every entry is a **pre-existing** divergence, not
 a newly accepted one.
 
-Adding an entry requires a written justification here. Removing one requires
-nothing but a green run:
+The ratchet is **two-sided**: a fixture that fails without being listed fails the
+suite, and so does a listed fixture that already passes. So a PR that fixes one of
+the entries below does not get to leave the removal for later — it must delete the
+entry from the `.json` and its justification here in the same change, or CI is red.
+If you meet that failure on an unrelated PR it is not breakage: it means your change
+fixed a listed fixture, and the fix is to re-baseline.
+
+Adding an entry requires a written justification here. Re-baselining either
+direction:
 
 ```bash
 UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures

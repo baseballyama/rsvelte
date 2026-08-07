@@ -17,6 +17,7 @@ use crate::error::{ParseError, ParseResult};
 use serde_json::Value as JsonValue;
 
 use super::super::parser::Parser;
+use super::super::utils::TrimWs;
 
 // Upstream emits one message per code regardless of which check failed.
 const INVALID_TAGNAME: &str = "Tag name must be lowercase and hyphenated";
@@ -68,7 +69,7 @@ impl<'a> Parser<'a> {
 
                 // Check if we found meaningful (non-whitespace) content
                 let content = &self.source[content_start..content_end];
-                if !content.trim().is_empty() {
+                if !content.trim_ws().is_empty() {
                     return Err(ParseError::svelte(
                         "svelte_meta_invalid_content",
                         "<svelte:options> cannot have children",
