@@ -311,9 +311,91 @@ fn handle_property_definition<'a>(
         None => format!("{}.#{}", class_name, field_name),
     };
 
+    replacements.push(tag_edit(
+        source,
+        prop.span().start,
+        prop.key.span().end,
+        init_span,
+        tag_fn,
+        &label,
+    ));
+}
+
+/// The `$.tag(...)` wrap for one value, reflowed when a comment sits between the
+/// `=` and the value: esrap cannot keep such a call on one line, because a `//`
+/// comment would swallow the rest of it.
+fn tag_edit(
+    source: &str,
+    stmt_start: u32,
+    lhs_end: u32,
+    init_span: Span,
+    tag_fn: &str,
+    label: &str,
+) -> Edit {
     let init_text = &source[init_span.start as usize..init_span.end as usize];
-    let rewrite = format!("{}({}, '{}')", tag_fn, init_text, label);
-    replacements.push((init_span.start, init_span.end, rewrite));
+    let flat = (
+        init_span.start,
+        init_span.end,
+        format!("{}({}, '{}')", tag_fn, init_text, label),
+    );
+    let Some(eq) = assignment_eq_offset(source, lhs_end, init_span.start) else {
+        return flat;
+    };
+    let comment = source[eq as usize + 1..init_span.start as usize].trim();
+    if comment.is_empty() {
+        return flat;
+    }
+
+    let indent = line_indent(source, stmt_start);
+    let arg_indent = format!("{}\t", indent);
+    let comment = comment
+        .lines()
+        .map(str::trim)
+        .collect::<Vec<_>>()
+        .join(&format!("\n{}", arg_indent));
+    // The value moves one level deeper, so its own continuation lines follow.
+    let init_text = init_text.replace('\n', "\n\t");
+    (
+        eq + 1,
+        init_span.end,
+        format!(
+            " {tag_fn}(\n{arg_indent}{comment}\n{arg_indent}{init_text},\n{arg_indent}'{label}'\n{indent})"
+        ),
+    )
+}
+
+/// Offset of the `=` separating a field / assignment target from its value,
+/// skipping comments so an `=` inside one is not mistaken for it.
+fn assignment_eq_offset(source: &str, from: u32, to: u32) -> Option<u32> {
+    let bytes = source.as_bytes();
+    let end = to as usize;
+    let mut i = from as usize;
+    while i < end {
+        match bytes[i] {
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < end && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i < end && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                    i += 1;
+                }
+                i += 2;
+            }
+            b'=' => return Some(i as u32),
+            _ => i += 1,
+        }
+    }
+    None
+}
+
+fn line_indent(source: &str, pos: u32) -> &str {
+    let line_start = source[..pos as usize].rfind('\n').map_or(0, |i| i + 1);
+    let line = &source[line_start..];
+    let width = line.len() - line.trim_start_matches([' ', '\t']).len();
+    &line[..width]
 }
 
 fn walk_method_stmt_for_this_assigns<'a>(
@@ -522,9 +604,14 @@ fn handle_this_assignment<'a>(
         None => format!("{}.{}", class_name, field_name),
     };
 
-    let init_text = &source[init_span.start as usize..init_span.end as usize];
-    let rewrite = format!("{}({}, '{}')", tag_fn, init_text, label);
-    replacements.push((init_span.start, init_span.end, rewrite));
+    replacements.push(tag_edit(
+        source,
+        a.span().start,
+        a.left.span().end,
+        init_span,
+        tag_fn,
+        &label,
+    ));
 }
 
 fn is_this(expr: &Expression) -> bool {
@@ -567,6 +654,34 @@ mod tests {
             out,
             "class Counter { #count = $.tag($.state(0), 'Counter.#count'); }"
         );
+    }
+
+    #[test]
+    fn reflows_a_field_whose_value_carries_a_comment() {
+        let src = "class C {\n\t#n = // c\n\t$.state(0);\n}";
+        let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
+        assert_eq!(
+            out,
+            "class C {\n\t#n = $.tag(\n\t\t// c\n\t\t$.state(0),\n\t\t'C.#n'\n\t);\n}"
+        );
+    }
+
+    #[test]
+    fn reflows_a_this_assignment_whose_value_carries_a_comment() {
+        let src =
+            "class C {\n\t#n;\n\tconstructor() {\n\t\tthis.#n = // c\n\t\t$.state(0);\n\t}\n}";
+        let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
+        assert!(
+            out.contains("this.#n = $.tag(\n\t\t\t// c\n\t\t\t$.state(0),\n\t\t\t'C.#n'\n\t\t);"),
+            "got: {out}"
+        );
+    }
+
+    #[test]
+    fn keeps_a_field_on_one_line_without_a_comment() {
+        let src = "class C {\n\t#n = $.state(0);\n}";
+        let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
+        assert_eq!(out, "class C {\n\t#n = $.tag($.state(0), 'C.#n');\n}");
     }
 
     #[test]
