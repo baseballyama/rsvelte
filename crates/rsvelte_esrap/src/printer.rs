@@ -563,7 +563,7 @@ impl<'opt> Printer<'opt> {
 
     /// Whether any source comment starts within `[start, end)` — used to decide
     /// if an unwrapped `ParenthesizedExpression` must keep its literal parens to
-    /// bracket an interior comment (`(/*c*/ x)`).
+    /// bracket a comment that leads its inner expression (`(/*c*/ x)`).
     fn comment_in_span(&self, start: u32, end: u32) -> bool {
         self.comments
             .iter()
@@ -2133,11 +2133,15 @@ impl<'opt> Printer<'opt> {
                 //
                 // Two exceptions keep the literal parens:
                 //
-                // 1. A comment inside the paren span: dropping the parens would
-                //    leave the interior comment dangling (`return (/*c*/ x)`,
-                //    `return (// hey\n x)`). The comment is flushed as a leading
-                //    comment of the inner expression, so the parens must stay to
-                //    bracket it as in the source.
+                // 1. A comment between the `(` and the inner expression:
+                //    dropping the parens would leave it dangling (`return (/*c*/
+                //    x)`, `return (// hey\n x)`). The comment is flushed as a
+                //    leading comment of the inner expression, so the parens must
+                //    stay to bracket it as in the source. The window stops at the
+                //    inner expression's start — a comment anywhere deeper is
+                //    already bracketed by that expression's own syntax, and
+                //    keeping the parens for it doubles those a parent adds from
+                //    precedence (`(await f(/*c*/ x))()` → `((await f(/*c*/ x)))()`).
                 // 2. A sequence: `(a, b)` parses as `Paren(Sequence)`, and the
                 //    `SequenceExpression` visitor already emits its own
                 //    surrounding parens, so the paren layer is dropped to avoid
@@ -2148,7 +2152,7 @@ impl<'opt> Printer<'opt> {
                     self.print_expression(&p.expression, ctx);
                 // No `has_loc` guard needed: every comment offset is >= `loc_base`
                 // by construction, so a synthesized span never contains one.
-                } else if self.comment_in_span(p.span.start, p.span.end) {
+                } else if self.comment_in_span(p.span.start, p.expression.span().start) {
                     ctx.write("(");
                     self.print_expression(&p.expression, ctx);
                     ctx.write(")");
