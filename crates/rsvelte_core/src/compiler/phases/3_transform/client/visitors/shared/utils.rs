@@ -4739,22 +4739,32 @@ fn analyze_props_json(
 /// Returns true if the expression contains identifiers that reference
 /// reactive bindings ($state, $derived, props, stores, etc.).
 ///
-/// The two shapes that dominate the call volume (a bare identifier and a
-/// literal) are answered off the typed node, so the common case never
-/// materializes `as_json()`. Everything else falls through to the JSON walk.
+/// The answer is taken off the typed nodes whenever `typed_has_reactive_state`
+/// recognises every shape it meets, so the common case never materializes
+/// `as_json()`. Everything else falls through to the JSON walk.
 #[inline]
 pub fn expression_has_reactive_state(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> bool {
     if let Some(node) = expr.try_as_node_ref() {
-        match node {
-            crate::ast::typed_expr::JsNode::Identifier { name, start, .. } => {
-                return identifier_has_reactive_state(name.as_str(), Some(*start), context);
-            }
-            // Mirrors the `"Literal"` arm of `has_reactive_state_json`.
-            crate::ast::typed_expr::JsNode::Literal { .. } => return false,
-            _ => {}
+        use crate::ast::typed_expr::JsNode;
+        let typed = match node {
+            // Leaves answer without an arena; every deeper shape needs one to
+            // resolve child ids.
+            JsNode::Identifier { name, start, .. } => Some(identifier_has_reactive_state(
+                name.as_str(),
+                Some(*start),
+                context,
+            )),
+            JsNode::Literal { .. } => Some(false),
+            _ => crate::ast::arena::try_with_current_serialize_arena(|arena| {
+                typed_has_reactive_state(node, arena, context)
+            })
+            .flatten(),
+        };
+        if let Some(answer) = typed {
+            return answer;
         }
     }
     has_reactive_state_json(expr.as_json(), context)
@@ -5130,6 +5140,194 @@ fn identifier_has_reactive_state(
     false
 }
 
+/// Global functions whose result depends only on their arguments.
+const PURE_GLOBALS: &[&str] = &[
+    "encodeURIComponent",
+    "decodeURIComponent",
+    "encodeURI",
+    "decodeURI",
+    "parseInt",
+    "parseFloat",
+    "isNaN",
+    "isFinite",
+    "String",
+    "Number",
+    "Boolean",
+    "Array",
+    "Object",
+    "JSON",
+];
+
+/// Objects whose methods depend only on their arguments (`Math.max(…)`).
+const PURE_OBJECTS: &[&str] = &["Math", "JSON", "Object", "Array", "String", "Number"];
+
+/// Typed counterpart of `has_reactive_state_json`, arm for arm, so the answer
+/// can be given without materializing the expression as JSON.
+///
+/// `None` means the walk met a shape it has no typed answer for — the caller
+/// falls back to the JSON walk for the whole expression rather than guessing.
+fn typed_has_reactive_state(
+    node: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+    context: &ComponentContext,
+) -> Option<bool> {
+    use crate::ast::typed_expr::JsNode;
+
+    match node {
+        JsNode::Identifier { name, start, .. } => Some(identifier_has_reactive_state(
+            name.as_str(),
+            Some(*start),
+            context,
+        )),
+        JsNode::Literal { .. } => Some(false),
+        // Serializes to a bare JSON `null`, which the JSON walk rejects before
+        // it reads a type.
+        JsNode::Null => Some(false),
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            let object = arena.get_js_node(*object);
+            if typed_has_reactive_state(object, arena, context)? {
+                return Some(true);
+            }
+            // A property of a local variable may be reactive itself (a class
+            // instance with `$state` fields), which is not visible from here.
+            if let JsNode::Identifier { name, .. } = object
+                && context.state.get_binding(name.as_str()).is_some()
+            {
+                return Some(true);
+            }
+            if *computed && typed_has_reactive_state(arena.get_js_node(*property), arena, context)?
+            {
+                return Some(true);
+            }
+            Some(false)
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            let callee = arena.get_js_node(*callee);
+            let arguments = arena.get_js_children(*arguments);
+            match callee {
+                JsNode::Identifier { name, .. } => {
+                    let name = name.as_str();
+                    if PURE_GLOBALS.contains(&name) {
+                        return typed_any_has_reactive_state(arguments, arena, context);
+                    }
+                    if let Some(binding) = context.state.get_binding(name) {
+                        if binding.kind.is_reactive() {
+                            return Some(true);
+                        }
+                    } else if context.state.transform.contains_key(name) {
+                        return Some(true);
+                    } else {
+                        return typed_any_has_reactive_state(arguments, arena, context);
+                    }
+                }
+                JsNode::MemberExpression { object, .. } => {
+                    if let JsNode::Identifier { name, .. } = arena.get_js_node(*object)
+                        && PURE_OBJECTS.contains(&name.as_str())
+                    {
+                        return typed_any_has_reactive_state(arguments, arena, context);
+                    }
+                }
+                _ => {}
+            }
+            if typed_has_reactive_state(callee, arena, context)? {
+                return Some(true);
+            }
+            typed_any_has_reactive_state(arguments, arena, context)
+        }
+        JsNode::NewExpression {
+            callee, arguments, ..
+        } => {
+            if typed_has_reactive_state(arena.get_js_node(*callee), arena, context)? {
+                return Some(true);
+            }
+            typed_any_has_reactive_state(arena.get_js_children(*arguments), arena, context)
+        }
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            if typed_has_reactive_state(arena.get_js_node(*left), arena, context)? {
+                return Some(true);
+            }
+            typed_has_reactive_state(arena.get_js_node(*right), arena, context)
+        }
+        JsNode::UnaryExpression { argument, .. } => {
+            typed_has_reactive_state(arena.get_js_node(*argument), arena, context)
+        }
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            for id in [test, consequent, alternate] {
+                if typed_has_reactive_state(arena.get_js_node(*id), arena, context)? {
+                    return Some(true);
+                }
+            }
+            Some(false)
+        }
+        JsNode::TemplateLiteral { expressions, .. }
+        | JsNode::SequenceExpression { expressions, .. } => {
+            typed_any_has_reactive_state(arena.get_js_children(*expressions), arena, context)
+        }
+        JsNode::ChainExpression { expression, .. } => {
+            typed_has_reactive_state(arena.get_js_node(*expression), arena, context)
+        }
+        // Only the right-hand side, matching the JSON walk.
+        JsNode::AssignmentExpression { right, .. } => {
+            typed_has_reactive_state(arena.get_js_node(*right), arena, context)
+        }
+        JsNode::ObjectExpression { properties, .. } => {
+            for property in arena.get_js_children(*properties) {
+                match property {
+                    JsNode::SpreadElement { .. } => return Some(true),
+                    JsNode::Property { value, .. } => {
+                        if typed_has_reactive_state(arena.get_js_node(*value), arena, context)? {
+                            return Some(true);
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+            Some(false)
+        }
+        JsNode::ArrayExpression { elements, .. } => {
+            for element in elements.iter().flatten() {
+                if typed_has_reactive_state(element, arena, context)? {
+                    return Some(true);
+                }
+            }
+            Some(false)
+        }
+        JsNode::AwaitExpression { .. }
+        | JsNode::UpdateExpression { .. }
+        | JsNode::SpreadElement { .. } => Some(true),
+        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => Some(false),
+        _ => None,
+    }
+}
+
+/// True as soon as any of `nodes` references reactive state; `None` propagates
+/// the first shape the typed walk could not answer.
+fn typed_any_has_reactive_state(
+    nodes: &[crate::ast::typed_expr::JsNode],
+    arena: &crate::ast::arena::ParseArena,
+    context: &ComponentContext,
+) -> Option<bool> {
+    for node in nodes {
+        if typed_has_reactive_state(node, arena, context)? {
+            return Some(true);
+        }
+    }
+    Some(false)
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// This eliminates expensive cloning and deserialization in recursive calls.
 fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
@@ -5195,23 +5393,6 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 if callee_type == Some("Identifier")
                     && let Some(name) = callee.get("name").and_then(|n| n.as_str())
                 {
-                    // List of known pure global functions
-                    const PURE_GLOBALS: &[&str] = &[
-                        "encodeURIComponent",
-                        "decodeURIComponent",
-                        "encodeURI",
-                        "decodeURI",
-                        "parseInt",
-                        "parseFloat",
-                        "isNaN",
-                        "isFinite",
-                        "String",
-                        "Number",
-                        "Boolean",
-                        "Array",
-                        "Object",
-                        "JSON",
-                    ];
                     if PURE_GLOBALS.contains(&name) {
                         // Check if any arguments are reactive - recurse with JSON reference
                         if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
@@ -5250,20 +5431,17 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     && let Some(object) = callee.get("object").and_then(|o| o.as_object())
                     && let Some("Identifier") = object.get("type").and_then(|t| t.as_str())
                     && let Some(obj_name) = object.get("name").and_then(|n| n.as_str())
+                    && PURE_OBJECTS.contains(&obj_name)
                 {
-                    const PURE_OBJECTS: &[&str] =
-                        &["Math", "JSON", "Object", "Array", "String", "Number"];
-                    if PURE_OBJECTS.contains(&obj_name) {
-                        // Check if any arguments are reactive - recurse with JSON reference
-                        if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
-                            for arg in args {
-                                if has_reactive_state_json(arg, context) {
-                                    return true;
-                                }
+                    // Check if any arguments are reactive - recurse with JSON reference
+                    if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                        for arg in args {
+                            if has_reactive_state_json(arg, context) {
+                                return true;
                             }
                         }
-                        return false;
                     }
+                    return false;
                 }
             }
 
@@ -6594,9 +6772,13 @@ mod tests {
         vec![count, konst, stat]
     }
 
-    /// `(typed, json)` answers of `expression_has_reactive_state` /
-    /// `has_reactive_state_json` for the expression in `<Test a={…} />`.
-    fn both_has_reactive_state(expr_src: &str) -> (bool, bool) {
+    /// Run `f` on the expression in `<Test a={…} />` with a context carrying
+    /// `reactive_state_bindings`, under the serialize arena both walks resolve
+    /// child ids through.
+    fn with_reactive_state_context<R>(
+        expr_src: &str,
+        f: impl FnOnce(&crate::ast::js::Expression, &ComponentContext) -> R,
+    ) -> R {
         use crate::compiler::ComponentAnalysis;
         use crate::compiler::phases::phase2_analyze::scope::{Scope, ScopeRoot};
         use std::rc::Rc;
@@ -6653,11 +6835,26 @@ mod tests {
         );
         let context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
-        crate::ast::arena::with_serialize_arena(&result.arena, || {
+        crate::ast::arena::with_serialize_arena(&result.arena, || f(expr, &context))
+    }
+
+    /// `(typed, json)` answers of `expression_has_reactive_state` /
+    /// `has_reactive_state_json`.
+    fn both_has_reactive_state(expr_src: &str) -> (bool, bool) {
+        with_reactive_state_context(expr_src, |expr, context| {
             (
-                expression_has_reactive_state(expr, &context),
-                has_reactive_state_json(expr.as_json(), &context),
+                expression_has_reactive_state(expr, context),
+                has_reactive_state_json(expr.as_json(), context),
             )
+        })
+    }
+
+    /// Whether answering `expression_has_reactive_state` materialized the
+    /// expression as JSON — i.e. whether it fell back to the JSON walk.
+    fn typed_walk_materialized_json(expr_src: &str) -> bool {
+        with_reactive_state_context(expr_src, |expr, context| {
+            expression_has_reactive_state(expr, context);
+            expr.json_is_materialized()
         })
     }
 
@@ -6682,13 +6879,67 @@ mod tests {
             ("'text'", false),
             ("true", false),
             ("null", false),
-            // Fall-through to the JSON walk, both answers.
+            // MemberExpression — reactive object.
+            ("count.foo", true),
+            // MemberExpression — a non-reactive local binding, whose property
+            // may still be reactive.
+            ("konst.foo", true),
+            ("stat.foo", true),
+            // MemberExpression — no local binding at all.
+            ("Math.PI", false),
+            ("unknown.foo", false),
+            // Computed member — the property is only read when `computed`.
+            ("({ a: 1 })[count]", true),
+            ("({ a: 1 })[konst]", false),
+            ("({ a: 1 }).count", false),
+            // Optional chaining wraps the member.
+            ("count?.foo", true),
+            // CallExpression — pure global / pure object callee, reactive only
+            // through its arguments.
+            ("String(count)", true),
+            ("parseInt(konst)", false),
+            ("Math.max(count, 1)", true),
+            ("Math.max(1, 2)", false),
+            // CallExpression — reactive binding as callee.
+            ("count(1)", true),
+            // CallExpression — non-reactive binding / unknown global callee.
+            ("konst(1)", false),
+            ("unknownFn(count)", true),
+            ("unknownFn(1)", false),
+            // NewExpression.
+            ("new Foo(count)", true),
+            ("new Foo(1)", false),
+            // Operators and groupings.
             ("count + konst", true),
             ("konst + konst", false),
-            ("count.foo", true),
-            ("[konst, konst]", false),
+            ("!count", true),
             ("count ? 1 : 2", true),
             ("konst ? 1 : 2", false),
+            ("(konst, count)", true),
+            ("`${count}`", true),
+            ("`${konst}`", false),
+            // Only the right-hand side of an assignment is read.
+            ("(count = 1)", false),
+            ("(konst = count)", true),
+            ("count++", true),
+            ("await count", true),
+            // Function bodies are not read.
+            ("() => count", false),
+            ("(function () { return count; })", false),
+            // Object / array literals, including a spread and an array hole.
+            ("({ a: count })", true),
+            ("({ a: konst })", false),
+            ("({ ...konst })", true),
+            ("[konst, konst]", false),
+            ("[, count]", true),
+            ("[...konst]", true),
+            // `this` parses as an ordinary identifier, so this is a plain
+            // member access on a name with no binding.
+            ("this.foo", false),
+            // Shapes the typed walk deliberately does NOT answer — these reach
+            // the JSON fallback, so they agree by construction.
+            ("tag`x`", true),
+            ("(class {})", true),
         ];
 
         for (src, expected) in cases {
@@ -6697,6 +6948,32 @@ mod tests {
             assert_eq!(
                 &typed, expected,
                 "unexpected has_reactive_state for `{src}`"
+            );
+        }
+    }
+
+    #[test]
+    fn the_typed_walk_answers_covered_shapes_without_materializing_json() {
+        for src in [
+            "count",
+            "5",
+            "count.foo",
+            "Math.max(count, 1)",
+            "`${konst}`",
+            "({ a: count })",
+            "konst ? 1 : 2",
+        ] {
+            assert!(
+                !typed_walk_materialized_json(src),
+                "`{src}` should be answered off the typed AST"
+            );
+        }
+        // Negative control: a shape the typed walk does not cover still
+        // materializes, so the assertions above are measuring something.
+        for src in ["tag`x`", "(class {})"] {
+            assert!(
+                typed_walk_materialized_json(src),
+                "`{src}` should fall back to the JSON walk"
             );
         }
     }
