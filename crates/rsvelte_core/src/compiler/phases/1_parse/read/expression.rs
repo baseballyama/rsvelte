@@ -6678,6 +6678,38 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
     (program, parse_error, retained)
 }
 
+/// TypeScript grammar rules OXC enforces that `acorn-typescript` — which upstream
+/// parses `lang="ts"` scripts with — does not, so upstream compiles these inputs
+/// and rsvelte must too. Each entry was confirmed against `svelte.compile`; the
+/// TS rules acorn-typescript *does* implement (1019, 1028, 1049, 1096, 1174,
+/// 1184, 1257, 1276, 2398, 2452, 2730, …) are deliberately absent.
+const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
+    "1015", // A parameter cannot have a question mark and an initializer
+    "1016", // A required parameter cannot follow an optional parameter
+    "1021", // An index signature must have a type annotation
+    "1038", // A 'declare' modifier cannot be used in an already ambient context
+    "1047", // A rest parameter cannot be optional
+    "1051", // A 'set' accessor cannot have an optional parameter
+    "1093", // Type annotation cannot appear on a constructor declaration
+    "1094", // An accessor cannot have type parameters
+    "1095", // A 'set' accessor cannot have a return type annotation
+    "1221", // Generators are not allowed in an ambient context
+    "1222", // An overload signature cannot be declared as a generator
+    "1263", // Declarations with initializers cannot also have definite assignment assertions
+    "1264", // Declarations with definite assignment assertions must also have type annotations
+    "2681", // A constructor cannot have a `this` parameter
+    "5085", // A tuple member cannot be both optional and rest
+];
+
+fn is_acorn_unchecked_ts_grammar_rule(diagnostic: &OxcDiagnostic) -> bool {
+    diagnostic.code.scope.as_deref() == Some("TS")
+        && diagnostic
+            .code
+            .number
+            .as_deref()
+            .is_some_and(|n| ACORN_UNCHECKED_TS_GRAMMAR_RULES.contains(&n))
+}
+
 fn convert_parsed_program<'ast>(
     arena: &ParseArena,
     program: &OxcProgram<'_>,
@@ -6697,19 +6729,22 @@ fn convert_parsed_program<'ast>(
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let mut parse_error = diagnostics.first().map(|first_error| {
-            let pos = first_error
-                .labels
-                .first()
-                .map(|label| (label.offset() as usize).min(content.len()))
-                .unwrap_or(0)
-                + offset;
-            crate::error::ParseError::svelte(
-                "js_parse_error",
-                first_error.message.to_string(),
-                (pos, pos),
-            )
-        });
+        let mut parse_error = diagnostics
+            .iter()
+            .find(|d| !is_acorn_unchecked_ts_grammar_rule(d))
+            .map(|first_error| {
+                let pos = first_error
+                    .labels
+                    .first()
+                    .map(|label| (label.offset() as usize).min(content.len()))
+                    .unwrap_or(0)
+                    + offset;
+                crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    first_error.message.to_string(),
+                    (pos, pos),
+                )
+            });
 
         // OXC has no strict-mode syntax-restriction pass at all, unlike acorn,
         // which applies one uniformly because every script is parsed with
