@@ -5375,12 +5375,14 @@ fn transform_instance_script_for_visitors(
             let _reactive_guard = super::profile::ReactiveStmtGuard(_reactive_start);
             // Extract assignment targets and dependencies from the raw statement
             // for topological sorting (matching official compiler's order_reactive_statements)
+            let _rs_deps_start = super::profile::timer_start();
             let (assigned_vars, dep_vars) = extract_reactive_statement_deps(
                 &statement,
                 state_vars,
                 prop_assignment_transform_vars,
                 store_sub_vars,
             );
+            super::profile::record_rs_deps(super::profile::timer_elapsed(_rs_deps_start));
 
             let var_state_vars: Vec<String> = legacy_state_vars
                 .iter()
@@ -5396,6 +5398,7 @@ fn transform_instance_script_for_visitors(
                 .map(|v| v.as_slice())
                 .unwrap_or(&[]);
             *reactive_ordinal += 1;
+            let _rs_body_start = super::profile::timer_start();
             let transformed = transform_reactive_statement(
                 &statement,
                 state_vars,
@@ -5409,6 +5412,8 @@ fn transform_instance_script_for_visitors(
                 analysis,
                 &prop_invalidate_bodies,
             );
+            super::profile::record_rs_body(super::profile::timer_elapsed(_rs_body_start));
+            let _rs_assign_start = super::profile::timer_start();
             // Also apply state assignment transformations to the reactive statement body
             // This handles cases like: `$: selected ? component = Sub : component = banana`
             // where state variables are assigned inside conditional expressions.
@@ -5422,6 +5427,7 @@ fn transform_instance_script_for_visitors(
                 &non_proxy_vars,
             )
             .unwrap_or(transformed);
+            super::profile::record_rs_assigns(super::profile::timer_elapsed(_rs_assign_start));
             // Collect reactive statements to append at end (matching official compiler behavior
             // which appends all reactive statements after the rest of instance body code)
             let mut reactive_code = transformed;

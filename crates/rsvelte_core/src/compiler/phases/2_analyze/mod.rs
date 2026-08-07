@@ -467,8 +467,15 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Check for cyclical reactive statement dependencies ($: a = b + 1; $: b = a + 1;)
     // This must run after instance script analysis.
     // Corresponds to: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L810
+    // All three legacy `$:` passes read the same statements, so serialize once.
+    let reactive_labeled = if analysis.runes {
+        Vec::new()
+    } else {
+        instance_labeled_statements_json(ast)
+    };
+
     if !analysis.runes {
-        check_reactive_declaration_cycles(ast, &analysis)?;
+        check_reactive_declaration_cycles(&reactive_labeled, &analysis)?;
     }
 
     // Populate legacy_dependencies for LegacyReactive bindings.
@@ -477,8 +484,8 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Corresponds to Svelte's LabeledStatement.js lines 81-87 where
     // `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
     if !analysis.runes {
-        populate_legacy_dependencies(ast, &mut analysis);
-        collect_reactive_statement_dependencies(ast, &mut analysis);
+        populate_legacy_dependencies(&reactive_labeled, &mut analysis);
+        collect_reactive_statement_dependencies(&reactive_labeled, &mut analysis);
     }
 
     // Pre-compute legacy-pattern detection so template visitors (notably
@@ -1096,27 +1103,27 @@ fn matches_let_variable_declaration(node: &crate::ast::typed_expr::JsNode) -> bo
     }
 }
 
-/// Fast typed scan over the instance script's top-level body, returning true
-/// if any statement is a `LabeledStatement` (legacy `$:` reactive). Used as
-/// an early-exit gate for the legacy-only `check_reactive_declaration_cycles`
-/// and `populate_legacy_dependencies` passes — most components have no `$:`,
-/// so this lets us skip the JSON walks entirely.
-fn instance_body_has_labeled_statement(ast: &Root) -> bool {
+/// Serialize the instance script's top-level `LabeledStatement`s (legacy `$:`),
+/// in source order. The three legacy passes below read nothing else out of the
+/// program, so serializing only these statements avoids materializing the whole
+/// script as JSON — on real components the `$:` statements are a small fraction
+/// of it. An empty result doubles as the early-exit gate for components with no
+/// `$:` at all.
+fn instance_labeled_statements_json(ast: &Root) -> Vec<serde_json::Value> {
     use crate::ast::typed_expr::JsNode;
     let Some(ref instance) = ast.instance else {
-        return false;
+        return Vec::new();
     };
     let node = instance.content.as_node();
     let JsNode::Program { body, .. } = node.as_ref() else {
-        return false;
+        return Vec::new();
     };
-    let arena = &ast.arena;
-    for stmt in arena.get_js_children(*body) {
-        if let JsNode::LabeledStatement { .. } = stmt {
-            return true;
-        }
-    }
-    false
+    ast.arena
+        .get_js_children(*body)
+        .iter()
+        .filter(|stmt| matches!(stmt, JsNode::LabeledStatement { .. }))
+        .map(|stmt| stmt.to_value())
+        .collect()
 }
 
 /// Check if `name` resolves to a binding in the module scope (or is a
@@ -1180,35 +1187,14 @@ fn body_has_let_declaration_typed(
 ///
 /// Corresponds to the `order_reactive_statements()` call in Svelte's 2-analyze/index.js L810.
 fn check_reactive_declaration_cycles(
-    ast: &Root,
+    labeled: &[serde_json::Value],
     analysis: &ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
-    let Some(ref instance) = ast.instance else {
-        return Ok(());
-    };
-
-    // Fast path: skip the JSON walk entirely if the instance script has no
-    // top-level `LabeledStatement` (legacy `$:` reactive). Most legacy-mode
-    // components don't use `$:`, so this avoids walking the cached Value
-    // tree just to find nothing.
-    if !instance_body_has_labeled_statement(ast) {
-        return Ok(());
-    }
-
-    // TODO: migrate check_reactive_declaration_cycles to JsNode
-    let script_ast = instance.content.as_json();
-    let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
-        return Ok(());
-    };
-
     // Collect reactive statements and their assignments/dependencies
     // Each entry: (assignments: Vec<String>, dependencies: Vec<String>)
     let mut reactive_stmts: Vec<(Vec<String>, Vec<String>)> = Vec::new();
 
-    for node in body {
-        if node.get("type").and_then(|v| v.as_str()) != Some("LabeledStatement") {
-            continue;
-        }
+    for node in labeled {
         let label_name = node
             .get("label")
             .and_then(|l| l.get("name"))
@@ -1880,34 +1866,8 @@ fn collect_each_block_promotions(
 ///
 /// Corresponds to Svelte's LabeledStatement.js lines 81-87 where
 /// `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
-fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
-    let instance = match ast.instance {
-        Some(ref inst) => inst,
-        None => return,
-    };
-
-    // Fast path: skip the JSON walk entirely if the instance script has no
-    // top-level `LabeledStatement`. Same rationale as the matching
-    // early-exit in `check_reactive_declaration_cycles`.
-    if !instance_body_has_labeled_statement(ast) {
-        return;
-    }
-
-    // TODO: migrate populate_legacy_dependencies to JsNode
-    let program = instance.content.as_json();
-
-    // Walk the program body to find labeled statements with label "$"
-    let body = match program.get("body").and_then(|b| b.as_array()) {
-        Some(body) => body,
-        None => return,
-    };
-
-    for stmt in body {
-        let stmt_type = stmt.get("type").and_then(|t| t.as_str());
-        if stmt_type != Some("LabeledStatement") {
-            continue;
-        }
-
+fn populate_legacy_dependencies(labeled: &[serde_json::Value], analysis: &mut ComponentAnalysis) {
+    for stmt in labeled {
         let label_name = stmt
             .get("label")
             .and_then(|l| l.get("name"))
@@ -2028,24 +1988,11 @@ fn extract_object_root(node: &serde_json::Value) -> Option<String> {
 /// traversal; a name is a dependency unless its only references are the outermost
 /// member-chain LHS of an `=` assignment; member-property keys, object keys,
 /// function params and block-locals are never references.
-fn collect_reactive_statement_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
-    let instance = match ast.instance {
-        Some(ref inst) => inst,
-        None => return,
-    };
-    if !instance_body_has_labeled_statement(ast) {
-        return;
-    }
-    let program = instance.content.as_json();
-    let body = match program.get("body").and_then(|b| b.as_array()) {
-        Some(b) => b,
-        None => return,
-    };
-
-    for stmt in body {
-        if stmt.get("type").and_then(|t| t.as_str()) != Some("LabeledStatement") {
-            continue;
-        }
+fn collect_reactive_statement_dependencies(
+    labeled: &[serde_json::Value],
+    analysis: &mut ComponentAnalysis,
+) {
+    for stmt in labeled {
         if stmt
             .get("label")
             .and_then(|l| l.get("name"))
