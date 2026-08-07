@@ -706,6 +706,112 @@ fn is_dollar_ident_variable_declaration(chars: &[char], ident_start: usize) -> b
     false
 }
 
+/// Index of the `{` or `[` that opens the pattern enclosing `from`, or `None`
+/// when the scan leaves the pattern before finding one.
+fn enclosing_pattern_open(chars: &[char], from: usize) -> Option<usize> {
+    let (mut curly, mut square) = (0usize, 0usize);
+    let mut k = from as isize - 1;
+    while k >= 0 {
+        match chars[k as usize] {
+            '}' => curly += 1,
+            ']' => square += 1,
+            '{' if curly > 0 => curly -= 1,
+            '[' if square > 0 => square -= 1,
+            '{' | '[' => return Some(k as usize),
+            // A `(` means a parameter list or a parenthesised expression, neither
+            // of which this helper answers for; `;` ends the statement.
+            '(' | ')' | ';' => return None,
+            _ => {}
+        }
+        k -= 1;
+    }
+    None
+}
+
+/// `const { $from } = …` and `const [$a] = …` declare the name, while the same
+/// shorthand inside an object *literal* (`const x = { $store }`) reads it — the
+/// two are told apart by what precedes the pattern's opening bracket.
+fn is_dollar_ident_destructuring_declaration(chars: &[char], ident_start: usize) -> bool {
+    let mut from = ident_start;
+    while let Some(open) = enclosing_pattern_open(chars, from) {
+        if sits_in_a_default_value(chars, from, open) {
+            return false;
+        }
+        if is_dollar_ident_variable_declaration(chars, open) {
+            return true;
+        }
+        from = open;
+    }
+    false
+}
+
+/// Whether a plain `=` separates `pos` from its element's start, i.e. `{ value =
+/// $page }` reads `$page` rather than binding it.
+fn sits_in_a_default_value(chars: &[char], pos: usize, open: usize) -> bool {
+    let mut k = pos as isize - 1;
+    while k > open as isize {
+        let c = chars[k as usize];
+        if c == ',' {
+            return false;
+        }
+        if c == '=' {
+            let next = chars.get(k as usize + 1).copied().unwrap_or(' ');
+            let prev = chars[k as usize - 1];
+            if next != '='
+                && next != '>'
+                && !matches!(
+                    prev,
+                    '=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^'
+                )
+            {
+                return true;
+            }
+        }
+        k -= 1;
+    }
+    false
+}
+
+/// Whether `kw` ends at `end` (inclusive) and is not part of a longer word.
+fn keyword_ends_at(chars: &[char], end: isize, kw: &str) -> bool {
+    let n = kw.chars().count() as isize;
+    if end < n - 1 {
+        return false;
+    }
+    let start = (end - n + 1) as usize;
+    if !chars[start..=end as usize].iter().copied().eq(kw.chars()) {
+        return false;
+    }
+    start == 0 || !is_identifier_char(chars[start - 1])
+}
+
+/// `import { $foo as bar }` names a module export rather than reading a store,
+/// and a bare `import { $foo }` declares the name outright.
+fn is_dollar_ident_import_specifier(chars: &[char], ident_start: usize) -> bool {
+    let Some(open) = enclosing_pattern_open(chars, ident_start) else {
+        return false;
+    };
+    if chars[open] != '{' {
+        return false;
+    }
+    let mut k = open as isize - 1;
+    while k >= 0 && chars[k as usize].is_whitespace() {
+        k -= 1;
+    }
+    if keyword_ends_at(chars, k, "import") {
+        return true;
+    }
+    // `import type { … }`
+    if keyword_ends_at(chars, k, "type") {
+        k -= 4;
+        while k >= 0 && chars[k as usize].is_whitespace() {
+            k -= 1;
+        }
+        return keyword_ends_at(chars, k, "import");
+    }
+    false
+}
+
 /// Check if a `$$xxx` identifier is used in a TypeScript type declaration context
 /// (e.g., `type $$Props = ...` or `interface $$Props { ... }`).
 /// These are TypeScript-only constructs that should not be treated as store references.
@@ -946,8 +1052,11 @@ fn collect_dollar_identifiers_pass(
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
                     let param_range = dollar_param_body_range(chars, ident_start, i);
-                    let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start);
-                    let is_declaration = param_range.is_some() || is_var_decl;
+                    let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start)
+                        || is_dollar_ident_destructuring_declaration(chars, ident_start);
+                    let is_declaration = param_range.is_some()
+                        || is_var_decl
+                        || is_dollar_ident_import_specifier(chars, ident_start);
                     if collect_declared {
                         if let Some((bs, be)) = param_range {
                             // A param shadows only inside its own arrow body.

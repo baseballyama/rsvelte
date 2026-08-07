@@ -7,6 +7,9 @@ use super::rune_transforms::{
 };
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, code_bytes_from};
+use crate::compiler::phases::phase3_transform::shared::offsets::{
+    ByteOffset, CharOffset, CharToByte,
+};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
 use oxc_parser::{ParseOptions, Parser};
@@ -145,12 +148,6 @@ pub(super) fn transform_destructure_assignments_with_props(
 /// This ensures inner/nested destructures (e.g., in the RHS of an outer
 /// destructure) are processed before outer ones, so $$array counter
 /// values match the official compiler output.
-#[cold]
-#[inline(never)]
-fn bracket_offset_miss(byte: usize, len: usize) -> ! {
-    panic!("bracket byte offset {byte} is not a char start in a {len}-byte statement")
-}
-
 pub(super) fn find_and_transform_one_destructure(
     statement: &str,
     store_sub_vars: &[String],
@@ -162,15 +159,8 @@ pub(super) fn find_and_transform_one_destructure(
     let len = chars.len();
 
     // Build char-index → byte-index mapping for safe string slicing with multi-byte chars
-    let byte_offsets: Vec<usize> = statement.char_indices().map(|(b, _)| b).collect();
-    let byte_len = statement.len();
-    let b = |char_idx: usize| -> usize {
-        if char_idx >= byte_offsets.len() {
-            byte_len
-        } else {
-            byte_offsets[char_idx]
-        }
-    };
+    let table = CharToByte::new(statement);
+    let b = |char_idx: usize| -> usize { table.byte(CharOffset::new(char_idx)).get() };
 
     // Scan for `] =` or `} =` patterns that indicate destructure assignments.
     // We need to be careful to avoid:
@@ -182,9 +172,9 @@ pub(super) fn find_and_transform_one_destructure(
     // Each candidate stores (close_bracket_char_idx, pattern_start, rhs_start_after_eq)
     #[derive(Clone, Copy)]
     struct Candidate {
-        close_pos: usize,     // char index of ] or }
-        pattern_start: usize, // char index of [ or {
-        eq_pos: usize,        // char index of =
+        close_pos: CharOffset,
+        pattern_start: CharOffset,
+        eq_pos: CharOffset,
     }
     let mut candidates: Vec<Candidate> = Vec::new();
 
@@ -226,21 +216,25 @@ pub(super) fn find_and_transform_one_destructure(
 
                 // Walk backwards from position `i` to find the matching open bracket.
                 // The helper works in byte offsets; this loop indexes by char.
-                let matching_open =
-                    find_matching_open_bracket(statement, b(i), open_bracket, close_bracket);
-                // The helper only returns ASCII bracket positions, which are
-                // always char starts; a miss would be a bug, not input.
-                if let Some(pattern_start) = matching_open.map(|byte| {
-                    byte_offsets
-                        .binary_search(&byte)
-                        .unwrap_or_else(|_| bracket_offset_miss(byte, statement.len()))
+                if let Some(pattern_start) = find_matching_open_bracket(
+                    statement,
+                    table.byte(CharOffset::new(i)),
+                    open_bracket,
+                    close_bracket,
+                )
+                .map(|byte| {
+                    // The helper only returns ASCII bracket positions, which are
+                    // always char starts; a miss would be a bug, not input.
+                    table
+                        .char_of(byte)
+                        .unwrap_or_else(|| bracket_offset_miss(byte.get(), statement.len()))
                 }) {
-                    let pattern_str = &statement[b(pattern_start)..b(i + 1)];
+                    let pattern_str = &statement[b(pattern_start.get())..b(i + 1)];
                     let rhs_start = j + 1;
 
                     // For array patterns, check if `[` is actually member access
-                    if open_bracket == '[' && pattern_start > 0 {
-                        let before_char = chars[pattern_start - 1];
+                    if open_bracket == '[' && pattern_start > CharOffset::ZERO {
+                        let before_char = chars[pattern_start.get() - 1];
                         if before_char.is_ascii_alphanumeric()
                             || before_char == '_'
                             || before_char == '$'
@@ -253,7 +247,7 @@ pub(super) fn find_and_transform_one_destructure(
                     }
 
                     // Skip declaration destructures (let/const/var)
-                    let before_pattern = statement[..b(pattern_start)].trim_end();
+                    let before_pattern = statement[..b(pattern_start.get())].trim_end();
                     if before_pattern.ends_with("let")
                         || before_pattern.ends_with("const")
                         || before_pattern.ends_with("var")
@@ -281,7 +275,7 @@ pub(super) fn find_and_transform_one_destructure(
                     // brace/bracket depth. If we encounter an unmatched
                     // opening `{` or `[` before hitting a statement boundary,
                     // we're nested inside another pattern and should skip.
-                    if is_inside_enclosing_pattern(statement, b(pattern_start)) {
+                    if is_inside_enclosing_pattern(statement, b(pattern_start.get())) {
                         i = j + 1;
                         continue;
                     }
@@ -305,8 +299,8 @@ pub(super) fn find_and_transform_one_destructure(
                     }
 
                     // Find the end of the RHS expression
-                    let rhs_end = find_destructure_rhs_end(statement, rhs_start);
-                    let rhs_str = statement[b(rhs_start)..b(rhs_end)].trim();
+                    let rhs_end = find_destructure_rhs_end(statement, CharOffset::new(rhs_start));
+                    let rhs_str = statement[b(rhs_start)..b(rhs_end.get())].trim();
 
                     if rhs_str.is_empty() {
                         i = j + 1;
@@ -315,9 +309,9 @@ pub(super) fn find_and_transform_one_destructure(
 
                     // Valid candidate - store it
                     candidates.push(Candidate {
-                        close_pos: i,
+                        close_pos: CharOffset::new(i),
                         pattern_start,
-                        eq_pos: j,
+                        eq_pos: CharOffset::new(j),
                     });
                 }
             }
@@ -363,12 +357,12 @@ pub(super) fn find_and_transform_one_destructure(
         // Compute rhs_end for each candidate to determine containment
         let rhs_ends: Vec<usize> = candidates
             .iter()
-            .map(|c| find_destructure_rhs_end(statement, c.eq_pos + 1))
+            .map(|c| find_destructure_rhs_end(statement, c.eq_pos + 1).get())
             .collect();
 
         let mut selected = 0; // default to first
         'outer: for (ci, c) in candidates.iter().enumerate() {
-            let rhs_start = c.eq_pos + 1;
+            let rhs_start = (c.eq_pos + 1).get();
             let rhs_end = rhs_ends[ci];
             // Check if any other candidate's close_pos is inside this candidate's RHS range
             let mut contains_other = false;
@@ -377,7 +371,7 @@ pub(super) fn find_and_transform_one_destructure(
                     continue;
                 }
                 // Check if other's close bracket is within this candidate's RHS
-                if other.close_pos > rhs_start && other.close_pos < rhs_end {
+                if other.close_pos.get() > rhs_start && other.close_pos.get() < rhs_end {
                     contains_other = true;
                     break;
                 }
@@ -390,13 +384,13 @@ pub(super) fn find_and_transform_one_destructure(
         selected
     };
     let candidate = &candidates[candidate_idx];
-    let i = candidate.close_pos;
-    let pattern_start = candidate.pattern_start;
-    let j = candidate.eq_pos;
+    let i = candidate.close_pos.get();
+    let pattern_start = candidate.pattern_start.get();
+    let j = candidate.eq_pos.get();
     let rhs_start = j + 1;
 
     let pattern_str = &statement[b(pattern_start)..b(i + 1)];
-    let rhs_end = find_destructure_rhs_end(statement, rhs_start);
+    let rhs_end = find_destructure_rhs_end(statement, CharOffset::new(rhs_start)).get();
     let rhs_str = statement[b(rhs_start)..b(rhs_end)].trim();
 
     // Check for surrounding parentheses
@@ -447,6 +441,12 @@ pub(super) fn find_and_transform_one_destructure(
     Some(new_statement)
 }
 
+#[cold]
+#[inline(never)]
+fn bracket_offset_miss(byte: usize, len: usize) -> ! {
+    panic!("bracket byte offset {byte} is not a char start in a {len}-byte statement")
+}
+
 /// Returns true when the byte position `pattern_open_byte` (the `{` or `[`
 /// of a destructure pattern) is itself nested inside another *binding*
 /// pattern introduced by `let` / `const` / `var`. Used to suppress the IIFE
@@ -494,17 +494,16 @@ fn is_inside_enclosing_pattern(statement: &str, pattern_open_byte: usize) -> boo
 }
 
 /// Find the matching opening bracket, respecting nesting and strings.
-/// `close_pos` and the returned position are **byte** offsets.
 pub(super) fn find_matching_open_bracket(
     s: &str,
-    close_pos: usize,
+    close_pos: ByteOffset,
     open_bracket: char,
     close_bracket: char,
-) -> Option<usize> {
+) -> Option<ByteOffset> {
     let (open, close) = (open_bracket as u8, close_bracket as u8);
     // Collect forward so opaque runs are skipped, then walk the code bytes back.
     let code: Vec<(usize, u8)> = code_bytes(s.as_bytes())
-        .take_while(|(i, _)| *i < close_pos)
+        .take_while(|(i, _)| *i < close_pos.get())
         .collect();
 
     let mut depth = 1;
@@ -514,7 +513,7 @@ pub(super) fn find_matching_open_bracket(
         } else if c == open {
             depth -= 1;
             if depth == 0 {
-                return Some(i);
+                return Some(ByteOffset::new(i));
             }
         }
     }
@@ -692,10 +691,10 @@ pub(super) fn extract_root_identifier(s: &str) -> Option<String> {
 
 /// Find the end of the RHS expression in a destructure assignment.
 /// Handles balanced brackets, parentheses, and semicolons.
-pub(super) fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
+pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> CharOffset {
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
-    let mut i = start;
+    let mut i = start.get();
     let mut depth = 0;
     let mut in_string: Option<char> = None;
 
@@ -729,7 +728,7 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
             ')' => {
                 if depth == 0 {
                     // This closing paren belongs to an outer context
-                    return i;
+                    return CharOffset::new(i);
                 }
                 depth -= 1;
                 i += 1;
@@ -753,17 +752,17 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
             }
             ']' | '}' => {
                 if depth == 0 {
-                    return i;
+                    return CharOffset::new(i);
                 }
                 depth -= 1;
                 i += 1;
             }
             ';' if depth == 0 => {
-                return i;
+                return CharOffset::new(i);
             }
             ',' if depth == 0 => {
                 // Could be end of expression in sequence
-                return i;
+                return CharOffset::new(i);
             }
             _ => {
                 i += 1;
@@ -777,7 +776,7 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
     while end > expr_start && chars[end - 1].is_whitespace() {
         end -= 1;
     }
-    end
+    CharOffset::new(end)
 }
 
 /// Check if a generated code string contains `await` as a keyword (not inside string literals).
@@ -1619,6 +1618,24 @@ mod non_ascii_tests {
             vec!["a".to_string(), "c".to_string()]
         );
     }
+
+    /// An unbalanced `{`- or `[`-prefixed fragment strips to itself, so recursing
+    /// into it never shrinks the input — that overflowed the stack and aborted the
+    /// host process instead of producing output or an error.
+    #[test]
+    fn extract_destructure_targets_terminates_on_an_unbalanced_fragment() {
+        use super::extract_destructure_targets;
+
+        assert!(extract_destructure_targets("{\n\t\t// } c\n\t\tbar").is_empty());
+        assert!(extract_destructure_targets("{ a").is_empty());
+        assert!(extract_destructure_targets("[ a").is_empty());
+        assert!(extract_destructure_targets("{ a: [b").is_empty());
+        // A balanced pattern still yields its targets.
+        assert_eq!(
+            extract_destructure_targets("{ a: [b] }"),
+            vec!["b".to_string()]
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1629,19 +1646,30 @@ mod tests {
     fn matching_open_bracket_ignores_string_contents() {
         // `{ a = "}" } = obj` — the default value's `}` is text, not a closer.
         let s = r#"{ a = "}" } = obj"#;
-        assert_eq!(find_matching_open_bracket(s, 10, '{', '}'), Some(0));
+        let close = ByteOffset::new(10);
+        assert_eq!(
+            find_matching_open_bracket(s, close, '{', '}'),
+            Some(ByteOffset::ZERO)
+        );
     }
 
     #[test]
     fn matching_open_bracket_ignores_comment_contents() {
         let s = "{ a, /* } */ b } = obj";
-        let close = s.rfind('}').unwrap();
-        assert_eq!(find_matching_open_bracket(s, close, '{', '}'), Some(0));
+        let close = ByteOffset::new(s.rfind('}').unwrap());
+        assert_eq!(
+            find_matching_open_bracket(s, close, '{', '}'),
+            Some(ByteOffset::ZERO)
+        );
     }
 
     #[test]
     fn matching_open_bracket_still_matches_nested() {
         let s = "{ a: { b } } = obj";
-        assert_eq!(find_matching_open_bracket(s, 11, '{', '}'), Some(0));
+        let close = ByteOffset::new(11);
+        assert_eq!(
+            find_matching_open_bracket(s, close, '{', '}'),
+            Some(ByteOffset::ZERO)
+        );
     }
 }
