@@ -748,11 +748,7 @@ pub(super) fn transform_constructor_private_reads(
                     continue;
                 }
 
-                let next_char = if after_pos < result.len() {
-                    Some(result.as_bytes()[after_pos] as char)
-                } else {
-                    None
-                };
+                let next_char = crate::compiler::utils::char_at(&result, after_pos);
 
                 match next_char {
                     Some(' ')
@@ -818,11 +814,7 @@ pub(super) fn transform_constructor_private_reads(
                     continue;
                 }
 
-                let next_char = if after_pos < result.len() {
-                    Some(result.as_bytes()[after_pos] as char)
-                } else {
-                    None
-                };
+                let next_char = crate::compiler::utils::char_at(&result, after_pos);
 
                 match next_char {
                     Some(' ')
@@ -1742,12 +1734,11 @@ pub(super) fn find_private_field_prefixes(content: &str, field_name: &str) -> Ve
         let abs_pos = search_from + pos;
         // Check the character after the field name to ensure it's a word boundary
         let after_pos = abs_pos + hash_pattern.len();
-        if after_pos < content.len() {
-            let next_char = content.as_bytes()[after_pos] as char;
-            if next_char.is_alphanumeric() || next_char == '_' {
-                search_from = crate::compiler::utils::next_char_boundary(content, abs_pos);
-                continue;
-            }
+        if crate::compiler::utils::char_at(content, after_pos)
+            .is_some_and(|next_char| next_char.is_alphanumeric() || next_char == '_')
+        {
+            search_from = crate::compiler::utils::next_char_boundary(content, abs_pos);
+            continue;
         }
 
         // Walk backwards to find the identifier prefix
@@ -1995,11 +1986,7 @@ pub(super) fn wrap_standalone_private_reads(content: &str, qualified: &str) -> S
         }
 
         // Check character after
-        let next_char = if after_pos < result.len() {
-            Some(result.as_bytes()[after_pos] as char)
-        } else {
-            None
-        };
+        let next_char = crate::compiler::utils::char_at(&result, after_pos);
 
         // If followed by = (assignment), ++ or -- (increment/decrement), . (property access),
         // ? (optional chain), or alphanumeric (part of longer name), skip
