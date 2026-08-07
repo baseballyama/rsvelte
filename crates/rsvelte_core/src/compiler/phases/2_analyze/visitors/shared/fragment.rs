@@ -45,7 +45,9 @@ fn compute_all_preceding_ignores(
                 // Extract svelte-ignore codes and accumulate them
                 let extracted = extract_svelte_ignore_with_warnings(&comment.data, runes);
                 pending_ignores.extend(extracted.ignores);
-                pending_warnings.extend(extracted.warnings);
+                // The official scan walks the preceding comment run backwards from the
+                // annotated node, so the comment nearest it reports first.
+                pending_warnings.splice(..0, extracted.warnings);
                 // Comments themselves get None
                 result.push(None);
             }
@@ -107,31 +109,22 @@ pub fn analyze<'a, 'b: 'a>(
     // but only emit legacy_code/unknown_code warnings for non-Comment/non-Text nodes.
     let mut ignore_info = compute_all_preceding_ignores(&fragment.nodes, runes);
 
-    // Emit warnings from svelte-ignore comment validation (legacy_code, unknown_code).
-    // These are emitted only once per comment because only the first
-    // non-Comment/non-Text node collects from preceding comments.
-    for entry in ignore_info.iter().flatten() {
-        let (preceding, is_text) = entry;
-        // Only emit legacy_code/unknown_code warnings for non-Text nodes
-        if !is_text {
-            for warning in &preceding.warnings {
-                context
-                    .analysis
-                    .warnings
-                    .push(warnings::AnalysisWarning::new(
-                        warning.code.clone(),
-                        warning.message.clone(),
-                    ));
-            }
-        }
-    }
-
     for (idx, node) in fragment.nodes.iter_mut().enumerate() {
         // Take ownership of ignore codes to avoid cloning
-        let ignore_codes = ignore_info[idx]
-            .take()
-            .map(|(p, _)| p.ignores)
-            .unwrap_or_default();
+        let ignore_codes = match ignore_info[idx].take() {
+            Some((preceding, is_text)) => {
+                // The official `_` visitor extracts (and so reports) svelte-ignore codes
+                // as it reaches the annotated node, which interleaves these warnings with
+                // that node's own in source order. Text nodes only consume the codes.
+                if !is_text {
+                    for warning in preceding.warnings {
+                        context.analysis.warnings.push(warning);
+                    }
+                }
+                preceding.ignores
+            }
+            None => Vec::new(),
+        };
         let has_ignores = !ignore_codes.is_empty();
         if has_ignores {
             // Store ignored codes on element metadata for use during code generation
