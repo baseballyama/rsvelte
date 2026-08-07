@@ -2,6 +2,26 @@
 //!
 //! Corresponds to Svelte's `utils.js`.
 
+/// Can `c` start a JavaScript identifier?
+///
+/// The official parser asks acorn's `isIdentifierStart(code, true)`, i.e. the
+/// `ID_Start` set plus `$` and `_`. Anything narrower (ASCII) or wider (every
+/// byte `>= 0x80`) answers a different question; scanners that need the ASCII
+/// subset say so in their name.
+#[inline]
+pub fn is_js_ident_start(c: char) -> bool {
+    oxc_syntax::identifier::is_identifier_start(c)
+}
+
+/// Can `c` continue a JavaScript identifier?
+///
+/// Mirrors acorn's `isIdentifierChar(code, true)`: `ID_Continue` plus `$`, and
+/// the zero-width joiners.
+#[inline]
+pub fn is_js_ident_continue(c: char) -> bool {
+    oxc_syntax::identifier::is_identifier_part(c)
+}
+
 /// Slice a fixed-size look-back window ending at `end`, clamped to a UTF-8
 /// char boundary so it can never panic.
 ///
@@ -19,6 +39,25 @@ pub fn char_boundary_lookback(source: &str, end: usize, window: usize) -> &str {
         .find(|&i| source.is_char_boundary(i))
         .unwrap_or(end);
     &source[lo..end]
+}
+
+/// The character that starts at byte offset `at`, or `None` past the end.
+///
+/// Replaces `source.as_bytes()[at] as char`, which Latin-1-decodes a single byte
+/// of a UTF-8 sequence: `名`'s lead byte reads as `å` and `א`'s as `×`, so an
+/// `is_alphanumeric` / `is_whitespace` predicate answers about a character that is
+/// not in the source. `at` must be a char boundary; a `find()` match offset always is.
+pub fn char_at(source: &str, at: usize) -> Option<char> {
+    source.get(at..).and_then(|rest| rest.chars().next())
+}
+
+/// The character that ends at byte offset `end`, or `None` at the start of `source`.
+///
+/// Replaces `source.as_bytes()[end - 1] as char`, which reads a *continuation*
+/// byte of the preceding character: `名` (`E5 90 8D`) reads as `U+008D`, a control
+/// that no identifier predicate accepts, so a letter is mistaken for a word boundary.
+pub fn char_before(source: &str, end: usize) -> Option<char> {
+    source.get(..end).and_then(|head| head.chars().next_back())
 }
 
 /// Byte offset one *character* past `at`, for resuming a scan after a rejected
@@ -209,6 +248,36 @@ pub fn get_locator(
 
         crate::compiler::preprocess::types::Location { line, column }
     })
+}
+
+#[cfg(test)]
+mod ident_classifier_tests {
+    use super::{is_js_ident_continue, is_js_ident_start};
+
+    #[test]
+    fn js_ident_classifiers_follow_the_official_rule() {
+        for c in ['a', 'Z', '_', '$', '名', 'é', 'ש', '々'] {
+            assert!(is_js_ident_start(c), "{c:?} starts an identifier");
+            assert!(is_js_ident_continue(c), "{c:?} continues an identifier");
+        }
+        // Digits continue but do not start.
+        assert!(!is_js_ident_start('7'));
+        assert!(is_js_ident_continue('7'));
+
+        // Neither an ASCII-only test nor an "every byte >= 0x80" test gets these
+        // right: they are non-ASCII and not identifier characters.
+        for c in [
+            '\u{00a0}',
+            '\u{3000}',
+            '\u{3001}',
+            '\u{2014}',
+            '\u{1f600}',
+            '×',
+        ] {
+            assert!(!is_js_ident_start(c), "{c:?} cannot start an identifier");
+            assert!(!is_js_ident_continue(c), "{c:?} cannot continue one");
+        }
+    }
 }
 
 #[cfg(test)]

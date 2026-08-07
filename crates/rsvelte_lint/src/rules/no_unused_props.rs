@@ -23,7 +23,7 @@ use rsvelte_diagnostics::Diagnostic;
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{blank_comments, is_ident_byte, script_blocks, script_is_ts};
+use crate::svelte_scan::{blank_comments, is_ascii_ident_byte, script_blocks, script_is_ts};
 use crate::validator::{range_from_byte, to_dsev};
 
 pub static META: RuleMeta = RuleMeta {
@@ -530,7 +530,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
                     let n = r
                         .as_bytes()
                         .iter()
-                        .position(|&c| !is_ident_byte(c))
+                        .position(|&c| !is_ascii_ident_byte(c))
                         .unwrap_or(r.len());
                     r[..n].to_string()
                 })
@@ -542,7 +542,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
         // Plain identifier key, optional `: local` / `= default`.
         let name_end = bytes
             .iter()
-            .position(|&c| !is_ident_byte(c))
+            .position(|&c| !is_ascii_ident_byte(c))
             .unwrap_or(bytes.len());
         if name_end == 0 {
             continue;
@@ -556,7 +556,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
                 let n = r
                     .as_bytes()
                     .iter()
-                    .position(|&c| !is_ident_byte(c))
+                    .position(|&c| !is_ascii_ident_byte(c))
                     .unwrap_or(r.len());
                 r[..n].to_string()
             })
@@ -615,7 +615,7 @@ fn member_chains(
         }
         let before = start.checked_sub(1).map(|b| bytes[b]);
         let after = bytes.get(end).copied();
-        if before.is_some_and(is_ident_byte) || after.is_some_and(is_ident_byte) {
+        if before.is_some_and(is_ascii_ident_byte) || after.is_some_and(is_ascii_ident_byte) {
             continue; // not a whole-word match
         }
         let p = skip_ws_back(source, start);
@@ -657,7 +657,7 @@ fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
         if let Some(q) = dot {
             let mut q = skip_ws_forward(source, q);
             let s = q;
-            while q < bytes.len() && is_ident_byte(bytes[q]) {
+            while q < bytes.len() && is_ascii_ident_byte(bytes[q]) {
                 q += 1;
             }
             if q == s {
@@ -918,7 +918,8 @@ fn has_whole_object_spread(source: &str, var_name: &str) -> bool {
         if bytes[i..i + vb.len()] == *vb {
             // Check next char.
             let next = bytes.get(i + vb.len()).copied();
-            let next_is_member = next.is_some_and(|c| c == b'.' || c == b'[' || is_ident_byte(c));
+            let next_is_member =
+                next.is_some_and(|c| c == b'.' || c == b'[' || is_ascii_ident_byte(c));
             if !next_is_member {
                 return true;
             }
@@ -989,7 +990,7 @@ fn find_props_info(content: &str, blanked: &str, content_start: usize) -> Option
         let var_end_rel = before_colon.len();
         // Find start of var name (walk back over identifier chars).
         let var_name_start = blanked[..var_end_rel]
-            .rfind(|c: char| !is_ident_byte(c as u8))
+            .rfind(|c: char| !is_ascii_ident_byte(c as u8))
             .map(|i| i + 1)
             .unwrap_or(0);
         let var_name = content[var_name_start..var_end_rel].trim().to_string();
@@ -1045,7 +1046,7 @@ fn is_type_imported(blanked: &str, name: &str) -> bool {
     let mut i = 0;
     while i + 6 <= bytes.len() {
         if &bytes[i..i + 6] == b"import" {
-            let before_ok = i == 0 || !is_ident_byte(bytes[i - 1]);
+            let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
             if before_ok {
                 let end = blanked[i..]
                     .find(';')
@@ -1055,9 +1056,9 @@ fn is_type_imported(blanked: &str, name: &str) -> bool {
                 let import_stmt = &blanked[i..end];
                 if let Some(name_pos) = import_stmt.find(name) {
                     let before_ok2 =
-                        name_pos == 0 || !is_ident_byte(import_stmt.as_bytes()[name_pos - 1]);
+                        name_pos == 0 || !is_ascii_ident_byte(import_stmt.as_bytes()[name_pos - 1]);
                     let after_ok = name_pos + nb.len() >= import_stmt.len()
-                        || !is_ident_byte(import_stmt.as_bytes()[name_pos + nb.len()]);
+                        || !is_ascii_ident_byte(import_stmt.as_bytes()[name_pos + nb.len()]);
                     if before_ok2 && after_ok {
                         return true;
                     }
@@ -1087,7 +1088,7 @@ fn find_named_type_body_no_extends(
         while let Some(rel) = blanked[search_from..].find(kw) {
             let kw_start = search_from + rel;
             let kw_end = kw_start + kw.len();
-            let before_ok = kw_start == 0 || !is_ident_byte(bytes[kw_start - 1]);
+            let before_ok = kw_start == 0 || !is_ascii_ident_byte(bytes[kw_start - 1]);
             if !before_ok {
                 search_from = kw_end;
                 continue;
@@ -1101,7 +1102,7 @@ fn find_named_type_body_no_extends(
             }
             let after_name = rest_start + nb.len();
             let after_char = bytes.get(after_name).copied();
-            if after_char.is_some_and(is_ident_byte) {
+            if after_char.is_some_and(is_ascii_ident_byte) {
                 search_from = kw_end;
                 continue;
             }
@@ -1230,7 +1231,7 @@ fn extract_member_name(seg: &str) -> Option<String> {
     // Plain identifier (possibly followed by `?`, `:`, `(`)
     let name_end = bytes
         .iter()
-        .position(|&c| !is_ident_byte(c))
+        .position(|&c| !is_ascii_ident_byte(c))
         .unwrap_or(bytes.len());
     if name_end == 0 {
         return None;
@@ -1326,7 +1327,7 @@ fn extract_destructure_prop_name(seg: &str) -> Option<String> {
     // nested `{ ... }`)
     let name_end = bytes
         .iter()
-        .position(|&c| !is_ident_byte(c))
+        .position(|&c| !is_ascii_ident_byte(c))
         .unwrap_or(bytes.len());
     if name_end == 0 {
         return None;

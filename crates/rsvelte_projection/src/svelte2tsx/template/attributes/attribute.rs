@@ -218,13 +218,20 @@ pub(crate) fn is_js_numeric(data: &str) -> bool {
 /// typings, mirroring official `transformAttributeCase`. Preserves the name for
 /// SVG attributes, custom elements (tag contains `-`), and svelte-5 `on*` event
 /// attributes; non-element (component/slot) attributes are never transformed.
+/// `preserve_case` (the `foreign` namespace) suppresses the fold entirely.
 pub(crate) fn transform_attribute_case<'a>(
     name: &'a str,
     tag: &str,
     is_element: bool,
+    preserve_case: bool,
 ) -> Cow<'a, str> {
     let is_custom_element = tag.contains('-');
-    if is_element && !is_svg_attribute(name) && !is_custom_element && !name.starts_with("on") {
+    if !preserve_case
+        && is_element
+        && !is_svg_attribute(name)
+        && !is_custom_element
+        && !name.starts_with("on")
+    {
         let needs_lowercase = name.chars().any(|c| {
             let mut lowercase = c.to_lowercase();
             lowercase.next() != Some(c) || lowercase.next().is_some()
@@ -435,6 +442,7 @@ pub(crate) fn append_attribute_node_segments(
     is_element: bool,
     tag: &str,
     leading_comment: &str,
+    preserve_case: bool,
 ) {
     let leading = leading_attr_comment_segs(node.start, source, comments);
     let is_data_attr =
@@ -442,7 +450,7 @@ pub(crate) fn append_attribute_node_segments(
     let is_css_prop = !is_element && node.name.starts_with("--");
     // Element attribute names are lowercased to match intrinsic typings
     // (`defaultValue` → `defaultvalue`); component/slot names are preserved.
-    let name_owned = transform_attribute_case(&node.name, tag, is_element);
+    let name_owned = transform_attribute_case(&node.name, tag, is_element, preserve_case);
     let name = name_owned.as_ref();
 
     match &node.value {
@@ -873,22 +881,22 @@ mod tests {
 
     #[test]
     fn transform_attribute_case_borrows_unchanged_names() {
-        let lowercase = transform_attribute_case("class", "div", true);
+        let lowercase = transform_attribute_case("class", "div", true, false);
         assert!(matches!(lowercase, Cow::Borrowed("class")));
         assert!(matches!(
-            transform_attribute_case("viewBox", "svg", true),
+            transform_attribute_case("viewBox", "svg", true, false),
             Cow::Borrowed("viewBox")
         ));
         assert!(matches!(
-            transform_attribute_case("defaultValue", "my-input", true),
+            transform_attribute_case("defaultValue", "my-input", true, false),
             Cow::Borrowed("defaultValue")
         ));
         assert!(matches!(
-            transform_attribute_case("onClick", "button", true),
+            transform_attribute_case("onClick", "button", true, false),
             Cow::Borrowed("onClick")
         ));
         assert!(matches!(
-            transform_attribute_case("defaultValue", "Component", false),
+            transform_attribute_case("defaultValue", "Component", false, false),
             Cow::Borrowed("defaultValue")
         ));
     }
@@ -896,11 +904,11 @@ mod tests {
     #[test]
     fn transform_attribute_case_allocates_only_for_changed_names() {
         assert_eq!(
-            transform_attribute_case("defaultValue", "input", true),
+            transform_attribute_case("defaultValue", "input", true, false),
             Cow::Owned::<str>("defaultvalue".to_string())
         );
         assert_eq!(
-            transform_attribute_case("İD", "div", true),
+            transform_attribute_case("İD", "div", true, false),
             Cow::Owned::<str>("i\u{307}d".to_string())
         );
     }

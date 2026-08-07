@@ -3014,12 +3014,11 @@ pub(super) fn wrap_prop_mutation_validation(
             let abs_start = runes_search_from + prefix_rel;
 
             // Check this is a standalone identifier (not part of a longer name)
-            if abs_start > 0 {
-                let prev_char = result.as_bytes()[abs_start - 1] as char;
-                if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '$' {
-                    runes_search_from = abs_start + runes_prefix.len();
-                    continue;
-                }
+            if crate::compiler::utils::char_before(&result, abs_start)
+                .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$')
+            {
+                runes_search_from = abs_start + runes_prefix.len();
+                continue;
             }
 
             // Check it's not already inside a prop(prop()...) wrapper
@@ -3216,12 +3215,11 @@ pub(super) fn wrap_prop_mutation_validation(
             let after_outer = abs_start + outer_call.len();
 
             // Check this is a standalone identifier (not part of a longer name)
-            if abs_start > 0 {
-                let prev_char = result.as_bytes()[abs_start - 1] as char;
-                if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '$' {
-                    search_from = after_outer;
-                    continue;
-                }
+            if crate::compiler::utils::char_before(&result, abs_start)
+                .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$')
+            {
+                search_from = after_outer;
+                continue;
             }
 
             let inner_probe_start = if result.as_bytes().get(after_outer) == Some(&b'(') {
@@ -3239,6 +3237,8 @@ pub(super) fn wrap_prop_mutation_validation(
                 search_from = after_outer;
                 continue;
             }
+            // Sound on a byte: both targets are ASCII, and no byte of a multi-byte
+            // UTF-8 character can equal an ASCII byte.
             let next_char = result.as_bytes()[after_inner_call] as char;
             if next_char != '.' && next_char != '[' {
                 search_from = after_outer;
@@ -3531,18 +3531,17 @@ impl PropMutationSites {
             if !scan.code.contains(start) {
                 continue;
             }
-            if start > 0 {
-                let prev = bytes[start - 1] as char;
-                if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == '.' {
-                    continue;
-                }
+            if crate::compiler::utils::char_before(source, start)
+                .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.')
+            {
+                continue;
             }
             let chain_start = skip_non_null_assertions(bytes, end);
             if !starts_member_access(bytes, chain_start) {
                 continue;
             }
-            if let Some((after, chain)) = scan_member_chain_names(bytes, chain_start)
-                && let Some(value_start) = mutation_value_start(bytes, after)
+            if let Some((after, chain)) = scan_member_chain_names(source, chain_start)
+                && let Some(value_start) = mutation_value_start(source, after)
             {
                 let (line, column) =
                     crate::compiler::phases::phase3_transform::utils::locate_in_source(
@@ -3722,15 +3721,30 @@ fn starts_member_access(bytes: &[u8], pos: usize) -> bool {
     }
 }
 
+/// The offset of the first non-whitespace character at or after `pos`.
+///
+/// Stepping by characters is what keeps a non-ASCII JavaScript space (`U+3000`,
+/// NBSP) recognised — its lead byte Latin-1-decodes to a letter — and is what keeps
+/// the cursor from stranding inside a character whose `0x85`/`0xA0` continuation
+/// byte would read as whitespace on its own.
+fn skip_whitespace_chars(source: &str, mut pos: usize) -> usize {
+    while let Some(c) = crate::compiler::utils::char_at(source, pos) {
+        if !c.is_whitespace() {
+            break;
+        }
+        pos += c.len_utf8();
+    }
+    pos
+}
+
 /// The offset just after the mutation operator at `pos`, or `None` when there
 /// is no operator there.
-fn mutation_value_start(bytes: &[u8], mut pos: usize) -> Option<usize> {
-    if !is_mutation_operator(bytes, pos) {
+fn mutation_value_start(source: &str, mut pos: usize) -> Option<usize> {
+    if !is_mutation_operator(source, pos) {
         return None;
     }
-    while pos < bytes.len() && (bytes[pos] as char).is_whitespace() {
-        pos += 1;
-    }
+    let bytes = source.as_bytes();
+    pos = skip_whitespace_chars(source, pos);
     // `++` / `--` write no value of their own.
     if matches!(bytes.get(pos), Some(b'+') | Some(b'-')) && bytes.get(pos + 1) == bytes.get(pos) {
         return Some((pos + 2).min(bytes.len()));
@@ -3993,7 +4007,8 @@ mod code_spans_tests {
 
 /// Advance past `.name` / `[expr]` accessors, returning the offset just after
 /// the chain plus the names it reads — `None` once a computed access appears.
-fn scan_member_chain_names(bytes: &[u8], mut pos: usize) -> Option<(usize, Option<Vec<String>>)> {
+fn scan_member_chain_names(source: &str, mut pos: usize) -> Option<(usize, Option<Vec<String>>)> {
+    let bytes = source.as_bytes();
     let mut names = Some(Vec::new());
     loop {
         while pos < bytes.len() && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
@@ -4019,10 +4034,9 @@ fn scan_member_chain_names(bytes: &[u8], mut pos: usize) -> Option<(usize, Optio
                     pos += 1;
                 }
                 let ident_start = pos;
-                while pos < bytes.len() {
-                    let c = bytes[pos] as char;
+                while let Some(c) = crate::compiler::utils::char_at(source, pos) {
                     if c.is_alphanumeric() || c == '_' || c == '$' {
-                        pos += 1;
+                        pos += c.len_utf8();
                     } else {
                         break;
                     }
@@ -4031,7 +4045,7 @@ fn scan_member_chain_names(bytes: &[u8], mut pos: usize) -> Option<(usize, Optio
                     return None;
                 }
                 if let Some(names) = names.as_mut() {
-                    names.push(String::from_utf8_lossy(&bytes[ident_start..pos]).into_owned());
+                    names.push(source[ident_start..pos].to_string());
                 }
             }
             b'[' => {
@@ -4061,10 +4075,9 @@ fn scan_member_chain_names(bytes: &[u8], mut pos: usize) -> Option<(usize, Optio
 }
 
 /// Whether an assignment or update operator starts at `pos`.
-fn is_mutation_operator(bytes: &[u8], mut pos: usize) -> bool {
-    while pos < bytes.len() && (bytes[pos] as char).is_whitespace() {
-        pos += 1;
-    }
+fn is_mutation_operator(source: &str, pos: usize) -> bool {
+    let bytes = source.as_bytes();
+    let mut pos = skip_whitespace_chars(source, pos);
     if pos >= bytes.len() {
         return false;
     }
@@ -4575,6 +4588,115 @@ mod pattern_end_unit_tests {
         for pattern in ["{ a }", "{ café }", "{ ああ }", "[ あ, い ]", "  { café }"] {
             let end = find_destructuring_pattern_end(pattern).unwrap();
             assert_eq!(&pattern[..end], pattern, "pattern {pattern:?}");
+        }
+    }
+}
+
+/// The prop-mutation scans read the character adjacent to a match, not the byte.
+/// Each case pairs a non-ASCII input with the ASCII input it must agree with;
+/// before the fix every non-ASCII row returned the *other* answer.
+#[cfg(test)]
+mod non_ascii_boundary_tests {
+    use super::{
+        PropMutationScan, PropMutationSites, is_mutation_operator, mutation_value_start,
+        scan_member_chain_names, wrap_prop_mutation_validation,
+    };
+
+    /// `名` ends in `0x8D`, which reads as a C1 control — so the letter before
+    /// `count(` looked like a word boundary and a member of an unrelated
+    /// identifier was wrapped in an ownership check that names `count`.
+    #[test]
+    fn a_prop_name_inside_a_longer_non_ascii_identifier_is_not_a_mutation() {
+        let wrap = |stmt: &str| {
+            wrap_prop_mutation_validation(
+                stmt,
+                &[("count".to_string(), None)],
+                "<script>let { count } = $props();</script>",
+            )
+        };
+        // Control: the ASCII form is left alone, before and after the fix.
+        assert_eq!(wrap("x_count().a = 1;"), "x_count().a = 1;");
+        assert_eq!(wrap("\u{540D}count().a = 1;"), "\u{540D}count().a = 1;");
+        assert_eq!(wrap("\u{5D0}count().a = 1;"), "\u{5D0}count().a = 1;");
+        // Control on the other side: a standalone prop mutation is still wrapped.
+        assert!(wrap("count().a = 1;").starts_with("$$ownership_validator.mutation("));
+    }
+
+    /// The same boundary on the legacy `prop(prop().member = v, true)` shape.
+    #[test]
+    fn the_legacy_mutation_shape_honours_the_same_boundary() {
+        let wrap = |stmt: &str| {
+            wrap_prop_mutation_validation(
+                stmt,
+                &[("count".to_string(), None)],
+                "<script>export let count;</script>",
+            )
+        };
+        assert_eq!(
+            wrap("x_count(count().a = 1, true);"),
+            "x_count(count().a = 1, true);"
+        );
+        assert_eq!(
+            wrap("\u{540D}count(count().a = 1, true);"),
+            "\u{540D}count(count().a = 1, true);"
+        );
+        assert!(wrap("count(count().a = 1, true);").starts_with("$$ownership_validator.mutation("));
+    }
+
+    /// `PropMutationSites::collect` carries the same boundary; a site collected
+    /// here is what gives a dev-mode ownership warning its line and column.
+    #[test]
+    fn a_collected_site_honours_the_same_boundary() {
+        let count = |source: &str| {
+            let scan = PropMutationScan::new(source);
+            PropMutationSites::collect(source, "count", &scan)
+                .sites
+                .len()
+        };
+        assert_eq!(count("<script>x_count.a = 1;</script>"), 0);
+        assert_eq!(count("<script>\u{540D}count.a = 1;</script>"), 0);
+        assert_eq!(count("<script>count.a = 1;</script>"), 1);
+    }
+
+    /// A non-ASCII member name is one name, not a replacement character, and the
+    /// offset the scan stops at must stay on a character boundary — the byte scan
+    /// consumed only the lead byte and handed the rest of the pipeline a cursor
+    /// pointing inside the character.
+    #[test]
+    fn a_non_ascii_member_name_is_scanned_whole() {
+        for (source, name) in [
+            ("item.name = 5;", "name"),
+            ("item.\u{540D} = 5;", "\u{540D}"),
+            ("item.\u{E0} = 5;", "\u{E0}"),
+        ] {
+            let (after, names) = scan_member_chain_names(source, 4).unwrap();
+            assert_eq!(names.as_deref(), Some([name.to_string()].as_slice()));
+            assert!(source.is_char_boundary(after), "source {source:?}");
+            assert!(is_mutation_operator(source, after), "source {source:?}");
+            assert!(mutation_value_start(source, after).is_some());
+        }
+    }
+
+    /// `U+3000` and NBSP are JavaScript whitespace. Their lead bytes (`0xE3`,
+    /// `0xC2`) Latin-1-decode to letters, so the byte scan read them as part of
+    /// the member name and then failed to find the `=` behind them.
+    #[test]
+    fn non_ascii_whitespace_separates_a_member_from_its_operator() {
+        for source in [
+            "item.name = 5;",
+            "item.name\u{3000}= 5;",
+            "item.name\u{A0}= 5;",
+            "item.name\t= 5;",
+        ] {
+            let (after, names) = scan_member_chain_names(source, 4).unwrap();
+            assert_eq!(
+                names.as_deref(),
+                Some(["name".to_string()].as_slice()),
+                "source {source:?}"
+            );
+            assert!(is_mutation_operator(source, after), "source {source:?}");
+            let value_start = mutation_value_start(source, after).unwrap();
+            assert_eq!(source[value_start..].trim(), "5;", "source {source:?}");
         }
     }
 }

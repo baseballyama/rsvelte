@@ -42,6 +42,8 @@ construction — it runs both compilers on the same source in the same process. 
 gate has to reproduce that property deliberately**, which is the whole reason this test reads
 the generated tree rather than the sample directory.
 
+## Current baseline: `validator-message-known-failures.json`, 2 entries
+
 ## Entries
 
 ### `svelte-self-deprecated` — `svelte_self_deprecated`
