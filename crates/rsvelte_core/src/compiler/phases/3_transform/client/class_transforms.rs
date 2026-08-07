@@ -1745,7 +1745,7 @@ pub(super) fn find_private_field_prefixes(content: &str, field_name: &str) -> Ve
         if after_pos < content.len() {
             let next_char = content.as_bytes()[after_pos] as char;
             if next_char.is_alphanumeric() || next_char == '_' {
-                search_from = abs_pos + 1;
+                search_from = crate::compiler::utils::next_char_boundary(content, abs_pos);
                 continue;
             }
         }
@@ -1769,7 +1769,7 @@ pub(super) fn find_private_field_prefixes(content: &str, field_name: &str) -> Ve
                 }
             }
         }
-        search_from = abs_pos + 1;
+        search_from = crate::compiler::utils::next_char_boundary(content, abs_pos);
     }
 
     // Always include "this" if not already present

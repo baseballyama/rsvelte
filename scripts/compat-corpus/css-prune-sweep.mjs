@@ -374,6 +374,13 @@ try {
 // prune decision, not any hash-algorithm drift.
 const normHash = (css) => (css ?? '').replace(/svelte-[0-9a-z]+/g, 'svelte-X');
 
+// `css_unused_selector` is the prune decision stated directly, so a warning-only
+// divergence is a prune divergence the emitted CSS happens not to show.
+const warningKeys = (r) =>
+	(r.warnings ?? [])
+		.map((w) => `${w.code}@${w.start?.line ?? '?'}:${w.start?.column ?? '?'}`)
+		.sort();
+
 function compileCss(compiler, source) {
 	try {
 		const r = compiler.compile(source, {
@@ -382,7 +389,7 @@ function compileCss(compiler, source) {
 			css: 'external',
 			filename: 'Comp.svelte',
 		});
-		return { css: normHash(r.css?.code ?? '') };
+		return { css: normHash(r.css?.code ?? ''), warnings: warningKeys(r) };
 	} catch (e) {
 		const message = String(e?.message ?? e);
 		let code = e?.code ?? null;
@@ -421,6 +428,8 @@ if (ONE_ID) {
 	const a = compileCss(rsvelte, c.source);
 	console.log('----- official css -----\n' + (e.error ? `ERROR ${e.error.code}: ${e.error.message}` : e.css));
 	console.log('----- rsvelte css  -----\n' + (a.error ? `ERROR ${a.error.code}: ${a.error.message}` : a.css));
+	console.log('----- official warnings -----\n' + ((e.warnings ?? []).join('\n') || '(none)'));
+	console.log('----- rsvelte warnings  -----\n' + ((a.warnings ?? []).join('\n') || '(none)'));
 	console.log('----- verdict -----\n' + verdictOf(e, a));
 	process.exit(0);
 }
@@ -429,13 +438,17 @@ function verdictOf(e, a) {
 	if (e.error && a.error) return e.error.code === a.error.code ? 'match (error parity)' : `error-mismatch (official ${e.error.code} / rsvelte ${a.error.code})`;
 	if (e.error && !a.error) return `error-mismatch (official errors ${e.error.code}, rsvelte compiles)`;
 	if (!e.error && a.error) return `error-mismatch (rsvelte errors ${a.error.code}, official compiles)`;
+	// Warnings are captured and shown by --id but deliberately not part of the
+	// verdict yet: enabling them surfaces 16 real divergences that need a
+	// baseline measured from a binding of established provenance.
 	return e.css === a.css ? 'match' : 'css-mismatch';
 }
 
 // full sweep
 const diverged = [];
 let matched = 0;
-let clientServerDiffs = 0;
+const officialTargetDiffs = [];
+const rsvelteTargetDiffs = [];
 const t0 = Date.now();
 
 for (const c of all) {
@@ -450,7 +463,10 @@ for (const c of all) {
 	if (BOTH && !e.error && !a.error) {
 		const eServer = compileCssTarget(svelte, c.source, 'server');
 		const aServer = compileCssTarget(rsvelte, c.source, 'server');
-		if (eServer !== e.css || aServer !== a.css) clientServerDiffs++;
+		// Distinct findings: official differing per target falsifies the
+		// target-independence premise; rsvelte differing is an rsvelte bug.
+		if (eServer !== e.css) officialTargetDiffs.push(c.id);
+		if (aServer !== a.css) rsvelteTargetDiffs.push(c.id);
 	}
 }
 
@@ -471,6 +487,14 @@ function firstCssDiff(exp, act) {
 
 function clusterSig(d) {
 	if (d.verdict.startsWith('error-mismatch')) return `ERROR: ${d.verdict}`;
+	if (d.verdict === 'warning-mismatch') {
+		const ew = new Set(d.exp.warnings ?? []);
+		const aw = new Set(d.act.warnings ?? []);
+		const missing = [...ew].filter((w) => !aw.has(w));
+		const extra = [...aw].filter((w) => !ew.has(w));
+		const codes = (ws) => [...new Set(ws.map((w) => w.split('@')[0]))].join(',') || 'none';
+		return `WARNING-ONLY: rsvelte missing ${missing.length} (${codes(missing)}) / extra ${extra.length} (${codes(extra)})`;
+	}
 	const { e, a } = firstCssDiff(d.exp.css, d.act.css);
 	const dir =
 		e.includes('(unused)') && !a.includes('(unused)')
@@ -511,7 +535,10 @@ if (UPDATE_BASELINE) {
 console.log(`[css-prune-sweep] ${all.length} components in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 console.log(`  matched:  ${matched}`);
 console.log(`  diverged: ${diverged.length}`);
-if (BOTH) console.log(`  client!=server prune divergences: ${clientServerDiffs}`);
+if (BOTH) {
+	console.log(`  client!=server (official): ${officialTargetDiffs.length}`);
+	console.log(`  client!=server (rsvelte):  ${rsvelteTargetDiffs.length}`);
+}
 
 if (diverged.length) {
 	console.log(`\n${sortedClusters.length} divergence clusters:\n`);
@@ -519,6 +546,15 @@ if (diverged.length) {
 		console.log(`${String(ds.length).padStart(4)}  ${sig}`);
 		for (const d of ds.slice(0, 3)) console.log(`        - ${d.id}`);
 	}
+}
+
+// The sweep compiles one target per component because pruning is
+// target-independent. If that stops holding, every verdict above is suspect.
+if (BOTH && (officialTargetDiffs.length || rsvelteTargetDiffs.length)) {
+	console.error('\n[css-prune-sweep] target-independence violated — one compile per component is no longer sound:');
+	for (const id of officialTargetDiffs.slice(0, 10)) console.error(`  official client!=server: ${id}`);
+	for (const id of rsvelteTargetDiffs.slice(0, 10)) console.error(`  rsvelte  client!=server: ${id}`);
+	process.exit(1);
 }
 
 if (CHECK) {
