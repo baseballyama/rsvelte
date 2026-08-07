@@ -1286,16 +1286,13 @@ pub fn locate_in_source(source: &str, byte_offset: usize) -> (usize, usize) {
     while end > 0 && !source.is_char_boundary(end) {
         end -= 1;
     }
-    let mut line = 1usize;
-    let mut column = 0usize;
-    for c in source[..end].chars() {
-        if c == '\n' {
-            line += 1;
-            column = 0;
-        } else {
-            column += c.len_utf16();
-        }
-    }
+    // Dev-mode codegen calls this once per instrumented site, so walking the
+    // whole prefix character by character made instrumentation quadratic in
+    // the source length. Only the final line needs a UTF-16 walk.
+    let head = &source.as_bytes()[..end];
+    let line = 1 + memchr::memchr_iter(b'\n', head).count();
+    let line_start = memchr::memrchr(b'\n', head).map_or(0, |i| i + 1);
+    let column = source[line_start..end].chars().map(char::len_utf16).sum();
     (line, column)
 }
 

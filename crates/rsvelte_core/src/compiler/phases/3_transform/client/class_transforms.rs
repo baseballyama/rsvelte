@@ -464,19 +464,19 @@ pub(super) fn emit_class_field(
     let body_indent = format!("{}\t", indent);
     let private_name = format!("#{}", field.private_backing_name);
 
-    // When a `//` comment preceded this field on its own line in the source,
-    // mirror the official Svelte compiler's esrap-based output: the comment is
-    // emitted as a leading comment on the value node, so it appears between
-    // the `=` and the RHS on a line of its own, e.g.:
-    //   #creating = // TODO this stuff should all be readonly
-    //   $.state(null);
-    // We implement this by inserting the comment text followed by a newline
-    // and the field-body indentation before the value expression.
-    let comment_infix: String = field
-        .trailing_comment
-        .as_deref()
-        .map(|c| format!("{}\n\t", c))
-        .unwrap_or_default();
+    // Upstream `ClassBody.js` rebuilds the field as `b.prop_def(key, value)` and
+    // esrap re-attaches the comment to the first node that still carries a source
+    // range: a private field reuses its own ranged key, so the comment stays on a
+    // line above the field, while a public one gets a synthesized `#name` key and
+    // the comment therefore lands between the `=` and the value.
+    let (comment_prefix, comment_infix) = match field.trailing_comment.as_deref() {
+        Some(c) if field.is_private => (format!("{}{}\n", indent, c), String::new()),
+        Some(c) => (String::new(), format!("{}\n\t", c)),
+        None => (String::new(), String::new()),
+    };
+    if !field.constructor_declared {
+        output.push_str(&comment_prefix);
+    }
 
     if field.constructor_declared {
         let _ = writeln!(output, "{}{};", indent, private_name);

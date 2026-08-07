@@ -9,8 +9,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, get_fixture_samples,
-    load_fixture_output, svelte_path, write_actual_output,
+    FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, fixture_samples_dir,
+    get_fixture_samples, load_fixture_output, svelte_path, write_actual_output,
 };
 use rayon::prelude::*;
 use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
@@ -249,7 +249,8 @@ fn test_compiler_snapshot_fixtures() {
 
     let samples = get_fixture_samples("snapshot");
 
-    let mut coverage = FixtureCoverage::new("snapshot", samples.len());
+    let mut coverage =
+        FixtureCoverage::new("snapshot", fixture_samples_dir("snapshot"), samples.len());
     let mut fixtures: Vec<SnapshotFixture> = Vec::new();
     for sample_dir in &samples {
         match load_snapshot_fixture(sample_dir.as_path()) {
