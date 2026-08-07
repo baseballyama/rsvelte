@@ -107,6 +107,22 @@ pub enum ComponentApi {
     V5,
 }
 
+/// Svelte-4 options that upstream still accepts solely in order to diagnose
+/// them. Only presence is recorded — the values never reach codegen — because
+/// that is the whole signal upstream's `validate-options.js` acts on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LegacyOptions {
+    /// `generate: 'dom' | 'ssr'` — the pre-Svelte-5 spellings of
+    /// `'client'` / `'server'`, still honoured but renamed.
+    pub generate_dom_ssr: bool,
+    /// `loopGuardTimeout` — removed in Svelte 5.
+    pub loop_guard_timeout: bool,
+    /// `enableSourcemap` — removed in Svelte 5.
+    pub enable_sourcemap: bool,
+    /// `hydratable` — removed in Svelte 5.
+    pub hydratable: bool,
+}
+
 /// Compatibility options for backward compatibility.
 #[derive(Debug, Clone, Default)]
 pub struct CompatibilityConfig {
@@ -257,6 +273,8 @@ pub struct CompileOptions {
     /// When false, sourcemap computation is skipped for better performance.
     /// Defaults to true for backward compatibility.
     pub enable_sourcemap: bool,
+    /// Svelte-4 options that only produce a diagnostic.
+    pub legacy_options: LegacyOptions,
 }
 
 impl Default for CompileOptions {
@@ -291,6 +309,7 @@ impl Default for CompileOptions {
             hmr: false,
             modern_ast: false,
             enable_sourcemap: true,
+            legacy_options: LegacyOptions::default(),
         }
     }
 }
@@ -666,6 +685,19 @@ pub fn compile_both(
     crate::toolchain::PreparedComponent::new(source, options)?.compile_both()
 }
 
+/// Option diagnostics carry no source position — upstream raises them from
+/// `validate-options.js`, which has no node to point at.
+fn legacy_option_warning(
+    warning: phases::phase2_analyze::warnings::AnalysisWarning,
+) -> phases::phase3_transform::TransformWarning {
+    phases::phase3_transform::TransformWarning {
+        code: warning.code,
+        message: warning.message,
+        start: None,
+        end: None,
+    }
+}
+
 /// Build a [`CompileResult`] from a finished transform — accessors-deprecation
 /// warning, source-position resolution, frame generation, and warning filtering.
 /// Shared by [`compile`] and [`compile_both`] so the two paths are identical.
@@ -676,18 +708,40 @@ pub(crate) fn finalize_compile_result(
     options: &CompileOptions,
     runes_mode: bool,
 ) -> CompileResult {
-    // Emit options_deprecated_accessors warning when accessors option is used in runes mode.
-    // Reference: svelte/packages/svelte/src/compiler/validate-options.js line 52
+    // Option diagnostics come from upstream's `validate-options.js`, which runs
+    // before parsing, so they lead the list — and in the declaration order of
+    // the validator's key table, since that is the order it walks them in.
+    let mut option_warnings: Vec<phases::phase3_transform::TransformWarning> = Vec::new();
+    if options.legacy_options.generate_dom_ssr {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
+        ));
+    }
     if options.accessors && runes_mode {
-        transform_result.warnings.insert(
-            0,
-            phases::phase3_transform::TransformWarning {
-                code: "options_deprecated_accessors".to_string(),
-                message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
-                start: None,
-                end: None,
-            },
-        );
+        option_warnings.push(phases::phase3_transform::TransformWarning {
+            code: "options_deprecated_accessors".to_string(),
+            message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
+            start: None,
+            end: None,
+        });
+    }
+    if options.legacy_options.loop_guard_timeout {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_removed_loop_guard_timeout(),
+        ));
+    }
+    if options.legacy_options.enable_sourcemap {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_removed_enable_sourcemap(),
+        ));
+    }
+    if options.legacy_options.hydratable {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_removed_hydratable(),
+        ));
+    }
+    if !option_warnings.is_empty() {
+        transform_result.warnings.splice(0..0, option_warnings);
     }
 
     // Convert to CompileResult
@@ -788,6 +842,10 @@ pub struct ModuleCompileOptions {
     pub warning_filter: Option<WarningFilterFn>,
     /// Experimental options.
     pub experimental: ExperimentalOptions,
+    /// Svelte-4 options that only produce a diagnostic. Upstream's
+    /// `validate_module_options` stubs out every component-only key, so only
+    /// the shared `generate` alias is reported for a module.
+    pub legacy_options: LegacyOptions,
 }
 
 impl Default for ModuleCompileOptions {
@@ -799,6 +857,7 @@ impl Default for ModuleCompileOptions {
             root_dir: None,
             warning_filter: None,
             experimental: ExperimentalOptions::default(),
+            legacy_options: LegacyOptions::default(),
         }
     }
 }
@@ -940,8 +999,18 @@ pub fn compile_module(
     let _arena_guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
 
     // Phase 2: Analyze (reuses component analysis infrastructure)
-    let analysis =
+    let mut analysis =
         phases::phase2_analyze::analyze_prepared_component(&mut ast, source, &compile_options)?;
+
+    // `validate_module_options` shares `common_options` with the component
+    // validator, so the renamed `generate` spelling is diagnosed here too — and
+    // ahead of everything the analysis found, since validation runs first.
+    if options.legacy_options.generate_dom_ssr {
+        analysis.warnings.insert(
+            0,
+            phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
+        );
+    }
 
     // Module-specific validation: check for store subscriptions.
     // In modules, $store references (where `store` is a binding) are invalid.
