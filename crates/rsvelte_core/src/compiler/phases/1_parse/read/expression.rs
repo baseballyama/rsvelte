@@ -6986,9 +6986,11 @@ fn convert_parsed_program<'ast>(
                 loc,
                 body: arena.alloc_js_children(body),
                 source_type: CompactString::from("module"),
-                leading_comments: leading_comments_val,
-                trailing_comments: trailing_comments_val,
-                ignore_comment_map,
+                metadata: Box::new(crate::ast::typed_expr::ProgramMetadata {
+                    leading_comments: leading_comments_val,
+                    trailing_comments: trailing_comments_val,
+                    ignore_comment_map,
+                }),
             }),
             parse_error,
         )
