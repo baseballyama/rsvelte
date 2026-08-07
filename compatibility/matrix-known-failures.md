@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 290 entries)
+## Matrix known failures (`matrix-known-failures.json`, 234 entries)
 
 ### `binding-position` — 2 entries
 
@@ -47,7 +47,7 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 288 entries
+### `comment-slot` — 232 entries
 
 Two sub-clusters with distinct causes: the `.svelte` template seeds below and the
 remainder of the `.svelte.(js|ts)` module path (#2399). The class-field relocation
@@ -105,13 +105,28 @@ into the generated component function's parameter list or into a template interp
 (`$$renderer.push(\`…${$.escape(/* c */ b)}…\`)`). It is 7 line slots × 8 comment kinds.
 See `server/ast/comments.rs`.
 
-#### module path (`.svelte.(js|ts)`) — 128 entries, all #2399
+#### module path (`.svelte.(js|ts)`) — 72 entries, all #2399
 
 Added with the module seeds that gave this family its `.svelte.(js|ts)` cases. Every one of
-these 128 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
+these 72 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
 official drops a Program-level comment in the module path and rsvelte keeps it.** They are
 listed as *expected to shrink when #2399 lands*, not as accepted behaviour. Do not treat this
 block as a specification of rsvelte's output.
+
+By seed, all three `.svelte.(js|ts)` seeds now sit at 24 (8 client, 8 client-dev, 8 server):
+
+| seed | entries |
+|---|---|
+| `module-class-state` | 24 |
+| `module-rune-exports` | 24 |
+| `module-ts-extension` | 24 |
+
+The 56 entries removed here were all on `server` — 32 `module-rune-exports`, 16
+`module-ts-extension`, 8 `module-class-state`. They were listed but already passing at the
+commit that added them, so they never described rsvelte's behaviour. #2435's own CI could
+not see that: it ran against a merge ref whose main half predated the fix that the merge
+commit itself contains, which is the shape a two-sided ratchet exists to catch on the next
+PR. Nothing was fixed to clear them.
 
 Classified mechanically, not by eye: for each entry the two normalized outputs are diffed as
 line multisets, and an entry qualifies only when nothing is missing from rsvelte's side and
