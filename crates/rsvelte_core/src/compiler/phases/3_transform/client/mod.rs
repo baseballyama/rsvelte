@@ -5058,6 +5058,18 @@ fn transform_instance_script_for_visitors(
         Vec::new()
     };
 
+    // Name-only projections of `legacy_state_vars`, used once per top-level
+    // statement by the per-statement loop below and invariant across it.
+    let legacy_state_var_names: Vec<String> = legacy_state_vars
+        .iter()
+        .map(|(name, _, _)| name.clone())
+        .collect();
+    let legacy_var_state_var_names: Vec<String> = legacy_state_vars
+        .iter()
+        .filter(|(_, _, kind)| *kind == DeclarationKind::Var)
+        .map(|(name, _, _)| name.clone())
+        .collect();
+
     // Collect prop variable info for ownership mutation validation (dev mode only).
     // Maps prop variable name to its prop alias (the public prop name).
     let prop_mutation_vars: Vec<(String, Option<String>)> = if dev {
@@ -5386,11 +5398,6 @@ fn transform_instance_script_for_visitors(
             );
             super::profile::record_rs_deps(super::profile::timer_elapsed(_rs_deps_start));
 
-            let var_state_vars: Vec<String> = legacy_state_vars
-                .iter()
-                .filter(|(_, _, kind)| *kind == DeclarationKind::Var)
-                .map(|(n, _, _)| n.clone())
-                .collect();
             // AST-derived ordered dependency names for THIS top-level `$:` statement
             // (Phase 2, source-ordinal aligned). Both phases count top-level `$:`
             // in source order, so the ordinal stays in sync.
@@ -5409,7 +5416,7 @@ fn transform_instance_script_for_visitors(
                 prop_assignment_transform_vars,
                 store_sub_vars,
                 import_names,
-                &var_state_vars,
+                &legacy_var_state_var_names,
                 dep_names,
                 analysis,
                 &prop_invalidate_bodies,
@@ -5810,13 +5817,9 @@ fn transform_instance_script_for_visitors(
         // e.g., `let { foo, bar } = expr` -> `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar`
         // Reference: create_state_declarators in VariableDeclaration.js
         let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
-            let state_var_names: Vec<String> = legacy_state_vars
-                .iter()
-                .map(|(name, _, _)| name.clone())
-                .collect();
             transform_legacy_destructure_declarations(
                 &transformed,
-                &state_var_names,
+                &legacy_state_var_names,
                 analysis.immutable,
                 dev,
             )
