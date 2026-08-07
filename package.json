@@ -47,6 +47,7 @@
 		"test:envelope": "node scripts/dev/test-envelope-validation.mjs",
 		"test:parse-envelope": "node scripts/dev/test-parse-envelope-validation.mjs",
 		"test:corpus-verify-flags": "node scripts/dev/test-corpus-verify-baseline-flags.mjs",
+		"test:corpus-generation": "node scripts/dev/test-corpus-generation-guard.mjs",
 		"test:known-failures-md-check": "node scripts/dev/test-known-failures-md-check.mjs",
 		"test:vps-shim": "node scripts/dev/test-vps-shim.mjs",
 		"test:vps-fixture": "node scripts/dev/test-vps-vite-fixture.mjs",

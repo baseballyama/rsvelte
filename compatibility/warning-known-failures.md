@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 51 entries; the three position files hold the same 528. That is not a
+the same 28 entries; the three position files hold the same 4. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -46,17 +46,19 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all six files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 51 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 28 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 51 entries that still diverge, **6 are
+Not every entry is equally bad. Of the 28 entries that still diverge, **6 are
 under-warnings** — rsvelte stays silent where upstream warns
 (`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
-`options_missing_custom_element` ×1). The other 45 are noise the user cannot
-suppress, 116 tuples over five codes. Both are defects, but a missing diagnostic
+`options_missing_custom_element` ×1). The other 22 are noise the user cannot
+suppress, 81 tuples over four codes (`reactive_declaration_module_script_dependency`
+62, `component_name_lowercase` 10, `export_let_unused` 7,
+`state_referenced_locally` 2). Both are defects, but a missing diagnostic
 and an extra one fail differently, and the ratchet count alone does not
 distinguish them; no entry diverges in both directions at once.
 
@@ -64,9 +66,10 @@ Clusters identified so far:
 
 - **`component_name_lowercase` over-warning** — rsvelte flags lowercase names
   that upstream accepts (seen across `svelte-maplibre` example routes).
-- **`svelte_self_deprecated` / `reactive_declaration_module_script_dependency`
-  over-warning** — concentrated in the Svelte migrate fixtures, which are out of
-  scope for codegen but still compile here.
+- **`reactive_declaration_module_script_dependency` over-warning** —
+  concentrated in the Svelte migrate fixtures, which are out of scope for codegen
+  but still compile here. `svelte_self_deprecated` sat beside it until the
+  filename fix cleared it.
 
 `attribute_quoted` was burned down: 19 entries, taking the ratchet from 70 to 51,
 with **0 remaining tuples in either direction**. Both counts are read off
@@ -80,26 +83,43 @@ from where the entries happened to cluster in the corpus rather than from
 upstream's control flow — worth remembering when reading the clusters above,
 which were written the same way.
 
-## Warning positions (`warning-position-known-failures.<target>.json`, 528 entries each)
+## Warning positions (`warning-position-known-failures.<target>.json`, 4 entries each)
 
-The codes agree but a `(line, column)` does not. There are **two** systemic
-causes, not one, and they need different edits. Measured over the 625 entries
-listed before the a11y half was fixed, which carried 967 mismatching tuples
-between them:
+The codes agree but a `(line, column)` does not. Four entries remain, all the
+same residual shape and all the same cause — rsvelte reports **no position at
+all** (`?:?`) where upstream reports one:
 
-- **No span at all (649 tuples, 67.1%)** — rsvelte emits the warning with
+| entry | code |
+|---|---|
+| `svelte/…/migrate/samples/accessors/output.svelte` | `options_deprecated_immutable` |
+| `svelte/…/runtime-browser/custom-elements-samples/extended-builtin/main.svelte` | `attribute_avoid_is` |
+| `svelte/…/runtime-runes/samples/custom-element-attributes/main.svelte` | `attribute_avoid_is` |
+| `svelte/…/runtime-runes/samples/element-is-attribute/main.svelte` | `attribute_avoid_is` |
+
+Both codes are raised from sites that never received the span-attachment pass:
+`attribute_avoid_is` from the attribute walk in `regular_element.rs`, and
+`options_deprecated_immutable` from the `<svelte:options>` reader. Each is an
+attach-the-span fix at one emission site.
+
+### How the backlog was cleared
+
+This ratchet held **528** entries per target and now holds 4. Two systemic causes
+were measured over the 625 entries listed before the a11y half was fixed, which
+carried 967 mismatching tuples between them:
+
+- **No span at all (649 tuples, 67.1%)** — rsvelte emitted the warning with
   `start === undefined` where upstream reports a real position, so an editor or
-  CLI that places a squiggle from `warning.start` gets nothing. Concentrated in
+  CLI that places a squiggle from `warning.start` got nothing. Concentrated in
   `event_directive_deprecated` (142), `element_invalid_self_closing_tag` (118),
   `export_let_unused` (110), `non_reactive_update` (102) and
-  `options_missing_custom_element` (53). Here the fix really is mechanical:
-  attach the span already available at the emission site.
-- **A span that is real but too wide (318 tuples, 32.9%)** — every one of these
-  is an a11y code, and every one is a *column*-only disagreement: 315 column-only,
-  3 line-and-column, and **0 line-only**. The line agrees because the attribute
-  and its element are on the same line; the column disagrees because rsvelte
-  reported the element where upstream reports the attribute. This one is not
-  "attach the missing span": the span was attached, by the wrong owner. See below.
+  `options_missing_custom_element` (53). The fix was mechanical: attach the span
+  already available at the emission site.
+- **A span that is real but too wide (318 tuples, 32.9%)** — every one an a11y
+  code, and every one a *column*-only disagreement: 315 column-only, 3
+  line-and-column, and **0 line-only**. The line agreed because the attribute and
+  its element are on the same line; the column disagreed because rsvelte reported
+  the element where upstream reports the attribute. Not "attach the missing
+  span": the span was attached, by the wrong owner.
 
 **The discriminator, for the next mixed position bucket:** count line-only
 mismatches. A bucket with *zero* of them is a wrong-**owner** bucket, not a
@@ -110,10 +130,10 @@ geometric and costs one pass over the tuples; it does not require reading any
 entries, and it is what separated these two causes. Reach for it before
 inspecting cases.
 
-Split from the code ratchet on purpose: this backlog is far larger, and folded
-together it would hide every semantic regression above.
+Split from the code ratchet on purpose: this backlog was far larger, and folded
+together it would have hidden every semantic regression above.
 
-### The a11y half (fixed)
+### The a11y half
 
 Fixing it took the list from 625 entries to **529**: 96 removed, 0 added, and the
 code ratchet unmoved at 70.
@@ -152,8 +172,6 @@ Note that `a11y_role_supports_aria_props` was previously listed above as a
 missing-position code. It never was: rsvelte always emitted a span for it. That
 mis-attribution is exactly what a single-cause reading of this bucket produces —
 the split above was measured per tuple, not inferred from the code names.
-
-What is left is the 649 missing-span tuples, unchanged.
 
 A single `a11y_figcaption_index` disagreeing on **both** line and column used to
 sit beside them, recorded here as a third cause that was "structurally out of
