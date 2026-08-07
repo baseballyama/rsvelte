@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 51 entries; the three position files hold the same 529. That is not a
+the same 51 entries; the three position files hold the same 528. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
