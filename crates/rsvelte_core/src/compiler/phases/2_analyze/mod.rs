@@ -263,6 +263,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
         &mut analysis,
         options.runes,
         is_module_file,
+        retained_scripts,
     )?;
 
     // Detect await expressions and rune references in template and scripts.
