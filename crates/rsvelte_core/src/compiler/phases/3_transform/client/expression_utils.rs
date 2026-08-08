@@ -350,7 +350,10 @@ pub(super) fn ends_with_binary_operator(code: &str) -> bool {
         return true;
     }
     // Single-byte tails cover their doubled forms too: `**`, `<<`, `>>`, `||`,
-    // `&&`, `??`, and the `=>` whose body starts on the next line.
+    // `&&`, `??`, and the `=>` whose body starts on the next line. `<`/`>`/`|`/`&`
+    // also end a TS annotation (`let m: Map<string, number>`), which is a complete
+    // statement — safe only because `remove_typescript_nodes` has already stripped
+    // annotations by the time this runs, not because the tails are unambiguous.
     matches!(
         t.as_bytes().last(),
         Some(b'*' | b'%' | b'<' | b'>' | b'|' | b'&' | b'^' | b',' | b'?')
