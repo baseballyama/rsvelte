@@ -535,6 +535,62 @@ pub fn take_breakdown() -> Phase3Breakdown {
     }
 }
 
+/// Per-call-site `SemanticBuilder::build` accounting.
+///
+/// The scope-tree / symbol-table build is a fixed cost per call, so the useful
+/// unit is builds-per-file, not bytes walked: knowing the total is hot does not
+/// say which pass to fix.
+pub const SEMANTIC_SITES: [&str; 14] = [
+    "server/rune_call",
+    "server/derived_reads",
+    "client/state_pipeline",
+    "client/state_pipeline.in_place",
+    "client/state_call",
+    "client/state_reads",
+    "client/read_only_props",
+    "client/state_assigns",
+    "client/state_assigns.in_place",
+    "client/prop_assign",
+    "client/prop_assign.in_place",
+    "client/scope_analysis",
+    "client/ast_state_transform",
+    "client/prop_source_reads",
+];
+
+pub const SEM_SERVER_RUNE_CALL: usize = 0;
+pub const SEM_SERVER_DERIVED_READS: usize = 1;
+pub const SEM_STATE_PIPELINE: usize = 2;
+pub const SEM_STATE_PIPELINE_IN_PLACE: usize = 3;
+pub const SEM_STATE_CALL: usize = 4;
+pub const SEM_STATE_READS: usize = 5;
+pub const SEM_READ_ONLY_PROPS: usize = 6;
+pub const SEM_STATE_ASSIGNS: usize = 7;
+pub const SEM_STATE_ASSIGNS_IN_PLACE: usize = 8;
+pub const SEM_PROP_ASSIGN: usize = 9;
+pub const SEM_PROP_ASSIGN_IN_PLACE: usize = 10;
+pub const SEM_SCOPE_ANALYSIS: usize = 11;
+pub const SEM_AST_STATE_TRANSFORM: usize = 12;
+pub const SEM_PROP_SOURCE_READS: usize = 13;
+
+thread_local! {
+    static SEMANTIC_BUILDS: Cell<[(u64, u64); SEMANTIC_SITES.len()]> =
+        const { Cell::new([(0, 0); SEMANTIC_SITES.len()]) };
+}
+
+#[inline]
+pub fn record_semantic_build(site: usize, bytes: usize) {
+    SEMANTIC_BUILDS.with(|c| {
+        let mut counts = c.get();
+        counts[site].0 += 1;
+        counts[site].1 += bytes as u64;
+        c.set(counts);
+    });
+}
+
+pub fn take_semantic_builds() -> [(u64, u64); SEMANTIC_SITES.len()] {
+    SEMANTIC_BUILDS.replace([(0, 0); SEMANTIC_SITES.len()])
+}
+
 /// Agreement between the one-pass indices and the per-variable scans they
 /// replace.
 ///
