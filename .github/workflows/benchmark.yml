@@ -24,7 +24,10 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  # CodSpeed compares a PR against `main`'s run for the merge base. Cancelling
+  # `main`'s runs left it with no baseline at all, so it fell back to an older
+  # commit and reported every PR as a large regression.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   CARGO_TERM_COLOR: always

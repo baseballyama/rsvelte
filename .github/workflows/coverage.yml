@@ -17,7 +17,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  # Same reason as ci.yml: `github.ref` is identical for every push to `main`,
+  # so the trend line only ever recorded whichever merge happened to be last.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   CARGO_TERM_COLOR: always

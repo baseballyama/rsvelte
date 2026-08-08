@@ -92,12 +92,35 @@
  * are compared independently of each other, so fixing a message cannot surface a
  * position failure that was previously masked.
  *
+ * ---- output parseability ---------------------------------------------------
+ *
+ * Every comparison above is "rsvelte's text vs official's text", so *wrong text*
+ * and *text that is not JavaScript* produce the same row and the same ratchet
+ * entry. This one asks a question with no reference to official's bytes:
+ *
+ *   - output-unparseable   the module rsvelte emitted does not parse.
+ *                          Ratchet: parse-known-failures.<target>.json
+ *
+ * Three things make it see what the output ratchet cannot:
+ *   1. Its oracle is acorn, a different implementation from the OXC parser
+ *      rsvelte itself uses (and that `ast_equiv_batch` re-uses).
+ *   2. It runs BEFORE normalization — the claim is about what the compiler
+ *      emitted, not about what survived a formatter.
+ *   3. Its population is every entry rsvelte compiled, including the ones where
+ *      OFFICIAL rejected the input and there is therefore nothing to diff.
+ *
+ * Official's output is parsed too, but never ratcheted: acorn rejecting the
+ * reference compiler means the oracle is misconfigured, so that exits 2 with a
+ * distinct message rather than blaming rsvelte.
+ *
+ * ---- update flags ----------------------------------------------------------
+ *
  * The update flags compose: passing several rewrites each ratchet family in one
  * run (the families are disjoint). Every run that asks for a rewrite prints up
  * front which families it will write, and a run that writes nothing is never
  * reported as a successful rewrite.
  *
- * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--update-error-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
+ * Usage: node scripts/compat-corpus/verify.mjs [--no-fmt] [--max-print <n>] [--update-baseline [<target>]] [--update-warning-baseline] [--update-error-baseline] [--update-parse-baseline] [--from-report <path>] [--targets <keys>] [--strict] [--keep-artifacts|--clean-artifacts]
  */
 
 import fs from 'node:fs';
@@ -105,6 +128,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { flattenTemplateHoles, stripBlankLines, readIf, firstDiffLine, oxfmtTree } from './normalize.mjs';
+import { parseFailure } from './parseable.mjs';
 import { TARGET_KEYS as ALL_TARGET_KEYS, selectTargets } from './targets.mjs';
 import { MIN_FULL_CORPUS_ENTRIES, OUTPUT_TREES, cleanupArtifacts, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
 
@@ -121,6 +145,7 @@ const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const UPDATE_WARNING_BASELINE = args.includes('--update-warning-baseline');
 const UPDATE_ERROR_BASELINE = args.includes('--update-error-baseline');
+const UPDATE_PARSE_BASELINE = args.includes('--update-parse-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
 const TARGETS = selectTargets(args);
 const TARGET_KEYS = TARGETS.map((t) => t.key);
@@ -149,6 +174,7 @@ const UPDATE_FAMILIES = [
 	UPDATE_BASELINE && 'output',
 	UPDATE_WARNING_BASELINE && 'warning',
 	UPDATE_ERROR_BASELINE && 'error',
+	UPDATE_PARSE_BASELINE && 'parse',
 ].filter(Boolean);
 if (UPDATE_FAMILIES.length) {
 	console.log(`[verify] rewriting ${UPDATE_FAMILIES.join(' + ')} ratchets for ${TARGET_KEYS.join(', ')}`);
@@ -156,9 +182,9 @@ if (UPDATE_FAMILIES.length) {
 
 // --from-report reconstructs only the output ratchets, so pairing it with a
 // diagnostic flag would write half of what was asked for.
-if (FROM_REPORT && (UPDATE_WARNING_BASELINE || UPDATE_ERROR_BASELINE)) {
-	console.error('[verify] --from-report cannot rewrite the warning/error ratchets (it derives output failures only)');
-	console.error('  fix: drop --update-warning-baseline / --update-error-baseline, then re-run a full verify with it');
+if (FROM_REPORT && (UPDATE_WARNING_BASELINE || UPDATE_ERROR_BASELINE || UPDATE_PARSE_BASELINE)) {
+	console.error('[verify] --from-report cannot rewrite the warning/error/parse ratchets (it derives output failures only)');
+	console.error('  fix: drop --update-warning-baseline / --update-error-baseline / --update-parse-baseline, then re-run a full verify with it');
 	process.exit(2);
 }
 
@@ -261,6 +287,120 @@ if (compiled < manifest.length * 0.99) {
 	console.error('  run: node scripts/compat-corpus/compile.mjs   (outputs are deleted after a green verify)');
 	process.exit(2);
 }
+
+// ---- output parseability ---------------------------------------------------
+//
+// Deliberately BEFORE normalization: `flattenTreeTemplateHoles` rewrites the
+// files in place and oxfmt reprints them, so a gate that ran afterwards would be
+// asserting something about the formatter's input, not about what the compiler
+// emitted. This is also why it is meaningful under `--no-fmt`.
+//
+// Official's side is parsed first, as the oracle's own control. Every gate here
+// compares rsvelte to official; this one does not, so nothing else would notice
+// a parser configuration that rejects legal output. An unexpected rejection on
+// the official side is a harness failure (exit 2), never a ratchet entry.
+//
+// A handful of official outputs genuinely do not parse — acorn enforces early
+// errors such as a duplicate lexical declaration, and the deliberately-invalid
+// inputs under `compiler-errors/samples` can drive official into emitting one.
+// Where the REFERENCE does not parse there is no claim to make about rsvelte, so
+// those (id, target) pairs are skipped on both sides. They are enumerated in
+// `parse-oracle-excluded.json` rather than absorbed silently, and that list is
+// shrink-only in both directions like every other ratchet here.
+
+const PARSE_ORACLE_EXCLUDED_FILE = path.join(CORPUS, 'parse-oracle-excluded.json');
+const parseOracleExcluded = new Set(JSON.parse(readIf(PARSE_ORACLE_EXCLUDED_FILE) ?? '[]'));
+const oracleKey = (id, target) => `${id} [${target}]`;
+
+const parseCounts = { match: 0, 'output-unparseable': 0 };
+const parseFailures = [];
+const oracleRejections = [];
+const oracleExcludedSeen = new Set();
+let parsedModules = 0;
+let oracleModules = 0;
+
+for (const { id } of manifest) {
+	const details = [];
+	for (const targetDef of TARGETS) {
+		const target = targetDef.key;
+		const expJs = readIf(path.join(EXPECTED, id, `${target}.js`));
+		if (expJs != null) {
+			const why = parseFailure(expJs);
+			if (why) {
+				const key = oracleKey(id, target);
+				if (parseOracleExcluded.has(key)) oracleExcludedSeen.add(key);
+				else oracleRejections.push({ id, target, why });
+				continue;
+			}
+			oracleModules++;
+		}
+		// Present whenever rsvelte compiled — including entries official
+		// rejected, where the output comparison has nothing to diff and so never
+		// looks at this text at all.
+		const actJs = readIf(path.join(ACTUAL, id, `${target}.js`));
+		if (actJs == null) continue;
+		parsedModules++;
+		const why = parseFailure(actJs);
+		if (why) details.push({ target, kind: 'output-parse', expected: 'parses', actual: why });
+	}
+	if (details.length) {
+		parseCounts['output-unparseable']++;
+		parseFailures.push({ id, verdict: 'output-unparseable', details });
+	} else {
+		parseCounts.match++;
+	}
+}
+
+if (oracleRejections.length) {
+	console.error(
+		`\n[verify] ❌ the parse oracle rejected ${oracleRejections.length} OFFICIAL output(s) that are not on the exclusion list`,
+	);
+	for (const { id, target, why } of oracleRejections.slice(0, MAX_PRINT)) {
+		console.error(`  - ${oracleKey(id, target)}: ${why}`);
+	}
+	console.error('  Decide which it is before listing anything:');
+	console.error('    - acorn rejects legal output  -> widen OPTIONS in scripts/compat-corpus/parseable.mjs');
+	console.error('    - official really emits it    -> add the key above to compatibility/parse-oracle-excluded.json');
+	console.error('                                     and justify it in the paired .md');
+	process.exit(2);
+}
+
+// Shrink-only in the other direction too: an excluded pair whose official output
+// now parses must come off the list, or the exclusion silently keeps covering an
+// rsvelte output nobody is checking any more.
+// Scoped to the selected targets: a `--targets client` run never looks at the
+// server pairs and must not report them as stale.
+const staleExclusions = [...parseOracleExcluded].filter(
+	(key) => TARGET_KEYS.some((t) => key.endsWith(` [${t}]`)) && !oracleExcludedSeen.has(key),
+);
+if (staleExclusions.length) {
+	console.error(
+		`\n[verify] ❌ ${staleExclusions.length} parse-oracle exclusion(s) no longer needed — official's output parses now`,
+	);
+	for (const key of staleExclusions.slice(0, MAX_PRINT)) console.error(`  - ${key}`);
+	console.error('  fix: delete them from compatibility/parse-oracle-excluded.json');
+	process.exit(2);
+}
+
+// A gate whose population is "modules rsvelte produced" gets GREENER the more
+// the compiler refuses to compile — the failure mode recorded for
+// `ast_gate_preconditions.rs` in compatibility/gate-coverage.md § 15a, where the
+// only floor was on input discovery. The denominator here is official's module
+// count, which no rsvelte change can move, so the two cannot shrink together.
+const PARSE_POPULATION_FLOOR = 0.9;
+if (parsedModules < oracleModules * PARSE_POPULATION_FLOOR) {
+	console.error(
+		`\n[verify] ❌ rsvelte produced only ${parsedModules} modules where official produced ${oracleModules}` +
+			` — the parse gate's population collapsed, so its verdict means nothing`,
+	);
+	console.error('  this is a compile regression, not a parse regression: check the error-parity results above');
+	process.exit(2);
+}
+
+console.log(
+	`[verify] parsed ${parsedModules}/${oracleModules} rsvelte/official module(s) with acorn:` +
+		` ${parseCounts['output-unparseable']} entry/entries unparseable`,
+);
 
 // ---- oxfmt normalization ---------------------------------------------------
 
@@ -586,6 +726,10 @@ const ERROR_RATCHETS = [
 	{ kind: 'error-position', label: 'error positions', file: (t) => t.errorPositionBaseline },
 ];
 
+const PARSE_RATCHETS = [
+	{ kind: 'output-parse', label: 'output parseability', file: (t) => t.parseBaseline },
+];
+
 // Before any verdict is written or any ratchet rewritten: the corpus these
 // results describe must still be the corpus on disk.
 requireGenerationUnchanged(CORPUS, generation, 'verify');
@@ -599,6 +743,9 @@ const report = {
 	warningFailures,
 	errorCounts,
 	errorFailures,
+	parseCounts,
+	parseFailures,
+	parsedModules,
 };
 fs.writeFileSync(path.join(CORPUS, 'report.json'), JSON.stringify(report, null, '\t') + '\n');
 
@@ -608,6 +755,8 @@ console.log('\n[verify] warning parity:');
 for (const [k, v] of Object.entries(warningCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
 console.log('\n[verify] error parity:');
 for (const [k, v] of Object.entries(errorCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
+console.log('\n[verify] output parseability:');
+for (const [k, v] of Object.entries(parseCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report.json'))}`);
 
 // ---- diagnostic ratchets ---------------------------------------------------
@@ -631,6 +780,14 @@ const DIAGNOSTIC_FAMILIES = [
 		update: UPDATE_ERROR_BASELINE,
 		ratchets: ERROR_RATCHETS,
 		failures: errorFailures,
+	},
+	{
+		family: 'parse',
+		noun: 'output-parseability',
+		flag: '--update-parse-baseline',
+		update: UPDATE_PARSE_BASELINE,
+		ratchets: PARSE_RATCHETS,
+		failures: parseFailures,
 	},
 ];
 
@@ -791,6 +948,12 @@ if (errorFailures.length) {
 	console.log(`[verify] ✅ no error regressions (${errorFailures.length} known error failures remain — see compatibility/error-known-failures.md)`);
 } else {
 	console.log('[verify] ✅ all corpus compile errors identical');
+}
+
+if (parseFailures.length) {
+	console.log(`[verify] ✅ no output-parseability regressions (${parseFailures.length} known unparseable entries remain — see compatibility/parse-known-failures.md)`);
+} else {
+	console.log(`[verify] ✅ all ${parsedModules} generated modules parse`);
 }
 
 finish(0);
