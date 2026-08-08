@@ -50,7 +50,7 @@ module path) is internal IR construction with unchanged output — a maintainabi
 
 ### What each gate cannot see ([`compatibility/gate-coverage.md`](compatibility/gate-coverage.md))
 
-The sections below describe what the ~18 gates *do* compare. Every one of them can be green
+The sections below describe what the ~19 gates *do* compare. Every one of them can be green
 while a real defect ships, because each has a field its comparison key drops, a normalization
 step that erases the divergence, or a population its unit never reaches — and rediscovering
 those blind spots ad hoc has cost this project several shipped bugs (#2403, #2424, #2425).
