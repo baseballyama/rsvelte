@@ -62,8 +62,11 @@ profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per
 is that these defect classes are unreachable in an AST pipeline, not that it is faster.**
 
 Two cautions before treating any of this as closed. The parse gate (#2591) catches only the
-loud half: #2598 also fixed a file that emitted a bare `$:` labelled statement which *parsed*
-and was wrong, which no parser oracle can see. And the four corpora that produced every one of
+loud half, and **how loud a given defect is depends on the input, not on the defect**: #2603's
+one mis-splice made 9 files unparseable and 6 files parseable-and-wrong (one assigns a boolean
+instead of a ternary's result), and #2598 emitted a bare `$:` labelled statement that every
+parser accepts. Sizing a text-scanning defect by its parse-gate count therefore understates it —
+see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that produced every one of
 these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not corpus sources**,
 so the gate baselines at 0 while the instances live outside the population it inspects; that is
 why each fix lands a `compatibility/pattern-corpus` repro.

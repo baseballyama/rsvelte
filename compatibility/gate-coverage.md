@@ -826,6 +826,24 @@ the AST is inspected and official's bytes are not consulted. This is not a weakn
 gate 1 is the correctness gate — but it is the reason a green row here is worth exactly one
 claim.
 
+**[D]** Two witnesses, both from the same sweep that motivated this gate, so the blind spot is
+measured rather than argued. In each the *same* defect produced unparseable output in some files
+and valid-but-wrong output in others; the gate sees only the first group.
+
+- #2603. The dev prop-mutation mis-splice made 9 files unparseable and 6 files parseable and
+  wrong. In `huly/…/EmployeeFilter.svelte` it emitted
+  `$$ownership_validator.mutation(…, filter().modes = $.strict_equals(filter().modes, undefined), 42, 2) ? […] : filter().modes`
+  — valid JS that assigns the **boolean** rather than the ternary's result. Only output
+  comparison finds it.
+- #2598. The escaped-backslash scanner emitted a bare `$:` labelled statement in
+  `General.svelte`, which every JS parser accepts.
+
+The practical consequence for triage: **the loudness of a failure is a property of the input,
+not of the defect.** A cluster's unparseable members are the visible tail of a larger set, so
+sizing a text-scanning defect by its parse-gate count understates it. Both PRs measured the
+split — #2603 at 9 unparseable of 15 changed — rather than assuming the parseable remainder was
+unaffected.
+
 ### Blind spot 19b — JS only; CSS, source maps and every other output field are outside it
 
 **[S]** The gate reads `<target>.js` and nothing else (`verify.mjs`, "output parseability"
