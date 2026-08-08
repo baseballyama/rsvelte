@@ -67,6 +67,8 @@ use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use oxc_syntax::symbol::SymbolId;
+
+use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
 use rustc_hash::FxHashSet;
 
 use super::ast_rewrite;
@@ -173,11 +175,8 @@ pub fn transform_state_reads_ast(
         return None;
     }
     // Fast probe — bail unless at least one effective state-var
-    // substring appears.
-    if !effective
-        .iter()
-        .any(|v| memchr::memmem::find(source.as_bytes(), v.as_bytes()).is_some())
-    {
+    // appears as a whole identifier token.
+    if !effective.iter().any(|v| contains_identifier(source, v)) {
         return None;
     }
     // Bare-object-literal handling: input starting with `{` AND
@@ -220,6 +219,10 @@ pub fn transform_state_reads_ast(
             ..ParseOptions::default()
         },
         |program| {
+            super::super::profile::record_semantic_build(
+                super::super::profile::SEM_STATE_READS,
+                program.source_text.len(),
+            );
             let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let semantic = &semantic_ret.semantic;
             let effective_names: Vec<String> = effective.iter().map(|s| s.to_string()).collect();

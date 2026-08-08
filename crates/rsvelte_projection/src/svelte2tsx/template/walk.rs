@@ -56,9 +56,7 @@ pub(super) fn process_node_inplace(
     match node {
         TemplateNode::Text(text) => handle_text(text, source, str),
         TemplateNode::Comment(comment) => handle_comment(comment, str),
-        TemplateNode::ExpressionTag(expr) => {
-            handle_expression_tag(expr, source, str, &counter.element_opener_comments)
-        }
+        TemplateNode::ExpressionTag(expr) => handle_expression_tag(expr, source, str),
         TemplateNode::HtmlTag(html) => handle_html_tag(html, source, str),
         TemplateNode::ConstTag(tag) => handle_const_tag(tag, source, str),
         TemplateNode::DeclarationTag(tag) => handle_declaration_tag(tag, source, str),

@@ -5,7 +5,7 @@
  * key), so adding a row to one axis never renumbers the others.
  */
 
-import { BINDINGS, POSITIONS, COMMENT_KINDS, COMMENT_SEEDS } from './axes.mjs';
+import { BINDINGS, POSITIONS, COMMENT_KINDS, COMMENT_SEEDS, COMMENT_MODULE_SEEDS } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
 function bindingPositionCases() {
@@ -28,6 +28,17 @@ function commentSlotCases() {
 			cases.push({
 				id: `comment-slot/${seedName}__L${String(mutant.line).padStart(2, '0')}__${mutant.kind}.svelte`,
 				source: mutant.source,
+			});
+		}
+	}
+	// The module path is a different compiler entry point (`compileModule`), so
+	// it needs its own seeds and its own `kind` — `compile` rejects this source.
+	for (const [seedName, seed] of Object.entries(COMMENT_MODULE_SEEDS)) {
+		for (const mutant of commentMutants(seed.source, COMMENT_KINDS, { moduleSource: true })) {
+			cases.push({
+				id: `comment-slot/${seedName}__L${String(mutant.line).padStart(2, '0')}__${mutant.kind}${seed.ext}`,
+				source: mutant.source,
+				kind: 'module',
 			});
 		}
 	}

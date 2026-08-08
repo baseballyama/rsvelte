@@ -41,11 +41,18 @@ export function scriptRanges(source, { moduleSource = false } = {}) {
 export function insertionSlots(source, options) {
 	const ranges = scriptRanges(source, options);
 	if (ranges.length === 0) return [];
+	// For a module the range starts at byte 0, so the file's first line is a
+	// legitimate slot — and it is the one that matters: a leading Program-level
+	// comment is the position where official's module output drops it. `>` would
+	// exclude it. Components keep the strict `>`: their range opens immediately
+	// after `<script>`, where byte 0 is markup, and loosening it there would
+	// renumber every existing case id (the ratchet keys).
+	const includeStart = Boolean(options?.moduleSource);
 	const slots = [];
 	let offset = 0;
 	let line = 1;
 	for (const text of source.split('\n')) {
-		const inRange = ranges.some((r) => offset > r.start && offset <= r.end);
+		const inRange = ranges.some((r) => (includeStart ? offset >= r.start : offset > r.start) && offset <= r.end);
 		if (inRange) slots.push({ offset, line, indent: text.match(/^[\t ]*/)[0] });
 		offset += text.length + 1;
 		line += 1;

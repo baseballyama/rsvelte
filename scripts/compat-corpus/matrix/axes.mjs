@@ -276,3 +276,60 @@ export const COMMENT_SEEDS = {
 <button onclick={() => (local += 1)}>{local}</button>
 `,
 };
+
+/**
+ * Seeds for the comment axis on the `.svelte.(js|ts)` MODULE path — the whole-file
+ * insertion `mutate.mjs` documents but that nothing fed until now.
+ *
+ * The module path needs its own seeds because it is a different compiler entry
+ * point: `compileModule` rejects component source and `compile` rejects module
+ * source, so a `.svelte` case can never reach it. It is also the only place this
+ * behaviour is observable at all — the collected corpus TS-strips `.svelte.ts`
+ * through esbuild before either compiler runs (see `compile.mjs`'s
+ * `prepareSource`), which deletes the comments outright, and it holds 7 module
+ * entries with a surviving top-level comment.
+ *
+ * `source` must parse as plain JS even under `.svelte.ts`: `compileModule` does
+ * not strip types, so a seed carrying real TS syntax would be rejected by BOTH
+ * compilers and score as `error-parity` — agreement about nothing.
+ */
+export const COMMENT_MODULE_SEEDS = {
+	// `$derived` is deliberately NOT exported: `compileModule` rejects that
+	// ("Cannot export derived state from a module"), and a seed both compilers
+	// reject scores as `error-parity` — agreement about nothing.
+	'module-rune-exports': {
+		ext: '.svelte.js',
+		source: `export const total = $state(0);
+const doubled = $derived(total * 2);
+let hidden = 0;
+export function bump() {
+	hidden += 1;
+	return hidden + doubled;
+}
+`,
+	},
+	'module-class-state': {
+		ext: '.svelte.js',
+		source: `export class Counter {
+	#n = $state(0);
+	get n() {
+		return this.#n;
+	}
+	bump() {
+		this.#n += 1;
+	}
+}
+export const shared = new Counter();
+`,
+	},
+	// Same construct under the `.svelte.ts` extension: the corpus can never show
+	// this one, because stripping runs before the compiler does.
+	'module-ts-extension': {
+		ext: '.svelte.ts',
+		source: `export const flag = $state(false);
+export function toggle() {
+	return flag;
+}
+`,
+	},
+};
