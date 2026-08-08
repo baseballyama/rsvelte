@@ -28,7 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 234 entries)
+## Matrix known failures (`matrix-known-failures.json`, 206 entries)
+
+Partition of `matrix-known-failures.json` by family: `2 + 204`
 
 ### `binding-position` — 2 entries
 
@@ -47,13 +49,13 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 232 entries
+### `comment-slot` — 204 entries
 
 Two sub-clusters with distinct causes: the `.svelte` template seeds below and the
 remainder of the `.svelte.(js|ts)` module path (#2399). The class-field relocation
 (#2437) cleared entirely.
 
-#### `.svelte` template seeds — 160 entries
+#### `.svelte` template seeds — 132 entries
 
 One comment inserted at each line boundary inside every `<script>` region of 6 seeds,
 across 8 comment kinds. A comment is the one token that may appear between any two other
@@ -64,9 +66,9 @@ Classified by comparing the **multiset of comments** in each output:
 
 | what diverges | entries | of which server |
 |---|---|---|
-| rsvelte drops a comment the official compiler keeps | 100 | 56 |
+| rsvelte drops a comment the official compiler keeps | 72 | 56 |
 | the comment survives but lands somewhere else | 32 | 0 |
-| rsvelte emits a comment more than once | 28 | 24 |
+| rsvelte keeps a comment the official compiler drops | 28 | 24 |
 | **anything other than the comment itself** | **0** | — |
 
 The last row is the important one: **no generated mutant changes rsvelte's codegen
@@ -79,7 +81,7 @@ By seed:
 
 | seed | entries |
 |---|---|
-| `legacy-reactive` | 56 |
+| `legacy-reactive` | 28 |
 | `module-script` | 56 |
 | `await-block` | 24 |
 | `class-private-state` | 8 |
@@ -99,8 +101,15 @@ address, so the only comments it could replay were the LEADING ones in the gap b
 statement. Statements that are re-parsed WHOLE now keep their relative positions, which is
 what upstream gets for free by keeping the original nodes' `loc`.
 
-Server still dominates (80 of these 160 — the previous baseline said 82, which no entry
-count supports), and its 56 remaining drops are one residual class: a
+The 28 entries #2368's fix cleared were the `client` / `client-dev` halves of
+`legacy-reactive__L06__*` and `legacy-reactive__L07__*` — the two line slots inside the
+seed's `$:` block body. The client text pass deleted a reactive statement's comments
+outright; upstream deletes nothing, and its cursor re-homes them onto the next surviving
+statement (and keeps a second copy wherever a `BlockStatement` nested in the `$:` body
+still carries a source span). The remaining `legacy-reactive` entries are all `server`.
+
+Server still dominates (80 of these 132 — unchanged in count by #2368, which cleared
+`client` / `client-dev` entries only), and its 56 remaining drops are one residual class: a
 comment TRAILING the last top-level statement of a script region, which upstream flushes
 into the generated component function's parameter list or into a template interpolation
 (`$$renderer.push(\`…${$.escape(/* c */ b)}…\`)`). It is 7 line slots × 8 comment kinds.
@@ -151,6 +160,17 @@ entry count read as a property of the official compiler. Measured now: the three
 insertion slots between them, so 24 × 8 comment kinds = **192 module cases**, and official
 drops the comment in **3 of the 24 slots** — the trailing one of each seed, uniformly across
 all 8 kinds, i.e. **24 of the 192 cases**.
+
+#### Both sub-clusters together
+
+The two partition claims below span the whole `comment-slot` family, so each adds the module
+path's 72 to the template seeds' 132. The module path contributes to a single bucket: all 72
+are *rsvelte keeps a comment official drops*, which joins the template seeds' own 28 in that
+bucket for a combined 100 — the opposite direction from the 72 rsvelte drops.
+
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `72 + 32 + 100 + 0`
+
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8`
 
 ## Burn-down
 

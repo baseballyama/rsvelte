@@ -21,7 +21,11 @@ names; never hand-edit a count to match.
 
 Every cluster count below is measured from the failure report the suite prints,
 by classifying each block on what actually diverges, not by subtracting from the
-previous baseline:
+previous baseline. A fixture that diverges in more than one way is counted under
+the first cluster that applies, so the counts partition the ratchet rather than
+over-counting it:
+
+Partition of `validator-known-failures.json` by cluster: `141 + 30 + 1`
 
 | cluster | entries | what diverges |
 |---|---:|---|

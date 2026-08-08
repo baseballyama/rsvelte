@@ -34,8 +34,8 @@ compilers already run on every entry.
 
 ## Why the three per-target files are currently identical
 
-`warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 51 entries; the three position files hold the same 74. That is not a
+`warning-known-failures.<target>.json` holds the same 28 entries on all three,
+and `warning-position-known-failures.<target>.json` the same 74 entries. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -58,7 +58,10 @@ under-warnings** — rsvelte stays silent where upstream warns
 `options_missing_custom_element` ×1); neither burn-down below touched that half.
 The other 22 are noise the user cannot suppress. Both are defects, but a missing
 diagnostic and an extra one fail differently, and the ratchet count alone does
-not distinguish them; no entry diverges in both directions at once.
+not distinguish them; no entry diverges in both directions at once — which is
+what lets the two counts be added:
+
+Partition of `warning-known-failures.<target>.json` by direction: `6 + 22`
 
 Clusters identified so far:
 
