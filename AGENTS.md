@@ -52,6 +52,23 @@ first reader** (under a per-node cache, first-reader attribution names the wrong
 it moves the count by zero). Numbers, cross-validation and the unresolved time question are in
 [docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-08--the-to_value-cost-is-one-site-and-it-is-not-the-lazy-cache).
 
+### Where compile time goes ([`docs/phase3-ast-refactor-plan.md`](docs/phase3-ast-refactor-plan.md) § Findings 2026-08-08)
+
+The 40.3% of non-kernel CPU that a profile attributes to allocation + hashing + memcpy
+has been broken down **by site**, and the answer is that there is no site: it takes
+26–32 of 322–479 sites to reach half the bucket, and the largest single one is 0.4–1.8%
+of compile — under the ~5% code-layout floor. What the measurement did find is a shape:
+**rsvelte performs ~1.2 heap allocations per input source byte, flat to three digits
+across an 18× file-size range**, which is the mechanism behind "uniformly heavy, slope
+not intercept". The identified target is the **representation** — one `Box` per
+expression node, and a fresh `String` malloc + `IndexMap` slot + SipHash per JSON object
+key, from a set of only 88 distinct static keys. Do not open a brief to fix a *site*
+here; a representation brief starts from that section rather than re-deriving it.
+`crates/rsvelte_devtools/src/bin/alloc_sites.rs` is the instrument, and the section
+states its four limits and one retraction — a share of a bucket cannot be converted into
+a share of total time using a factor derived from the same profile share being
+apportioned.
+
 **Key Design Decisions:**
 
 - Memory-efficient layout (u32 positions, compact_str)
