@@ -1,6 +1,7 @@
 //! Rune detection and transformation for $state, $derived, and $effect.
 
 use memchr::memmem;
+use std::borrow::Cow;
 
 use super::destructure_transforms::{build_fallback_string, literal_key_value};
 use super::{
@@ -12,8 +13,8 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Transform runes for client-side usage with skip and state variable handling.
-pub(super) fn transform_client_runes_with_skip_and_state(
-    line: &str,
+pub(super) fn transform_client_runes_with_skip_and_state<'a>(
+    line: &'a str,
     _skip_state_vars: &[String],
     _state_vars: &[String],
     _non_reactive_vars: &[String],
@@ -24,13 +25,13 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     _analysis: &ComponentAnalysis,
     store_sub_vars: &[String],
     _read_only_props: &[(String, String)],
-) -> String {
+) -> Cow<'a, str> {
     // Quick pre-check: if no rune-like pattern (`$` followed by letter) appears, skip
     if !line.contains('$') {
-        return line.to_string();
+        return Cow::Borrowed(line);
     }
 
-    let mut result = line.to_string();
+    let mut result = Cow::Borrowed(line);
 
     // Check which rune names are actually store subscriptions.
     // When $state or $effect is imported from a store (not a real rune),
@@ -203,7 +204,7 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                 {
                     start -= 1;
                 }
-                result = format!("{}{}", &result[..start], &result[end..]);
+                result = Cow::Owned(format!("{}{}", &result[..start], &result[end..]));
             } else {
                 break;
             }
@@ -251,10 +252,11 @@ pub(super) fn transform_client_runes_with_skip_and_state(
                     let args = &result[inspect_start..inspect_start + content_end];
                     // Use $$INSPECT_EMPTY$$ marker that survives wrap_state_vars_in_expr
                     // and later transforms, then gets converted to ;; before OXC processing
-                    return format!("/* $$async_hole:{} */", args);
+                    return Cow::Owned(format!("/* $$async_hole:{} */", args));
                 } else {
                     // Remove just the $inspect(...) part but keep other code on the line
-                    result = format!("{}{}", &result[..pos], &result[pos + total_end..]);
+                    result =
+                        Cow::Owned(format!("{}{}", &result[..pos], &result[pos + total_end..]));
                 }
             }
         }
@@ -288,14 +290,14 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         if let Some(rewritten) =
             super::tag_declarator_ast::wrap_state_derived_with_tag_declarators_ast(&result, false)
         {
-            result = rewritten;
+            result = Cow::Owned(rewritten);
         }
         if let Some(rewritten) =
             super::tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast(&result)
         {
-            result = rewritten;
+            result = Cow::Owned(rewritten);
         }
-        result = wrap_state_derived_with_tag(&result);
+        result = Cow::Owned(wrap_state_derived_with_tag(&result));
     }
 
     result

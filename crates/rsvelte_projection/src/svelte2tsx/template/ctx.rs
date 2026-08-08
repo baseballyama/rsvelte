@@ -185,19 +185,6 @@ impl ElementOpenerCommentIndex {
         &self.ranges[bound..]
     }
 
-    pub(super) fn contained_in(&self, start: u32, end: u32) -> &[(u32, u32)] {
-        let from = self
-            .ranges
-            .partition_point(|&(range_start, _)| range_start < start);
-        let mut to = self
-            .ranges
-            .partition_point(|&(range_start, _)| range_start < end);
-        if to > from && self.ranges[to - 1].1 > end {
-            to -= 1;
-        }
-        &self.ranges[from..to]
-    }
-
     #[cfg(test)]
     pub(super) fn record_range_visits(&self, count: usize) {
         self.range_visits.set(self.range_visits.get() + count);

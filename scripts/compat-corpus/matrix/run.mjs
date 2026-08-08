@@ -100,18 +100,26 @@ function firstLine(message) {
 
 for (const testCase of cases) {
 	for (const target of TARGETS) {
-		const options = { generate: target.generate, dev: target.dev, filename: path.basename(testCase.id), css: 'external' };
+		// `.svelte.(js|ts)` cases are a different entry point, not a flag:
+		// `compile` rejects module source outright ("Expected token }"), so
+		// dispatching on `kind` is what makes the module cases a comparison
+		// rather than an error. `css` is component-only (mirrors compile.mjs).
+		const isModule = testCase.kind === 'module';
+		const options = { generate: target.generate, dev: target.dev, filename: path.basename(testCase.id) };
+		if (!isModule) options.css = 'external';
+		const compileWith = (compiler) =>
+			isModule ? compiler.compileModule(testCase.source, options) : compiler.compile(testCase.source, options);
 		let expected = null;
 		let actual = null;
 		let expectedError = null;
 		let actualError = null;
 		try {
-			expected = svelte.compile(testCase.source, options).js.code;
+			expected = compileWith(svelte).js.code;
 		} catch (e) {
 			expectedError = firstLine(e.message);
 		}
 		try {
-			actual = rsvelte.compile(testCase.source, options).js.code;
+			actual = compileWith(rsvelte).js.code;
 		} catch (e) {
 			actualError = firstLine(e.message);
 		}

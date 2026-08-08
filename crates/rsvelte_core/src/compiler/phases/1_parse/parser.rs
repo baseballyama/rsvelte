@@ -68,6 +68,11 @@ pub(crate) fn is_js_whitespace_byte(b: u8) -> bool {
     b.is_ascii() && is_js_whitespace(b as char)
 }
 
+/// Byte length of `source` after upstream's `template.trimEnd()`.
+fn js_trim_end_len(source: &str) -> usize {
+    source.trim_end_matches(is_js_whitespace).len()
+}
+
 /// Last auto-closed tag information.
 ///
 /// Corresponds to `LastAutoClosedTag` in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
@@ -261,7 +266,7 @@ impl<'a> Parser<'a> {
             source,
             bytes: source.as_bytes(),
             index: 0,
-            content_end: source.trim_end().len(),
+            content_end: js_trim_end_len(source),
             options,
             stack,
             line_offsets,
@@ -289,7 +294,7 @@ impl<'a> Parser<'a> {
         self.source = source;
         self.bytes = source.as_bytes();
         self.index = 0;
-        self.content_end = source.trim_end().len();
+        self.content_end = js_trim_end_len(source);
         self.options = options;
 
         self.stack.clear();
