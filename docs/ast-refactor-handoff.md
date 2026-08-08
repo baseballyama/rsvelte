@@ -766,3 +766,77 @@ cargo fmt && cargo clippy --all-targets --all-features -- -D warnings
 - 「完璧な品質」優先 — グリーンな main を壊す変更は入れない。各ステップ常時グリーン。
 - コミットは atomic、conventional commit、末尾に
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`。push は CI 確認とセットで。
+
+---
+
+## 10. `process_accumulated` の段別内訳（測定のみ・最適化は未着手）
+
+`compile_profile` の `pa_rest`（= `process_accum − runes − reactive_stmt`）は
+**未帰属の残差でしかなかった**ので、クロージャ全域（`client/mod.rs` の
+`process_accumulated`）を **22 の名前付きステージ**に割り、各ステージに
+`Duration` と**決定論的カウンタ**（呼び出し回数と入力バイト数。`join` だけは
+行数）を付けた。`other` 行を明示して、シェアを親と突き合わせられるようにしてある。
+
+計測は feature `measure-pa-split`（既定 off）。**ゲートする理由**: この連鎖は
+1 文ごとに走るので、22 個の `Instant` ペアは**比較対象である親の内側**に落ちる。
+profiler は同一プロセス内で 1 ペアの実費を較正し、`PA-OVERHEAD` 行として出す。
+
+### 読み方（★ 絶対値でなく「親に対するシェア」で読むこと ★）
+
+同一 run 内の比は分子・分母が同じ run から出るのでマシン負荷が相殺される。
+実際 smelte を 2 回回すと `process_accum` の絶対値は 7.33 → 8.59ms（+17%）動くが、
+シェアは `export_let` 13.0% → 14.2%、`reactive_stmt` 55.0% → 54.4% と 1 点以内。
+**バイナリをまたぐ ON/OFF 比較は使い物にならない**（svelte-ux で
+`process_accum` が OFF 41.30ms / ON 21.06ms と符号が反転した ＝ 他エージェントの
+`cargo build` と同居していた）。使えるのは (a) 同一 run 内のシェアと
+(b) カウンタだけ。**カウンタは 4 コーパス全てで ON/OFF 一致**
+（765 / 1177 / 1581 / 1951 statements）＝ 仕事は動いていない、動いたのは時計だけ。
+
+### ★ 「pa_rest は bucket の 69%」は再現しなかった ★
+
+| corpus | files | stmts | `process_accum` | `reactive_stmt` | **`pa_rest`** |
+|---|---|---|---|---|---|
+| smelte | 74 | 765 | 26.8% of compile | **55.0% of parent** | **44.8%** |
+| sveltestrap | 129 | 1177 | 21.6% | 48.7% | **51.1%** |
+| svelte-ux | 198 | 1581 | 15.5% | 53.0% | **46.8%** |
+| shadcn-svelte（runes 対照） | 1682 | 1951 | 1.1% | 0.0% | 89.5% |
+
+legacy 極では **45〜51%** であって 69% ではない。bucket の過半は
+`reactive_stmt` で、これは**既に計測済み**であり `pa_rest` ではない。
+69% は汚染バイナリ由来の数値なので、**精緻化ではなく棄却**が正しい扱い。
+
+### legacy 極の上位行（`pa_rest` 比）
+
+| stage | smelte | sveltestrap | svelte-ux | µs/call |
+|---|---|---|---|---|
+| **`export_let`** | **29.0%** | **15.2%** | **19.1%** | 2.6 / 3.0 / 2.9 |
+| `prop_assignments` | 13.5% | 10.9% | 9.9% | 1.3–1.5 |
+| `prop_source_reads` | 11.6% | 10.8% | 8.2% | 1.1–1.3 |
+| `state_assigns` | 8.7% | 9.5% | **18.5%** | 1.0–2.6 |
+| `state_reads` | 6.2% | 8.4% | 8.6% | 0.7–1.2 |
+| `destructure_assignments` | 2.9% | 12.2% | 6.4% | 0.3–1.5 |
+
+`export_let` は 3 コーパス全てで単独首位。**34 バイト前後の 1 文に 2.6–3.0µs**
+かかっており（`transform_export_let` → `state_pipeline_ast` の AST パスが
+1 文ごとに走る）、これが `pa_rest` で最初に見るべき行。
+
+### runes 極（shadcn）で唯一実在するコストは `destructure_assignments`
+
+`process_accum` の **34.4%**、1950 calls × 1.05µs。他の行は軒並み
+0.02–0.05µs/call ＝ **計器そのものの床**（較正値 43–95ns/pair）なので読めない。
+`destructure_assignments` はその 20–50 倍で、明らかに実仕事をしている。
+
+**構造的説明（[S]、判別測定ではない）**: この連鎖で `!analysis.runes` ガードを
+持たない唯一のステージがこれ。ガードは
+`state_vars.is_empty() && store_sub_vars.is_empty() && prop_assignment_transform_vars.is_empty()`
+だけで、runes モードでも `$state` 宣言があれば `state_vars` は空にならない。
+兄弟ステージが全て AST パスに遅延しているのに、これだけ 1 文ごとに走っている疑い。
+**次の作業はこれを判別する測定から**（「runes かつ 3 ベクタ非空」の件数を数える）。
+
+### `other` は残差ではなく計器である
+
+legacy 3 コーパスで `other` は親の 2.7–3.4%、shadcn で 24.6%。
+shadcn の `other` 1.469ms は ON−OFF 差 1.44ms とほぼ一致する ＝
+**未計装の残りはほぼゼロで、`other` の中身は計器のコスト**。
+つまり分割は `process_accum` をほぼ全量カバーしている。
+逆に言えば **shadcn の 1.1% バケットは計器に支配されていて、段別には読めない**。
