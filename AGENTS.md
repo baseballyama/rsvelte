@@ -40,6 +40,19 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`, the `.svelte.js`
 module path) is internal IR construction with unchanged output — a maintainability cleanup only.
 
+**`script_text` is the only bucket that scales superlinearly**, and it is simultaneously the
+largest — exponent ~1.4 (prod) / ~1.2 (dev) against every sibling below 1.0, carrying ~0.51 of
+a total ~0.95 in `share x exp`. Roughly half of how compile cost grows with file size lives in
+that one bucket, in **prod as much as dev**. Two dev-mode candidates that look like textbook
+`sites x source_length` defects were measured and **falsified** — the `Vec<char>` rescans in
+`wrap_prop_mutation_validation` (rescan factor 0.0–1.8x, not the ≥10x a quadratic needs) and
+skipping the dev assign-tail parse (removes 951 parses on carbon and buys +0.04%). Both, plus
+the reason `post_passes` and `line_loop` cannot attribute a movement on their own and why
+wall-clock is unusable on a loaded box, are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-08--dev-mode-client-two-falsified-hypotheses-and-the-one-bucket-that-scales).
+The 6.59x client-dev figure against `@mrwaip/svelte-rs` predates #2511/#2512 and is **not**
+current.
+
 **Key Design Decisions:**
 
 - Memory-efficient layout (u32 positions, compact_str)
