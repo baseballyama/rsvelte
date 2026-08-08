@@ -198,7 +198,7 @@ the corpus gate would also report. `--update-baseline` refuses to run under `--n
 
 ### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
 
-The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,027 corpus
+The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,138 corpus
 entries stop being the test set and become a **seed set**. One semantics-preserving comment is
 inserted at a line boundary inside a `<script>` region and parity is required on the mutant.
 PRs get a deterministic sample; main gets the full sweep (which is what the two-sided ratchet
@@ -209,11 +209,12 @@ vanish) in its first run.
 
 **Only the code class is ratcheted.** A divergent mutant is `code-mismatch` when the difference
 survives normalizing comments, whitespace and trailing commas away, `comment-mismatch`
-otherwise. The full sweep yields 213 of the former and 13,242 of the latter; ratcheting per id
+otherwise. The full sweep yields **36** of the former and 12,910 of the latter; ratcheting per id
 without that split would be a 13,000-entry file that churns on every submodule bump. Comment
 fidelity is ratcheted per id by Gate 2 instead, on generated seeds that do not move when a
-submodule bumps. Delimiter-carrying comments find code divergences **2.81×** as often as plain
-ones (22.4 vs 8.0 per 1,000 mutants) — the #2253 signature.
+submodule bumps. The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30×
+(0.62) and **1.66×** (0.62, post-burndown): it tracks the normalizer and the current residue,
+not the mechanism's importance, so do not cite it as a constant.
 
 Compilation runs in child processes (mirroring `compile.mjs`): a panic aborts the process, so a
 single-process sweep loses the whole run to one bad mutant — which is what happened first. The

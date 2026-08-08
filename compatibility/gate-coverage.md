@@ -60,9 +60,11 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
 | 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | warnings compared by **count only** | [S] |
 | 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
+| 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size | [D] |
 
-Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, and the
-**performance** gates' population) are in [§ Cross-cutting](#cross-cutting) at the end.
+Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, the **performance**
+gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
+are in [§ Cross-cutting](#cross-cutting) at the end.
 
 ---
 
@@ -890,6 +892,120 @@ existing diagnostic families, not introduced here.
 
 ---
 
+## 20. Corpus-seeded mutation fuzz — `scripts/compat-corpus/mutate-corpus.mjs`
+
+**Unit.** Per mutant × target, official vs rsvelte `js.code`, normalized exactly as gate 1
+normalizes. A mutant is a seed with **one comment inserted at a line boundary** inside a
+`<script>` region (`:227`).
+
+**This section was added after the fact.** `AGENTS.md` requires a gate's row *before* its ratchet
+is first baselined; #2281 shipped this gate and `mutation-known-failures.json` without one, and
+the omission stood until a defect went looking for it. Named here rather than silently filled,
+because the next gate author will otherwise repeat it.
+
+**Three populations appear below and they are routinely confused.** 14,138 = manifest entries,
+the seed set. 12,166 = mutants actually generated (a seed with no insertion slot is skipped).
+39,563 = *(entry, target)* pairs for which rsvelte emitted a module and gate 19 acorn-parsed it
+(`verify.mjs:358-360`). Note that gate 19's unparseable counter is per **entry**, not per pair
+(`verify.mjs:365`), so its headline number and that denominator are not in the same unit.
+
+### Blind spot 20a — the operator inserts comments, so a bracket in a *string* is never moved
+
+*Not closable by scale — the contrast with 20b is the point.*
+
+**[D]** `:227` splices `COMMENT_KINDS[kindName]` into the source and changes nothing else. All
+eight kinds (`matrix/axes.mjs:178-187`) are comments. The gate reaches a defect whose trigger is
+a delimiter inside a **comment** and never one whose trigger is the same delimiter inside a
+**string, template or regex literal**.
+
+Discriminating case. `transform_class_fields_server` counted `(){}[]` byte by byte, so on the
+server target a two-field class whose second `$derived.by` spans lines with `q: ")"` in it
+dropped that field and every member after it, leaving `);` at statement position. Official is
+correct and rsvelte's own *client* target is correct. Its comment-carrying twin (`// ) c` in the
+same slot) **was** reported by this gate; the string form is unreachable by construction and was
+found by hand while fixing the twin. Fixed by #2639.
+
+What is measured about the corpus, and what is not: gate 19 reported **0 unparseable of 39,563**
+on the `80abbe52` main run, with `parse-known-failures.{client,server,client-dev}.json` all `[]`.
+So **nothing in the corpus triggers this defect at any target** — which is *not* the claim "the
+shape is absent from the sources", a thing nobody has measured. The first also carries gate 19's
+own hole: `parse-oracle-excluded.json` lists 2 pairs checked on **neither** side (19f).
+
+The lesson this document exists for: **growing the corpus cannot close this, and neither can more
+mutants.** Only an operator that edits existing tokens reaches the class. Related: #2637 makes
+the same point on another axis — the fuzzer inserts comments, not operators, so a `$:` line
+ending in `*` or `%` is outside it too.
+
+### Blind spot 20b — one mutant per seed, at a hash-chosen slot
+
+*Closable by scale — the opposite of 20a, which is why the two must not read as one item.*
+
+**[S]** `PER_FILE` defaults to 1 (`:96`) and the slot is `slots[h % slots.length]` with
+`h = fnv1a(id#n)` (`:216-217`). A seed with 40 insertion slots is sampled at one of them, fixed
+for that id — it contributes 1/40 of its own surface. Two independent defects in one file are
+never both observed, and which one is observed is decided by a hash. The full sweep's 12,166
+mutants are 12,166 seeds sampled once, not a sweep over slots.
+
+**`--per-file n` closes this and nothing else has to change**; cost is linear and the ratchet keys
+already carry `__m<n>__` so they do not churn.
+
+### Blind spot 20c — `already PASS` cannot distinguish *fixed* from *no longer produced*
+
+**[S]** The staleness check is `baseline.filter((id) => !ids.has(id))` (`:661`) — a baseline key
+absent from this run's failures. `ids` is `` `${f.id} [${f.verdict}] (${f.target})` `` (`:588`).
+An entry leaves that set for at least four reasons and the output calls all of them "already
+PASS":
+
+1. the defect was fixed;
+2. the seed file no longer exists, so no mutant is generated (`:144` filters the manifest to
+   sources present on disk) — a corpus-source removal or a submodule bump does this;
+3. the seed's **content** moved. `n` and `kindName` derive from the seed id alone, but the
+   **slot** is `slots[h % slots.length]` over the current line list, so an edit anywhere in the
+   file relocates the comment while the key stays identical. The same id then denotes a
+   different mutation, which may pass for reasons unrelated to any fix. The comment at
+   `:220-223` states this trade deliberately — keying on the line would churn every entry in a
+   seed on any edit — so the exposure is the accepted cost, not an oversight;
+4. the **verdict class** changed. The verdict is in the key, so `code-mismatch` →
+   `comment-mismatch` retires the entry as "already PASS" while the entry still diverges.
+
+Consequence for re-baselining: an `already PASS` count is only evidence of fixes if the corpus
+tree did not move. Two checks, and they cover different reasons.
+
+*Reason 2* — `git log --oneline <since> -- submodules scripts/compat-corpus/corpus-sources.json`
+returning nothing, with a non-empty commit count over the same range as the positive control.
+This covers seeds vanishing because the tree moved; it does **not** cover a source absent from
+the working copy (**C7**).
+
+*Reason 4* — **measured `[D]` 0**, in the `code-mismatch ⇄ unparseable` direction. Method:
+extract `id (target)` from the NEW-divergences and already-PASS lists with the verdict stripped
+and intersect; an entry that merely changed class appears in both. Empty at `d1eedb3f` over
+14,138 seeds. The instrument is shown to move by the same counter reporting 16 unparseable at
+`d88546a7` and 10 at `39ba6489` on the same day, so this is not the vacuous kind of zero.
+
+That covers only the two verdicts the baseline can represent. **Transitions into
+`comment-mismatch` remain unmeasured**, because those ids are never recorded — `:555-557`
+increments the counter and `continue`s before any `failures.push`, so no comment-mismatch key
+exists to intersect against. Closing that half needs the id recorded alongside the count. The
+first attempt at this cell proposed intersecting against that non-existent set, which would have
+returned empty regardless of the truth — a vacuous zero is worse than a blank, because the blank
+advertises itself.
+
+### Blind spot 20d — insertion is line-boundary only, and `<script>` only
+
+**[S]** `insertionSlots` (`matrix/mutate.mjs:41-61`) yields line boundaries inside `<script>`
+ranges. A comment inside an expression (`f(/* c */ x)`), in a template-markup slot, or between
+two tokens on one line is never generated. Same shape as blind spot 5c, from the same helper.
+
+### Blind spot 20e — only the `code` class is ratcheted per id
+
+**[S]** `:598` restricts the per-id regression check to `code-mismatch` and `unparseable`;
+`comment-mismatch` is an aggregate count (`:695-696`). On the full sweep that is 13,242
+divergences with no per-entry gate. Deliberate and documented (`AGENTS.md`; gate 5 ratchets
+comment fidelity per id on generated seeds that do not move when a submodule bumps) — but a
+comment regression on a *collected* seed is invisible here.
+
+---
+
 ## Cross-cutting
 
 ### C1. Path filters — gates that do not run on some PRs
@@ -936,6 +1052,28 @@ while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked
 | svelte2tsx fixtures | `total_tested >= 254`, absolute | `svelte2tsx_fixtures.rs:30,155` |
 | **css-prune sweep** | **none** | `css-prune-sweep.mjs:482` is a `console.log` |
 | check / check-e2e | scenarios > 0; **no diagnostic floor**, ratchets are `[]` | `check-verify.mjs:179`; gap at `:240` |
+
+### C7. An uninitialised corpus source shrinks the population silently, and no floor catches it
+
+**[D]** `collect.mjs:168-178` walks `corpus-sources.json` and, for a source whose directory is
+missing or empty, warns and `continue`s. Only `src.required` sources abort (`:171-174`) — and
+**2 of 36 sources are required**, so 34 can each disappear from the measured population while
+`collect.mjs` exits 0 and writes a manifest that looks complete.
+
+Observed, not hypothetical: a sweep run with `runed` and `svelte-toolbelt` uninitialised
+measured **14,035** entries instead of 14,138, and **10 baseline entries came from those two
+sources**. `--update-baseline` deletes every baseline id it did not measure, so those ten would
+have been dropped as fixed.
+
+The floor does not help. `MIN_FULL_CORPUS_ENTRIES = 12000` (`artifacts.mjs:87`) guards against
+*catastrophic* under-measurement; 14,035 clears it comfortably. A partial corpus is invisible to
+a lower bound **by construction** — the only thing that surfaced it was comparing the local
+manifest count against CI's.
+
+This sits upstream of blind spot 20c's reason 2 and applies to every corpus-derived gate (1, 2-3,
+4, 19, 20), not only the mutation fuzz. Closing it means asserting the *set* of collected
+sources against `corpus-sources.json`, not the entry count — an entry count cannot distinguish a
+missing source from a source that shrank.
 
 ### C4. Gate scripts that no workflow invokes
 

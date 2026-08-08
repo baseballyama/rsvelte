@@ -189,6 +189,73 @@ check('inline `on: [push, pull_request]` parses without crashing', () => {
 	assert(triggers.length === 0, `expected no nested triggers, got ${JSON.stringify(triggers)}`);
 });
 
+// --- Concurrency: a cancelling group that cannot distinguish two pushes. ---
+
+const PUSH_ON = `
+on:
+  push:
+    branches: [main]
+`;
+
+check('a ref-keyed cancelling group on a push workflow is rejected', () => {
+	withDir(
+		{
+			'a.yml': `name: a${PUSH_ON}\nconcurrency:\n  group: a-\${{ github.ref }}\n  cancel-in-progress: true\n${JOBS}`,
+		},
+		(dir) => {
+			const { violations } = checkWorkflows(dir, {});
+			assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
+			assert(/carries no verdict/.test(violations[0].message), 'expected the verdict wording');
+		},
+	);
+});
+
+check('the same group keyed by github.sha is accepted', () => {
+	withDir(
+		{
+			'a.yml': `name: a${PUSH_ON}\nconcurrency:\n  group: a-\${{ github.head_ref || github.sha }}\n  cancel-in-progress: true\n${JOBS}`,
+		},
+		(dir) => {
+			const { violations } = checkWorkflows(dir, {});
+			assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+		},
+	);
+});
+
+check('cancel-in-progress: false makes the group key irrelevant', () => {
+	withDir(
+		{
+			'a.yml': `name: a${PUSH_ON}\nconcurrency:\n  group: a-\${{ github.ref }}\n  cancel-in-progress: false\n${JOBS}`,
+		},
+		(dir) => {
+			const { violations } = checkWorkflows(dir, {});
+			assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+		},
+	);
+});
+
+check('a ref-keyed cancelling group without a push trigger is accepted', () => {
+	withDir(
+		{
+			'a.yml': `name: a\non:\n  pull_request:\nconcurrency:\n  group: a-\${{ github.ref }}\n  cancel-in-progress: true\n${JOBS}`,
+		},
+		(dir) => {
+			const { violations } = checkWorkflows(dir, {});
+			assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+		},
+	);
+});
+
+check('a job-level concurrency block is not read as the workflow-level one', () => {
+	const source = `name: a${PUSH_ON}\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: a-\${{ github.ref }}\n      cancel-in-progress: true\n    steps:\n      - run: echo hi\n`;
+	const { concurrency } = analyzeWorkflow(source);
+	assert(concurrency === null, `expected no top-level concurrency, got ${JSON.stringify(concurrency)}`);
+	withDir({ 'a.yml': source }, (dir) => {
+		const { violations } = checkWorkflows(dir, {});
+		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
 // --- The shipped tree. ---
 
 check('the real .github/workflows tree is clean under the shipped allowlist', () => {
