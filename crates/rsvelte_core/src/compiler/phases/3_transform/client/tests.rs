@@ -1935,3 +1935,68 @@ fn a_store_call_is_not_inserted_into_a_longer_non_ascii_identifier() {
         "$c()(1); x\u{E0}$c(2)"
     );
 }
+
+/// `$: {a=b}` and `$: { a = b }` are the same program, so they must order the
+/// same. The assignment scan feeding the topological sort matched the literal
+/// `" = "`, so the unspaced form was credited with assigning nothing, lost its
+/// ordering edge, and ran before the statement it depends on.
+#[test]
+fn reactive_statement_order_ignores_whitespace_around_the_assignment() {
+    fn effect_order(source: &str) -> Vec<String> {
+        let js = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                generate: crate::compiler::GenerateMode::Client,
+                filename: Some("order/index.svelte".to_string()),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .js
+        .code;
+        js.lines()
+            .filter(|l| l.contains("$.set(mid,") || l.contains("$.set(out,"))
+            .map(|l| l.trim().to_string())
+            .collect()
+    }
+
+    let unspaced = effect_order(
+        "<script>\nexport let seed = 1;\nlet mid = 0;\nlet out = 0;\n$: out = mid + 1;\n$: {mid=seed*2}\n</script>\n\n<p>{out}</p>\n",
+    );
+    let spaced = effect_order(
+        "<script>\nexport let seed = 1;\nlet mid = 0;\nlet out = 0;\n$: out = mid + 1;\n$: { mid = seed * 2 }\n</script>\n\n<p>{out}</p>\n",
+    );
+
+    // `out` reads `mid`, so the statement assigning `mid` has to come first.
+    assert!(
+        unspaced[0].contains("$.set(mid,"),
+        "unspaced ran out of order: {unspaced:?}"
+    );
+    // The spaced form is the control: it was already correct and must stay so.
+    assert!(
+        spaced[0].contains("$.set(mid,"),
+        "spaced ran out of order: {spaced:?}"
+    );
+    assert_eq!(unspaced, spaced);
+}
+
+/// A comparison is not an assignment, and the longest operator has to win:
+/// `<=` is a comparison while `<<=` assigns.
+#[test]
+fn the_assignment_scan_separates_operators_from_comparisons() {
+    use super::reactive_transforms::is_assigned_anywhere_in_body;
+
+    for body in [
+        "a=1", "a = 1", "a  =  1", "a+=1", "a **= 2", "a<<=1", "a >>>= 1", "a??=1", "a++", "--a",
+    ] {
+        assert!(is_assigned_anywhere_in_body(body, "a"), "missed: {body:?}");
+    }
+    for body in [
+        "a==1", "a === 1", "a=>1", "a<=1", "a >= 1", "a!=1", "a !== 1", "ab=1", "b.a=1", "abc",
+    ] {
+        assert!(
+            !is_assigned_anywhere_in_body(body, "a"),
+            "false positive: {body:?}"
+        );
+    }
+}

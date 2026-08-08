@@ -146,38 +146,58 @@ pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
         }
     }
 
-    // Check for assignment operators: `var = ...`, `var += ...`, `var -= ...`, etc.
-    let assign_patterns = [
-        " = ", " += ", " -= ", " *= ", " /= ", " %= ", " **= ", " &= ", " |= ", " ^= ", " <<= ",
-        " >>= ", " >>>= ", " ??= ", " &&= ", " ||= ",
-    ];
-    for assign_op in &assign_patterns {
-        let pattern = format!("{}{}", var_name, assign_op);
-        if let Some(pos) = body.find(&pattern) {
-            // Verify the variable name is at a word boundary (not part of a longer name)
-            let before = if pos > 0 {
-                body.as_bytes()[pos - 1]
-            } else {
-                b' '
-            };
-            let before_ok = !before.is_ascii_alphanumeric()
-                && before != b'_'
-                && before != b'$'
-                && before != b'.';
-            if before_ok {
-                // Also make sure it's not `==` or `=>`
-                let after_eq = pos + var_name.len() + assign_op.len();
-                if assign_op == &" = " && after_eq < body.len() {
-                    let next = body.as_bytes()[after_eq - 1]; // the char after '='
-                    if next == b'=' || next == b'>' {
-                        continue;
-                    }
-                }
-                return true;
-            }
+    // Check for assignment operators: `var = …`, `var += …`, etc. The spacing
+    // between the name and its operator is not fixed, so this walks every
+    // occurrence of the name rather than matching `"<var> = "` literally —
+    // `$: {a=b}` assigns `a` exactly as `$: { a = b }` does.
+    let bytes = body.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = memmem::find(&bytes[from..], var_name.as_bytes()) {
+        let pos = from + rel;
+        from = pos + var_name.len().max(1);
+
+        let before = if pos > 0 { bytes[pos - 1] } else { b' ' };
+        if before.is_ascii_alphanumeric() || before == b'_' || before == b'$' || before == b'.' {
+            continue;
+        }
+        let mut i = pos + var_name.len();
+        // The name has to end here, not run on into a longer identifier.
+        if let Some(&c) = bytes.get(i)
+            && (c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+        {
+            continue;
+        }
+        while matches!(bytes.get(i), Some(b' ' | b'\t')) {
+            i += 1;
+        }
+        if is_assignment_operator_at(bytes, i) {
+            return true;
         }
     }
 
+    false
+}
+
+/// Whether an assignment operator starts at `i`. `<=` and `>=` are comparisons
+/// while `<<=` and `>>=` are not, so the longest candidate has to win; `=` also
+/// begins `==`, `===` and `=>`, none of which assign.
+fn is_assignment_operator_at(bytes: &[u8], i: usize) -> bool {
+    const OPS: [&[u8]; 16] = [
+        b">>>=", b"<<=", b">>=", b"**=", b"??=", b"&&=", b"||=", b"+=", b"-=", b"*=", b"/=", b"%=",
+        b"&=", b"|=", b"^=", b"=",
+    ];
+    let Some(rest) = bytes.get(i..) else {
+        return false;
+    };
+    for op in OPS {
+        if rest.starts_with(op) {
+            if op == b"=" {
+                let next = rest.get(1).copied().unwrap_or(b' ');
+                return next != b'=' && next != b'>';
+            }
+            return true;
+        }
+    }
     false
 }
 
