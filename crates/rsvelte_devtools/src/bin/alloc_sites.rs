@@ -40,6 +40,7 @@ const BACKING: Backing = std::alloc::System;
 
 use std::alloc::{GlobalAlloc, Layout};
 use std::cell::Cell;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -568,21 +569,25 @@ fn main() {
 
     if let Some(path) = &json_out {
         let mut out = String::new();
-        out.push_str(&format!(
+        write!(
+            out,
             "{{\"label\":{label:?},\"files\":{},\"mean_bytes\":{mean_bytes:.0},\"every\":{},\"events\":{events},\"bytes\":{bytes},\"copied\":{copied},\"class_sizes\":{CLASS_SIZES:?},\"cal_ns\":{:?},\"cal_memcpy_ns_per_byte\":{},\"sites\":[",
             files.len(),
             every as u64,
             cal.per_event_ns,
             cal.per_copied_byte_ns,
-        ));
+        )
+        .expect("write to String");
         for (i, (name, r)) in sites.iter().enumerate() {
             if i > 0 {
                 out.push(',');
             }
-            out.push_str(&format!(
+            write!(
+                out,
                 "{{\"site\":{name:?},\"samples\":{},\"bytes\":{},\"copied\":{},\"classes\":{:?}}}",
                 r.samples, r.bytes, r.copied, r.classes
-            ));
+            )
+            .expect("write to String");
         }
         out.push_str("]}\n");
         fs::write(path, out).expect("write --json");
