@@ -10,7 +10,9 @@
  * prevent — a gate reporting success without doing the work.
  *
  * The contract asserted here:
- *   - the flags compose; all four together rewrite all four families
+ *   - --no-fmt bars the output family and only the output family
+ *   - the diagnostic flags compose; all three together rewrite all three
+ *     diagnostic families
  *   - each alone still rewrites only its own family
  *   - a deselected target's ratchets are never touched
  *   - --from-report cannot rewrite the diagnostic families (output only)
@@ -73,7 +75,10 @@ const VERIFY = path.join(sandbox, 'scripts/compat-corpus/verify.mjs');
 
 function buildSandbox() {
 	fs.mkdirSync(path.join(sandbox, 'scripts/compat-corpus'), { recursive: true });
-	for (const f of ['verify.mjs', 'normalize.mjs', 'targets.mjs', 'artifacts.mjs', 'parseable.mjs']) {
+	// Every module rather than verify.mjs's current imports: a hand-listed set
+	// makes a new sibling module fail here as a missing file, not as the
+	// contract this guards.
+	for (const f of fs.readdirSync(CORPUS_SCRIPTS).filter((f) => f.endsWith('.mjs'))) {
 		fs.copyFileSync(path.join(CORPUS_SCRIPTS, f), path.join(sandbox, 'scripts/compat-corpus', f));
 	}
 	linkDependencies(sandbox);
@@ -114,24 +119,42 @@ function run(...extra) {
 buildSandbox();
 console.log(`[verify-flags] sandbox: ${sandbox} (${ENTRIES} synthetic entries)`);
 
-console.log('\nall four flags together rewrite all four families');
+// Every scenario runs under `--no-fmt`, because the sandbox has no oxfmt. That
+// is a legal way to write the *diagnostic* families and a refused way to write
+// the *output* one, so the output family is exercised through its refusal here
+// and its write path is left to the real corpus job. Asserting the refusal is
+// not a weaker test of the split: a rewrite that leaked across families would
+// fail these just as loudly.
+console.log('\n--no-fmt bars the output family, and only that family');
 {
 	const r = run('--update-baseline', '--update-warning-baseline', '--update-error-baseline', '--update-parse-baseline');
+	check('exit 2', r.status === 2, `status ${r.status}\n${r.stderr}`);
+	check('names --no-fmt as the reason', /--no-fmt/.test(r.stderr), r.stderr.slice(0, 400));
+	check(
+		'no ratchet rewritten',
+		untouched([...OUTPUT_RATCHETS, ...DIAGNOSTIC_RATCHETS]).length ===
+			OUTPUT_RATCHETS.length + DIAGNOSTIC_RATCHETS.length,
+		rewritten([...OUTPUT_RATCHETS, ...DIAGNOSTIC_RATCHETS]).join(', '),
+	);
+}
+
+console.log('\nthe diagnostic flags compose; all three together rewrite all three families');
+{
+	const r = run('--update-warning-baseline', '--update-error-baseline', '--update-parse-baseline');
 	check('exit 0', r.status === 0, `status ${r.status}\n${r.stderr}`);
-	check('client output ratchet rewritten', !isSentinel('known-failures.client.json'));
 	check('client warning ratchet rewritten', !isSentinel('warning-known-failures.client.json'));
 	check('client warning-position ratchet rewritten', !isSentinel('warning-position-known-failures.client.json'));
 	check('client error-message ratchet rewritten', !isSentinel('error-message-known-failures.client.json'));
 	check('client error-position ratchet rewritten', !isSentinel('error-position-known-failures.client.json'));
 	check('client parse ratchet rewritten', !isSentinel('parse-known-failures.client.json'));
-	check('announces all four families', /rewriting output \+ warning \+ error \+ parse ratchets/.test(r.stdout), r.stdout.slice(0, 400));
+	check('announces all three families', /rewriting warning \+ error \+ parse ratchets/.test(r.stdout), r.stdout.slice(0, 400));
+	check('all output ratchets untouched', untouched(OUTPUT_RATCHETS).length === OUTPUT_RATCHETS.length, rewritten(OUTPUT_RATCHETS).join(', '));
 }
 
 console.log('\n--update-baseline alone leaves the diagnostic families alone');
 {
 	const r = run('--update-baseline');
-	check('exit 0', r.status === 0, `status ${r.status}\n${r.stderr}`);
-	check('client output ratchet rewritten', !isSentinel('known-failures.client.json'));
+	check('exit 2', r.status === 2, `status ${r.status}\n${r.stderr}`);
 	check('all warning ratchets untouched', untouched(WARNING_RATCHETS).length === WARNING_RATCHETS.length, rewritten(WARNING_RATCHETS).join(', '));
 	check('all error ratchets untouched', untouched(ERROR_RATCHETS).length === ERROR_RATCHETS.length, rewritten(ERROR_RATCHETS).join(', '));
 	check('all parse ratchets untouched', untouched(PARSE_RATCHETS).length === PARSE_RATCHETS.length, rewritten(PARSE_RATCHETS).join(', '));
@@ -142,6 +165,8 @@ console.log('\n--update-warning-baseline alone leaves the other families alone')
 	const r = run('--update-warning-baseline');
 	check('exit 0', r.status === 0, `status ${r.status}\n${r.stderr}`);
 	check('client warning ratchet rewritten', !isSentinel('warning-known-failures.client.json'));
+	check('client warning-position ratchet rewritten', !isSentinel('warning-position-known-failures.client.json'));
+	check('announces the family', /rewriting warning ratchets/.test(r.stdout), r.stdout.slice(0, 400));
 	check('all output ratchets untouched', untouched(OUTPUT_RATCHETS).length === OUTPUT_RATCHETS.length, rewritten(OUTPUT_RATCHETS).join(', '));
 	check('all error ratchets untouched', untouched(ERROR_RATCHETS).length === ERROR_RATCHETS.length, rewritten(ERROR_RATCHETS).join(', '));
 }
@@ -158,7 +183,7 @@ console.log('\n--update-error-baseline alone leaves the other families alone');
 
 console.log('\ndeselected targets are never rewritten');
 {
-	const r = run('--update-baseline', '--update-warning-baseline', '--update-error-baseline');
+	const r = run('--update-warning-baseline', '--update-error-baseline');
 	check('exit 0', r.status === 0, `status ${r.status}`);
 	const others = [...OUTPUT_RATCHETS, ...DIAGNOSTIC_RATCHETS].filter((f) => !f.includes('.client.'));
 	check('server / client-dev ratchets untouched', untouched(others).length === others.length, rewritten(others).join(', '));

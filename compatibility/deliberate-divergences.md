@@ -51,8 +51,13 @@ export class R {
 | nested fn in constructor, `inst.#n++` | `$.get(inst.#n)++;` | **no** | `$.update(inst.#n);` | yes |
 | constructor root, `inst.#n++` | `inst.#n.v++;` | yes | `$.update(inst.#n);` | yes |
 | constructor root, `--inst.#n` | `--inst.#n.v;` | yes | `$.update_pre(inst.#n, -1);` | yes |
-| constructor root, read `inst.#n` | `inst.#n.v` | yes | `$.get(inst.#n)` | yes |
+| constructor root, read `inst.#n` | `inst.#n.v` | yes | `inst.#n.v` | yes |
+| method body, read `inst.#n` | `$.get(inst.#n)` | yes | `$.get(inst.#n)` | yes |
 | any position, `this.#n++` | `$.update(this.#n);` | yes | `$.update(this.#n);` | yes |
+
+**Only updates diverge.** Reads are parity in both positions — #2464 moved the
+constructor-root read onto upstream's `.v` form for every receiver before this entry was
+written, and the entry's first version had not seen it.
 
 The parse column is acorn's verdict on the official output and `oxc_parser`'s on rsvelte's;
 both reject the `$.get(...)++` rows with `Assigning to rvalue`, and V8 accepts the parse
@@ -74,8 +79,8 @@ Reported upstream as **sveltejs/svelte#18621** (open as of 2026-08-08).
 
 ### Why rsvelte's form is the correct one
 
-The unparseable rows need no argument beyond the parse column. The three constructor-root
-rows are the ones that need one, because upstream's output there is valid:
+The unparseable rows need no argument beyond the parse column. The two constructor-root
+update rows are the ones that need one, because upstream's output there is valid:
 
 - `.v++` writes the source's value **without notifying**, and upstream's receiver check is
   purely syntactic — it does not establish that the receiver is the object under
@@ -83,10 +88,11 @@ rows are the ones that need one, because upstream's output there is valid:
   `o.#n.v--`, and no subscriber of `o` ever hears about it. `$.update(o.#n)` notifies.
   Upstream's own lowering of `this.#n++` in the same constructor is `$.update(this.#n)`, so
   the helper form is upstream's semantics, not ours.
-- The read row is the same shape one level down: `.v` is the untracked read, `$.get` the
-  tracked one. Restricting the shortcut to a literal `this` over-tracks a constructor called
-  from inside a reaction and under-tracks nothing; upstream's version under-tracks any
-  receiver that is not the object under construction.
+The same argument would extend to the constructor-root **read** — `.v` is the untracked read
+and `$.get` the tracked one, so upstream's shortcut under-tracks any receiver that is not the
+object under construction. rsvelte nonetheless takes upstream's form there (#2464), because
+both forms parse and the correctness argument above rests on the parse column. Whether the
+read should follow the update is open: **#2629**.
 
 ### What would make this entry disappear
 
