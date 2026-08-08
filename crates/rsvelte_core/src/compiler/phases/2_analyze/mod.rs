@@ -483,7 +483,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     };
 
     if !analysis.runes {
-        check_reactive_declaration_cycles(&reactive_labeled, &ast.arena, &analysis)?;
+        check_reactive_declaration_cycles(&reactive_labeled, &ast.arena, &mut analysis)?;
     }
 
     // Populate legacy_dependencies for LegacyReactive bindings.
@@ -1277,7 +1277,7 @@ fn body_has_let_declaration_typed(
 fn check_reactive_declaration_cycles(
     labeled: &[&JsNode],
     arena: &ParseArena,
-    analysis: &ComponentAnalysis,
+    analysis: &mut ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
     // Collect reactive statements and their assignments/dependencies
     // Each entry: (assignments, dependencies, statement span)
@@ -1324,16 +1324,18 @@ fn check_reactive_declaration_cycles(
         // Remove self-dependencies (assigned variables that also appear as dependencies)
         dependencies.retain(|dep| !assignments.contains(dep));
 
-        if !assignments.is_empty() {
-            let span = node.start().zip(node.end());
-            reactive_stmts.push((assignments, dependencies, span));
-        }
+        // Pushed for every `$:`, not only the assigning ones, because the
+        // Phase-3 client indexes this by source ordinal; skipping a statement
+        // here would shift every later entry onto the wrong statement. Cycle
+        // detection below re-imposes the non-empty-assignments filter itself.
+        let span = node.start().zip(node.end());
+        reactive_stmts.push((assignments, dependencies, span));
     }
 
     // Build edges for cycle detection: (assignment_name, dependency_name)
     // Use &str references to avoid String allocations
     let mut edges: Vec<(&str, &str)> = Vec::new();
-    for (assignments, dependencies, _) in &reactive_stmts {
+    for (assignments, dependencies, _) in reactive_stmts.iter().filter(|(a, _, _)| !a.is_empty()) {
         for assignment in assignments {
             for dependency in dependencies {
                 edges.push((assignment.as_str(), dependency.as_str()));
@@ -1355,6 +1357,11 @@ fn check_reactive_declaration_cycles(
         }
         return Err(error);
     }
+
+    analysis.reactive_statement_sort_keys = reactive_stmts
+        .into_iter()
+        .map(|(assignments, dependencies, _)| (assignments, dependencies))
+        .collect();
 
     Ok(())
 }

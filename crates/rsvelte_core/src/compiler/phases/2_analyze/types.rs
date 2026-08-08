@@ -1675,6 +1675,13 @@ pub struct ComponentAnalysis {
     /// the statement text.
     pub reactive_statement_dependencies: Vec<Vec<String>>,
 
+    /// Per top-level `$:` statement in source order, the `(assignments,
+    /// dependencies)` the Phase-3 client topologically sorts on. Shares the
+    /// typed-AST walk the cycle check already performs, so — unlike the text
+    /// scan it replaces — it cannot be fooled by an assignment written without
+    /// spaces around its operator.
+    pub reactive_statement_sort_keys: Vec<(Vec<String>, Vec<String>)>,
+
     /// Whether the component is immutable (no reactivity)
     pub immutable: bool,
 
@@ -1812,6 +1819,7 @@ impl ComponentAnalysis {
             dev: options.dev,
             reactive_statements: FxHashMap::default(),
             reactive_statement_dependencies: Vec::new(),
+            reactive_statement_sort_keys: Vec::new(),
             immutable: options.immutable,
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),

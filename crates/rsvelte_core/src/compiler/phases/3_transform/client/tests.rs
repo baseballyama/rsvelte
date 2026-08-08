@@ -1851,39 +1851,6 @@ fn a_private_field_prefix_is_not_collected_across_a_non_ascii_continuation() {
     );
 }
 
-/// `U+3000` and NBSP separate a parameter from its `)` exactly as a space does.
-/// The scan used an ASCII whitelist, so it decided the pattern was a prefix of a
-/// longer name, blanked the `f` of `function` and left the shadowing scope — and
-/// therefore the shadowed identifier — in the body it hands to dependency analysis.
-#[test]
-fn a_shadowing_scope_is_stripped_across_non_ascii_whitespace() {
-    use super::state_transforms::strip_function_scopes_that_shadow;
-
-    for body in [
-        "function (a ) { a }",
-        "function (a\u{3000}) { a }",
-        "function (a\u{A0}) { a }",
-    ] {
-        let stripped = strip_function_scopes_that_shadow(body, "a");
-        assert!(
-            stripped.trim().is_empty(),
-            "body {body:?} left {stripped:?}"
-        );
-    }
-    for body in ["(a ) => a", "(a\u{3000}) => a"] {
-        let stripped = strip_function_scopes_that_shadow(body, "a");
-        assert!(
-            stripped.trim().is_empty(),
-            "body {body:?} left {stripped:?}"
-        );
-    }
-    // Control: a body that does not shadow `a` is untouched.
-    assert_eq!(
-        strip_function_scopes_that_shadow("function (b) { a }", "a"),
-        "function (b) { a }"
-    );
-}
-
 /// `名$c` is one identifier, so `$c` is not an arrow parameter there. The byte
 /// before `$c` is `名`'s trailing `0x8D`, a C1 control that no identifier
 /// predicate accepts — so the scan saw a word boundary inside a name.
@@ -1934,4 +1901,49 @@ fn a_store_call_is_not_inserted_into_a_longer_non_ascii_identifier() {
         transform_store_sub_calls("$c(1); x\u{E0}$c(2)", &subs),
         "$c()(1); x\u{E0}$c(2)"
     );
+}
+
+/// `$: {a=b}` and `$: { a = b }` are the same program, so they must order the
+/// same. The topological sort used to be fed by a text scan that recognised an
+/// assignment only via the literal `" = "`, so the unspaced form was credited
+/// with assigning nothing, lost its ordering edge, and ran before the statement
+/// it depends on.
+#[test]
+fn reactive_statement_order_ignores_whitespace_around_the_assignment() {
+    fn effect_order(source: &str) -> Vec<String> {
+        let js = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                generate: crate::compiler::GenerateMode::Client,
+                filename: Some("order/index.svelte".to_string()),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .js
+        .code;
+        js.lines()
+            .filter(|l| l.contains("$.set(mid,") || l.contains("$.set(out,"))
+            .map(|l| l.trim().to_string())
+            .collect()
+    }
+
+    let unspaced = effect_order(
+        "<script>\nexport let seed = 1;\nlet mid = 0;\nlet out = 0;\n$: out = mid + 1;\n$: {mid=seed*2}\n</script>\n\n<p>{out}</p>\n",
+    );
+    let spaced = effect_order(
+        "<script>\nexport let seed = 1;\nlet mid = 0;\nlet out = 0;\n$: out = mid + 1;\n$: { mid = seed * 2 }\n</script>\n\n<p>{out}</p>\n",
+    );
+
+    // `out` reads `mid`, so the statement assigning `mid` has to come first.
+    assert!(
+        unspaced[0].contains("$.set(mid,"),
+        "unspaced ran out of order: {unspaced:?}"
+    );
+    // The spaced form is the control: it was already correct and must stay so.
+    assert!(
+        spaced[0].contains("$.set(mid,"),
+        "spaced ran out of order: {spaced:?}"
+    );
+    assert_eq!(unspaced, spaced);
 }

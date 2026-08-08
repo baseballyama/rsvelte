@@ -1,202 +1,15 @@
 //! Reactive statement handling and state mutation transformations.
 
-use memchr::memmem;
 use std::borrow::Cow;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 use super::{
-    body_references_identifier, extract_destructure_targets, extract_member_expression_base,
-    find_assignment_position, get_or_compile_regex, is_simple_identifier, lhs_starts_with_keyword,
-    transform_destructure_assignments_with_props, transform_prop_assignments,
-    transform_prop_reads_in_expr, transform_store_assignments_client, transform_store_reads_client,
-    transform_store_sub_calls, wrap_state_vars_in_expr,
+    extract_destructure_targets, extract_member_expression_base, find_assignment_position,
+    get_or_compile_regex, lhs_starts_with_keyword, transform_destructure_assignments_with_props,
+    transform_prop_assignments, transform_prop_reads_in_expr, transform_store_assignments_client,
+    transform_store_reads_client, transform_store_sub_calls, wrap_state_vars_in_expr,
 };
-
-/// Extract assigned variable names and dependency variable names from a raw `$:` reactive statement.
-///
-/// This is used for topological sorting of reactive statements.
-/// Returns (assigned_vars, dependency_vars).
-///
-/// For `$: c = a + b;`, returns (["c"], ["a", "b"])
-/// For `$: console.log(x);`, returns ([], ["console", "x"])
-pub(super) fn extract_reactive_statement_deps(
-    statement: &str,
-    state_vars: &[String],
-    prop_vars: &[String],
-    store_sub_vars: &[String],
-) -> (Vec<String>, Vec<String>) {
-    let trimmed = statement.trim();
-
-    // Extract the body after `$:`
-    let body = if let Some(stripped) = trimmed.strip_prefix("$:") {
-        stripped.trim()
-    } else {
-        return (vec![], vec![]);
-    };
-
-    let body = body.trim_end_matches(';').trim();
-    if body.is_empty() {
-        return (vec![], vec![]);
-    }
-
-    // All known reactive variable names (state vars + prop vars + store subs)
-    // These are the variables that participate in the reactive dependency graph
-    let all_reactive_vars: Vec<&str> = state_vars
-        .iter()
-        .chain(prop_vars.iter())
-        .chain(store_sub_vars.iter())
-        .map(|s| s.as_str())
-        .collect();
-
-    #[cfg(feature = "measure-rs-deps")]
-    crate::measure_rs_deps::record_stmt(all_reactive_vars.len(), body.len());
-
-    let mut assigned_vars = Vec::new();
-    let mut dep_vars = Vec::new();
-
-    // Check if this is an assignment statement
-    if let Some(eq_pos) = find_assignment_position(body) {
-        let lhs = body[..eq_pos].trim();
-        let rhs = body[eq_pos + 1..].trim();
-
-        // Extract assigned variable from LHS
-        // Simple identifier: `c = ...`
-        if is_simple_identifier(lhs) {
-            assigned_vars.push(lhs.to_string());
-        } else {
-            // Could be a member expression like `obj.prop = ...`
-            // Extract the base identifier
-            if let Some(base) = extract_member_expression_base(lhs) {
-                assigned_vars.push(base.to_string());
-            }
-        }
-
-        // Extract dependencies from RHS
-        for var_name in &all_reactive_vars {
-            #[cfg(feature = "measure-rs-deps")]
-            crate::measure_rs_deps::record_ref_scan(rhs.len());
-            if body_references_identifier(rhs, var_name) {
-                // Only add as dependency if it's not also being assigned
-                if !assigned_vars.contains(&var_name.to_string()) {
-                    dep_vars.push(var_name.to_string());
-                }
-            }
-        }
-    } else {
-        // Not a simple assignment - expression statement like `console.log(x)` or `if (...) { x++ }`
-        // All referenced reactive vars are dependencies
-        for var_name in &all_reactive_vars {
-            #[cfg(feature = "measure-rs-deps")]
-            crate::measure_rs_deps::record_ref_scan(body.len());
-            if body_references_identifier(body, var_name) {
-                dep_vars.push(var_name.to_string());
-            }
-        }
-    }
-
-    // Also scan the entire body for assignments to reactive vars inside nested blocks.
-    // This catches patterns like `$: if (cond) { count++ }` where `count` is assigned
-    // inside an if block but the top-level is not an assignment expression.
-    // We look for `var =`, `var++`, `var--`, `++var`, `--var` patterns.
-    for var_name in &all_reactive_vars {
-        if assigned_vars.contains(&var_name.to_string()) {
-            continue; // Already detected as assigned
-        }
-        if is_assigned_anywhere_in_body(body, var_name)
-            && !assigned_vars.contains(&var_name.to_string())
-        {
-            assigned_vars.push(var_name.to_string());
-        }
-    }
-
-    (assigned_vars, dep_vars)
-}
-
-/// Check if a variable is assigned anywhere in a code body (including nested blocks).
-/// Detects `var = ...`, `var += ...`, `var++`, `var--`, `++var`, `--var` patterns.
-pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
-    #[cfg(feature = "measure-rs-deps")]
-    crate::measure_rs_deps::record_assign_scan(body.len());
-    // Every pattern below contains `var_name`, so one SIMD scan rules them all
-    // out at once instead of formatting and searching twenty of them.
-    if memmem::find(body.as_bytes(), var_name.as_bytes()).is_none() {
-        #[cfg(feature = "measure-rs-deps")]
-        crate::measure_rs_deps::record_assign_prefilter_miss();
-        return false;
-    }
-    // The four update needles below are built eagerly; the assignment needles
-    // are counted per iteration because that loop returns early.
-    #[cfg(feature = "measure-rs-deps")]
-    crate::measure_rs_deps::record_format_alloc(4);
-
-    // Check for update expressions: `var++`, `var--`, `++var`, `--var`
-    let pp = format!("{}++", var_name);
-    let mm = format!("{}--", var_name);
-    let pp2 = format!("++{}", var_name);
-    let mm2 = format!("--{}", var_name);
-
-    for pattern in &[&pp, &mm, &pp2, &mm2] {
-        if let Some(pos) = body.find(pattern.as_str()) {
-            // Verify it's at a word boundary
-            let before = if pos > 0 {
-                body.as_bytes()[pos - 1]
-            } else {
-                b' '
-            };
-            let after_pos = pos + pattern.len();
-            let after = if after_pos < body.len() {
-                body.as_bytes()[after_pos]
-            } else {
-                b' '
-            };
-            let before_ok = !before.is_ascii_alphanumeric()
-                && before != b'_'
-                && before != b'$'
-                && before != b'.';
-            let after_ok = !after.is_ascii_alphanumeric() && after != b'_' && after != b'$';
-            if before_ok && after_ok {
-                return true;
-            }
-        }
-    }
-
-    // Check for assignment operators: `var = ...`, `var += ...`, `var -= ...`, etc.
-    let assign_patterns = [
-        " = ", " += ", " -= ", " *= ", " /= ", " %= ", " **= ", " &= ", " |= ", " ^= ", " <<= ",
-        " >>= ", " >>>= ", " ??= ", " &&= ", " ||= ",
-    ];
-    for assign_op in &assign_patterns {
-        #[cfg(feature = "measure-rs-deps")]
-        crate::measure_rs_deps::record_format_alloc(1);
-        let pattern = format!("{}{}", var_name, assign_op);
-        if let Some(pos) = body.find(&pattern) {
-            // Verify the variable name is at a word boundary (not part of a longer name)
-            let before = if pos > 0 {
-                body.as_bytes()[pos - 1]
-            } else {
-                b' '
-            };
-            let before_ok = !before.is_ascii_alphanumeric()
-                && before != b'_'
-                && before != b'$'
-                && before != b'.';
-            if before_ok {
-                // Also make sure it's not `==` or `=>`
-                let after_eq = pos + var_name.len() + assign_op.len();
-                if assign_op == &" = " && after_eq < body.len() {
-                    let next = body.as_bytes()[after_eq - 1]; // the char after '='
-                    if next == b'=' || next == b'>' {
-                        continue;
-                    }
-                }
-                return true;
-            }
-        }
-    }
-
-    false
-}
 
 /// Topologically sort reactive statements based on their dependencies.
 ///
@@ -204,9 +17,9 @@ pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
 ///
 /// Each entry is (assigned_vars, dependency_vars, transformed_code).
 /// Returns the same entries in topologically sorted order.
-pub(super) fn sort_reactive_statements(
-    statements: Vec<(Vec<String>, Vec<String>, String)>,
-) -> Vec<(Vec<String>, Vec<String>, String)> {
+pub(super) fn sort_reactive_statements<'a>(
+    statements: Vec<(&'a [String], &'a [String], String)>,
+) -> Vec<(&'a [String], &'a [String], String)> {
     if statements.len() <= 1 {
         return statements;
     }
@@ -217,7 +30,7 @@ pub(super) fn sort_reactive_statements(
     let mut assign_lookup: rustc_hash::FxHashMap<&str, Vec<usize>> =
         rustc_hash::FxHashMap::default();
     for (i, (assigned, _, _)) in statements.iter().enumerate() {
-        for var_name in assigned {
+        for var_name in assigned.iter() {
             assign_lookup.entry(var_name.as_str()).or_default().push(i);
         }
     }
@@ -225,7 +38,7 @@ pub(super) fn sort_reactive_statements(
     // For each statement, find which other statements it depends on
     let mut dep_indices: Vec<Vec<usize>> = vec![Vec::new(); n];
     for (i, (assigned, deps, _)) in statements.iter().enumerate() {
-        for dep_name in deps {
+        for dep_name in deps.iter() {
             // Skip self-dependencies (assigned vars that are also deps)
             if assigned.contains(dep_name) {
                 continue;
@@ -268,7 +81,7 @@ pub(super) fn sort_reactive_statements(
     }
 
     // Reconstruct the result in sorted order
-    let mut statements_opt: Vec<Option<(Vec<String>, Vec<String>, String)>> =
+    let mut statements_opt: Vec<Option<(&'a [String], &'a [String], String)>> =
         statements.into_iter().map(Some).collect();
     let mut result = Vec::with_capacity(n);
 
