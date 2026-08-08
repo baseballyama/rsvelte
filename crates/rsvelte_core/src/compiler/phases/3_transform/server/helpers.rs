@@ -861,6 +861,47 @@ pub(crate) fn sanitize_identifier(name: &str) -> String {
 /// an open-paren / `=` with no value yet) we replace it with a single space
 /// so the next pass sees a complete declaration. Lines inside strings /
 /// template literals are left untouched.
+/// Drop every `\<line break>` from a quoted literal. `cook_string_literal` maps
+/// the same sequence to nothing, so the cooked value is unchanged.
+fn strip_line_continuations(literal: &str) -> std::borrow::Cow<'_, str> {
+    let bytes = literal.as_bytes();
+    if !bytes
+        .windows(2)
+        .any(|w| w[0] == b'\\' && (w[1] == b'\n' || w[1] == b'\r'))
+    {
+        return std::borrow::Cow::Borrowed(literal);
+    }
+    let mut out = String::with_capacity(literal.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            match bytes[i + 1] {
+                b'\n' => {
+                    i += 2;
+                    continue;
+                }
+                b'\r' => {
+                    i += if bytes.get(i + 2) == Some(&b'\n') {
+                        3
+                    } else {
+                        2
+                    };
+                    continue;
+                }
+                _ => {
+                    out.push_str(&literal[i..i + 2]);
+                    i += 2;
+                    continue;
+                }
+            }
+        }
+        let ch = literal[i..].chars().next().unwrap();
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 fn join_continuation_lines(script: &str) -> String {
     let bytes = script.as_bytes();
     let mut out = String::with_capacity(script.len());
@@ -908,7 +949,14 @@ fn join_continuation_lines(script: &str) -> String {
                 }
                 i += 1;
             }
-            out.push_str(&script[s..i]);
+            // A backtick's newlines are content; a `'…'` / `"…"` only reaches a
+            // newline through a line continuation, which contributes nothing to
+            // the value and would otherwise re-split this logical line.
+            if quote == b'`' {
+                out.push_str(&script[s..i]);
+            } else {
+                out.push_str(&strip_line_continuations(&script[s..i]));
+            }
             continue;
         }
         if b == b'(' {
@@ -980,16 +1028,40 @@ fn join_continuation_lines(script: &str) -> String {
 /// Extract constant variable bindings from script content.
 /// Try to parse a value as a constant literal and insert into the constants map.
 /// Returns true if the value was successfully inserted.
+/// Is the whole expression one string literal? `starts_with` + `ends_with` is
+/// not that question: `'a' + 'b'` answers yes to both and is two literals with
+/// an operator between them.
+fn is_whole_string_literal(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let Some(&quote) = bytes.first() else {
+        return false;
+    };
+    if !matches!(quote, b'\'' | b'"' | b'`') || bytes.len() < 2 {
+        return false;
+    }
+    if quote == b'`' && value.contains("${") {
+        return false;
+    }
+    let mut i = 1;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            i += 2;
+            continue;
+        }
+        if bytes[i] == quote {
+            return i == bytes.len() - 1;
+        }
+        i += 1;
+    }
+    false
+}
+
 fn try_insert_constant_value(
     value: &str,
     name: &str,
     constants: &mut FxHashMap<String, String>,
 ) -> bool {
-    if value.len() >= 2
-        && ((value.starts_with('\'') && value.ends_with('\''))
-            || (value.starts_with('"') && value.ends_with('"'))
-            || (value.starts_with('`') && value.ends_with('`') && !value.contains("${")))
-    {
+    if is_whole_string_literal(value) {
         // A folded constant is a value, so it holds the cooked string (matching
         // upstream's `scope.evaluate`); the emitter re-escapes it for the quasi.
         let content = &value[1..value.len() - 1];
@@ -1036,9 +1108,7 @@ pub(crate) fn try_evaluate_with_constants(
     {
         return Some(n.to_string());
     }
-    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
-    {
+    if !trimmed.starts_with('`') && is_whole_string_literal(trimmed) {
         return Some(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(
             &trimmed[1..trimmed.len() - 1],
         ));

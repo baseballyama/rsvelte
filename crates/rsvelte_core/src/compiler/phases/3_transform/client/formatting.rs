@@ -1104,7 +1104,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
             if i > 0 {
                 result.push('\n');
             }
-            let in_template_literal = matches!(stack.last(), Some(TemplateStateFrame::Template));
+            let in_template_literal = in_string_content(&stack);
             if i == 0 {
                 let stripped = strip_indent(line, base_indent);
                 update_template_literal_stack(stripped, &mut stack);
@@ -1195,7 +1195,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // outer Template, so we thread the full stack through.
     let mut stack: Vec<TemplateStateFrame> = Vec::new();
     for (i, line) in code.lines().enumerate() {
-        let in_template_at_start = matches!(stack.last(), Some(TemplateStateFrame::Template));
+        let in_template_at_start = in_string_content(&stack);
         if i == 0 {
             // First line gets indent from emit_statement's self.indent()
             update_template_literal_stack(line, &mut stack);
@@ -1227,6 +1227,38 @@ pub(super) enum TemplateStateFrame {
     /// We are inside a `${...}` expression. The u32 counts `{`/`}` pairs
     /// (not counting the outer `${`'s matching `}`).
     Interp(u32),
+    /// We are inside a `'…'` / `"…"` string that a line continuation carried
+    /// past the end of a line. The byte is the quote character. Everything up
+    /// to the closing quote is string *content*, so it must not be indented.
+    Quoted(u8),
+}
+
+/// Is the next line's first character inside a string, and therefore content
+/// that must be reproduced byte-for-byte rather than indented? Every re-indenter
+/// in this pipeline asks exactly this, so they ask it here.
+pub(super) fn in_string_content(stack: &[TemplateStateFrame]) -> bool {
+    matches!(
+        stack.last(),
+        Some(TemplateStateFrame::Template) | Some(TemplateStateFrame::Quoted(_))
+    )
+}
+
+/// Scan from the byte after an opening quote to just past the closing one.
+/// `None` means the string ran to the end of the line, which JavaScript allows
+/// only through a line continuation — the next line begins inside the string.
+fn scan_quoted(bytes: &[u8], mut i: usize, quote: u8) -> Option<usize> {
+    let len = bytes.len();
+    while i < len {
+        if bytes[i] == b'\\' && i + 1 < len {
+            i += 2;
+            continue;
+        }
+        if bytes[i] == quote {
+            return Some(i + 1);
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Stack-based template/interpolation tracker. Mutates `stack` as the line
@@ -1240,6 +1272,16 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
     while i < len {
         let c = bytes[i];
         match stack.last().copied() {
+            Some(TemplateStateFrame::Quoted(quote)) => {
+                match scan_quoted(bytes, i, quote) {
+                    Some(next) => {
+                        stack.pop();
+                        i = next;
+                    }
+                    None => return,
+                }
+                continue;
+            }
             Some(TemplateStateFrame::Template) => {
                 if c == b'\\' {
                     i += 2;
@@ -1260,18 +1302,12 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
                     i += 1;
                     continue;
                 } else if c == b'\'' || c == b'"' {
-                    let quote = c;
-                    i += 1;
-                    while i < len {
-                        if bytes[i] == b'\\' && i + 1 < len {
-                            i += 2;
-                            continue;
+                    match scan_quoted(bytes, i + 1, c) {
+                        Some(next) => i = next,
+                        None => {
+                            stack.push(TemplateStateFrame::Quoted(c));
+                            return;
                         }
-                        if bytes[i] == quote {
-                            i += 1;
-                            break;
-                        }
-                        i += 1;
                     }
                     continue;
                 } else if c == b'`' {
@@ -1300,18 +1336,12 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
             }
             None => {
                 if c == b'\'' || c == b'"' {
-                    let quote = c;
-                    i += 1;
-                    while i < len {
-                        if bytes[i] == b'\\' && i + 1 < len {
-                            i += 2;
-                            continue;
+                    match scan_quoted(bytes, i + 1, c) {
+                        Some(next) => i = next,
+                        None => {
+                            stack.push(TemplateStateFrame::Quoted(c));
+                            return;
                         }
-                        if bytes[i] == quote {
-                            i += 1;
-                            break;
-                        }
-                        i += 1;
                     }
                     continue;
                 } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
@@ -1325,134 +1355,6 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
             }
         }
     }
-}
-
-pub(super) fn update_template_literal_state(line: &str, currently_in_template: bool) -> bool {
-    // Stack-based state machine that properly handles:
-    //   * nested template literals inside interpolations (e.g. `` `a ${`b${c}`}` ``)
-    //   * strings inside interpolations (which may contain `{`/`}`/`` ` ``)
-    //   * escape sequences both inside templates and strings
-    //   * line comments that start outside a template
-    //
-    // Stack entries:
-    //   * State::Template — we are inside a template literal's text portion
-    //   * State::Interp(depth) — we are inside a `${...}` expression; `depth`
-    //     tracks `{`/`}` pairs (not counting the outer `${` or its matching `}`)
-    //
-    // When currently_in_template is true, we start with one Template on the stack.
-    #[derive(Clone, Copy)]
-    enum State {
-        Template,
-        Interp(u32),
-    }
-    let mut stack: Vec<State> = Vec::new();
-    if currently_in_template {
-        stack.push(State::Template);
-    }
-    let bytes = line.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    while i < len {
-        let c = bytes[i];
-        match stack.last().copied() {
-            Some(State::Template) => {
-                if c == b'\\' {
-                    // Skip escaped character
-                    i += 2;
-                    continue;
-                } else if c == b'`' {
-                    stack.pop(); // close template literal
-                    i += 1;
-                    continue;
-                } else if c == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-                    stack.push(State::Interp(0));
-                    i += 2;
-                    continue;
-                }
-                i += 1;
-            }
-            Some(State::Interp(_)) => {
-                // Inside a `${...}` expression — treat it as JS code.
-                // Track braces so we can detect the matching `}` that closes
-                // the interpolation.
-                if c == b'\\' {
-                    // Escape only meaningful inside strings/templates, but harmless
-                    // here — advance one char.
-                    i += 1;
-                    continue;
-                } else if c == b'\'' || c == b'"' {
-                    // Skip a string literal
-                    let quote = c;
-                    i += 1;
-                    while i < len {
-                        if bytes[i] == b'\\' && i + 1 < len {
-                            i += 2;
-                            continue;
-                        }
-                        if bytes[i] == quote {
-                            i += 1;
-                            break;
-                        }
-                        i += 1;
-                    }
-                    continue;
-                } else if c == b'`' {
-                    // Nested template literal begins
-                    stack.push(State::Template);
-                    i += 1;
-                    continue;
-                } else if c == b'{' {
-                    if let Some(State::Interp(d)) = stack.last_mut() {
-                        *d += 1;
-                    }
-                    i += 1;
-                    continue;
-                } else if c == b'}' {
-                    if let Some(State::Interp(d)) = stack.last_mut() {
-                        if *d == 0 {
-                            // Matches the outer `${`
-                            stack.pop();
-                            i += 1;
-                            continue;
-                        }
-                        *d -= 1;
-                    }
-                    i += 1;
-                    continue;
-                }
-                i += 1;
-            }
-            None => {
-                // Top-level JS code
-                if c == b'\'' || c == b'"' {
-                    // Skip string literals
-                    let quote = c;
-                    i += 1;
-                    while i < len {
-                        if bytes[i] == b'\\' && i + 1 < len {
-                            i += 2;
-                            continue;
-                        }
-                        if bytes[i] == quote {
-                            i += 1;
-                            break;
-                        }
-                        i += 1;
-                    }
-                    continue;
-                } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
-                    // Line comment — rest of line is comment
-                    break;
-                } else if c == b'`' {
-                    stack.push(State::Template);
-                    i += 1;
-                    continue;
-                }
-                i += 1;
-            }
-        }
-    }
-    matches!(stack.last(), Some(State::Template))
 }
 
 /// Strip standalone empty statements (`;` on its own line) from JavaScript code.
