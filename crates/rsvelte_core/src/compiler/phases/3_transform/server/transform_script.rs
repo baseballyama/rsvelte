@@ -4874,6 +4874,26 @@ fn strip_ts_field_modifiers(lhs: &str) -> &str {
     s
 }
 
+/// Net bracket depth of `s`, counting only bytes that are code.
+///
+/// The class-member accumulators below stop when their depth reaches zero, so a
+/// `)` inside a comment ends a field early and drops everything after it.
+/// Callers pass the whole accumulated text, not one line, so a block comment
+/// that spans lines is closed by the same scan that opened it.
+fn code_bracket_depth(s: &str) -> i32 {
+    let mut depth = 0i32;
+    for (_, byte) in
+        crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(s.as_bytes())
+    {
+        match byte {
+            b'(' | b'{' | b'[' => depth += 1,
+            b')' | b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+    }
+    depth
+}
+
 /// Transform class fields with $derived runes for server-side.
 pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let script_bytes = script.as_bytes();
@@ -4953,7 +4973,6 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     // For multiline derived fields: accumulate text until parens balance
     let mut in_derived_field = false;
     let mut derived_accum = String::new();
-    let mut derived_paren_depth: i32 = 0;
     let mut derived_field_name = String::new();
     let mut derived_field_is_private = false;
     let mut derived_field_is_by = false;
@@ -4965,7 +4984,6 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     // client module transform, which then privatizes the public field.
     let mut in_state_field = false;
     let mut state_accum = String::new();
-    let mut state_paren_depth: i32 = 0;
     let mut state_field_name = String::new();
 
     // For multiline plain (non-rune) field initializers: accumulate lines until
@@ -4973,7 +4991,6 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     // where the `{` is inside the initializer and spans multiple lines.
     let mut in_plain_field = false;
     let mut plain_field_lines: Vec<String> = Vec::new();
-    let mut plain_field_depth: i32 = 0;
 
     // For block comments (`/** … */` / `/* … */`) inside class bodies: accumulate
     // lines until the closing `*/` and push them as a `ClassMember::Comment` so the
@@ -5025,14 +5042,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         if in_derived_field {
             derived_accum.push('\n');
             derived_accum.push_str(trimmed);
-            for c in trimmed.chars() {
-                match c {
-                    '(' | '{' | '[' => derived_paren_depth += 1,
-                    ')' | '}' | ']' => derived_paren_depth -= 1,
-                    _ => {}
-                }
-            }
-            if derived_paren_depth <= 0 {
+            if code_bracket_depth(&derived_accum) <= 0 {
                 in_derived_field = false;
                 // Now process the complete multiline derived field
                 let full_text = derived_accum.clone();
@@ -5082,14 +5092,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         if in_state_field {
             state_accum.push('\n');
             state_accum.push_str(trimmed);
-            for c in trimmed.chars() {
-                match c {
-                    '(' | '{' | '[' => state_paren_depth += 1,
-                    ')' | '}' | ']' => state_paren_depth -= 1,
-                    _ => {}
-                }
-            }
-            if state_paren_depth <= 0 {
+            if code_bracket_depth(&state_accum) <= 0 {
                 in_state_field = false;
                 let full_text = state_accum.clone();
                 let state_pattern = if full_text.contains("$state.raw(") {
@@ -5122,14 +5125,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // single Field member so the emitter can write it verbatim.
         if in_plain_field {
             plain_field_lines.push(line.to_string());
-            for c in trimmed.chars() {
-                match c {
-                    '(' | '{' | '[' => plain_field_depth += 1,
-                    ')' | '}' | ']' => plain_field_depth -= 1,
-                    _ => {}
-                }
-            }
-            if plain_field_depth <= 0 {
+            if code_bracket_depth(&plain_field_lines.join("\n")) <= 0 {
                 in_plain_field = false;
                 // Emit the full multi-line field as a single Field entry whose
                 // text is the source lines joined. The emitter handles it
@@ -5137,7 +5133,6 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 let field_text = plain_field_lines.join("\n");
                 members.push(ClassMember::Field(field_text));
                 plain_field_lines.clear();
-                plain_field_depth = 0;
             }
             continue;
         }
@@ -5408,14 +5403,6 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     // Multiline derived field - accumulate until parens balance
                     in_derived_field = true;
                     derived_accum = trimmed.to_string();
-                    derived_paren_depth = 0;
-                    for c in trimmed.chars() {
-                        match c {
-                            '(' | '{' | '[' => derived_paren_depth += 1,
-                            ')' | '}' | ']' => derived_paren_depth -= 1,
-                            _ => {}
-                        }
-                    }
                     derived_field_name = name;
                     derived_field_is_private = is_private;
                     derived_field_is_by = is_derived_by;
@@ -5455,14 +5442,6 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 // parens balance, then unwrap (see the `in_state_field` block).
                 in_state_field = true;
                 state_accum = trimmed.to_string();
-                state_paren_depth = 0;
-                for c in trimmed.chars() {
-                    match c {
-                        '(' | '{' | '[' => state_paren_depth += 1,
-                        ')' | '}' | ']' => state_paren_depth -= 1,
-                        _ => {}
-                    }
-                }
                 state_field_name = field_name.to_string();
                 continue;
             }
@@ -5473,19 +5452,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // lines (e.g. `bundler = new Bundler({\n  ...\n})`). Accumulate until
         // the depth returns to 0 so the full initializer is emitted verbatim
         // instead of just the first line with a spurious `;` appended.
-        let mut field_bracket_depth: i32 = 0;
-        for c in trimmed.chars() {
-            match c {
-                '(' | '{' | '[' => field_bracket_depth += 1,
-                ')' | '}' | ']' => field_bracket_depth -= 1,
-                _ => {}
-            }
-        }
+        let field_bracket_depth = code_bracket_depth(trimmed);
         if field_bracket_depth > 0 {
             in_plain_field = true;
             plain_field_lines.clear();
             plain_field_lines.push(line.to_string());
-            plain_field_depth = field_bracket_depth;
         } else {
             members.push(ClassMember::Field(trimmed.to_string()));
         }
