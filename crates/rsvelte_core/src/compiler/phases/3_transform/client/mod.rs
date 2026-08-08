@@ -6157,10 +6157,11 @@ fn transform_instance_script_for_visitors(
                     && !t.ends_with("==")
                     && !t.ends_with("!=")
                     && !t.ends_with("<=")
-                    && !t.ends_with(">=")
-                    && !t.ends_with("=>"))
+                    && !t.ends_with(">="))
                     || t.ends_with("&&")
                     || t.ends_with("||")
+                    // An arrow's body always follows, so `=>` never ends a statement.
+                    || t.ends_with("=>")
                     // Ternary `?` (and nullish `??`, a superset) continuation:
                     // a line ending with a bare `?` is always a dangling ternary
                     // operator whose consequent follows on the next line. This
