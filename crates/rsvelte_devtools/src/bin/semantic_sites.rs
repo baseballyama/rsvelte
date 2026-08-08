@@ -76,6 +76,23 @@ fn main() {
         std::process::exit(2);
     }
 
+    #[cfg(feature = "measure-semantic-build")]
+    if args.iter().any(|a| a == "--time") {
+        let reps = args
+            .iter()
+            .position(|a| a == "--reps")
+            .and_then(|i| args.get(i + 1))
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(7);
+        for mode in MODES
+            .iter()
+            .filter(|m| only_mode.as_deref().is_none_or(|w| w == m.label))
+        {
+            report_time_share(&files, *mode, reps);
+        }
+        return;
+    }
+
     for mode in MODES
         .iter()
         .filter(|m| only_mode.as_deref().is_none_or(|w| w == m.label))
@@ -121,6 +138,80 @@ fn main() {
             );
         }
         println!("{:<34} {:>12} {:>12.2}", "TOTAL", total, total as f64 / n);
+    }
+}
+
+/// Share of `compile()` wall time spent inside `SemanticBuilder::build`.
+///
+/// Numerator and denominator are collected in the same pass, so both see the
+/// same machine load; the reported pass is the one with the smallest total,
+/// and the spread across passes says whether that number can be trusted.
+#[cfg(feature = "measure-semantic-build")]
+fn report_time_share(files: &[String], mode: Mode, reps: usize) {
+    use std::time::{Duration, Instant};
+
+    let opts = mode.options();
+    let mut passes: Vec<(
+        Duration,
+        Duration,
+        [Duration; profile::SEMANTIC_SITES.len()],
+        u64,
+    )> = Vec::new();
+    for _ in 0..reps {
+        let _ = profile::take_semantic_time();
+        let _ = profile::take_semantic_builds();
+        let start = Instant::now();
+        for src in files {
+            std::hint::black_box(rsvelte_core::compile(src, opts.clone()).is_ok());
+        }
+        let total = start.elapsed();
+        let per_site = profile::take_semantic_time();
+        let builds: u64 = profile::take_semantic_builds().iter().map(|(c, _)| c).sum();
+        let sem: Duration = per_site.iter().sum();
+        passes.push((total, sem, per_site, builds));
+    }
+    passes.sort_by_key(|p| p.0);
+    let (total, sem, per_site, builds) = passes[0];
+    let worst_share = passes
+        .iter()
+        .map(|(t, s, _, _)| s.as_secs_f64() / t.as_secs_f64())
+        .fold(f64::MIN, f64::max);
+    let best_share = passes
+        .iter()
+        .map(|(t, s, _, _)| s.as_secs_f64() / t.as_secs_f64())
+        .fold(f64::MAX, f64::min);
+
+    println!(
+        "\n## {} — {} files, {builds} builds, {reps} passes",
+        mode.label,
+        files.len()
+    );
+    println!(
+        "compile() {:.2} ms   SemanticBuilder {:.2} ms   share {:.2}%  (across passes {:.2}%..{:.2}%)",
+        total.as_secs_f64() * 1e3,
+        sem.as_secs_f64() * 1e3,
+        sem.as_secs_f64() / total.as_secs_f64() * 100.0,
+        best_share * 100.0,
+        worst_share * 100.0,
+    );
+    if builds > 0 {
+        println!(
+            "mean per build {:.0} ns over {builds} builds",
+            sem.as_secs_f64() * 1e9 / builds as f64
+        );
+    }
+    let mut rows: Vec<(usize, Duration)> = per_site.iter().copied().enumerate().collect();
+    rows.sort_by_key(|r| std::cmp::Reverse(r.1));
+    for (site, d) in rows {
+        if d.is_zero() {
+            continue;
+        }
+        println!(
+            "  {:<32} {:>9.3} ms  {:>6.2}%",
+            profile::SEMANTIC_SITES[site],
+            d.as_secs_f64() * 1e3,
+            d.as_secs_f64() / total.as_secs_f64() * 100.0
+        );
     }
 }
 

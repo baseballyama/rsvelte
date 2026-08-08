@@ -989,7 +989,10 @@ pub fn visit<'a, 'b: 'a>(
                 && !is_svg(node_name)
                 && !is_mathml(node_name)
             {
-                context.emit_warning(warnings::element_invalid_self_closing_tag(node_name));
+                let mut warning = warnings::element_invalid_self_closing_tag(node_name);
+                warning.start = Some(element.start);
+                warning.end = Some(element.end);
+                context.emit_warning(warning);
             }
         }
     }
