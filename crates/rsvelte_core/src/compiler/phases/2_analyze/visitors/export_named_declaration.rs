@@ -73,6 +73,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         specifiers,
         source,
         export_kind,
+        start,
+        end,
         ..
     } = node
     {
@@ -103,7 +105,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 };
 
                 if is_default && !context.analysis.is_module_file {
-                    return Err(errors::module_illegal_default_export());
+                    return Err(errors::module_illegal_default_export().at(*start, *end));
                 }
 
                 // Check for export_undefined in module script

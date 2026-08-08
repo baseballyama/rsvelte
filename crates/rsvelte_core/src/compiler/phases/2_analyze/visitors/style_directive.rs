@@ -20,7 +20,9 @@ pub fn visit(
     // Validate modifiers - only "important" is allowed
     for modifier in &directive.modifiers {
         if modifier.as_str() != "important" {
-            return Err(errors::style_directive_invalid_modifier());
+            return Err(
+                errors::style_directive_invalid_modifier().at(directive.start, directive.end)
+            );
         }
     }
 

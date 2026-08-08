@@ -136,16 +136,14 @@ mod tests {
             "got: {}",
             result.code
         );
+        // `ts` mode leaves instance-script assertions in the angle-bracket form
+        // — the body lands inside `function $$render()`, where it still parses.
         assert!(
-            result.code.contains("$inner as Inner"),
+            result.code.contains("<Inner>$inner"),
             "got: {}",
             result.code
         );
-        assert!(
-            result.code.contains("inner as Outer"),
-            "got: {}",
-            result.code
-        );
+        assert!(result.code.contains("<Outer>inner"), "got: {}", result.code);
         assert!(
             !result.code.contains("__sveltets_2_store_get(store)"),
             "got: {}",
