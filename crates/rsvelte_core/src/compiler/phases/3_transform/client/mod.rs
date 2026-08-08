@@ -3711,6 +3711,7 @@ pub(super) fn extract_local_reactive_vars(script: &str) -> Vec<(String, bool, bo
         return Vec::new();
     }
 
+    super::profile::record_st_collect_scan(script.len() as u64);
     let mut vars = Vec::new();
 
     // Pattern: (let|const|var) varname = $state(...) or (let|const|var) varname = $derived(...)
@@ -3823,6 +3824,7 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
     if memmem::find(script.as_bytes(), b"$state(").is_none() {
         return Vec::new();
     }
+    super::profile::record_st_collect_scan(script.len() as u64);
     let mut proxy_vars = Vec::new();
 
     for line in script.lines() {
@@ -4679,7 +4681,9 @@ fn transform_instance_script_for_visitors(
     // Pre-filter state_vars to only include variables that actually appear in the script.
     // This avoids O(M*N) scanning in downstream transforms for variables that can't match.
     // Uses O(text_len) identifier extraction instead of O(N*text_len) substring search.
-    super::profile::record_st_collect_scan(script_rest.len() as u64);
+    if !state_vars.is_empty() && !script_rest.is_empty() {
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
+    }
     utils::text_retain_matching_identifiers(&script_rest, &mut state_vars);
 
     // Ensure reactive import names are included in state_vars for $.get()/$.mutate() wrapping.
@@ -4732,7 +4736,6 @@ fn transform_instance_script_for_visitors(
     // top-level bindings take precedence for scope-level transforms. For example,
     // if there's a top-level `const multiplier = () => { let multiplier = $state(2); ... }`,
     // the inner `multiplier` should NOT cause the outer `multiplier` to be wrapped with $.get().
-    super::profile::record_st_collect_scan(script_rest.len() as u64);
     let local_reactive_vars = extract_local_reactive_vars(&script_rest);
     let top_level_binding_names: rustc_hash::FxHashSet<&str> = analysis
         .root
@@ -4842,7 +4845,6 @@ fn transform_instance_script_for_visitors(
 
     // Collect proxy vars - variables initialized with $state({ ... }) or $state([ ... ])
     // These are converted to $.proxy() and don't need $.get() wrapping for property access
-    super::profile::record_st_collect_scan(script_rest.len() as u64);
     let proxy_vars = extract_proxy_vars(&script_rest);
 
     // Collect rest_prop variable names (from `let props = $props()`)
@@ -4975,15 +4977,19 @@ fn transform_instance_script_for_visitors(
 
     // Check for legacy mode (export let or export { x })
     // Also detect `export { x }` patterns which create BindableProp bindings
-    super::profile::record_st_collect_scan(script_rest.len() as u64);
-    let has_legacy_export_let = script_rest.lines().any(|line| {
-        let trimmed = line.trim();
-        trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
-    }) || analysis
-        .root
-        .bindings
-        .iter()
-        .any(|b| matches!(b.kind, BindingKind::BindableProp));
+    // The per-line walk can only succeed where the substring exists.
+    let has_legacy_export_let =
+        (memmem::find(script_rest.as_bytes(), b"export let").is_some() && {
+            super::profile::record_st_collect_scan(script_rest.len() as u64);
+            script_rest.lines().any(|line| {
+                let trimmed = line.trim();
+                trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
+            })
+        }) || analysis
+            .root
+            .bindings
+            .iter()
+            .any(|b| matches!(b.kind, BindingKind::BindableProp));
 
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
