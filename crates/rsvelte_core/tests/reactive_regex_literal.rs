@@ -77,8 +77,7 @@ fn a_trailing_operator_after_a_regex_still_continues_the_statement() {
 /// would swallow the `//` that follows, and the tests above would not notice.
 #[test]
 fn a_division_does_not_hide_the_comment_after_it() {
-    let source =
-        "<script>\n  export let total;\n  $: half = total / 2; // halve it\n</script>\n\n<p>{half}</p>\n";
+    let source = "<script>\n  export let total;\n  $: half = total / 2; // halve it\n</script>\n\n<p>{half}</p>\n";
     let out = compile_to(source, GenerateMode::Client);
     assert!(
         out.contains("total() / 2") && !out.contains("halve it"),
