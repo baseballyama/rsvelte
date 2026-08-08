@@ -140,7 +140,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A cancelled run leaves that commit with no verdict, which reads the same as
+  # green — that is how a stale ratchet sat on `main` unnoticed (#2435/#2593).
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read

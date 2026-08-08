@@ -1058,7 +1058,8 @@ fn synthesize_for_element_attrs(
 }
 
 /// Span of `binding.node` — the declaration identifier, which upstream passes to
-/// `w.non_reactive_update` / `w.export_let_unused`.
+/// `w.non_reactive_update` / `w.export_let_unused`. The end is the name's **byte**
+/// length; a `char` count would slice a non-ASCII name mid-character.
 fn binding_node_span(binding: &Binding) -> Option<(u32, u32)> {
     let start = binding.declaration_start?;
     Some((start, start + binding.name.len() as u32))

@@ -312,17 +312,12 @@ fn compound_and_logical_assignments_keep_nested_comments() {
     );
     assert_structurally_valid(&out, "compound/logical assignment");
     let flat = dedented(&out);
-    // Both assertions below carry a divergence from upstream that predates this
-    // file and is tracked separately; only the comment's survival is this test's
-    // subject. Official emits `$.set(this.#x, this.#x.v ?? { … })` with no third
-    // argument — the `true` is a spurious proxy flag on a logical-assignment RHS
-    // — and reads the compound operand as `this.#n.v`, not `$.get(this.#n)`.
     assert!(
-        flat.contains("?? {\na: s,\n// c\nb: s\n},\ntrue\n);"),
+        flat.contains("$.set(this.#x, this.#x.v ?? {\na: s,\n// c\nb: s\n});"),
         "logical assignment RHS must survive:\n{out}"
     );
     assert!(
-        flat.contains("$.set(this.#n, $.get(this.#n) + [\n1,\n// c\n2\n].length);"),
+        flat.contains("$.set(this.#n, this.#n.v + [\n1,\n// c\n2\n].length);"),
         "compound assignment RHS must survive:\n{out}"
     );
 }
