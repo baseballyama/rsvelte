@@ -241,8 +241,11 @@ no scope-dependent constant folder involved.
 
 **Gated on legacy `$:` density.** The caller short-circuits on `analysis.runes`,
 so this is ~80% of `to_value` on Svelte-4-era corpora (huly, carbon), a third on
-open-webui, and exactly zero on runes-only code (SMUI). It is therefore also
-invisible to the CodSpeed benchmark population, which is 8/9 runes.
+open-webui, and exactly zero on runes-only code (SMUI). Legacy `$:` is 12.34% of
+library bytes but 68.89% of application bytes, so the corpora this repo gates on
+under-weight it — see `compatibility/gate-coverage.md` § C6. (The bench corpus is
+**not** "8 of 9 runes"; fixtures 10-11 closed that gap and it is 37.7% legacy by
+bytes.)
 
 **No time share is claimed here, by either instrument.** A wall-clock timer over
 all 54 sites spanned 5.07 / 2.89 / 0.58% of compile across three runs on
