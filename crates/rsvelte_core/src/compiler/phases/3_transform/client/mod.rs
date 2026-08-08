@@ -87,6 +87,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
 
@@ -2930,16 +2931,14 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
 
     for line in script.lines() {
         let line_starts_in_code = scan.in_code();
+        let line_starts_in_block_comment = scan.in_block_comment;
         scan.advance(line);
         let scan = line_starts_in_code; // shadow for the decision below
         if let Some(ref mut import_lines) = current_import {
             let trimmed = line.trim();
-            let closes = trimmed.contains(';')
-                || trimmed.ends_with('\'')
-                || trimmed.ends_with('"')
-                || trimmed.ends_with('`');
-            if closes {
-                if let Some(end) = import_statement_end(trimmed)
+            let scanned = scan_import_line(trimmed, line_starts_in_block_comment);
+            if scanned.closes(trimmed.len()) {
+                if let Some(end) = scanned.end()
                     && end < trimmed.len()
                     && !trimmed[end..].trim().is_empty()
                 {
@@ -2964,12 +2963,11 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             let trimmed = line.trim();
             if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
                 // Check if this import is complete on one line
-                if trimmed.contains(';')
+                let scanned = scan_import_line(trimmed, false);
+                if scanned.semicolon.is_some()
                     || is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && (trimmed.ends_with('\'')
-                            || trimmed.ends_with('"')
-                            || trimmed.ends_with('`')))
+                        && scanned.last_string_end == Some(trimmed.len()))
                 {
                     // The line begins with a *complete* import statement but may
                     // carry additional imports and/or statements on the same
@@ -3021,16 +3019,14 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
             physical_line
         };
         let line_starts_in_code = scan.in_code();
+        let line_starts_in_block_comment = scan.in_block_comment;
         scan.advance(line);
         let scan = line_starts_in_code;
         if let Some(ref mut import_lines) = current_import {
             let trimmed = line.trim();
-            let closes = trimmed.contains(';')
-                || trimmed.ends_with('\'')
-                || trimmed.ends_with('"')
-                || trimmed.ends_with('`');
-            if closes {
-                if let Some(end) = import_statement_end(trimmed)
+            let scanned = scan_import_line(trimmed, line_starts_in_block_comment);
+            if scanned.closes(trimmed.len()) {
+                if let Some(end) = scanned.end()
                     && end < trimmed.len()
                     && !trimmed[end..].trim().is_empty()
                 {
@@ -3062,12 +3058,11 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
         } else {
             let trimmed = line.trim();
             if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
-                if trimmed.contains(';')
+                let scanned = scan_import_line(trimmed, false);
+                if scanned.semicolon.is_some()
                     || is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && (trimmed.ends_with('\'')
-                            || trimmed.ends_with('"')
-                            || trimmed.ends_with('`')))
+                        && scanned.last_string_end == Some(trimmed.len()))
                 {
                     let trimmed_start = line.len() - line.trim_start().len();
                     let (remainder, remainder_offset) =
@@ -3199,39 +3194,72 @@ fn compose_script_projection(
 /// then a single string literal (single or double quoted), then optional
 /// whitespace until end-of-line. Anything else (bindings, `from`, trailing
 /// content, dynamic `import(...)` calls) returns `false`.
-/// Find the byte index at which the leading import statement in `s` ends.
+#[derive(Default)]
+struct ImportLineScan {
+    /// Just past the first `;` that is code.
+    semicolon: Option<usize>,
+    /// Just past the last string or template literal that is code.
+    last_string_end: Option<usize>,
+}
+
+impl ImportLineScan {
+    /// Where the statement ends: the `;` if there is one, else — ASI — the last
+    /// completed string literal, which is the module specifier.
+    fn end(&self) -> Option<usize> {
+        self.semicolon.or(self.last_string_end)
+    }
+
+    fn closes(&self, line_len: usize) -> bool {
+        self.semicolon.is_some() || self.last_string_end == Some(line_len)
+    }
+}
+
+/// Scan one line of an `import` statement for its terminator.
 ///
-/// String literals (single/double quotes and template backticks) are skipped
-/// honouring backslash escapes, so a `;` inside a module specifier is ignored.
-/// If a top-level `;` is found it terminates the statement (index just past it).
-/// Otherwise — ASI — the statement ends just past the last completed top-level
-/// string literal (the module specifier). Returns `None` if neither is present.
-fn import_statement_end(s: &str) -> Option<usize> {
+/// A `;` or a closing quote inside a comment is text, and reading it as the
+/// terminator cut the statement mid-specifier-list (#2601).
+/// `in_block_comment` carries that state across the preceding lines.
+fn scan_import_line(s: &str, in_block_comment: bool) -> ImportLineScan {
     let bytes = s.as_bytes();
+    let mut out = ImportLineScan::default();
     let mut i = 0usize;
-    let mut last_string_end: Option<usize> = None;
-    while i < bytes.len() {
-        match bytes[i] {
-            b';' => return Some(i + 1),
-            q @ (b'\'' | b'"' | b'`') => {
-                i += 1;
-                while i < bytes.len() {
-                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
-                        i += 2;
-                        continue;
-                    }
-                    if bytes[i] == q {
-                        i += 1;
-                        break;
-                    }
-                    i += 1;
-                }
-                last_string_end = Some(i);
-            }
-            _ => i += 1,
+    if in_block_comment {
+        match memmem::find(bytes, b"*/") {
+            Some(at) => i = at + 2,
+            None => return out,
         }
     }
-    last_string_end
+    let mut prev: Option<u8> = None;
+    while i < bytes.len() {
+        let quoted = matches!(bytes[i], b'\'' | b'"' | b'`');
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if quoted {
+                out.last_string_end = Some(next);
+            }
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if bytes[i] == b';' {
+            out.semicolon = Some(i + 1);
+            return out;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    out
+}
+
+/// Find the byte index at which the leading import statement in `s` ends.
+///
+/// Callers pass a slice that starts at a statement boundary, so no comment can
+/// already be open.
+fn import_statement_end(s: &str) -> Option<usize> {
+    scan_import_line(s, false).end()
 }
 
 /// Peel every complete leading `import` statement off `s`, pushing each onto
