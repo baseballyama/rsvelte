@@ -1674,3 +1674,64 @@ mod reactive_multiline_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod quote_frame_tests {
+    use super::{TemplateStateFrame, in_string_content, update_template_literal_stack};
+
+    fn state_after(lines: &[&str]) -> Vec<TemplateStateFrame> {
+        let mut stack = Vec::new();
+        for line in lines {
+            update_template_literal_stack(line, &mut stack);
+        }
+        stack
+    }
+
+    /// A `'…'` can only reach the next line through a trailing `\`. Every other
+    /// unterminated quote is an apostrophe in prose or a quote inside a regex,
+    /// and treating it as a carried string made every following line count as
+    /// string content — which is how `isn't` in a doc comment stopped an entire
+    /// component below it from being re-indented.
+    #[test]
+    fn only_a_trailing_backslash_carries_a_string() {
+        for line in [
+            "\t/** the console isn't shown */",
+            "\t// we can't avoid this",
+            "\tconst quotes = /'|\"/g;",
+            "\t * focus control in ways we can't prevent",
+        ] {
+            assert!(
+                !in_string_content(&state_after(&[line])),
+                "a quote that closes nothing opened a string: {line}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_trailing_backslash_still_carries_one() {
+        assert!(in_string_content(&state_after(&["\tconst cont = 'a\\"])));
+        assert!(in_string_content(&state_after(&["\tconst cont = \"a\\"])));
+        // …and the closing quote on the next line ends it.
+        assert!(!in_string_content(&state_after(&[
+            "\tconst cont = 'a\\",
+            "b';"
+        ])));
+    }
+
+    /// Two stray apostrophes on separate lines is the shape that reached the
+    /// corpus, and it is invisible at the end: the second one closes the frame
+    /// the first opened, so only the state *between* them tells them apart.
+    #[test]
+    fn two_stray_apostrophes_never_pair_up() {
+        let mut stack = Vec::new();
+        for line in [
+            "\t/** the console isn't shown */",
+            "\tlet n = 0;",
+            "\t/* we can't avoid this */",
+            "\tn += 1;",
+        ] {
+            update_template_literal_stack(line, &mut stack);
+            assert!(stack.is_empty(), "a frame outlived the line: {line}");
+        }
+    }
+}

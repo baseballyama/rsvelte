@@ -88,37 +88,6 @@ fn server_folds_a_concatenation_rather_than_its_source_text() {
     );
 }
 
-/// A lone quote that is neither closed nor carried is not a string opener at
-/// all — an apostrophe in a comment, a quote inside a regex literal. Treating
-/// every unterminated quote as carried made every following line string
-/// content, so nothing below it was re-indented.
-#[test]
-fn a_lone_quote_that_is_not_carried_opens_nothing() {
-    for (with, without) in [
-        ("/** it isn't a string */", "/** it is not a string */"),
-        ("const re = /'/g;", "const re = /x/g;"),
-    ] {
-        let body = |line: &str| {
-            format!(
-                "<script>\n\t{line}\n\tlet n = $state(0);\n\tfunction bump() {{\n\t\tn += 1;\n\t}}\n</script>\n\n<button onclick={{bump}}>{{n}}</button>\n"
-            )
-        };
-        for (generate, dev) in [
-            (GenerateMode::Client, false),
-            (GenerateMode::Client, true),
-            (GenerateMode::Server, false),
-        ] {
-            let quoted = compile_js(&body(with), generate, dev);
-            let plain = compile_js(&body(without), generate, dev);
-            assert_eq!(
-                quoted.replace(with, without),
-                plain,
-                "the quote in `{with}` changed more than its own text"
-            );
-        }
-    }
-}
-
 /// The control: a template literal's newline really is content and must keep
 /// behaving as it did.
 #[test]

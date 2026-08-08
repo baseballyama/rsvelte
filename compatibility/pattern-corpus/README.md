@@ -251,6 +251,21 @@ opens the next.
 `template-literal-newline.svelte` is the **negative control**: a backtick really
 does carry its newline as content, and had to keep behaving as it already did.
 
+Every file here contains a quote that really *is* a string, and that shared
+property is a blind spot rather than an accident. Teaching the scanner to track
+`'…'` frames made it push a carried-string frame for **any** quote it could not
+close on the line, so the `isn't` in a doc comment opened a string that never
+closed — which broke `svelte.dev`'s `repl/…/Viewer.svelte` and nothing here.
+
+Six candidate repros for that class were written and **all six were dropped**,
+because each one passed on the broken binary: two hand-written `.svelte` files,
+two reductions of the failing component, and two shapes as a compiler-level
+test. Removing the apostrophes from `Viewer.svelte` itself does flip the broken
+binary back to matching, so the cause is certain; the trigger just needs more of
+that component than a reduction kept. The coverage therefore lives in
+`quote_frame_tests` in `3_transform/client/formatting.rs`, which asserts the
+scanner's state directly and does fail on the broken scanner.
+
 The quote character is deliberately **not** an axis here. The fmt oracle rewrites
 every literal to double quotes, so a single-quoted file stops being one the
 moment it is committed formatted — a `double-quoted.svelte` written alongside
