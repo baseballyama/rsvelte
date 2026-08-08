@@ -138,8 +138,15 @@ fn main() {
     let analyze_visitor_time = start.elapsed();
     let analyze_time = resolve_lazy_time + ensure_script_time + analyze_visitor_time;
 
-    // Reset Phase 3 sub-phase counters in case warmup left non-zero state.
+    // Reset Phase 3 sub-phase counters in case warmup left non-zero state. The
+    // script-text counters are drained here too: they are read once after the
+    // loop, so anything warmup left in them is priced against the measured
+    // loop's denominator and inflates every script-text share by (100+N)/N.
     let _ = profile::take_breakdown();
+    let _ = profile::take_script_text_breakdown();
+    // Also a once-after-the-loop read, so warmup would price its checks against
+    // a population no other number in the report covers.
+    let _ = profile::take_index_oracle();
 
     let _ = profile::take_reparse_breakdown();
     // Per-file rows, so re-parse cost can be read against file size instead of
