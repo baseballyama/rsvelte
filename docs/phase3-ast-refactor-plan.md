@@ -314,3 +314,158 @@ The tell is that the conclusion cannot move: no measurement could have refuted i
 because the input and the output were the same number. When converting a
 within-bucket share into a share of total time, the bucket's absolute size must come
 from somewhere the share did not.
+
+## Findings (2026-08-08 — dev-mode client: two falsified hypotheses, and the one bucket that scales)
+
+An attribution pass over the **dev-mode client** target (`compile_profile --dev`)
+on six real-world corpora: carbon (1,267 files), huly (2,498), open-webui (650),
+SMUI (449), flowbite `src/lib` (183), shadcn-svelte (1,682). **Nothing was
+changed** — both candidate fixes were killed at thresholds fixed before the data
+existed. What follows is what the next person should not have to rediscover.
+
+### The `script_text` scaling exponent (the durable result)
+
+`compile_profile` fits log(bucket time) on log(script bytes) per file. On huly
+(2,498 files, 2,454 fitted points):
+
+| bucket | share | exponent | share x exp |
+|---|---|---|---|
+| ensure_script | 7.1% | 0.865 | 0.061 |
+| Analyze | 23.3% | 0.988 | 0.230 |
+| **script_text** | **36.6%** | **1.395** | **0.511** |
+| template | 10.7% | 0.680 | 0.073 |
+| js_codegen | 9.1% | 0.822 | 0.075 |
+
+Dev mode is the same picture (script_text 39.6% share, exponent 1.242).
+
+`script_text` is the **only** bucket whose exponent is above 1.0 while every
+sibling is clearly below it, and it is simultaneously the largest share — so it
+carries ~0.51 of a total ~0.95 in the `share x exp` column, i.e. **roughly half
+of how compile cost grows with file size lives in one bucket**, and the
+per-statement line loop is most of that bucket. This holds in **prod as much as
+dev**, so it is an argument for the line-loop work independent of dev mode.
+
+Claim it at that precision and no finer: "clearly >1 while every sibling is
+clearly <1". It is fitted on time, so machine load affects it (load hits all file
+sizes about alike, which is why the exponent survives and the absolute ms do
+not). Quote the exponent fitted over 2,454 points, **not** the Q1..Q4 `ms/f`
+cells printed beside it — those are visibly noise-corrupted on a loaded box
+(Q2 > Q3 in several rows).
+
+### Falsified: the `Vec<char>` rescans in `wrap_prop_mutation_validation`
+
+`wrap_prop_mutation_validation` (`client/props_transforms.rs`, reached only in
+dev because `prop_mutation_vars` is filled under `if dev`) collects the **entire
+remaining program** into a `Vec<char>` at two sites, once per match. That reads
+as a textbook `sites x source_length` defect, and a sibling defect in the same
+function gave carbon-dev -37.7% in #2512. It is **not** hot.
+
+Counter: bytes handed to those collects, over the program bytes the pass was
+handed. Load-immune.
+
+| corpus | calls | props | collects | collects/call | rescan factor |
+|---|---|---|---|---|---|
+| carbon | 566 | 3,017 | 173 | 0.3 | **1.1x** |
+| SMUI | 131 | 790 | 71 | 0.5 | **0.6x** |
+| open-webui | 555 | 2,164 | 609 | 1.1 | **1.8x** |
+| huly | 2,246 | 8,903 | 3,076 | 1.4 | **1.6x** |
+| flowbite | 182 | 1,496 | 97 | 0.5 | **0.8x** |
+| shadcn | 603 | 1,523 | 2 | 0.0 | **0.0x** |
+
+Pre-registered "≥10x if this is the defect". Observed **0.0–1.8x** — about one
+pass. The loops reach a collect 0.0–1.4 times per call; they almost always exit
+on the `memmem` find first. **Do not rewrite these scanners.**
+
+Two observations that *look* like they confirm the hypothesis and do not:
+`post_passes` grows from ~0 to 5.6–11 pp of total in dev on every corpus (but
+see the bucket warning below — it has four causes), and the growth is large on
+legacy-heavy corpora and small on runes-heavy ones (but
+`transform_legacy_instance_dev_tail_ast` is gated on `dev && !analysis.runes`, so
+legacy-ness selects the competing cause exactly as strongly).
+
+### Falsified: skipping the dev assign-tail's whole-script parse
+
+`transform_instance_dev_assign_tail` guards a whole-script parse on
+`source_has_assignment` = `memchr(b'=')`. **That guard filters nothing and must
+not be read as already-optimised**: `==`, `=>`, `<=` and every template
+attribute contain `=`, so on carbon it admits 1,011 components of which **951
+(94.1%) have no assignment site at all** and are parsed for an edit that provably
+cannot be emitted — every edit in `collect_assign_edits` passes through
+`sites.take(...)`, so an empty `AssignSites::collect(original)` guarantees zero
+edits.
+
+Skip rates: carbon 94.1%, SMUI 79.3%, flowbite 82.9%, shadcn 83.4%, open-webui
+69.8%, huly 68.1%.
+
+The skip works exactly as the code reading predicted — reparse driver calls on
+carbon 4,987 → 4,036, a delta of **951**, precisely the skippable count. It buys
+nothing. Paired A/B, **both arms in one binary** selected by an env var so code
+layout is byte-identical between them (two builds would have differed by ~5%
+layout alone, which is the size of the effect being measured):
+
+| corpus | base | skip | delta | wins |
+|---|---|---|---|---|
+| open-webui | 2,842.9 ms | 2,844.1 ms | **+0.04%** | 4/8 |
+| huly | 12,197.1 ms | 12,708.0 ms | **+4.19% slower** | 5/8 |
+
+A cheaper probe cannot rescue it. On carbon — the most favourable corpus at 94.1%
+skip — re-parse parse time between arms was 59.0 → 22.6 ms, ~36 ms against a
+~1,000 ms compile, so **~3.6% with a free probe**, below the bar before the probe
+costs anything. The line of attack is dead, not just this implementation of it.
+
+### Instrument limitations (the sub-timers stay in the tree)
+
+- **`post_passes` has four causes**: the shadowed-local post-pass,
+  `wrap_prop_mutation_validation`, `transform_legacy_instance_dev_tail_ast` and
+  `transform_instance_dev_assign_tail`. The last two are whole-script AST
+  **re-parses** — a large constant — and the second is the O(n^2)-shaped
+  candidate above. A movement in this bucket attributes to none of them on its
+  own. Splitting it is what falsified the first hypothesis.
+- **`line_loop` has two**: the per-line scanner and `process_accumulated`. A
+  `line_loop` delta is most likely the latter; naming the scanner from it is the
+  same error one level down.
+- **Wall-clock is unusable on a loaded box, and the proof is a control that
+  moved when it could not**: one paired round measured the `--dev` arm *faster*
+  than prod, which is impossible by construction (dev runs passes prod never
+  enters, and `post_passes` is 0.00% of prod). Supporting: carbon prod TOTAL over
+  6 identical rounds spanned 2,523–3,747 ms (48%), against 651 ms for the same
+  binary and corpus at load ~35. Use within-run bucket **shares** (a uniform
+  slowdown divides out) or deterministic counters; contention is not perfectly
+  uniform across buckets, so nothing finer than a couple of pp is readable.
+
+### `rs_body` is not the prop-reads AST passes
+
+`transform_reactive_statement` (`client/reactive_transforms.rs`) calls
+`wrap_prop_source_reads_ast` at two sites. A re-parse multiplier there would show
+as >1 reach per statement. Measured (counts and bytes are deterministic):
+
+| corpus | `$:` stmts | site1 calls (/stmt) | site2 calls (/stmt) | site2 % of rs_body |
+|---|---|---|---|---|
+| carbon | 839 | 9 (0.01) | 200 (0.24) | 31% |
+| open-webui | 714 | 3 (0.00) | 297 (0.42) | **1%** |
+| huly | 3,802 | 17 (0.00) | 1,367 (0.36) | 24% |
+| svelte-ux | 355 | 0 (0.00) | 79 (0.22) | 5% |
+| smelte | 194 | 4 (0.02) | 36 (0.19) | 4% |
+
+Both sites are reached **well below once per statement**, and account for 1–31%
+of `rs_body` — so **69–99% of `rs_body` is elsewhere**. These two calls were the
+right thing to check and the wrong answer. SMUI has **zero** `$:` statements and
+cannot discriminate anything in this area.
+
+Raw call counts are given alongside the rates on purpose. Site 1's rate rounds
+to `0.00` on three corpora, which reads as "unreachable" — a different and much
+more serious finding than "rare", since an unreachable branch is a defect rather
+than an absence of headroom. The counts settle it: **9 / 3 / 17 / 0 / 4 — site 1
+does fire, it is merely rare.** The distinction is not hypothetical here; the
+`!t.ends_with("=>")` guard in this same file was cited in review as a deliberate
+exclusion and never fires at all, because `"=>".ends_with('=')` is false. A rate
+that rounds to zero cannot tell those two cases apart, so publish the count.
+
+### The 6.59x four-target figure stands un-refreshed
+
+The head-to-head table against `@mrwaip/svelte-rs` (client prod 4.07x, server
+prod 3.05x, server dev 3.56x, **client dev 6.59x**) predates #2511 and #2512 and
+was **not** re-measured here. It needs two processes (never load two native
+addons into one — allocator clash, SIGSEGV), which is exactly what contention
+corrupts; load ran 34–65 on 10 cores for the whole session and never dipped. Do
+not quote 6.59x as current.
