@@ -1118,12 +1118,57 @@ carbon の総コンパイル 351ms に対し **~0.2%**。
 したがってこの修正の根拠は**タイミングではなくカウンタ**であり、
 「16807 回の無駄な確保が 0 になる」という主張以上のことは言わない。
 
-**次に見るべきもの**: `export_let` は carbon で 1 call あたり **4.1µs**
-（6.819ms / 1665 calls）。上の修正はその一部にすぎない。
-残りを特定するには `export_let` 内の 4 つの呼び出し
-（`transform_export_let` / `apply_prop_reads_in_prop_default_values` /
-`transform_state_pipeline_ast` / `apply_store_reads_in_prop_default_values`）を
-`stage × sub` に分割する必要がある。**これは未実施。**
+### ★★ `export_let` の深掘り: 結論は「小さい標的」。ここで打ち切る ★★
+
+**まず判別実験が成立するかを先に確かめた（そして最初の案は死んだ）**
+
+「`el:state_pipeline` の ns/byte が兄弟より高ければ per-call コスト」と
+書いたが、**これは判別しない** — bytes を固定すると
+「per-call で高い」と「per-byte で高い」は**同じ観測**になる（共有性質の罠）。
+正しい判別は **bytes/call を振ること**:
+
+```
+per-call 支配 → time/call がコーパス間で一定、time/byte が動く
+per-byte 支配 → time/byte が一定、time/call が動く
+```
+
+**実コーパスではこの実験ができない**: `export_let` の bytes/call は
+smelte 33.6 / sveltestrap 29.2 / svelte-ux 34.2 / carbon 32.8 /
+open-webui 31.3 ＝ **1.17 倍しか動かない**（`export let foo = undefined;` が
+支配的なので当然）。**振れない量で判別しようとしていた。**
+
+**そこで合成コーパスで意図的に振った**（call 数を 1000 に固定、文長だけ変える）:
+
+| arm | bytes/stmt | export_let µs/call | ns/byte |
+|---|---|---|---|
+| short | 23.9 | **2.12** | **82.0** |
+| long | 819.9 | **10.58** | **12.9** |
+
+bytes が **31.7 倍**でも時間は **5.0 倍**しか増えない ＝
+**どちらの仮説も純粋には成り立たない。** 2 点フィット `t = a + b·bytes`:
+
+| stage | 固定 a (µs/call) | 限界 b (ns/byte) | carbon 実寸 32.8B での固定分 |
+|---|---|---|---|
+| **`export_let`** | **1.847** | 10.63 | **84%** |
+| `transform_export_let` | 0.570 | 5.81 | 75% |
+| `apply_prop_reads_in_prop_default_values` | 0.992 | 4.69 | 87% |
+| `state_pipeline` / `store_reads` | ~0.02 µs 合計 | — | — |
+
+**★ 実寸（~32 バイト）では 84% が per-call 固定費 ★**
+内訳は `prop_reads_in_defaults` 0.99µs + `transform_export_let` 0.57µs。
+18/18 の符号検定（「兄弟より 1 バイトあたり高い」）は**正しかったが、
+機序は「固定費を小さいバイト数で割っている」だった。**
+
+### ★ 結論: `export_let` は「単価は高いが母集団が小さい」標的。撤退する ★
+
+- 1 call **4.1µs**（carbon 実測）、全兄弟より per-byte で高い（18/18, p≤0.00014）
+- **しかし carbon の compile 比 1.94% / smelte 3.51%（min over n=6）**
+- carbon で扱うバイト数は **54,645**。対する `prop_source_reads` は **432,750**
+- ゆえに**完全に消しても上限 ~2%（carbon）/ ~3.5%（smelte）**
+
+**高い単価 × 小さい母集団は、それ自体が報告に値する形**である。
+証拠つきで標的を**退役**させる — 将来の調査者が再導出しないように。
+努力は `reactive_stmt` に向けること（min では 3 コーパス全てで首位）。
 
 ### runes 極で唯一実在するコストは `destructure_assignments`（2 コーパスで一致）
 
