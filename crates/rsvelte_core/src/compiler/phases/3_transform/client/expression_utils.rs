@@ -1,6 +1,7 @@
 //! Expression parsing, shadowing detection, and identifier analysis utilities.
 
 use memchr::memmem;
+use std::borrow::Cow;
 use std::fmt::Write as _;
 
 use super::scan_index::ScanIndex;
@@ -630,14 +631,14 @@ pub(super) fn is_expression_incomplete(
 /// (function params, for-loop vars, nested lets). Returns the input
 /// unchanged when nothing matches (no state-var reference in `expr`)
 /// or when parsing fails — those are no-op cases, not regressions.
-pub(super) fn wrap_state_vars_in_expr(
-    expr: &str,
+pub(super) fn wrap_state_vars_in_expr<'a>(
+    expr: &'a str,
     state_vars: &[String],
     non_reactive_vars: &[String],
     _proxy_vars: &[String],
-) -> String {
+) -> Cow<'a, str> {
     super::state_reads_ast::transform_state_reads_ast(expr, state_vars, non_reactive_vars)
-        .unwrap_or_else(|| expr.to_string())
+        .map_or(Cow::Borrowed(expr), Cow::Owned)
 }
 
 /// Check if a variable at the given position is shadowed by a function parameter.

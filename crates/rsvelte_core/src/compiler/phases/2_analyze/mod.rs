@@ -5227,9 +5227,7 @@ fn collect_identifier_names_in_node(
             loc: _,
             body,
             source_type: _,
-            leading_comments: _,
-            trailing_comments: _,
-            ignore_comment_map: _,
+            metadata: _,
         }
         | JsNode::BlockStatement {
             start: _,

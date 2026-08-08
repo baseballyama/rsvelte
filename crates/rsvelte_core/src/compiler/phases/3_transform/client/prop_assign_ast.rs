@@ -48,12 +48,13 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
+use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_syntax::operator::AssignmentOperator;
 use oxc_syntax::operator::BinaryOperator;
 
-use oxc_semantic::{Semantic, SemanticBuilder};
+use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
 
 use super::ast_rewrite::{self, Edit};
 use super::scope_analysis::is_locally_shadowed;
@@ -76,10 +77,7 @@ fn transform_prop_assign_spliced(source: &str, prop_vars: &[String]) -> Option<S
     if prop_vars.is_empty() {
         return None;
     }
-    if !prop_vars
-        .iter()
-        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
-    {
+    if !prop_vars.iter().any(|v| contains_identifier(source, v)) {
         return None;
     }
 
@@ -91,6 +89,10 @@ fn transform_prop_assign_spliced(source: &str, prop_vars: &[String]) -> Option<S
             ParseOptions::default(),
             true,
             |program| {
+                super::super::profile::record_semantic_build(
+                    super::super::profile::SEM_PROP_ASSIGN,
+                    program.source_text.len(),
+                );
                 let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let semantic = &semantic_ret.semantic;
                 let mut collector = PropAssignCollector {
@@ -360,10 +362,7 @@ pub(crate) fn transform_prop_assign_in_place(
     if prop_vars.is_empty() {
         return ast_rewrite::Rewrite::Unchanged;
     }
-    if !prop_vars
-        .iter()
-        .any(|s| memchr::memmem::find(source.as_bytes(), s.as_bytes()).is_some())
-    {
+    if !prop_vars.iter().any(|v| contains_identifier(source, v)) {
         return ast_rewrite::Rewrite::Unchanged;
     }
 
@@ -377,6 +376,10 @@ pub(crate) fn transform_prop_assign_in_place(
         ParseOptions::default(),
         |allocator, program| {
             let targets = {
+                super::super::profile::record_semantic_build(
+                    super::super::profile::SEM_PROP_ASSIGN_IN_PLACE,
+                    program.source_text.len(),
+                );
                 let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let mut finder = PropAssignFinder {
                     prop_vars,

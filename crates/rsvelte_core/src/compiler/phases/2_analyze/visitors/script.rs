@@ -27,19 +27,15 @@ pub fn visit_script_expr(
 ) -> Result<(), AnalysisError> {
     match script_expr {
         Expression::Typed(te) => {
-            if let JsNode::Program {
-                body,
-                ignore_comment_map,
-                ..
-            } = &te.node
-            {
+            if let JsNode::Program { body, metadata, .. } = &te.node {
                 // Install this program's svelte-ignore map for the duration of the body
                 // walk, so the typed walker can surface statement-level svelte-ignore
                 // suppression without the nodes being materialized as `JsNode::Raw`.
                 // Save/restore the previous map (module vs instance scripts each set
                 // their own; template walks expect an empty map).
                 let saved_ignores = std::mem::take(&mut context.script_ignore_comments);
-                context.script_ignore_comments = ignore_comment_map.iter().cloned().collect();
+                context.script_ignore_comments =
+                    metadata.ignore_comment_map.iter().cloned().collect();
 
                 // Push the Program as a TYPED js_path entry, like every other node
                 // the walker pushes below. `as_json()` here used to materialize the

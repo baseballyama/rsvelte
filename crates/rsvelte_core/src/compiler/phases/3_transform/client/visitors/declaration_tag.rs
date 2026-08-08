@@ -134,6 +134,7 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
             &[],
             &[],
         )
+        .into_owned()
     };
 
     let trimmed = transformed.trim();

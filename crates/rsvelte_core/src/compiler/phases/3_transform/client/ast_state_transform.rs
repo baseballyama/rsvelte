@@ -4655,6 +4655,10 @@ fn collect_state_var_replacements(
         .collect();
     let raw_set: FxHashSet<&str> = config.raw_state_vars.iter().map(String::as_str).collect();
     let semantic_ret = state_assignment_needs_semantic(program, &var_set).then(|| {
+        super::super::profile::record_semantic_build(
+            super::super::profile::SEM_AST_STATE_TRANSFORM,
+            program.source_text.len(),
+        );
         oxc_semantic::SemanticBuilder::new()
             .with_build_nodes(true)
             .build(program)

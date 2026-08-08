@@ -52,6 +52,8 @@ use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
 use oxc_syntax::symbol::SymbolId;
+
+use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
 use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
@@ -101,16 +103,13 @@ pub fn transform_state_assigns_ast(
 }
 
 /// The three probes are pure cost avoidance: no state variable named in
-/// `state_vars` can be assigned without its name and an assignment token both
-/// appearing literally in `source`.
+/// `state_vars` can be assigned without its name appearing in `source` as a
+/// whole identifier token and an assignment token appearing too.
 fn has_candidate(source: &str, state_vars: &[String]) -> bool {
     if state_vars.is_empty() {
         return false;
     }
-    if !state_vars
-        .iter()
-        .any(|v| memchr::memmem::find(source.as_bytes(), v.as_bytes()).is_some())
-    {
+    if !state_vars.iter().any(|v| contains_identifier(source, v)) {
         return false;
     }
     // Cheapest probe — at least one `=` or `++`/`--` token.
@@ -151,6 +150,10 @@ fn single_pass(
             ..ParseOptions::default()
         },
         |program| {
+            super::super::profile::record_semantic_build(
+                super::super::profile::SEM_STATE_ASSIGNS,
+                program.source_text.len(),
+            );
             let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let semantic = &semantic_ret.semantic;
             let state_var_symbols = find_state_var_symbols(semantic, state_vars);
@@ -407,6 +410,10 @@ fn transform_state_assigns_in_place(
         },
         |allocator, program| {
             let targets = {
+                super::super::profile::record_semantic_build(
+                    super::super::profile::SEM_STATE_ASSIGNS_IN_PLACE,
+                    program.source_text.len(),
+                );
                 let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let semantic = &semantic_ret.semantic;
                 let state_var_symbols = find_state_var_symbols(semantic, state_vars);
