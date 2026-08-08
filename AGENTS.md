@@ -56,6 +56,19 @@ first reader** (under a per-node cache, first-reader attribution names the wrong
 it moves the count by zero). Numbers, cross-validation and the unresolved time question are in
 [docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-08--the-to_value-cost-is-one-site-and-it-is-not-the-lazy-cache).
 
+**`script_text` is the only bucket that scales superlinearly**, and it is simultaneously the
+largest — exponent ~1.4 (prod) / ~1.2 (dev) against every sibling below 1.0, carrying ~0.51 of
+a total ~0.95 in `share x exp`. Roughly half of how compile cost grows with file size lives in
+that one bucket, in **prod as much as dev**. Two dev-mode candidates that look like textbook
+`sites x source_length` defects were measured and **falsified** — the `Vec<char>` rescans in
+`wrap_prop_mutation_validation` (rescan factor 0.0–1.8x, not the ≥10x a quadratic needs) and
+skipping the dev assign-tail parse (removes 951 parses on carbon and buys +0.04%). Both, plus
+the reason `post_passes` and `line_loop` cannot attribute a movement on their own and why
+wall-clock is unusable on a loaded box, are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-08--dev-mode-client-two-falsified-hypotheses-and-the-one-bucket-that-scales).
+The 6.59x client-dev figure against `@mrwaip/svelte-rs` predates #2511/#2512 and is **not**
+current.
+
 ### Where compile time goes ([`docs/phase3-ast-refactor-plan.md`](docs/phase3-ast-refactor-plan.md) § Findings 2026-08-08)
 
 The 40.3% of non-kernel CPU that a profile attributes to allocation + hashing + memcpy

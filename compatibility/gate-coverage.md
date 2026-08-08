@@ -940,7 +940,8 @@ divergence is by policy absent.
 ### C6. Every performance gate measures a population where legacy `$:` is absent or a minority
 
 The correctness gates above sample published *library* code. So do the performance gates, and
-for performance that is the wrong population by a factor of 5.6.
+for performance that is the wrong population by a factor of 5.6 — or 4.0, depending on which
+side carbon is counted on; see the note under the table.
 
 **[D] Legacy `$:` density, by the two populations we own.** A file counts as legacy if any line's
 first non-whitespace token is `$:` (`^[ \t]*\$:`, multiline). Stated because it is a heuristic:
@@ -951,9 +952,20 @@ it counts a `$:` nested inside a block, and misses one written after `{` on the 
 | libraries — `submodules/`, 23 repos | 13,078 | 478 (3.65%) | 15,098,016 | **12.34%** |
 | applications — huly/plugins | 2,123 | 1,252 (58.97%) | 7,124,519 | **74.87%** |
 | applications — open-webui | 650 | 215 (33.08%) | 3,612,860 | **70.26%** |
-| applications — carbon | 287 | 173 (60.28%) | 941,662 | **87.90%** |
+| applications — carbon (`src/` only) | 287 | 173 (60.28%) | 941,662 | **87.90%** |
 | applications — SMUI | 449 | **0 (0.00%)** | 951,109 | **0.00%** |
 | **applications, aggregate** | **3,509** | **1,640 (46.74%)** | **12,630,150** | **68.89%** |
+
+The carbon row is `src/` only. The repo holds **1,324** `.svelte` files — 525 under `tests/`,
+425 under `docs/`, 291 under `src/`, 78 under `e2e/` — and scored whole it is 250/1,324
+(18.9%) rather than 60.3%. The scope is deliberate (`tests/` and `docs/` are not field compile
+volume) but it moves that row by 3.2x, so it is stated rather than left to be re-derived.
+
+carbon is also a **component library** published to npm, counted on the application side
+because its `src/` is hand-written Svelte rather than a shipped bundle. That placement is what
+sets the ratio: moving it to the library population gives libraries 16.78% and applications
+67.36%, i.e. **4.0x instead of 5.6x**. The finding survives the reclassification and the
+headline number does not, so both are recorded.
 
 Legacy files are 3.7x larger than the rest in the library corpus and 2.5x larger in the
 application corpus, so **files and bytes disagree by ~3x and bytes is the closer weight** for
