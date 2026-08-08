@@ -45,7 +45,9 @@ pub fn visit<'a, 'b: 'a>(
         if let Some(name) = context_expr.identifier_name()
             && (name == "$state" || name == "$derived")
         {
-            return Err(super::super::errors::state_invalid_placement(name));
+            return Err(
+                super::super::errors::state_invalid_placement(name).at(block.start, block.end)
+            );
         }
     }
 

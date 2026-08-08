@@ -273,6 +273,13 @@ pub struct CompileOptions {
     /// When false, sourcemap computation is skipped for better performance.
     /// Defaults to true for backward compatibility.
     pub enable_sourcemap: bool,
+    /// Set by [`compile_module`], which reuses the component analysis. Upstream
+    /// knows it is analysing a module from the `analyze_module` entry point;
+    /// without this the only signal is a `.svelte.(js|ts)` filename, which the
+    /// caller need not supply. Not part of the upstream option set — leave it
+    /// `false`.
+    #[doc(hidden)]
+    pub is_module_source: bool,
     /// Svelte-4 options that only produce a diagnostic.
     pub legacy_options: LegacyOptions,
 }
@@ -309,6 +316,7 @@ impl Default for CompileOptions {
             hmr: false,
             modern_ast: false,
             enable_sourcemap: true,
+            is_module_source: false,
             legacy_options: LegacyOptions::default(),
         }
     }
@@ -989,6 +997,7 @@ pub fn compile_module(
         warning_filter: options.warning_filter.clone(),
         experimental: options.experimental.clone(),
         runes: Some(true), // Modules are always in runes mode
+        is_module_source: true,
         ..Default::default()
     };
 

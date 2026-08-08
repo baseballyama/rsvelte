@@ -29,7 +29,9 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
     // have this check, so we do it here.
     for identifier in &tag.identifiers {
         if identifier.node_type() != Some("Identifier") {
-            return Err(errors::debug_tag_invalid_arguments());
+            // Upstream passes a bare offset, so the span is zero-width
+            let start = identifier.as_node().start().unwrap_or(tag.start);
+            return Err(errors::debug_tag_invalid_arguments().at(start, start));
         }
     }
 

@@ -59,6 +59,7 @@ pub(crate) fn type_text_typeof_references_local_value(
     instance_value_names: &std::collections::HashSet<String>,
     instance_import_names: &std::collections::HashSet<String>,
     module_import_names: &std::collections::HashSet<String>,
+    module_value_names: &std::collections::HashSet<String>,
 ) -> bool {
     let bytes = type_text.as_bytes();
     let kw = b"typeof";
@@ -82,10 +83,24 @@ pub(crate) fn type_text_typeof_references_local_value(
                 }
                 if j > start {
                     let root = &type_text[start..j];
-                    let is_import =
-                        instance_import_names.contains(root) || module_import_names.contains(root);
-                    if !is_import && instance_value_names.contains(root) {
-                        return true;
+                    // A `$name` query auto-subscribes, and upstream feeds every
+                    // accessed store into `disallowed_values` regardless of how
+                    // `name` is bound — so the import exception does not apply.
+                    if let Some(base) = root.strip_prefix('$').filter(|b| !b.starts_with('$')) {
+                        if !base.is_empty()
+                            && (instance_value_names.contains(base)
+                                || instance_import_names.contains(base)
+                                || module_import_names.contains(base)
+                                || module_value_names.contains(base))
+                        {
+                            return true;
+                        }
+                    } else {
+                        let is_import = instance_import_names.contains(root)
+                            || module_import_names.contains(root);
+                        if !is_import && instance_value_names.contains(root) {
+                            return true;
+                        }
                     }
                 }
                 i = j;
@@ -218,11 +233,13 @@ mod tests {
             &set(&[]),
             &imports,
             &set(&[]),
+            &set(&[]),
         ));
         // `typeof localVal` where localVal is an instance-script value → block (true).
         assert!(type_text_typeof_references_local_value(
             "typeof localVal",
             &set(&["localVal"]),
+            &set(&[]),
             &set(&[]),
             &set(&[]),
         ));
@@ -232,6 +249,7 @@ mod tests {
             &set(&["localVal"]),
             &set(&[]),
             &set(&[]),
+            &set(&[]),
         ));
         // A module-scope import via `typeof` is also hoistable (false).
         assert!(!type_text_typeof_references_local_value(
@@ -239,6 +257,35 @@ mod tests {
             &set(&[]),
             &set(&[]),
             &set(&["ModuleThing"]),
+            &set(&[]),
+        ));
+    }
+
+    #[test]
+    fn typeof_store_blocks_hoist_for_every_binding_kind() {
+        // `$store` auto-subscribes, so the underlying binding is disallowed
+        // whether it is an instance value, an instance import or a module one.
+        for (values, imports, module_imports, module_values) in [
+            (set(&["store"]), set(&[]), set(&[]), set(&[])),
+            (set(&[]), set(&["store"]), set(&[]), set(&[])),
+            (set(&[]), set(&[]), set(&["store"]), set(&[])),
+            (set(&[]), set(&[]), set(&[]), set(&["store"])),
+        ] {
+            assert!(type_text_typeof_references_local_value(
+                "{ someProp: typeof $store }",
+                &values,
+                &imports,
+                &module_imports,
+                &module_values,
+            ));
+        }
+        // `$$props` & friends are not store references.
+        assert!(!type_text_typeof_references_local_value(
+            "typeof $$props",
+            &set(&["$props"]),
+            &set(&[]),
+            &set(&[]),
+            &set(&[]),
         ));
     }
 }

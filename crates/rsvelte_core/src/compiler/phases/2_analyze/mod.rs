@@ -136,10 +136,10 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // These include warnings like `element_implicitly_closed` that are
     // emitted during parsing when elements are auto-closed.
     for pw in &ast.parse_warnings {
-        analysis.warnings.push(warnings::AnalysisWarning::new(
-            pw.code.clone(),
-            pw.message.clone(),
-        ));
+        analysis.warnings.push(
+            warnings::AnalysisWarning::new(pw.code.clone(), pw.message.clone())
+                .at(pw.start, pw.end),
+        );
     }
 
     // Merge svelte:options from the parsed AST into the analysis
@@ -243,10 +243,9 @@ pub(crate) fn analyze_prepared_component_with_retained(
         if let Some(attr) = svelte_options
             .attributes
             .iter()
-            .find(|a| a.name == "customElement")
+            .find(|attr| attr.name.as_str() == "customElement")
         {
-            warning.start = Some(attr.start);
-            warning.end = Some(attr.end);
+            warning = warning.at(attr.start, attr.end);
         }
         analysis.warnings.push(warning);
     }
@@ -260,11 +259,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Detect store subscriptions and create synthetic bindings
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
-    let is_module_file = options
-        .filename
-        .as_ref()
-        .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
-        .unwrap_or(false);
+    let is_module_file = analysis.is_module_file;
     store_subscriptions::detect_store_subscriptions(
         ast,
         &mut analysis,
@@ -423,9 +418,15 @@ pub(crate) fn analyze_prepared_component_with_retained(
                 .any(|attr| attr.name.as_str() == "module")
             && !is_module_file
         {
-            analysis
-                .warnings
-                .push(warnings::script_context_deprecated());
+            let mut warning = warnings::script_context_deprecated();
+            if let Some(attr) = module
+                .attributes
+                .iter()
+                .find(|attr| attr.name.as_str() == "context")
+            {
+                warning = warning.at(attr.start, attr.end);
+            }
+            analysis.warnings.push(warning);
         }
 
         // Use typed dispatch for script visiting - avoids JSON Map construction
@@ -700,8 +701,11 @@ pub(crate) fn analyze_prepared_component_with_retained(
                     .contains(&"non_reactive_update".to_string())
                 {
                     let name = binding.name.clone();
+                    let node = binding_node_span(binding);
                     let mut warning = warnings::non_reactive_update(&name);
-                    stamp_declaration(&mut warning, binding);
+                    if let Some((start, end)) = node {
+                        warning = warning.at(start, end);
+                    }
                     analysis.warnings.push(warning);
                 }
             }
@@ -766,8 +770,11 @@ pub(crate) fn analyze_prepared_component_with_retained(
                     .contains(&"export_let_unused".to_string())
                 {
                     let name = binding.name.clone();
+                    let node = binding_node_span(binding);
                     let mut warning = warnings::export_let_unused(&name);
-                    stamp_declaration(&mut warning, binding);
+                    if let Some((start, end)) = node {
+                        warning = warning.at(start, end);
+                    }
                     analysis.warnings.push(warning);
                 }
             }
@@ -902,16 +909,6 @@ fn deconflict_component_name(ast: &Root<'_>, analysis: &mut ComponentAnalysis) {
         counter += 1;
     }
     analysis.name = name;
-}
-
-/// Upstream warns these on `binding.node`, the declaration identifier alone.
-/// The binding keeps only the identifier's start, so the end is the name's
-/// **byte** length — a `char` count would slice a non-ASCII name mid-character.
-fn stamp_declaration(warning: &mut warnings::AnalysisWarning, binding: &scope::Binding) {
-    if let Some(start) = binding.declaration_start {
-        warning.start = Some(start);
-        warning.end = Some(start + binding.name.len() as u32);
-    }
 }
 
 /// Synthesize empty class/style attributes for elements that need them.
@@ -1060,6 +1057,14 @@ fn synthesize_for_element_attrs(
     }
 }
 
+/// Span of `binding.node` — the declaration identifier, which upstream passes to
+/// `w.non_reactive_update` / `w.export_let_unused`. The end is the name's **byte**
+/// length; a `char` count would slice a non-ASCII name mid-character.
+fn binding_node_span(binding: &Binding) -> Option<(u32, u32)> {
+    let start = binding.declaration_start?;
+    Some((start, start + binding.name.len() as u32))
+}
+
 /// Validate script attributes and emit warnings for unknown ones.
 fn validate_script_attributes(
     attributes: &[crate::ast::template::AttributeNode],
@@ -1070,7 +1075,9 @@ fn validate_script_attributes(
 
     for attr in attributes {
         if !KNOWN_ATTRS.contains(&attr.name.as_str()) {
-            analysis.warnings.push(warnings::script_unknown_attribute());
+            analysis
+                .warnings
+                .push(warnings::script_unknown_attribute().at(attr.start, attr.end));
         }
     }
 }
@@ -1220,8 +1227,8 @@ fn check_reactive_declaration_cycles(
     analysis: &ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
     // Collect reactive statements and their assignments/dependencies
-    // Each entry: (assignments: Vec<String>, dependencies: Vec<String>)
-    let mut reactive_stmts: Vec<(Vec<String>, Vec<String>)> = Vec::new();
+    // Each entry: (assignments, dependencies, statement span)
+    let mut reactive_stmts: Vec<(Vec<String>, Vec<String>, Option<(u32, u32)>)> = Vec::new();
 
     for node in labeled {
         let label_name = node
@@ -1268,14 +1275,19 @@ fn check_reactive_declaration_cycles(
         dependencies.retain(|dep| !assignments.contains(dep));
 
         if !assignments.is_empty() {
-            reactive_stmts.push((assignments, dependencies));
+            let span = node
+                .get("start")
+                .and_then(|v| v.as_u64())
+                .zip(node.get("end").and_then(|v| v.as_u64()))
+                .map(|(start, end)| (start as u32, end as u32));
+            reactive_stmts.push((assignments, dependencies, span));
         }
     }
 
     // Build edges for cycle detection: (assignment_name, dependency_name)
     // Use &str references to avoid String allocations
     let mut edges: Vec<(&str, &str)> = Vec::new();
-    for (assignments, dependencies) in &reactive_stmts {
+    for (assignments, dependencies, _) in &reactive_stmts {
         for assignment in assignments {
             for dependency in dependencies {
                 edges.push((assignment.as_str(), dependency.as_str()));
@@ -1286,7 +1298,16 @@ fn check_reactive_declaration_cycles(
     // Check for cycles
     if let Some(cycle) = utils::check_graph_for_cycles(&edges) {
         let cycle_str = cycle.join(" \u{2192} "); // → character
-        return Err(errors::reactive_declaration_cycle(&cycle_str));
+        let mut error = errors::reactive_declaration_cycle(&cycle_str);
+        // Upstream blames the first declaration that assigns the cycle's head.
+        if let Some(head) = cycle.first()
+            && let Some((_, _, Some((start, end)))) = reactive_stmts
+                .iter()
+                .find(|(assignments, _, _)| assignments.iter().any(|a| a == head))
+        {
+            error = error.at(*start, *end);
+        }
+        return Err(error);
     }
 
     Ok(())
@@ -2547,6 +2568,20 @@ impl AnalysisError {
             start: Some(start),
             end: Some(end),
         }
+    }
+
+    /// Attribute the error to a source range, mirroring the node upstream
+    /// passes as the first argument to its `e.*` constructor.
+    #[must_use]
+    pub fn at(mut self, start: u32, end: u32) -> Self {
+        if let AnalysisError::ValidationWithCode {
+            start: s, end: e, ..
+        } = &mut self
+        {
+            *s = Some(start);
+            *e = Some(end);
+        }
+        self
     }
 }
 

@@ -30,6 +30,15 @@ impl AnalysisWarning {
             end: None,
         }
     }
+
+    /// Attribute the warning to a source range, mirroring the node upstream
+    /// passes as the first argument to its `w.*` constructor.
+    #[must_use]
+    pub fn at(mut self, start: u32, end: u32) -> Self {
+        self.start = Some(start);
+        self.end = Some(end);
+        self
+    }
 }
 
 /// Create a warning with a specific code and message.
