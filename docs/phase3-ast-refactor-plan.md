@@ -320,18 +320,27 @@ costs anything. The line of attack is dead, not just this implementation of it.
 `wrap_prop_source_reads_ast` at two sites. A re-parse multiplier there would show
 as >1 reach per statement. Measured (counts and bytes are deterministic):
 
-| corpus | `$:` stmts | site1 /stmt | site2 /stmt | site2 % of rs_body |
+| corpus | `$:` stmts | site1 calls (/stmt) | site2 calls (/stmt) | site2 % of rs_body |
 |---|---|---|---|---|
-| carbon | 839 | 0.01 | 0.24 | 31% |
-| open-webui | 714 | 0.00 | 0.42 | **1%** |
-| huly | 3,802 | 0.00 | 0.36 | 24% |
-| svelte-ux | 355 | 0.00 | 0.22 | 5% |
-| smelte | 194 | 0.02 | 0.19 | 4% |
+| carbon | 839 | 9 (0.01) | 200 (0.24) | 31% |
+| open-webui | 714 | 3 (0.00) | 297 (0.42) | **1%** |
+| huly | 3,802 | 17 (0.00) | 1,367 (0.36) | 24% |
+| svelte-ux | 355 | 0 (0.00) | 79 (0.22) | 5% |
+| smelte | 194 | 4 (0.02) | 36 (0.19) | 4% |
 
 Both sites are reached **well below once per statement**, and account for 1–31%
 of `rs_body` — so **69–99% of `rs_body` is elsewhere**. These two calls were the
 right thing to check and the wrong answer. SMUI has **zero** `$:` statements and
 cannot discriminate anything in this area.
+
+Raw call counts are given alongside the rates on purpose. Site 1's rate rounds
+to `0.00` on three corpora, which reads as "unreachable" — a different and much
+more serious finding than "rare", since an unreachable branch is a defect rather
+than an absence of headroom. The counts settle it: **9 / 3 / 17 / 0 / 4 — site 1
+does fire, it is merely rare.** The distinction is not hypothetical here; the
+`!t.ends_with("=>")` guard in this same file was cited in review as a deliberate
+exclusion and never fires at all, because `"=>".ends_with('=')` is false. A rate
+that rounds to zero cannot tell those two cases apart, so publish the count.
 
 ### The 6.59x four-target figure stands un-refreshed
 
