@@ -134,11 +134,11 @@ fn single_pass(
             ..ParseOptions::default()
         },
         |program| {
-            super::super::profile::record_semantic_build(
+            let semantic_ret = super::super::profile::semantic_build(
                 super::super::profile::SEM_STATE_PIPELINE,
                 program.source_text.len(),
+                || SemanticBuilder::new().with_build_nodes(true).build(program),
             );
-            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let semantic = &semantic_ret.semantic;
             let state_var_symbols = find_state_var_symbols(semantic, state_vars);
 
@@ -755,11 +755,11 @@ fn transform_state_pipeline_in_place(
         },
         |allocator, program| {
             let sites = {
-                super::super::profile::record_semantic_build(
+                let semantic_ret = super::super::profile::semantic_build(
                     super::super::profile::SEM_STATE_PIPELINE_IN_PLACE,
                     program.source_text.len(),
+                    || SemanticBuilder::new().with_build_nodes(true).build(program),
                 );
-                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let semantic = &semantic_ret.semantic;
                 let state_var_symbols = find_state_var_symbols(semantic, state_vars);
                 let mut visitor = PipelineVisitor {

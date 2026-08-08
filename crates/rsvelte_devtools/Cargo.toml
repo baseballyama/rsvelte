@@ -25,6 +25,7 @@ measure-module-source = ["rsvelte_core/measure-module-source"]
 measure-hoisted = ["rsvelte_core/measure-hoisted"]
 measure-json = ["rsvelte_core/measure-json"]
 measure-prop-reads = ["rsvelte_core/measure-prop-reads"]
+measure-semantic-build = ["rsvelte_core/measure-semantic-build"]
 
 [dependencies]
 rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }

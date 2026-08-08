@@ -82,11 +82,11 @@ pub(crate) fn wrap_derived_reads_ast(
             ..ParseOptions::default()
         },
         |program| {
-            super::super::profile::record_semantic_build(
+            let semantic_ret = super::super::profile::semantic_build(
                 super::super::profile::SEM_SERVER_DERIVED_READS,
                 program.source_text.len(),
+                || SemanticBuilder::new().build(program),
             );
-            let semantic_ret = SemanticBuilder::new().build(program);
             let semantic = &semantic_ret.semantic;
 
             let mut collector = DerivedReadCollector {

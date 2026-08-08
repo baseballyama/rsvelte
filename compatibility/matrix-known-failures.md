@@ -30,6 +30,8 @@ tolerates them. An entry is a divergence that survives that.
 
 ## Matrix known failures (`matrix-known-failures.json`, 234 entries)
 
+Partition of `matrix-known-failures.json` by family: `2 + 232`
+
 ### `binding-position` — 2 entries
 
 Both are `label.body` on the **server** target (`derived-local`, `store-auto-sub`), and in
@@ -151,6 +153,18 @@ entry count read as a property of the official compiler. Measured now: the three
 insertion slots between them, so 24 × 8 comment kinds = **192 module cases**, and official
 drops the comment in **3 of the 24 slots** — the trailing one of each seed, uniformly across
 all 8 kinds, i.e. **24 of the 192 cases**.
+
+#### Both sub-clusters together
+
+The two partition claims below span the whole `comment-slot` family, so each adds the module
+path's 72 to the template seeds' 160. In the first, the module path contributes a single
+addend: all 72 sit in the one bucket this family's own table does not have a row for —
+*rsvelte keeps a comment official drops* — which is the opposite direction from the
+template seeds' 100.
+
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `100 + 32 + 28 + 72 + 0`
+
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 56 + 24 + 24 + 24 + 24 + 8 + 8 + 8`
 
 ## Burn-down
 

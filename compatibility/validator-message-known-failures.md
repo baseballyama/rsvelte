@@ -10,9 +10,9 @@ official, and is deliberately independent of `validator-known-failures.json`.
 
 `validator-known-failures.json` is per-fixture and all-or-nothing. Once a fixture is listed —
 almost always because a span is missing — it stops being watched for its **message text** too.
-All three entries this ratchet was created for were suppressed that way, and
-`attribute_quoted` shipped a message asserting the warning applies to plain elements, which it
-never does (#2391).
+Both entries this ratchet was created for were suppressed that way, and `attribute_quoted`
+shipped a message asserting the warning applies to plain elements, which it never does
+(#2391).
 
 The generalisation is the point: **an entry suppresses everything about itself, not the thing
 its justification names.** A justification should therefore say what the entry *stops

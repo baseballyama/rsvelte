@@ -38,6 +38,12 @@ higher volume:
 
 By repo: flowbite-svelte 45, bits-ui 18, shadcn-svelte 17 (melt-ui 0).
 
+The three splits above each cover every entry exactly once:
+
+Partition of `lint-known-failures.json` by rule: `36 + 16 + 6 + 9 + 7 + 2 + 2 + 2`
+Partition of `lint-known-failures.json` by direction: `32 + 48`
+Partition of `lint-known-failures.json` by repo: `45 + 18 + 17 + 0`
+
 ## Harness-config decisions (NOT rsvelte bugs)
 
 These were divergences that turned out to be oracle/harness config, now resolved so

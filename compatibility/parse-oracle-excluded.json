@@ -1,0 +1,4 @@
+[
+	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte [client]",
+	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte [client-dev]"
+]
