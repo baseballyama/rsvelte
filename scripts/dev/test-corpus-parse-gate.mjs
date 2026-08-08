@@ -81,7 +81,10 @@ const VERIFY = path.join(sandbox, 'scripts/compat-corpus/verify.mjs');
 
 function buildSandbox() {
 	fs.mkdirSync(path.join(sandbox, 'scripts/compat-corpus'), { recursive: true });
-	for (const f of ['verify.mjs', 'normalize.mjs', 'targets.mjs', 'artifacts.mjs', 'parseable.mjs']) {
+	// Every module rather than verify.mjs's current imports: a hand-listed set
+	// makes a new sibling module fail here as a missing file, not as the
+	// contract this guards.
+	for (const f of fs.readdirSync(CORPUS_SCRIPTS).filter((f) => f.endsWith('.mjs'))) {
 		fs.copyFileSync(path.join(CORPUS_SCRIPTS, f), path.join(sandbox, 'scripts/compat-corpus', f));
 	}
 	linkDependencies(sandbox);

@@ -11,13 +11,20 @@ use crate::compiler::phases::phase2_analyze::scope::MutationKind;
 
 /// Visit an assignment expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if let JsNode::AssignmentExpression { left, right, .. } = node {
+    if let JsNode::AssignmentExpression {
+        left,
+        right,
+        start,
+        end,
+        ..
+    } = node
+    {
         let arena = context.parse_arena;
         let left_node = arena.get_js_node(*left);
         let right_node = arena.get_js_node(*right);
 
         // Validate assignment using typed node
-        super::shared::utils::validate_assignment_node(left_node, context, false)?;
+        super::shared::utils::validate_assignment_node((*start, *end), left_node, context, false)?;
 
         // Track mutations
         mark_binding_mutation_node(left_node, context);

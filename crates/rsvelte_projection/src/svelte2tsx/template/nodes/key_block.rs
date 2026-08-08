@@ -5,8 +5,8 @@ use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
+use crate::svelte2tsx::template::nodes::special_element::process_fragment_trimmed;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
-use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
 /// Handle a key block: `{#key expression}...{/key}`.
 pub(crate) fn handle_key_block(
@@ -59,7 +59,7 @@ pub(crate) fn handle_key_block(
     }
 
     // Process children
-    process_fragment_inplace(&block.fragment, source, options, str, counter, depth);
+    process_fragment_trimmed(&block.fragment.nodes, source, options, str, counter, depth);
 
     let content_end = if !block.fragment.nodes.is_empty() {
         block.fragment.nodes.last().unwrap().end()

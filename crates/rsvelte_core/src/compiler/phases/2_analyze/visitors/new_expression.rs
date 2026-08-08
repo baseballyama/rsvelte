@@ -11,7 +11,11 @@ use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 /// Visit a new expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::NewExpression {
-        callee, arguments, ..
+        callee,
+        arguments,
+        start,
+        end,
+        ..
     } = node
     {
         let arena = context.parse_arena;
@@ -19,7 +23,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
         // Check for `new class { ... }` (inline class expression)
         if matches!(callee_node, JsNode::ClassExpression { .. }) && context.function_depth > 0 {
-            context.emit_warning(warnings::perf_avoid_inline_class());
+            context.emit_warning(warnings::perf_avoid_inline_class().at(*start, *end));
         }
 
         // Mark that we need context
