@@ -45,7 +45,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403) | [S] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start` | error **`end`** and `frame` — never captured | [D] |
-| 5 | Generated shape matrix | per-case × target JS text | `.svelte.(js\|ts)` shapes; CSS; warnings; template positions | [S] |
+| 5 | Generated shape matrix | per-case × target JS text, or error `code` where official rejects | CSS; warnings; error **message** and **position**; template positions | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1430 generated components | `js.code`; **an empty population exits 0** | [D] |
@@ -218,8 +218,10 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 665 generated cases × 3 targets = 1995 comparisons of `js.code` only
-(`matrix/run.mjs:106,110,164-166`), oxfmt-normalized identically to `verify.mjs`.
+**Unit.** 1017 generated cases × 3 targets = 3051 comparisons. For the 857 cases both
+compilers accept the unit is `js.code` only (`matrix/run.mjs:134,139,166-167`),
+oxfmt-normalized identically to `verify.mjs`; for the 160 `invalid-bind` cases, which the
+official compiler rejects by construction, it is the error **code** (`:150`).
 
 ### Blind spot 5a — generated inputs are always `.svelte` components
 
@@ -251,13 +253,36 @@ attributes, `{@html}`, `{@const}`. **[S]** Comment insertion is likewise restric
 `<script>` bodies (`mutate.mjs:22-34`, `:48`), a deliberate and documented exclusion
 (`mutate.mjs:9-13`) — so HTML comments `<!-- -->` are never mutated.
 
-### Blind spot 5d — both-reject cases discard the error entirely
+### Blind spot 5d — both-reject cases discard the message and the position
 
-`run.mjs:117-120` counts `error-parity` and `continue`s without comparing the messages it
-captured. **[S]** rsvelte can reject a shape with an entirely wrong code at an entirely wrong
-offset and the case is scored as parity.
+`run.mjs:146-162` now compares the two error **codes** and reports `error-code-mismatch` when
+they differ, so "both threw" no longer stands in for "both diagnosed the same thing". What it
+still drops is everything else the error carries: the message prose and `start`. **[S]** rsvelte
+can reject a shape with the right code, the wrong wording and an offset pointing at the wrong
+token, and the case scores as parity. The collected-corpus gate does ratchet both
+(`error-message-known-failures.*`, `error-position-known-failures.*`); this one does not, so a
+shape only the matrix generates is unmeasured on both fields.
 
-**Closing 5b/5c:** the matrix runs in ~5 s on ~2000 comparisons. Adding a third axis family
+Note what closing the code half required: it is worth nothing without inputs that reach it, and
+before family `invalid-bind` (`generate.mjs:73`) the only both-reject cases here were valid
+programs that happened to break. **A comparison and a population have to be added together** —
+either alone measures nothing.
+
+### Blind spot 5e — accept-where-official-rejects has one input per code elsewhere
+
+Family `invalid-bind` (`axes.mjs:297,326` — 20 invalid target expressions × 8 `bind:` slots) is
+the only *generated* population of programs official rejects. Everywhere else that question is
+asked by the 145 `compiler-errors` fixtures, at **one input per code**, which makes a code with
+a passing fixture read as covered. It is not: #2583 is `bind_invalid_expression` accepted on a
+component while its fixture passed on an element. Three of the four accept-where-official-rejects
+divergences known when this row was written sit on codes that have a passing fixture.
+
+What remains **unmeasured**: every other error code. This family crosses one validation
+(`object(node.expression)`) with its slots. The same drift is possible for any check written per
+call site rather than once — `{@render}`, `use:`, `{#each … as}` patterns, `<svelte:element>` —
+and no gate here generates invalid inputs for them.
+
+**Closing 5b/5c:** the matrix runs in ~7 s on ~3000 comparisons. Adding another axis family
 (template-position × comment kind) or reading `.warnings` is cheap relative to every other gate
 here. This is the highest value-per-cost item in this document.
 

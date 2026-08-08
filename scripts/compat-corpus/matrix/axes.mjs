@@ -278,6 +278,74 @@ export const COMMENT_SEEDS = {
 };
 
 /**
+ * Axis D — expressions that are not a legal `bind:` target, crossed with axis E,
+ * the directive slot they sit in.
+ *
+ * Every other family here generates VALID programs and asks whether the two
+ * compilers agree on the output. This one generates programs the official
+ * compiler rejects and asks whether rsvelte rejects them with the same code —
+ * a question no collected corpus can pose, because published code compiles.
+ * The `compiler-errors` fixtures do pose it, but at one input per code, and
+ * that is not enough: `<Comp bind:value={o.x = obj} />` compiled into a
+ * getter/setter around an assignment while `bind_invalid_expression` had a
+ * passing fixture, because upstream runs `object(node.expression)` once for
+ * both slots and rsvelte had the check on the element path only.
+ *
+ * The element and component slots are the axis that finds that: a validation
+ * written per slot drifts, and only the product notices.
+ */
+export const INVALID_BIND_TARGETS = {
+	assignment: 'o.x = obj',
+	'compound-assignment': 'o.x += 1',
+	call: 'o.f()',
+	'call-plain': 'fn()',
+	binary: 'o.x + 1',
+	conditional: 'flag ? o.x : o.y',
+	literal: "'lit'",
+	number: '1',
+	array: '[o.x]',
+	unary: '!o.x',
+	template: '`t${o.x}`',
+	'new-expression': 'new Thing()',
+	'await-like': 'o.x ?? o.y',
+	'logical-or': 'o.x || o.y',
+	'paren-assignment': '(o.x = obj)',
+	'optional-member': 'o?.x',
+	'optional-call': 'o.f?.()',
+	update: 'o.x++',
+	'arrow-only': '() => o.x',
+	'object-literal': '{ a: o.x }',
+};
+
+/**
+ * Axis E — the `bind:` slot. `%s` is the target expression.
+ *
+ * `bind:this` is here because it takes a different code path from a value
+ * binding on both compilers, and on components a third one again.
+ */
+export const BIND_SLOTS = {
+	'element-value': '<input bind:value={%s} />',
+	'element-group': '<input type="checkbox" bind:group={%s} />',
+	'element-this': '<div bind:this={%s}></div>',
+	'element-clientwidth': '<div bind:clientWidth={%s}></div>',
+	'component-value': '<Comp bind:value={%s} />',
+	'component-this': '<Comp bind:this={%s} />',
+	'component-named': '<Comp bind:whatever={%s} />',
+	'window-scrolly': '<svelte:window bind:scrollY={%s} />',
+};
+
+/** The declarations every invalid-bind case shares, so only the axes differ. */
+export const BIND_PREAMBLE = `<script>
+	import Comp from './Comp.svelte';
+	let o = $state({ x: 1, y: 2 });
+	let obj = $state({});
+	let flag = $state(true);
+	function fn() {}
+	class Thing {}
+</script>
+`;
+
+/**
  * Seeds for the comment axis on the `.svelte.(js|ts)` MODULE path — the whole-file
  * insertion `mutate.mjs` documents but that nothing fed until now.
  *

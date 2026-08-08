@@ -198,9 +198,20 @@ corpus could never have found them — the same lesson as the warning gate, one 
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
 ratcheted through `compatibility/matrix-known-failures.json` with per-cluster justification in
-the paired `.md`. Two declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
-position, and comment kind × insertion slot — expanded into ~2,000 comparisons that run in
-**~5 s** and need only `submodules/svelte` plus the NAPI binding, so it gates every PR.
+the paired `.md`. Three declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
+position, comment kind × insertion slot, and invalid `bind:` target × directive slot — expanded
+into ~3,000 comparisons that run in **~7 s** and need only `submodules/svelte` plus the NAPI
+binding, so it gates every PR.
+
+The third family is the odd one out and the reason is worth stating: its inputs are programs the
+official compiler **rejects**, which is a population no collected corpus can hold, because
+published code compiles. "rsvelte accepts what official rejects" was otherwise gated only by the
+145 `compiler-errors` fixtures at **one input per code** — and a code with a passing fixture
+reads as covered. #2583 is what that misses: `bind_invalid_expression` had a passing fixture on
+an element while `<Comp bind:value={o.x = obj} />` compiled into a getter/setter around an
+assignment. Adding the family alone would still have measured nothing, because `run.mjs` scored
+any both-reject case as `error-parity` without looking at the codes; **the comparison and the
+population had to land together**.
 
 It exists because the collected corpus samples the **marginal** distribution of published code
 while every bug in the #2253/#2254/#2255/#2256 batch was an **interaction**: #2254's shape occurs

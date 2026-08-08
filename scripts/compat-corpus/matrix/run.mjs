@@ -37,6 +37,7 @@ import { flattenTemplateHoles, stripBlankLines, firstDiffLine, oxfmtTree } from 
 import { selectTargets, TARGET_KEYS } from '../targets.mjs';
 import { refuseUnrepresentativeBaseline } from '../baseline-guard.mjs';
 import { unattributedBindingReason } from '../binding.mjs';
+import { errorCode } from '../error-code.mjs';
 import { generate, FAMILIES } from './generate.mjs';
 
 const require = createRequire(import.meta.url);
@@ -95,9 +96,9 @@ const rsvelte = require(BINDING);
 
 // ---- generate + compile ----------------------------------------------------
 
-// The axes generate 665 cases on an unmodified tree; the floor only has to
+// The axes generate 1017 cases on an unmodified tree; the floor only has to
 // separate "generation broke" from "the gate got easier".
-const MIN_MATRIX_CASES = 400;
+const MIN_MATRIX_CASES = 700;
 
 const cases = generate(FAMILY_KEYS);
 console.log(`[matrix] families: ${FAMILY_KEYS.join(', ')}`);
@@ -105,7 +106,7 @@ console.log(`[matrix] cases: ${cases.length}  targets: ${TARGETS.map((t) => t.ke
 
 fs.rmSync(TREE, { recursive: true, force: true });
 
-const counts = { match: 0, 'error-parity': 0, 'js-mismatch': 0, 'error-mismatch': 0 };
+const counts = { match: 0, 'error-parity': 0, 'js-mismatch': 0, 'error-mismatch': 0, 'error-code-mismatch': 0 };
 /** Pending byte comparisons, resolved after the trees are normalized. */
 const pending = [];
 const failures = [];
@@ -132,17 +133,30 @@ for (const testCase of cases) {
 		try {
 			expected = compileWith(svelte).js.code;
 		} catch (e) {
-			expectedError = firstLine(e.message);
+			expectedError = { message: firstLine(e.message), code: errorCode(e) };
 		}
 		try {
 			actual = compileWith(rsvelte).js.code;
 		} catch (e) {
-			actualError = firstLine(e.message);
+			actualError = { message: firstLine(e.message), code: errorCode(e) };
 		}
 
 		// Both compilers rejecting is the generated shape being invalid, not a
 		// finding — but ONE rejecting is the sharpest signal this gate produces.
 		if (expectedError && actualError) {
+			// …and rejecting for a DIFFERENT reason is the second sharpest:
+			// "both threw" cannot separate a ported diagnostic from a lucky
+			// parse error, which is what an invalid-input family needs it to do.
+			if (expectedError.code !== actualError.code) {
+				counts['error-code-mismatch'] += 1;
+				failures.push({
+					id: testCase.id,
+					target: target.key,
+					verdict: 'error-code-mismatch',
+					detail: `official ${expectedError.code ?? '(none)'}, rsvelte ${actualError.code ?? '(none)'}: ${actualError.message}`,
+				});
+				continue;
+			}
 			counts['error-parity'] += 1;
 			continue;
 		}
@@ -153,8 +167,8 @@ for (const testCase of cases) {
 				target: target.key,
 				verdict: 'error-mismatch',
 				detail: expectedError
-					? `rsvelte accepts, official rejects: ${expectedError}`
-					: `rsvelte rejects, official accepts: ${actualError}`,
+					? `rsvelte accepts, official rejects: ${expectedError.message}`
+					: `rsvelte rejects, official accepts: ${actualError.message}`,
 			});
 			continue;
 		}
@@ -213,7 +227,7 @@ if (UPDATE_BASELINE) {
 	// ratchet. This one is absolute.
 	if (cases.length < MIN_MATRIX_CASES) {
 		console.error(`\n[matrix] refusing to baseline from ${cases.length} generated cases (expected >= ${MIN_MATRIX_CASES}).`);
-		console.error('  the axes generate ~665; far below that means generation broke, not that the gate got easier.');
+		console.error('  the axes generate ~1017; far below that means generation broke, not that the gate got easier.');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
