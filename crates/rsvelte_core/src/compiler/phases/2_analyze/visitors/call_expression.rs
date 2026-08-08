@@ -715,7 +715,11 @@ fn is_inside_generator_function(context: &VisitorContext) -> bool {
 /// Visit a call expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let JsNode::CallExpression {
-        callee, arguments, ..
+        callee,
+        arguments,
+        start,
+        end,
+        ..
     } = node
     else {
         return Ok(());
@@ -734,7 +738,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     {
         for arg in args {
             if matches!(arg, JsNode::SpreadElement { .. }) {
-                return Err(errors::rune_invalid_spread(rune_name));
+                return Err(errors::rune_invalid_spread(rune_name).at(*start, *end));
             }
         }
     }
@@ -798,7 +802,9 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         }
         Some("$state") | Some("$state.raw") | Some("$derived") | Some("$derived.by") => {
             if !is_state_or_derived_valid_placement(context) {
-                return Err(errors::state_invalid_placement(rune.as_deref().unwrap()));
+                return Err(
+                    errors::state_invalid_placement(rune.as_deref().unwrap()).at(*start, *end)
+                );
             }
             let rune_name = rune.as_deref().unwrap();
             if rune_name == "$derived" || rune_name == "$derived.by" {

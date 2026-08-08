@@ -729,10 +729,13 @@ pub fn process_instance_script(
         // `.tsx` overlay (`<T>` → `<T,>`) so they aren't misparsed as JSX.
         disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
 
-        // Pass 7: rewrite TS angle-bracket type assertions (`<X>e` → `e as X`)
-        // anywhere in the instance script — TSX cannot parse the `<X>e` form.
-        // Mirrors official `handleTypeAssertion`, applied during the same walk.
-        rewrite_type_assertions(&script_facts.type_assertions, str);
+        // Pass 7: rewrite TS angle-bracket type assertions (`<X>e` → `e as X`).
+        // `processInstanceScriptContent` gates this on `mode !== 'ts'` because
+        // `<X>e` is still a valid assertion in `ts` mode; the module script
+        // rewrites unconditionally.
+        if is_dts_mode {
+            rewrite_type_assertions(&script_facts.type_assertions, str);
+        }
 
         if let Some(collector) = import_collector {
             instance_imports = collector.finish();

@@ -233,14 +233,9 @@ impl<'a> Parser<'a> {
                     {
                         if t.data.as_ref() == "module" {
                             context = ScriptContext::Module;
-                            // The compiler drops the `context` attribute from the
-                            // script's attribute list (it only needs the
-                            // `ScriptContext`), and the snapshot tests expect that.
-                            // svelte-eslint-parser keeps it, so attribute-layout
-                            // lint rules count it — preserve it only in lenient
-                            // (lint) mode to match the oracle without changing
-                            // compiler output.
-                            self.options.lenient_script
+                            // `read_script` keeps every attribute on the node, and
+                            // `script_context_deprecated` finds `context` there.
+                            true
                         } else {
                             // Invalid context value - only "module" is allowed
                             return Err(crate::error::ParseError::svelte(
@@ -368,7 +363,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "script_duplicate",
                         "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element",
-                        (start, end),
+                        (start, start),
                     ));
                 }
                 self.instance_script = Some(script);
@@ -378,7 +373,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "script_duplicate",
                         "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element",
-                        (start, end),
+                        (start, start),
                     ));
                 }
                 self.module_script = Some(script);

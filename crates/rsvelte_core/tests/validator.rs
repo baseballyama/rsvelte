@@ -211,18 +211,18 @@ fn warnings_match(
 
 /// Run a single validator test.
 fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
-    let name = fixture.name.clone();
     let input = fixture.input.clone();
     let runes = fixture.runes;
     let custom_element = fixture.custom_element;
 
-    // Use panic::catch_unwind to handle panics gracefully
+    // No `filename`: upstream's `tests/validator/test.ts` passes only
+    // `generate` plus the sample's own options, so diagnostics that branch on
+    // the unset-filename sentinel (`svelte_self_deprecated`) must see it unset.
     let result =
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fixture.input_type {
             InputType::Module => {
                 let options = ModuleCompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/input.svelte.js", name)),
                     ..Default::default()
                 };
                 compile_module(&input, options)
@@ -230,7 +230,6 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
             InputType::Svelte => {
                 let options = CompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/input.svelte", name)),
                     runes,
                     custom_element,
                     ..Default::default()

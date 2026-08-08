@@ -54,6 +54,7 @@ pub fn validate_element(
     let mut out_transition: Option<usize> = None;
 
     for (idx, attribute) in node.attributes.iter().enumerate() {
+        let (attr_start, attr_end) = attribute.span();
         match attribute {
             Attribute::Attribute(attr) => {
                 let is_expression = is_expression_attribute(attr);
@@ -99,12 +100,12 @@ pub fn validate_element(
 
                 // Check for illegal characters in attribute name
                 if REGEX_ILLEGAL_ATTRIBUTE_CHARACTER.is_match(&attr.name) {
-                    return Err(errors::attribute_invalid_name(&attr.name));
+                    return Err(errors::attribute_invalid_name(&attr.name).at(attr_start, attr_end));
                 }
 
                 // Check for event handlers
                 if attr.name.starts_with("on") && attr.name.len() > 2 && !is_expression {
-                    return Err(errors::attribute_invalid_event_handler());
+                    return Err(errors::attribute_invalid_event_handler().at(attr_start, attr_end));
                 }
 
                 // Check for global event reference
@@ -119,7 +120,10 @@ pub fn validate_element(
                     && name == attr.name
                     && context.analysis.root.find_binding_any_scope(name).is_none()
                 {
-                    context.emit_warning(warnings::attribute_global_event_reference(&attr.name));
+                    context.emit_warning(
+                        warnings::attribute_global_event_reference(&attr.name)
+                            .at(attr_start, attr_end),
+                    );
                 }
 
                 // Validate slot attribute
@@ -138,7 +142,8 @@ pub fn validate_element(
                         super::super::super::warnings::attribute_invalid_property_name(
                             &attr.name,
                             correct_name,
-                        ),
+                        )
+                        .at(attr_start, attr_end),
                     );
                 }
 
@@ -150,21 +155,23 @@ pub fn validate_element(
                 match context.each_block_stack.last() {
                     Some(Some(each_ctx)) => {
                         if !each_ctx.has_key {
-                            return Err(errors::animation_missing_key());
+                            return Err(errors::animation_missing_key().at(attr_start, attr_end));
                         }
 
                         if each_ctx.child_count > 1 {
-                            return Err(errors::animation_invalid_placement());
+                            return Err(
+                                errors::animation_invalid_placement().at(attr_start, attr_end)
+                            );
                         }
                     }
                     _ => {
                         // Not directly inside an EachBlock (either outside or nested in another element)
-                        return Err(errors::animation_invalid_placement());
+                        return Err(errors::animation_invalid_placement().at(attr_start, attr_end));
                     }
                 }
 
                 if has_animate_directive {
-                    return Err(errors::animation_duplicate());
+                    return Err(errors::animation_duplicate().at(attr_start, attr_end));
                 } else {
                     has_animate_directive = true;
                 }
@@ -201,9 +208,9 @@ pub fn validate_element(
                         };
 
                         if a == b {
-                            return Err(errors::transition_duplicate(a));
+                            return Err(errors::transition_duplicate(a).at(attr_start, attr_end));
                         } else {
-                            return Err(errors::transition_conflict(a, b));
+                            return Err(errors::transition_conflict(a, b).at(attr_start, attr_end));
                         }
                     }
                 }
@@ -227,9 +234,11 @@ pub fn validate_element(
                             EVENT_MODIFIERS[..EVENT_MODIFIERS.len() - 1].join(", "),
                             EVENT_MODIFIERS.last().unwrap()
                         );
-                        return Err(AnalysisError::validation(
+                        return Err(AnalysisError::validation_at(
                             "event_handler_invalid_modifier",
                             format!("Valid event modifiers are {}", list),
+                            attr_start,
+                            attr_end,
                         ));
                     }
 
@@ -240,12 +249,14 @@ pub fn validate_element(
                     }
 
                     if has_passive_modifier && !conflicting_passive_modifier.is_empty() {
-                        return Err(AnalysisError::validation(
+                        return Err(AnalysisError::validation_at(
                             "event_handler_invalid_modifier_combination",
                             format!(
                                 "The 'passive' and '{}' modifiers cannot be used together",
                                 conflicting_passive_modifier
                             ),
+                            attr_start,
+                            attr_end,
                         ));
                     }
                 }
