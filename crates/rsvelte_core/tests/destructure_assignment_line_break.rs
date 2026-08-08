@@ -53,6 +53,27 @@ fn client_ends_the_destructure_rhs_at_the_line_break() {
         !out.contains("done = true)"),
         "the following statement was swallowed into the IIFE call:\n{out}"
     );
+    // The same line break also makes this an expression *statement*, so the IIFE
+    // has no value to hand back. Both halves are needed for the output to equal
+    // the official compiler's, not merely to parse.
+    assert!(
+        !out.contains("return result;"),
+        "a statement-position destructure returned its value:\n{out}"
+    );
+}
+
+/// Control for the second half: a destructure whose value *is* used must still
+/// return it. A fix that called every destructure standalone would break this,
+/// while still passing every assertion above.
+#[test]
+fn a_destructure_whose_value_is_used_still_returns_it() {
+    let source = "<script>\n  export let selected\n  let out = null\n\n  function pick (result) {\n    out = ([selected] = result)\n  }\n</script>\n\n<button onclick={() => pick([1])}>{selected}{out}</button>\n";
+    let out = compile_to(source, GenerateMode::Client);
+    assert_parses(&out);
+    assert!(
+        out.contains("return result;"),
+        "the IIFE dropped the value the assignment is used for:\n{out}"
+    );
 }
 
 /// The control that was already right. Asserting only the client would let a fix

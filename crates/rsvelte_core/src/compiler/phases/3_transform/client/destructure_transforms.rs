@@ -407,9 +407,13 @@ pub(super) fn find_and_transform_one_destructure(
         }
     }
 
-    // Determine if standalone statement
-    let before_text = statement[..actual_start].trim_end();
-    let after_text = statement[actual_end..].trim_start();
+    // Determine if standalone statement. Only spaces and tabs are trimmed: a
+    // line break is itself a statement boundary here, and trimming it away left
+    // the `\n` tests below unreachable — so an assignment whose neighbour was
+    // separated by nothing but a newline was read as a sub-expression and got a
+    // `return` the official compiler does not emit.
+    let before_text = statement[..actual_start].trim_end_matches([' ', '\t']);
+    let after_text = statement[actual_end..].trim_start_matches([' ', '\t']);
     let is_standalone = (before_text.is_empty()
         || before_text.ends_with(';')
         || before_text.ends_with('{')
