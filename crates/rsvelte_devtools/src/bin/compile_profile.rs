@@ -139,7 +139,14 @@ fn main() {
     let analyze_time = resolve_lazy_time + ensure_script_time + analyze_visitor_time;
 
     // Reset Phase 3 sub-phase counters in case warmup left non-zero state.
+    // Every accumulator the run reports has to be drained here, not just the
+    // Phase3Breakdown: the script-text stage timers live in their own set, and
+    // leaving them undrained charges the warmup's 100 files to the stages while
+    // the parent sees only the measured pass.
     let _ = profile::take_breakdown();
+    let _ = profile::take_script_text_breakdown();
+    let _ = profile::take_pa_breakdown();
+    let _ = profile::take_index_oracle();
 
     let _ = profile::take_reparse_breakdown();
     // Per-file rows, so re-parse cost can be read against file size instead of
@@ -192,6 +199,7 @@ fn main() {
     let transform_time = start.elapsed();
     let transform_breakdown = totals;
     let script_text_breakdown = profile::take_script_text_breakdown();
+    let pa = profile::take_pa_breakdown();
 
     let total = parse_time + analyze_time + transform_time;
     let pct = |d: std::time::Duration| d.as_secs_f64() / total.as_secs_f64() * 100.0;
@@ -334,6 +342,56 @@ fn main() {
         "    PAIRING entries_outside_parent {}",
         st.entries_outside_parent
     );
+    if pa.timer_pairs > 0 {
+        println!(
+            "    --- process_accum split ({} statements) --- work = input bytes, except join = accumulated lines",
+            st.statements
+        );
+        let mut split = st.runes + st.reactive_stmt;
+        for (i, name) in profile::PA_STAGE_NAMES.iter().enumerate() {
+            split += pa.time[i];
+            println!(
+                "    PA {name:<32} {:8.3}ms ({:5.2}%) calls {:>8} work {}",
+                ms(pa.time[i]),
+                ms(pa.time[i]) / ms(total) * 100.0,
+                pa.calls[i],
+                pa.bytes[i]
+            );
+        }
+        for (name, d) in [
+            ("runes_xform", st.runes),
+            ("reactive_stmt", st.reactive_stmt),
+        ] {
+            println!(
+                "    PA {name:<32} {:8.3}ms ({:5.2}%) [already timed]",
+                ms(d),
+                ms(d) / ms(total) * 100.0
+            );
+        }
+        let pa_other = ms(st.process_accumulated) - ms(split);
+        println!(
+            "    PA {:<32} {:8.3}ms ({:5.2}%)",
+            "other",
+            pa_other,
+            pa_other / ms(total) * 100.0
+        );
+        println!(
+            "    PA-SELF-CHECK sum {:.3}ms + other {:.3}ms vs process_accum {:.3}ms",
+            ms(split),
+            pa_other,
+            ms(st.process_accumulated)
+        );
+        // The split's own timer pairs run inside the parent they are compared
+        // to, so the bound has to be reported next to the rows it inflates.
+        let per_pair = calibrate_pa_overhead();
+        println!(
+            "    PA-OVERHEAD {} pairs x {:.1}ns = {:.3}ms ({:5.2}% of compile) charged inside process_accum",
+            pa.timer_pairs,
+            per_pair,
+            pa.timer_pairs as f64 * per_pair / 1e6,
+            (pa.timer_pairs as f64 * per_pair / 1e6) / ms(total) * 100.0
+        );
+    }
     report_reparse(&mut rows, ms(total));
     if let Some(path) = std::env::args()
         .position(|a| a == "--dump-rows")
@@ -601,6 +659,21 @@ fn report_scaling(rows: &[ScalingRow], label: &str, predictor: fn(&ScalingRow) -
 /// pipeline hands the same script back to the parser. It needs no quiet machine,
 /// so it answers "constant factor or superlinear" independently of the timings
 /// next to it.
+/// Cost of one instrumented stage boundary, measured in this process so a
+/// loaded machine moves the bound and the rows it applies to together.
+fn calibrate_pa_overhead() -> f64 {
+    let n = 200_000u64;
+    let t = Instant::now();
+    for _ in 0..n {
+        let s = profile::timer_start();
+        profile::record_pa(0, profile::timer_elapsed(s), 0);
+    }
+    let per = t.elapsed().as_nanos() as f64 / n as f64;
+    // Discard the calibration's own counts.
+    let _ = profile::take_pa_breakdown();
+    per
+}
+
 fn report_reparse(
     rows: &mut [(usize, std::time::Duration, profile::ReparseBreakdown)],
     total_ms: f64,

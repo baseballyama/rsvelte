@@ -466,6 +466,154 @@ pub fn record_st_runes(d: Duration) {
     ST_RUNES.with(|c| c.set(c.get() + d));
 }
 
+/// Named split of `process_accumulated`, in execution order. The two stages the
+/// parent already times separately (`reactive_stmt`, `runes`) are not repeated
+/// here; a reader sums those two, these, and `other` to reach the parent.
+pub const PA_STAGE_NAMES: [&str; PA_STAGES] = [
+    "join",
+    "export_kw_probe",
+    "export_let",
+    "export_specifier",
+    "export_strip",
+    "snapshot_dev",
+    "empty_check",
+    "destructure_assignments",
+    "state_assigns",
+    "store_unsub_for_state_sets",
+    "member_mutations",
+    "prop_update_expressions",
+    "prop_source_reads",
+    "prop_assignments",
+    "stores",
+    "legacy_destructure_declarations",
+    "legacy_state_declarations",
+    "state_reads",
+    "rest_prop_member_access",
+    "read_only_props",
+    "console_dev",
+    "emit",
+];
+
+pub const PA_STAGES: usize = 22;
+
+pub const PA_JOIN: usize = 0;
+pub const PA_EXPORT_KW_PROBE: usize = 1;
+pub const PA_EXPORT_LET: usize = 2;
+pub const PA_EXPORT_SPECIFIER: usize = 3;
+pub const PA_EXPORT_STRIP: usize = 4;
+pub const PA_SNAPSHOT_DEV: usize = 5;
+pub const PA_EMPTY_CHECK: usize = 6;
+pub const PA_DESTRUCTURE_ASSIGNMENTS: usize = 7;
+pub const PA_STATE_ASSIGNS: usize = 8;
+pub const PA_STORE_UNSUB: usize = 9;
+pub const PA_MEMBER_MUTATIONS: usize = 10;
+pub const PA_PROP_UPDATE_EXPRESSIONS: usize = 11;
+pub const PA_PROP_SOURCE_READS: usize = 12;
+pub const PA_PROP_ASSIGNMENTS: usize = 13;
+pub const PA_STORES: usize = 14;
+pub const PA_LEGACY_DESTRUCTURE_DECLARATIONS: usize = 15;
+pub const PA_LEGACY_STATE_DECLARATIONS: usize = 16;
+pub const PA_STATE_READS: usize = 17;
+pub const PA_REST_PROP_MEMBER_ACCESS: usize = 18;
+pub const PA_READ_ONLY_PROPS: usize = 19;
+pub const PA_CONSOLE_DEV: usize = 20;
+pub const PA_EMIT: usize = 21;
+
+/// Per-stage time plus the two load-independent work counters, so a surprising
+/// time row can be asked whether the work moved or only the clock did.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct PaBreakdown {
+    pub time: [Duration; PA_STAGES],
+    /// Times the stage was entered, including the runs where its guard made it
+    /// a no-op -- an entered no-op still costs the timer pair.
+    pub calls: [u64; PA_STAGES],
+    /// Input bytes the stage was handed.
+    pub bytes: [u64; PA_STAGES],
+    /// `Instant` pairs this split added inside the parent it is compared to.
+    pub timer_pairs: u64,
+}
+
+#[cfg(feature = "measure-pa-split")]
+thread_local! {
+    static PA_TIME: [Cell<u64>; PA_STAGES] = Default::default();
+    static PA_CALLS: [Cell<u64>; PA_STAGES] = Default::default();
+    static PA_BYTES: [Cell<u64>; PA_STAGES] = Default::default();
+}
+
+#[cfg(feature = "measure-pa-split")]
+#[inline]
+pub fn record_pa(idx: usize, d: Duration, bytes: u64) {
+    PA_TIME.with(|a| a[idx].set(a[idx].get() + d.as_nanos() as u64));
+    PA_CALLS.with(|a| a[idx].set(a[idx].get() + 1));
+    PA_BYTES.with(|a| a[idx].set(a[idx].get() + bytes));
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+#[inline(always)]
+pub fn record_pa(_idx: usize, _d: Duration, _bytes: u64) {}
+
+/// Records a `process_accumulated` stage on drop, for the regions that return
+/// out of the closure rather than falling through.
+#[cfg(feature = "measure-pa-split")]
+pub struct PaGuard {
+    idx: usize,
+    bytes: u64,
+    start: TimerStart,
+}
+
+#[cfg(feature = "measure-pa-split")]
+impl Drop for PaGuard {
+    fn drop(&mut self) {
+        record_pa(self.idx, timer_elapsed(self.start), self.bytes);
+    }
+}
+
+#[cfg(feature = "measure-pa-split")]
+#[inline]
+pub fn pa_guard(idx: usize, bytes: u64) -> PaGuard {
+    PaGuard {
+        idx,
+        bytes,
+        start: timer_start(),
+    }
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+pub struct PaGuard;
+
+#[cfg(not(feature = "measure-pa-split"))]
+#[inline(always)]
+pub fn pa_guard(_idx: usize, _bytes: u64) -> PaGuard {
+    PaGuard
+}
+
+#[cfg(feature = "measure-pa-split")]
+pub fn take_pa_breakdown() -> PaBreakdown {
+    let mut out = PaBreakdown::default();
+    PA_TIME.with(|a| {
+        for (i, c) in a.iter().enumerate() {
+            out.time[i] = Duration::from_nanos(c.replace(0));
+        }
+    });
+    PA_CALLS.with(|a| {
+        for (i, c) in a.iter().enumerate() {
+            out.calls[i] = c.replace(0);
+        }
+    });
+    PA_BYTES.with(|a| {
+        for (i, c) in a.iter().enumerate() {
+            out.bytes[i] = c.replace(0);
+        }
+    });
+    out.timer_pairs = out.calls.iter().sum();
+    out
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+pub fn take_pa_breakdown() -> PaBreakdown {
+    PaBreakdown::default()
+}
+
 /// Records the legacy `$:` branch on drop, which returns from several points.
 pub struct ReactiveStmtGuard(pub TimerStart);
 

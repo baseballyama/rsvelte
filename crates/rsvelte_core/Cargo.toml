@@ -49,6 +49,11 @@ measure-prop-reads = []
 # transform chain allocated a new string or handed its input through. Off by
 # default and zero-cost when off.
 measure-stmt-chain = []
+# Repository-local instrumentation: split `process_accumulated` into named
+# stages with a `Duration` and a work counter each. Gated because the chain runs
+# per statement, and ~20 `Instant` pairs would land inside the very parent the
+# stages are being compared against. Off by default and zero-cost when off.
+measure-pa-split = []
 # Repository-local instrumentation: time each `SemanticBuilder::build` site so
 # its share of `compile()` can be measured. Off by default; the build counts are
 # unconditional, only the `Instant` pair is gated.
