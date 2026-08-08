@@ -4150,6 +4150,8 @@ impl JsNode {
     }
 
     pub fn to_value(&self) -> Value {
+        #[cfg(test)]
+        to_value_probe::record();
         use crate::ast::arena::{has_serialize_arena, with_serialize_arena};
         if has_serialize_arena() {
             serde_json::to_value(self).unwrap_or(Value::Null)
@@ -4300,5 +4302,29 @@ mod tests {
         assert_eq!(JsNode::from_value(unknown), JsNode::Null);
         let typeless = serde_json::json!({"name": "x"});
         assert_eq!(JsNode::from_value(typeless), JsNode::Null);
+    }
+}
+
+/// Counts `to_value` calls so a test can assert that an analysis path answers
+/// off the typed AST, which the timing gates cannot settle: they sample library
+/// code, 12% legacy `$:` by bytes against 69% for applications.
+#[cfg(test)]
+pub(crate) mod to_value_probe {
+    use std::cell::Cell;
+
+    thread_local! {
+        static CALLS: Cell<u64> = const { Cell::new(0) };
+    }
+
+    pub(crate) fn record() {
+        CALLS.with(|c| c.set(c.get() + 1));
+    }
+
+    pub(crate) fn reset() {
+        CALLS.with(|c| c.set(0));
+    }
+
+    pub(crate) fn calls() -> u64 {
+        CALLS.with(|c| c.get())
     }
 }

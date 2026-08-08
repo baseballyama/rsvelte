@@ -40,6 +40,67 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`, the `.svelte.js`
 module path) is internal IR construction with unchanged output — a maintainability cleanup only.
 
+**The client instance-script pipeline is the exception, and it is a correctness hazard, not a
+cleanup.** That pipeline still decides where a statement or an expression ends by scanning
+characters. Feeding every corpus output to a JS parser — a question no ratchet asks, because
+each one scores match/mismatch and so cannot distinguish "wrong text" from "text that is not
+JavaScript" — found **35 real-world components where rsvelte emitted output no JS parser
+accepts**, all confirmed against official (#2590, #2592, #2596, #2598, #2599, #2603). Every
+one is the same shape: a scanner assuming input it did not get.
+
+| what the scanner assumed | what broke it |
+|---|---|
+| a statement never ends on `=>` | an arrow body starting on the next line |
+| an RHS ends at `;`, `,` or an unbalanced closer | semicolon-free source (`standard` style) |
+| `\` before a quote means it is escaped | `'\\'` — the backslash was itself escaped |
+| a `$: if (…)` header ends its statement | `else` on the following line |
+| the setter call is rendered on one line | the printer breaking it across lines |
+
+Do not size this work against the performance case: re-parsing is 3-4% of compile time, the
+profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass
+`SemanticBuilder` construction measured ~2% with a 3.3% ceiling (#2602). **The justification
+is that these defect classes are unreachable in an AST pipeline, not that it is faster.**
+
+Two cautions before treating any of this as closed. The parse gate (#2591) catches only the
+loud half, and **how loud a given defect is depends on the input, not on the defect**: #2603's
+one mis-splice made 9 files unparseable and 6 files parseable-and-wrong (one assigns a boolean
+instead of a ternary's result), and #2598 emitted a bare `$:` labelled statement that every
+parser accepts. Sizing a text-scanning defect by its parse-gate count therefore understates it —
+see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that produced every one of
+these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not corpus sources**,
+so the gate baselines at 0 while the instances live outside the population it inspects; that is
+why each fix lands a `compatibility/pattern-corpus` repro.
+
+**`script_text` is the only bucket that scales superlinearly**, and it is simultaneously the
+largest — exponent ~1.4 (prod) / ~1.2 (dev) against every sibling below 1.0, carrying ~0.51 of
+a total ~0.95 in `share x exp`. Roughly half of how compile cost grows with file size lives in
+that one bucket, in **prod as much as dev**. Two dev-mode candidates that look like textbook
+`sites x source_length` defects were measured and **falsified** — the `Vec<char>` rescans in
+`wrap_prop_mutation_validation` (rescan factor 0.0–1.8x, not the ≥10x a quadratic needs) and
+skipping the dev assign-tail parse (removes 951 parses on carbon and buys +0.04%). Both, plus
+the reason `post_passes` and `line_loop` cannot attribute a movement on their own and why
+wall-clock is unusable on a loaded box, are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-08--dev-mode-client-two-falsified-hypotheses-and-the-one-bucket-that-scales).
+The 6.59x client-dev figure against `@mrwaip/svelte-rs` predates #2511/#2512 and is **not**
+current.
+
+### Where compile time goes ([`docs/phase3-ast-refactor-plan.md`](docs/phase3-ast-refactor-plan.md) § Findings 2026-08-08)
+
+The 40.3% of non-kernel CPU that a profile attributes to allocation + hashing + memcpy
+has been broken down **by site**, and the answer is that there is no site: it takes
+26–32 of 322–479 sites to reach half the bucket, and the largest single one is 0.4–1.8%
+of compile — under the ~5% code-layout floor. What the measurement did find is a shape:
+**rsvelte performs ~1.2 heap allocations per input source byte, flat to three digits
+across an 18× file-size range**, which is the mechanism behind "uniformly heavy, slope
+not intercept". The identified target is the **representation** — one `Box` per
+expression node, and a fresh `String` malloc + `IndexMap` slot + SipHash per JSON object
+key, from a set of only 88 distinct static keys. Do not open a brief to fix a *site*
+here; a representation brief starts from that section rather than re-deriving it.
+`crates/rsvelte_devtools/src/bin/alloc_sites.rs` is the instrument, and the section
+states its four limits and one retraction — a share of a bucket cannot be converted into
+a share of total time using a factor derived from the same profile share being
+apportioned.
+
 **Key Design Decisions:**
 
 - Memory-efficient layout (u32 positions, compact_str)

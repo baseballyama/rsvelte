@@ -4,6 +4,8 @@ use memchr::memmem;
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+
 use super::scan_index::ScanIndex;
 
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
@@ -326,37 +328,58 @@ pub(super) fn braceless_control_header_from_last_line(last: &str) -> Option<bool
     )
 }
 
+/// Whether the code before a line break ends with a binary operator. No
+/// statement can, so its right operand is on the next line — automatic
+/// semicolon insertion does not apply.
+///
+/// Only operators that are unambiguous at the end of a line are listed: `-` is
+/// left out because `a--` ends a statement, and `/` because it also closes a
+/// block comment.
+pub(super) fn ends_with_binary_operator(code: &str) -> bool {
+    let last_line = code.rsplit('\n').next().unwrap_or(code);
+    // A comment can end in an operator too (`// a || b`), and it is not one.
+    let t = match super::props_transforms::find_line_comment_position(last_line) {
+        Some(pos) => last_line[..pos].trim_end(),
+        None => last_line.trim_end(),
+    };
+    t.ends_with("||")
+        || t.ends_with("&&")
+        || t.ends_with("==")
+        || t.ends_with("!=")
+        || t.ends_with("<=")
+        || t.ends_with(">=")
+        || t.ends_with('?')
+        || (t.ends_with('+') && !t.ends_with("++"))
+}
+
 pub(super) fn find_statement_end_client(s: &str) -> usize {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
     let mut depth = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
-    let mut prev_char = '\0';
+    // Last significant code byte, needed to tell a regex literal from a division.
+    let mut prev: Option<u8> = None;
+    let mut i = 0;
 
-    // Use char_indices() to get BYTE positions (not char positions),
-    // so the returned index can be used directly for byte-level string slicing.
-    // Using char-position indices with multibyte UTF-8 strings causes off-by-one bugs
-    // for strings containing characters like 'é', '中', etc.
-    for (byte_pos, c) in s.char_indices() {
-        // Handle string literals
-        if (c == '"' || c == '\'' || c == '`') && prev_char != '\\' {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
+    // Byte positions throughout: the returned index is used to slice `s`, and
+    // every delimiter tested for is ASCII, so a UTF-8 continuation byte (always
+    // >= 0x80) can never be mistaken for one.
+    while i < len {
+        // A `;` or `)` inside a string, comment or regex literal is text. Reading
+        // one as the end of the statement truncated the initializer mid-comment
+        // and left the injected `)` inside the comment body.
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
             }
-            prev_char = c;
+            i = next;
             continue;
         }
-
-        if in_string {
-            prev_char = c;
-            continue;
-        }
+        let c = bytes[i];
+        let byte_pos = i;
 
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
                 if depth > 0 {
                     depth -= 1;
                 } else {
@@ -365,44 +388,45 @@ pub(super) fn find_statement_end_client(s: &str) -> usize {
                     return byte_pos;
                 }
             }
-            ';' if depth == 0 => return byte_pos,
+            b';' if depth == 0 => return byte_pos,
             // Newline at depth 0 ends the statement (JavaScript ASI)
             // UNLESS the next non-whitespace character continues the expression
             // (e.g., `?` or `:` for ternary, `.` for chain, binary operators).
-            '\n' if depth == 0 => {
-                let rest = &s[byte_pos + 1..];
-                let next = rest
-                    .bytes()
+            b'\n' if depth == 0 => {
+                let next = bytes[byte_pos + 1..]
+                    .iter()
                     .find(|b| !matches!(b, b' ' | b'\t' | b'\r' | b'\n'))
-                    .map(|b| b as char);
+                    .copied();
                 if let Some(nc) = next {
                     if matches!(
                         nc,
-                        '?' | ':'
-                            | '.'
-                            | '+'
-                            | '-'
-                            | '*'
-                            | '/'
-                            | '%'
-                            | '&'
-                            | '|'
-                            | '^'
-                            | '<'
-                            | '>'
-                            | '='
-                            | ','
+                        b'?' | b':'
+                            | b'.'
+                            | b'+'
+                            | b'-'
+                            | b'*'
+                            | b'/'
+                            | b'%'
+                            | b'&'
+                            | b'|'
+                            | b'^'
+                            | b'<'
+                            | b'>'
+                            | b'='
+                            | b','
                             // `(`, `[`, and a backtick after a newline continue the
                             // expression per JS ASI rules (`foo\n(bar)` is `foo(bar)`,
                             // `a\n[i]` is `a[i]`). Without these, a multi-line
                             // initializer whose continuation line starts with `(`
                             // (e.g. `let x =\n  (cond ? a : b) || c`) is truncated to
                             // an empty expression.
-                            | '('
-                            | '['
-                            | '`'
+                            | b'('
+                            | b'['
+                            | b'`'
                     ) {
                         // continuation; keep scanning
+                    } else if ends_with_binary_operator(&s[..byte_pos]) {
+                        // The right operand is on the next line; keep scanning.
                     } else if ends_with_braceless_control_header(&s[..byte_pos]) {
                         // A brace-less control-flow header (`if (cond)`, `else`,
                         // `for (...)`, `while (...)`, `do`) takes the following
@@ -419,10 +443,13 @@ pub(super) fn find_statement_end_client(s: &str) -> usize {
             }
             _ => {}
         }
-        prev_char = c;
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
+        i += 1;
     }
 
-    s.len()
+    len
 }
 
 /// True when the byte at `i` is escaped, i.e. an ODD number of backslashes

@@ -141,11 +141,15 @@ fn main() {
     // Reset Phase 3 sub-phase counters in case warmup left non-zero state.
     // Every accumulator the run reports has to be drained here, not just the
     // Phase3Breakdown: the script-text stage timers live in their own set, and
-    // leaving them undrained charges the warmup's 100 files to the stages while
-    // the parent sees only the measured pass.
+    // leaving them undrained charged the warmup's 100 files to the stages while
+    // the parent saw only the measured pass -- which reads as Sigma-stages
+    // exceeding its own parent by (100 + N) / N, worst on small corpora.
     let _ = profile::take_breakdown();
     let _ = profile::take_script_text_breakdown();
     let _ = profile::take_pa_breakdown();
+    // A raw count rather than a share, so warmup cannot skew a percentage here
+    // -- but it would leave the oracle's check count covering a population no
+    // other number in the report covers, which is the same hazard one field over.
     let _ = profile::take_index_oracle();
 
     let _ = profile::take_reparse_breakdown();
@@ -318,6 +322,16 @@ fn main() {
         st.ctrl_header_bytes,
         st.collect_scan_passes,
         st.collect_scan_bytes
+    );
+    // `reactive_calls` is the legacy/runes discriminator: it counts top-level
+    // `$:` statements, which exist only on the legacy side. Load-independent,
+    // so a corpus can be labelled without trusting a timing share.
+    println!(
+        "    MODE legacy_reactive_stmts {} | statements {} | fastpath {} | processed {}",
+        st.reactive_calls,
+        st.statements + st.fastpath_statements,
+        st.fastpath_statements,
+        st.statements
     );
     let st_sum =
         st.prenormalize + st.collect_vars + st.line_loop + st.ast_transforms + st.post_passes;

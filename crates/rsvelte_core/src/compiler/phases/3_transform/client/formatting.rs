@@ -6,6 +6,8 @@ use memchr::memmem;
 
 use oxc_allocator::Allocator;
 
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+
 // Thread-local OXC allocator reused across normalize_js_with_oxc calls to avoid
 // repeated allocator creation/destruction overhead. The allocator is reset
 // before each use, which clears all allocations while keeping the underlying
@@ -831,6 +833,17 @@ impl JsScan {
                 end += 1;
             }
             return Some((end + 2).min(len));
+        }
+
+        // A regex literal is opaque too: in `/^https?:\/\//` the escaped slash
+        // and the closing slash are adjacent, and reading them as a comment
+        // deleted the rest of the line.
+        if c == b'/'
+            && let Some((end, false)) = skip_opaque(bytes, i, self.last_code)
+        {
+            // A regex is an expression-ending token, like a closing paren.
+            self.last_code = Some(b')');
+            return Some(end);
         }
 
         None

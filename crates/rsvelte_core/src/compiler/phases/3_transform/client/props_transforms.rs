@@ -301,6 +301,24 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 continue;
             }
 
+            // A regex literal is not code either: the escaped slash and the
+            // closing slash of `/^https?:\/\//` sit next to each other, so
+            // without this the `//` reads as a comment and every identifier
+            // after it is left untransformed.
+            let byte_at = char_offsets.get(i).copied().unwrap_or(i);
+            if c == '/'
+                && let Some((end, false)) = skip_opaque(
+                    result.as_bytes(),
+                    byte_at,
+                    prev_code_byte(result.as_bytes(), byte_at),
+                )
+            {
+                let literal = &result[byte_at..end];
+                new_result.push_str(literal);
+                i += literal.chars().count();
+                continue;
+            }
+
             // Check for string literal start
             if c == '\'' || c == '"' || c == '`' {
                 in_string = Some(c);
@@ -2467,31 +2485,64 @@ pub(super) fn split_declarators(s: &str) -> Vec<&str> {
     result
 }
 
-/// Find the position of a line comment (//) that is not inside a string.
-pub(super) fn find_line_comment_position(code: &str) -> Option<usize> {
-    let mut in_string = false;
-    let mut string_char = ' ';
-    let mut chars = code.chars().peekable();
-    let mut pos = 0;
+/// The last code byte before `at`, ignoring whitespace.
+fn prev_code_byte(bytes: &[u8], at: usize) -> Option<u8> {
+    let mut end = at;
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    (end > 0).then(|| bytes[end - 1])
+}
 
-    while let Some(c) = chars.next() {
-        if in_string {
-            if c == '\\' {
-                // Skip escaped character
-                chars.next();
-                pos += 2;
+/// Find the position of a line comment (//) that is not inside a string.
+///
+/// Every delimiter tested for is ASCII, and a UTF-8 continuation byte is never
+/// one of them, so the scan is byte-level while the returned offset stays a
+/// valid char boundary.
+pub(super) fn find_line_comment_position(code: &str) -> Option<usize> {
+    let bytes = code.as_bytes();
+    let len = bytes.len();
+    let mut in_string: Option<u8> = None;
+    let mut prev: Option<u8> = None;
+    let mut i = 0;
+
+    while i < len {
+        let c = bytes[i];
+        if let Some(quote) = in_string {
+            if c == b'\\' {
+                i += 2;
                 continue;
             }
-            if c == string_char {
-                in_string = false;
+            if c == quote {
+                in_string = None;
+                prev = Some(c);
             }
-        } else if c == '"' || c == '\'' || c == '`' {
-            in_string = true;
-            string_char = c;
-        } else if c == '/' && chars.peek() == Some(&'/') {
-            return Some(pos);
+            i += 1;
+            continue;
         }
-        pos += c.len_utf8();
+        if c == b'"' || c == b'\'' || c == b'`' {
+            in_string = Some(c);
+            prev = Some(c);
+            i += 1;
+            continue;
+        }
+        if c == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            return Some(i);
+        }
+        // `/^https?:\/\//` ends in two adjacent slashes that would otherwise
+        // read as the start of a comment.
+        if c == b'/'
+            && let Some((end, false)) = skip_opaque(bytes, i, prev)
+        {
+            // A regex ends an expression, like a closing paren.
+            prev = Some(b')');
+            i = end;
+            continue;
+        }
+        if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
+        i += 1;
     }
     None
 }

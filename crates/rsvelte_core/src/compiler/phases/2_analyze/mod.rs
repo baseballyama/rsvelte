@@ -475,15 +475,15 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Check for cyclical reactive statement dependencies ($: a = b + 1; $: b = a + 1;)
     // This must run after instance script analysis.
     // Corresponds to: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L810
-    // All three legacy `$:` passes read the same statements, so serialize once.
+    // All three legacy `$:` passes read the same statements, so collect once.
     let reactive_labeled = if analysis.runes {
         Vec::new()
     } else {
-        instance_labeled_statements_json(ast)
+        instance_labeled_statements(ast)
     };
 
     if !analysis.runes {
-        check_reactive_declaration_cycles(&reactive_labeled, &analysis)?;
+        check_reactive_declaration_cycles(&reactive_labeled, &ast.arena, &analysis)?;
     }
 
     // Populate legacy_dependencies for LegacyReactive bindings.
@@ -492,8 +492,8 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Corresponds to Svelte's LabeledStatement.js lines 81-87 where
     // `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
     if !analysis.runes {
-        populate_legacy_dependencies(&reactive_labeled, &mut analysis);
-        collect_reactive_statement_dependencies(&reactive_labeled, &mut analysis);
+        populate_legacy_dependencies(&reactive_labeled, &ast.arena, &mut analysis);
+        collect_reactive_statement_dependencies(&reactive_labeled, &ast.arena, &mut analysis);
     }
 
     // Pre-compute legacy-pattern detection so template visitors (notably
@@ -1139,14 +1139,10 @@ fn matches_let_variable_declaration(node: &crate::ast::typed_expr::JsNode) -> bo
     }
 }
 
-/// Serialize the instance script's top-level `LabeledStatement`s (legacy `$:`),
-/// in source order. The three legacy passes below read nothing else out of the
-/// program, so serializing only these statements avoids materializing the whole
-/// script as JSON — on real components the `$:` statements are a small fraction
-/// of it. An empty result doubles as the early-exit gate for components with no
-/// `$:` at all.
-fn instance_labeled_statements_json(ast: &Root) -> Vec<serde_json::Value> {
-    use crate::ast::typed_expr::JsNode;
+/// Collect the instance script's top-level `LabeledStatement`s (legacy `$:`),
+/// in source order. An empty result doubles as the early-exit gate for
+/// components with no `$:` at all.
+fn instance_labeled_statements<'a>(ast: &'a Root<'_>) -> Vec<&'a JsNode> {
     let Some(ref instance) = ast.instance else {
         return Vec::new();
     };
@@ -1154,12 +1150,68 @@ fn instance_labeled_statements_json(ast: &Root) -> Vec<serde_json::Value> {
     let JsNode::Program { body, .. } = node.as_ref() else {
         return Vec::new();
     };
+    let body = *body;
     ast.arena
-        .get_js_children(*body)
+        .get_js_children(body)
         .iter()
         .filter(|stmt| matches!(stmt, JsNode::LabeledStatement { .. }))
-        .map(|stmt| stmt.to_value())
         .collect()
+}
+
+/// True when `label` is the legacy reactive `$` label.
+fn is_dollar_label(label: crate::ast::arena::JsNodeId, arena: &ParseArena) -> bool {
+    matches!(arena.get_js_node(label), JsNode::Identifier { name, .. } if name == "$")
+}
+
+/// `(start, end)` of a typed node, using the same sentinel the JSON walkers
+/// produced for a node that carries no position (`JsNode::Null`).
+fn js_node_span(node: &JsNode) -> (u32, u32) {
+    (
+        node.start().unwrap_or(u32::MAX),
+        node.end().unwrap_or(u32::MAX),
+    )
+}
+
+fn blob_span(node: &serde_json::Value) -> (u32, u32) {
+    let field = |k: &str| {
+        node.get(k)
+            .and_then(|v| v.as_u64())
+            .map_or(u32::MAX, |v| v as u32)
+    };
+    (field("start"), field("end"))
+}
+
+/// Report every identifier reachable in an opaque TS annotation blob, in the
+/// order the legacy JSON walkers reached it.
+///
+/// A pattern's `type_annotation` is opaque to the typed walker but was visible
+/// to the JSON one, and the legacy `$:` walkers must not change what they see.
+/// `Identifier` is terminal because every JSON walker's `Identifier` arm
+/// recorded the name and stopped, never descending into a nested annotation.
+fn for_each_blob_identifier(blob: &serde_json::Value, f: &mut impl FnMut(&str, (u32, u32))) {
+    if blob.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+        if let Some(name) = blob.get("name").and_then(|n| n.as_str()) {
+            f(name, blob_span(blob));
+        }
+        return;
+    }
+    let Some(obj) = blob.as_object() else {
+        return;
+    };
+    for (key, value) in obj {
+        if key == "type" || key == "start" || key == "end" || key == "loc" {
+            continue;
+        }
+        if value.is_object() {
+            for_each_blob_identifier(value, f);
+        } else if let Some(arr) = value.as_array() {
+            for item in arr {
+                if item.is_object() {
+                    for_each_blob_identifier(item, f);
+                }
+            }
+        }
+    }
 }
 
 /// Check if `name` resolves to a binding in the module scope (or is a
@@ -1223,7 +1275,8 @@ fn body_has_let_declaration_typed(
 ///
 /// Corresponds to the `order_reactive_statements()` call in Svelte's 2-analyze/index.js L810.
 fn check_reactive_declaration_cycles(
-    labeled: &[serde_json::Value],
+    labeled: &[&JsNode],
+    arena: &ParseArena,
     analysis: &ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
     // Collect reactive statements and their assignments/dependencies
@@ -1231,17 +1284,14 @@ fn check_reactive_declaration_cycles(
     let mut reactive_stmts: Vec<(Vec<String>, Vec<String>, Option<(u32, u32)>)> = Vec::new();
 
     for node in labeled {
-        let label_name = node
-            .get("label")
-            .and_then(|l| l.get("name"))
-            .and_then(|n| n.as_str());
-        if label_name != Some("$") {
+        let JsNode::LabeledStatement { label, body, .. } = node else {
+            continue;
+        };
+        if !is_dollar_label(*label, arena) {
             continue;
         }
 
-        let Some(body_node) = node.get("body") else {
-            continue;
-        };
+        let body_node = arena.get_js_node(*body);
 
         // Extract assigned variable names and dependency variable names.
         // A single walker handles every body shape — `$: a = b`,
@@ -1251,7 +1301,7 @@ fn check_reactive_declaration_cycles(
         // statement still participates in cycle detection.
         let mut assignments: Vec<String> = Vec::new();
         let mut dependencies: Vec<String> = Vec::new();
-        cycle_collect_assignments_and_deps(body_node, &mut assignments, &mut dependencies);
+        cycle_collect_assignments_and_deps(body_node, arena, &mut assignments, &mut dependencies);
 
         // Filter: only include variables that are declared in the instance scope
         // (not global variables like console, Math, etc.)
@@ -1275,11 +1325,7 @@ fn check_reactive_declaration_cycles(
         dependencies.retain(|dep| !assignments.contains(dep));
 
         if !assignments.is_empty() {
-            let span = node
-                .get("start")
-                .and_then(|v| v.as_u64())
-                .zip(node.get("end").and_then(|v| v.as_u64()))
-                .map(|(start, end)| (start as u32, end as u32));
+            let span = node.start().zip(node.end());
             reactive_stmts.push((assignments, dependencies, span));
         }
     }
@@ -1314,48 +1360,36 @@ fn check_reactive_declaration_cycles(
 }
 
 /// Extract identifier names from a pattern (LHS of assignment) for reactive cycle detection.
-fn cycle_extract_pattern_ids(node: &serde_json::Value, out: &mut Vec<String>) {
-    match node.get("type").and_then(|v| v.as_str()) {
-        Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|v| v.as_str())
-                && !out.iter().any(|s| s == name)
-            {
+fn cycle_extract_pattern_ids(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            let name = name.as_str();
+            if !out.iter().any(|s| s == name) {
                 out.push(name.to_string());
             }
         }
-        Some("MemberExpression") => {
-            // For member expressions like `obj.prop`, extract the root object identifier
-            if let Some(obj) = node.get("object") {
-                cycle_extract_pattern_ids(obj, out);
+        // For member expressions like `obj.prop`, extract the root object identifier
+        JsNode::MemberExpression { object, .. } => {
+            cycle_extract_pattern_ids(arena.get_js_node(*object), arena, out);
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                cycle_extract_pattern_ids(elem, arena, out);
             }
         }
-        Some("ArrayPattern") => {
-            if let Some(elements) = node.get("elements").and_then(|v| v.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        cycle_extract_pattern_ids(elem, out);
-                    }
+        // A `RestElement` property has no `value`, so it contributes nothing here.
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                if let JsNode::Property { value, .. } = prop {
+                    cycle_extract_pattern_ids(arena.get_js_node(*value), arena, out);
                 }
             }
         }
-        Some("ObjectPattern") => {
-            if let Some(props) = node.get("properties").and_then(|v| v.as_array()) {
-                for prop in props {
-                    if let Some(value) = prop.get("value") {
-                        cycle_extract_pattern_ids(value, out);
-                    }
-                }
-            }
+        JsNode::AssignmentPattern { left, .. } => {
+            cycle_extract_pattern_ids(arena.get_js_node(*left), arena, out);
         }
-        Some("AssignmentPattern") => {
-            if let Some(left) = node.get("left") {
-                cycle_extract_pattern_ids(left, out);
-            }
-        }
-        Some("RestElement") => {
-            if let Some(argument) = node.get("argument") {
-                cycle_extract_pattern_ids(argument, out);
-            }
+        JsNode::RestElement { argument, .. } => {
+            cycle_extract_pattern_ids(arena.get_js_node(*argument), arena, out);
         }
         _ => {}
     }
@@ -1370,79 +1404,132 @@ fn cycle_extract_pattern_ids(node: &serde_json::Value, out: &mut Vec<String>) {
 /// assignments rather than dependencies — otherwise such statements collect an
 /// empty assignment set and get dropped from the cycle graph entirely.
 fn cycle_collect_assignments_and_deps(
-    node: &serde_json::Value,
+    node: &JsNode,
+    arena: &ParseArena,
     assignments: &mut Vec<String>,
     dependencies: &mut Vec<String>,
 ) {
-    match node.get("type").and_then(|v| v.as_str()) {
-        Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|v| v.as_str())
-                && !dependencies.iter().any(|s| s == name)
-            {
+    match node {
+        JsNode::Identifier { name, .. } => {
+            if !dependencies.iter().any(|s| s == name.as_str()) {
                 dependencies.push(name.to_string());
             }
         }
-        Some("AssignmentExpression") => {
+        JsNode::AssignmentExpression { left, right, .. } => {
             // LHS targets are assignments; the RHS (and any nested
             // assignments within it) is walked for dependencies.
-            if let Some(left) = node.get("left") {
-                cycle_extract_pattern_ids(left, assignments);
-            }
-            if let Some(right) = node.get("right") {
-                cycle_collect_assignments_and_deps(right, assignments, dependencies);
-            }
+            cycle_extract_pattern_ids(arena.get_js_node(*left), arena, assignments);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*right),
+                arena,
+                assignments,
+                dependencies,
+            );
         }
-        Some("UpdateExpression") => {
-            // `x++` / `--x` assigns its argument.
-            if let Some(argument) = node.get("argument") {
-                cycle_extract_pattern_ids(argument, assignments);
-            }
+        // `x++` / `--x` assigns its argument.
+        JsNode::UpdateExpression { argument, .. } => {
+            cycle_extract_pattern_ids(arena.get_js_node(*argument), arena, assignments);
         }
         // Function bodies create their own scope.
-        Some("FunctionExpression")
-        | Some("ArrowFunctionExpression")
-        | Some("FunctionDeclaration") => {}
-        Some("MemberExpression") => {
-            if let Some(object) = node.get("object") {
-                cycle_collect_assignments_and_deps(object, assignments, dependencies);
-            }
-            let is_computed = node
-                .get("computed")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-            if is_computed && let Some(property) = node.get("property") {
-                cycle_collect_assignments_and_deps(property, assignments, dependencies);
+        JsNode::FunctionExpression { .. }
+        | JsNode::ArrowFunctionExpression { .. }
+        | JsNode::FunctionDeclaration { .. } => {}
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*object),
+                arena,
+                assignments,
+                dependencies,
+            );
+            if *computed {
+                cycle_collect_assignments_and_deps(
+                    arena.get_js_node(*property),
+                    arena,
+                    assignments,
+                    dependencies,
+                );
             }
         }
-        Some("Property") => {
-            let is_computed = node
-                .get("computed")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-            if is_computed && let Some(key) = node.get("key") {
-                cycle_collect_assignments_and_deps(key, assignments, dependencies);
+        JsNode::Property {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                cycle_collect_assignments_and_deps(
+                    arena.get_js_node(*key),
+                    arena,
+                    assignments,
+                    dependencies,
+                );
             }
-            if let Some(value) = node.get("value") {
-                cycle_collect_assignments_and_deps(value, assignments, dependencies);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*value),
+                arena,
+                assignments,
+                dependencies,
+            );
+        }
+        // The annotation blob follows `properties` / `elements` in the JSON
+        // field order, so its identifiers must be seen after theirs.
+        JsNode::ObjectPattern {
+            properties,
+            type_annotation,
+            ..
+        } => {
+            for prop in arena.get_js_children(*properties) {
+                cycle_collect_assignments_and_deps(prop, arena, assignments, dependencies);
             }
+            if let Some(ta) = type_annotation {
+                for_each_blob_identifier(ta, &mut |name, _| {
+                    if !dependencies.iter().any(|s| s == name) {
+                        dependencies.push(name.to_string());
+                    }
+                });
+            }
+        }
+        JsNode::ArrayPattern {
+            elements,
+            type_annotation,
+            ..
+        } => {
+            for elem in elements.iter().flatten() {
+                cycle_collect_assignments_and_deps(elem, arena, assignments, dependencies);
+            }
+            if let Some(ta) = type_annotation {
+                for_each_blob_identifier(ta, &mut |name, _| {
+                    if !dependencies.iter().any(|s| s == name) {
+                        dependencies.push(name.to_string());
+                    }
+                });
+            }
+        }
+        // `for_each_js_child` skips `label` (it is not a rune reference); this
+        // walker counted it as a dependency, so keep reading it here.
+        JsNode::LabeledStatement { label, body, .. } => {
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*label),
+                arena,
+                assignments,
+                dependencies,
+            );
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*body),
+                arena,
+                assignments,
+                dependencies,
+            );
         }
         _ => {
-            if let Some(obj) = node.as_object() {
-                for (key, value) in obj {
-                    if key == "type" || key == "start" || key == "end" || key == "loc" {
-                        continue;
-                    }
-                    if value.is_object() {
-                        cycle_collect_assignments_and_deps(value, assignments, dependencies);
-                    } else if let Some(arr) = value.as_array() {
-                        for item in arr {
-                            if item.is_object() {
-                                cycle_collect_assignments_and_deps(item, assignments, dependencies);
-                            }
-                        }
-                    }
-                }
-            }
+            for_each_js_child(node, arena, &mut |child| {
+                cycle_collect_assignments_and_deps(child, arena, assignments, dependencies);
+            });
         }
     }
 }
@@ -1916,49 +2003,39 @@ fn collect_each_block_promotions(
 ///
 /// Corresponds to Svelte's LabeledStatement.js lines 81-87 where
 /// `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
-fn populate_legacy_dependencies(labeled: &[serde_json::Value], analysis: &mut ComponentAnalysis) {
+fn populate_legacy_dependencies(
+    labeled: &[&JsNode],
+    arena: &ParseArena,
+    analysis: &mut ComponentAnalysis,
+) {
     for stmt in labeled {
-        let label_name = stmt
-            .get("label")
-            .and_then(|l| l.get("name"))
-            .and_then(|n| n.as_str());
-        if label_name != Some("$") {
+        let JsNode::LabeledStatement { label, body, .. } = stmt else {
             continue;
-        }
-
-        // Check if the body is an ExpressionStatement with an AssignmentExpression
-        let body = match stmt.get("body") {
-            Some(body) => body,
-            None => continue,
         };
-
-        if body.get("type").and_then(|t| t.as_str()) != Some("ExpressionStatement") {
+        if !is_dollar_label(*label, arena) {
             continue;
         }
 
-        let expr = match body.get("expression") {
-            Some(expr) => expr,
-            None => continue,
+        // Only `$: <target> = <rhs>` participates.
+        let JsNode::ExpressionStatement { expression, .. } = arena.get_js_node(*body) else {
+            continue;
         };
-
-        if expr.get("type").and_then(|t| t.as_str()) != Some("AssignmentExpression") {
+        let JsNode::AssignmentExpression { left, right, .. } = arena.get_js_node(*expression)
+        else {
             continue;
-        }
+        };
 
         // Extract the assigned identifier(s) from the LHS
-        let left = match expr.get("left") {
-            Some(left) => left,
-            None => continue,
-        };
+        let left = arena.get_js_node(*left);
 
         let mut assigned_names = Vec::new();
-        if left.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        if matches!(left, JsNode::MemberExpression { .. }) {
             // For member expressions like `a.b = ...`, use the root object
-            if let Some(name) = extract_object_root(left) {
+            if let Some(name) = pattern_ids::base_identifier_name(left, arena) {
                 assigned_names.push(name);
             }
         } else {
-            pattern_ids::collect_pattern_identifiers_json(left, &mut assigned_names);
+            pattern_ids::collect_pattern_identifiers(left, arena, &mut assigned_names);
         }
 
         // Find which of these are LegacyReactive bindings
@@ -1978,13 +2055,8 @@ fn populate_legacy_dependencies(labeled: &[serde_json::Value], analysis: &mut Co
         }
 
         // Walk the RHS to find all referenced identifiers
-        let right = match expr.get("right") {
-            Some(right) => right,
-            None => continue,
-        };
-
         let mut dep_names = Vec::new();
-        collect_identifiers_from_expr(right, &mut dep_names);
+        collect_identifiers_from_expr(arena.get_js_node(*right), arena, &mut dep_names);
 
         // Also collect identifiers from the LHS that are NOT the assigned variables
         // (e.g., in `$: x = y + z`, y and z are deps but x is not)
@@ -2018,19 +2090,6 @@ fn populate_legacy_dependencies(labeled: &[serde_json::Value], analysis: &mut Co
     }
 }
 
-/// Extract the root object identifier from a MemberExpression chain.
-/// E.g., `a.b.c` returns "a".
-fn extract_object_root(node: &serde_json::Value) -> Option<String> {
-    match node.get("type").and_then(|t| t.as_str()) {
-        Some("MemberExpression") => node.get("object").and_then(extract_object_root),
-        Some("Identifier") => node
-            .get("name")
-            .and_then(|n| n.as_str())
-            .map(|s| s.to_string()),
-        _ => None,
-    }
-}
-
 /// Collect ordered `$:` dependency identifier names per top-level reactive
 /// statement, mirroring `2-analyze/visitors/LabeledStatement.js`. Stored in
 /// `analysis.reactive_statement_dependencies` indexed by source ordinal (the
@@ -2039,31 +2098,57 @@ fn extract_object_root(node: &serde_json::Value) -> Option<String> {
 /// member-chain LHS of an `=` assignment; member-property keys, object keys,
 /// function params and block-locals are never references.
 fn collect_reactive_statement_dependencies(
-    labeled: &[serde_json::Value],
+    labeled: &[&JsNode],
+    arena: &ParseArena,
     analysis: &mut ComponentAnalysis,
 ) {
     for stmt in labeled {
-        if stmt
-            .get("label")
-            .and_then(|l| l.get("name"))
-            .and_then(|n| n.as_str())
-            != Some("$")
-        {
-            continue;
-        }
-        let Some(stmt_body) = stmt.get("body") else {
-            analysis.reactive_statement_dependencies.push(Vec::new());
+        let JsNode::LabeledStatement { label, body, .. } = stmt else {
             continue;
         };
+        if !is_dollar_label(*label, arena) {
+            continue;
+        }
+        let stmt_body = arena.get_js_node(*body);
 
         let mut order: Vec<String> = Vec::new();
         let mut included: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
-        let mut path: Vec<&serde_json::Value> = Vec::new();
+        let mut path: Vec<ReactivePathEntry> = Vec::new();
         let mut locals: Vec<String> = Vec::new();
-        collect_reactive_refs(stmt_body, &mut path, &mut locals, &mut order, &mut included);
+        collect_reactive_refs(
+            stmt_body,
+            arena,
+            &mut path,
+            &mut locals,
+            &mut order,
+            &mut included,
+        );
 
         let deps: Vec<String> = order.into_iter().filter(|n| included.contains(n)).collect();
         analysis.reactive_statement_dependencies.push(deps);
+    }
+}
+
+/// The only two things `note_reactive_ref` reads off an ancestor: whether it is
+/// a member-chain link, and — for the outermost non-member ancestor — whether it
+/// is an `=` assignment whose LHS is exactly that chain.
+#[derive(Clone, Copy)]
+struct ReactivePathEntry {
+    member: bool,
+    span: (u32, u32),
+    assign_left_span: Option<(u32, u32)>,
+}
+
+fn reactive_path_entry(node: &JsNode, arena: &ParseArena) -> ReactivePathEntry {
+    ReactivePathEntry {
+        member: matches!(node, JsNode::MemberExpression { .. }),
+        span: js_node_span(node),
+        assign_left_span: match node {
+            JsNode::AssignmentExpression { operator, left, .. } if operator == "=" => {
+                Some(js_node_span(arena.get_js_node(*left)))
+            }
+            _ => None,
+        },
     }
 }
 
@@ -2071,14 +2156,12 @@ fn collect_reactive_statement_dependencies(
 /// is a dependency (i.e. has at least one reference that is NOT the outermost
 /// member-chain on the LHS of an `=` assignment).
 fn note_reactive_ref(
-    id: &serde_json::Value,
-    path: &[&serde_json::Value],
+    name: &str,
+    id_span: (u32, u32),
+    path: &[ReactivePathEntry],
     order: &mut Vec<String>,
     included: &mut rustc_hash::FxHashSet<String>,
 ) {
-    let Some(name) = id.get("name").and_then(|n| n.as_str()) else {
-        return;
-    };
     let name = name.to_string();
     if !order.iter().any(|n| n == &name) {
         order.push(name.clone());
@@ -2087,27 +2170,14 @@ fn note_reactive_ref(
         return;
     }
 
-    let span = |n: &serde_json::Value| -> (u64, u64) {
-        (
-            n.get("start").and_then(|v| v.as_u64()).unwrap_or(u64::MAX),
-            n.get("end").and_then(|v| v.as_u64()).unwrap_or(u64::MAX),
-        )
-    };
     // Walk up through MemberExpression parents to the outermost chain node.
-    let mut left_span = span(id);
+    let mut left_span = id_span;
     let mut k = path.len(); // path[k-1] == immediate parent
-    while k >= 1 && path[k - 1].get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-        left_span = span(path[k - 1]);
+    while k >= 1 && path[k - 1].member {
+        left_span = path[k - 1].span;
         k -= 1;
     }
-    let excluded = if k >= 1 {
-        let parent = path[k - 1];
-        parent.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
-            && parent.get("operator").and_then(|o| o.as_str()) == Some("=")
-            && parent.get("left").map(span) == Some(left_span)
-    } else {
-        false
-    };
+    let excluded = k >= 1 && path[k - 1].assign_left_span == Some(left_span);
     if !excluded {
         included.insert(name);
     }
@@ -2116,148 +2186,254 @@ fn note_reactive_ref(
 /// Traversal mirroring `scope.references` population for one `$:` body. Skips
 /// non-computed member-property keys, non-computed/non-shorthand object keys,
 /// function params, and block-local declarations.
-fn collect_reactive_refs<'a>(
-    node: &'a serde_json::Value,
-    path: &mut Vec<&'a serde_json::Value>,
+fn collect_reactive_refs(
+    node: &JsNode,
+    arena: &ParseArena,
+    path: &mut Vec<ReactivePathEntry>,
     locals: &mut Vec<String>,
     order: &mut Vec<String>,
     included: &mut rustc_hash::FxHashSet<String>,
 ) {
-    let Some(node_type) = node.get("type").and_then(|t| t.as_str()) else {
-        return;
-    };
-
-    match node_type {
-        "Identifier" => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str())
-                && !locals.iter().any(|l| l == name)
-            {
-                note_reactive_ref(node, path, order, included);
+    match node {
+        JsNode::Identifier { name, .. } => {
+            if !locals.iter().any(|l| l == name.as_str()) {
+                note_reactive_ref(name.as_str(), js_node_span(node), path, order, included);
             }
         }
-        "MemberExpression" => {
-            path.push(node);
-            if let Some(obj) = node.get("object") {
-                collect_reactive_refs(obj, path, locals, order, included);
-            }
-            if node
-                .get("computed")
-                .and_then(|c| c.as_bool())
-                .unwrap_or(false)
-                && let Some(prop) = node.get("property")
-            {
-                collect_reactive_refs(prop, path, locals, order, included);
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            path.push(reactive_path_entry(node, arena));
+            collect_reactive_refs(
+                arena.get_js_node(*object),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
+            if *computed {
+                collect_reactive_refs(
+                    arena.get_js_node(*property),
+                    arena,
+                    path,
+                    locals,
+                    order,
+                    included,
+                );
             }
             path.pop();
         }
-        "Property" => {
-            path.push(node);
-            if node
-                .get("computed")
-                .and_then(|c| c.as_bool())
-                .unwrap_or(false)
-                && let Some(key) = node.get("key")
-            {
-                collect_reactive_refs(key, path, locals, order, included);
+        JsNode::Property {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            path.push(reactive_path_entry(node, arena));
+            if *computed {
+                collect_reactive_refs(
+                    arena.get_js_node(*key),
+                    arena,
+                    path,
+                    locals,
+                    order,
+                    included,
+                );
             }
-            if let Some(value) = node.get("value") {
-                collect_reactive_refs(value, path, locals, order, included);
-            }
+            collect_reactive_refs(
+                arena.get_js_node(*value),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
             path.pop();
         }
-        "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
+        JsNode::ArrowFunctionExpression { params, body, .. } => {
             let locals_mark = locals.len();
-            if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
-                for p in params {
-                    extract_param_names(p, locals);
-                }
+            for p in arena.get_js_children(*params) {
+                extract_param_names(p, arena, locals);
             }
-            path.push(node);
-            if let Some(b) = node.get("body") {
-                collect_reactive_refs(b, path, locals, order, included);
+            path.push(reactive_path_entry(node, arena));
+            collect_reactive_refs(
+                arena.get_js_node(*body),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
+            path.pop();
+            locals.truncate(locals_mark);
+        }
+        JsNode::FunctionExpression { params, body, .. }
+        | JsNode::FunctionDeclaration { params, body, .. } => {
+            let locals_mark = locals.len();
+            for p in arena.get_js_children(*params) {
+                extract_param_names(p, arena, locals);
+            }
+            path.push(reactive_path_entry(node, arena));
+            if let Some(b) = body {
+                collect_reactive_refs(arena.get_js_node(*b), arena, path, locals, order, included);
             }
             path.pop();
             locals.truncate(locals_mark);
         }
-        "BlockStatement" => {
+        JsNode::BlockStatement { body, .. } => {
             let locals_mark = locals.len();
-            if let Some(stmts) = node.get("body").and_then(|b| b.as_array()) {
-                for s in stmts {
-                    collect_block_local_decls(s, locals);
-                }
-                path.push(node);
-                for s in stmts {
-                    collect_reactive_refs(s, path, locals, order, included);
+            let stmts = arena.get_js_children(*body);
+            for s in stmts {
+                collect_block_local_decls(s, arena, locals);
+            }
+            path.push(reactive_path_entry(node, arena));
+            for s in stmts {
+                collect_reactive_refs(s, arena, path, locals, order, included);
+            }
+            path.pop();
+            locals.truncate(locals_mark);
+        }
+        JsNode::VariableDeclaration { declarations, .. } => {
+            path.push(reactive_path_entry(node, arena));
+            for d in arena.get_js_children(*declarations) {
+                path.push(reactive_path_entry(d, arena));
+                if let JsNode::VariableDeclarator {
+                    init: Some(init), ..
+                } = d
+                {
+                    collect_reactive_refs(
+                        arena.get_js_node(*init),
+                        arena,
+                        path,
+                        locals,
+                        order,
+                        included,
+                    );
                 }
                 path.pop();
             }
-            locals.truncate(locals_mark);
-        }
-        "VariableDeclaration" => {
-            path.push(node);
-            if let Some(decls) = node.get("declarations").and_then(|d| d.as_array()) {
-                for d in decls {
-                    path.push(d);
-                    if let Some(init) = d.get("init") {
-                        collect_reactive_refs(init, path, locals, order, included);
-                    }
-                    path.pop();
-                }
-            }
             path.pop();
         }
-        "ForOfStatement" | "ForInStatement" => {
-            path.push(node);
-            if let Some(right) = node.get("right") {
-                collect_reactive_refs(right, path, locals, order, included);
-            }
+        JsNode::ForOfStatement {
+            left, right, body, ..
+        }
+        | JsNode::ForInStatement {
+            left, right, body, ..
+        } => {
+            path.push(reactive_path_entry(node, arena));
+            collect_reactive_refs(
+                arena.get_js_node(*right),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
             let locals_mark = locals.len();
-            if let Some(left) = node.get("left") {
-                collect_block_local_decls(left, locals);
-            }
-            if let Some(b) = node.get("body") {
-                collect_reactive_refs(b, path, locals, order, included);
-            }
+            collect_block_local_decls(arena.get_js_node(*left), arena, locals);
+            collect_reactive_refs(
+                arena.get_js_node(*body),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
             locals.truncate(locals_mark);
             path.pop();
         }
-        "SwitchCase" => {
+        JsNode::SwitchCase {
+            test, consequent, ..
+        } => {
             // acorn populates `consequent` BEFORE `test`, so upstream's traversal
             // (and thus scope.references first-appearance order) visits the case
-            // body before the case test. Our JSON serializes `test` first, so
-            // mirror acorn here to keep dependency-thunk ordering byte-identical.
-            path.push(node);
-            if let Some(cons) = node.get("consequent").and_then(|c| c.as_array()) {
-                for s in cons {
-                    collect_reactive_refs(s, path, locals, order, included);
-                }
+            // body before the case test.
+            path.push(reactive_path_entry(node, arena));
+            for s in arena.get_js_children(*consequent) {
+                collect_reactive_refs(s, arena, path, locals, order, included);
             }
-            if let Some(test) = node.get("test").filter(|t| t.is_object()) {
-                collect_reactive_refs(test, path, locals, order, included);
+            if let Some(test) = test {
+                collect_reactive_refs(
+                    arena.get_js_node(*test),
+                    arena,
+                    path,
+                    locals,
+                    order,
+                    included,
+                );
             }
+            path.pop();
+        }
+        // The annotation blob follows `properties` / `elements` in the JSON
+        // field order, so its identifiers must be seen after theirs.
+        JsNode::ObjectPattern {
+            properties,
+            type_annotation,
+            ..
+        } => {
+            path.push(reactive_path_entry(node, arena));
+            for prop in arena.get_js_children(*properties) {
+                collect_reactive_refs(prop, arena, path, locals, order, included);
+            }
+            if let Some(ta) = type_annotation {
+                for_each_blob_identifier(ta, &mut |name, span| {
+                    if !locals.iter().any(|l| l == name) {
+                        note_reactive_ref(name, span, path, order, included);
+                    }
+                });
+            }
+            path.pop();
+        }
+        JsNode::ArrayPattern {
+            elements,
+            type_annotation,
+            ..
+        } => {
+            path.push(reactive_path_entry(node, arena));
+            for elem in elements.iter().flatten() {
+                collect_reactive_refs(elem, arena, path, locals, order, included);
+            }
+            if let Some(ta) = type_annotation {
+                for_each_blob_identifier(ta, &mut |name, span| {
+                    if !locals.iter().any(|l| l == name) {
+                        note_reactive_ref(name, span, path, order, included);
+                    }
+                });
+            }
+            path.pop();
+        }
+        // `for_each_js_child` skips `label` (it is not a rune reference); this
+        // walker recorded it, and dropping it would move the label's name later
+        // in the first-appearance order that the dependency thunk is built from.
+        JsNode::LabeledStatement { label, body, .. } => {
+            path.push(reactive_path_entry(node, arena));
+            collect_reactive_refs(
+                arena.get_js_node(*label),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
+            collect_reactive_refs(
+                arena.get_js_node(*body),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
             path.pop();
         }
         _ => {
-            // Generic field walk in AST/source (insertion) order — serde_json is
-            // built with `preserve_order`, so object fields iterate in insertion
-            // order, matching upstream traversal order.
-            path.push(node);
-            if let Some(obj) = node.as_object() {
-                for (key, val) in obj {
-                    if matches!(key.as_str(), "type" | "start" | "end" | "loc" | "range") {
-                        continue;
-                    }
-                    if val.is_object() {
-                        collect_reactive_refs(val, path, locals, order, included);
-                    } else if let Some(arr) = val.as_array() {
-                        for item in arr {
-                            if item.is_object() {
-                                collect_reactive_refs(item, path, locals, order, included);
-                            }
-                        }
-                    }
-                }
-            }
+            path.push(reactive_path_entry(node, arena));
+            for_each_js_child(node, arena, &mut |child| {
+                collect_reactive_refs(child, arena, path, locals, order, included);
+            });
             path.pop();
         }
     }
@@ -2265,13 +2441,11 @@ fn collect_reactive_refs<'a>(
 
 /// Add `let/const/var` (and `for`-binding) identifiers from a statement to
 /// `locals` so they shadow outer reactive bindings within their block.
-fn collect_block_local_decls(node: &serde_json::Value, locals: &mut Vec<String>) {
-    if node.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-        && let Some(decls) = node.get("declarations").and_then(|d| d.as_array())
-    {
-        for d in decls {
-            if let Some(id) = d.get("id") {
-                extract_param_names(id, locals);
+fn collect_block_local_decls(node: &JsNode, arena: &ParseArena, locals: &mut Vec<String>) {
+    if let JsNode::VariableDeclaration { declarations, .. } = node {
+        for d in arena.get_js_children(*declarations) {
+            if let JsNode::VariableDeclarator { id, .. } = d {
+                extract_param_names(arena.get_js_node(*id), arena, locals);
             }
         }
     }
@@ -2279,8 +2453,8 @@ fn collect_block_local_decls(node: &serde_json::Value, locals: &mut Vec<String>)
 
 /// Collect all identifier names from a JavaScript expression (recursively).
 /// This is used to find dependencies in the RHS of reactive declarations.
-fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<String>) {
-    collect_identifiers_from_expr_with_locals(node, names, &mut Vec::new());
+fn collect_identifiers_from_expr(node: &JsNode, arena: &ParseArena, names: &mut Vec<String>) {
+    collect_identifiers_from_expr_with_locals(node, arena, names, &mut Vec::new());
 }
 
 /// Collect identifiers from an expression, excluding locally-scoped identifiers.
@@ -2294,128 +2468,170 @@ fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<Strin
 /// - `items` is a dependency (from outer scope)
 /// - `item` is NOT a dependency (it's a callback parameter)
 fn collect_identifiers_from_expr_with_locals(
-    node: &serde_json::Value,
+    node: &JsNode,
+    arena: &ParseArena,
     names: &mut Vec<String>,
     locals: &mut Vec<String>,
 ) {
-    let node_type = match node.get("type").and_then(|t| t.as_str()) {
-        Some(t) => t,
-        None => return,
-    };
-
-    match node_type {
-        "Identifier" => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str())
-                && !names.iter().any(|n| n == name)
-                && !locals.iter().any(|l| l == name)
+    match node {
+        JsNode::Identifier { name, .. } => {
+            if !names.iter().any(|n| n == name.as_str())
+                && !locals.iter().any(|l| l == name.as_str())
             {
                 names.push(name.to_string());
             }
         }
-        "MemberExpression" => {
-            // Only walk the object, not the property (unless computed)
-            if let Some(obj) = node.get("object") {
-                collect_identifiers_from_expr_with_locals(obj, names, locals);
-            }
-            if node
-                .get("computed")
-                .and_then(|c| c.as_bool())
-                .unwrap_or(false)
-                && let Some(prop) = node.get("property")
-            {
-                collect_identifiers_from_expr_with_locals(prop, names, locals);
+        // Only walk the object, not the property (unless computed)
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            collect_identifiers_from_expr_with_locals(
+                arena.get_js_node(*object),
+                arena,
+                names,
+                locals,
+            );
+            if *computed {
+                collect_identifiers_from_expr_with_locals(
+                    arena.get_js_node(*property),
+                    arena,
+                    names,
+                    locals,
+                );
             }
         }
-        "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
-            // Extend `locals` with the parameter names for the duration of the
-            // body walk, then roll back (push/pop) instead of cloning the
-            // whole outer-scope locals list on every nested function.
+        // Extend `locals` with the parameter names for the duration of the body
+        // walk, then roll back instead of cloning the outer-scope locals list.
+        JsNode::ArrowFunctionExpression { params, body, .. } => {
             let locals_mark = locals.len();
-            if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
-                for param in params {
-                    extract_param_names(param, locals);
-                }
+            for param in arena.get_js_children(*params) {
+                extract_param_names(param, arena, locals);
             }
-            // Walk the body with the extended locals list
-            if let Some(body) = node.get("body") {
-                collect_identifiers_from_expr_with_locals(body, names, locals);
+            collect_identifiers_from_expr_with_locals(
+                arena.get_js_node(*body),
+                arena,
+                names,
+                locals,
+            );
+            locals.truncate(locals_mark);
+        }
+        JsNode::FunctionExpression { params, body, .. }
+        | JsNode::FunctionDeclaration { params, body, .. } => {
+            let locals_mark = locals.len();
+            for param in arena.get_js_children(*params) {
+                extract_param_names(param, arena, locals);
+            }
+            if let Some(b) = body {
+                collect_identifiers_from_expr_with_locals(
+                    arena.get_js_node(*b),
+                    arena,
+                    names,
+                    locals,
+                );
             }
             locals.truncate(locals_mark);
         }
-        "Property" | "MethodDefinition" => {
-            // For object properties like `{ value: 'hello' }`, the `key` is an Identifier
-            // but it's a property name, NOT a variable reference. Only walk the key if it's
-            // computed (e.g., `{ [expr]: 'hello' }`).
-            if node
-                .get("computed")
-                .and_then(|c| c.as_bool())
-                .unwrap_or(false)
-                && let Some(key) = node.get("key")
-            {
-                collect_identifiers_from_expr_with_locals(key, names, locals);
+        // For object properties like `{ value: 'hello' }`, the `key` is an
+        // Identifier but it's a property name, NOT a variable reference. Only
+        // walk the key if it's computed (e.g., `{ [expr]: 'hello' }`).
+        JsNode::Property {
+            key,
+            value,
+            computed,
+            ..
+        }
+        | JsNode::MethodDefinition {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                collect_identifiers_from_expr_with_locals(
+                    arena.get_js_node(*key),
+                    arena,
+                    names,
+                    locals,
+                );
             }
-            // Always walk the value/body
-            if let Some(value) = node.get("value") {
-                collect_identifiers_from_expr_with_locals(value, names, locals);
+            collect_identifiers_from_expr_with_locals(
+                arena.get_js_node(*value),
+                arena,
+                names,
+                locals,
+            );
+        }
+        // `quasis` carry no identifiers, but the JSON walker reached them after
+        // `expressions`, not before as the shared child walker does.
+        JsNode::TemplateLiteral {
+            quasis,
+            expressions,
+            ..
+        } => {
+            for e in arena.get_js_children(*expressions) {
+                collect_identifiers_from_expr_with_locals(e, arena, names, locals);
+            }
+            for q in arena.get_js_children(*quasis) {
+                collect_identifiers_from_expr_with_locals(q, arena, names, locals);
             }
         }
-        _ => {
-            // For known expression types, walk fields in AST-semantic order
-            // to ensure consistent identifier ordering (serde_json::Map uses
-            // BTreeMap which iterates alphabetically, giving wrong order).
-            let ordered_fields: Option<&[&str]> = match node_type {
-                "ConditionalExpression" => Some(&["test", "consequent", "alternate"]),
-                "BinaryExpression" | "LogicalExpression" => Some(&["left", "right"]),
-                "AssignmentExpression" | "AssignmentPattern" => Some(&["left", "right"]),
-                "UnaryExpression" | "UpdateExpression" => Some(&["argument"]),
-                "CallExpression" | "NewExpression" => Some(&["callee", "arguments"]),
-                "SequenceExpression" => Some(&["expressions"]),
-                "ArrayExpression" => Some(&["elements"]),
-                "ObjectExpression" => Some(&["properties"]),
-                "SpreadElement" => Some(&["argument"]),
-                "TemplateLiteral" => Some(&["expressions", "quasis"]),
-                "TaggedTemplateExpression" => Some(&["tag", "quasi"]),
-                "YieldExpression" | "AwaitExpression" => Some(&["argument"]),
-                "ChainExpression" => Some(&["expression"]),
-                _ => None,
-            };
-
-            if let Some(fields) = ordered_fields {
-                // Walk fields in specified order
-                for field in fields {
-                    if let Some(val) = node.get(*field) {
-                        if val.is_object() {
-                            collect_identifiers_from_expr_with_locals(val, names, locals);
-                        } else if let Some(arr) = val.as_array() {
-                            for item in arr {
-                                if item.is_object() {
-                                    collect_identifiers_from_expr_with_locals(item, names, locals);
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Fallback: walk all value fields (alphabetical order from BTreeMap)
-                if let Some(obj) = node.as_object() {
-                    for (key, val) in obj {
-                        if key == "type" || key == "start" || key == "end" || key == "loc" {
-                            continue;
-                        }
-                        if val.is_object() {
-                            collect_identifiers_from_expr_with_locals(val, names, locals);
-                        } else if val.is_array()
-                            && let Some(arr) = val.as_array()
-                        {
-                            for item in arr {
-                                if item.is_object() {
-                                    collect_identifiers_from_expr_with_locals(item, names, locals);
-                                }
-                            }
-                        }
-                    }
-                }
+        // The annotation blob follows `properties` / `elements` in the JSON
+        // field order, so its identifiers must be seen after theirs.
+        JsNode::ObjectPattern {
+            properties,
+            type_annotation,
+            ..
+        } => {
+            for prop in arena.get_js_children(*properties) {
+                collect_identifiers_from_expr_with_locals(prop, arena, names, locals);
             }
+            if let Some(ta) = type_annotation {
+                for_each_blob_identifier(ta, &mut |name, _| {
+                    if !names.iter().any(|n| n == name) && !locals.iter().any(|l| l == name) {
+                        names.push(name.to_string());
+                    }
+                });
+            }
+        }
+        JsNode::ArrayPattern {
+            elements,
+            type_annotation,
+            ..
+        } => {
+            for elem in elements.iter().flatten() {
+                collect_identifiers_from_expr_with_locals(elem, arena, names, locals);
+            }
+            if let Some(ta) = type_annotation {
+                for_each_blob_identifier(ta, &mut |name, _| {
+                    if !names.iter().any(|n| n == name) && !locals.iter().any(|l| l == name) {
+                        names.push(name.to_string());
+                    }
+                });
+            }
+        }
+        // `for_each_js_child` skips `label` (it is not a rune reference); this
+        // walker counted it as a referenced identifier, so keep reading it here.
+        JsNode::LabeledStatement { label, body, .. } => {
+            collect_identifiers_from_expr_with_locals(
+                arena.get_js_node(*label),
+                arena,
+                names,
+                locals,
+            );
+            collect_identifiers_from_expr_with_locals(
+                arena.get_js_node(*body),
+                arena,
+                names,
+                locals,
+            );
+        }
+        _ => {
+            for_each_js_child(node, arena, &mut |child| {
+                collect_identifiers_from_expr_with_locals(child, arena, names, locals);
+            });
         }
     }
 }
@@ -2423,48 +2639,37 @@ fn collect_identifiers_from_expr_with_locals(
 /// Extract parameter names from a function parameter node.
 ///
 /// Handles simple identifiers, destructured patterns, default values, and rest elements.
-fn extract_param_names(param: &serde_json::Value, names: &mut Vec<String>) {
-    let param_type = param.get("type").and_then(|t| t.as_str());
-    match param_type {
-        Some("Identifier") => {
-            if let Some(name) = param.get("name").and_then(|n| n.as_str())
-                && !names.iter().any(|n| n == name)
-            {
+fn extract_param_names(param: &JsNode, arena: &ParseArena, names: &mut Vec<String>) {
+    match param {
+        JsNode::Identifier { name, .. } => {
+            let name = name.as_str();
+            if !names.iter().any(|n| n == name) {
                 names.push(name.to_string());
             }
         }
-        Some("AssignmentPattern") => {
-            // Default parameter: `param = default`
-            if let Some(left) = param.get("left") {
-                extract_param_names(left, names);
-            }
+        // Default parameter: `param = default`
+        JsNode::AssignmentPattern { left, .. } => {
+            extract_param_names(arena.get_js_node(*left), arena, names);
         }
-        Some("RestElement") => {
-            if let Some(arg) = param.get("argument") {
-                extract_param_names(arg, names);
-            }
+        JsNode::RestElement { argument, .. } => {
+            extract_param_names(arena.get_js_node(*argument), arena, names);
         }
-        Some("ObjectPattern") => {
-            if let Some(props) = param.get("properties").and_then(|p| p.as_array()) {
-                for prop in props {
-                    let prop_type = prop.get("type").and_then(|t| t.as_str());
-                    if prop_type == Some("RestElement") {
-                        if let Some(arg) = prop.get("argument") {
-                            extract_param_names(arg, names);
-                        }
-                    } else if let Some(value) = prop.get("value") {
-                        extract_param_names(value, names);
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::RestElement { argument, .. } => {
+                        extract_param_names(arena.get_js_node(*argument), arena, names);
                     }
+                    JsNode::Property { value, .. } => {
+                        extract_param_names(arena.get_js_node(*value), arena, names);
+                    }
+                    _ => {}
                 }
             }
         }
-        Some("ArrayPattern") => {
-            if let Some(elements) = param.get("elements").and_then(|e| e.as_array()) {
-                for elem in elements {
-                    if !elem.is_null() {
-                        extract_param_names(elem, names);
-                    }
-                }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                extract_param_names(elem, arena, names);
             }
         }
         _ => {}
@@ -6058,5 +6263,72 @@ function goto_page(page = $search_params.page) {}
         let ordered = order_reactive_statements(statements).unwrap();
         assert_eq!(ordered.len(), 1);
         assert_eq!(ordered[0].0, "stmt_a");
+    }
+}
+
+/// The legacy `$:` analysis must answer off the typed AST.
+///
+/// The timing gates sample library code, which is 12% legacy `$:` by bytes
+/// against 69% for applications, so a regression here reads nearly flat on them.
+/// This counter is deterministic and does not need a quiet machine.
+///
+/// The assertion is differential rather than absolute: unrelated sites
+/// legitimately serialize while compiling any component, so what must hold is
+/// that *adding* `$:` statements adds no JSON.
+#[cfg(test)]
+mod legacy_reactive_stays_typed {
+    use crate::ast::typed_expr::to_value_probe;
+    use crate::{CompileOptions, GenerateMode, compile};
+
+    const WITHOUT_REACTIVE: &str = r#"<script>
+  export let items = [];
+  let total = 0;
+  let label = '';
+</script>
+<p>{label}{total}</p>"#;
+
+    const WITH_REACTIVE: &str = r#"<script>
+  export let items = [];
+  let total = 0;
+  let label = '';
+  $: total = items.filter((i) => i.done).length;
+  $: label = `${total} of ${items.length}`;
+  $: if (total > 0) { console.log(label); }
+</script>
+<p>{label}{total}</p>"#;
+
+    fn to_value_calls(source: &str) -> u64 {
+        to_value_probe::reset();
+        let _ = compile(
+            source,
+            CompileOptions {
+                generate: GenerateMode::Client,
+                ..Default::default()
+            },
+        );
+        to_value_probe::calls()
+    }
+
+    #[test]
+    fn adding_reactive_statements_serializes_no_json() {
+        let without = to_value_calls(WITHOUT_REACTIVE);
+        let with = to_value_calls(WITH_REACTIVE);
+        assert_eq!(
+            with,
+            without,
+            "three `$:` statements added {} `to_value` call(s); the legacy \
+             reactive passes are serializing the instance script again",
+            with as i64 - without as i64
+        );
+    }
+
+    /// Negative control: the probe can count, so the assertion above is not
+    /// passing because nothing ever increments it.
+    #[test]
+    fn the_probe_counts_when_json_is_built() {
+        to_value_probe::reset();
+        let node = crate::ast::typed_expr::JsNode::Null;
+        let _ = node.to_value();
+        assert!(to_value_probe::calls() > 0);
     }
 }

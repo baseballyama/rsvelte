@@ -2366,7 +2366,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rsvelte"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "rsvelte_core",
  "rsvelte_projection",
@@ -2407,7 +2407,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_check"
-version = "0.5.11"
+version = "0.5.12"
 dependencies = [
  "clap",
  "notify",
@@ -2429,7 +2429,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2590,7 +2590,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "anyhow",
  "clap",
@@ -2656,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "indexmap",
  "memchr",
@@ -3084,18 +3084,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09a43598840e33d5b0331f38c5e30d13bb11c11210a4b58f0d9b18a5a5eefcd9"
+checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43cbfe0cf76104d42a574802844187e84a305e531ed54455f11fbde0f10541cd"
+checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2 1.0.106",
  "quote 1.0.46",
