@@ -1534,6 +1534,18 @@ fn is_legacy_destructure_expansion(line: &str) -> bool {
 /// Only declarations reaching this emitter are tagged: `legacy_reactive`
 /// sources (`$: x = …`) are built as AST elsewhere and upstream leaves those
 /// untagged even though they print the same `$.mutable_source()` call.
+/// A line comment swallows the rest of its line, so when an initializer ends
+/// inside one the generated `)` has to start on the next line — upstream breaks
+/// the line for the same reason.
+fn break_after_line_comment(expr: &str) -> &'static str {
+    let last_line = expr.rsplit('\n').next().unwrap_or(expr);
+    if super::props_transforms::find_line_comment_position(last_line).is_some() {
+        "\n"
+    } else {
+        ""
+    }
+}
+
 fn tag_legacy_source(call: String, name: &str, dev: bool) -> String {
     if dev {
         format!("$.tag({}, '{}')", call, name)
@@ -1648,9 +1660,17 @@ pub(super) fn transform_legacy_state_declarations<'a>(
 
                     // Build the replacement
                     let call = if immutable {
-                        format!("$.mutable_source({}, true)", expr)
+                        format!(
+                            "$.mutable_source({}{}, true)",
+                            expr,
+                            break_after_line_comment(expr)
+                        )
                     } else {
-                        format!("$.mutable_source({})", expr)
+                        format!(
+                            "$.mutable_source({}{})",
+                            expr,
+                            break_after_line_comment(expr)
+                        )
                     };
                     let replacement = format!(
                         "{} {} = {}",
@@ -1718,9 +1738,17 @@ pub(super) fn transform_legacy_state_declarations<'a>(
                         let expr_end = find_statement_end_client(after);
                         let expr = after[..expr_end].trim().trim_end_matches(';').trim();
                         let call = if immutable {
-                            format!("$.mutable_source({}, true)", expr)
+                            format!(
+                                "$.mutable_source({}{}, true)",
+                                expr,
+                                break_after_line_comment(expr)
+                            )
                         } else {
-                            format!("$.mutable_source({})", expr)
+                            format!(
+                                "$.mutable_source({}{})",
+                                expr,
+                                break_after_line_comment(expr)
+                            )
                         };
                         let replacement = format!(
                             "{} {} = {}",
@@ -1836,9 +1864,17 @@ pub(super) fn transform_legacy_state_declarations<'a>(
                         let expr_end = find_statement_end_client(after);
                         let expr = after[..expr_end].trim().trim_end_matches(';').trim();
                         let call = if immutable {
-                            format!("$.mutable_source({}, true)", expr)
+                            format!(
+                                "$.mutable_source({}{}, true)",
+                                expr,
+                                break_after_line_comment(expr)
+                            )
                         } else {
-                            format!("$.mutable_source({})", expr)
+                            format!(
+                                "$.mutable_source({}{})",
+                                expr,
+                                break_after_line_comment(expr)
+                            )
                         };
                         let replacement = format!(
                             "{} {} = {}",
