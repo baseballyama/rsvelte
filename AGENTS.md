@@ -71,6 +71,23 @@ these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not
 so the gate baselines at 0 while the instances live outside the population it inspects; that is
 why each fix lands a `compatibility/pattern-corpus` repro.
 
+**The `JsNode` → `serde_json::Value` cost is one site, and it is not the lazy cache.**
+`to_value` has 54 call sites; every materialization figure this project has quoted (27,488 →
+12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
+`instance_labeled_statements_json` (`2_analyze/mod.rs`) — **77–82% of all JSON objects and map
+entries on legacy-`$:` corpora, 0% on runes-only code**, confirmed by two independent
+instruments. The remedy was porting its three legacy-`$:` consumers to typed traversal, not
+another cache — #2622 did that, byte-identically, so those figures describe the tree before it.
+This is not a competing claim to § *Where compile time goes* below, which asks
+which **site** owns the alloc+hash+memcpy bucket and correctly answers *none*: the two
+populations differ and the answers interlock — that section prices a JSON object key (`String`
+malloc + `IndexMap` slot + SipHash), and this site is what produces the keys.
+Two rules it cost us: **count a function's call sites before
+trusting a per-function measurement**, and **attribute a memoised value by reader *set*, not
+first reader** (under a per-node cache, first-reader attribution names the wrong site — converting
+it moves the count by zero). Numbers, cross-validation and the unresolved time question are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-08--the-to_value-cost-is-one-site-and-it-is-not-the-lazy-cache).
+
 **`script_text` is the only bucket that scales superlinearly**, and it is simultaneously the
 largest — exponent ~1.4 (prod) / ~1.2 (dev) against every sibling below 1.0, carrying ~0.51 of
 a total ~0.95 in `share x exp`. Roughly half of how compile cost grows with file size lives in

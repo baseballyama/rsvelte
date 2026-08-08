@@ -83,6 +83,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2598-escaped-backslash-statement-boundary.svelte` | [#2598](https://github.com/baseballyama/rsvelte/pull/2598) | A string literal whose last escape is `\\`, followed by an `export` declaration — the client instance-script scanner asked "is the byte before this quote a backslash" instead of "is this quote escaped", so the string never closed, the statement never completed, and the `export` was accumulated into it and emitted verbatim inside the component function, which is not JavaScript |
 | `2598-escaped-backslash-reactive-statement.svelte` | [#2598](https://github.com/baseballyama/rsvelte/pull/2598) | The same scanner defect with a `$:` statement after the string instead of an `export`: the label survives into the component body as a labelled statement, which **parses**. No parse-level gate can see this half — only output equality can, which is why it is pinned here separately |
 | `2599-reactive-else-next-line.svelte` | [#2599](https://github.com/baseballyama/rsvelte/pull/2599) | A `$:` whose `if` header and `else` clause are on **separate lines** — the client instance-script line accumulator decides where a statement ends by looking at what the next line starts with, and its continuation set (`.`, `?`, `:`, `&&`, `||`, `??`) had no entry for the `else` keyword, so the statement was closed after the `if` and the `else` fell outside the reactive body |
+| `2607-escaped-backslash-constant-fold.svelte` | [#2607](https://github.com/baseballyama/rsvelte/issues/2607) | A known-const `'\\'` folded into an element's `textContent`. The fold read the initializer's **source text** and left every non-codepoint escape undecoded, so the emitter escaped it a second time and the component rendered two backslashes. Output is valid JavaScript computing the wrong string — the parse gate is blind to it, and it diverged on client, server **and** client-dev |
 
 ## `matrix/` — the axes around those repros
 
@@ -232,6 +233,30 @@ read as an element's only child, so the resolution decides between a static
 | `boundary-children.svelte` | `{@const}` in `<svelte:boundary>` children |
 | `destructured-const.svelte` | destructuring `{@const { value } = …}` |
 | `shadows-prop.svelte` | the shadowed binding is a **prop** (the read must not become `$$props.x`) |
+
+### `string-escape-fold/` — escape kind × fold site (around #2607)
+
+Escape kind (`\\`, the control escapes, quote escapes, the codepoint escapes,
+the backtick/`${` escapes of a template literal, and `\<anything else>`) ×
+where the folded value lands (a `textContent` assignment, a template-literal
+quasi, an attribute value, the server's pushed template) × which script
+declares it. The fold produces a **value**, so every kind has to be cooked
+here and re-escaped once by whoever emits it; leaving one undecoded escapes it
+twice, and the result parses.
+
+`\<codepoint>` was already decoded before #2607, so `codepoint-escapes.svelte`
+discriminates only through its surrogate pair — the other three lines are the
+negative control that the decoding did not regress.
+
+| File | Point on the axis |
+|---|---|
+| `control-escapes.svelte` | `\n` / `\t` / `\r` / `\v` / `\b` / `\f` |
+| `quote-escapes.svelte` | `\"` and `\'` — each string carries **both** quote characters, so the escape survives the formatter's quote normalization |
+| `codepoint-escapes.svelte` | `\uXXXX`, `\u{X…}`, a surrogate **pair**, `\xHH` |
+| `template-literal-const.svelte` | a backtick-quoted const escaping `\\`, `` ` `` and `${` |
+| `unknown-escape-passthrough.svelte` | `\/`, `\@` and a **multi-byte** `\é` — the escape is dropped, the character kept |
+| `attribute-and-mixed-text.svelte` | the same value folded into an attribute, into a quasi between text, and twice in one chunk |
+| `module-script-const.svelte` | the const is declared in `<script module>` rather than the instance script |
 
 ## Adding a file
 

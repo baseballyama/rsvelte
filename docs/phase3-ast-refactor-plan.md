@@ -497,3 +497,101 @@ was **not** re-measured here. It needs two processes (never load two native
 addons into one — allocator clash, SIGSEGV), which is exactly what contention
 corrupts; load ran 34–65 on 10 cores for the whole session and never dipped. Do
 not quote 6.59x as current.
+
+## Findings (2026-08-08 — the `to_value` cost is one site, and it is not the lazy cache)
+
+> Read alongside the same-dated section above, whose title says the opposite. It is not a
+> contradiction: that one asks which **site** owns the alloc+hash+memcpy bucket of total
+> compile and correctly answers *none*; this one asks where the JSON **objects** come from.
+> The answers interlock — that section prices one object key (`String` malloc + `IndexMap`
+> slot + SipHash, from 88 distinct static keys), and this section names what emits the keys.
+
+**The part of `JsNode` → `serde_json::Value` worth attacking was
+`instance_labeled_statements_json` in `2_analyze/mod.rs` — not the lazy JSON cache
+that #2510 / #2570 / #2576 optimized.** #2622 has since ported that site and its
+three legacy-`$:` consumers to typed traversal, so the numbers below describe the
+tree *before* it; they are kept because the reasoning that located the site is the
+reusable part, not the count.
+
+`JsNode::to_value` has **54 call sites**. One is the lazy cache in
+`TypedExpr::as_json`; the other 53 bypass it. Every materialization figure this
+project has ever quoted — the 27,488 → 12,089 → 3,649 series — counts *only* the
+cache, because `MATERIALIZATIONS` increments inside the cache's `record()`. The
+bypassing population was never measured. When it was, 98% of it turned out to be
+a single site.
+
+Per-site attribution from inside `to_value` (deterministic; identical across runs):
+
+| corpus | cache calls | cache objects | `mod.rs` `$:` site calls | its objects | its share of all objects / map entries |
+|---|---|---|---|---|---|
+| huly/plugins | 3,649 | 21,016 | 3,303 | **71,293** | **77.0% / 77.2%** |
+| carbon | 899 | 2,756 | 725 | **13,790** | **81.7% / 82.1%** |
+| open-webui | 4,998 | 26,627 | 587 | **15,452** | **33.6% / 33.4%** |
+| SMUI | 973 | 5,828 | **0** | **0** | **0%** |
+
+All remaining direct sites combined are 70 calls / 306 objects on huly. Noise.
+
+Confirmed independently by an allocator-event sampler (1-in-64, inclusive
+attribution) that shares no assumption with the object counter: **8.91 / 8.87 /
+8.82 allocations per object** on huly / carbon / open-webui, and 1.78 allocations
+per map entry on huly — which is what `preserve_order` predicts (`serde_json::Map`
+is an `IndexMap`, so every entry is a key `String` malloc plus amortised table
+growth, and every entry is also a **hash insert**). The sampler puts the site at
+84.7 / 91.5 / 36.0 / 0% of `to_value`'s allocation cost, the same ordering and
+magnitude as the object share, consistently a few points higher because
+allocations include the key strings an object count does not. The SMUI zero
+reproduces as a zero on both instruments.
+
+**Not a repeat-conversion problem — a cache is not the remedy.** The single
+caller already serializes once and shares the result across all three legacy `$:`
+passes (#2510 did that dedup). The remedy is porting the three consumers —
+`check_reactive_declaration_cycles`, `populate_legacy_dependencies`,
+`collect_reactive_statement_dependencies` — to typed traversal, which deletes the
+entries outright rather than making each cheaper. One producer, three consumers,
+no scope-dependent constant folder involved.
+
+**Gated on legacy `$:` density.** The caller short-circuits on `analysis.runes`,
+so this is ~80% of `to_value` on Svelte-4-era corpora (huly, carbon), a third on
+open-webui, and exactly zero on runes-only code (SMUI). Legacy `$:` is 12.34% of
+library bytes but 68.89% of application bytes, so the corpora this repo gates on
+under-weight it — see `compatibility/gate-coverage.md` § C6. (The bench corpus is
+**not** "8 of 9 runes"; fixtures 10-11 closed that gap and it is 37.7% legacy by
+bytes.)
+
+**No time share is claimed here, by either instrument.** A wall-clock timer over
+all 54 sites spanned 5.07 / 2.89 / 0.58% of compile across three runs on
+identical deterministic work (loaded machine); an allocator-model estimate was
+retracted by its author for a circular correction factor. Both are recorded as
+unresolved. Do not quote a percentage for this site without a new measurement.
+A related probe — vendoring `serde_json` to swap `IndexMap`'s SipHash for FxHash
+— measured huly −4.08% (8/8 paired wins), which sizes the *hashing* component but
+sits at the ~5% code-layout floor for a separate-binary A/B and was not shipped.
+
+### Two methodological rules this cost us
+
+1. **Before trusting a per-function measurement, count the function's call
+   sites.** A timer placed at one call site reports that site, not the function,
+   and nothing in the output says so. `to_value` had 54; the instrument covered 1
+   and under-reported by ~2x in calls and ~4x in objects.
+2. **Attribute a memoised value by reader *set*, not first reader.** Under a
+   per-node cache, `#[track_caller]` names only the first reader, so converting
+   the site it blames moves the count by **zero** and the load shifts to a
+   neighbour — it points at the wrong site, which is worse than being vague. Here
+   it blamed `extract_metadata_from_tag` for 66.7% of materializations;
+   converting it left the count unchanged and `expression_has_reactive_state`
+   rose 1,933 → 20,264. Record the set of distinct callers per node (push into
+   the node, flush on `Drop`); the reduction is the number of expressions for
+   which *every* reader is eliminated. This generalises to any per-node cache
+   here.
+
+The sharpest illustration of both: #2510 replaced whole-instance-script
+serialization with per-`$:`-statement serialization, won −20% on huly, and
+reported cache materializations falling 27,488 → 12,089. All of that is true. It
+also **created the largest single JSON producer in the compiler**, and the
+instrument built to validate it could not see it.
+
+Instrumentation for all of the above (per-site `to_value` attribution split
+cache/direct, object and map-entry counts, reader sets) lives behind the existing
+`measure-json` feature on branch `tools/measure-json-instrumentation`
+(`e4f47227`), deliberately unmerged.
+
