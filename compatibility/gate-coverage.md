@@ -61,8 +61,8 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | warnings compared by **count only** | [S] |
 | 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
 
-Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors) are in
-[§ Cross-cutting](#cross-cutting) at the end.
+Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, and the
+**performance** gates' population) are in [§ Cross-cutting](#cross-cutting) at the end.
 
 ---
 
@@ -936,6 +936,97 @@ svelte2tsx and formatter parity gates. It does **not** flow into the lint gate (
 11f) or the shape matrix (which generates its own inputs). And by its own convention
 (`pattern-corpus/README.md`, rule 6) "a repro lands with its fix, not before" — so an open
 divergence is by policy absent.
+
+### C6. Every performance gate measures a population where legacy `$:` is absent or a minority
+
+The correctness gates above sample published *library* code. So do the performance gates, and
+for performance that is the wrong population by a factor of 5.6.
+
+**[D] Legacy `$:` density, by the two populations we own.** A file counts as legacy if any line's
+first non-whitespace token is `$:` (`^[ \t]*\$:`, multiline). Stated because it is a heuristic:
+it counts a `$:` nested inside a block, and misses one written after `{` on the same line.
+
+| population | files | legacy files | bytes | **legacy bytes** |
+|---|---|---|---|---|
+| libraries — `submodules/`, 23 repos | 13,078 | 478 (3.65%) | 15,098,016 | **12.34%** |
+| applications — huly/plugins | 2,123 | 1,252 (58.97%) | 7,124,519 | **74.87%** |
+| applications — open-webui | 650 | 215 (33.08%) | 3,612,860 | **70.26%** |
+| applications — carbon | 287 | 173 (60.28%) | 941,662 | **87.90%** |
+| applications — SMUI | 449 | **0 (0.00%)** | 951,109 | **0.00%** |
+| **applications, aggregate** | **3,509** | **1,640 (46.74%)** | **12,630,150** | **68.89%** |
+
+Legacy files are 3.7x larger than the rest in the library corpus and 2.5x larger in the
+application corpus, so **files and bytes disagree by ~3x and bytes is the closer weight** for
+anything that scales with script content. Published libraries also frequently ship
+pre-compiled, so application source is the better proxy for real compile volume.
+
+The per-repo rows are **bimodal** — 0% or ≥33%, nothing in between. A corpus is not
+"partly legacy"; each repo is one thing or the other, so an aggregate over a
+library-weighted sample does not interpolate to an application.
+
+**What this under-weights — and a stale number to stop repeating.** The bench corpus is widely
+described as "8 of 9 runes", including in `benches/corpus/README.md`'s own distribution table,
+which compares fixtures **01–09** against shipped code. That is out of date: fixtures 10 and 11
+were added specifically to close that gap, and the corpus is now 11 files. Measured directly
+(`command grep -lE '^[[:space:]]*\$:' benches/corpus/*.svelte`):
+
+| corpus | legacy by files | legacy by bytes |
+|---|---|---|
+| bench fixtures (01–11) | 3/11 (27.3%) | 9,195 / 24,385 (**37.7%**) |
+| libraries (`submodules/`) | 3.65% | **12.34%** |
+| applications | 46.74% | **68.89%** |
+
+So the timing gates are **under-weighted by ~1.8x against applications, not blind** — 05, 10
+and 11 carry `$:`. The library corpus, at 5.6x under, is the badly-aimed one. Anyone reasoning
+from "8 of 9 runes" will conclude the timing gates cannot see a legacy change at all; they can,
+at roughly half the weight real application code would give it.
+
+That makes such a change **falsifiable on CodSpeed rather than invisible to it**, which is the
+stronger position: a legacy-path improvement should move the per-file IDs for `05-legacy-reactive`,
+`10-legacy-typescript-props` and `11-store-heavy-legacy`, move `compile_both` by roughly the
+legacy share, and move the eight runes fixtures by ~0. A uniform result across all eleven is
+evidence *against* the change, not an artifact of the corpus.
+
+The converse still holds for the library-weighted gates: **a regression in this path reads flat
+on anything sampling `submodules/`**. The gate that sees it independently of corpus weighting is
+the differential `to_value` counter added with #2622 (`2_analyze/mod.rs`,
+`legacy_reactive_stays_typed`), which is deterministic and needs no quiet machine.
+
+**Negative control, from two unrelated routes.** SMUI is 0.00% legacy by the source regex
+above, and independently makes **0** `to_value` calls at the legacy-`$:` producer as counted by
+the compiler instrumentation. Two mechanisms sharing no assumption agreeing on an exact zero is
+what distinguishes this row from a heuristic that merely found no matches — the regex is
+capable of returning a real zero, and did, on the one corpus where the compiler agrees.
+
+**[D] The population difference is expensive — measured on a different path.** A sibling
+investigation timed `process_accumulated` (`3_transform/profile.rs:115` — the part of the Phase-3
+client line loop that transforms completed statements) across the same corpora:
+
+| corpus | `process_accumulated` share |
+|---|---|
+| carbon | 30.2% |
+| open-webui | 25.7% |
+| huly/plugins | 22.5% |
+| **applications, aggregate** | **22.8%** |
+| **SMUI (negative control)** | **2.1%** |
+
+SMUI sits with the runes libraries rather than with its fellow applications — a 10.9x split on
+the same axis this row is about, from an instrument unrelated to the object counters above. This
+is what establishes that sampling the library end is *costly*, not merely unrepresentative.
+
+Two caveats, so the number is not over-read. `process_accumulated` spans **both** the rune and
+the legacy `$:` statement transforms (`compile_profile.rs:276` takes its residual against
+`st.runes` and `st.reactive_stmt`), so the SMUI/application split is *consistent with* the
+legacy branch dominating it but does not prove the whole 22.8% is legacy. And it is a **Phase-3
+script-text** path, not the Phase-2 JSON serialization the object counts above measure — the two
+are adjacent consequences of the same source population, not the same work.
+
+**What is *not* established here [U].** (a) The share of compile time attributable to the
+Phase-2 legacy `$:` path specifically: two instruments tried and neither produced a defensible
+number (`docs/phase3-ast-refactor-plan.md` § Findings 2026-08-08). (b) The legacy-vs-runes
+decomposition of the 22.8% above, which `st.reactive_stmt` could settle directly. (c) Whether
+four repositories represent application Svelte generally — the densities are 33-88%, so the
+*direction* is not in doubt, but the aggregate is four samples.
 
 ---
 

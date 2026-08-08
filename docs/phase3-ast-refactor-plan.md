@@ -195,3 +195,122 @@ A session of corpus burndown (#1092, 248→120 known failures) probed how far th
   single-pass AST pipeline. Treat the 84 `wrap_derived_reads`/
   `transform_store_refs` call sites as one transform to consolidate, not as
   independently-portable units.
+
+## Findings (2026-08-08 — the allocate/copy/hash bucket is the representation, not a site)
+
+A samply profile had attributed 40.3% of non-kernel CPU to allocation (18.1%),
+hashing + maps (11.2%) and memcpy/memset (9.4%), by *symbol family*, which named
+no code. This attributes it by **site**, using
+`crates/rsvelte_devtools/src/bin/alloc_sites.rs` — a global-allocator wrapper over
+mimalloc that samples 1-in-N allocator *events* (not timer ticks, so the result is
+deterministic and does not move with machine load; everything below was measured at
+load 36–60). Per sampled event it records the requested size, the bytes
+`realloc`/`alloc_zeroed` must copy, and an unsymbolised stack, keeping sizes per
+class so a cost model is applied offline rather than baked in.
+
+### rsvelte performs ~1.2 heap allocations per input source byte
+
+| corpus | files | mean B | events/file | **alloc/src-byte** | copied B/src-byte |
+|---|---|---|---|---|---|
+| huly plugins | 2123 | 3356 | 4316 | 1.286 | 33.5 |
+| open-webui | 650 | 5558 | 6881 | 1.238 | 42.0 |
+| carbon | 287 | 3281 | 4483 | 1.366 | 41.9 |
+| SMUI | 449 | 2118 | 2505 | 1.183 | 38.7 |
+| huly, files ≤1.5 KB | 573 | 1058 | 1157 | **1.094** | 21.9 |
+| huly, files ≥12 KB | 54 | 19176 | 20970 | **1.094** | 38.4 |
+
+Flat to three digits across an 18× file-size range. This is the first *mechanism*
+for "uniformly heavy, slope not intercept" (187.6 ns/byte vs the competitor's 72.7,
+p10/p50/p90 ratio 1.77/2.35/2.55): the allocator load is a pure slope in input
+bytes. A 3 KB component performs ~4,000 heap allocations.
+
+### No site is worth fixing — the bucket is flat
+
+Top sites as % of the bucket, mean of the four corpora: `JsNode::to_value` 6.21,
+`transform_instance_script_for_visitors::{closure}` 3.99, the same function 2.62,
+`state_reads_ast` 2.31, `transform_client_with_visitors` 2.29, `declare_binding`
+2.22, `esrap/printer.rs:2922` 1.75, `create_identifier` 1.72. There are **322–479
+distinct sites per corpus and it takes 26–32 of them to reach half the bucket.**
+The largest single site is **0.4–1.8% of compile** — under the ~5% code-layout
+floor for a separate-binary A/B. **Do not open a brief to fix a site here.**
+
+### The identified target is the representation
+
+One `Box` per expression node (`Expression::from_node` is
+`Box::new(TypedExpr::new(node))`), and — because `serde_json` is built with
+`preserve_order` — every `Value` object key is a fresh `String` malloc plus an
+`IndexMap` slot plus a SipHash, drawn from a set of only **88 distinct static keys**
+(no dynamic keys on this path). Two independent instruments — an allocator-event
+sampler and an object/entry counter, sharing no assumption — agree on the magnitude
+across three corpora:
+
+| corpus | allocations at the site | objects | **per object** | map entries | **per map entry** |
+|---|---|---|---|---|---|
+| huly | 635,202 | 71,293 | **8.910** | 356,896 | **1.780** |
+| carbon | 122,291 | 13,790 | **8.868** | 67,522 | **1.811** |
+| open-webui | 136,305 | 15,452 | **8.821** | 77,191 | **1.766** |
+
+1.0% spread on per-object, 2.5% on per-entry. The per-entry figure is the
+mechanistically meaningful one: **~1.78 allocations per map entry is exactly what
+`preserve_order` predicts** — one `String` malloc for the key plus ~0.78 amortised
+`IndexMap` table/vec growth — and it had no freedom to land there by accident. This
+is the only identified item whose magnitude is the right order. **It needs its own
+scoping; do not start it from this doc — but start the next brief here rather than
+re-deriving it.**
+
+The producer is a single function. `to_value`'s row above is a roll-up (limit 1
+below); on legacy-`$:` corpora it resolves almost entirely to
+`instance_labeled_statements_json` (`2_analyze/mod.rs`), which serialises every
+top-level `LabeledStatement` in the instance script. Measured inclusively from the
+allocation side it is **84.7% / 91.5% / 36.0% / 0%** of all `to_value` allocation on
+huly / carbon / open-webui / SMUI — the counter's independent object shares are
+77% / 82% / 34% / 0%. **SMUI is a clean zero on both instruments**, so this is gated
+on legacy `$:` density, not on component size.
+
+### FxHash probe: a lower bound on the key-representation fix, not a rejected optimisation
+
+Vendored `serde_json` with `IndexMap`'s hasher swapped SipHash→FxHash; paired
+alternating A/B, 8 rounds, `compile_profile`, LTO off:
+
+| corpus | base | fix | delta | wins |
+|---|---|---|---|---|
+| huly | 1384.8 ms | 1328.3 | **−4.08%** | **8/8** |
+| SMUI | 152.6 | 147.0 | −3.65% | 7/8 |
+| open-webui | 717.4 | 712.4 | −0.70% | 6/8 |
+| carbon | 203.0 | 202.8 | −0.12% | 5/8 |
+
+Not shipped: it sits inside the layout floor and costs a permanently vendored
+`serde_json`. **Read this as a lower bound on the representation fix, not as
+"hashing: settled."** It measures *SipHash minus FxHash* only — FxHash still hashes
+the bytes, and the malloc per key and the `IndexMap` slot are untouched. A
+representation that removes all three is strictly better than what was measured.
+
+### Four limits of the instrument, stated as limits
+
+1. `clean()` strips generics, so a trait-impl symbol (`<JsNode as Serialize>::serialize`)
+   reduces to `::serialize`, fails the `starts_with("rsvelte")` test and is dropped.
+   The `to_value` row is therefore an **inclusive roll-up of the serialize subtree,
+   not a leaf**, and the same effect pushes attribution outward table-wide.
+2. It sees map-growth *allocation* (0.6–6.0% of the bucket), never SipHash
+   *compute*. Most of the 11.2% hashing bucket is structurally invisible to it.
+3. The time column's calibration (6.4–7.4 ns/event) is a **warm-cache lower bound**;
+   the in-situ cost is ~4× higher.
+4. The top 2–3 rows are stable across four cost models and both size bands. The
+   **tail ordering is not stable and is not claimed** — under a copy-dominated model
+   `declare_binding` moves #5→#1.
+
+### A retraction worth reading: the circular triangulation
+
+The first version of this finding reported the top site as "~2.5% of non-kernel CPU".
+That number was wrong twice. It multiplied a share of the *allocation+copy* bucket by
+**40.3%**, which includes the 11.2% hashing bucket the instrument cannot see (≤27.5%
+is the correct multiplier). Worse, it then applied a 4× "in-situ" amplification
+**derived by assuming samply's 18.1% allocator share — the very quantity being
+apportioned** — and presented the result as if two measurements had triangulated.
+
+A chain that derives its own amplification factor from the quantity it then
+apportions will look like rigour to everyone who reads it, **including its author**.
+The tell is that the conclusion cannot move: no measurement could have refuted it,
+because the input and the output were the same number. When converting a
+within-bucket share into a share of total time, the bucket's absolute size must come
+from somewhere the share did not.
