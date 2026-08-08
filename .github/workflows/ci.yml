@@ -12,12 +12,16 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  # Never on `main`: `github.ref` is the same for every merge, so cancelling
-  # meant each merge killed its predecessor's run and the branch carried no
-  # verdict at all. GitHub keeps at most one *pending* run per group, so the tip
-  # is still always scheduled — this costs a lag, not a runner per commit.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # Keyed by the head branch on a PR (a new push supersedes the old run) and by
+  # the commit otherwise, so a push to `main` shares a group with nothing and
+  # cannot be cancelled. The previous guard — `cancel-in-progress:
+  # ${{ github.ref != 'refs/heads/main' }}` — did not hold: every `main` run
+  # under it was still cancelled the instant the next merge started, so `main`
+  # never produced a verdict. The cost is one run per merge instead of one per
+  # burst; a branch with no verdict reads exactly like a green one, which is
+  # how a stale ratchet reached `main` unnoticed (#2435/#2593).
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always

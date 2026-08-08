@@ -1651,22 +1651,14 @@ pub(super) fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
 
-/// Find the position of the matching closing parenthesis.
+/// Find the position of the matching closing parenthesis, given `s` positioned
+/// just after the opening `(`.
+///
+/// Delegates to the lexical matcher: every caller uses the result to slice or
+/// delete a source range, and a `)` inside a comment, string, template or regex
+/// would cut that range mid-expression (#2601).
 pub(crate) fn find_matching_paren(s: &str) -> Option<usize> {
-    let mut depth = 1;
-    for (i, c) in s.char_indices() {
-        match c {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(i);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
+    crate::compiler::phases::phase1_parse::utils::find_matching_bracket(s, 0, '(')
 }
 
 /// Extract the name of the enclosing function from the text before a block opening.

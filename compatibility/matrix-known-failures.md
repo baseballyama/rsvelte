@@ -30,7 +30,7 @@ tolerates them. An entry is a divergence that survives that.
 
 ## Matrix known failures (`matrix-known-failures.json`, 206 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 232`
+Partition of `matrix-known-failures.json` by family: `2 + 204`
 
 ### `binding-position` — 2 entries
 
@@ -68,7 +68,7 @@ Classified by comparing the **multiset of comments** in each output:
 |---|---|---|
 | rsvelte drops a comment the official compiler keeps | 72 | 56 |
 | the comment survives but lands somewhere else | 32 | 0 |
-| rsvelte emits a comment more than once | 28 | 24 |
+| rsvelte keeps a comment the official compiler drops | 28 | 24 |
 | **anything other than the comment itself** | **0** | — |
 
 The last row is the important one: **no generated mutant changes rsvelte's codegen
@@ -164,14 +164,13 @@ all 8 kinds, i.e. **24 of the 192 cases**.
 #### Both sub-clusters together
 
 The two partition claims below span the whole `comment-slot` family, so each adds the module
-path's 72 to the template seeds' 160. In the first, the module path contributes a single
-addend: all 72 sit in the one bucket this family's own table does not have a row for —
-*rsvelte keeps a comment official drops* — which is the opposite direction from the
-template seeds' 100.
+path's 72 to the template seeds' 132. The module path contributes to a single bucket: all 72
+are *rsvelte keeps a comment official drops*, which joins the template seeds' own 28 in that
+bucket for a combined 100 — the opposite direction from the 72 rsvelte drops.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `100 + 32 + 28 + 72 + 0`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `72 + 32 + 100 + 0`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 56 + 24 + 24 + 24 + 24 + 8 + 8 + 8`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8`
 
 ## Burn-down
 
