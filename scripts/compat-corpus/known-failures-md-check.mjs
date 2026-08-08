@@ -5,7 +5,7 @@
  * are hand-maintained, and a doc that no longer describes its entries is the
  * whole reason the ratchets are allowed to be non-empty.
  *
- * Three properties, in the order they matter:
+ * Four properties, in the order they matter:
  *
  *   1. COVERAGE IS DECLARED, NOT INFERRED. `RATCHETS` below is the single list
  *      that both the pairing and the coverage assertion read. Every ratchet
@@ -27,13 +27,35 @@
  *      file's own name beside the number removes that class entirely, and
  *      `docs_may_cite_issue_numbers` pins it.
  *
- * Convention each doc must satisfy, once per JSON it documents:
+ *   4. CLUSTER COUNTS MUST PARTITION, AND THE TOTAL COMES FROM THE DATA (#2500).
+ *      A doc that splits its ratchet into counted clusters can double-cite an
+ *      entry and still have every number on the page look right — the clusters
+ *      only sum to the file length if each entry is counted once, so asserting
+ *      the sum turns "the clusters partition the ratchet" from a convention into
+ *      something that fails. The total is read off the JSON, never off the doc:
+ *      a sum checked against a total the same author typed would agree with
+ *      itself when both were adjusted together, which is the case that already
+ *      looks correct from every angle.
+ *
+ * Two conventions each doc must satisfy. First, once per JSON it documents:
  *
  *     ... `<name>.json` ... <N> entries ...
  *
  * on a single line. Per-target families use the `<target>` placeholder the docs
  * already write (`warning-known-failures.<target>.json`), and every target's
  * JSON must then agree on the count — which also catches the day they diverge.
+ * A doc may state that count on more than one line; every occurrence is read and
+ * they must agree, because a check bound to one of them passes while the others
+ * go stale (#2490 left a second, unbound copy behind).
+ *
+ * Second, once per declared partition in `PARTITIONS`:
+ *
+ *     Partition of `<name>.json` [entries under `<prefix>`] by <label>: `a + b + NxM`
+ *
+ * A partition line is a claim that each entry is counted exactly once. Where a
+ * doc cannot honour that literally it states its tie-break — `fmt-known-failures.md`
+ * files an id that carries two clusters' divergences under its dominant one —
+ * and the sum stays meaningful.
  *
  * Usage: node scripts/compat-corpus/known-failures-md-check.mjs
  */
@@ -44,7 +66,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const CORPUS = path.join(ROOT, 'compatibility');
+// Overridable so the self-test can run the whole checker against a mutated copy
+// of the real docs: a guard that is only ever run on inputs it passes has not
+// been shown to fail on anything.
+const CORPUS = process.env.KNOWN_FAILURES_DIR || path.join(ROOT, 'compatibility');
 
 const TARGETS = ['client', 'server', 'client-dev'];
 const perTarget = (stem) => TARGETS.map((t) => `${stem}.${t}.json`);
@@ -119,6 +144,35 @@ const RATCHETS = [
 	},
 ];
 
+/**
+ * The declared cluster partitions (#2500). `key` names a ratchet in `RATCHETS`;
+ * `prefix` narrows the population to the ids that start with it, for a doc that
+ * partitions a sub-population rather than the whole file (`comment-slot`'s 232
+ * is not the matrix ratchet's 234). `label` is what the split is by, so one
+ * ratchet can carry several independent partitions — three of lint's 80 entries,
+ * which is where a double-citation is most likely to be caught.
+ *
+ * Declared rather than inferred for the same reason `RATCHETS` is: a partition
+ * line deleted from a doc has to fail, and a scan of the docs alone cannot tell
+ * "this doc states no clusters" from "someone removed the one it stated".
+ */
+const PARTITIONS = [
+	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
+	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
+	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },
+	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'repo' },
+	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', label: 'family' },
+	{
+		doc: 'matrix-known-failures.md',
+		key: 'matrix-known-failures.json',
+		prefix: 'comment-slot/',
+		label: 'what diverges',
+	},
+	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', prefix: 'comment-slot/', label: 'seed' },
+	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', label: 'cluster' },
+	{ doc: 'warning-known-failures.md', key: 'warning-known-failures.<target>.json', label: 'direction' },
+];
+
 let failed = false;
 const fail = (msg) => {
 	console.error(`[known-failures-md-check] ${msg}`);
@@ -127,18 +181,49 @@ const fail = (msg) => {
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** The count a doc states for `key`, or a reason it could not be read. */
-export function statedCount(docText, key) {
-	const line = docText
-		.split('\n')
-		.find((l) => l.includes(`\`${key}\``) && /\b[\d,]+\s+entr(?:y|ies)\b/.test(l));
-	if (!line) return { ok: false, reason: 'no line names the ratchet beside an "N entries" count' };
-	// Anchored to the right of the filename so a number elsewhere on the line
-	// (an issue reference, a percentage) cannot be picked up instead.
-	const after = line.slice(line.indexOf(`\`${key}\``) + key.length + 2);
-	const m = after.match(/\b([\d,]+)\s+entr(?:y|ies)\b/);
-	if (!m) return { ok: false, reason: 'the count does not follow the ratchet name on that line' };
-	return { ok: true, count: Number(m[1].replace(/,/g, '')), line: line.trim() };
+const num = (s) => Number(s.replace(/,/g, ''));
+
+/**
+ * Every count a doc states for `key`, or a reason none could be read. All of
+ * them are returned: a doc restating the same quantity elsewhere is normal
+ * (#2490 left `529` in prose while the header moved to `528`), and a checker
+ * that stops at the first one reports the doc as verified while the rest rot.
+ */
+export function statedCounts(docText, key) {
+	const counts = [];
+	for (const line of docText.split('\n')) {
+		if (!line.includes(`\`${key}\``) || !/\b[\d,]+\s+entr(?:y|ies)\b/.test(line)) continue;
+		// Anchored to the right of the filename so a number elsewhere on the line
+		// (an issue reference, a percentage) cannot be picked up instead.
+		const after = line.slice(line.indexOf(`\`${key}\``) + key.length + 2);
+		const m = after.match(/\b([\d,]+)\s+entr(?:y|ies)\b/);
+		if (m) counts.push({ count: num(m[1]), line: line.trim() });
+	}
+	if (!counts.length) return { ok: false, reason: 'no line names the ratchet beside an "N entries" count' };
+	return { ok: true, counts };
+}
+
+/** Sums an addend expression in the docs' own notation: `a + b + NxM`. */
+export function sumExpression(expression) {
+	return expression
+		.split('+')
+		.map((term) => {
+			const [a, b] = term.trim().split('x');
+			return b === undefined ? num(a) : num(a) * num(b);
+		})
+		.reduce((a, b) => a + b, 0);
+}
+
+const PARTITION_RE = /^Partition of `([^`]+)`(?: entries under `([^`]+)`)? by ([^:]+): `([\d\s,x+]+)`/;
+
+/** The `Partition of …` claims a doc makes, in declaration order. */
+export function partitionLines(docText) {
+	const out = [];
+	for (const raw of docText.split('\n')) {
+		const m = raw.trim().match(PARTITION_RE);
+		if (m) out.push({ key: m[1], prefix: m[2], label: m[3].trim(), expression: m[4], sum: sumExpression(m[4]) });
+	}
+	return out;
 }
 
 // Importing this module must not run the checks: a failing checker would
@@ -184,7 +269,7 @@ for (const { doc, key, jsons } of RATCHETS) {
 		continue;
 	}
 	const actual = unique[0];
-	const stated = statedCount(fs.readFileSync(docPath, 'utf8'), key);
+	const stated = statedCounts(fs.readFileSync(docPath, 'utf8'), key);
 	if (!stated.ok) {
 		fail(
 			`${doc}: cannot verify the count for \`${key}\` — ${stated.reason}.\n` +
@@ -192,8 +277,60 @@ for (const { doc, key, jsons } of RATCHETS) {
 		);
 		continue;
 	}
-	if (stated.count !== actual) {
-		fail(`${doc} states ${stated.count} entries for \`${key}\`, but the JSON has ${actual}\n    ${stated.line}`);
+	for (const { count, line } of stated.counts) {
+		if (count !== actual) fail(`${doc} states ${count} entries for \`${key}\`, but the JSON has ${actual}\n    ${line}`);
+	}
+}
+
+// ---- 2b. declared cluster partitions sum to the population they claim --------
+const ratchetByKey = new Map(RATCHETS.map((r) => [r.key, r]));
+const idsFor = (key) => {
+	const jsons = ratchetByKey.get(key)?.jsons ?? [];
+	const p = path.join(CORPUS, jsons[0] ?? '');
+	return jsons.length && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
+};
+const declaredPartitions = new Set(PARTITIONS.map((p) => `${p.doc} ${p.key} ${p.prefix ?? ''} ${p.label}`));
+
+for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
+	const docPath = path.join(CORPUS, doc);
+	if (!fs.existsSync(docPath)) continue; // already reported above
+	for (const found of partitionLines(fs.readFileSync(docPath, 'utf8'))) {
+		const id = `${doc} ${found.key} ${found.prefix ?? ''} ${found.label}`;
+		if (!declaredPartitions.has(id)) {
+			fail(
+				`${doc}: partition by "${found.label}" of \`${found.key}\`${found.prefix ? ` under \`${found.prefix}\`` : ''} is not declared in PARTITIONS — add it, so deleting the line fails too`,
+			);
+		}
+	}
+}
+
+for (const { doc, key, prefix, label } of PARTITIONS) {
+	const docPath = path.join(CORPUS, doc);
+	if (!fs.existsSync(docPath)) continue; // already reported above
+	const ids = idsFor(key);
+	if (ids === null) {
+		fail(`PARTITIONS declares \`${key}\` for ${doc}, which is not a ratchet in RATCHETS`);
+		continue;
+	}
+	const population = prefix ? ids.filter((id) => String(id).startsWith(prefix)) : ids;
+	const matches = partitionLines(fs.readFileSync(docPath, 'utf8')).filter(
+		(p) => p.key === key && (p.prefix ?? undefined) === prefix && p.label === label,
+	);
+	const where = `\`${key}\`${prefix ? ` entries under \`${prefix}\`` : ''} by ${label}`;
+	if (matches.length !== 1) {
+		fail(
+			`${doc}: expected exactly one partition line for ${where}, found ${matches.length}.\n` +
+				`    Write it as: Partition of ${where}: \`` +
+				`${population.length}\` (as many addends as clusters, each entry counted once)`,
+		);
+		continue;
+	}
+	const [{ expression, sum }] = matches;
+	if (sum !== population.length) {
+		fail(
+			`${doc}: partition of ${where} sums to ${sum} (\`${expression}\`), but that population has ${population.length} entries.\n` +
+				`    Either a cluster count is stale, or an entry is cited under two clusters and another under none.`,
+		);
 	}
 }
 
@@ -217,18 +354,16 @@ if (reconcile) {
 
 // A stated total must equal the addends printed beside it: an itemised list that
 // reads as exhaustive and is not sums to less than the total it claims.
-// Convention: `summing to <total> (\`a + b + NxM\`)`.
-const warningMd = fs.readFileSync(path.join(CORPUS, 'warning-known-failures.md'), 'utf8');
-for (const [, statedRaw, expression] of warningMd.matchAll(/summing to (?:all )?([\d,]+)\s*\(`([\d\sx+]+)`\)/g)) {
-	const total = expression
-		.split('+')
-		.map((term) => {
-			const [a, b] = term.trim().split('x');
-			return b === undefined ? Number(a) : Number(a) * Number(b);
-		})
-		.reduce((a, b) => a + b, 0);
-	if (total !== Number(statedRaw.replace(/,/g, ''))) {
-		fail(`warning-known-failures.md claims ${statedRaw} but \`${expression}\` sums to ${total}`);
+// Convention: `summing to <total> (\`a + b + NxM\`)`. Scanned in every ratchet
+// doc, not just the one that introduced it — a convention checked in a single
+// file is a convention the next doc to adopt it gets for free and unverified.
+for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
+	const docPath = path.join(CORPUS, doc);
+	if (!fs.existsSync(docPath)) continue;
+	const text = fs.readFileSync(docPath, 'utf8');
+	for (const [, statedRaw, expression] of text.matchAll(/summing to (?:all )?([\d,]+)\s*\(`([\d\s,x+]+)`\)/g)) {
+		const total = sumExpression(expression);
+		if (total !== num(statedRaw)) fail(`${doc} claims ${statedRaw} but \`${expression}\` sums to ${total}`);
 	}
 }
 
@@ -267,6 +402,6 @@ if (fs.existsSync(mutationMdPath)) {
 		process.exit(1);
 	}
 	console.log(
-		`[known-failures-md-check] ${RATCHETS.length} declared ratchets across ${new Set(RATCHETS.map((r) => r.doc)).size} docs match their JSON.`,
+		`[known-failures-md-check] ${RATCHETS.length} declared ratchets across ${new Set(RATCHETS.map((r) => r.doc)).size} docs match their JSON; ${PARTITIONS.length} cluster partitions add up.`,
 	);
 }
