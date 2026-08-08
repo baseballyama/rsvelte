@@ -184,6 +184,7 @@ impl<'a> ScopeBuilder<'a> {
                             name,
                             BindingKind::LegacyReactive,
                             DeclarationKind::Let,
+                            None,
                         );
                     }
                 }
@@ -519,12 +520,14 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Declare a binding in the current scope.
+    /// Declare a binding in the current scope. `span` is the declaring
+    /// identifier's source range, which `declaration_duplicate` is attributed to.
     fn declare_binding(
         &mut self,
         name: String,
         kind: BindingKind,
         declaration_kind: DeclarationKind,
+        span: Option<(u32, u32)>,
     ) -> usize {
         // `var` is function-scoped: hoist its declaration to the nearest
         // function/script scope rather than the current block scope.
@@ -565,8 +568,11 @@ impl<'a> ScopeBuilder<'a> {
                 || (existing_kind == DeclarationKind::Function
                     && is_block_lexical(declaration_kind));
             if both_non_hoistable || lexical_vs_function {
-                self.validation_errors
-                    .push(errors::declaration_duplicate(&name));
+                let mut error = errors::declaration_duplicate(&name);
+                if let Some((start, end)) = span {
+                    error = error.at(start, end);
+                }
+                self.validation_errors.push(error);
             }
         }
 
@@ -722,11 +728,15 @@ impl<'a> ScopeBuilder<'a> {
             } => {
                 if let Some(id_ref) = id {
                     let id_node = self.arena.get_js_node(*id_ref);
-                    if let JsNode::Identifier { name, start, .. } = id_node {
+                    if let JsNode::Identifier {
+                        name, start, end, ..
+                    } = id_node
+                    {
                         let idx = self.declare_binding(
                             name.to_string(),
                             BindingKind::Normal,
                             DeclarationKind::Function,
+                            Some((*start, *end)),
                         );
                         self.bindings[idx].initial_is_function = true;
                         self.bindings[idx].declaration_start = Some(*start);
@@ -765,11 +775,15 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::ClassDeclaration { id, body, .. } => {
                 if let Some(id_ref) = id {
                     let id_node = self.arena.get_js_node(*id_ref);
-                    if let JsNode::Identifier { name, start, .. } = id_node {
+                    if let JsNode::Identifier {
+                        name, start, end, ..
+                    } = id_node
+                    {
                         let idx = self.declare_binding(
                             name.to_string(),
                             BindingKind::Normal,
                             DeclarationKind::Let,
+                            Some((*start, *end)),
                         );
                         self.bindings[idx].declaration_start = Some(*start);
                     }
@@ -1132,14 +1146,17 @@ impl<'a> ScopeBuilder<'a> {
         decl_kind: DeclarationKind,
     ) {
         match pattern {
-            JsNode::Identifier { name, start, .. } => {
+            JsNode::Identifier {
+                name, start, end, ..
+            } => {
                 let kind = if let Some(init_id) = init {
                     let init_node = self.arena.get_js_node(init_id);
                     self.detect_binding_kind_from_node(init_node)
                 } else {
                     BindingKind::Normal
                 };
-                let idx = self.declare_binding(name.to_string(), kind, decl_kind);
+                let idx =
+                    self.declare_binding(name.to_string(), kind, decl_kind, Some((*start, *end)));
                 // Store declaration position for var hoisting analysis.
                 // Typed JsNode positions are already relative to the full component.
                 self.bindings[idx].declaration_start = Some(*start);
@@ -1177,11 +1194,15 @@ impl<'a> ScopeBuilder<'a> {
                             if is_props_init {
                                 // For `let { ...rest } = $props()`, the rest binding must be RestProp
                                 let arg_node = self.arena.get_js_node(*argument);
-                                if let JsNode::Identifier { name, start, .. } = arg_node {
+                                if let JsNode::Identifier {
+                                    name, start, end, ..
+                                } = arg_node
+                                {
                                     let idx = self.declare_binding(
                                         name.to_string(),
                                         BindingKind::RestProp,
                                         decl_kind,
+                                        Some((*start, *end)),
                                     );
                                     self.bindings[idx].declaration_start = Some(*start);
                                 } else {
@@ -1215,7 +1236,7 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process an import specifier from a typed JsNode.
     fn process_import_specifier_typed(&mut self, node: &JsNode, source_val: &str) {
-        let (name, start, specifier_type) = match node {
+        let (name, start, end, specifier_type) = match node {
             JsNode::ImportSpecifier {
                 local, import_kind, ..
             } => {
@@ -1224,32 +1245,45 @@ impl<'a> ScopeBuilder<'a> {
                     return;
                 }
                 let local_node = self.arena.get_js_node(*local);
-                if let JsNode::Identifier { name, start, .. } = local_node {
-                    (name.to_string(), *start, "ImportSpecifier")
+                if let JsNode::Identifier {
+                    name, start, end, ..
+                } = local_node
+                {
+                    (name.to_string(), *start, *end, "ImportSpecifier")
                 } else {
                     return;
                 }
             }
             JsNode::ImportDefaultSpecifier { local, .. } => {
                 let local_node = self.arena.get_js_node(*local);
-                if let JsNode::Identifier { name, start, .. } = local_node {
-                    (name.to_string(), *start, "ImportDefaultSpecifier")
+                if let JsNode::Identifier {
+                    name, start, end, ..
+                } = local_node
+                {
+                    (name.to_string(), *start, *end, "ImportDefaultSpecifier")
                 } else {
                     return;
                 }
             }
             JsNode::ImportNamespaceSpecifier { local, .. } => {
                 let local_node = self.arena.get_js_node(*local);
-                if let JsNode::Identifier { name, start, .. } = local_node {
-                    (name.to_string(), *start, "ImportNamespaceSpecifier")
+                if let JsNode::Identifier {
+                    name, start, end, ..
+                } = local_node
+                {
+                    (name.to_string(), *start, *end, "ImportNamespaceSpecifier")
                 } else {
                     return;
                 }
             }
             _ => return,
         };
-        let binding_idx =
-            self.declare_binding(name.clone(), BindingKind::Normal, DeclarationKind::Import);
+        let binding_idx = self.declare_binding(
+            name.clone(),
+            BindingKind::Normal,
+            DeclarationKind::Import,
+            Some((start, end)),
+        );
         self.bindings[binding_idx].declaration_start = Some(start);
         // Store the ImportDeclaration as a JSON string on binding.initial,
         // matching the official Svelte compiler where binding.initial is the
@@ -1475,12 +1509,16 @@ impl<'a> ScopeBuilder<'a> {
             Statement::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    let idx =
-                        self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
+                    let offset = self.current_script_offset as u32;
+                    let idx = self.declare_binding(
+                        name,
+                        BindingKind::Normal,
+                        DeclarationKind::Function,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
                     // Mark as a true JS function (not a snippet block)
                     self.bindings[idx].initial_is_function = true;
-                    self.bindings[idx].declaration_start =
-                        Some(id.span.start + self.current_script_offset as u32);
+                    self.bindings[idx].declaration_start = Some(id.span.start + offset);
                 }
                 // Create a new scope for the function body (non-porous: function_depth + 1)
                 let old_scope = self.push_function_scope();
@@ -1510,9 +1548,14 @@ impl<'a> ScopeBuilder<'a> {
                     // Class declarations use 'let' (not 'const') because class names
                     // are mutable bindings. This matches the official Svelte compiler:
                     // scope.declare(node.id, 'normal', 'let', node)
-                    let idx = self.declare_binding(name, BindingKind::Normal, DeclarationKind::Let);
-                    self.bindings[idx].declaration_start =
-                        Some(id.span.start + self.current_script_offset as u32);
+                    let offset = self.current_script_offset as u32;
+                    let idx = self.declare_binding(
+                        name,
+                        BindingKind::Normal,
+                        DeclarationKind::Let,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
+                    self.bindings[idx].declaration_start = Some(id.span.start + offset);
                 }
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_decl.body);
@@ -2238,8 +2281,13 @@ impl<'a> ScopeBuilder<'a> {
             Declaration::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    let idx =
-                        self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
+                    let offset = self.current_script_offset as u32;
+                    let idx = self.declare_binding(
+                        name,
+                        BindingKind::Normal,
+                        DeclarationKind::Function,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
                     self.bindings[idx].initial_is_function = true;
                 }
                 // Process function body to track assignments inside exported functions.
@@ -2266,7 +2314,13 @@ impl<'a> ScopeBuilder<'a> {
                     let name = id.name.to_string();
                     // Class declarations use 'let' (not 'const') because class names
                     // are mutable bindings. This matches the official Svelte compiler.
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Let);
+                    let offset = self.current_script_offset as u32;
+                    self.declare_binding(
+                        name,
+                        BindingKind::Normal,
+                        DeclarationKind::Let,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
                 }
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_decl.body);
@@ -2310,7 +2364,13 @@ impl<'a> ScopeBuilder<'a> {
                 } else {
                     BindingKind::Normal
                 };
-                let idx = self.declare_binding(name, kind, decl_kind);
+                let offset = self.current_script_offset as u32;
+                let idx = self.declare_binding(
+                    name,
+                    kind,
+                    decl_kind,
+                    Some((ident.span.start + offset, ident.span.end + offset)),
+                );
                 // Store the declaration position for var hoisting analysis.
                 // Used by the state_referenced_locally warning to skip references
                 // that appear before the var declaration in source order.
@@ -2348,13 +2408,14 @@ impl<'a> ScopeBuilder<'a> {
                         // so that detect_store_subscriptions correctly identifies $props as
                         // a rune (not a store subscription).
                         if let BindingPattern::BindingIdentifier(ident) = &rest.argument {
+                            let offset = self.current_script_offset as u32;
                             let idx = self.declare_binding(
                                 ident.name.to_string(),
                                 BindingKind::RestProp,
                                 decl_kind,
+                                Some((ident.span.start + offset, ident.span.end + offset)),
                             );
-                            self.bindings[idx].declaration_start =
-                                Some(ident.span.start + self.current_script_offset as u32);
+                            self.bindings[idx].declaration_start = Some(ident.span.start + offset);
                         } else {
                             self.process_binding_pattern(&rest.argument, &None, decl_kind);
                         }
@@ -2438,7 +2499,7 @@ impl<'a> ScopeBuilder<'a> {
         let source_val = import_decl.source.value.as_str();
         if let Some(specifiers) = &import_decl.specifiers {
             for specifier in specifiers {
-                let (name, start, specifier_type) = match specifier {
+                let (name, start, end, specifier_type) = match specifier {
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportSpecifier(spec) => {
                         // Skip per-specifier type imports: `import { type Foo, Bar }`
                         if spec.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
@@ -2447,27 +2508,31 @@ impl<'a> ScopeBuilder<'a> {
                         (
                             spec.local.name.to_string(),
                             spec.local.span.start,
+                            spec.local.span.end,
                             "ImportSpecifier",
                         )
                     }
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => (
                         spec.local.name.to_string(),
                         spec.local.span.start,
+                        spec.local.span.end,
                         "ImportDefaultSpecifier",
                     ),
                     oxc_ast::ast::ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => (
                         spec.local.name.to_string(),
                         spec.local.span.start,
+                        spec.local.span.end,
                         "ImportNamespaceSpecifier",
                     ),
                 };
+                let offset = self.current_script_offset as u32;
                 let binding_idx = self.declare_binding(
                     name.clone(),
                     BindingKind::Normal,
                     DeclarationKind::Import,
+                    Some((start + offset, end + offset)),
                 );
-                self.bindings[binding_idx].declaration_start =
-                    Some(start + self.current_script_offset as u32);
+                self.bindings[binding_idx].declaration_start = Some(start + offset);
                 // Store the ImportDeclaration as a JSON string on binding.initial,
                 // matching the official Svelte compiler where binding.initial is the
                 // ImportDeclaration AST node. This allows ExpressionStatement visitor
@@ -2618,6 +2683,7 @@ impl<'a> ScopeBuilder<'a> {
                         let_dir.name.to_string(),
                         BindingKind::Let,
                         DeclarationKind::Const,
+                        None,
                     );
                 }
             }
@@ -3260,6 +3326,7 @@ impl<'a> ScopeBuilder<'a> {
                 index.to_string(),
                 BindingKind::EachIndex,
                 DeclarationKind::Const,
+                None,
             );
         }
 
@@ -3334,7 +3401,8 @@ impl<'a> ScopeBuilder<'a> {
                 } else {
                     decl_kind
                 };
-                let binding_idx = self.declare_binding(name.to_string(), kind, decl_kind);
+                let binding_idx =
+                    self.declare_binding(name.to_string(), kind, decl_kind, span_of(pattern));
                 if inside_rest {
                     self.bindings[binding_idx].inside_rest = true;
                 }
@@ -3509,10 +3577,12 @@ impl<'a> ScopeBuilder<'a> {
         // The snippet name must be available in the enclosing scope so that {@render snippet()}
         // can find it and know that it's a local (non-dynamic) snippet
         if let Some(name) = block.expression.name() {
+            let span = block.expression.start().zip(block.expression.end());
             let idx = self.declare_binding(
                 name.to_string(),
                 BindingKind::Normal,
                 DeclarationKind::Function,
+                span,
             );
             // Track that the binding's initial value is a SnippetBlock so that
             // render-tag resolution (`is_resolved_snippet`) can recognise local
@@ -3603,7 +3673,7 @@ impl<'a> ScopeBuilder<'a> {
     ) {
         match pattern {
             JsNode::Identifier { name, .. } => {
-                self.declare_binding(name.to_string(), binding_kind, decl_kind);
+                self.declare_binding(name.to_string(), binding_kind, decl_kind, span_of(pattern));
             }
             JsNode::ObjectPattern { properties, .. }
             | JsNode::ObjectExpression { properties, .. } => {
@@ -3731,6 +3801,7 @@ impl<'a> ScopeBuilder<'a> {
                     name.to_string(),
                     BindingKind::Template,
                     DeclarationKind::Const,
+                    span_of(pattern),
                 );
             }
             JsNode::ObjectPattern { properties, .. }
@@ -4060,6 +4131,11 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
         // Leaf nodes or nodes without interesting children
         _ => {}
     }
+}
+
+/// Get a JsNode's `(start, end)` source range.
+fn span_of(node: &JsNode) -> Option<(u32, u32)> {
+    node.start().zip(node.end())
 }
 
 /// Get the start position of a JsNode (helper for function_scope_map).

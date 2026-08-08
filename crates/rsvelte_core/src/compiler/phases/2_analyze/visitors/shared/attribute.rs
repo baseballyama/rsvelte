@@ -112,7 +112,7 @@ pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), Analysis
 /// Corresponds to `validate_slot_attribute` in shared/attribute.js.
 pub fn validate_slot_attribute(
     context: &VisitorContext,
-    _attribute: &AttributeNode,
+    attribute: &AttributeNode,
 ) -> Result<(), AnalysisError> {
     // Check if we're a direct child of a component
     if context.is_direct_child_of_component {
@@ -137,13 +137,19 @@ pub fn validate_slot_attribute(
             }
             super::super::SlotOwnerType::Component => {
                 // Component owner - we must be a direct child, but we're not (checked above)
-                return Err(super::super::super::errors::slot_attribute_invalid_placement());
+                return Err(
+                    super::super::super::errors::slot_attribute_invalid_placement()
+                        .at(attribute.start, attribute.end),
+                );
             }
         }
     }
 
     // No slot owner found - not in a valid position for slot attribute
-    Err(super::super::super::errors::slot_attribute_invalid_placement())
+    Err(
+        super::super::super::errors::slot_attribute_invalid_placement()
+            .at(attribute.start, attribute.end),
+    )
 }
 
 /// Check if an attribute is an expression attribute.

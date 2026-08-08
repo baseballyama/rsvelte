@@ -47,6 +47,11 @@ and #2343 (the spurious `$.set` proxy flag for a `BinaryExpression`). #2307
 (spurious `/* @__PURE__ */`) is comment-only, so the AST-structural comparator
 does not see it at all; it burns down with the esrap comment epic (#2336).
 
+An empty list is not the same claim as "client output matches upstream
+everywhere". Divergences this target keeps on purpose — because reproducing
+upstream's bytes would emit invalid JavaScript — are recorded in
+[`deliberate-divergences.md`](deliberate-divergences.md), each pinned by a test.
+
 ## Server (`known-failures.server.json`, 0 entries)
 
 The last entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:

@@ -45,7 +45,7 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
     };
 
     if !is_valid_placement {
-        return Err(errors::const_tag_invalid_placement());
+        return Err(errors::const_tag_invalid_placement().at(tag.start, tag.end));
     }
 
     // Visit the declaration expression with in_const_tag flag set

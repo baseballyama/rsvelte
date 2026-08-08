@@ -11,7 +11,14 @@ use crate::compiler::phases::phase2_analyze::warnings;
 
 /// Visit a labeled statement (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if let JsNode::LabeledStatement { label, body, .. } = node {
+    if let JsNode::LabeledStatement {
+        label,
+        body,
+        start,
+        end,
+        ..
+    } = node
+    {
         let arena = context.parse_arena;
         let label_node = arena.get_js_node(*label);
         let body_node = arena.get_js_node(*body);
@@ -40,7 +47,9 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 && !is_reactive_statement
                 && (is_instance_script || context.ast_type == AstType::Module)
             {
-                context.emit_warning(warnings::reactive_declaration_invalid_placement());
+                context.emit_warning(
+                    warnings::reactive_declaration_invalid_placement().at(*start, *end),
+                );
             }
         }
 

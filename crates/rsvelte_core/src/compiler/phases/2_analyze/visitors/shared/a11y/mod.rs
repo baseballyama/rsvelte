@@ -118,23 +118,24 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
         if let AttributeNode::Attribute(attr) = attribute {
             let mark = warnings.len();
             let name = attr.name.to_lowercase();
+            let (attr_start, attr_end) = (attr.start, attr.end);
 
             // aria-props
             if let Some(aria_type) = name.strip_prefix("aria-") {
                 if INVISIBLE_ELEMENTS.contains(&node.name.as_str()) {
-                    warnings.push(w::a11y_aria_attributes(&node.name));
+                    warnings.push(w::a11y_aria_attributes(&node.name).at(attr_start, attr_end));
                 }
 
                 if !ARIA_ATTRIBUTES.contains(&aria_type) {
                     let suggestion = fuzzymatch(aria_type, ARIA_ATTRIBUTES);
-                    warnings.push(w::a11y_unknown_aria_attribute(
-                        aria_type,
-                        suggestion.as_deref(),
-                    ));
+                    warnings.push(
+                        w::a11y_unknown_aria_attribute(aria_type, suggestion.as_deref())
+                            .at(attr_start, attr_end),
+                    );
                 }
 
                 if name == "aria-hidden" && REGEX_HEADING_TAGS.is_match(&node.name) {
-                    warnings.push(w::a11y_hidden(&node.name));
+                    warnings.push(w::a11y_hidden(&node.name).at(attr_start, attr_end));
                 }
 
                 // aria-proptypes validation. A *bare* ARIA attribute (no value)
@@ -149,7 +150,14 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     AttributeNode::Attribute(a) if matches!(a.value, AttributeValue::True(_))
                 );
                 if let Some(schema) = ARIA_PROPERTY_DEFINITIONS.get(name.as_str()) {
-                    validate_aria_attribute_value(&mut warnings, &name, schema, value, is_bare);
+                    validate_aria_attribute_value(
+                        &mut warnings,
+                        &name,
+                        schema,
+                        value,
+                        is_bare,
+                        (attr_start, attr_end),
+                    );
                 }
 
                 // aria-activedescendant-has-tabindex
@@ -159,14 +167,16 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     && !attribute_map.contains_key("tabindex")
                     && !has_spread
                 {
-                    warnings.push(w::a11y_aria_activedescendant_has_tabindex());
+                    warnings.push(
+                        w::a11y_aria_activedescendant_has_tabindex().at(attr_start, attr_end),
+                    );
                 }
             }
 
             // Check role attribute
             if name == "role" {
                 if INVISIBLE_ELEMENTS.contains(&node.name.as_str()) {
-                    warnings.push(w::a11y_misplaced_role(&node.name));
+                    warnings.push(w::a11y_misplaced_role(&node.name).at(attr_start, attr_end));
                 }
 
                 if let Some(value) = get_static_value(attribute) {
@@ -176,12 +186,16 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         }
 
                         if is_abstract_role(current_role) {
-                            warnings.push(w::a11y_no_abstract_role(current_role));
+                            warnings.push(
+                                w::a11y_no_abstract_role(current_role).at(attr_start, attr_end),
+                            );
                         } else if !ARIA_ROLES.contains(current_role) {
                             // Ordered list, not the set: fuzzymatch breaks ties by first occurrence.
                             let suggestion = fuzzymatch(current_role, ARIA_ROLE_NAMES);
-                            warnings
-                                .push(w::a11y_unknown_role(current_role, suggestion.as_deref()));
+                            warnings.push(
+                                w::a11y_unknown_role(current_role, suggestion.as_deref())
+                                    .at(attr_start, attr_end),
+                            );
                         }
 
                         // no-redundant-roles
@@ -190,7 +204,9 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                             && !["ul", "ol", "li", "menu"].contains(&node.name.as_str())
                             && (node.name != "a" || attribute_map.contains_key("href"))
                         {
-                            warnings.push(w::a11y_no_redundant_roles(current_role));
+                            warnings.push(
+                                w::a11y_no_redundant_roles(current_role).at(attr_start, attr_end),
+                            );
                         }
 
                         // Footers and headers special case
@@ -201,7 +217,9 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                                 A11Y_NESTED_IMPLICIT_SEMANTICS.get(node.name.as_str())
                             && current_role == *nested_role
                         {
-                            warnings.push(w::a11y_no_redundant_roles(current_role));
+                            warnings.push(
+                                w::a11y_no_redundant_roles(current_role).at(attr_start, attr_end),
+                            );
                         }
 
                         // role-has-required-aria-props
@@ -224,10 +242,10 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                                 let quoted_refs: Vec<&str> =
                                     quoted_props.iter().map(|s| s.as_str()).collect();
                                 let props_list = list(&quoted_refs, "and");
-                                warnings.push(w::a11y_role_has_required_aria_props(
-                                    current_role,
-                                    &props_list,
-                                ));
+                                warnings.push(
+                                    w::a11y_role_has_required_aria_props(current_role, &props_list)
+                                        .at(attr_start, attr_end),
+                                );
                             }
                         }
 
@@ -292,7 +310,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
 
             // no-access-key
             if name == "accesskey" {
-                warnings.push(w::a11y_accesskey());
+                warnings.push(w::a11y_accesskey().at(attr_start, attr_end));
             }
 
             // no-autofocus
@@ -300,12 +318,12 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 && node.name != "dialog"
                 && !is_parent(ancestor_names, &["dialog"])
             {
-                warnings.push(w::a11y_autofocus());
+                warnings.push(w::a11y_autofocus().at(attr_start, attr_end));
             }
 
             // scope
             if name == "scope" && !is_dynamic_element && node.name != "th" {
-                warnings.push(w::a11y_misplaced_scope());
+                warnings.push(w::a11y_misplaced_scope().at(attr_start, attr_end));
             }
 
             // tabindex-no-positive
@@ -314,7 +332,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 && let Ok(num) = value.parse::<i32>()
                 && num > 0
             {
-                warnings.push(w::a11y_positive_tabindex());
+                warnings.push(w::a11y_positive_tabindex().at(attr_start, attr_end));
             }
 
             stamp_attribute(&mut warnings[mark..], attr);
@@ -369,11 +387,16 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     let is_valid_aria = constants::ARIA_ATTRIBUTES.contains(&aria_suffix);
                     if is_valid_aria && !allowed_props.contains(&attr_name) {
                         if is_implicit {
-                            warnings.push(w::a11y_role_supports_aria_props_implicit(
-                                attr_name, rv, &node.name,
-                            ));
+                            warnings.push(
+                                w::a11y_role_supports_aria_props_implicit(
+                                    attr_name, rv, &node.name,
+                                )
+                                .at(a.start, a.end),
+                            );
                         } else {
-                            warnings.push(w::a11y_role_supports_aria_props(attr_name, rv));
+                            warnings.push(
+                                w::a11y_role_supports_aria_props(attr_name, rv).at(a.start, a.end),
+                            );
                         }
                     }
                 }
@@ -481,21 +504,16 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     .get("href")
                     .or_else(|| attribute_map.get("xlink:href"));
                 if let Some(href_attr) = href {
-                    if let Some(href_value) = get_static_value(href_attr)
+                    if let AttributeNode::Attribute(a) = href_attr
+                        && let Some(href_value) = get_static_value(href_attr)
                         && (href_value.is_empty()
                             || href_value == "#"
                             || REGEX_JS_PREFIX.is_match(href_value))
                     {
                         let mark = warnings.len();
                         // Upstream names the attribute that was found, so `xlink:href` reports itself.
-                        let name = match href_attr {
-                            AttributeNode::Attribute(a) => a.name.as_str(),
-                            _ => "href",
-                        };
-                        warnings.push(w::a11y_invalid_attribute(href_value, name));
-                        if let AttributeNode::Attribute(a) = href_attr {
-                            stamp_attribute(&mut warnings[mark..], a);
-                        }
+                        warnings.push(w::a11y_invalid_attribute(href_value, &a.name));
+                        stamp_attribute(&mut warnings[mark..], a);
                     }
                 } else if !has_spread {
                     let id_attribute = attribute_map.get("id").and_then(|a| get_static_value(a));
@@ -534,6 +552,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
             }
             // autocomplete-valid check (a11y/index.js L431-442)
             if let Some(autocomplete_attr) = attribute_map.get("autocomplete")
+                && let AttributeNode::Attribute(a) = autocomplete_attr
                 && attribute_map.contains_key("type")
             {
                 let autocomplete_value = get_static_value(autocomplete_attr);
@@ -541,9 +560,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     let display_value = autocomplete_value.unwrap_or("true");
                     let mark = warnings.len();
                     warnings.push(w::a11y_autocomplete_valid(display_value, type_value));
-                    if let AttributeNode::Attribute(a) = autocomplete_attr {
-                        stamp_attribute(&mut warnings[mark..], a);
-                    }
+                    stamp_attribute(&mut warnings[mark..], a);
                 }
             }
         }
@@ -1078,6 +1095,7 @@ fn validate_aria_attribute_value(
     schema: &AriaPropertyDefinition,
     value: Option<&str>,
     is_bare: bool,
+    (start, end): (u32, u32),
 ) {
     // A bare ARIA attribute (no value) is *not* a valid value for any
     // typed property — upstream emits the type-specific
@@ -1085,40 +1103,45 @@ fn validate_aria_attribute_value(
     if is_bare {
         match schema.property_type {
             AriaPropertyType::Boolean => {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_boolean(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_boolean(name).at(start, end));
             }
             AriaPropertyType::Tristate => {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_tristate(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_tristate(name).at(start, end));
             }
             AriaPropertyType::Integer => {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_integer(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_integer(name).at(start, end));
             }
             AriaPropertyType::Number => {
-                warnings.push(w::a11y_incorrect_aria_attribute_type(name, "number"));
+                warnings.push(w::a11y_incorrect_aria_attribute_type(name, "number").at(start, end));
             }
             AriaPropertyType::Id | AriaPropertyType::String => {
-                warnings.push(w::a11y_incorrect_aria_attribute_type(
-                    name,
-                    "non-empty string",
-                ));
+                warnings.push(
+                    w::a11y_incorrect_aria_attribute_type(name, "non-empty string").at(start, end),
+                );
             }
             AriaPropertyType::IdList => {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_idlist(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_idlist(name).at(start, end));
             }
             AriaPropertyType::Token => {
                 if let Some(valid_values) = schema.values {
-                    warnings.push(w::a11y_incorrect_aria_attribute_type_token(
-                        name,
-                        &quoted_value_list(valid_values),
-                    ));
+                    warnings.push(
+                        w::a11y_incorrect_aria_attribute_type_token(
+                            name,
+                            &quoted_value_list(valid_values),
+                        )
+                        .at(start, end),
+                    );
                 }
             }
             AriaPropertyType::TokenList => {
                 if let Some(valid_values) = schema.values {
-                    warnings.push(w::a11y_incorrect_aria_attribute_type_tokenlist(
-                        name,
-                        &quoted_value_list(valid_values),
-                    ));
+                    warnings.push(
+                        w::a11y_incorrect_aria_attribute_type_tokenlist(
+                            name,
+                            &quoted_value_list(valid_values),
+                        )
+                        .at(start, end),
+                    );
                 }
             }
         }
@@ -1134,25 +1157,24 @@ fn validate_aria_attribute_value(
     match schema.property_type {
         AriaPropertyType::Id | AriaPropertyType::String => {
             if value.is_empty() {
-                warnings.push(w::a11y_incorrect_aria_attribute_type(
-                    name,
-                    "non-empty string",
-                ));
+                warnings.push(
+                    w::a11y_incorrect_aria_attribute_type(name, "non-empty string").at(start, end),
+                );
             }
         }
         AriaPropertyType::Number => {
             if value.is_empty() || value.parse::<f64>().is_err() {
-                warnings.push(w::a11y_incorrect_aria_attribute_type(name, "number"));
+                warnings.push(w::a11y_incorrect_aria_attribute_type(name, "number").at(start, end));
             }
         }
         AriaPropertyType::Boolean => {
             if value != "true" && value != "false" {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_boolean(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_boolean(name).at(start, end));
             }
         }
         AriaPropertyType::IdList => {
             if value.is_empty() {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_idlist(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_idlist(name).at(start, end));
             }
         }
         AriaPropertyType::Integer => {
@@ -1162,7 +1184,7 @@ fn validate_aria_attribute_value(
                 value.parse::<f64>().is_ok_and(|n| n.fract() == 0.0)
             };
             if !is_valid_integer {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_integer(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_integer(name).at(start, end));
             }
         }
         AriaPropertyType::Token => {
@@ -1172,10 +1194,13 @@ fn validate_aria_attribute_value(
                     .iter()
                     .any(|v| v.to_lowercase() == lowercase_value)
                 {
-                    warnings.push(w::a11y_incorrect_aria_attribute_type_token(
-                        name,
-                        &quoted_value_list(valid_values),
-                    ));
+                    warnings.push(
+                        w::a11y_incorrect_aria_attribute_type_token(
+                            name,
+                            &quoted_value_list(valid_values),
+                        )
+                        .at(start, end),
+                    );
                 }
             }
         }
@@ -1191,16 +1216,19 @@ fn validate_aria_attribute_value(
                     })
                     .collect();
                 if !invalid_tokens.is_empty() {
-                    warnings.push(w::a11y_incorrect_aria_attribute_type_tokenlist(
-                        name,
-                        &quoted_value_list(valid_values),
-                    ));
+                    warnings.push(
+                        w::a11y_incorrect_aria_attribute_type_tokenlist(
+                            name,
+                            &quoted_value_list(valid_values),
+                        )
+                        .at(start, end),
+                    );
                 }
             }
         }
         AriaPropertyType::Tristate => {
             if value != "true" && value != "false" && value != "mixed" {
-                warnings.push(w::a11y_incorrect_aria_attribute_type_tristate(name));
+                warnings.push(w::a11y_incorrect_aria_attribute_type_tristate(name).at(start, end));
             }
         }
     }
