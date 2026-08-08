@@ -27,6 +27,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { selectTargets } from './targets.mjs';
 import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
+import { assertOracleCompiles } from './oracle.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -209,6 +210,15 @@ if (!fs.existsSync(BINDING)) {
 if (!FILTER) {
 	fs.rmSync(EXPECTED, { recursive: true, force: true });
 	fs.rmSync(ACTUAL, { recursive: true, force: true });
+}
+
+// The workers are isolated so an rsvelte panic cannot end the run, which means
+// an oracle that cannot even load is recorded as a per-entry rust_panic instead.
+try {
+	assertOracleCompiles(ROOT, 'compile');
+} catch (e) {
+	console.error(`\n${e.message}`);
+	process.exit(2);
 }
 
 // After the wipe above, so the figure reflects the space this run really needs.

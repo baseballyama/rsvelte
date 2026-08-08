@@ -70,6 +70,7 @@ import { flattenTemplateHoles, stripBlankLines, firstDiffLine } from './normaliz
 import { selectTargets, TARGETS as ALL_TARGETS } from './targets.mjs';
 import { insertionSlots } from './matrix/mutate.mjs';
 import { COMMENT_KINDS } from './matrix/axes.mjs';
+import { assertOracleCompiles } from './oracle.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -285,6 +286,16 @@ if (!fs.existsSync(BINDING)) {
 	console.error(`[mutate] rsvelte NAPI binding missing at ${path.relative(ROOT, BINDING)}`);
 	console.error('  build: cargo build --release -p rsvelte_napi --lib');
 	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node');
+	process.exit(2);
+}
+
+// A dead oracle is indistinguishable from a dead compiler here: the workers run
+// in child processes so a panic cannot end the sweep, so an oracle that cannot
+// even load is recorded as `compiler-crash` on every seed.
+try {
+	assertOracleCompiles(ROOT, 'mutate');
+} catch (e) {
+	console.error(`\n${e.message}`);
 	process.exit(2);
 }
 
