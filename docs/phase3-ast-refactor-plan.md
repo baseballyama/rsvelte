@@ -478,9 +478,12 @@ not quote 6.59x as current.
 > The answers interlock — that section prices one object key (`String` malloc + `IndexMap`
 > slot + SipHash, from 88 distinct static keys), and this section names what emits the keys.
 
-**`JsNode` → `serde_json::Value` is an OPEN target, and the part of it worth
-attacking is `instance_labeled_statements_json` in `2_analyze/mod.rs` — not the
-lazy JSON cache that #2510 / #2570 / #2576 optimized.**
+**The part of `JsNode` → `serde_json::Value` worth attacking was
+`instance_labeled_statements_json` in `2_analyze/mod.rs` — not the lazy JSON cache
+that #2510 / #2570 / #2576 optimized.** #2622 has since ported that site and its
+three legacy-`$:` consumers to typed traversal, so the numbers below describe the
+tree *before* it; they are kept because the reasoning that located the site is the
+reusable part, not the count.
 
 `JsNode::to_value` has **54 call sites**. One is the lazy cache in
 `TypedExpr::as_json`; the other 53 bypass it. Every materialization figure this

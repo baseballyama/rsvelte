@@ -45,8 +45,9 @@ module path) is internal IR construction with unchanged output — a maintainabi
 12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
 `instance_labeled_statements_json` (`2_analyze/mod.rs`) — **77–82% of all JSON objects and map
 entries on legacy-`$:` corpora, 0% on runes-only code**, confirmed by two independent
-instruments. The remedy is porting its three legacy-`$:` consumers to typed traversal, not
-another cache. This is not a competing claim to § *Where compile time goes* below, which asks
+instruments. The remedy was porting its three legacy-`$:` consumers to typed traversal, not
+another cache — #2622 did that, byte-identically, so those figures describe the tree before it.
+This is not a competing claim to § *Where compile time goes* below, which asks
 which **site** owns the alloc+hash+memcpy bucket and correctly answers *none*: the two
 populations differ and the answers interlock — that section prices a JSON object key (`String`
 malloc + `IndexMap` slot + SipHash), and this site is what produces the keys.
