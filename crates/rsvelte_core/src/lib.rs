@@ -36,6 +36,8 @@ pub mod measure_hoisted;
 pub mod measure_module_source;
 #[cfg(feature = "measure-prop-reads")]
 pub mod measure_prop_reads;
+#[cfg(feature = "measure-rs-deps")]
+pub mod measure_rs_deps;
 #[cfg(feature = "measure-slot-key")]
 pub mod measure_slot_key;
 #[cfg(feature = "measure-stmt-chain")]

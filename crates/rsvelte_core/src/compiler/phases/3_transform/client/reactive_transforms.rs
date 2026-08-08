@@ -49,6 +49,9 @@ pub(super) fn extract_reactive_statement_deps(
         .map(|s| s.as_str())
         .collect();
 
+    #[cfg(feature = "measure-rs-deps")]
+    crate::measure_rs_deps::record_stmt(all_reactive_vars.len(), body.len());
+
     let mut assigned_vars = Vec::new();
     let mut dep_vars = Vec::new();
 
@@ -71,6 +74,8 @@ pub(super) fn extract_reactive_statement_deps(
 
         // Extract dependencies from RHS
         for var_name in &all_reactive_vars {
+            #[cfg(feature = "measure-rs-deps")]
+            crate::measure_rs_deps::record_ref_scan(rhs.len());
             if body_references_identifier(rhs, var_name) {
                 // Only add as dependency if it's not also being assigned
                 if !assigned_vars.contains(&var_name.to_string()) {
@@ -82,6 +87,8 @@ pub(super) fn extract_reactive_statement_deps(
         // Not a simple assignment - expression statement like `console.log(x)` or `if (...) { x++ }`
         // All referenced reactive vars are dependencies
         for var_name in &all_reactive_vars {
+            #[cfg(feature = "measure-rs-deps")]
+            crate::measure_rs_deps::record_ref_scan(body.len());
             if body_references_identifier(body, var_name) {
                 dep_vars.push(var_name.to_string());
             }
@@ -109,11 +116,19 @@ pub(super) fn extract_reactive_statement_deps(
 /// Check if a variable is assigned anywhere in a code body (including nested blocks).
 /// Detects `var = ...`, `var += ...`, `var++`, `var--`, `++var`, `--var` patterns.
 pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
+    #[cfg(feature = "measure-rs-deps")]
+    crate::measure_rs_deps::record_assign_scan(body.len());
     // Every pattern below contains `var_name`, so one SIMD scan rules them all
     // out at once instead of formatting and searching twenty of them.
     if memmem::find(body.as_bytes(), var_name.as_bytes()).is_none() {
+        #[cfg(feature = "measure-rs-deps")]
+        crate::measure_rs_deps::record_assign_prefilter_miss();
         return false;
     }
+    // The four update needles below are built eagerly; the assignment needles
+    // are counted per iteration because that loop returns early.
+    #[cfg(feature = "measure-rs-deps")]
+    crate::measure_rs_deps::record_format_alloc(4);
 
     // Check for update expressions: `var++`, `var--`, `++var`, `--var`
     let pp = format!("{}++", var_name);
@@ -152,6 +167,8 @@ pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
         " >>= ", " >>>= ", " ??= ", " &&= ", " ||= ",
     ];
     for assign_op in &assign_patterns {
+        #[cfg(feature = "measure-rs-deps")]
+        crate::measure_rs_deps::record_format_alloc(1);
         let pattern = format!("{}{}", var_name, assign_op);
         if let Some(pos) = body.find(&pattern) {
             // Verify the variable name is at a word boundary (not part of a longer name)
