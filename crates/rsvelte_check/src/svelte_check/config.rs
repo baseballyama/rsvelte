@@ -132,7 +132,7 @@ pub fn load_compiler_options(workspace: &Path) -> CompilerOptionsSettings {
 /// instead of discovering `svelte.config.*` / `vite.config.*` under the
 /// workspace. Mirrors the JS reference's `--config` flag, which points at
 /// a `svelte.config` / `vite.config` under a non-standard name or location.
-/// Which kind it is comes from [`explicit_config_is_vite`], not from the
+/// Which kind it is comes from `explicit_config_is_vite`, not from the
 /// filename alone.
 pub fn load_compiler_options_with_config(
     workspace: &Path,

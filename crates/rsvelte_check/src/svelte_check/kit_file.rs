@@ -66,8 +66,8 @@ pub fn load_kit_files_settings(workspace: &Path) -> KitFilesSettings {
 /// discovered `svelte.config.*`. Mirrors the JS reference's `--config`.
 /// `kit.files` only ever lives in a Svelte config, so a config that is not
 /// one yields defaults — under any filename, which is why the test is
-/// [`is_svelte_config_name`](super::config::is_svelte_config_name) rather
-/// than a local one.
+/// `config::explicit_config_is_vite` negated: it reads the file's contents,
+/// so it answers "is this a Svelte config" for a name it has never seen.
 pub fn load_kit_files_settings_with_config(
     workspace: &Path,
     config: Option<&Path>,
