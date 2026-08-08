@@ -64,8 +64,10 @@ pub fn load_kit_files_settings(workspace: &Path) -> KitFilesSettings {
 /// Like [`load_kit_files_settings`], but when `config` is `Some` the
 /// `kit.files` settings are read from that exact file instead of the
 /// discovered `svelte.config.*`. Mirrors the JS reference's `--config`.
-/// `kit.files` only ever lives in a Svelte config, so a `vite.config.*`
-/// override yields defaults.
+/// `kit.files` only ever lives in a Svelte config, so a config that is not
+/// one yields defaults — under any filename, which is why the test is
+/// [`is_svelte_config_name`](super::config::is_svelte_config_name) rather
+/// than a local one.
 pub fn load_kit_files_settings_with_config(
     workspace: &Path,
     config: Option<&Path>,
@@ -77,10 +79,14 @@ pub fn load_kit_files_settings_with_config(
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or_default();
-        if name.starts_with("vite.config") {
+        let Ok(source) = std::fs::read_to_string(path) else {
             return settings;
-        }
-        if let Ok(source) = std::fs::read_to_string(path) {
+        };
+        if !super::config::explicit_config_is_vite(
+            name,
+            &source,
+            super::config::config_source_type(name),
+        ) {
             parse_kit_files_source(&source, &mut settings);
         }
         return settings;
@@ -2318,6 +2324,47 @@ mod tests {
         );
         let s = load_kit_files_settings(&tmp);
         assert_eq!(s.server_hooks_path, "srv/hooks");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// `--config` may name either kind of config under any filename (issue
+    /// #2650), and only a Svelte config carries `kit.files`. What separates
+    /// them is the Svelte plugin call, not the name: a file named
+    /// `vite.custom.config.js` with no plugin is a Svelte config upstream
+    /// too, because the Vite loader finds nothing and the Svelte loader runs.
+    #[test]
+    fn explicit_config_reads_kit_files_only_from_a_svelte_config() {
+        let tmp = std::env::temp_dir().join(format!("rsvelte_kit_cfg_expl_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        const KIT: &str = "kit: { files: { hooks: { server: 'srv/hooks' } } }";
+
+        for name in ["custom.svelte.js", "vite.custom.config.js"] {
+            std::fs::write(tmp.join(name), format!("export default {{ {KIT} }};")).unwrap();
+            let s = load_kit_files_settings_with_config(&tmp, Some(&tmp.join(name)));
+            assert_eq!(
+                s.server_hooks_path, "srv/hooks",
+                "{name} declares no plugin, so it is a svelte config whatever it is called"
+            );
+        }
+
+        // A real Vite config — the plugin call is what makes it one — is not
+        // a `kit.files` source even when the property is sitting right there.
+        std::fs::write(
+            tmp.join("vite.custom.config.js"),
+            format!(
+                r#"import {{ svelte }} from '@sveltejs/vite-plugin-svelte';
+                export default {{ plugins: [svelte()], {KIT} }};"#
+            ),
+        )
+        .unwrap();
+        let s = load_kit_files_settings_with_config(&tmp, Some(&tmp.join("vite.custom.config.js")));
+        assert_ne!(
+            s.server_hooks_path, "srv/hooks",
+            "a vite config is not a kit.files source"
+        );
+
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

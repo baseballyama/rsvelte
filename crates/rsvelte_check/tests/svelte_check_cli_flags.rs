@@ -155,6 +155,49 @@ fn no_tsconfig_ignores_tsconfig_flag() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Issue #2650: `--config vite.custom.config.js`. End-to-end through the
+/// binary, because both defects it hit live outside the config loader —
+/// the name classification, and the path staying workspace-relative while
+/// the loader reads it from the process cwd. The workspace is a temp dir
+/// and the test's cwd is not, so a relative read finds nothing and the
+/// component keeps its `experimental_async` error.
+#[test]
+fn custom_named_vite_config_supplies_compiler_options() {
+    let dir = workspace("config_custom_vite");
+    write(
+        &dir,
+        "Async.svelte",
+        "<script>\n  let x = await Promise.resolve(1);\n</script>\n<p>{x}</p>\n",
+    );
+    write(
+        &dir,
+        "vite.custom.config.js",
+        r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+        export default {
+            plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
+        };"#,
+    );
+
+    // Without the flag the same workspace must still error, or the
+    // assertion below would pass on a build that reads no config at all.
+    let bare = run(&dir, &["--no-type-check"]);
+    assert!(
+        String::from_utf8_lossy(&bare.stdout).contains("experimental_async"),
+        "control: an unconfigured run must report the error"
+    );
+
+    let out = run(
+        &dir,
+        &["--no-type-check", "--config", "vite.custom.config.js"],
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !stdout.contains("experimental_async"),
+        "--config must read the plugin's compilerOptions; got:\n{stdout}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn config_missing_file_errors() {
     let dir = workspace("config_missing");

@@ -197,16 +197,21 @@ fn main() -> ExitCode {
 
     // `--config` names an explicit config file; the JS reference errors
     // when the path doesn't exist rather than silently discovering one.
-    if let Some(config) = cli.config.as_deref() {
-        let abs = if config.is_absolute() {
-            config.to_path_buf()
+    // A relative path is workspace-relative there, and the resolved path is
+    // what the loader gets — resolving only for the existence check would let
+    // a run pass this gate and then read nothing.
+    let mut config = cli.config.clone();
+    if let Some(path) = cli.config.as_deref() {
+        let abs = if path.is_absolute() {
+            path.to_path_buf()
         } else {
-            workspace.join(config)
+            workspace.join(path)
         };
         if !abs.exists() {
-            eprintln!("Could not find config file at {}", config.display());
+            eprintln!("Could not find config file at {}", path.display());
             return ExitCode::from(2);
         }
+        config = Some(abs);
     }
 
     // `--no-tsconfig` means "use no project tsconfig": ignore `--tsconfig`
@@ -231,7 +236,7 @@ fn main() -> ExitCode {
         compiler_warnings,
         diagnostic_sources,
         incremental: cli.incremental,
-        config: cli.config.clone(),
+        config,
     };
 
     if cli.watch {

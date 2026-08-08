@@ -79,6 +79,33 @@ const VITE_CONFIG_CANDIDATES: &[&str] = &[
     "vite.config.cts",
 ];
 
+/// Should an explicit `--config` be read as a **Vite** config?
+///
+/// `--config` exists to name a config whose filename is non-standard, so the
+/// name can only be trusted in the one direction upstream trusts it.
+/// `load-config`'s `loadConfigFromFile` matches `^svelte\.config\.` and hands
+/// everything else to the Vite loader *first*, falling back to the Svelte
+/// loader when that finds nothing — so a file is a Vite config when it both
+/// is not named as a Svelte one and actually carries a Svelte plugin call.
+///
+/// Asking "is it named `vite.config.*`" instead is neither half: it answers
+/// "Svelte" for `vite.custom.config.js`, the one kind of name the flag is
+/// for. Every `--config` consumer asks this question, so they all ask it
+/// here — the wrong polarity shipped because three copies existed and only
+/// one of them was tested.
+pub(super) fn explicit_config_is_vite(name: &str, source: &str, source_type: SourceType) -> bool {
+    !name.starts_with("svelte.config.") && declares_svelte_plugin(source, source_type)
+}
+
+/// The oxc `SourceType` implied by a config filename's extension.
+pub(super) fn config_source_type(name: &str) -> SourceType {
+    if name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts") {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    }
+}
+
 /// Load the diagnostic-relevant `compilerOptions` from
 /// `<workspace>/svelte.config.*` and `<workspace>/vite.config.*`.
 ///
@@ -104,10 +131,9 @@ pub fn load_compiler_options(workspace: &Path) -> CompilerOptionsSettings {
 /// diagnostic-relevant `compilerOptions` are read from that exact file
 /// instead of discovering `svelte.config.*` / `vite.config.*` under the
 /// workspace. Mirrors the JS reference's `--config` flag, which points at
-/// a non-standard `svelte.config` / `vite.config` location. The file is
-/// classified by name: a `vite.config.*` is parsed for the inline
-/// `svelte()` / `sveltekit()` plugin options, anything else as a Svelte
-/// config.
+/// a `svelte.config` / `vite.config` under a non-standard name or location.
+/// Which kind it is comes from [`explicit_config_is_vite`], not from the
+/// filename alone.
 pub fn load_compiler_options_with_config(
     workspace: &Path,
     config: Option<&Path>,
@@ -122,13 +148,8 @@ pub fn load_compiler_options_with_config(
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or_default();
-        let is_ts = name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts");
-        let source_type = if is_ts {
-            SourceType::ts()
-        } else {
-            SourceType::default()
-        };
-        let kind = if name.starts_with("vite.config") {
+        let source_type = config_source_type(name);
+        let kind = if explicit_config_is_vite(name, &source, source_type) {
             ConfigKind::Vite
         } else {
             ConfigKind::Svelte
@@ -327,6 +348,21 @@ fn find_svelte_plugin_call<'a>(expr: &'a oxc::Expression<'a>) -> Option<SveltePl
 /// even an argument we can't read statically still suppresses the file,
 /// exactly as it would at runtime. The plain `svelte()` plugin never
 /// suppresses `svelte.config.js`.
+/// Does this source export a Vite config carrying a `svelte()` / `sveltekit()`
+/// plugin call? The question a `--config` path has to answer before it can be
+/// read as a Vite config at all.
+fn declares_svelte_plugin(source: &str, source_type: SourceType) -> bool {
+    let allocator = Allocator::default();
+    let parser = OxcParser::new(&allocator, source, source_type);
+    let result = parser.parse();
+    result.program.body.iter().any(|stmt| {
+        config_object_from_stmt(stmt)
+            .and_then(|obj| lookup_property(obj, "plugins"))
+            .and_then(find_svelte_plugin_call)
+            .is_some()
+    })
+}
+
 fn vite_uses_inline_sveltekit_config(source: &str, source_type: SourceType) -> bool {
     let allocator = Allocator::default();
     let parser = OxcParser::new(&allocator, source, source_type);
@@ -375,21 +411,24 @@ fn extract_compiler_options(obj: &oxc::ObjectExpression, settings: &mut Compiler
 /// without one never spawns Node; the sidecar re-checks `typeof === 'function'`
 /// after actually loading the config.
 ///
-/// Only `svelte.config.*` is considered (matching where the official
+/// Only a Svelte config is considered (matching where the official
 /// svelte-check reads `compilerOptions.warningFilter`). A `warningFilter` passed
-/// inline to the `svelte()` / `sveltekit()` plugin in `vite.config.*` is
-/// intentionally NOT supported: unlike the scalar options, importing a
-/// `vite.config.*` standalone in the sidecar would drag in the whole Vite plugin
+/// inline to the `svelte()` / `sveltekit()` plugin in a Vite config is
+/// intentionally NOT supported: unlike the scalar options, importing a Vite
+/// config standalone in the sidecar would drag in the whole Vite plugin
 /// graph. Returns `None` when no such file/property is found.
 pub fn warning_filter_config_path(workspace: &Path, config: Option<&Path>) -> Option<PathBuf> {
-    // `--config` wins when it names a Svelte config; a vite.config is not a
-    // standalone-importable source of `warningFilter`.
+    // `--config` wins when it is a Svelte config; a Vite config is not a
+    // standalone-importable source of `warningFilter`, whatever it is named.
     if let Some(path) = config {
         let name = path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or_default();
-        if name.starts_with("vite.config") {
+        let Ok(source) = std::fs::read_to_string(path) else {
+            return None;
+        };
+        if explicit_config_is_vite(name, &source, config_source_type(name)) {
             return None;
         }
         return declares_function_warning_filter(path).then(|| path.to_path_buf());
@@ -790,6 +829,121 @@ mod tests {
         assert_eq!(
             warning_filter_config_path(&dir, Some(&dir.join("vite.config.ts"))),
             None
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `--config` exists for names that are not standard, so a Vite config
+    /// under any name has to be read as one (issue #2650).
+    #[test]
+    fn explicit_config_reads_a_vite_config_under_a_custom_name() {
+        let dir = workspace("explicit_custom_vite");
+        for name in [
+            "vite.custom.config.js",
+            "vite.config.custom.ts",
+            "custom.vite.js",
+            "playground.config.mjs",
+        ] {
+            write(
+                &dir,
+                name,
+                r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+                export default {
+                    plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
+                };"#,
+            );
+            let s = load_compiler_options_with_config(&dir, Some(&dir.join(name)));
+            assert!(
+                s.experimental_async,
+                "{name} carries the svelte plugin and must be read as a vite config"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The name test only decides the *Svelte* direction, so a Svelte config
+    /// under a custom name still has to be read as one — there is no plugin
+    /// call in it to read instead.
+    #[test]
+    fn explicit_config_reads_a_svelte_config_under_a_custom_name() {
+        let dir = workspace("explicit_custom_svelte");
+        for name in ["svelte.config.custom.js", "custom.svelte.js"] {
+            write(
+                &dir,
+                name,
+                "export default { compilerOptions: { experimental: { async: true } } };",
+            );
+            let s = load_compiler_options_with_config(&dir, Some(&dir.join(name)));
+            assert!(
+                s.experimental_async,
+                "{name} must be read as a svelte config"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// An explicit config replaces discovery: a `svelte.config.js` sitting
+    /// next to it must not leak in.
+    #[test]
+    fn explicit_config_suppresses_discovery() {
+        let dir = workspace("explicit_suppress");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { experimental: { async: true } } };",
+        );
+        write(
+            &dir,
+            "vite.custom.config.js",
+            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            export default { plugins: [svelte()] };"#,
+        );
+        let s = load_compiler_options_with_config(&dir, Some(&dir.join("vite.custom.config.js")));
+        assert!(
+            !s.experimental_async,
+            "the discovered svelte.config must not be consulted"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A Vite config is not a `warningFilter` source — the sidecar imports
+    /// the file standalone, which a Vite config is not — and that stays true
+    /// under a custom name.
+    #[test]
+    fn custom_named_vite_config_is_not_a_warning_filter_source() {
+        let dir = workspace("wf_custom_vite");
+        // The top-level `compilerOptions` is not a shape a real vite config
+        // has; it is here so the only thing that can decide the answer is the
+        // classification. Reading it would mean handing the sidecar a file it
+        // cannot import standalone.
+        write(
+            &dir,
+            "vite.custom.config.js",
+            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            export default {
+                plugins: [svelte()],
+                compilerOptions: { warningFilter: () => false }
+            };"#,
+        );
+        assert_eq!(
+            warning_filter_config_path(&dir, Some(&dir.join("vite.custom.config.js"))),
+            None
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// …and the mirror: a Svelte config under a custom name *is* one.
+    #[test]
+    fn custom_named_svelte_config_is_a_warning_filter_source() {
+        let dir = workspace("wf_custom_svelte");
+        write(
+            &dir,
+            "custom.svelte.js",
+            "export default { compilerOptions: { warningFilter: () => false } };",
+        );
+        assert_eq!(
+            warning_filter_config_path(&dir, Some(&dir.join("custom.svelte.js"))),
+            Some(dir.join("custom.svelte.js"))
         );
         let _ = std::fs::remove_dir_all(&dir);
     }

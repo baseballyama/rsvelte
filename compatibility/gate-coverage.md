@@ -52,7 +52,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
-| 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts | [S] |
+| 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts, every flag but `--tsconfig` | [D] |
 | 13 | svelte-check Layer 2 (e2e) | same key, 3 units in 2 repos | same fields; whether the oracle finds anything at all | [U] |
 | 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
 | 15 | `ast_gate_preconditions` | "rsvelte's own output parses" | compile **failures** are skipped — errors make it greener | [S] |
@@ -651,9 +651,23 @@ false positives and nothing else. **This is a question, not a finding.** Resolve
 ### Blind spot 12d — the CLI surface is one point
 
 `check-verify.mjs:197-202` forwards only `--workspace`, `--tsconfig`, and per-scenario `args`.
-Exactly one of 30 scenarios uses `args` (`ts7-native`: `["--tsgo"]`). **[S]** `--threshold`,
-`--fail-on-warnings`, `--ignore`, `--compiler-warnings`, `--watch` and the `human` /
+Exactly one of 30 scenarios uses `args` (`ts7-native`: `["--tsgo"]`). **[D]** `--threshold`,
+`--fail-on-warnings`, `--ignore`, `--compiler-warnings`, `--config`, `--watch` and the `human` /
 `machine` / `github-actions` output formats are compared against the oracle nowhere.
+
+`--config` is the discriminating case (#2650). It changes *where the compiler options come
+from*, so it can move any diagnostic in any scenario, and it shipped classifying its argument by
+asking whether the filename began with `vite.config` — false for precisely the non-standard names
+the flag exists to accept. `--config vite.custom.config.js` therefore read the file as a Svelte
+config, found no `compilerOptions`, and reported `experimental_async` on every top-level `await`
+in a project that had enabled it. Two things kept that invisible: no scenario passes `--config`,
+and the flag's own unit tests all went through *discovery* (`load_compiler_options(&dir)`), so the
+explicit branch had **zero** tests across its three consumers — one of which (`kit_file.rs`)
+carried a third copy of the same wrong predicate.
+
+The lesson generalises past this gate: a flag that selects an input source is not one more
+option to forward, it is a **second population**. Compare 5a, where the same shape (an entry
+point nothing reached) hid a whole compiler path.
 
 ### Blind spot 12e — the tsc/tsgo equivalence claim is asserted, not measured
 
