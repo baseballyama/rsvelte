@@ -5638,6 +5638,10 @@ fn transform_instance_script_for_visitors(
             // Check if this is a destructured export let pattern
             let after_export_let = effective_export_kw_line[11..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_DESTRUCTURED,
+                    statement.len() as u64,
+                );
                 // Destructured export let: flatten using extract_paths pattern
                 if let Some(flattened) = transform_destructured_export_let(&statement, analysis) {
                     let flattened = if analysis.runes {
@@ -5657,49 +5661,73 @@ fn transform_instance_script_for_visitors(
                 }
             }
             // Use the full statement for multi-line export declarations
-            let transformed = transform_export_let(&statement, analysis);
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_TRANSFORM,
+                    statement.len() as u64,
+                );
+                transform_export_let(&statement, analysis)
+            };
             // After converting to $.prop(), apply prop read wrapping to the DEFAULT VALUE
             // inside $.prop() calls. wrap_prop_source_reads skips lines containing $.prop(),
             // so we need to apply it only to the interior of the default value expression.
             // This handles cases like: export let click_1 = () => { logs.push('click_1'); }
             // where `logs` is a prop and should become `logs()` inside the default value.
-            let transformed = if !prop_assignment_transform_vars.is_empty() {
-                apply_prop_reads_in_prop_default_values(
-                    &transformed,
-                    prop_assignment_transform_vars,
-                )
-            } else {
-                transformed
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_PROP_READS,
+                    transformed.len() as u64,
+                );
+                if !prop_assignment_transform_vars.is_empty() {
+                    apply_prop_reads_in_prop_default_values(
+                        &transformed,
+                        prop_assignment_transform_vars,
+                    )
+                } else {
+                    transformed
+                }
             };
             // Apply state variable assignment transforms ($.set) to the full export let statement.
             // This handles cases where state variables are assigned inside nested callbacks
             // within the default value expression, e.g.:
             //   export let promise = new Promise((resolve) => { setTimeout(() => { answer = 42; }, 0); })
             // The `answer = 42` inside the callback needs to become `$.set(answer, 42)`.
-            let transformed = if analysis.runes {
-                transformed // AST transform handles state var wrapping
-            } else {
-                // Combined pipeline: assigns + reads in one parse.
-                let _ = proxy_vars;
-                state_pipeline_ast::transform_state_pipeline_ast(
-                    &transformed,
-                    state_vars,
-                    raw_state_vars,
-                    analysis.runes,
-                    &non_proxy_vars,
-                    non_reactive_state_vars,
-                )
-                .unwrap_or(transformed)
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_STATE_PIPELINE,
+                    transformed.len() as u64,
+                );
+                if analysis.runes {
+                    transformed // AST transform handles state var wrapping
+                } else {
+                    // Combined pipeline: assigns + reads in one parse.
+                    let _ = proxy_vars;
+                    state_pipeline_ast::transform_state_pipeline_ast(
+                        &transformed,
+                        state_vars,
+                        raw_state_vars,
+                        analysis.runes,
+                        &non_proxy_vars,
+                        non_reactive_state_vars,
+                    )
+                    .unwrap_or(transformed)
+                }
             };
             // Apply store subscription transformations to the default value expression
             // (e.g. `export let value = $page.params` becomes `$.prop(..., () => $page().params)`).
             // Only transform when the default value is wrapped in an arrow function — when
             // the default is a bare store identifier (e.g. `$foo`), it's passed as a getter
             // reference and must stay untransformed.
-            let transformed = if !store_sub_vars.is_empty() && !analysis.runes {
-                apply_store_reads_in_prop_default_values(&transformed, store_sub_vars)
-            } else {
-                transformed
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_STORE_READS,
+                    transformed.len() as u64,
+                );
+                if !store_sub_vars.is_empty() && !analysis.runes {
+                    apply_store_reads_in_prop_default_values(&transformed, store_sub_vars)
+                } else {
+                    transformed
+                }
             };
             result.push_str(&transformed);
             result.push('\n');

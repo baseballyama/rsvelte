@@ -359,7 +359,11 @@ fn main() {
         );
         let mut split = st.runes + st.reactive_stmt;
         for (i, name) in profile::PA_STAGE_NAMES.iter().enumerate() {
-            split += pa.time[i];
+            // Nested rows sit inside a stage already counted; adding them would
+            // double-count and break the check against the parent.
+            if i < profile::PA_NESTED_FROM {
+                split += pa.time[i];
+            }
             println!(
                 "    PA {name:<32} {:8.3}ms ({:5.2}%) calls {:>8} work {}",
                 ms(pa.time[i]),

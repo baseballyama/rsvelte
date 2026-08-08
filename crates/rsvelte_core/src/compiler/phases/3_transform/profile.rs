@@ -546,9 +546,17 @@ pub const PA_STAGE_NAMES: [&str; PA_STAGES] = [
     "read_only_props",
     "console_dev",
     "emit",
+    "  el:destructured",
+    "  el:transform_export_let",
+    "  el:prop_reads_in_defaults",
+    "  el:state_pipeline",
+    "  el:store_reads_in_defaults",
 ];
 
-pub const PA_STAGES: usize = 22;
+/// Indices at and above this one are nested inside another stage and must be
+/// excluded from the sum that is checked against the parent.
+pub const PA_NESTED_FROM: usize = 22;
+pub const PA_STAGES: usize = 27;
 
 pub const PA_JOIN: usize = 0;
 pub const PA_EXPORT_KW_PROBE: usize = 1;
@@ -572,6 +580,15 @@ pub const PA_REST_PROP_MEMBER_ACCESS: usize = 18;
 pub const PA_READ_ONLY_PROPS: usize = 19;
 pub const PA_CONSOLE_DEV: usize = 20;
 pub const PA_EMIT: usize = 21;
+
+/// `export_let`'s own four calls, one level below [`PA_EXPORT_LET`]. Kept in the
+/// same accumulator so the sub-rows and their parent are drained together; they
+/// are nested inside `PA_EXPORT_LET`, so they are NOT part of the split sum.
+pub const PA_EL_DESTRUCTURED: usize = 22;
+pub const PA_EL_TRANSFORM: usize = 23;
+pub const PA_EL_PROP_READS: usize = 24;
+pub const PA_EL_STATE_PIPELINE: usize = 25;
+pub const PA_EL_STORE_READS: usize = 26;
 
 /// Per-stage time plus the two load-independent work counters, so a surprising
 /// time row can be asked whether the work moved or only the clock did.
