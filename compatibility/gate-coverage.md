@@ -62,8 +62,9 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
 | 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size | [D] |
 
-Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, and the
-**performance** gates' population) are in [§ Cross-cutting](#cross-cutting) at the end.
+Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, the **performance**
+gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
+are in [§ Cross-cutting](#cross-cutting) at the end.
 
 ---
 
@@ -950,10 +951,26 @@ PASS":
    `comment-mismatch` retires the entry as "already PASS" while the entry still diverges.
 
 Consequence for re-baselining: an `already PASS` count is only evidence of fixes if the corpus
-tree did not move. The check is `git log --oneline <since> -- submodules scripts/compat-corpus/corpus-sources.json`
+tree did not move. Two checks, and they cover different reasons.
+
+*Reason 2* — `git log --oneline <since> -- submodules scripts/compat-corpus/corpus-sources.json`
 returning nothing, with a non-empty commit count over the same range as the positive control.
-Reason 4 is not covered by that check at all — **unmeasured** whether any current entry retires
-by class change rather than by fix.
+This covers seeds vanishing because the tree moved; it does **not** cover a source absent from
+the working copy (**C7**).
+
+*Reason 4* — **measured `[D]` 0**, in the `code-mismatch ⇄ unparseable` direction. Method:
+extract `id (target)` from the NEW-divergences and already-PASS lists with the verdict stripped
+and intersect; an entry that merely changed class appears in both. Empty at `d1eedb3f` over
+14,138 seeds. The instrument is shown to move by the same counter reporting 16 unparseable at
+`d88546a7` and 10 at `39ba6489` on the same day, so this is not the vacuous kind of zero.
+
+That covers only the two verdicts the baseline can represent. **Transitions into
+`comment-mismatch` remain unmeasured**, because those ids are never recorded — `:555-557`
+increments the counter and `continue`s before any `failures.push`, so no comment-mismatch key
+exists to intersect against. Closing that half needs the id recorded alongside the count. The
+first attempt at this cell proposed intersecting against that non-existent set, which would have
+returned empty regardless of the truth — a vacuous zero is worse than a blank, because the blank
+advertises itself.
 
 ### Blind spot 20d — insertion is line-boundary only, and `<script>` only
 
@@ -1017,6 +1034,28 @@ while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked
 | svelte2tsx fixtures | `total_tested >= 254`, absolute | `svelte2tsx_fixtures.rs:30,155` |
 | **css-prune sweep** | **none** | `css-prune-sweep.mjs:482` is a `console.log` |
 | check / check-e2e | scenarios > 0; **no diagnostic floor**, ratchets are `[]` | `check-verify.mjs:179`; gap at `:240` |
+
+### C7. An uninitialised corpus source shrinks the population silently, and no floor catches it
+
+**[D]** `collect.mjs:168-178` walks `corpus-sources.json` and, for a source whose directory is
+missing or empty, warns and `continue`s. Only `src.required` sources abort (`:171-174`) — and
+**2 of 36 sources are required**, so 34 can each disappear from the measured population while
+`collect.mjs` exits 0 and writes a manifest that looks complete.
+
+Observed, not hypothetical: a sweep run with `runed` and `svelte-toolbelt` uninitialised
+measured **14,035** entries instead of 14,138, and **10 baseline entries came from those two
+sources**. `--update-baseline` deletes every baseline id it did not measure, so those ten would
+have been dropped as fixed.
+
+The floor does not help. `MIN_FULL_CORPUS_ENTRIES = 12000` (`artifacts.mjs:87`) guards against
+*catastrophic* under-measurement; 14,035 clears it comfortably. A partial corpus is invisible to
+a lower bound **by construction** — the only thing that surfaced it was comparing the local
+manifest count against CI's.
+
+This sits upstream of blind spot 20c's reason 2 and applies to every corpus-derived gate (1, 2-3,
+4, 19, 20), not only the mutation fuzz. Closing it means asserting the *set* of collected
+sources against `corpus-sources.json`, not the entry count — an entry count cannot distinguish a
+missing source from a source that shrank.
 
 ### C4. Gate scripts that no workflow invokes
 
