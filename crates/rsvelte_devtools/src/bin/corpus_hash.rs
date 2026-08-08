@@ -45,7 +45,10 @@ fn main() {
                 for w in &result.warnings {
                     w.code.hash(&mut hasher);
                     w.message.hash(&mut hasher);
-                    w.start.as_ref().map(|p| (p.line, p.column)).hash(&mut hasher);
+                    w.start
+                        .as_ref()
+                        .map(|p| (p.line, p.column))
+                        .hash(&mut hasher);
                 }
                 format!(
                     "{:016x} {} w{}",
