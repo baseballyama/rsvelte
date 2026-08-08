@@ -236,6 +236,59 @@ fn main() {
         ms(analyze_visitor_time),
         pct(analyze_visitor_time)
     );
+    // `analyze_component` hard-codes `retained_scripts: None` (2_analyze/mod.rs:124);
+    // only `compile()` supplies them. Measuring store_subs on the phase-split path
+    // above would therefore report a retained-reuse rate that is a property of this
+    // harness, not of the compiler. Drain that reading and re-take it through the
+    // real entry point.
+    let _ = rsvelte_core::compiler::phases::phase2_analyze::profile::take_store_subs();
+    let compile_start = Instant::now();
+    for (_, content) in files.iter() {
+        let _ = rsvelte_core::compile(content, compile_opts.clone());
+    }
+    let compile_total = compile_start.elapsed();
+    let ss = rsvelte_core::compiler::phases::phase2_analyze::profile::take_store_subs();
+    println!(
+        "  [store_subs measured through compile(), total {:7.2}ms]",
+        ms(compile_total)
+    );
+    if ss.calls > 0 {
+        println!(
+            "    store_subs         {:7.2}ms ({:5.1}%) | {:.1}% of Visitors | calls {}",
+            ms(ss.total),
+            pct(ss.total),
+            ss.total.as_secs_f64() / analyze_visitor_time.as_secs_f64() * 100.0,
+            ss.calls
+        );
+        println!(
+            "      TS scripts {} | reparses {} ({:.2}%) | lexical scan {} bytes",
+            ss.ts_scripts,
+            ss.ts_reparses,
+            if ss.ts_scripts == 0 {
+                0.0
+            } else {
+                ss.ts_reparses as f64 / ss.ts_scripts as f64 * 100.0
+            },
+            ss.scan_bytes
+        );
+        // The four are charged in guard order, so they must sum to `reparses`.
+        // A residual means a fifth cause the split does not name.
+        let rej_sum = ss.rej_absent + ss.rej_panicked + ss.rej_diagnostics + ss.rej_source_differs;
+        println!(
+            "      REJECT absent {} | panicked {} | diagnostics {} | source-differs {} | sum {} vs reparses {} ({})",
+            ss.rej_absent,
+            ss.rej_panicked,
+            ss.rej_diagnostics,
+            ss.rej_source_differs,
+            rej_sum,
+            ss.ts_reparses,
+            if rej_sum == ss.ts_reparses {
+                "EXACT"
+            } else {
+                "RESIDUAL — a cause is unnamed"
+            }
+        );
+    }
     println!(
         "Phase 3 (Transform):   {:7.2}ms ({:5.1}%)",
         ms(transform_time),

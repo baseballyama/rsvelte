@@ -26,6 +26,7 @@ mod diagnostic;
 mod diagnostics_test;
 pub mod errors;
 mod pattern_ids;
+pub mod profile;
 pub mod scope;
 mod scope_builder;
 mod store_subscriptions;
@@ -260,13 +261,19 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
     let is_module_file = analysis.is_module_file;
-    store_subscriptions::detect_store_subscriptions(
+    // Timed outside the `?` so a script that errors still charges its time and
+    // its call: an early return that skips the record loses both, which reads
+    // as the stage being cheaper than it is.
+    let _store_subs_start = profile::timer_start();
+    let store_subs_result = store_subscriptions::detect_store_subscriptions(
         ast,
         &mut analysis,
         options.runes,
         is_module_file,
         retained_scripts,
-    )?;
+    );
+    profile::record_store_subs(profile::timer_elapsed(_store_subs_start));
+    store_subs_result?;
 
     // Detect await expressions and rune references in template and scripts.
     // This is needed for:
