@@ -332,9 +332,10 @@ pub(super) fn braceless_control_header_from_last_line(last: &str) -> Option<bool
 /// statement can, so its right operand is on the next line — automatic
 /// semicolon insertion does not apply.
 ///
-/// Only operators that are unambiguous at the end of a line are listed: `-` is
-/// left out because `a--` ends a statement, and `/` because it also closes a
-/// block comment.
+/// These are the operators currently handled, not every binary operator: `-` and
+/// `/` are still missing, because `a--` ends a statement and `/` also closes a
+/// block comment, so neither can be decided by suffix matching. A line ending in
+/// either still emits invalid output; deciding them needs a token-aware scan.
 pub(super) fn ends_with_binary_operator(code: &str) -> bool {
     let last_line = code.rsplit('\n').next().unwrap_or(code);
     // A comment can end in an operator too (`// a || b`), and it is not one.
@@ -342,13 +343,24 @@ pub(super) fn ends_with_binary_operator(code: &str) -> bool {
         Some(pos) => last_line[..pos].trim_end(),
         None => last_line.trim_end(),
     };
-    t.ends_with("||")
-        || t.ends_with("&&")
-        || t.ends_with("==")
+    // `in` and `instanceof` are words: a bare suffix match also fires on the
+    // identifier `margin`, swallowing the next line — wrong code, which no
+    // parser catches, where the bug this guards against is merely unparseable.
+    if ends_with_keyword(t, "in") || ends_with_keyword(t, "instanceof") {
+        return true;
+    }
+    // Single-byte tails cover their doubled forms too: `**`, `<<`, `>>`, `||`,
+    // `&&`, `??`, and the `=>` whose body starts on the next line. `<`/`>`/`|`/`&`
+    // also end a TS annotation (`let m: Map<string, number>`), which is a complete
+    // statement — safe only because `remove_typescript_nodes` has already stripped
+    // annotations by the time this runs, not because the tails are unambiguous.
+    matches!(
+        t.as_bytes().last(),
+        Some(b'*' | b'%' | b'<' | b'>' | b'|' | b'&' | b'^' | b',' | b'?')
+    ) || t.ends_with("==")
         || t.ends_with("!=")
         || t.ends_with("<=")
         || t.ends_with(">=")
-        || t.ends_with('?')
         || (t.ends_with('+') && !t.ends_with("++"))
 }
 
