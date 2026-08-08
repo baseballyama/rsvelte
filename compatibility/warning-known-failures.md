@@ -34,8 +34,8 @@ compilers already run on every entry.
 
 ## Why the three per-target files are currently identical
 
-`warning-known-failures.client.json`, `.server.json` and `.client-dev.json` hold
-the same 28 entries; the three position files hold the same 4. That is not a
+`warning-known-failures.<target>.json` holds the same 28 entries on all three,
+and `warning-position-known-failures.<target>.json` the same 4 entries. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -60,7 +60,10 @@ The other 22 are noise the user cannot suppress — 81 tuples over four codes
 (`reactive_declaration_module_script_dependency` 62, `component_name_lowercase`
 10, `export_let_unused` 7, `state_referenced_locally` 2). Both are defects, but a
 missing diagnostic and an extra one fail differently, and the ratchet count alone
-does not distinguish them; no entry diverges in both directions at once.
+does not distinguish them; no entry diverges in both directions at once — which
+is what lets the two counts be added:
+
+Partition of `warning-known-failures.<target>.json` by direction: `6 + 22`
 
 Clusters identified so far:
 
