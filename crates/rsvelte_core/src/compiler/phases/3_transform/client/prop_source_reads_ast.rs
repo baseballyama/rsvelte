@@ -65,6 +65,8 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
+
+use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
 use rustc_hash::FxHashSet;
 
 use super::ast_rewrite;
@@ -93,12 +95,9 @@ pub fn wrap_prop_source_reads_ast(
     {
         return None;
     }
-    // Fast probe — bail unless at least one prop var actually
-    // appears in the source.
-    if !prop_vars
-        .iter()
-        .any(|v| memchr::memmem::find(source.as_bytes(), v.as_bytes()).is_some())
-    {
+    // Fast probe — bail unless at least one prop var appears as a
+    // whole identifier token.
+    if !prop_vars.iter().any(|v| contains_identifier(source, v)) {
         return None;
     }
 
@@ -136,6 +135,10 @@ pub fn wrap_prop_source_reads_ast(
             ..ParseOptions::default()
         },
         |program| {
+            super::super::profile::record_semantic_build(
+                super::super::profile::SEM_PROP_SOURCE_READS,
+                program.source_text.len(),
+            );
             let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let semantic = &semantic_ret.semantic;
 
