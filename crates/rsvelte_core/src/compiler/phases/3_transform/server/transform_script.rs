@@ -4153,6 +4153,27 @@ fn unthunk_no_arg_ident_call(expr: &str) -> Option<&str> {
     Some(id_trimmed)
 }
 
+/// The rune argument as it goes inside `$.derived(…)`, verbatim except for an
+/// object literal's wrapping parens — and a newline when the argument ends
+/// inside a `//` comment, which would otherwise swallow the closing paren the
+/// caller appends.
+fn rune_field_value(value: &str) -> String {
+    let value = value.trim();
+    let mut out = String::with_capacity(value.len() + 3);
+    let needs_paren = value.starts_with('{');
+    if needs_paren {
+        out.push('(');
+    }
+    out.push_str(value);
+    if crate::compiler::phases::phase3_transform::shared::js_scan::ends_inside_line_comment(&out) {
+        out.push('\n');
+    }
+    if needs_paren {
+        out.push(')');
+    }
+    out
+}
+
 /// Emit the server replacement for a single rune call, given the raw text
 /// `inner` between the call's parentheses (verbatim, including any comments /
 /// trailing comma / formatting) and which derived flavour it is. Shared by the
@@ -5053,12 +5074,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                             backing_private(&derived_field_name)
                         };
 
-                        let value_str = value.trim();
-                        let wrapped_value = if value_str.starts_with('{') {
-                            format!("({})", value_str)
-                        } else {
-                            value_str.to_string()
-                        };
+                        let wrapped_value = rune_field_value(&value);
 
                         let transformed_line = if derived_field_is_by {
                             format!("{} = $.derived({})", private_name, wrapped_value)
@@ -5383,12 +5399,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         backing_private(&name)
                     };
 
-                    let value_str = value.trim();
-                    let wrapped_value = if value_str.starts_with('{') {
-                        format!("({})", value_str)
-                    } else {
-                        value_str.to_string()
-                    };
+                    let wrapped_value = rune_field_value(&value);
 
                     let transformed_line = if is_derived_by {
                         format!("{} = $.derived({})", private_name, wrapped_value)

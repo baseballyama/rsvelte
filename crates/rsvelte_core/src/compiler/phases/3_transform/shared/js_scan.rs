@@ -129,6 +129,34 @@ pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(u
     }
 }
 
+/// Does `s` end with a `//` comment that no newline has closed?
+///
+/// Every pass that splices raw source into a wrapper appends its closing
+/// delimiter after that text, and an open line comment swallows it.
+pub(crate) fn ends_inside_line_comment(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let mut i = 0usize;
+    let mut prev: Option<u8> = None;
+    while i < bytes.len() {
+        let line_comment = bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/');
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if line_comment && next == bytes.len() {
+                return true;
+            }
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    false
+}
+
 /// Does `name` occur in `source` as a whole identifier token?
 ///
 /// The rewrite passes only ever replace an identifier spelled exactly `name`,
