@@ -990,13 +990,10 @@ fn try_insert_constant_value(
             || (value.starts_with('"') && value.ends_with('"'))
             || (value.starts_with('`') && value.ends_with('`') && !value.contains("${")))
     {
-        // Decode `\uXXXX` / `\u{...}` / `\xHH` escapes to their actual characters so
-        // a known-const string folds to the cooked value (matching upstream's
-        // `scope.evaluate`), e.g. a bidirectional-control-character string emits the
-        // literal characters rather than the raw source escapes. Other escapes
-        // (`\n`, `\\`, ...) are left intact by `decode_unicode_escapes`.
+        // A folded constant is a value, so it holds the cooked string (matching
+        // upstream's `scope.evaluate`); the emitter re-escapes it for the quasi.
         let content = &value[1..value.len() - 1];
-        let decoded = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::decode_unicode_escapes(content);
+        let decoded = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(content);
         constants.insert(name.to_string(), decoded);
         true
     } else if value == "true" || value == "false" || value == "null" || value == "undefined" {
@@ -1042,7 +1039,9 @@ pub(crate) fn try_evaluate_with_constants(
     if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
         || (trimmed.starts_with('"') && trimmed.ends_with('"'))
     {
-        return Some(trimmed[1..trimmed.len() - 1].to_string());
+        return Some(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(
+            &trimmed[1..trimmed.len() - 1],
+        ));
     }
 
     // Handle binary operators: *, +, -

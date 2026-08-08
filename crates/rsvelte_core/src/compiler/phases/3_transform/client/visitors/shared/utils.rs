@@ -3413,14 +3413,13 @@ fn collect_expr_ids_recursive(val: &serde_json::Value, names: &mut Vec<String>) 
     }
 }
 
-/// Decode `\uXXXX`, `\u{X…}` and `\xHH` escape sequences in a string-literal's
-/// raw inner text to their actual characters. Other escapes (`\n`, `\t`, `\'`,
-/// …) and a literal `\\` are left untouched — only the arbitrary-codepoint
-/// escapes are resolved, because those produce plain characters that inline
-/// verbatim wherever the folded value lands (e.g. a known-const string of
-/// bidirectional-control escapes folds to the literal characters, matching
-/// upstream's `scope.evaluate` which returns the cooked value).
-pub(crate) fn decode_unicode_escapes(s: &str) -> String {
+/// Cook a string literal's raw inner text: resolve every JS escape sequence to
+/// the character it denotes, the way upstream's `scope.evaluate` yields the
+/// literal's `value`. The result is a *value*, not source — whoever emits it
+/// re-escapes for the quoting it lands in (`sanitize_template_string` for a
+/// quasi, the printer for a string literal), so leaving an escape undecoded
+/// here escapes it a second time.
+pub(crate) fn cook_string_literal(s: &str) -> String {
     if !s.contains('\\') {
         return s.to_string();
     }
@@ -3430,12 +3429,6 @@ pub(crate) fn decode_unicode_escapes(s: &str) -> String {
     while i < bytes.len() {
         if bytes[i] == b'\\' && i + 1 < bytes.len() {
             match bytes[i + 1] {
-                b'\\' => {
-                    // Literal escaped backslash — keep both bytes, don't reinterpret.
-                    out.push_str("\\\\");
-                    i += 2;
-                    continue;
-                }
                 b'u' if i + 2 < bytes.len() && bytes[i + 2] == b'{' => {
                     if let Some(close) = s[i + 3..].find('}') {
                         let hex = &s[i + 3..i + 3 + close];
@@ -3452,13 +3445,27 @@ pub(crate) fn decode_unicode_escapes(s: &str) -> String {
                     continue;
                 }
                 b'u' if i + 6 <= bytes.len() => {
-                    let hex = &s[i + 2..i + 6];
-                    if let Ok(cp) = u32::from_str_radix(hex, 16)
-                        && let Some(c) = char::from_u32(cp)
-                    {
-                        out.push(c);
-                        i += 6;
-                        continue;
+                    if let Ok(cp) = u32::from_str_radix(&s[i + 2..i + 6], 16) {
+                        if let Some(c) = char::from_u32(cp) {
+                            out.push(c);
+                            i += 6;
+                            continue;
+                        }
+                        // A lone surrogate has no `char`; only a well-formed pair
+                        // does, and Rust cannot hold the unpaired half either way.
+                        if (0xD800..=0xDBFF).contains(&cp)
+                            && i + 12 <= bytes.len()
+                            && bytes[i + 6] == b'\\'
+                            && bytes[i + 7] == b'u'
+                            && let Ok(lo) = u32::from_str_radix(&s[i + 8..i + 12], 16)
+                            && (0xDC00..=0xDFFF).contains(&lo)
+                            && let Some(c) =
+                                char::from_u32(0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00))
+                        {
+                            out.push(c);
+                            i += 12;
+                            continue;
+                        }
                     }
                     out.push('\\');
                     i += 1;
@@ -3477,10 +3484,52 @@ pub(crate) fn decode_unicode_escapes(s: &str) -> String {
                     i += 1;
                     continue;
                 }
-                _ => {
-                    // Other escapes (`\n`, `\t`, `\'`, …) — leave as-is.
+                b'\n' => {
+                    // Line continuation — contributes nothing to the value.
+                    i += 2;
+                    continue;
+                }
+                b'\r' => {
+                    i += if bytes.get(i + 2) == Some(&b'\n') {
+                        3
+                    } else {
+                        2
+                    };
+                    continue;
+                }
+                // Legacy octal is a syntax error in the module goal, so `\0` is
+                // NUL only when no digit follows.
+                b'0' if !bytes.get(i + 2).is_some_and(u8::is_ascii_digit) => {
+                    out.push('\0');
+                    i += 2;
+                    continue;
+                }
+                b'1'..=b'7' => {
                     out.push('\\');
                     i += 1;
+                    continue;
+                }
+                c => {
+                    out.push(match c {
+                        b'n' => '\n',
+                        b'r' => '\r',
+                        b't' => '\t',
+                        b'b' => '\u{8}',
+                        b'f' => '\u{c}',
+                        b'v' => '\u{b}',
+                        _ => {
+                            // `\<anything else>` is that character verbatim, and it
+                            // may be multi-byte (`\é`).
+                            let mut next = i + 2;
+                            while next < bytes.len() && !s.is_char_boundary(next) {
+                                next += 1;
+                            }
+                            out.push_str(&s[i + 1..next]);
+                            i = next;
+                            continue;
+                        }
+                    });
+                    i += 2;
                     continue;
                 }
             }
@@ -3683,7 +3732,7 @@ fn get_literal_value_json(
                 let is_string_literal = (trimmed.starts_with('\'') && trimmed.ends_with('\''))
                     || (trimmed.starts_with('"') && trimmed.ends_with('"'));
                 if is_string_literal && trimmed.len() >= 2 {
-                    return Some(Some(decode_unicode_escapes(&trimmed[1..trimmed.len() - 1])));
+                    return Some(Some(cook_string_literal(&trimmed[1..trimmed.len() - 1])));
                 }
                 // Parse number literals
                 if let Ok(n) = trimmed.parse::<f64>() {
