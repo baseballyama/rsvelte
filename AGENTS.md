@@ -40,6 +40,34 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`, the `.svelte.js`
 module path) is internal IR construction with unchanged output — a maintainability cleanup only.
 
+**The client instance-script pipeline is the exception, and it is a correctness hazard, not a
+cleanup.** That pipeline still decides where a statement or an expression ends by scanning
+characters. Feeding every corpus output to a JS parser — a question no ratchet asks, because
+each one scores match/mismatch and so cannot distinguish "wrong text" from "text that is not
+JavaScript" — found **35 real-world components where rsvelte emitted output no JS parser
+accepts**, all confirmed against official (#2590, #2592, #2596, #2598, #2599, #2603). Every
+one is the same shape: a scanner assuming input it did not get.
+
+| what the scanner assumed | what broke it |
+|---|---|
+| a statement never ends on `=>` | an arrow body starting on the next line |
+| an RHS ends at `;`, `,` or an unbalanced closer | semicolon-free source (`standard` style) |
+| `\` before a quote means it is escaped | `'\\'` — the backslash was itself escaped |
+| a `$: if (…)` header ends its statement | `else` on the following line |
+| the setter call is rendered on one line | the printer breaking it across lines |
+
+Do not size this work against the performance case: re-parsing is 3-4% of compile time, the
+profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass
+`SemanticBuilder` construction measured ~2% with a 3.3% ceiling (#2602). **The justification
+is that these defect classes are unreachable in an AST pipeline, not that it is faster.**
+
+Two cautions before treating any of this as closed. The parse gate (#2591) catches only the
+loud half: #2598 also fixed a file that emitted a bare `$:` labelled statement which *parsed*
+and was wrong, which no parser oracle can see. And the four corpora that produced every one of
+these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not corpus sources**,
+so the gate baselines at 0 while the instances live outside the population it inspects; that is
+why each fix lands a `compatibility/pattern-corpus` repro.
+
 **Key Design Decisions:**
 
 - Memory-efficient layout (u32 positions, compact_str)
