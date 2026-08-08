@@ -483,8 +483,6 @@ pub struct PrenormalizeCounters {
     pub chg_class_fields: u64,
     pub inv_split_decls: u64,
     pub chg_split_decls: u64,
-    pub inv_arrow_parens: u64,
-    pub chg_arrow_parens: u64,
     /// Files where at least one transform changed the text. Distinct from the
     /// sum of the per-transform counts, which double-counts a file that two
     /// transforms both touched -- that difference is why the naive identity
@@ -494,7 +492,7 @@ pub struct PrenormalizeCounters {
 
 #[cfg(feature = "measure-pa-split")]
 thread_local! {
-    static PN: Cell<[u64; 11]> = const { Cell::new([0; 11]) };
+    static PN: Cell<[u64; 9]> = const { Cell::new([0; 9]) };
 }
 
 #[cfg(feature = "measure-pa-split")]
@@ -519,13 +517,11 @@ pub const PN_INV_CLASS: usize = 4;
 pub const PN_CHG_CLASS: usize = 5;
 pub const PN_INV_SPLIT: usize = 6;
 pub const PN_CHG_SPLIT: usize = 7;
-pub const PN_INV_ARROW: usize = 8;
-pub const PN_CHG_ARROW: usize = 9;
-pub const PN_ANY_CHANGED: usize = 10;
+pub const PN_ANY_CHANGED: usize = 8;
 
 #[cfg(feature = "measure-pa-split")]
 pub fn take_prenormalize_counters() -> PrenormalizeCounters {
-    let a = PN.with(|c| c.replace([0; 11]));
+    let a = PN.with(|c| c.replace([0; 9]));
     PrenormalizeCounters {
         files: a[0],
         text_changed: a[1],
@@ -535,9 +531,7 @@ pub fn take_prenormalize_counters() -> PrenormalizeCounters {
         chg_class_fields: a[5],
         inv_split_decls: a[6],
         chg_split_decls: a[7],
-        inv_arrow_parens: a[8],
-        chg_arrow_parens: a[9],
-        any_changed_files: a[10],
+        any_changed_files: a[8],
     }
 }
 
