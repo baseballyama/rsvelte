@@ -301,30 +301,6 @@ pub(super) fn ends_with_braceless_control_header(prefix: &str) -> bool {
     false
 }
 
-/// Whether the code before a line break ends with a binary operator. No
-/// statement can, so its right operand is on the next line — automatic
-/// semicolon insertion does not apply.
-///
-/// Only operators that are unambiguous at the end of a line are listed: `-` is
-/// left out because `a--` ends a statement, and `/` because it also closes a
-/// block comment.
-pub(super) fn ends_with_binary_operator(code: &str) -> bool {
-    let last_line = code.rsplit('\n').next().unwrap_or(code);
-    // A comment can end in an operator too (`// a || b`), and it is not one.
-    let t = match super::props_transforms::find_line_comment_position(last_line) {
-        Some(pos) => last_line[..pos].trim_end(),
-        None => last_line.trim_end(),
-    };
-    t.ends_with("||")
-        || t.ends_with("&&")
-        || t.ends_with("==")
-        || t.ends_with("!=")
-        || t.ends_with("<=")
-        || t.ends_with(">=")
-        || t.ends_with('?')
-        || (t.ends_with('+') && !t.ends_with("++"))
-}
-
 /// [`ends_with_braceless_control_header`] answered from the statement's final
 /// line alone, or `None` when the verdict genuinely depends on earlier lines.
 ///
@@ -348,6 +324,30 @@ pub(super) fn braceless_control_header_from_last_line(last: &str) -> Option<bool
             .iter()
             .any(|kw| ends_with_keyword(before, kw)),
     )
+}
+
+/// Whether the code before a line break ends with a binary operator. No
+/// statement can, so its right operand is on the next line — automatic
+/// semicolon insertion does not apply.
+///
+/// Only operators that are unambiguous at the end of a line are listed: `-` is
+/// left out because `a--` ends a statement, and `/` because it also closes a
+/// block comment.
+pub(super) fn ends_with_binary_operator(code: &str) -> bool {
+    let last_line = code.rsplit('\n').next().unwrap_or(code);
+    // A comment can end in an operator too (`// a || b`), and it is not one.
+    let t = match super::props_transforms::find_line_comment_position(last_line) {
+        Some(pos) => last_line[..pos].trim_end(),
+        None => last_line.trim_end(),
+    };
+    t.ends_with("||")
+        || t.ends_with("&&")
+        || t.ends_with("==")
+        || t.ends_with("!=")
+        || t.ends_with("<=")
+        || t.ends_with(">=")
+        || t.ends_with('?')
+        || (t.ends_with('+') && !t.ends_with("++"))
 }
 
 pub(super) fn find_statement_end_client(s: &str) -> usize {
