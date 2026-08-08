@@ -28,7 +28,7 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 290 entries)
+## Matrix known failures (`matrix-known-failures.json`, 234 entries)
 
 ### `binding-position` — 2 entries
 
@@ -47,7 +47,7 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 288 entries
+### `comment-slot` — 232 entries
 
 Two sub-clusters with distinct causes: the `.svelte` template seeds below and the
 remainder of the `.svelte.(js|ts)` module path (#2399). The class-field relocation
@@ -99,16 +99,17 @@ address, so the only comments it could replay were the LEADING ones in the gap b
 statement. Statements that are re-parsed WHOLE now keep their relative positions, which is
 what upstream gets for free by keeping the original nodes' `loc`.
 
-Server still dominates (82 of these 160), and its 56 remaining drops are one residual class: a
+Server still dominates (80 of these 160 — the previous baseline said 82, which no entry
+count supports), and its 56 remaining drops are one residual class: a
 comment TRAILING the last top-level statement of a script region, which upstream flushes
 into the generated component function's parameter list or into a template interpolation
 (`$$renderer.push(\`…${$.escape(/* c */ b)}…\`)`). It is 7 line slots × 8 comment kinds.
 See `server/ast/comments.rs`.
 
-#### module path (`.svelte.(js|ts)`) — 128 entries, all #2399
+#### module path (`.svelte.(js|ts)`) — 72 entries, all #2399
 
 Added with the module seeds that gave this family its `.svelte.(js|ts)` cases. Every one of
-these 128 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
+these 72 is the **same open bug — [#2399](https://github.com/baseballyama/rsvelte/issues/2399):
 official drops a Program-level comment in the module path and rsvelte keeps it.** They are
 listed as *expected to shrink when #2399 lands*, not as accepted behaviour. Do not treat this
 block as a specification of rsvelte's output.
@@ -116,13 +117,40 @@ block as a specification of rsvelte's output.
 Classified mechanically, not by eye: for each entry the two normalized outputs are diffed as
 line multisets, and an entry qualifies only when nothing is missing from rsvelte's side and
 every extra line is a comment. The classifier is the same comparison the gate makes, run over
-the gate's own artifacts.
+the gate's own artifacts. All 72 fall in that one bucket, with **nothing** in the
+"rsvelte drops" or "moved/duplicated" buckets.
 
-One correction this measurement forces, because #2399's framing depends on it: **official does
-not drop *every* Program-level comment.** Over the 192 generated module cases it drops in
-**80** and preserves in **112** — position-dependent, and uniform across all 8 comment kinds
-(7 drops each). A fix built on "drop them all" would be wrong in 112 of 192 positions; the
-correct fix reproduces a position rule.
+The 72 are one slot per seed × 8 comment kinds × 3 targets, and the slot is the same one in
+each: `module-rune-exports` L08, `module-class-state` L11, `module-ts-extension` L05 are each
+the line **after the seed's last statement**. So the residue is not "Program-level comments"
+in general — it is a **comment trailing the end of the module**, which is the same shape as
+the `.svelte` server residual above. Every other slot in all three seeds now matches, and the
+diverging set is *identical* on `client`, `server` and `client-dev`, so this is one
+target-independent rule and not three defects:
+
+| seed | entries | of which server |
+|---|---:|---:|
+| `module-class-state` | 24 | 8 |
+| `module-rune-exports` | 24 | 8 |
+| `module-ts-extension` | 24 | 8 |
+
+**Correction to the previous baseline's framing.** This block was recorded as 128 entries
+"every one of these 128 is the same open bug #2399", and that was wrong for 56 of them. Those
+56 were all `server` — 32 `module-rune-exports`, 16 `module-ts-extension`, 8
+`module-class-state`, and all in the seeds' **leading** slots — and they were rsvelte's own
+#2307 defect, comments a server `.svelte.(js|ts)` module cannot own, already fixed by #2566
+before #2435 merged. So **nothing was fixed to clear them**: read the shrink as a correction,
+not as progress. #2435's baseline was measured on a branch cut before #2566, so it enrolled 56
+entries that already passed on the merged tree, and the gate went red on `main` itself; the run
+that would have caught it was cancelled by the merge rate rather than failing (#2594). That is
+the same hazard as [compatibility/gate-coverage.md](gate-coverage.md)'s "what the gate cannot
+see": a baseline taken against a stale merge base is a measurement of a tree nobody ships.
+
+The old claim that official "drops in 80 of 192 and preserves in 112" was that same server-only
+entry count read as a property of the official compiler. Measured now: the three seeds have 24
+insertion slots between them, so 24 × 8 comment kinds = **192 module cases**, and official
+drops the comment in **3 of the 24 slots** — the trailing one of each seed, uniformly across
+all 8 kinds, i.e. **24 of the 192 cases**.
 
 ## Burn-down
 
