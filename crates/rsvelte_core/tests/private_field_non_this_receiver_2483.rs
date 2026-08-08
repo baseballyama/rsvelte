@@ -145,23 +145,19 @@ fn a_this_receiver_is_unaffected() {
     );
 }
 
-/// Reads diverge in the other direction and are pinned here so the record and
-/// the compiler cannot drift apart: upstream applies its constructor-root `.v`
-/// shortcut to any receiver, rsvelte restricts it to `this` and reads a
-/// non-`this` receiver through `$.get`.
+/// Reads are **parity**, not a divergence, and are pinned here so the two are
+/// not confused: upstream's constructor-root `.v` shortcut applies to any
+/// receiver, and #2464 made rsvelte match it. The divergence is confined to the
+/// update rows above, which are the ones where upstream's bytes do not parse.
 #[test]
-fn a_read_through_a_non_this_receiver_goes_through_get() {
+fn a_constructor_root_read_matches_upstreams_dot_v() {
     let out = compile(RECEIVERS, false);
     assert!(
-        out.contains("console.log($.get(inst.#n));"),
-        "a constructor-root read through an alias uses `$.get`:\n{out}"
+        out.contains("console.log(inst.#n.v);"),
+        "a constructor-root read through an alias uses upstream's `.v`:\n{out}"
     );
     assert!(
         out.contains("return $.get(inst.#n);"),
-        "a method-body read through an alias uses `$.get`:\n{out}"
-    );
-    assert!(
-        !out.contains("inst.#n.v"),
-        "the `.v` shortcut stays restricted to a `this` receiver:\n{out}"
+        "a method-body read is outside the constructor, so it stays `$.get`:\n{out}"
     );
 }

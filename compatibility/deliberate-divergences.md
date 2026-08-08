@@ -51,7 +51,7 @@ export class R {
 | nested fn in constructor, `inst.#n++` | `$.get(inst.#n)++;` | **no** | `$.update(inst.#n);` | yes |
 | constructor root, `inst.#n++` | `inst.#n.v++;` | yes | `$.update(inst.#n);` | yes |
 | constructor root, `--inst.#n` | `--inst.#n.v;` | yes | `$.update_pre(inst.#n, -1);` | yes |
-| constructor root, read `inst.#n` | `inst.#n.v` | yes | `$.get(inst.#n)` | yes |
+| constructor root, read `inst.#n` | `inst.#n.v` | yes | `inst.#n.v` — **parity** | yes |
 | any position, `this.#n++` | `$.update(this.#n);` | yes | `$.update(this.#n);` | yes |
 
 The parse column is acorn's verdict on the official output and `oxc_parser`'s on rsvelte's;
@@ -74,8 +74,8 @@ Reported upstream as **sveltejs/svelte#18621** (open as of 2026-08-08).
 
 ### Why rsvelte's form is the correct one
 
-The unparseable rows need no argument beyond the parse column. The three constructor-root
-rows are the ones that need one, because upstream's output there is valid:
+The unparseable rows need no argument beyond the parse column. The two constructor-root
+**update** rows are the ones that need one, because upstream's output there is valid:
 
 - `.v++` writes the source's value **without notifying**, and upstream's receiver check is
   purely syntactic — it does not establish that the receiver is the object under
@@ -83,18 +83,23 @@ rows are the ones that need one, because upstream's output there is valid:
   `o.#n.v--`, and no subscriber of `o` ever hears about it. `$.update(o.#n)` notifies.
   Upstream's own lowering of `this.#n++` in the same constructor is `$.update(this.#n)`, so
   the helper form is upstream's semantics, not ours.
-- The read row is the same shape one level down: `.v` is the untracked read, `$.get` the
-  tracked one. Restricting the shortcut to a literal `this` over-tracks a constructor called
-  from inside a reaction and under-tracks nothing; upstream's version under-tracks any
-  receiver that is not the object under construction.
+
+**The read row is not part of this entry.** An earlier revision listed it as a divergence
+(`$.get(inst.#n)`) on the argument that `.v` is the untracked read and restricting the
+shortcut to a literal `this` only ever over-tracks. That is a judgement about which
+tracking behaviour is nicer, not a correctness argument — both sides parse and both run —
+and upstream is the specification where the two merely differ. #2464 made the constructor
+root read `.v` for any receiver, mirroring
+`MemberExpression.js:15-18`'s `in_constructor` gate, and the row is now parity.
+`private_field_non_this_receiver_2483.rs` pins it as such so the two claims cannot be
+reintroduced side by side: they were, briefly, by two changes that were each green alone.
 
 ### What would make this entry disappear
 
 Upstream extending the `ThisExpression` check in `UpdateExpression.js` to any receiver — the
-fix #18621 asks for — makes official emit `$.update(o.#n)` too, and closes every row above
-except the two constructor-root `.v` ones, which close if `MemberExpression.js` gains the
-receiver check instead. Delete the entry, its in-code comments and its test when
-`submodules/svelte` is bumped past that fix.
+fix #18621 asks for — makes official emit `$.update(o.#n)` too, and closes every diverging
+row above. Delete the entry, its in-code comments and its test when `submodules/svelte` is
+bumped past that fix. The read row closes with nothing: it already matches.
 
 ### Why no gate sees it
 
