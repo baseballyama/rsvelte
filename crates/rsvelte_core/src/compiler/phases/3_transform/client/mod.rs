@@ -4506,6 +4506,22 @@ fn stage<'a>(
     }
 }
 
+/// Whether the statement accumulated so far ends in a brace-less control-flow
+/// header, materialising the joined text only when the last line cannot settle it.
+fn accumulated_ends_with_control_header(accumulated: &[&str], last: &str) -> bool {
+    if let Some(verdict) = expression_utils::braceless_control_header_from_last_line(last) {
+        super::profile::record_st_ctrl_header(0);
+        return verdict;
+    }
+    let mut acc = accumulated[..accumulated.len() - 1].join("\n");
+    if !acc.is_empty() {
+        acc.push('\n');
+    }
+    acc.push_str(last);
+    super::profile::record_st_ctrl_header(acc.len() as u64);
+    expression_utils::ends_with_braceless_control_header(&acc)
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -4663,6 +4679,7 @@ fn transform_instance_script_for_visitors(
     // Pre-filter state_vars to only include variables that actually appear in the script.
     // This avoids O(M*N) scanning in downstream transforms for variables that can't match.
     // Uses O(text_len) identifier extraction instead of O(N*text_len) substring search.
+    super::profile::record_st_collect_scan(script_rest.len() as u64);
     utils::text_retain_matching_identifiers(&script_rest, &mut state_vars);
 
     // Ensure reactive import names are included in state_vars for $.get()/$.mutate() wrapping.
@@ -4715,6 +4732,7 @@ fn transform_instance_script_for_visitors(
     // top-level bindings take precedence for scope-level transforms. For example,
     // if there's a top-level `const multiplier = () => { let multiplier = $state(2); ... }`,
     // the inner `multiplier` should NOT cause the outer `multiplier` to be wrapped with $.get().
+    super::profile::record_st_collect_scan(script_rest.len() as u64);
     let local_reactive_vars = extract_local_reactive_vars(&script_rest);
     let top_level_binding_names: rustc_hash::FxHashSet<&str> = analysis
         .root
@@ -4750,6 +4768,8 @@ fn transform_instance_script_for_visitors(
     let (const_state_decls, reassigned_in_text) = if local_reactive_vars.is_empty() {
         Default::default()
     } else {
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
         (
             index_const_state_decls(&script_rest),
             index_reassigned_vars(&script_rest),
@@ -4822,6 +4842,7 @@ fn transform_instance_script_for_visitors(
 
     // Collect proxy vars - variables initialized with $state({ ... }) or $state([ ... ])
     // These are converted to $.proxy() and don't need $.get() wrapping for property access
+    super::profile::record_st_collect_scan(script_rest.len() as u64);
     let proxy_vars = extract_proxy_vars(&script_rest);
 
     // Collect rest_prop variable names (from `let props = $props()`)
@@ -4954,6 +4975,7 @@ fn transform_instance_script_for_visitors(
 
     // Check for legacy mode (export let or export { x })
     // Also detect `export { x }` patterns which create BindableProp bindings
+    super::profile::record_st_collect_scan(script_rest.len() as u64);
     let has_legacy_export_let = script_rest.lines().any(|line| {
         let trimmed = line.trim();
         trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
@@ -6049,6 +6071,8 @@ fn transform_instance_script_for_visitors(
     super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
     let _stage = super::profile::timer_start();
 
+    super::profile::record_st_loop_lines(script_lines.len() as u64);
+
     while line_idx < script_lines.len() {
         let line = script_lines[line_idx];
         let trimmed = line.trim();
@@ -6188,16 +6212,10 @@ fn transform_instance_script_for_visitors(
             // complete statement — its body statement must be accumulated with it.
             // Otherwise `$: if (cond)\n\tstmt` splits `stmt` off as a separate
             // top-level statement, dropping the guard and the reactive wrapper.
-            let ends_with_control_header = {
-                let mut acc = accumulated_lines[..accumulated_lines.len() - 1].join("\n");
-                if !acc.is_empty() {
-                    acc.push('\n');
-                }
-                acc.push_str(trimmed);
-                expression_utils::ends_with_braceless_control_header(&acc)
-            };
-
-            if !trailing_comma && !trailing_operator && !ends_with_control_header {
+            if !trailing_comma
+                && !trailing_operator
+                && !accumulated_ends_with_control_header(&accumulated_lines, trimmed)
+            {
                 // Before processing, check if the next non-empty line starts with a
                 // continuation token (`.` for method chains, `?`, `:`, `&&`, `||`,
                 // `??` for ternary/logical continuation). Example:
@@ -6243,6 +6261,7 @@ fn transform_instance_script_for_visitors(
                             && (!state_vars.is_empty() || !store_sub_vars.is_empty());
 
                         if !needs_rune && !needs_export && !needs_destructure {
+                            super::profile::record_st_fastpath_statement();
                             result.push_str(&statement);
                             result.push('\n');
                             accumulated_lines.clear();
