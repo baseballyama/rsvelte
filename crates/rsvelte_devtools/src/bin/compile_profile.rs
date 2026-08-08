@@ -301,6 +301,15 @@ fn main() {
         );
     }
     println!("    (statements processed: {})", st.statements);
+    println!(
+        "    COUNTERS loop_lines {} | fastpath_stmts {} | ctrl_header {} calls / {} bytes | collect_scan {} passes / {} bytes",
+        st.loop_lines,
+        st.fastpath_statements,
+        st.ctrl_header_calls,
+        st.ctrl_header_bytes,
+        st.collect_scan_passes,
+        st.collect_scan_bytes
+    );
     let st_sum =
         st.prenormalize + st.collect_vars + st.line_loop + st.ast_transforms + st.post_passes;
     println!(
