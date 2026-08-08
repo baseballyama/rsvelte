@@ -6276,7 +6276,15 @@ pub(crate) fn split_comma_separated_declarations(script: &str) -> String {
             // Check if the declaration is complete (ends with `;` at balanced depth)
             while !is_declaration_complete(&full_decl) && line_idx + 1 < lines.len() {
                 line_idx += 1;
-                full_decl.push(' ');
+                // A space would fold the next line into an unterminated `//`
+                // comment, commenting out the declarators that follow it.
+                full_decl.push(
+                    if crate::compiler::phases::phase3_transform::shared::js_scan::ends_inside_line_comment(&full_decl) {
+                        '\n'
+                    } else {
+                        ' '
+                    },
+                );
                 full_decl.push_str(lines[line_idx].trim());
             }
 
