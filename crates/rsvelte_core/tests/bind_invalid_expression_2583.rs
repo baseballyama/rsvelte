@@ -101,3 +101,22 @@ fn valid_bind_targets_still_compile() {
         );
     }
 }
+
+/// Upstream analyses the AST with the TypeScript nodes removed, so a target
+/// wrapped in an assertion reaches its `object()` as the bare expression.
+#[test]
+fn typescript_assertion_bind_targets_still_compile() {
+    const TS: &str = "<script lang=\"ts\">\n\timport Comp from './Comp.svelte';\n\tlet o = $state({ x: 1 });\n\tlet obj = $state({});\n</script>\n";
+    for markup in [
+        "<Comp bind:value={o.x as number} />",
+        "<Comp bind:value={obj as object} />",
+        "<Comp bind:this={o.x as number} />",
+        "<input bind:value={o.x as number} />",
+        "<input bind:value={o.x!} />",
+        "<input bind:value={(o.x satisfies number)} />",
+        "<input bind:value={(o.x as number)!} />",
+    ] {
+        let src = format!("{TS}{markup}");
+        assert!(compile_err(&src).is_none(), "{markup} should compile");
+    }
+}

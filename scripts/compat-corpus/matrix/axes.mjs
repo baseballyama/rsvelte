@@ -334,12 +334,52 @@ export const BIND_SLOTS = {
 	'window-scrolly': '<svelte:window bind:scrollY={%s} />',
 };
 
-/** The declarations every invalid-bind case shares, so only the axes differ. */
+/**
+ * Axis D2 — expressions that ARE a legal `bind:` target, crossed with the same
+ * slots. The counterpart signal: a validation that rejects too much shows up as
+ * "rsvelte rejects, official accepts", which the invalid rows can never report.
+ *
+ * The TypeScript rows are the discriminating ones. Upstream analyses the AST
+ * with the TS nodes already removed, so `o.x as number` reaches its `object()`
+ * as the bare member chain; a port that walks the parsed AST sees a
+ * `TSAsExpression` and calls the target invalid. `<Radio bind:group={c as T} />`
+ * is real shipped code (flowbite-svelte), which is how that over-rejection got
+ * caught — by a corpus file, not by this gate, and only for the component slot
+ * that file happens to use.
+ */
+export const VALID_BIND_TARGETS = {
+	identifier: { expr: 'obj' },
+	member: { expr: 'o.x' },
+	'deep-member': { expr: 'o.x.y' },
+	'computed-member': { expr: 'o[key]' },
+	'string-computed': { expr: "o['k']" },
+	'getter-setter-pair': { expr: '() => o.x, (v) => (o.x = v)' },
+	'ts-as': { expr: 'o.x as number', ts: true },
+	'ts-as-identifier': { expr: 'obj as object', ts: true },
+	'ts-non-null': { expr: 'o.x!', ts: true },
+	'ts-satisfies': { expr: '(o.x satisfies number)', ts: true },
+	'ts-as-then-non-null': { expr: '(o.x as number)!', ts: true },
+};
+
+/** The declarations every bind case shares, so only the axes differ. */
 export const BIND_PREAMBLE = `<script>
 	import Comp from './Comp.svelte';
 	let o = $state({ x: 1, y: 2 });
 	let obj = $state({});
 	let flag = $state(true);
+	let key = $state('x');
+	function fn() {}
+	class Thing {}
+</script>
+`;
+
+/** Same declarations under `lang="ts"`, for the rows that carry TS syntax. */
+export const BIND_PREAMBLE_TS = `<script lang="ts">
+	import Comp from './Comp.svelte';
+	let o = $state({ x: 1, y: 2 });
+	let obj = $state({});
+	let flag = $state(true);
+	let key = $state('x');
 	function fn() {}
 	class Thing {}
 </script>

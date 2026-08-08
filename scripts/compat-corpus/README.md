@@ -387,9 +387,12 @@ reported. A 329-case matrix found 21 divergences in seconds.
   position adds 7 cases × 3 targets.
 - `COMMENT_SEEDS` × line boundaries × `COMMENT_KINDS` → family `comment-slot`.
   Insertion is restricted to `<script>` regions, where a JS comment is inert.
-- `INVALID_BIND_TARGETS` × `BIND_SLOTS` → family `invalid-bind` (20 × 8). The
-  odd one out: these cases are programs the official compiler **rejects**, so
-  the question is not "same output" but "same error code".
+- `INVALID_BIND_TARGETS` × `BIND_SLOTS` and `VALID_BIND_TARGETS` × `BIND_SLOTS`
+  → family `invalid-bind` ((20 + 11) × 8). The odd one out: the invalid half is
+  programs the official compiler **rejects**, so the question is not "same
+  output" but "same error code". The valid half carries the counterpart signal
+  — a validation that rejects too much — which the invalid rows structurally
+  cannot report.
 
 `matrix/mutate.mjs` holds the mutation itself and is shared with the
 corpus-seeded fuzz (Gate 3).

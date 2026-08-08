@@ -213,6 +213,12 @@ assignment. Adding the family alone would still have measured nothing, because `
 any both-reject case as `error-parity` without looking at the codes; **the comparison and the
 population had to land together**.
 
+The family carries **valid** targets against the same slots too, and that half is not
+decoration: the first version had only the invalid rows, and CI then caught an over-rejection
+(a TypeScript assertion, `bind:group={c as T}`) from a corpus file instead of from the gate.
+An over- and an under-rejection are opposite directions of one check, and a population of
+only-invalid inputs is blind to one of them.
+
 It exists because the collected corpus samples the **marginal** distribution of published code
 while every bug in the #2253/#2254/#2255/#2256 batch was an **interaction**: #2254's shape occurs
 **0 times in 14,026 real files**, #2253's likewise, and `client`/`server` were at 0 known failures

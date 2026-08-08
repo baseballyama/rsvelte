@@ -218,10 +218,10 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 1017 generated cases × 3 targets = 3051 comparisons. For the 857 cases both
-compilers accept the unit is `js.code` only (`matrix/run.mjs:134,139,166-167`),
-oxfmt-normalized identically to `verify.mjs`; for the 160 `invalid-bind` cases, which the
-official compiler rejects by construction, it is the error **code** (`:150`).
+**Unit.** 1105 generated cases × 3 targets = 3315 comparisons. Where both compilers accept, the
+unit is `js.code` only (`matrix/run.mjs:134,139,166-167`), oxfmt-normalized identically to
+`verify.mjs`; where both reject it is the error **code** (`:150`), which the `invalid-bind`
+family exists to exercise.
 
 ### Blind spot 5a — generated inputs are always `.svelte` components
 
@@ -270,8 +270,13 @@ either alone measures nothing.
 
 ### Blind spot 5e — accept-where-official-rejects has one input per code elsewhere
 
-Family `invalid-bind` (`axes.mjs:297,326` — 20 invalid target expressions × 8 `bind:` slots) is
-the only *generated* population of programs official rejects. Everywhere else that question is
+Family `invalid-bind` (`axes.mjs` — 20 invalid and 11 valid target expressions × 8 `bind:` slots)
+is the only *generated* population of programs official rejects. Both halves are needed: the
+invalid rows report "rsvelte accepts what official rejects", the valid rows report the reverse,
+and neither can see the other's direction. The valid half exists because the first version of
+this family had only the invalid one, and CI then caught an over-rejection
+(`bind:group={c as T}`, a TypeScript assertion) from a **corpus file** rather than from the
+gate — on the one slot that file happens to use. Everywhere else that question is
 asked by the 145 `compiler-errors` fixtures, at **one input per code**, which makes a code with
 a passing fixture read as covered. It is not: #2583 is `bind_invalid_expression` accepted on a
 component while its fixture passed on an element. Three of the four accept-where-official-rejects

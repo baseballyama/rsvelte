@@ -784,6 +784,15 @@ fn get_object_node<'a>(
         JsNode::MemberExpression { object, .. } => {
             get_object_node(arena.get_js_node(*object), arena)
         }
+        // Upstream analyses the AST with the TypeScript nodes already removed,
+        // so `x as T` reaches `object()` as the bare `x`.
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. }
+        | JsNode::TSTypeAssertion { expression, .. }
+        | JsNode::TSInstantiationExpression { expression, .. } => {
+            get_object_node(arena.get_js_node(*expression), arena)
+        }
         _ => None,
     }
 }
@@ -804,6 +813,11 @@ fn get_object_name_from_json(v: &serde_json::Value) -> Option<String> {
             let obj = v.get("object")?;
             get_object_name_from_json(obj)
         }
+        "TSAsExpression"
+        | "TSSatisfiesExpression"
+        | "TSNonNullExpression"
+        | "TSTypeAssertion"
+        | "TSInstantiationExpression" => get_object_name_from_json(v.get("expression")?),
         _ => None,
     }
 }
