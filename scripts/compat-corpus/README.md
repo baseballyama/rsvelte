@@ -184,13 +184,42 @@ with the same code:
 | `error-message-mismatch` | codes agree, the prose does not — 121 entries | `error-message-known-failures.<target>.json` |
 | `error-position-mismatch` | codes agree, `start` does not — 403 entries, 349 of them rsvelte reporting no span at all | `error-position-known-failures.<target>.json` |
 
-Warning and error comparison need no normalization, so they are meaningful under
-`--no-fmt`; `--update-warning-baseline` / `--update-error-baseline` rewrite only
-their own ratchets, so a `--no-fmt` run (which inflates JS failures) can seed
-them safely. The three update flags **compose**: passing all of them rewrites all
-three families in one run, each run announces which families it will write, and a
-rewrite run that reaches no write exits `2` instead of reporting success
-(`scripts/dev/test-corpus-verify-baseline-flags.mjs` guards this).
+Finally it gates whether the output **is JavaScript at all**. Every comparison
+above is rsvelte's text against official's text, so "wrong text" and "text no
+parser accepts" produce the same row and the same ratchet entry — and a ratchet
+entry suppresses everything about its entry. This one asks a question with no
+reference to official's bytes:
+
+| Verdict | Meaning | Ratchet |
+|---|---|---|
+| `output-unparseable` | the module rsvelte emitted does not parse | `parse-known-failures.<target>.json` |
+
+Three things separate it from the output verdict above. Its oracle is **acorn**,
+not the OXC parser rsvelte itself uses (and that `ast_equiv_batch` re-uses), so an
+OXC-only acceptance quirk is observable. It runs **before** normalization, so the
+claim is about what the compiler emitted rather than what survived oxfmt. And its
+population is **every entry rsvelte compiled**, including the ones official
+rejected, where there is nothing to diff and the byte comparison never looks at
+rsvelte's text. Official's output is parsed too, purely as the oracle's control: a
+rejection there exits `2` and is never ratcheted — either acorn is too strict, or
+official really does emit that, in which case the `(id, target)` pair goes on
+`parse-oracle-excluded.json` (shrink-only both ways) and is skipped on **both**
+sides, because where the reference does not parse there is nothing to hold
+rsvelte to. The gate also refuses to run if rsvelte produced fewer than 90% as
+many modules as official did, so it cannot go green by the compiler refusing to
+compile. See
+[compatibility/parse-known-failures.md](../../compatibility/parse-known-failures.md)
+for the oracle's calibration figures and why the baseline is 0.
+
+Warning, error and parseability comparison need no normalization, so they are
+meaningful under `--no-fmt`; `--update-warning-baseline` / `--update-error-baseline`
+/ `--update-parse-baseline` rewrite only their own ratchets, so a `--no-fmt` run
+(which inflates JS failures) can seed them safely. The four update flags
+**compose**: passing all of them rewrites all four families in one run, each run
+announces which families it will write, and a rewrite run that reaches no write
+exits `2` instead of reporting success
+(`scripts/dev/test-corpus-verify-baseline-flags.mjs` and
+`scripts/dev/test-corpus-parse-gate.mjs` guard this).
 `--from-report` derives output failures only, so it rejects the diagnostic flags
 rather than ignoring them. See
 [compatibility/warning-known-failures.md](../../compatibility/warning-known-failures.md)

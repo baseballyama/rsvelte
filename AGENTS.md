@@ -78,7 +78,7 @@ why each fix lands a `compatibility/pattern-corpus` repro.
 
 ### What each gate cannot see ([`compatibility/gate-coverage.md`](compatibility/gate-coverage.md))
 
-The sections below describe what the ~18 gates *do* compare. Every one of them can be green
+The sections below describe what the ~19 gates *do* compare. Every one of them can be green
 while a real defect ships, because each has a field its comparison key drops, a normalization
 step that erases the divergence, or a population its unit never reaches — and rediscovering
 those blind spots ad hoc has cost this project several shipped bugs (#2403, #2424, #2425).
@@ -92,6 +92,16 @@ claim is worse than a blank, because the next person reads the row as surveyed.
 does this gate not look at?" — which is not the same question as "what inputs does it not
 have". Corpus size is the saturated axis; the two that still find defects are what we compare
 and how inputs are constructed.
+
+**A baseline is a measurement of a tree, and the tree is the merge base.** `--update-baseline`
+run on a branch cut before a fix that the ratchet observes enrols entries that already pass on
+`main`, and the two-sided check then fails on `main` itself and on every branch cut from it —
+which is how #2435 shipped 56 stale shape-matrix entries. Rebase (or merge `main`) *before*
+re-baselining, never after. The reason nothing caught it is worth remembering separately: every
+workflow set `cancel-in-progress: true` on a concurrency group keyed by `github.ref`, which is the
+same string for every push to `main`, so at a high merge rate each merge cancelled its
+predecessor and `main` carried no verdict at all. **A cancelled run and a green run are
+indistinguishable in the branch header.**
 
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 

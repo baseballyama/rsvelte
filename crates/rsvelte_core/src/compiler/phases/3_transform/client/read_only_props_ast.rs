@@ -109,11 +109,11 @@ pub fn transform_read_only_props_ast(
             ..ParseOptions::default()
         },
         |program| {
-            super::super::profile::record_semantic_build(
+            let semantic_ret = super::super::profile::semantic_build(
                 super::super::profile::SEM_READ_ONLY_PROPS,
                 program.source_text.len(),
+                || SemanticBuilder::new().with_build_nodes(true).build(program),
             );
-            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let semantic = &semantic_ret.semantic;
 
             let mut collector = ReadOnlyPropsCollector {

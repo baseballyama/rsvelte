@@ -83,6 +83,16 @@ const RATCHETS = [
 		key: 'error-position-known-failures.<target>.json',
 		jsons: perTarget('error-position-known-failures'),
 	},
+	{
+		doc: 'parse-known-failures.md',
+		key: 'parse-known-failures.<target>.json',
+		jsons: perTarget('parse-known-failures'),
+	},
+	{
+		doc: 'parse-oracle-excluded.md',
+		key: 'parse-oracle-excluded.json',
+		jsons: ['parse-oracle-excluded.json'],
+	},
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', jsons: ['matrix-known-failures.json'] },
 	{ doc: 'dual-run-known-failures.md', key: 'dual-run-known-failures.json', jsons: ['dual-run-known-failures.json'] },
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', jsons: ['validator-known-failures.json'] },
