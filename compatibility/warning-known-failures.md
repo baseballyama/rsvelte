@@ -35,7 +35,7 @@ compilers already run on every entry.
 ## Why the three per-target files are currently identical
 
 `warning-known-failures.<target>.json` holds the same 28 entries on all three,
-and `warning-position-known-failures.<target>.json` the same 74 entries. That is not a
+and `warning-position-known-failures.<target>.json` the same 4 entries. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -56,10 +56,12 @@ Not every entry is equally bad. Of the 28 entries that still diverge, **6 are
 under-warnings** — rsvelte stays silent where upstream warns
 (`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
 `options_missing_custom_element` ×1); neither burn-down below touched that half.
-The other 22 are noise the user cannot suppress. Both are defects, but a missing
-diagnostic and an extra one fail differently, and the ratchet count alone does
-not distinguish them; no entry diverges in both directions at once — which is
-what lets the two counts be added:
+The other 22 are noise the user cannot suppress — 81 tuples over four codes
+(`reactive_declaration_module_script_dependency` 62, `component_name_lowercase`
+10, `export_let_unused` 7, `state_referenced_locally` 2). Both are defects, but a
+missing diagnostic and an extra one fail differently, and the ratchet count alone
+does not distinguish them; no entry diverges in both directions at once — which
+is what lets the two counts be added:
 
 Partition of `warning-known-failures.<target>.json` by direction: `6 + 22`
 
@@ -91,26 +93,43 @@ from where the entries happened to cluster in the corpus rather than from
 upstream's control flow — worth remembering when reading the clusters above,
 which were written the same way.
 
-## Warning positions (`warning-position-known-failures.<target>.json`, 74 entries each)
+## Warning positions (`warning-position-known-failures.<target>.json`, 4 entries each)
 
-The codes agree but a `(line, column)` does not. There are **two** systemic
-causes, not one, and they need different edits. Measured over the 625 entries
-listed before the a11y half was fixed, which carried 967 mismatching tuples
-between them:
+The codes agree but a `(line, column)` does not. Four entries remain, all the
+same residual shape and all the same cause — rsvelte reports **no position at
+all** (`?:?`) where upstream reports one:
 
-- **No span at all (649 tuples, 67.1%)** — rsvelte emits the warning with
+| entry | code |
+|---|---|
+| `svelte/…/migrate/samples/accessors/output.svelte` | `options_deprecated_immutable` |
+| `svelte/…/runtime-browser/custom-elements-samples/extended-builtin/main.svelte` | `attribute_avoid_is` |
+| `svelte/…/runtime-runes/samples/custom-element-attributes/main.svelte` | `attribute_avoid_is` |
+| `svelte/…/runtime-runes/samples/element-is-attribute/main.svelte` | `attribute_avoid_is` |
+
+Both codes are raised from sites that never received the span-attachment pass:
+`attribute_avoid_is` from the attribute walk in `regular_element.rs`, and
+`options_deprecated_immutable` from the `<svelte:options>` reader. Each is an
+attach-the-span fix at one emission site.
+
+### How the backlog was cleared
+
+This ratchet held **528** entries per target and now holds 4. Two systemic causes
+were measured over the 625 entries listed before the a11y half was fixed, which
+carried 967 mismatching tuples between them:
+
+- **No span at all (649 tuples, 67.1%)** — rsvelte emitted the warning with
   `start === undefined` where upstream reports a real position, so an editor or
-  CLI that places a squiggle from `warning.start` gets nothing. Concentrated in
+  CLI that places a squiggle from `warning.start` got nothing. Concentrated in
   `event_directive_deprecated` (142), `element_invalid_self_closing_tag` (118),
   `export_let_unused` (110), `non_reactive_update` (102) and
-  `options_missing_custom_element` (53). Here the fix really is mechanical:
-  attach the span already available at the emission site.
-- **A span that is real but too wide (318 tuples, 32.9%)** — every one of these
-  is an a11y code, and every one is a *column*-only disagreement: 315 column-only,
-  3 line-and-column, and **0 line-only**. The line agrees because the attribute
-  and its element are on the same line; the column disagrees because rsvelte
-  reported the element where upstream reports the attribute. This one is not
-  "attach the missing span": the span was attached, by the wrong owner. See below.
+  `options_missing_custom_element` (53). "Attach the span already available at
+  the emission site" describes only part of it — see the three causes below.
+- **A span that is real but too wide (318 tuples, 32.9%)** — every one an a11y
+  code, and every one a *column*-only disagreement: 315 column-only, 3
+  line-and-column, and **0 line-only**. The line agreed because the attribute and
+  its element are on the same line; the column disagreed because rsvelte reported
+  the element where upstream reports the attribute. Not "attach the missing
+  span": the span was attached, by the wrong owner.
 
 **The discriminator, for the next mixed position bucket:** count line-only
 mismatches. A bucket with *zero* of them is a wrong-**owner** bucket, not a
@@ -121,13 +140,10 @@ geometric and costs one pass over the tuples; it does not require reading any
 entries, and it is what separated these two causes. Reach for it before
 inspecting cases.
 
-Both are position-only divergences and semantically inert — the right diagnostic
-is reported, with the right message, at a wrong or absent location.
+Split from the code ratchet on purpose: this backlog was far larger, and folded
+together it would have hidden every semantic regression above.
 
-Split from the code ratchet on purpose: this backlog is far larger, and folded
-together it would hide every semantic regression above.
-
-### The a11y half (fixed)
+### The a11y half
 
 Fixing it took the list from 625 entries to **529**: 96 removed, 0 added, and the
 code ratchet unmoved at 70.
@@ -166,8 +182,6 @@ Note that `a11y_role_supports_aria_props` was previously listed above as a
 missing-position code. It never was: rsvelte always emitted a span for it. That
 mis-attribution is exactly what a single-cause reading of this bucket produces —
 the split above was measured per tuple, not inferred from the code names.
-
-What is left is the 649 missing-span tuples, unchanged.
 
 A single `a11y_figcaption_index` disagreeing on **both** line and column used to
 sit beside them, recorded here as a third cause that was "structurally out of
@@ -217,48 +231,13 @@ and therefore cannot separate them at all. What splits them is the warn
 code's upstream warn node before writing one fix for several codes. Reach for
 this and the line-only test above *before* reading entries.
 
-Worth stating because the single-cause reading is what produced every earlier
-error in this file. A shared symptom is not evidence of a shared mechanism; the
-cheap check is to look up each code's upstream warn target before writing one
-fix for all of them.
-
-What is left, measured on the rebased tree after both this fix and the a11y one
-(`verify.mjs --no-fmt --update-warning-baseline`, 14,130 corpus entries): 75
-entries, one mismatching tuple each. 74 are missing-span, spread over 25 codes
-with no code above 9 — there is no next large cluster here. The 75th is the
-`a11y_figcaption_index` predicted above, still disagreeing on both line and
-column, and still structurally out of reach of the four stamp sites.
-
-**Do not reach that number arithmetically — it is not reachable that way.** From
-625 (before either fix), #2384 alone removed 96 and this change alone removed
-450, and those two removal sets are **disjoint**. So both set arithmetic (625 −
-546 = 79) and the subtraction a rebase invites (529 − 450 = 79) give 79. The
-measured answer is 75, because **4 entries are cleared only when both fixes are
-present** and by neither alone:
-
-```
-svelte/packages/svelte/messages/compile-warnings/a11y.md/16.svelte
-svelte/documentation/docs/98-reference/.generated/compile-warnings.md/16.svelte
-svelte.dev/…/98-reference/.generated/compile-warnings.md/16.svelte
-svelte.dev/…/98-reference/30-compiler-warnings.md/18.svelte
-```
-
-All four are listed in the 625, in #2384's 529 **and** in this PR's 175, and in
-neither's successor — the signature of an entry needing both. The ratchet is
-keyed per *entry* while the comparison is per *tuple*, so an entry with any
-surviving tuple stays listed; each of these must therefore carry at least two
-mismatching tuples, at least one reachable only by each fix. Disjoint removal
-sets are not enough to make the counts add: the interaction lives inside the
-entries, not between the sets. Re-baseline off a run, never off the previous
-number.
-
 **These spans have no gate but their unit tests.** The ratchet compares one
 `(code, line, column)` per warning, so `end` is not observable by it at all, and
 neither is the message text at per-message granularity — `diagnostics_test.rs`
 pins every diagnostic's wording behind a single digest, which reports that
 *something* changed without saying what to, or whether the new text is right.
 Where a gate is blind to a field by construction, the unit test is not a
-convenience; it is the only oracle.
+convenience; it is the only oracle (`tests/warning_span_attach.rs`).
 
 **On column units, so the tests are not read as settling more than they do:**
 columns are UTF-16 code units on both sides, matching upstream's locator over a

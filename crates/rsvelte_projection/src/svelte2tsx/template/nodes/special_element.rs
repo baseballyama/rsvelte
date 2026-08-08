@@ -52,11 +52,21 @@ struct SurroundingWhitespace {
 }
 
 impl SurroundingWhitespace {
-    fn of(nodes: &[TemplateNode]) -> Self {
+    fn of(nodes: &[TemplateNode], source: &str) -> Self {
         let classify = |node: Option<&TemplateNode>| match node {
             Some(TemplateNode::Text(text)) => {
                 if text.data.chars().all(char::is_whitespace) {
-                    (true, false)
+                    // Dropping leaves the source range verbatim, which is only
+                    // safe when the source is whitespace too: `&nbsp;` decodes
+                    // to whitespace but its six raw characters are not valid TS.
+                    let raw = source
+                        .get(text.start as usize..text.end as usize)
+                        .unwrap_or_default();
+                    if raw.chars().all(char::is_whitespace) {
+                        (true, false)
+                    } else {
+                        (false, false)
+                    }
                 } else {
                     (false, true)
                 }
@@ -156,7 +166,7 @@ pub(crate) fn handle_svelte_special_element(
 
     let is_boundary = el.name == "svelte:boundary";
     let whitespace = if is_boundary {
-        SurroundingWhitespace::of(&el.fragment.nodes)
+        SurroundingWhitespace::of(&el.fragment.nodes, source)
     } else {
         SurroundingWhitespace::default()
     };
@@ -427,7 +437,7 @@ pub(super) fn process_fragment_trimmed(
     counter: &mut Counter,
     depth: u32,
 ) {
-    let whitespace = SurroundingWhitespace::of(nodes);
+    let whitespace = SurroundingWhitespace::of(nodes, source);
     for (index, node) in nodes.iter().enumerate() {
         process_child(
             node, index, nodes, whitespace, source, options, str, counter, depth,

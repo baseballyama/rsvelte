@@ -6,8 +6,8 @@ use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
+use crate::svelte2tsx::template::nodes::special_element::process_fragment_trimmed;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
-use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
 use super::snippet_block::hoist_snippet_blocks;
 
@@ -106,7 +106,14 @@ pub(crate) fn handle_if_block(
     hoist_snippet_blocks(&block.consequent, source, str);
 
     // Process children (blocks don't increment depth)
-    process_fragment_inplace(&block.consequent, source, options, str, counter, depth);
+    process_fragment_trimmed(
+        &block.consequent.nodes,
+        source,
+        options,
+        str,
+        counter,
+        depth,
+    );
 
     // Handle alternate
     if let Some(ref alternate) = block.alternate {
@@ -131,7 +138,7 @@ pub(crate) fn handle_if_block(
             // owns the `} else if (EXPR){` rewrite (see branch above).
             // Process the elseif block (which will handle its own
             // `} else if(...) {` rewrite).
-            process_fragment_inplace(alternate, source, options, str, counter, depth);
+            process_fragment_trimmed(&alternate.nodes, source, options, str, counter, depth);
 
             // No closing `}` needed since the inner if block handles `{/if}`
         } else {
@@ -184,7 +191,7 @@ pub(crate) fn handle_if_block(
             // Hoist alternate-branch snippets above sibling declarations too.
             hoist_snippet_blocks(alternate, source, str);
             // Process alternate children
-            process_fragment_inplace(alternate, source, options, str, counter, depth);
+            process_fragment_trimmed(&alternate.nodes, source, options, str, counter, depth);
 
             // Overwrite `{/if}` with `}`
             let alternate_end = if !alternate.nodes.is_empty() {
