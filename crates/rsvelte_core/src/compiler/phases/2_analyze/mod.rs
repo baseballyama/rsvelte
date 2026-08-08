@@ -1325,11 +1325,7 @@ fn check_reactive_declaration_cycles(
         dependencies.retain(|dep| !assignments.contains(dep));
 
         if !assignments.is_empty() {
-            let span = node
-                .get("start")
-                .and_then(|v| v.as_u64())
-                .zip(node.get("end").and_then(|v| v.as_u64()))
-                .map(|(start, end)| (start as u32, end as u32));
+            let span = node.start().zip(node.end());
             reactive_stmts.push((assignments, dependencies, span));
         }
     }
