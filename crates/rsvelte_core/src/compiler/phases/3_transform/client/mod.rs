@@ -143,6 +143,11 @@ pub(super) static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
 // $derived destructuring patterns in the same component.
 // This is reset at the start of each component transformation.
 thread_local! {
+    /// Set when any prenormalize transform changed the text, so a file touched
+    /// by two of them is counted once rather than twice.
+    #[cfg(feature = "measure-pa-split")]
+    pub(super) static PN_FILE_TOUCHED: Cell<bool> = const { Cell::new(false) };
+
     pub(super) static SCRIPT_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
     // Counter for looking up which $$array variable to use when processing nested patterns
     // This must stay in sync with SCRIPT_ARRAY_COUNTER
@@ -4536,6 +4541,29 @@ fn stage<'a>(
     }
 }
 
+/// [`stage`] plus the `process_accumulated` split's own timer and work counter.
+#[inline]
+fn pa_stage<'a>(
+    idx: usize,
+    name: &'static str,
+    input: Cow<'a, str>,
+    f: impl FnOnce(Cow<'a, str>) -> Cow<'a, str>,
+) -> Cow<'a, str> {
+    #[cfg(feature = "measure-pa-split")]
+    {
+        let bytes = input.len() as u64;
+        let start = super::profile::timer_start();
+        let out = stage(name, input, f);
+        super::profile::record_pa(idx, super::profile::timer_elapsed(start), bytes);
+        out
+    }
+    #[cfg(not(feature = "measure-pa-split"))]
+    {
+        let _ = idx;
+        stage(name, input, f)
+    }
+}
+
 /// Whether the statement accumulated so far ends in a brace-less control-flow
 /// header, materialising the joined text only when the last line cannot settle it.
 fn accumulated_ends_with_control_header(accumulated: &[&str], last: &str) -> bool {
@@ -4620,11 +4648,24 @@ fn transform_instance_script_for_visitors(
     // Upstream rebuilds every `$:` statement as a synthesized
     // `legacy_pre_effect(...)` call, so its comments have nothing left to
     // attach to. Everything else in the script keeps them.
+    // Span-validity gate for the text->AST migration: Phase 2's spans survive
+    // into the line loop exactly when prenormalize leaves the text untouched.
+    #[cfg(feature = "measure-pa-split")]
+    let pn_entry_text: &str = script;
+    super::profile::record_pn(super::profile::PN_FILES);
+
     let script: std::borrow::Cow<str> = if analysis.runes || !legacy_script_has_dollar_token(script)
     {
         std::borrow::Cow::Borrowed(script)
     } else {
-        std::borrow::Cow::Owned(rehome_reactive_statement_comments(script))
+        super::profile::record_pn(super::profile::PN_INV_COMMENTS);
+        let out = rehome_reactive_statement_comments(script);
+        #[cfg(feature = "measure-pa-split")]
+        if out != script {
+            super::profile::record_pn(super::profile::PN_CHG_COMMENTS);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        std::borrow::Cow::Owned(out)
     };
 
     // Transform class fields only if the script contains class definitions with runes
@@ -4632,7 +4673,14 @@ fn transform_instance_script_for_visitors(
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some())
     {
-        std::borrow::Cow::Owned(transform_class_fields_client(&script))
+        super::profile::record_pn(super::profile::PN_INV_CLASS);
+        let out = transform_class_fields_client(&script);
+        #[cfg(feature = "measure-pa-split")]
+        if out != *script {
+            super::profile::record_pn(super::profile::PN_CHG_CLASS);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        std::borrow::Cow::Owned(out)
     } else {
         script
     };
@@ -4644,7 +4692,14 @@ fn transform_instance_script_for_visitors(
     let script: std::borrow::Cow<str> = if split_top_level_declarations
         || (class_transform_can_add_declarations && might_have_comma_separated_declaration(&script))
     {
-        std::borrow::Cow::Owned(crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script))
+        super::profile::record_pn(super::profile::PN_INV_SPLIT);
+        let out = crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script);
+        #[cfg(feature = "measure-pa-split")]
+        if out != *script {
+            super::profile::record_pn(super::profile::PN_CHG_SPLIT);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        std::borrow::Cow::Owned(out)
     } else {
         script
     };
@@ -4660,10 +4715,27 @@ fn transform_instance_script_for_visitors(
     let script_rest = if memmem::find(script_rest_raw.as_bytes(), b"=> (").is_some()
         || memmem::find(script_rest_raw.as_bytes(), b"=>(").is_some()
     {
-        strip_unnecessary_arrow_body_parens(&script_rest_raw)
+        super::profile::record_pn(super::profile::PN_INV_ARROW);
+        let out = strip_unnecessary_arrow_body_parens(&script_rest_raw);
+        #[cfg(feature = "measure-pa-split")]
+        if out != script_rest_raw {
+            super::profile::record_pn(super::profile::PN_CHG_ARROW);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        out
     } else {
         script_rest_raw
     };
+
+    #[cfg(feature = "measure-pa-split")]
+    {
+        if script_rest != pn_entry_text {
+            super::profile::record_pn(super::profile::PN_TEXT_CHANGED);
+        }
+        if PN_FILE_TOUCHED.with(|c| c.replace(false)) {
+            super::profile::record_pn(super::profile::PN_ANY_CHANGED);
+        }
+    }
 
     super::profile::record_st_prenormalize(super::profile::timer_elapsed(_stage));
     let _stage = super::profile::timer_start();
@@ -5504,8 +5576,12 @@ fn transform_instance_script_for_visitors(
         let _guard = super::profile::ProcessAccumulatedGuard(_stmt_start);
 
         // Join all accumulated lines into a single statement
-        let statement = accumulated.join("\n");
-        let first_line_trimmed = accumulated[0].trim();
+        // The split's work counter is accumulated lines here, not bytes -- the
+        // byte count is not known until the join has already run.
+        let (statement, first_line_trimmed) = {
+            let _pa = super::profile::pa_guard(super::profile::PA_JOIN, accumulated.len() as u64);
+            (accumulated.join("\n"), accumulated[0].trim())
+        };
 
         // Handle $: reactive statements in legacy (non-runes) mode
         // Transform `$: c = a + b;` to `$.legacy_pre_effect(() => (...deps), () => { c(a() + b()); })`
@@ -5576,6 +5652,10 @@ fn transform_instance_script_for_visitors(
         // export let`), so we also check the statement text after stripping
         // any leading block comments.
         let effective_export_kw_line = {
+            let _pa = super::profile::pa_guard(
+                super::profile::PA_EXPORT_KW_PROBE,
+                statement.len() as u64,
+            );
             let mut s = first_line_trimmed;
             while s.starts_with("/*") {
                 if let Some(end) = s.find("*/") {
@@ -5602,9 +5682,15 @@ fn transform_instance_script_for_visitors(
             && (effective_export_kw_line.starts_with("export let ")
                 || effective_export_kw_line.starts_with("export var "))
         {
+            let _pa =
+                super::profile::pa_guard(super::profile::PA_EXPORT_LET, statement.len() as u64);
             // Check if this is a destructured export let pattern
             let after_export_let = effective_export_kw_line[11..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_DESTRUCTURED,
+                    statement.len() as u64,
+                );
                 // Destructured export let: flatten using extract_paths pattern
                 if let Some(flattened) = transform_destructured_export_let(&statement, analysis) {
                     let flattened = if analysis.runes {
@@ -5624,49 +5710,73 @@ fn transform_instance_script_for_visitors(
                 }
             }
             // Use the full statement for multi-line export declarations
-            let transformed = transform_export_let(&statement, analysis);
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_TRANSFORM,
+                    statement.len() as u64,
+                );
+                transform_export_let(&statement, analysis)
+            };
             // After converting to $.prop(), apply prop read wrapping to the DEFAULT VALUE
             // inside $.prop() calls. wrap_prop_source_reads skips lines containing $.prop(),
             // so we need to apply it only to the interior of the default value expression.
             // This handles cases like: export let click_1 = () => { logs.push('click_1'); }
             // where `logs` is a prop and should become `logs()` inside the default value.
-            let transformed = if !prop_assignment_transform_vars.is_empty() {
-                apply_prop_reads_in_prop_default_values(
-                    &transformed,
-                    prop_assignment_transform_vars,
-                )
-            } else {
-                transformed
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_PROP_READS,
+                    transformed.len() as u64,
+                );
+                if !prop_assignment_transform_vars.is_empty() {
+                    apply_prop_reads_in_prop_default_values(
+                        &transformed,
+                        prop_assignment_transform_vars,
+                    )
+                } else {
+                    transformed
+                }
             };
             // Apply state variable assignment transforms ($.set) to the full export let statement.
             // This handles cases where state variables are assigned inside nested callbacks
             // within the default value expression, e.g.:
             //   export let promise = new Promise((resolve) => { setTimeout(() => { answer = 42; }, 0); })
             // The `answer = 42` inside the callback needs to become `$.set(answer, 42)`.
-            let transformed = if analysis.runes {
-                transformed // AST transform handles state var wrapping
-            } else {
-                // Combined pipeline: assigns + reads in one parse.
-                let _ = proxy_vars;
-                state_pipeline_ast::transform_state_pipeline_ast(
-                    &transformed,
-                    state_vars,
-                    raw_state_vars,
-                    analysis.runes,
-                    &non_proxy_vars,
-                    non_reactive_state_vars,
-                )
-                .unwrap_or(transformed)
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_STATE_PIPELINE,
+                    transformed.len() as u64,
+                );
+                if analysis.runes {
+                    transformed // AST transform handles state var wrapping
+                } else {
+                    // Combined pipeline: assigns + reads in one parse.
+                    let _ = proxy_vars;
+                    state_pipeline_ast::transform_state_pipeline_ast(
+                        &transformed,
+                        state_vars,
+                        raw_state_vars,
+                        analysis.runes,
+                        &non_proxy_vars,
+                        non_reactive_state_vars,
+                    )
+                    .unwrap_or(transformed)
+                }
             };
             // Apply store subscription transformations to the default value expression
             // (e.g. `export let value = $page.params` becomes `$.prop(..., () => $page().params)`).
             // Only transform when the default value is wrapped in an arrow function — when
             // the default is a bare store identifier (e.g. `$foo`), it's passed as a getter
             // reference and must stay untransformed.
-            let transformed = if !store_sub_vars.is_empty() && !analysis.runes {
-                apply_store_reads_in_prop_default_values(&transformed, store_sub_vars)
-            } else {
-                transformed
+            let transformed = {
+                let _pa_sub = super::profile::pa_guard(
+                    super::profile::PA_EL_STORE_READS,
+                    transformed.len() as u64,
+                );
+                if !store_sub_vars.is_empty() && !analysis.runes {
+                    apply_store_reads_in_prop_default_values(&transformed, store_sub_vars)
+                } else {
+                    transformed
+                }
             };
             result.push_str(&transformed);
             result.push('\n');
@@ -5678,23 +5788,31 @@ fn transform_instance_script_for_visitors(
         // not ES module export syntax. `export { a, b as c }` statements are only
         // used by the analysis phase to mark bindings as BindableProp/exports.
         // The actual declarations (let a, let b) remain and get transformed to $.prop() calls.
-        if starts_export_specifier(first_line_trimmed) {
-            return;
-        }
-
-        // Handle `let` declarations that contain variables exported via `export { ... }`.
-        // When we have `let a, b, c, d;` and `export { a, c }`, the variables `a` and `c`
-        // are marked as BindableProp and need to become `$.prop()` calls.
-        // We need to split the multi-declarator `let` statement and transform each declarator.
-        if !analysis.runes
-            && has_legacy_export_let
-            && (first_line_trimmed.starts_with("let ") || first_line_trimmed.starts_with("var "))
         {
-            // Check if any of the declarators are BindableProp
-            if let Some(transformed) = transform_let_with_reexported_props(&statement, analysis) {
-                result.push_str(&transformed);
-                result.push('\n');
+            let _pa = super::profile::pa_guard(
+                super::profile::PA_EXPORT_SPECIFIER,
+                statement.len() as u64,
+            );
+            if starts_export_specifier(first_line_trimmed) {
                 return;
+            }
+
+            // Handle `let` declarations that contain variables exported via `export { ... }`.
+            // When we have `let a, b, c, d;` and `export { a, c }`, the variables `a` and `c`
+            // are marked as BindableProp and need to become `$.prop()` calls.
+            // We need to split the multi-declarator `let` statement and transform each declarator.
+            if !analysis.runes
+                && has_legacy_export_let
+                && (first_line_trimmed.starts_with("let ")
+                    || first_line_trimmed.starts_with("var "))
+            {
+                // Check if any of the declarators are BindableProp
+                if let Some(transformed) = transform_let_with_reexported_props(&statement, analysis)
+                {
+                    result.push_str(&transformed);
+                    result.push('\n');
+                    return;
+                }
             }
         }
 
@@ -5702,23 +5820,27 @@ fn transform_instance_script_for_visitors(
         // In the compiled output, exports are exposed via $$exports object, not ES export syntax
         // Reference: The official compiler processes exports in ExportNamedDeclaration visitor
         // and outputs the declarations without the export keyword
-        let statement = if first_line_trimmed.starts_with("export function ")
-            || first_line_trimmed.starts_with("export const ")
-            || first_line_trimmed.starts_with("export class ")
-            || first_line_trimmed.starts_with("export var ")
-            || first_line_trimmed.starts_with("export async function ")
-        {
-            // Remove the "export " prefix from the first line
-            if let Some(pos) = memmem::find(statement.as_bytes(), b"export ") {
-                let mut s = String::with_capacity(statement.len() - 7);
-                s.push_str(&statement[..pos]);
-                s.push_str(&statement[pos + 7..]);
-                s
+        let statement = {
+            let _pa =
+                super::profile::pa_guard(super::profile::PA_EXPORT_STRIP, statement.len() as u64);
+            if first_line_trimmed.starts_with("export function ")
+                || first_line_trimmed.starts_with("export const ")
+                || first_line_trimmed.starts_with("export class ")
+                || first_line_trimmed.starts_with("export var ")
+                || first_line_trimmed.starts_with("export async function ")
+            {
+                // Remove the "export " prefix from the first line
+                if let Some(pos) = memmem::find(statement.as_bytes(), b"export ") {
+                    let mut s = String::with_capacity(statement.len() - 7);
+                    s.push_str(&statement[..pos]);
+                    s.push_str(&statement[pos + 7..]);
+                    s
+                } else {
+                    statement
+                }
             } else {
                 statement
             }
-        } else {
-            statement
         };
         let _first_line_trimmed = first_line_trimmed
             .strip_prefix("export ")
@@ -5755,59 +5877,68 @@ fn transform_instance_script_for_visitors(
         // callee — see the matching comment in
         // `rune_transforms::transform_client_runes_with_skip_and_state`
         // for the migration rationale.
-        if dev && memmem::find(transformed.as_bytes(), b"$state.snapshot(").is_some() {
-            let prev_has_ignore = {
-                let mut found = false;
-                for line in result.lines().rev() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue;
+        {
+            let _pa =
+                super::profile::pa_guard(super::profile::PA_SNAPSHOT_DEV, transformed.len() as u64);
+            if dev && memmem::find(transformed.as_bytes(), b"$state.snapshot(").is_some() {
+                let prev_has_ignore = {
+                    let mut found = false;
+                    for line in result.lines().rev() {
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+                        if memmem::find(trimmed.as_bytes(), b"svelte-ignore").is_some()
+                            && memmem::find(trimmed.as_bytes(), b"state_snapshot_uncloneable")
+                                .is_some()
+                        {
+                            found = true;
+                        }
+                        break;
                     }
-                    if memmem::find(trimmed.as_bytes(), b"svelte-ignore").is_some()
-                        && memmem::find(trimmed.as_bytes(), b"state_snapshot_uncloneable").is_some()
-                    {
-                        found = true;
+                    found
+                };
+                if prev_has_ignore {
+                    let mut new_transformed = String::new();
+                    let mut remaining: &str = &transformed;
+                    while let Some(pos) = memmem::find(remaining.as_bytes(), b"$state.snapshot(") {
+                        new_transformed.push_str(&remaining[..pos]);
+                        let call_start = pos + "$state.snapshot(".len();
+                        if let Some(content_end) = find_matching_paren(&remaining[call_start..]) {
+                            let content = &remaining[call_start..call_start + content_end];
+                            let _ = write!(new_transformed, "$state.snapshot({}, true)", content);
+                            remaining = &remaining[call_start + content_end + 1..];
+                        } else {
+                            new_transformed.push_str("$state.snapshot(");
+                            remaining = &remaining[call_start..];
+                        }
                     }
-                    break;
+                    new_transformed.push_str(remaining);
+                    transformed = Cow::Owned(new_transformed);
                 }
-                found
-            };
-            if prev_has_ignore {
-                let mut new_transformed = String::new();
-                let mut remaining: &str = &transformed;
-                while let Some(pos) = memmem::find(remaining.as_bytes(), b"$state.snapshot(") {
-                    new_transformed.push_str(&remaining[..pos]);
-                    let call_start = pos + "$state.snapshot(".len();
-                    if let Some(content_end) = find_matching_paren(&remaining[call_start..]) {
-                        let content = &remaining[call_start..call_start + content_end];
-                        let _ = write!(new_transformed, "$state.snapshot({}, true)", content);
-                        remaining = &remaining[call_start + content_end + 1..];
-                    } else {
-                        new_transformed.push_str("$state.snapshot(");
-                        remaining = &remaining[call_start..];
-                    }
-                }
-                new_transformed.push_str(remaining);
-                transformed = Cow::Owned(new_transformed);
             }
         }
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
         // In async mode, emit a placeholder so that async_body.rs generates
         // an empty thunk `() => {}` matching the official compiler
-        if transformed.trim().is_empty() {
-            if analysis.experimental_async {
-                // Extract variable names from the original statement for hoisting
-                // e.g., "const { name } = $props()" -> "name"
-                let orig = accumulated.join("\n");
-                let vars = extract_destructured_prop_names(&orig);
-                if vars.is_empty() {
-                    result.push_str("/* $$async_noop */;\n");
-                } else {
-                    let _ = writeln!(result, "/* $$async_noop:{} */;", vars.join(","));
+        {
+            let _pa =
+                super::profile::pa_guard(super::profile::PA_EMPTY_CHECK, transformed.len() as u64);
+            if transformed.trim().is_empty() {
+                if analysis.experimental_async {
+                    // Extract variable names from the original statement for hoisting
+                    // e.g., "const { name } = $props()" -> "name"
+                    let orig = accumulated.join("\n");
+                    let vars = extract_destructured_prop_names(&orig);
+                    if vars.is_empty() {
+                        result.push_str("/* $$async_noop */;\n");
+                    } else {
+                        let _ = writeln!(result, "/* $$async_noop:{} */;", vars.join(","));
+                    }
                 }
+                return;
             }
-            return;
         }
 
         // Transform destructure assignments targeting reactive variables into IIFE patterns.
@@ -5816,24 +5947,29 @@ fn transform_instance_script_for_visitors(
         // transforms can then process.
         // Corresponds to visit_assignment_expression in shared/assignments.js.
         // Skip if there is no reactive target (state / store / prop) to destructure against
-        let transformed = stage("destructure_assignments", transformed, |t| {
-            if state_vars.is_empty()
-                && store_sub_vars.is_empty()
-                && prop_assignment_transform_vars.is_empty()
-            {
-                t
-            } else {
-                rewritten(transform_destructure_assignments_with_props(
-                    &t,
-                    state_vars,
-                    non_reactive_state_vars,
-                    store_sub_vars,
-                    prop_assignment_transform_vars,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_DESTRUCTURE_ASSIGNMENTS,
+            "destructure_assignments",
+            transformed,
+            |t| {
+                if state_vars.is_empty()
+                    && store_sub_vars.is_empty()
+                    && prop_assignment_transform_vars.is_empty()
+                {
+                    t
+                } else {
+                    rewritten(transform_destructure_assignments_with_props(
+                        &t,
+                        state_vars,
+                        non_reactive_state_vars,
+                        store_sub_vars,
+                        prop_assignment_transform_vars,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                }
+            },
+        );
 
         // Transform state variable assignments to $.set()
         // In runes mode, deferred to AST-based transform after main loop.
@@ -5841,164 +5977,202 @@ fn transform_instance_script_for_visitors(
             transformed
         } else {
             // Unified AST pass — see Site 1 comment for rationale.
-            let transformed = stage("state_assigns", transformed, |t| {
-                state_assigns_combined_ast::transform_state_assigns_ast(
-                    &t,
-                    state_vars,
-                    raw_state_vars,
-                    analysis.runes,
-                    &non_proxy_vars,
-                )
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            });
-            stage("store_unsub_for_state_sets", transformed, |t| {
-                rewritten(wrap_store_unsub_for_state_sets(
-                    &t,
-                    state_vars,
-                    store_sub_vars,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            })
+            let transformed = pa_stage(
+                super::profile::PA_STATE_ASSIGNS,
+                "state_assigns",
+                transformed,
+                |t| {
+                    state_assigns_combined_ast::transform_state_assigns_ast(
+                        &t,
+                        state_vars,
+                        raw_state_vars,
+                        analysis.runes,
+                        &non_proxy_vars,
+                    )
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                },
+            );
+            pa_stage(
+                super::profile::PA_STORE_UNSUB,
+                "store_unsub_for_state_sets",
+                transformed,
+                |t| {
+                    rewritten(wrap_store_unsub_for_state_sets(
+                        &t,
+                        state_vars,
+                        store_sub_vars,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                },
+            )
         };
 
         // Transform member mutations to $.mutate() calls (only in legacy/non-runes mode).
         // This handles patterns like `obj.self = obj` → `$.mutate(obj, obj.self = obj)`.
         // Must run AFTER transform_state_assignments (which handles direct assignments like `x = v`)
         // and BEFORE wrap_state_vars_in_expr (which will apply $.get() inside the $.mutate()).
-        let transformed = stage("member_mutations", transformed, |t| {
-            if !analysis.runes && !state_vars.is_empty() {
-                rewritten(transform_member_mutations(
-                    &t,
-                    state_vars,
-                    non_reactive_state_vars,
-                    raw_state_vars,
-                    &prop_invalidate_bodies,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_MEMBER_MUTATIONS,
+            "member_mutations",
+            transformed,
+            |t| {
+                if !analysis.runes && !state_vars.is_empty() {
+                    rewritten(transform_member_mutations(
+                        &t,
+                        state_vars,
+                        non_reactive_state_vars,
+                        raw_state_vars,
+                        &prop_invalidate_bodies,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
         // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
         // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
         // and before wrap_prop_source_reads (which would turn `count` → `count()`, causing `count()++`)
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = stage("prop_update_expressions", transformed, |t| {
-            if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
-                rewritten(transform_prop_update_expressions(
-                    &t,
-                    prop_assignment_transform_vars,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_PROP_UPDATE_EXPRESSIONS,
+            "prop_update_expressions",
+            transformed,
+            |t| {
+                if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
+                    rewritten(transform_prop_update_expressions(
+                        &t,
+                        prop_assignment_transform_vars,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
         // Transform prop source variable reads to prop() calls BEFORE prop assignments.
         // This handles props used as function calls: `callback(args)` → `callback()(args)`.
         // Must come BEFORE transform_prop_assignments so that `callback = value` (assignment)
         // doesn't get incorrectly double-wrapped as `callback()(value)`.
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = stage("prop_source_reads", transformed, |t| {
-            if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
-                prop_source_reads_ast::wrap_prop_source_reads_ast(
-                    &t,
-                    prop_assignment_transform_vars,
-                    &non_bindable_prop_vars,
-                )
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_PROP_SOURCE_READS,
+            "prop_source_reads",
+            transformed,
+            |t| {
+                if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
+                    prop_source_reads_ast::wrap_prop_source_reads_ast(
+                        &t,
+                        prop_assignment_transform_vars,
+                        &non_bindable_prop_vars,
+                    )
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
         // Transform prop assignments to prop(prop() + value) syntax
         // This handles props declared with `export let` in legacy mode
         // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
         // because rest_props use $.rest_props() which returns a plain object, not getter/setter
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = stage("prop_assignments", transformed, |t| {
-            if !analysis.runes {
-                rewritten(transform_prop_assignments(
-                    &t,
-                    prop_assignment_transform_vars,
-                    &non_bindable_prop_vars,
-                    &prop_invalidate_bodies,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_PROP_ASSIGNMENTS,
+            "prop_assignments",
+            transformed,
+            |t| {
+                if !analysis.runes {
+                    rewritten(transform_prop_assignments(
+                        &t,
+                        prop_assignment_transform_vars,
+                        &non_bindable_prop_vars,
+                        &prop_invalidate_bodies,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
         // Store transforms: skip entirely when there are no store subscriptions
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = if !store_sub_vars.is_empty()
-            && !analysis.runes
-            && store_sub_vars
-                .iter()
-                .any(|store| transformed.contains(store.as_str()))
-        {
-            // Filter out store_sub_vars that appear as function parameters in this statement.
-            let mut filtered_store_sub_vars = Vec::new();
-            let effective_store_sub_vars =
-                if transformed.contains("=>") || transformed.contains("function") {
-                    filtered_store_sub_vars.extend(
+        let transformed = {
+            let _pa = super::profile::pa_guard(super::profile::PA_STORES, transformed.len() as u64);
+            if !store_sub_vars.is_empty()
+                && !analysis.runes
+                && store_sub_vars
+                    .iter()
+                    .any(|store| transformed.contains(store.as_str()))
+            {
+                // Filter out store_sub_vars that appear as function parameters in this statement.
+                let mut filtered_store_sub_vars = Vec::new();
+                let effective_store_sub_vars =
+                    if transformed.contains("=>") || transformed.contains("function") {
+                        filtered_store_sub_vars.extend(
+                            store_sub_vars
+                                .iter()
+                                .filter(|s| !is_function_parameter_in_statement(&transformed, s))
+                                .cloned(),
+                        );
+                        filtered_store_sub_vars.as_slice()
+                    } else {
                         store_sub_vars
-                            .iter()
-                            .filter(|s| !is_function_parameter_in_statement(&transformed, s))
-                            .cloned(),
-                    );
-                    filtered_store_sub_vars.as_slice()
-                } else {
-                    store_sub_vars
-                };
+                    };
 
-            let transformed = stage("store_sub_calls", transformed, |t| {
-                Cow::Owned(transform_store_sub_calls(&t, effective_store_sub_vars))
-            });
-            let transformed = stage("store_assignments", transformed, |t| {
-                Cow::Owned(transform_store_assignments_client(
-                    &t,
-                    effective_store_sub_vars,
-                    prop_assignment_transform_vars,
-                    state_vars,
-                    non_reactive_state_vars,
-                ))
-            });
-            stage("store_reads", transformed, |t| {
-                Cow::Owned(transform_store_reads_client(&t, effective_store_sub_vars))
-            })
-        } else {
-            transformed
+                let transformed = stage("store_sub_calls", transformed, |t| {
+                    Cow::Owned(transform_store_sub_calls(&t, effective_store_sub_vars))
+                });
+                let transformed = stage("store_assignments", transformed, |t| {
+                    Cow::Owned(transform_store_assignments_client(
+                        &t,
+                        effective_store_sub_vars,
+                        prop_assignment_transform_vars,
+                        state_vars,
+                        non_reactive_state_vars,
+                    ))
+                });
+                stage("store_reads", transformed, |t| {
+                    Cow::Owned(transform_store_reads_client(&t, effective_store_sub_vars))
+                })
+            } else {
+                transformed
+            }
         };
 
         // Expand legacy destructuring declarations with state variables into tmp-based
         // individual declarations BEFORE mutable_source wrapping.
         // e.g., `let { foo, bar } = expr` -> `let tmp = expr, foo = $.mutable_source(tmp.foo), bar = tmp.bar`
         // Reference: create_state_declarators in VariableDeclaration.js
-        let transformed = stage("legacy_destructure_declarations", transformed, |t| {
-            if !analysis.runes && !legacy_state_vars.is_empty() {
-                rewritten(transform_legacy_destructure_declarations(
-                    &t,
-                    &legacy_state_var_names,
-                    analysis.immutable,
-                    dev,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_LEGACY_DESTRUCTURE_DECLARATIONS,
+            "legacy_destructure_declarations",
+            transformed,
+            |t| {
+                if !analysis.runes && !legacy_state_vars.is_empty() {
+                    rewritten(transform_legacy_destructure_declarations(
+                        &t,
+                        &legacy_state_var_names,
+                        analysis.immutable,
+                        dev,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
         // Transform legacy state declarations to $.mutable_source() BEFORE wrapping reads.
         // This must come before wrap_state_vars_in_expr because multi-variable declarations
@@ -6007,59 +6181,79 @@ fn transform_instance_script_for_visitors(
         // By transforming declarations first, `let a, b;` becomes:
         //   `let a = $.mutable_source();\nlet b = $.mutable_source();`
         // and then wrap_state_vars_in_expr correctly skips them since each starts with `let `.
-        let transformed = stage("legacy_state_declarations", transformed, |t| {
-            if !analysis.runes && !legacy_state_vars.is_empty() {
-                rewritten(transform_legacy_state_declarations(
-                    &t,
-                    legacy_state_vars,
-                    analysis.immutable,
-                    dev,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_LEGACY_STATE_DECLARATIONS,
+            "legacy_state_declarations",
+            transformed,
+            |t| {
+                if !analysis.runes && !legacy_state_vars.is_empty() {
+                    rewritten(transform_legacy_state_declarations(
+                        &t,
+                        legacy_state_vars,
+                        analysis.immutable,
+                        dev,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
         // Wrap state variable reads in $.get() for ALL statements including declarations.
         // In runes mode, deferred to AST-based transform after main loop.
-        let transformed = stage("state_reads", transformed, |t| {
-            if analysis.runes {
-                t
-            } else {
-                rewritten(wrap_state_vars_in_expr(
-                    &t,
-                    state_vars,
-                    non_reactive_state_vars,
-                    proxy_vars,
-                ))
-                .map(Cow::Owned)
-                .unwrap_or(t)
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_STATE_READS,
+            "state_reads",
+            transformed,
+            |t| {
+                if analysis.runes {
+                    t
+                } else {
+                    rewritten(wrap_state_vars_in_expr(
+                        &t,
+                        state_vars,
+                        non_reactive_state_vars,
+                        proxy_vars,
+                    ))
+                    .map(Cow::Owned)
+                    .unwrap_or(t)
+                }
+            },
+        );
 
         // Transform rest_prop member access to $$props (only in non-runes mode here;
         // in runes mode, deferred to AST-based transform after main loop)
-        let transformed = stage("rest_prop_member_access", transformed, |t| {
-            if !analysis.runes && !rest_prop_vars.is_empty() {
-                Cow::Owned(transform_rest_prop_member_access(&t, rest_prop_vars))
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_REST_PROP_MEMBER_ACCESS,
+            "rest_prop_member_access",
+            transformed,
+            |t| {
+                if !analysis.runes && !rest_prop_vars.is_empty() {
+                    Cow::Owned(transform_rest_prop_member_access(&t, rest_prop_vars))
+                } else {
+                    t
+                }
+            },
+        );
 
         // Transform read-only props to $$props.propName (only in non-runes mode here;
         // in runes mode, deferred to AST-based transform after main loop).
-        let transformed = stage("read_only_props", transformed, |t| {
-            if !analysis.runes && !read_only_props.is_empty() {
-                read_only_props_ast::transform_read_only_props_ast(&t, read_only_props)
-                    .map(Cow::Owned)
-                    .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_READ_ONLY_PROPS,
+            "read_only_props",
+            transformed,
+            |t| {
+                if !analysis.runes && !read_only_props.is_empty() {
+                    read_only_props_ast::transform_read_only_props_ast(&t, read_only_props)
+                        .map(Cow::Owned)
+                        .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
         // In dev mode, wrap console.METHOD() calls with $.log_if_contains_state
         // to detect when state proxies are logged directly.
@@ -6070,18 +6264,24 @@ fn transform_instance_script_for_visitors(
         // fragment fails to parse standalone (rare — the parser is lenient
         // for any complete expression / statement). The AST path fixes the
         // quote-counting string-skip heuristic that the text version uses.
-        let transformed = stage("console_dev", transformed, |t| {
-            if dev {
-                let is_ts =
-                    analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-                console_dev_ast::transform_console_calls_dev_fragment(&t, is_ts, Some(analysis))
-                    .map(Cow::Owned)
-                    .unwrap_or(t)
-            } else {
-                t
-            }
-        });
+        let transformed = pa_stage(
+            super::profile::PA_CONSOLE_DEV,
+            "console_dev",
+            transformed,
+            |t| {
+                if dev {
+                    let is_ts = analysis.filename.ends_with(".ts")
+                        || analysis.filename.ends_with(".svelte.ts");
+                    console_dev_ast::transform_console_calls_dev_fragment(&t, is_ts, Some(analysis))
+                        .map(Cow::Owned)
+                        .unwrap_or(t)
+                } else {
+                    t
+                }
+            },
+        );
 
+        let _pa = super::profile::pa_guard(super::profile::PA_EMIT, transformed.len() as u64);
         result.push_str(&transformed);
         result.push('\n');
     };
