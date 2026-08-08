@@ -129,11 +129,48 @@ scanning bytes instead of lexing, so a `}` / `)` / `;` inside a comment is read 
 consolidated five such scans behind `shared/js_scan.rs::skip_opaque`.
 
 The paren mechanism recorded here — official emitting `() => (items())` where rsvelte emits
-`() => items()`, with the two agreeing on the unmutated seed — was measured as **353 of 525
-(91%)** of first-differences against the 525-entry baseline. **It has not been re-derived
-against the 36**, and the artifacts a passing run would need for it are deleted on success, so
-the share is left as a historical figure rather than restated. Do not quote 91% of the current
-bucket; re-measure with `--keep-artifacts` if the number is needed.
+`() => items()`, with the two agreeing on the unmutated seed — was measured as **353 of 525** of
+first-differences against the 525-entry baseline. That figure is historical and does not carry
+over; the section below re-derives the split against the 36.
+
+### What the 36 are
+
+The gate prints one first-difference line per **regression**, so a passing run prints none. To
+get all 36, empty the ratchet, run `--full --max-print 40`, and restore it — which needs no
+artifacts and no re-compile. Classifying every entry by the first rule that matches:
+
+| class | entries | example (official → rsvelte) |
+|---|---|---|
+| empty-statement / `;` placement | 16 | `export default class {};` → `export default class {}` |
+| optional-chain parenthesisation | 9 | `(e?.target)?.closest(…)` → `e?.target?.closest(…)` |
+| missing `$.get` on a reactive read | 3 | `() => $.get(circles)` → `() => circles` |
+| `$$DOUBLE_SEMI$$` sentinel reaches the output | 3 | `;;` → `void "$$DOUBLE_SEMI$$";` |
+| extra legacy prologue | 2 | *(absent)* → `$.legacy_pre_effect_reset();` |
+| `$props()` destructure left in the output | 2 | *(absent)* → `let { visible, class: className } = $props();` |
+| `$.snapshot` second argument dropped | 1 | `$.snapshot(arr, true)` → `$.snapshot(arr)` |
+
+`() => (items())` — the shape the 353 counted — does **not** appear among the 36 at all. The 9
+parenthesisation entries are a different one: a parenthesised optional-chain link. So the
+mechanism that dominated the 525 is not merely a smaller share now, it is absent from the
+residue, and quoting any paren share of the current bucket from the historical number would be
+wrong in kind rather than in magnitude.
+
+The `;` bucket splits as 6 × a trailing `;` after a class body or IIFE that rsvelte omits, 5 ×
+rsvelte emitting more empty statements than official, 3 × fewer, 1 × an empty statement in a
+`switch` case, 1 × other placement.
+
+**"Known failure" is not "accepted output" here, and the table is what separates the two.** The
+first two classes — 25 of 36 — are cosmetic: a redundant paren and an empty statement change no
+behaviour. The remaining 8 do. A missing `$.get` is lost reactivity; a leaked `$$DOUBLE_SEMI$$`
+is an internal marker shipped to users; a `$props()` destructure surviving into the compiled
+module references a rune that does not exist at runtime. Anyone burning this bucket down should
+start at the bottom of the table, not the top.
+
+Two things this classification does not establish. It is the **first** difference per entry, so
+an entry counted as cosmetic may carry a behavioural one further down the same file — the split
+bounds the cosmetic share from below, not the behavioural share from above. And each row is a
+description of the output, not a diagnosis: no site in the compiler has been attributed to any
+of these seven classes.
 
 ### By source repository
 
