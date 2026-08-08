@@ -317,6 +317,12 @@ from somewhere the share did not.
 
 ## Findings (2026-08-08 — the `to_value` cost is one site, and it is not the lazy cache)
 
+> Read alongside the same-dated section above, whose title says the opposite. It is not a
+> contradiction: that one asks which **site** owns the alloc+hash+memcpy bucket of total
+> compile and correctly answers *none*; this one asks where the JSON **objects** come from.
+> The answers interlock — that section prices one object key (`String` malloc + `IndexMap`
+> slot + SipHash, from 88 distinct static keys), and this section names what emits the keys.
+
 **`JsNode` → `serde_json::Value` is an OPEN target, and the part of it worth
 attacking is `instance_labeled_statements_json` in `2_analyze/mod.rs` — not the
 lazy JSON cache that #2510 / #2570 / #2576 optimized.**

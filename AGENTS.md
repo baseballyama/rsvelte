@@ -45,8 +45,12 @@ module path) is internal IR construction with unchanged output — a maintainabi
 12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
 `instance_labeled_statements_json` (`2_analyze/mod.rs`) — **77–82% of all JSON objects and map
 entries on legacy-`$:` corpora, 0% on runes-only code**, confirmed by two independent
-instruments. It is an **open** target; the remedy is porting its three legacy-`$:` consumers to
-typed traversal, not another cache. Two rules it cost us: **count a function's call sites before
+instruments. The remedy is porting its three legacy-`$:` consumers to typed traversal, not
+another cache. This is not a competing claim to § *Where compile time goes* below, which asks
+which **site** owns the alloc+hash+memcpy bucket and correctly answers *none*: the two
+populations differ and the answers interlock — that section prices a JSON object key (`String`
+malloc + `IndexMap` slot + SipHash), and this site is what produces the keys.
+Two rules it cost us: **count a function's call sites before
 trusting a per-function measurement**, and **attribute a memoised value by reader *set*, not
 first reader** (under a per-node cache, first-reader attribution names the wrong site — converting
 it moves the count by zero). Numbers, cross-validation and the unresolved time question are in
