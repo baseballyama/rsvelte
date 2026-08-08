@@ -483,7 +483,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     };
 
     if !analysis.runes {
-        check_reactive_declaration_cycles(&reactive_labeled, &ast.arena, &mut analysis)?;
+        check_reactive_declaration_cycles(&reactive_labeled, &ast.arena, &analysis)?;
     }
 
     // Populate legacy_dependencies for LegacyReactive bindings.
@@ -1277,7 +1277,7 @@ fn body_has_let_declaration_typed(
 fn check_reactive_declaration_cycles(
     labeled: &[&JsNode],
     arena: &ParseArena,
-    analysis: &mut ComponentAnalysis,
+    analysis: &ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
     // Collect reactive statements and their assignments/dependencies
     // Each entry: (assignments, dependencies, statement span)
@@ -1324,18 +1324,16 @@ fn check_reactive_declaration_cycles(
         // Remove self-dependencies (assigned variables that also appear as dependencies)
         dependencies.retain(|dep| !assignments.contains(dep));
 
-        // Pushed for every `$:`, not only the assigning ones, because the
-        // Phase-3 client indexes this by source ordinal; skipping a statement
-        // here would shift every later entry onto the wrong statement. Cycle
-        // detection below re-imposes the non-empty-assignments filter itself.
-        let span = node.start().zip(node.end());
-        reactive_stmts.push((assignments, dependencies, span));
+        if !assignments.is_empty() {
+            let span = node.start().zip(node.end());
+            reactive_stmts.push((assignments, dependencies, span));
+        }
     }
 
     // Build edges for cycle detection: (assignment_name, dependency_name)
     // Use &str references to avoid String allocations
     let mut edges: Vec<(&str, &str)> = Vec::new();
-    for (assignments, dependencies, _) in reactive_stmts.iter().filter(|(a, _, _)| !a.is_empty()) {
+    for (assignments, dependencies, _) in &reactive_stmts {
         for assignment in assignments {
             for dependency in dependencies {
                 edges.push((assignment.as_str(), dependency.as_str()));
@@ -1357,11 +1355,6 @@ fn check_reactive_declaration_cycles(
         }
         return Err(error);
     }
-
-    analysis.reactive_statement_sort_keys = reactive_stmts
-        .into_iter()
-        .map(|(assignments, dependencies, _)| (assignments, dependencies))
-        .collect();
 
     Ok(())
 }
@@ -2132,6 +2125,17 @@ fn collect_reactive_statement_dependencies(
         );
 
         let deps: Vec<String> = order.into_iter().filter(|n| included.contains(n)).collect();
+
+        // Topological-sort key for the Phase-3 client, same ordinal. Upstream
+        // sorts on `reactive_statement.{assignments,dependencies}`, so the
+        // dependency half has to be this set — the cycle-detection walker's is
+        // narrower (it stops at function bodies) and dropping edges reorders.
+        let mut assignments: Vec<String> = Vec::new();
+        collect_reactive_assignment_names(stmt_body, arena, &mut assignments);
+        analysis
+            .reactive_statement_sort_keys
+            .push((assignments, deps.clone()));
+
         analysis.reactive_statement_dependencies.push(deps);
     }
 }
@@ -2187,6 +2191,27 @@ fn note_reactive_ref(
     let excluded = k >= 1 && path[k - 1].assign_left_span == Some(left_span);
     if !excluded {
         included.insert(name);
+    }
+}
+
+/// Assignment targets of one `$:` body, mirroring the `AssignmentExpression` /
+/// `UpdateExpression` visitors that fill `reactive_statement.assignments`
+/// upstream. Those run over the whole statement subtree, so unlike the
+/// cycle-detection walker this descends into function bodies.
+fn collect_reactive_assignment_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+    match node {
+        JsNode::AssignmentExpression { left, right, .. } => {
+            cycle_extract_pattern_ids(arena.get_js_node(*left), arena, out);
+            collect_reactive_assignment_names(arena.get_js_node(*right), arena, out);
+        }
+        JsNode::UpdateExpression { argument, .. } => {
+            cycle_extract_pattern_ids(arena.get_js_node(*argument), arena, out);
+        }
+        _ => {
+            for_each_js_child(node, arena, &mut |child| {
+                collect_reactive_assignment_names(child, arena, out);
+            });
+        }
     }
 }
 
