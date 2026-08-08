@@ -2,10 +2,11 @@
 //! block body crashed the client compiler.
 //!
 //! The three ordinary-comment cases below no longer reach the scan they were
-//! written for: `strip_reactive_statement_comments` now deletes a `$:` body's
-//! comments before phase 3 sees them, so they pass even with the fix reverted.
-//! That pass keeps `svelte-ignore` comments, which is why the variants carrying
-//! one are the cases that still exercise the scan end to end. The unit tests on
+//! written for: `rehome_reactive_statement_comments` moves a `$:` body's
+//! comments out before phase 3 sees them — and with nothing surviving after the
+//! statement, out means gone — so they pass even with the fix reverted. That
+//! pass leaves `svelte-ignore` comments alone, which is why the variants
+//! carrying one are the cases that still exercise the scan end to end. The unit tests on
 //! `find_assignment_position` and `extract_destructure_targets` pin the two
 //! load-bearing behaviours directly, independent of what runs upstream of them.
 
