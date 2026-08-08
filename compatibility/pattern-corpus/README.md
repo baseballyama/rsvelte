@@ -87,6 +87,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2637-trailing-binary-operator-matrix.svelte` | [#2637](https://github.com/baseballyama/rsvelte/issues/2637) | The rest of the operator matrix behind `2605-trailing-binary-operator.svelte`: 15 of the 23 binary operators still cut the statement after #2605, including `*`, `<` (a prefix of the already-handled `<=`), `<<`, the word operators `in` / `instanceof`, and `,`. `-` and `/` remain excluded on purpose — `a--` ends a statement and `/` also closes a block comment — so the file does not use them |
 | `2652-string-line-continuation.svelte` | [#2652](https://github.com/baseballyama/rsvelte/issues/2652) | A `'…'` carried across a line break by a backslash. The carried line is string **content**, so the client re-indenter's tab landed inside the value — valid JavaScript computing `a\tb` instead of `ab`, which no parse gate can see. On the server the same literal never entered the constants map, because the joined logical line still held the raw newline and was re-split |
 | `2661-concat-fold-source-text.svelte` | [#2661](https://github.com/baseballyama/rsvelte/issues/2661) | `'ab' + 'cd'` — the server's fold asked `starts_with('\'') && ends_with('\'')`, which a concatenation of two literals also answers yes to, and rendered the text between the outer quotes verbatim: `ab' + 'cd` |
+| `2653-literal-raw-escape-spelling.svelte` | [#2653](https://github.com/baseballyama/rsvelte/issues/2653) | A single-quoted string literal in a template expression. esrap writes a literal's `raw`, so official's output carries the source spelling; rsvelte kept `raw` only when it started with `"` and re-printed everything else from the cooked value, turning `'a\tb'` into a real tab and `'\x41'` into `'A'`. The **value is right** and the output parses — a source-text divergence, invisible to the parse gate. Deliberately unformatted: the fmt oracle rewrites the quotes to `"`, which is the one shape that already worked |
 
 ## `matrix/` — the axes around those repros
 
@@ -272,6 +273,29 @@ moment it is committed formatted — a `double-quoted.svelte` written alongside
 `instance-declaration.svelte` came out byte-identical to it. That axis lives in
 `crates/rsvelte_core/tests/string_line_continuation_2652.rs`, where no formatter
 runs.
+
+### `string-escape-spelling/` — the same escapes, one step later (around #2653)
+
+`string-escape-fold/` covers escapes on the **fold** path, where the compiler
+computes a *value* and re-escapes it once. This one covers the escapes that
+never get folded: a literal that reaches the template-expression converter and
+is printed back out. esrap writes a literal's `raw`, so official's output
+carries the source's spelling; a printer that re-emits the cooked value agrees
+about the string and disagrees about its text — output that parses and runs
+correctly, which is why it sat under the parse gate.
+
+`newline-escape.svelte` and `backslash-escape.svelte` are the **negative
+controls**: `\n` and `\\` are in the printer's own escape set, so they matched
+before the fix and must keep matching.
+
+**Kept deliberately unformatted (single-quoted).** The fmt oracle rewrites every
+literal to double quotes, and a double-quoted literal was the one shape that
+*already* kept its `raw` — so the formatted form of every file here reproduces
+nothing. This class cannot be pinned by a file that is a formatter fixed point;
+the formatted shape is not a stricter version of the input, it is a different
+input. The generated `literal-escape` matrix family is the primary gate for the
+class (it constructs its own sources and never passes through the formatter);
+these files are the committed repro beside it.
 
 ### `string-escape-fold/` — escape kind × fold site (around #2607)
 

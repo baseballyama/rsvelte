@@ -11,6 +11,8 @@ import {
 	COMMENT_KINDS,
 	COMMENT_SEEDS,
 	COMMENT_MODULE_SEEDS,
+	LITERAL_ESCAPES,
+	EXPRESSION_SLOTS,
 	INVALID_BIND_TARGETS,
 	VALID_BIND_TARGETS,
 	BIND_SLOTS,
@@ -56,6 +58,19 @@ function commentSlotCases() {
 	return cases;
 }
 
+function literalEscapeCases() {
+	const cases = [];
+	for (const [escapeName, literal] of Object.entries(LITERAL_ESCAPES)) {
+		for (const [slotName, markup] of Object.entries(EXPRESSION_SLOTS)) {
+			cases.push({
+				id: `literal-escape/${escapeName}__${slotName}.svelte`,
+				source: markup.replaceAll('%s', literal) + '\n',
+			});
+		}
+	}
+	return cases;
+}
+
 function invalidBindCases() {
 	const cases = [];
 	for (const [targetName, expression] of Object.entries(INVALID_BIND_TARGETS)) {
@@ -83,6 +98,7 @@ function invalidBindCases() {
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
+	'literal-escape': literalEscapeCases,
 	'invalid-bind': invalidBindCases,
 };
 

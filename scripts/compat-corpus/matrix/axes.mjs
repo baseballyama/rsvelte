@@ -278,6 +278,68 @@ export const COMMENT_SEEDS = {
 };
 
 /**
+ * Axis F — how a string literal spells itself, crossed with axis G, the template
+ * slot whose expression holds it.
+ *
+ * esrap writes a literal's `raw` verbatim, so official's output carries the
+ * source's quote style AND its escape spelling. Anything that re-prints the
+ * cooked value instead agrees about the string's *value* and disagrees about
+ * its text — output that parses, runs correctly, and still diverges. The escapes
+ * that expose it are exactly the ones a printer does not re-emit (`\t`, `\v`,
+ * `\b`, `\f`, `\x41`, `A`); `\n` and `\\` agree by coincidence and are the
+ * negative controls.
+ *
+ * Both quote styles are present because a fix that only preserved double-quoted
+ * literals is what shipped, and a single-quote-only axis would score it green.
+ */
+export const LITERAL_ESCAPES = {
+	tab: "'a\\tb'",
+	'tab-double-quoted': '"a\\tb"',
+	vtab: "'a\\vb'",
+	backspace: "'a\\bb'",
+	formfeed: "'a\\fb'",
+	newline: "'a\\nb'",
+	'carriage-return': "'a\\rb'",
+	nul: "'a\\0b'",
+	hex: "'a\\x41b'",
+	unicode: "'a\\u0041b'",
+	'unicode-braced': "'a\\u{1F600}b'",
+	'surrogate-pair': "'a\\uD83D\\uDE00b'",
+	backslash: "'a\\\\b'",
+	'escaped-single-quote': "'a\\'b'",
+	'escaped-double-quote': '"a\\"b"',
+	'unescaped-other-quote': "'a\"b'",
+};
+
+/**
+ * Axis G — the template slot the literal sits in. `%s` is the literal.
+ *
+ * This is the first axis in this file that injects into MARKUP rather than into
+ * a JS statement inside `<script>`, which gate-coverage 5c records as the
+ * matrix's largest blind spot. Each slot is a different route from the parsed
+ * expression to the emitted text — interpolation, an attribute, a directive
+ * value, a block head, a handler body — and they do not share one converter.
+ */
+export const EXPRESSION_SLOTS = {
+	interpolation: '<p>{%s}</p>',
+	'attribute-value': '<p title={%s}>x</p>',
+	'const-tag': '{#if true}{@const t = %s}<p>{t}</p>{/if}',
+	'event-handler': '<button onclick={() => console.log(%s)}>x</button>',
+	'if-test': '{#if %s}<p>y</p>{/if}',
+	'each-expression': '{#each [%s] as v}<p>{v}</p>{/each}',
+	'html-tag': '{@html %s}',
+	'class-directive': '<p class:on={%s}>x</p>',
+	'style-directive': '<p style:color={%s}>x</p>',
+	'spread-attribute': '<p {...{ k: %s }}>x</p>',
+	'render-argument': '{#snippet row(v)}<li>{v}</li>{/snippet}{@render row(%s)}',
+	'key-block': '{#key %s}<p>x</p>{/key}',
+	'await-expression': '{#await Promise.resolve(%s) then v}<p>{v}</p>{/await}',
+	// The one slot that goes through the instance-script text pipeline rather
+	// than the expression converter.
+	'instance-declaration': '<script>\n\tconst s = %s;\n</script>\n\n<p>{s}</p>',
+};
+
+/**
  * Axis D — expressions that are not a legal `bind:` target, crossed with axis E,
  * the directive slot they sit in.
  *

@@ -96,7 +96,7 @@ const rsvelte = require(BINDING);
 
 // ---- generate + compile ----------------------------------------------------
 
-// The axes generate 1105 cases on an unmodified tree; the floor only has to
+// The axes generate 1329 cases on an unmodified tree; the floor only has to
 // separate "generation broke" from "the gate got easier".
 const MIN_MATRIX_CASES = 700;
 
@@ -227,7 +227,7 @@ if (UPDATE_BASELINE) {
 	// ratchet. This one is absolute.
 	if (cases.length < MIN_MATRIX_CASES) {
 		console.error(`\n[matrix] refusing to baseline from ${cases.length} generated cases (expected >= ${MIN_MATRIX_CASES}).`);
-		console.error('  the axes generate ~1105; far below that means generation broke, not that the gate got easier.');
+		console.error('  the axes generate ~1329; far below that means generation broke, not that the gate got easier.');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
