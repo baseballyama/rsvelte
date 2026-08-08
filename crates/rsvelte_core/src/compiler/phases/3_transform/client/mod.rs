@@ -3739,6 +3739,7 @@ pub(super) fn extract_local_reactive_vars(script: &str) -> Vec<(String, bool, bo
         return Vec::new();
     }
 
+    super::profile::record_st_collect_scan(script.len() as u64);
     let mut vars = Vec::new();
 
     // Pattern: (let|const|var) varname = $state(...) or (let|const|var) varname = $derived(...)
@@ -3851,6 +3852,7 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
     if memmem::find(script.as_bytes(), b"$state(").is_none() {
         return Vec::new();
     }
+    super::profile::record_st_collect_scan(script.len() as u64);
     let mut proxy_vars = Vec::new();
 
     for line in script.lines() {
@@ -4534,6 +4536,22 @@ fn stage<'a>(
     }
 }
 
+/// Whether the statement accumulated so far ends in a brace-less control-flow
+/// header, materialising the joined text only when the last line cannot settle it.
+fn accumulated_ends_with_control_header(accumulated: &[&str], last: &str) -> bool {
+    if let Some(verdict) = expression_utils::braceless_control_header_from_last_line(last) {
+        super::profile::record_st_ctrl_header(0);
+        return verdict;
+    }
+    let mut acc = accumulated[..accumulated.len() - 1].join("\n");
+    if !acc.is_empty() {
+        acc.push('\n');
+    }
+    acc.push_str(last);
+    super::profile::record_st_ctrl_header(acc.len() as u64);
+    expression_utils::ends_with_braceless_control_header(&acc)
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -4691,6 +4709,9 @@ fn transform_instance_script_for_visitors(
     // Pre-filter state_vars to only include variables that actually appear in the script.
     // This avoids O(M*N) scanning in downstream transforms for variables that can't match.
     // Uses O(text_len) identifier extraction instead of O(N*text_len) substring search.
+    if !state_vars.is_empty() && !script_rest.is_empty() {
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
+    }
     utils::text_retain_matching_identifiers(&script_rest, &mut state_vars);
 
     // Ensure reactive import names are included in state_vars for $.get()/$.mutate() wrapping.
@@ -4778,6 +4799,8 @@ fn transform_instance_script_for_visitors(
     let (const_state_decls, reassigned_in_text) = if local_reactive_vars.is_empty() {
         Default::default()
     } else {
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
         (
             index_const_state_decls(&script_rest),
             index_reassigned_vars(&script_rest),
@@ -4982,14 +5005,19 @@ fn transform_instance_script_for_visitors(
 
     // Check for legacy mode (export let or export { x })
     // Also detect `export { x }` patterns which create BindableProp bindings
-    let has_legacy_export_let = script_rest.lines().any(|line| {
-        let trimmed = line.trim();
-        trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
-    }) || analysis
-        .root
-        .bindings
-        .iter()
-        .any(|b| matches!(b.kind, BindingKind::BindableProp));
+    // The per-line walk can only succeed where the substring exists.
+    let has_legacy_export_let =
+        (memmem::find(script_rest.as_bytes(), b"export let").is_some() && {
+            super::profile::record_st_collect_scan(script_rest.len() as u64);
+            script_rest.lines().any(|line| {
+                let trimmed = line.trim();
+                trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
+            })
+        }) || analysis
+            .root
+            .bindings
+            .iter()
+            .any(|b| matches!(b.kind, BindingKind::BindableProp));
 
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
@@ -6077,6 +6105,8 @@ fn transform_instance_script_for_visitors(
     super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
     let _stage = super::profile::timer_start();
 
+    super::profile::record_st_loop_lines(script_lines.len() as u64);
+
     while line_idx < script_lines.len() {
         let line = script_lines[line_idx];
         let trimmed = line.trim();
@@ -6216,16 +6246,10 @@ fn transform_instance_script_for_visitors(
             // complete statement — its body statement must be accumulated with it.
             // Otherwise `$: if (cond)\n\tstmt` splits `stmt` off as a separate
             // top-level statement, dropping the guard and the reactive wrapper.
-            let ends_with_control_header = {
-                let mut acc = accumulated_lines[..accumulated_lines.len() - 1].join("\n");
-                if !acc.is_empty() {
-                    acc.push('\n');
-                }
-                acc.push_str(trimmed);
-                expression_utils::ends_with_braceless_control_header(&acc)
-            };
-
-            if !trailing_comma && !trailing_operator && !ends_with_control_header {
+            if !trailing_comma
+                && !trailing_operator
+                && !accumulated_ends_with_control_header(&accumulated_lines, trimmed)
+            {
                 // Before processing, check if the next non-empty line starts with a
                 // continuation token (`.` for method chains, `?`, `:`, `&&`, `||`,
                 // `??` for ternary/logical continuation). Example:
@@ -6271,6 +6295,7 @@ fn transform_instance_script_for_visitors(
                             && (!state_vars.is_empty() || !store_sub_vars.is_empty());
 
                         if !needs_rune && !needs_export && !needs_destructure {
+                            super::profile::record_st_fastpath_statement();
                             result.push_str(&statement);
                             result.push('\n');
                             accumulated_lines.clear();
