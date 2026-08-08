@@ -6301,9 +6301,19 @@ pub(crate) fn split_comma_separated_declarations(script: &str) -> String {
                     format!("{} ", kw)
                 };
                 for (j, part) in parts.iter().enumerate() {
-                    let part = part.trim();
+                    let (leading_comments, part) = split_leading_comment_lines(part.trim());
                     if !part.is_empty() {
                         if j > 0 {
+                            result.push('\n');
+                        }
+                        // A comment the declarator was preceded by goes ABOVE the
+                        // keyword, not between it and the name: every later pass
+                        // matches `let <name>`, and upstream's own `let // c` /
+                        // newline / `name` shape would hide the declaration from
+                        // all of them.
+                        for comment in leading_comments {
+                            result.push_str(indent);
+                            result.push_str(comment);
                             result.push('\n');
                         }
                         result.push_str(indent);
@@ -6329,6 +6339,46 @@ pub(crate) fn split_comma_separated_declarations(script: &str) -> String {
     }
 
     result
+}
+
+/// Peel the whole-line comments a declarator starts with off its front.
+///
+/// Returns the comment lines in source order and the declarator text that
+/// follows them.
+fn split_leading_comment_lines(part: &str) -> (Vec<&str>, &str) {
+    let mut comments = Vec::new();
+    let mut rest = part;
+    loop {
+        let trimmed = rest.trim_start();
+        if trimmed.starts_with("//") {
+            match trimmed.find('\n') {
+                Some(at) => {
+                    comments.push(trimmed[..at].trim_end());
+                    rest = &trimmed[at + 1..];
+                }
+                // A trailing line comment has no declarator after it.
+                None => return (comments, ""),
+            }
+        } else if trimmed.starts_with("/*") {
+            match trimmed.find("*/") {
+                Some(at) => {
+                    let (comment, after) = trimmed.split_at(at + 2);
+                    // Only a comment that owns its line moves; one sharing a line
+                    // with code would change that code's layout.
+                    if !after.trim_start_matches([' ', '\t']).starts_with('\n') {
+                        return (comments, rest.trim());
+                    }
+                    comments.push(comment);
+                    rest = after
+                        .trim_start_matches([' ', '\t'])
+                        .trim_start_matches('\n');
+                }
+                None => return (comments, rest.trim()),
+            }
+        } else {
+            return (comments, rest.trim());
+        }
+    }
 }
 
 /// Check if a declaration string is complete.
