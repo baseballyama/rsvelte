@@ -6099,8 +6099,10 @@ fn transform_instance_script_for_visitors(
     let mut depth_in_block_comment: bool = false;
     let mut depth_template_interp_stack: Vec<i32> = Vec::new();
 
-    // Pre-compute runes fast-path eligibility flags
-    let runes_fastpath_eligible = analysis.runes && !dev && prop_mutation_vars.is_empty();
+    // Pre-compute runes fast-path eligibility flags.
+    // `prop_mutation_vars` is not a factor: it feeds `wrap_prop_mutation_validation`,
+    // which runs over the whole result after this loop, never per statement.
+    let runes_fastpath_eligible = analysis.runes;
 
     super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
     let _stage = super::profile::timer_start();
@@ -6293,8 +6295,12 @@ fn transform_instance_script_for_visitors(
                             || statement.contains('{'))
                             && statement.contains('=')
                             && (!state_vars.is_empty() || !store_sub_vars.is_empty());
+                        // The console wrap is the only per-statement stage that is
+                        // dev-only; every other one is gated on `!analysis.runes`.
+                        let needs_console =
+                            dev && memmem::find(statement.as_bytes(), b"console.").is_some();
 
-                        if !needs_rune && !needs_export && !needs_destructure {
+                        if !needs_rune && !needs_export && !needs_destructure && !needs_console {
                             super::profile::record_st_fastpath_statement();
                             result.push_str(&statement);
                             result.push('\n');
