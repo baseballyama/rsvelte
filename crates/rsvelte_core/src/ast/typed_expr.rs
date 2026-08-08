@@ -4306,9 +4306,8 @@ mod tests {
 }
 
 /// Counts `to_value` calls so a test can assert that an analysis path answers
-/// off the typed AST. The benchmark suite is 8/9 runes and the legacy `$:`
-/// path emits nothing on runes code, so no timing gate can observe a
-/// regression here — this counter is the only instrument pointed at it.
+/// off the typed AST, which the timing gates cannot settle: they sample library
+/// code, 12% legacy `$:` by bytes against 69% for applications.
 #[cfg(test)]
 pub(crate) mod to_value_probe {
     use std::cell::Cell;

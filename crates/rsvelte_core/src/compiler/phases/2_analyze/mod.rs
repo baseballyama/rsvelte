@@ -6237,9 +6237,9 @@ function goto_page(page = $search_params.page) {}
 
 /// The legacy `$:` analysis must answer off the typed AST.
 ///
-/// The benchmark suite is 8/9 runes and this path emits nothing on runes code,
-/// so no timing gate in CI can observe a regression here. This counter is the
-/// only instrument pointed at it.
+/// The timing gates sample library code, which is 12% legacy `$:` by bytes
+/// against 69% for applications, so a regression here reads nearly flat on them.
+/// This counter is deterministic and does not need a quiet machine.
 ///
 /// The assertion is differential rather than absolute: unrelated sites
 /// legitimately serialize while compiling any component, so what must hold is
