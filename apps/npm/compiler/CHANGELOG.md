@@ -1,5 +1,80 @@
 # @rsvelte/compiler
 
+## 0.10.8
+
+### Patch Changes
+
+- 9fafb90: Stop a delimiter inside a comment from ending a class field early (server).
+
+  The server class-member scan accumulates a multi-line field until its brackets
+  balance, and counted every `(`/`)`/`{`/`}`/`[`/`]` byte — including the ones
+  inside comments and strings. A `// )` line inside a `$derived.by(…)`,
+  `$state(…)` or plain multi-line initializer therefore closed the field one line
+  early, and the leftover `);` was emitted as a class member of its own:
+
+  ```js
+  	get snippetProps() { … }
+  	);
+  }
+  ```
+
+  which does not parse. The six depth counters in that scan now run over code
+  bytes only, and over the whole accumulated text rather than one line at a time,
+  so a block comment that spans lines is closed by the same scan that opened it.
+
+- 01e97cd: Keep the operand that follows a line-ending binary operator in a legacy instance script. `let flag = a ||` and `$: v = x ===` with the right operand on the next line closed the statement early, emitting `$.mutable_source(a ||)` / `$.set(v, x ===)` — output no JavaScript parser accepts.
+- d1eedb3: Stop a `;` or `)` inside a comment from ending a legacy `let` initializer, and keep the generated `)` out of a trailing line comment. `let x = a + // ; c` emitted `$.mutable_source(a + //); c` — the generated paren spliced into the comment body — which no JavaScript parser accepts.
+- 6ad88da: Cook every escape when folding a known-const string, not just the codepoint ones. `const sep = '\\'` folded into `<p>{sep}</p>` emitted `p.textContent = '\\\\'` — the escape survived the fold and was escaped a second time on the way out, so the component rendered two backslashes. `\n`, `\t`, `\r`, `\v`, `\b`, `\f`, `\'`, `\"`, a surrogate pair and a line continuation were wrong the same way, on client, server and client-dev alike.
+- 9a27ff9: Keep the newline after a line comment that sits between two declarators.
+
+  A multi-line `let`/`const`/`var` list is accumulated onto a single line before
+  it is split at its top-level commas. The accumulator joined continuation lines
+  with a space, so a `//` comment on one of them swallowed every declarator that
+  followed:
+
+  ```svelte
+  <script>
+  	let a,
+  		b = 1,
+  // c
+  		c;
+  </script>
+  ```
+
+  emitted `let // c c;` — a `let` with no declarator, and output that does not
+  parse. Continuation lines now join with a newline whenever the text so far ends
+  inside a line comment, which is also the shape upstream prints.
+
+- 9a27ff9: Emit a declarator's leading comment above the keyword, not between them.
+
+  Splitting `let a = 1,` / `// c` / `b = 2;` into one statement per declarator
+  produced `let // c` on one line and `b = 2;` on the next. That is valid JS and
+  it is the shape upstream prints, but every later pass in the text pipeline
+  matches `let <name>` on a single line, so all of them missed the declaration
+  and read `b = 2` as an assignment instead: a re-exported prop came out as
+  `labelId("")` and a legacy state variable as `$.set(b, 2)` with `b` never
+  declared.
+
+  The comment now goes on its own line above the keyword, so the declaration is
+  `let b = 2;` again. Only a comment that owns its line moves; one sharing a line
+  with code stays where it is.
+
+- 8d641ee: Stop a regex literal from being read as a line comment in a legacy instance script. In `/^https?:\/\//` the slash closing the last escape and the slash closing the regex are adjacent, so the client text passes cut the line there — emitting an unterminated regex, and leaving the prop reads after it uncalled.
+- 020cd5c: Let the runes fast path run in dev mode. Eligibility was gated on `!dev` and on `prop_mutation_vars` being empty, so a runes component compiled with `dev: true` — or any component with a mutated prop — took the per-statement text pipeline instead. Neither condition belonged there: `prop_mutation_vars` feeds a pass that runs over the whole result after the loop, and the only dev-only per-statement stage is the `console.` wrap, which is now checked per statement rather than by disabling the path wholesale.
+- 39ba648: Answer the legacy `$:` analysis from the typed AST instead of serializing the instance script
+
+  The three legacy reactive passes — cycle detection, `legacy_dependencies` population
+  and per-statement dependency collection — read their input as `serde_json::Value`, so
+  every top-level `$:` statement was serialized with `JsNode::to_value()` first. That one
+  producer built **77-82% of all the JSON objects and map entries the compiler allocates**
+  on Svelte-4-era code, and with `serde_json`'s `preserve_order` feature each map entry is
+  a key `String` allocation and a hash insert.
+
+  All three passes and their walkers now traverse typed nodes, and the serializer is gone.
+  On a 3,509-file application corpus that removes 100,535 JSON objects and 501,609 map
+  entries, with byte-identical output and warnings across client, server and dev.
+  Components without `$:` are unaffected by construction.
+
 ## 0.10.7
 
 ### Patch Changes
