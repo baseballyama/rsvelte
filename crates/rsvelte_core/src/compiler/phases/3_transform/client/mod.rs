@@ -4580,9 +4580,9 @@ fn accumulated_ends_with_control_header(accumulated: &[&str], last: &str) -> boo
     expression_utils::ends_with_braceless_control_header(&acc)
 }
 
-fn transform_instance_script_for_visitors(
+fn transform_instance_script_for_visitors<'a>(
     script: &str,
-    analysis: &ComponentAnalysis,
+    analysis: &'a ComponentAnalysis,
     dev: bool,
     reactive_import_names: &[String],
     split_top_level_declarations: bool,
@@ -5533,7 +5533,7 @@ fn transform_instance_script_for_visitors(
     // which appends all $: reactive statements AFTER the rest of instance body code).
     // Each entry is (assigned_vars, dependency_vars, transformed_code).
     // After collection, these are topologically sorted by dependencies before emission.
-    let mut pending_reactive_statements: Vec<(Vec<String>, Vec<String>, String)> = Vec::new();
+    let mut pending_reactive_statements: Vec<(&[String], &[String], String)> = Vec::new();
     // Source-ordinal counter for top-level `$:` statements, aligning each with its
     // Phase-2 `reactive_statement_dependencies` entry.
     let mut reactive_stmt_ordinal: usize = 0;
@@ -5547,7 +5547,7 @@ fn transform_instance_script_for_visitors(
     // Helper closure to process accumulated lines as a complete statement
     let process_accumulated = |accumulated: &[&str],
                                result: &mut String,
-                               pending_reactive: &mut Vec<(Vec<String>, Vec<String>, String)>,
+                               pending_reactive: &mut Vec<(&'a [String], &'a [String], String)>,
                                state_vars: &[String],
                                non_reactive_state_vars: &[String],
                                proxy_vars: &[String],
@@ -5564,7 +5564,6 @@ fn transform_instance_script_for_visitors(
         DeclarationKind,
     )],
                                import_names: &[String],
-                               analysis: &ComponentAnalysis,
                                dev: bool,
                                has_legacy_export_let: bool,
                                reactive_ordinal: &mut usize| {
@@ -5588,15 +5587,17 @@ fn transform_instance_script_for_visitors(
         if !analysis.runes && first_line_trimmed.starts_with("$:") {
             let _reactive_start = super::profile::timer_start();
             let _reactive_guard = super::profile::ReactiveStmtGuard(_reactive_start);
-            // Extract assignment targets and dependencies from the raw statement
-            // for topological sorting (matching official compiler's order_reactive_statements)
+            // Assignment targets and dependencies for topological sorting
+            // (matching official compiler's order_reactive_statements), read from
+            // the typed-AST walk Phase 2 already performs for cycle detection.
+            // The text scan this replaces recognised an assignment only via the
+            // literal `" = "`, so `$: {a=b}` sorted as if it assigned nothing.
             let _rs_deps_start = super::profile::timer_start();
-            let (assigned_vars, dep_vars) = extract_reactive_statement_deps(
-                &statement,
-                state_vars,
-                prop_assignment_transform_vars,
-                store_sub_vars,
-            );
+            let (assigned_vars, dep_vars) = analysis
+                .reactive_statement_sort_keys
+                .get(*reactive_ordinal)
+                .map(|(a, d)| (a.as_slice(), d.as_slice()))
+                .unwrap_or((&[], &[]));
             super::profile::record_rs_deps(super::profile::timer_elapsed(_rs_deps_start));
 
             // AST-derived ordered dependency names for THIS top-level `$:` statement
@@ -6538,7 +6539,6 @@ fn transform_instance_script_for_visitors(
                         &read_only_props,
                         &legacy_state_vars,
                         &import_names,
-                        analysis,
                         dev,
                         has_legacy_export_let,
                         &mut reactive_stmt_ordinal,
@@ -6575,7 +6575,6 @@ fn transform_instance_script_for_visitors(
             &read_only_props,
             &legacy_state_vars,
             &import_names,
-            analysis,
             dev,
             has_legacy_export_let,
             &mut reactive_stmt_ordinal,
