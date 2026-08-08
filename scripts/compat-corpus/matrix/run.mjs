@@ -34,7 +34,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { flattenTemplateHoles, stripBlankLines, firstDiffLine, oxfmtTree } from '../normalize.mjs';
-import { selectTargets } from '../targets.mjs';
+import { selectTargets, TARGET_KEYS } from '../targets.mjs';
+import { refuseUnrepresentativeBaseline } from '../baseline-guard.mjs';
+import { unattributedBindingReason } from '../binding.mjs';
 import { generate, FAMILIES } from './generate.mjs';
 
 const require = createRequire(import.meta.url);
@@ -57,6 +59,20 @@ const FAMILY_KEYS = (() => {
 	if (!value || value.startsWith('--')) return Object.keys(FAMILIES);
 	return value.split(',').map((s) => s.trim()).filter(Boolean);
 })();
+
+// Refuse at parse time: the run that is about to be rejected is otherwise paid
+// for in full before its result is thrown away.
+if (UPDATE_BASELINE) {
+	refuseUnrepresentativeBaseline('matrix', [
+		unattributedBindingReason(ROOT),
+		NO_FMT &&
+			'--no-fmt counts formatting-only differences as failures, which the corpus gate tolerates by contract',
+		FAMILY_KEYS.length !== Object.keys(FAMILIES).length &&
+			`--families measured ${FAMILY_KEYS.length} of ${Object.keys(FAMILIES).length} families; the rewrite deletes every entry it did not measure (FALSE-SHRINK)`,
+		TARGETS.length !== TARGET_KEYS.length &&
+			`--targets measured ${TARGETS.length} of ${TARGET_KEYS.length} (${TARGETS.map((t) => t.key).join(', ')}); baseline ids carry their target, so the rewrite deletes every entry for the others (FALSE-SHRINK)`,
+	]);
+}
 
 // ---- compilers -------------------------------------------------------------
 
@@ -192,17 +208,7 @@ for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}
 const ids = new Set(failures.map((f) => `${f.id} [${f.verdict}] (${f.target})`));
 
 if (UPDATE_BASELINE) {
-	if (NO_FMT) {
-		console.error('\n[matrix] refusing to baseline from a --no-fmt run: it counts formatting-only');
-		console.error('  differences as failures, which the corpus gate tolerates by contract.');
-		process.exit(2);
-	}
-	if (FAMILY_KEYS.length !== Object.keys(FAMILIES).length) {
-		console.error('\n[matrix] refusing to baseline from a --families subset: the rewrite deletes');
-		console.error('  every baseline entry the run did not measure (FALSE-SHRINK).');
-		process.exit(2);
-	}
-	// Both guards above are relative to whatever population the run was handed,
+	// The parse-time guards are relative to whatever population the run was handed,
 	// so an edit that collapsed generation would satisfy them and still empty the
 	// ratchet. This one is absolute.
 	if (cases.length < MIN_MATRIX_CASES) {

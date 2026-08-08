@@ -44,13 +44,16 @@ pub fn visit(
             Attribute::OnDirective(on) => {
                 on_directive::visit(on, context)?;
             }
-            Attribute::LetDirective(_) => {
+            Attribute::LetDirective(let_dir) => {
                 // let: directives are NOT allowed on svelte:document
-                return Err(errors::let_directive_invalid_placement());
+                return Err(
+                    errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)
+                );
             }
-            Attribute::SpreadAttribute(_) => {
+            Attribute::SpreadAttribute(spread) => {
                 // Spread attributes are NOT allowed on svelte:document
-                return Err(errors::illegal_element_attribute("svelte:document"));
+                return Err(errors::illegal_element_attribute("svelte:document")
+                    .at(spread.start, spread.end));
             }
             // Regular-attribute handler expressions drive `needs_context` (see
             // svelte_window for the rationale).

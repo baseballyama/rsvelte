@@ -38,10 +38,10 @@ pub fn visit(
         if is_element {
             // Component events might not be under the author's control, so they don't warn
             if context.analysis.runes {
-                let mut warning = warnings::event_directive_deprecated(&directive.name);
-                warning.start = Some(directive.start);
-                warning.end = Some(directive.end);
-                context.emit_warning(warning);
+                context.emit_warning(
+                    warnings::event_directive_deprecated(&directive.name)
+                        .at(directive.start, directive.end),
+                );
             }
 
             // Track in context for mixed_event_handler_syntaxes check

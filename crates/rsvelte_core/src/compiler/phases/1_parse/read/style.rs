@@ -229,11 +229,12 @@ impl<'a> Parser<'a> {
                 i += 1;
             }
             if in_string {
-                // String was not closed - report unexpected_eof at the end of style content
+                // Upstream's CSS reader always reports EOF at `parser.template.length`,
+                // and its template is the source with trailing whitespace trimmed.
                 return Err(crate::error::ParseError::svelte(
                     "unexpected_eof",
                     "Unexpected end of input",
-                    (content_end, content_end),
+                    (self.content_end, self.content_end),
                 ));
             }
         }
@@ -2396,9 +2397,24 @@ impl<'a> SelectorParser<'a> {
             }
 
             let c = bytes[i] as char;
-            if c == '(' {
+            if c == '\\' {
+                // A CSS escape makes the next character literal, so `\,` never separates.
+                i += 1;
+                i += text[i..].chars().next().map_or(0, char::len_utf8);
+                continue;
+            }
+            if c == '"' || c == '\'' {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+                continue;
+            }
+            if c == '(' || c == '[' {
                 depth += 1;
-            } else if c == ')' {
+            } else if c == ')' || c == ']' {
                 depth -= 1;
             } else if c == ',' && depth == 0 {
                 let selector = &text[last_start..i];

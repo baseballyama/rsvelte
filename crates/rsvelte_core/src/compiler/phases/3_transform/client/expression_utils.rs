@@ -303,6 +303,31 @@ pub(super) fn ends_with_braceless_control_header(prefix: &str) -> bool {
     false
 }
 
+/// [`ends_with_braceless_control_header`] answered from the statement's final
+/// line alone, or `None` when the verdict genuinely depends on earlier lines.
+///
+/// The full predicate only ever reads a suffix, so joining the accumulated
+/// lines is wasted unless the header's `(` opens on an earlier line.
+pub(super) fn braceless_control_header_from_last_line(last: &str) -> Option<bool> {
+    let t = last.trim_end();
+    if t.is_empty() {
+        return None;
+    }
+    if !t.ends_with(')') {
+        return Some(ends_with_keyword(t, "else") || ends_with_keyword(t, "do"));
+    }
+    let open = matching_open_paren(t)?;
+    let before = t[..open].trim_end();
+    if before.is_empty() {
+        return None;
+    }
+    Some(
+        ["if", "for", "while", "switch", "catch"]
+            .iter()
+            .any(|kw| ends_with_keyword(before, kw)),
+    )
+}
+
 /// Whether the code before a line break ends with a binary operator. No
 /// statement can, so its right operand is on the next line — automatic
 /// semicolon insertion does not apply.
