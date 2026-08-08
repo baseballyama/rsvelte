@@ -1,5 +1,760 @@
 # @rsvelte/compiler
 
+## 0.10.7
+
+### Patch Changes
+
+- 122af14: fix(analyze): point attribute-scoped a11y warnings at the attribute, not the element
+- 73bdbf2: Point `a11y_figcaption_index` at the misplaced `<figcaption>` instead of the enclosing `<figure>`
+- f0c8f3d: fix(analyze): name the offending attribute in `a11y_invalid_attribute`, so `xlink:href` reports `xlink:href`
+- 514bf80: fix(analyze): only warn `attribute_quoted` in runes mode, and point it at the attribute
+- ecbfb18: Move a comment run in front of an `await` into the dev-mode `$.track_reactivity_loss` wrap, as the official compiler does
+- 01d5780: fix(compiler): recognise `then`/`catch` after a non-ASCII space in `{#await}`
+
+  The keyword scan decided word boundaries by casting a raw byte to `char`, which
+  decodes UTF-8 as Latin-1. A full-width space before `then` presented its last
+  byte as a control character, so the keyword was swallowed into the awaited
+  expression and the compiler emitted a call with an empty argument — output that
+  does not parse — with the pending and `then` branches transposed.
+
+- 04a5040: Stop emitting the `$.set(…, true)` proxy flag for a `BinaryExpression` value
+
+  `runs = runs + 1` on a `$state` binding produced `$.set(runs, $.get(runs) + 1, true)`
+  because the proxy sniff only saw the leading `$.get(` call. Upstream's `should_proxy()`
+  returns `false` for a `BinaryExpression` outright, so the flag is now suppressed for any
+  top-level arithmetic, equality, relational, bitwise, shift, `in` or `instanceof` operator.
+  `ConditionalExpression` and `LogicalExpression` bind looser and keep proxying.
+
+- 92c4a66: Blank TypeScript for the store scan without parsing the script a third time
+
+  `detect_store_subscriptions` reads a copy of the script with type-only syntax
+  blanked out, and built that copy by running a full `oxc_parser` TypeScript parse
+  of its own — a third parse of a script the compiler had already parsed for
+  `retained_scripts` and stripped of TypeScript. The blanking now runs against the
+  retained program when it holds the same bytes, and only falls back to parsing
+  when it does not.
+
+  Redundant TypeScript parses over three real-world corpora, counted
+  deterministically: Huly plugins 1,384 → 0 (3.02 MB no longer re-parsed),
+  open-webui 361 → 1 (1.38 MB), SMUI 393 → 0 (0.52 MB).
+  carbon-components-svelte has no TypeScript scripts and stays at 0 in both
+  builds. All 14,036 compiled outputs (four corpora × client/server × prod/dev)
+  are byte-identical.
+
+- 1830053: chore(compiler): fail loudly on an impossible bracket-offset miss
+
+  No behavioural change: the discarded branch is unreachable for any `&str`
+  input, so this only replaces a silent `.ok()` discard with a panic that
+  names the offset.
+
+- 6be59dc: Keep a `//` comment written above a private rune class field above the field
+
+  `// c` on its own line before `#n = $state(0)` was emitted as `#n = // c` followed by
+  `$.state(0)` on the next line, moving the comment into the initializer. Upstream's
+  `ClassBody.js` rebuilds every rune field as `b.prop_def(key, value)` and esrap re-attaches
+  the comment to the first node that still carries a source range: a private field reuses its
+  own ranged key, so the comment stays above the field. A public field is rebuilt around a
+  synthesized `#name` key that has no range, so its comment does legitimately land after the
+  `=` — that placement is unchanged.
+
+- 77b4f8b: fix(compiler): measure the prop name in characters in the client prop-read scan
+
+  `transform_prop_reads_in_expr` walks a `Vec<char>` but sized the prop name with
+  `prop_name.len()`, a byte length, as did `is_shadowed_by_function_param`. A
+  non-ASCII `export let` prop read from a `$:` statement therefore dropped trailing
+  code (`名前()` for `名前 + 1`), lost array elements, produced unbalanced object
+  shorthand, and missed parameter shadowing.
+
+- a78a21a: Skip the instance-script variable scans whose result is already settled
+
+  Three whole-script text scans in the client instance-script transform ran on
+  every component regardless of what the script contained:
+
+  - `index_const_state_decls` and `index_reassigned_vars` are read only while
+    iterating `local_reactive_vars`, so an empty list makes both unobservable.
+  - `extract_proxy_vars` pushes nothing without a `$state(` on the line.
+  - `collect_local_state_decls` inserts nothing without a literal `= $state(`.
+
+  Each now returns its empty result from a single `memmem` probe instead of
+  walking the script. Measured as bytes handed to these scans across four
+  real-world corpora: huly/plugins skips 6,710,403 of 6,710,403 (2,123 files),
+  carbon/src 1,605,612 of 1,605,612, open-webui/src 3,767,567 of 3,776,399, and
+  SMUI — which uses `$state` throughout, so the gates cannot fire — skips only
+  160,953 of 2,191,645.
+
+- 3e22d14: fix(compiler): return a byte offset from `find_colon_at_depth0`
+
+  The ternary-branch analysis in `check_identifier_in_statement` sliced its right-hand
+  side with the position this returned, but the scan counted characters. A ternary
+  whose true branch assigns a non-ASCII string literal — `cond ? x = "ああa" : x = y` —
+  panicked with "byte index is not a char boundary". The scan also read a `:` written
+  inside a comment as the branch separator.
+
+- 9194c9f: Stop an apostrophe in a comment from suppressing the store and prop read rewrites. `// it's fine` opened a string literal that nothing closed, so every `$store` / prop read after it was emitted uncalled — code that parses and is silently wrong at runtime.
+- 83c68bd: Throw compile failures as an object shaped like the official compiler's `CompileError` (`name`, `code`, `message`, `filename`, `start`, `end`, `position`) instead of a `GenericFailure` whose message is a Rust `Debug` dump — `compile`, `compileBoth` and `compileModule`
+- cc7df16: fix(compiler): decide the component/bind `$.assign` exemption by node identity
+- e1161e6: fix(analyze): resolve the component name's conflict suffix before the template walk, so warnings name the component the way codegen does
+- 7f834ad: Resolve a dev console argument against the generated program's own `const` declarations. The script text passes only had the component analysis, which carries no binding for a name declared inside a nested function, so `const m = \`…\`; console.log(m)`in a`.svelte.(js|ts)`module was wrapped in`$.log_if_contains_state`even though upstream's`scope.evaluate`resolves`m` to a string and emits the plain call.
+- 675b34d: Fix the `$.set` emitted for a `#private` `$state` field inside a class constructor
+
+  Two divergences from the official compiler, both visible in `.svelte.js` / `.svelte.ts`
+  class output:
+
+  - A logical assignment (`??=`, `||=`, `&&=`) always appended the `, true` proxy flag.
+    Upstream `AssignmentExpression.js` gates it on `field.type === '$state'`, so a
+    `$state.raw` or `$derived` field must not carry it — `this.#x ??= { … }` on a
+    `$state.raw` field now emits a two-argument `$.set`.
+  - A compound assignment read the operand as `$.get(this.#n)`. Upstream
+    `MemberExpression.js` reads a `$state` / `$state.raw` field as `this.#n.v` while
+    `in_constructor`, so `this.#n += 1` now emits `$.set(this.#n, this.#n.v + 1)`.
+    Reads inside ordinary methods keep going through `$.get`, and a `$derived` field
+    keeps going through `$.get` everywhere.
+
+- da10132: Stop counting braces inside comments when splitting comma-separated declarations. A `}` in a comment made the splitter run one declaration into the next and emit a `const` declarator with no initializer, which does not parse.
+- 1cc832b: Count brackets lexically when finding the end of a rune's argument on the server
+
+  `find_matching_paren_server` scanned with a bare `char_indices()`, so a `)` or `}` inside
+  a comment or a string literal closed the count early. A multi-line `$derived(() => ({…}))`
+  class field then lost its closing `))` and the module stopped parsing with
+  `missing ) after argument list`.
+
+- 3e22d14: fix(compiler): match destructuring brackets lexically
+
+  `find_matching_open_bracket` walked backwards counting every `{`/`[` it saw,
+  including ones inside string literals and comments. A destructuring assignment
+  whose pattern carried a brace in a default value (`{ a = "}" } = obj`) or in a
+  comment failed to find its opening bracket and was left untransformed.
+
+- 0f05d35: Drop comments from destructuring-pattern segments so a comment cannot become a binding name
+
+  A comment inside a legacy destructuring pattern was carried into the segment that
+  `split_derived_object_properties` / `split_derived_array_elements` return, and every
+  consumer reads a segment as pattern text. A comment-only segment therefore became a
+  declarator named `// c`, which commented out the rest of the emitted line including its
+  `;` — the declaration never terminated and the whole module stopped parsing.
+
+- 0822929: End a destructuring assignment's right-hand side at the line break when the source omits the semicolon, so semicolon-free code no longer emits an unclosed IIFE call
+- 7babb78: Hoist the `await` out of an `$.assign_async` lazy getter and instrument it
+- 7babb78: Keep the dev `$.assign` coerced-proxy warning on a component-prop arrow when the component is nested inside an element
+- 715b51c: fix(compiler): only exempt an event attribute's own arrow from the dev `$.assign` wrap
+- 7babb78: Stop an untransformed `$.assign` site from lending its position to a later twin
+- 7babb78: Separate a wrapped `await` statement from any preceding statement ASI left open
+- 7babb78: Validate a component `bind:` setter that mutates a member of a non-bindable prop in dev
+- 7babb78: Resolve a shadowed name through the scope chain a script reference sees when deciding whether to wrap a dev `console.*` call
+- 7babb78: Map the selectors of a partially pruned rule in the injected stylesheet's dev source map
+- 7babb78: Stop instrumenting the generated IIFE of an async destructuring assignment in dev
+- 7babb78: Apply the dev equality instrumentation to a `$derived` destructuring default
+- 7babb78: Ignore comments when locating the function a `$inspect.trace()` label points at
+- 1d290bc: Wrap the whole prop setter call in `$$ownership_validator.mutation` when the
+  printer broke it across lines. A dev-mode legacy `export let` prop whose member
+  is assigned a multi-line value produced output that was not JavaScript.
+- 7babb78: Put the legacy `$.invalidate_inner_signals` sequence inside the dev ownership-mutation wrap instead of around it
+- 7babb78: Label a proxied `$state` initializer with `$.tag_proxy` in dev, including one declared in a template handler body and one whose value is an equality comparison
+- 23e68ac: Match a `$effect(`'s closing paren lexically, so a `)` inside its body's comment does not truncate the deletion
+
+  `strip_effects_from_source` deletes from `$effect(` to its matching `)`, and
+  `find_matching_paren` counted every `)` byte. A `// ) c` inside the effect body closed the
+  count early, so the deletion stopped mid-body and the tail of the comment — `c` — was
+  emitted as a bare statement. The output no longer parses: `Unexpected token`,
+  `Unterminated regular expression` and `'import' is a reserved word` are all the same defect
+  landing at different arbitrary bytes.
+
+  The fix is on the shared helper rather than the caller, because all 18 call sites (11 in
+  the server transform, 7 in the client rune transforms) use the result to slice or delete a
+  source range. Only the `$effect` / `$effect.pre` / `$effect.root` sites are shown to be
+  reachable by a discriminating case; the other 15 are structurally exposed to the same input
+  but unmeasured.
+
+- 016c7a8: fix(compiler): close a string literal whose last escape is `\\` so the next `export` is still transformed
+- 24b8bd1: chore(esrap): bump `rsvelte_esrap` to 0.10.2 for a test-only change
+
+  No shipped behaviour changes. The only edit under `crates/rsvelte_esrap/src/` is inside
+  `#[cfg(test)] mod internal_tests`, which cannot appear in a published artifact: the golden
+  conformance test now fails instead of skipping when `submodules/svelte` is absent or
+  `ESRAP_ORACLE_DIR` has replaced the corpus its `EXACT_FLOOR` ratchet was calibrated on.
+
+  The bump exists only because `check-esrap-version-bump.mjs` keys on any path under
+  `src/`, and `rsvelte_core` pins `rsvelte_esrap` exactly, so the pin has to advance with it.
+
+- 6c165c8: fix(compiler): decide the dev `$.assign` exemption by arrow identity, not a flag
+- 2af6588: fix(compiler): keep an arrow body that starts on the line after `=>` in a legacy `export let` default
+- 92c4a66: Skip the await / rune-reference walk when neither half of its gate can fire
+
+  The gate on the analyze-phase feature walk was `has '$' || has "await"`. Every
+  rune name starts with `$`, so the first probe passes on most components and the
+  second — true for about 1% of them — never gets a say. But `$` is only
+  _informative_ while rune detection is on: once runes mode is already decided,
+  the walk's sole surviving output is `has_await`, which an `await`-free source
+  settles without walking anything.
+
+  The gate now reads `(needs_rune_detection && has '$') || has "await"`, which is
+  observationally equivalent: the `has_rune_reference` half of the result is read
+  only under `needs_rune_detection`.
+
+- b6b81ca: Wrap an awaited `for…of` loop's iterable in `$.for_await_track_reactivity_loss(...)` in dev mode under `experimental.async`, matching the official compiler's `ForOfStatement` visitor. Applies to runes and legacy instance scripts, `<script module>` and `.svelte.(js|ts)` modules, and is suppressed by `svelte-ignore await_reactivity_loss`.
+- bc9d8e7: Delete the non-ASCII arm from the parser's trailing whitespace-only text trim.
+  The predicate ran under `all()`, so every byte of the text had to satisfy it,
+  and the lead byte of any multi-byte character casts to a non-whitespace Latin-1
+  character — the arm could never be the deciding term. Trailing non-ASCII
+  whitespace is already dropped upstream by the `trim_end()` that sets
+  `content_end`, which is what matches official Svelte's `template.trimEnd()`. No
+  behaviour change; the arm only ever looked like Unicode support.
+- 4a9f31e: fix(compiler): stop gluing non-ASCII whitespace into identifiers in the client transform
+
+  `is_ident_start_byte` existed twice with the same `u8 -> bool` signature and
+  opposite answers on every byte `>= 0x80`. The client copy admitted them all, so
+  its identifier scan read `let<NBSP>count` as a single word and never saw
+  `count` — a missed identifier in a pre-filter whose own documentation says a
+  false negative is a correctness bug. Both copies now defer to one classifier
+  that decodes the character and applies the rule the official parser uses, and
+  the ASCII-only fast-path gates carry `ascii` in their names.
+
+- b9c51bc: Answer the identifier-boundary question without a regex
+
+  `body_references_identifier` compiled-and-cached one boundary regex per reactive
+  variable and then ran it over the stripped statement body, once per (`$:`
+  statement × variable) pair. The pattern only ever asked three things — is the
+  byte after the name an identifier byte, is the byte before one, and is a leading
+  `.` a member access or the tail of a spread — so a matcher that asks them
+  directly replaces it. Overlapping occurrences stay reachable because the scan
+  advances by one byte, not by the match length.
+
+  On carbon-components-svelte this regex was 70% of the remaining time in
+  `extract_reactive_statement_deps`; its share of total compile time drops from
+  19.6% to 6.0%.
+
+- 5092d12: Find an `import` statement's terminator lexically, so a `;` inside a comment does not truncate the specifier list
+
+  `extract_imports` accumulated a multi-line `import` until a line "closed" it, and both the
+  close test (`trimmed.contains(';')`) and `import_statement_end` read raw bytes. A `// ; c`
+  line inside the specifier list closed the import after the previous specifier, terminated it
+  with the comment's own `;`, and routed the rest of the statement — starting mid-comment —
+  into the component body, so the output stopped being JavaScript.
+
+  The two tests are now one lexical scan, which is what kept them from disagreeing: comments,
+  template literals and regex literals are opaque, and the open-block-comment state already
+  carried by `ScanState` is consulted, so a `;` on the continuation line of a `/* … */` is text
+  too. All four `contains(';')` sites are replaced — `extract_imports` and
+  `extract_imports_with_projection` are two copies of the same loop, and fixing one would have
+  left the other live depending on whether source projection is on.
+
+- d09479e: Stop re-parsing a script when the in-place pass already found nothing
+
+  Every ported rewrite pass ran `in_place().or_else(spliced)`. `None` did not say
+  whether the in-place path failed to parse or simply found nothing to rewrite,
+  so the second, far commoner case re-parsed the whole source through the text
+  path only to reach the same answer. `with_program_mut` now returns a three-way
+  `Rewrite`, and only `NotParsed` falls back.
+
+  Driver re-parses on the open-webui corpus drop from 14,468 to 4,479 per run
+  (−69%). Interleaved paired runs: open-webui −7.1% (8/8), Huly plugins −5.5%
+  (6/6), carbon-components-svelte −3.9% (8/8).
+
+- 456d40f: fix(compiler): return byte offsets from two more position scanners
+
+  `find_destructuring_pattern_end` and `find_simple_assignment` counted characters
+  while their callers sliced the same string by bytes, so a non-ASCII identifier or
+  string literal in a destructuring pattern or a `let` initialiser sliced short —
+  `let { café } = obj` lost its closing brace — and a multi-byte character straddling
+  the offset panicked outright.
+
+- ed77eec: Decide every whitespace question in the parser with ECMAScript's whitespace set,
+  the one upstream's `is_whitespace(cc)`, `\s` regexes and `String.prototype.trim*`
+  all consult. The parser previously mixed three sets: Rust's Unicode
+  `White_Space` (which adds `U+0085` and drops `U+FEFF`), `u8::is_ascii_whitespace`
+  (which drops `U+000B`), and hand-written ASCII fast paths listing only space,
+  tab, LF and CR. Block open/close/continuation markers, tag and attribute names,
+  closing tags, snippet headers, the `{#each … as …}` alias separator, the
+  `{#await … then/catch}` keywords and the CSS reader all now agree with upstream
+  on `U+000B`, `U+000C`, `U+0085`, `U+FEFF`, `U+2028` and `U+2029`.
+- 09950a4: Trim the template's trailing whitespace with ECMAScript's whitespace set, the
+  one behind official Svelte's `template.trimEnd()`, instead of Rust's Unicode
+  `White_Space` property. The two sets both have 25 members but differ on exactly
+  two, in opposite directions: `U+0085` NEL is Unicode whitespace and not JS
+  whitespace, so a trailing NEL was trimmed where official keeps it as a text
+  node; `U+FEFF` ZWNBSP is JS whitespace and not Unicode whitespace, so a trailing
+  ZWNBSP survived where official drops it. Both reached the emitted template, not
+  just the AST.
+- 2cb9bef: Serialize only the `$:` statements for the legacy reactive analysis passes
+
+  The three legacy passes (`check_reactive_declaration_cycles`,
+  `populate_legacy_dependencies`, `collect_reactive_statement_dependencies`) each
+  reached the instance script's top-level `LabeledStatement`s through
+  `instance.content.as_json()`, which materializes the entire script as
+  `serde_json::Value`. They now share one serialization of just those statements.
+
+  Interleaved paired runs: Huly plugins −20.0% (6/6), open-webui −15.1% (8/8),
+  carbon-components-svelte −12.3% (8/8); SMUI unchanged (+0.3%, 2/8).
+
+- 8c53ac4: fix(compiler): report the Svelte-4 `enableSourcemap` / `hydratable` / `loopGuardTimeout` / `generate: "dom" | "ssr"` options instead of accepting them in silence
+- 09f9ffc: Rule a legacy state variable out with one scan before searching four patterns
+
+  `transform_legacy_state_declarations` runs once per legacy statement and loops
+  over every legacy state variable, formatting and searching up to four needles per
+  declaration keyword — `let x =`, `let x : `, `let x: `, `let x;`, `let x`. Each
+  `str::find` built a fresh two-way searcher, and on a legacy-heavy component the
+  loop is (statements × variables). Every one of those patterns contains the
+  variable name, so one `memmem` scan settles them all.
+
+  Measured on open-webui v0.11.0 (650 components, 554 of them using `export let`),
+  interleaved paired runs, 6 pairs, all favouring the change: 909.5 ms → 821.9 ms,
+  **-9.6%**. carbon-components-svelte -6.4%, Huly Platform's plugins -2.8%. Before
+  the change `str::find` plus its searcher construction was 9.1% of open-webui's
+  CPU, of which this function alone accounted for 7.7%; it is now 2.0% in total.
+
+  Runes-only components are unaffected: the function returns early when there are
+  no legacy state variables.
+
+- d7edc7e: Locate dev-mode source positions without walking the whole prefix
+
+  `locate_in_source` counted lines and UTF-16 columns by iterating every
+  character from byte 0. Dev-mode codegen calls it once per instrumented site, so
+  the walk was quadratic in the source length. It now counts newlines with
+  `memchr` and only walks the final line for the column.
+
+  Interleaved paired runs, dev-mode client: open-webui −12.9% (8/8),
+  SMUI −4.1% (8/8), carbon-components-svelte −4.0% (7/8), Huly plugins −4.0%
+  (6/6). Production-mode client is unchanged (−0.9%, 2/6).
+
+- 0d01d44: Give the SSR store-destructure scan a single offset unit. It walked characters
+  but handed its cursor to `find_matching_open` and `find_expression_end`, which
+  walk bytes, then consumed the byte offsets they returned as character offsets.
+  One non-ASCII character anywhere earlier in the script — in an unrelated string
+  literal, say — was enough to slide the pattern and RHS slices off their real
+  positions, and the destructure was not skipped but corrupted: the property key
+  was dropped and the parentheses left unbalanced, so the script no longer parsed.
+  The store name itself never had to be involved. The scan now uses byte offsets
+  throughout, like the client-side sibling pass. No emitted output changes today:
+  component scripts are lowered by the AST pipeline, which already handled this
+  correctly.
+- bad4e54: Memoize a template chunk whose pure-callee call reads a binding
+
+  `{Math.ceil(a / b)}` was folded to a literal instead of being memoized as a
+  `$.template_effect` dependency: upstream marks a call `has_call` when the callee
+  is impure **or** the expression records any dependency, and every resolved
+  identifier is a dependency — even a compile-time-known `const`. The `has_call`
+  bail is now also confined to the template expression itself, so a constant still
+  folds when it reaches the template through a binding's initializer.
+
+- 335989a: fix(esrap): drop the comments a client `.svelte.(js|ts)` module's top level cannot
+  own, and wrap a call whose last argument is preceded by a line comment. Upstream
+  hands esrap a builder-made program with no `loc`, so its statement list discards
+  every pending comment and only a nested body that does carry one re-finds its
+  own — a file header or a JSDoc block on a top-level `export const` is dropped,
+  while a comment inside a function, arrow-block or class body survives. The call
+  wrap is the same anchoring bug the `ReturnStatement` rule had: the test ran
+  against oxc's preserved parens, so `g((// c\n a))` never went multiline.
+  `rsvelte_esrap` is released as 0.10.4 and `rsvelte_core` pins the new exact
+  requirement.
+- 8f72c13: fix(compiler): stop contracting plain `$state` assignments in server modules
+- 366bb66: Rewrite a svelte2tsx mustache tag by its brace positions, like upstream, so a wrapping paren in `{(a ?? '')}` survives and `{@html …}` leaves the single space it is replaced with.
+- 3537f18: Stop over-warning `perf_avoid_nested_class` in a standalone `.svelte.(js|ts)` module, and give the warning a position
+
+  Upstream's `analyze_module` passes no `ast_type` at all, so `allowed_depth` is `1` for a standalone module and only a component's `<script module>` gets `0`. rsvelte treated both as `'module'`, so `describe(() => { class A {} })` in a `.svelte.js` warned one function level early. The warning also carried no span, leaving an editor nowhere to put the squiggle; it now reports the `ClassDeclaration` position.
+
+- 859b161: Report `css_unused_selector` for a nested rule whose enclosing selector matches no ancestor
+- 5f6de88: Read the character adjacent to a match in the client transforms, not the byte. Twelve
+  word-boundary and whitespace scans in the class, state, store and prop transforms decided
+  what sits next to a match from `bytes[i] as char`, which Latin-1-decodes one byte of a
+  UTF-8 sequence: `א`'s lead byte reads as `×` (not alphanumeric) and `名`'s trailing byte as
+  a C1 control, so a letter inside an identifier looked like a word boundary — `this.#cא`
+  compiled to `log($.get(this.#c)א)`, which is not JavaScript — while `U+3000` and NBSP, whose
+  lead bytes decode to letters, were not recognised as the whitespace they are.
+- 675b34d: Compile a private `$state` field the same way through any receiver, not just `this`
+
+  A class constructor that reaches a private field through an alias
+  (`const inst = this; inst.#n …`) took a different code path from `this.#n`, and
+  that path modelled less than upstream does. Upstream keys the private-field
+  branch off `PrivateIdentifier`, never off the receiver, so all three of these
+  were wrong:
+
+  - **Invalid output.** Logical (`??=`, `&&=`, `||=`) and bitwise/shift compounds
+    were in neither allowlist, so the assignment was never rewritten and the
+    read-wrapping pass turned the _left-hand side_ into a call —
+    `$.get(inst.#n) ??= s`, which is not parseable JavaScript and which
+    Vite/Rolldown reject outright.
+  - **Silently lost proxying.** `inst.#n = { a: 1 }` on a `$state` field dropped
+    the `, true` proxy flag. This output parsed and ran; it just was not reactive
+    in the way the source asked for.
+  - **Wrong read form.** Reads and compound operands used `$.get(inst.#n)` where
+    upstream reads `inst.#n.v` while `in_constructor`.
+
+  Reads through an alias now follow the same rule as `this`: `.v` for `$state` /
+  `$state.raw` at constructor depth, `$.get` inside a nested function, in a method
+  body, or for a `$derived` field.
+
+- 84ce739: chore(compiler): give byte and char offsets distinct types
+
+  No behavioural change. `ByteOffset` and `CharOffset` replace bare `usize` at the
+  two offset-carrying signatures in the destructure transforms, so passing one
+  where the other is expected stops compiling instead of mis-slicing silently.
+
+- 27ec092: Advance rejected `find()` matches by a character rather than a byte. A scan that
+  rejects a match resumed at `abs_pos + 1` — a character step written against a
+  byte index — and the next `&text[search_from..]` split any needle that begins
+  with a multi-byte character. `replace_standalone_pattern` is called with needles
+  like `format!("{var}++")`, whose first character _is_ the identifier, so a
+  member increment on a non-ASCII name (`x.名前++`) panicked. The remaining scans
+  of this shape were correct only because their needles happen to begin with `.`,
+  `#`, `(` or `$`; they now share one helper, so that property is no longer
+  load-bearing and cannot expire with an edit to the pattern.
+- 39e5772: Decode the character after `$` instead of casting the byte when recognising a
+  store subscription in the SSR destructure expansion. The byte after `$` is a
+  non-ASCII name's UTF-8 lead byte, and `0xD7` — which leads the entire Hebrew
+  block — casts to `U+00D7` `×`, the one valid lead byte that is not alphabetic.
+  A Hebrew-named store therefore failed the check and the expansion emitted a
+  plain assignment to the subscription variable (`$אלף = $$value.a`) instead of
+  `$.store_set(אלף, $$value.a)`, so the store was never written.
+
+  No emitted output changes. This text pass is no longer on the SSR path for
+  component scripts — the AST pipeline lowers those, and it already writes
+  Hebrew- and CJK-named stores correctly.
+
+- da6b766: fix(compiler): recognize a `$:` label after an ASI statement boundary when stripping reactive-statement comments
+- ec4540a: fix(compiler): print the client `.svelte.(js|ts)` module through esrap so block-body statement margins match upstream
+- 92c4a66: Rewrite every subscribed store, and both kinds of update expression, in one pass
+
+  Two spots in the client instance-script pipeline parsed and re-printed the same
+  statement more than once for work a single traversal already covers:
+
+  - store member mutations ran one parse + print **per subscribed store**, even
+    though the rewriter matches every store in one traversal and looks
+    `prop_store_names` up by name;
+  - the prop and state update-expression passes are the same visitor called with
+    complementary argument lists, and its classifier already tries props first —
+    which is exactly what running the prop pass before the state pass did.
+
+  All 14,036 compiled outputs (four real-world corpora × client/server ×
+  prod/dev) are byte-identical. This removes parses deterministically; it is not
+  a measured wall-clock win — interleaved paired runs came back inside noise on
+  all four corpora.
+
+- f01033e: Stop rejecting five constructs upstream compiles
+
+  Compiling open-webui v0.11.0 (650 components) and Huly Platform v0.7.426 (2,462)
+  failed on nine files that `svelte.compile` accepts:
+
+  - **`catch (err) { err = … }`** reported `constant_assignment`. The catch
+    parameter was declared `const`; upstream's `scope.js` declares it `let`.
+  - **`const { $from } = state.selection`** reported
+    `store_invalid_scoped_subscription` when some other scope happened to declare
+    a `from`. The `$`-name is a declaration, but the scan that decides which
+    `$name`s are store reads only recognised `let`/`const`/`var $x` written
+    directly, not a destructuring pattern. The same shorthand inside an object
+    _literal_ is still a store read — the two are told apart by what precedes the
+    pattern's opening bracket.
+  - **`import { $comparedDocument as compareTo }`** reported
+    `global_reference_invalid`. The imported name is not a reference at all.
+  - **`export let state` alongside `$state.room = v`** reported
+    `legacy_export_invalid`. `$state` there is a store read, not the rune, and
+    upstream removes such names before it decides runes mode — but the scan that
+    collects locally declared names missed `export let`, declarators with no
+    initialiser, and TypeScript annotations, so all three of `export let state`,
+    `let state;` and `let state: T` left `$state` looking like a rune.
+  - **`(a?: string, b: string) => b`** and 14 other TypeScript grammar rules were
+    raised as `js_parse_error`. Upstream parses `lang="ts"` with
+    `acorn-typescript`, which does not run TypeScript's grammar checks; OXC does.
+    Each suppressed rule was confirmed against `svelte.compile`, and the TS rules
+    acorn-typescript _does_ implement (1049, 1096, 1098, 1257, 1276, 2452, …) still
+    fail, as does TypeScript syntax in a plain `<script>`.
+
+  Both corpora now compile for client and server everywhere upstream does.
+
+- 8c7851c: Port the compiler to the restructured oxc 0.143 AST
+
+  `ExportNamedDeclaration` was split into three nodes — `ExportDeclaration` (`export <decl>`),
+  a specifier-only `ExportNamedDeclaration` (`export {…}`) and `ExportFromDeclaration`
+  (`export {…} from`) — and `ArrowFunctionExpression` replaced its `expression` flag and
+  `FunctionBody` with an `ArrowFunctionBody` enum. Every match over those nodes now names all
+  three variants explicitly instead of falling through.
+
+  Two behaviour fixes fall out of the split. `export type Foo = true` inside a `namespace` was
+  rejected as a non-type member because oxc now derives the export kind from the declaration
+  rather than storing it, and a chained member object such as
+  `(componentOptions()?.events?.onabort)?.apply(…)` lost its required parentheses because oxc
+  keeps a `ParenthesizedExpression` around the inner chain that the printer was not looking
+  through.
+
+- cd5d4e0: fix(esrap): keep a redundant paren pair only for a comment that _leads_ the
+  parenthesized expression. A comment deeper inside is already bracketed by that
+  expression's own syntax, and keeping the parens for it doubled the pair a parent
+  adds from precedence — `(await $.track_reactivity_loss(/* c */ load()))()` printed
+  as `((await $.track_reactivity_loss(/* c */ load())))()`, and an object-literal
+  arrow body as `() => (({ … }))`. `rsvelte_esrap` is released as 0.10.2 and
+  `rsvelte_core` pins the new exact requirement.
+- 3c8593c: fix(esrap): unwrap a `ParenthesizedExpression` unconditionally and let precedence
+  re-add what the grammar needs, matching acorn — which has no paren node at all.
+  The previous exception (keep the literal parens when a comment leads the inner
+  expression) doubled whatever a parent adds, so `(/* c */ a + b) * 2` printed as
+  `((/* c */ a + b)) * 2`, `(/* c */ o).x` kept parens upstream drops, and
+  `(/* @__PURE__ */ new Date()).getTime()` did not collapse. The parens a leading
+  comment genuinely needs come from `ReturnStatement` — the one place esrap
+  parenthesizes for a comment — whose comment test now anchors on the _unwrapped_
+  argument so oxc's preserved parens cannot suppress it. `rsvelte_esrap` is
+  released as 0.10.3 and `rsvelte_core` pins the new exact requirement.
+- 88b8d2b: Route the Phase-3 destructuring and SSR-helper delimiter scans through the shared JS lexer, so a bracket, comma, colon or `=` inside a comment, string, template or regex literal no longer moves a depth counter
+- 250be54: fix(compiler): route client/state_transforms delimiter scans through the shared lexer
+- bd466dc: Scan the comment/string state once per source for prop-mutation validation
+
+  `PropMutationSites::collect` re-ran the comment/string scanner from the last
+  accepted site for every candidate occurrence of every prop, and recomputed the
+  `$:` statement ranges once per prop. Both scans are prop-independent, so they
+  now run once per source and each candidate is a binary search.
+
+  Interleaved paired runs, dev-mode client: carbon-components-svelte −37.7%
+  (8/8), SMUI −16.0% (8/8), open-webui −15.9% (8/8), Huly plugins −10.6% (6/6).
+  Production-mode client is unchanged (−0.1%).
+
+- 46394e4: Remove the residual quadratic term in prop-read rewriting
+
+  `transform_prop_reads_in_expr` asked three questions per matched identifier — shadowed by
+  a function parameter, an explicit object-literal property key, an arrow-function parameter
+  binding — and each was answered by a backward scan that could run to the start of the
+  expression. Matches are themselves O(n), so the guards were O(n) work fired O(n) times:
+  the term left over after the `char_indices().nth(i)` fix.
+
+  A bracket-event index, built in the same walk that already produces the rewriter's
+  character vector and byte offsets, answers those questions in O(log m). On a scaling
+  fixture (one `$: _class = cls(…)` over four props) compile time drops 1.5x at 2.8 KB to
+  24.9x at 89 KB, and the fitted log-log slope of time against size falls from 1.73 to 0.92.
+
+- d8bb1e5: Trim trailing comments from `$props()` destructuring declarators
+
+  A `//` comment between the last entry of a `$props()` pattern and its closing brace
+  stayed glued to the declarator text, so the `= $.rest_props($$props, rest_excludes)`
+  initializer the client transform appends landed _inside_ the comment. The result still
+  parsed — no error, no warning — but the rest binding was declared and never assigned, so
+  every forwarded attribute silently disappeared at runtime. The declarator splitter was
+  already comment-aware; only its caller was, and only for _leading_ comments. Both ends of
+  each declarator are now trimmed lexically through `shared::js_scan::skip_opaque`, which
+  steps over strings, template literals, regexes and both comment forms.
+
+- 3e22d14: fix(compiler): find the `$props()` pattern braces lexically
+
+  `transform_props_destructuring` located the destructuring pattern with a raw
+  `find('{')` / `rfind('}')`, so a JSDoc type annotation ahead of it —
+  `let /** @type {Props} */ { a, b } = $props()`, idiomatic in JavaScript Svelte
+  components — made the scan start at the annotation's brace and parse
+  `Props} */ { a, b` as the prop list. A `}` in a trailing comment moved the
+  closing brace the same way.
+
+- 13d5982: fix(compiler): keep a comment between `await` and its argument in the dev `$.track_reactivity_loss` wrap
+- e799ef4: Fix a stack-overflow crash when a comment containing `}` or `)` appears inside a `$:` reactive block body
+- 75a5fb1: fix(compiler): keep a legacy `$:` statement whole across a `//` line
+
+  The two accumulation loops in the server legacy `$:` reorder disagreed on
+  whether a `// …` line ends a continuation. They now share one line
+  classification, and a comment neither ends the statement nor completes it, so
+  `$: total =` / `// c` / `a + b;` stays one statement as official emits it.
+
+- b9c51bc: Rule a reactive variable out with one scan before rewriting the statement body
+
+  `extract_reactive_statement_deps` asks `body_references_identifier` and
+  `is_assigned_anywhere_in_body` once per (`$:` statement × reactive variable)
+  pair, and each answer copied and rescanned the whole statement body three
+  times — or formatted and searched twenty patterns. Almost every pair is a miss,
+  and a name absent from the raw body is absent from every stripped derivative of
+  it, because the strips only blank or delete bytes. One substring scan now
+  settles those. The three strips also borrow instead of copying when they have
+  nothing to strip.
+
+  On carbon-components-svelte, whose components are legacy (173 of 287 files
+  carry a `$:` line), this was 48.7% of total compile time; the corpus this had
+  been profiled against carries no `$:` at all. Compiling the 287 components
+  drops from 366-380 ms to 268-279 ms.
+
+- 7d6395c: fix(compiler): keep an `else` that starts its own line attached to the `if` above it
+- 3ec9736: Re-home a legacy `$:` statement's comments onto the surviving successor in client output
+- abb04dd: Close a rune field's `$.derived(…)` on a new line when its argument ends in a `//` comment
+
+  The server class-field path splices the `$derived(…)` argument verbatim and then appends the
+  closing paren. `value.trim()` removes the newline that ended a trailing `//` comment, so the
+  paren landed inside the comment and the call was never closed — the emitted module stopped
+  being JavaScript.
+
+  An object-literal argument is worse, because it takes a wrapping-paren branch and loses two.
+
+  The variant carrying a delimiter (`// ) c`) already worked: it bails to the AST path, which
+  relocates the comment. It is the _plain_ comment that was unguarded here.
+
+- f067d3c: fix(compiler): keep a comment between `await` and its operand in a runes instance script
+
+  Dev-mode client output wrapped `await X` as `(await $.track_reactivity_loss(X))()`
+  by copying the operand from the argument's own span, which begins past any
+  comment separating it from the `await` keyword. The copy now starts just past
+  the keyword, matching what upstream preserves by passing the visited node.
+
+- 73aef74: fix(compiler): read legacy SSR bracket scanners lexically
+
+  The `export let` / reactive `$:` line scanners in the server transform counted
+  brackets, commas, semicolons and `=` without skipping comments, so a delimiter
+  inside a `//` or `/* */` comment moved the depth counter — splitting a `$:` block
+  at a `}` that lived in a comment, or truncating a declarator at a commented-out
+  `;`. They now walk only the code bytes.
+
+- 73aef74: fix(compiler): fix byte/char index mix in the legacy SSR store-set scan
+
+  `extract_store_set_targets` fed a byte offset from a `memmem` match into a
+  `Vec<char>`, so any non-ASCII before a `$.store_set(` call made it read the
+  store name from the wrong position and record a truncated dependency.
+  `extract_simple_assignments` alongside it now skips comments and regex
+  literals instead of reading assignments out of them.
+
+- 6936bcc: Time each `SemanticBuilder::build` site behind `measure-semantic-build` so its share of `compile()` is measurable
+- c11fed7: Attribute `SemanticBuilder` builds per call site and skip the ones a whole-identifier probe rules out
+- c193616: Keep comments interior to a top-level script statement in server output
+- 482d9a8: fix: drop the comments a server `.svelte.(js|ts)` module's top level cannot own.
+  `server_module` assembled its output as text and emitted the transformed script
+  verbatim, so every source comment survived — including the `/* @__PURE__ */` an
+  esbuild TS strip leaves on a default-parameter initializer. It now goes through
+  the same builder-made, `loc`-less program the client module path already used,
+  so esrap's comment cursor is parked past the end and only a nested body that
+  carries a location re-finds its own: a file header, a comment between two
+  top-level statements and a comment leading an arrow's expression body are
+  dropped, while comments inside a function, arrow-block, class or nested block
+  body survive.
+- ca48c0b: Shrink `JsNode` from 144 to 80 bytes by boxing the payloads of its two outlier variants (`Literal`'s regex values and `Program`'s comment/ignore metadata). Compiler output is unchanged.
+- 5a72205: fix(compiler): step the SSR reassignment scan by a character, not a byte
+
+  `extract_constant_vars`'s reassignment check advanced its cursor with
+  `abs_pos + 1`, one byte past a match start. For a non-ASCII variable name that
+  lands inside the first character, so `<script>let 名前 = 1;</script>` panicked
+  the server compiler with "byte index is not a char boundary". Advancing by one
+  character is byte-identical for an ASCII name.
+
+- ddd9c71: Stop the per-statement client transform chain from copying a statement it did not rewrite. Nine of its stages now return their input borrowed when they find nothing to do, and the two loop-invariant legacy-state name vectors are built once instead of once per top-level statement. Output is unchanged.
+- b152751: fix(compiler): keep store reads intact when the store name is not ASCII
+
+  The identifier pre-filter extracted words with ASCII-only byte predicates, so a
+  store subscription named with non-ASCII characters never matched and the read was
+  left untransformed. Fixing that exposed a second defect the first one had been
+  hiding: the read rewriter advanced a `char` index by the name's **byte** length,
+  dropping source text after every match. Both are fixed together, because fixing
+  only the pre-filter turns a missing transform into lost output.
+
+- 115eb9c: fix(analyze): warn `event_directive_deprecated` for `on:` on `<svelte:element>` too
+- a69e5ed: Emit `svelte-ignore` comment-code warnings (`legacy_code` / `unknown_code`) while walking the annotated node instead of batching them before the fragment walk, so they interleave with the surrounding warnings in the same order as the official compiler
+- ddc8be4: fix(compiler): print the real filename in `svelte_self_deprecated`, and only warn in runes mode
+
+  The warning interpolates two independent values — the component identifier and
+  the _file_ basename — and rsvelte derived the second from the first, printing
+  `import Input from './Input.svelte'` where the file is `input.svelte`. The
+  message is a copy-pasteable suggestion, so on a case-sensitive filesystem the
+  compiler was telling users to write an import that does not resolve. The
+  basename now comes from the filename, split on `/` and `\` like upstream, and
+  falls back to `Self` / `Self.svelte` when there is no filename.
+
+  Upstream also gates the whole warning on `analysis.runes`; rsvelte emitted it in
+  legacy mode too, where `<svelte:self>` is the supported spelling and there is no
+  self-import to prefer. That over-warning was the larger half in practice: it
+  accounted for 19 of the 70 entries in each of the three corpus warning-code
+  ratchets, which shrink to 51 here.
+
+- c2392cf: svelte2tsx now honours `namespace: 'foreign'`. Official svelte2tsx derives
+  `preserveAttributeCase` from it (`htmlxtojsx_v2/index.ts`) and skips the
+  attribute-name case fold, so `<element someAttr="hi">` projects as
+  `"someAttr"`. rsvelte had no `foreign` namespace at all: the value was
+  unreachable from the napi and wasm boundaries (it fell into the `_ =>
+Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
+  and `Svelte2TsxOptions::namespace` was never read by the projection — so even
+  a caller constructing the option directly got attribute names folded to lower
+  case with no diagnostic. This affects users whose `svelte.config.js` sets
+  `compilerOptions.namespace = 'foreign'`, which the language server passes
+  straight through.
+- de34a5e: fix(compiler): restore esrap's blank-line margins between re-printed class members
+- 6294de3: Walk the client store-subscription lookback by characters. Deciding whether a
+  `$name(` call sits in a function parameter list means stepping back over the
+  function name to the `function` keyword, and the three cursors that did it moved
+  one **byte** at a time. Continuation bytes leak through both predicates — `0x85`
+  and `0xA0` read as whitespace, and nine of the sixty-four read as alphanumeric
+  (`ª ² ³ µ ¹ º ¼ ½ ¾`) — so the cursor could stop inside a character. Depending on
+  which character preceded the parenthesis that was either a panic on a
+  non-boundary slice or, just as often, a silent wrong answer: the lookback never
+  reached `function`, so a store call inside a parameter list was rewritten to
+  `$s()(…)` when it should have been left alone.
+- 6b299ba: Reflow the dev `$.tag(...)` wrap of a class state field whose value carries a leading comment
+- 8cfabe3: Strip TypeScript when OXC reports a rule the official parser does not enforce, instead of emitting the component's type annotations into the generated module (client) or dropping its whole instance script (server)
+- 92c4a66: Answer member expressions in the reactive-state predicate from the typed AST
+
+  `expression_has_reactive_state` answered only a bare identifier and a literal off
+  the typed nodes; every other shape materialized the expression as a
+  `serde_json::Value` tree that was walked once and thrown away. Member
+  expressions alone were 70.3% of the remaining materializations.
+
+  The typed front end now mirrors every arm the JSON walk handles explicitly —
+  member, call, new, binary/logical, unary, conditional, template literal, chain,
+  sequence, assignment, object, array, await, update, spread and function
+  expressions — so those shapes are answered without building any JSON. Anything
+  that would reach the JSON walk's conservative "unknown node type" default (a
+  tagged template, a class expression, a TS wrapper) still falls back to it, so
+  the answer is unchanged for every input.
+
+- 92c4a66: Answer the hot expression predicates from the typed AST instead of materializing JSON
+
+  Five predicates in the client transform — "does this expression call anything",
+  "does it read reactive state", "is this a `$store` member expression", the
+  expression-tag metadata flags, and the analyze-phase feature walk — each asked
+  their question by turning the expression into a `serde_json::Value` tree and
+  walking that. The tree is built for the question and thrown away, and
+  `JsNode::to_value` alone accounted for 15.8% of every allocation the compiler
+  made on a 2,123-file corpus.
+
+  Each predicate now walks the typed nodes directly and keeps its JSON walk as
+  the fallback for the shapes the typed walk cannot reach (opaque
+  `type_annotation` / comment blobs). On the same corpus that drops `as_json`
+  calls from 49,776 to 15,056 and JSON materializations from 27,488 to 12,089,
+  with byte-identical output across 14,036 client/server × prod/dev comparisons.
+
+- 7f95217: Report source positions on every validation error
+
+  Compile errors raised during analysis carried no `start`/`end`, so consumers that
+  position diagnostics — editors, `svelte-check`, the language server — got a
+  whole-file error where upstream points at a specific node. 141 validator fixtures
+  diverged from the official compiler on error position alone.
+
+  Each raising site now attaches the range through `AnalysisError::at(start, end)`,
+  taking the same node upstream passes to its `e.*` constructor — often a sibling
+  attribute or a child rather than the node the enclosing visitor is looking at
+  (`attribute_invalid_type` points at the `type` attribute, not the `bind:`
+  directive; `constant_assignment` at the assignment, not its target).
+  `svelte_element_missing_this` moves to the parser, where upstream raises it,
+  because Phase 2 can no longer tell a missing `this` from a valueless one once the
+  attribute has been folded into `tag`.
+
+- 7f95217: Report upstream-accurate source positions on every validation warning
+
+  Warning positions diverged from the official compiler on 63 validator fixtures.
+  The bulk was accessibility: `a11y::check_element` returned span-less warnings and
+  the caller back-filled all of them with the whole element's range, so every a11y
+  diagnostic pointed at `<div …>` instead of the offending attribute. The rest were
+  per-rule — `$:` placement, unused exports, store/rune conflicts, custom-element
+  props, quoted component attributes, implicit element closes.
+
+  Also fixed along the way:
+
+  - `ParseWarning` now carries a span, so `element_implicitly_closed` survives the
+    hop from the parser into analysis with a position instead of losing it.
+  - `unknown_code` / `legacy_code` are emitted from the node that collects the
+    preceding comment rather than up front, matching upstream's ordering.
+  - `compile_module` marks its input as a module directly instead of inferring it
+    from a `.svelte.(js|ts)` filename, which callers need not supply.
+  - The `context` attribute stays on the `Script` node, as upstream's `read_script`
+    leaves it, so `script_context_deprecated` can point at it.
+
+- 097b663: Build a warning's code frame from the shared line index instead of splitting the whole source once per warning, so a file with many spanned warnings no longer costs O(source × warnings).
+- 03d69cf: fix(analyze): attach spans to five warnings that reported no position
+- a8ae964: Apply the member-property guard to compound assignment in the legacy server
+  `$:` reorder scanner. `extract_simple_assignments` recorded `x` for
+  `$: obj.x += 1` while recording nothing for `$: obj.x = 1` and `$: obj.x++`,
+  which invented a reactive dependency and hoisted the statement above any `$:`
+  that reads a plain `x`. Upstream's `AssignmentExpression` visitor takes the same
+  branch for every operator and records no target for a member expression.
+
+  No change to emitted output: the text scanner is reachable only from the
+  declaration-tag script path, where a `$:` statement cannot occur, and SSR
+  reactive ordering runs through the AST port of `order_reactive_statements`,
+  which was already correct for these shapes.
+
 ## 0.10.6
 
 ### Patch Changes

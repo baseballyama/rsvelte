@@ -1,5 +1,160 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.13
+
+### Patch Changes
+
+- 8c7851c: Port the compiler to the restructured oxc 0.143 AST
+
+  `ExportNamedDeclaration` was split into three nodes — `ExportDeclaration` (`export <decl>`),
+  a specifier-only `ExportNamedDeclaration` (`export {…}`) and `ExportFromDeclaration`
+  (`export {…} from`) — and `ArrowFunctionExpression` replaced its `expression` flag and
+  `FunctionBody` with an `ArrowFunctionBody` enum. Every match over those nodes now names all
+  three variants explicitly instead of falling through.
+
+  Two behaviour fixes fall out of the split. `export type Foo = true` inside a `namespace` was
+  rejected as a non-type member because oxc now derives the export kind from the declaration
+  rather than storing it, and a chained member object such as
+  `(componentOptions()?.events?.onabort)?.apply(…)` lost its required parentheses because oxc
+  keeps a `ParenthesizedExpression` around the inner chain that the printer was not looking
+  through.
+
+- c2392cf: svelte2tsx now honours `namespace: 'foreign'`. Official svelte2tsx derives
+  `preserveAttributeCase` from it (`htmlxtojsx_v2/index.ts`) and skips the
+  attribute-name case fold, so `<element someAttr="hi">` projects as
+  `"someAttr"`. rsvelte had no `foreign` namespace at all: the value was
+  unreachable from the napi and wasm boundaries (it fell into the `_ =>
+Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
+  and `Svelte2TsxOptions::namespace` was never read by the projection — so even
+  a caller constructing the option directly got attribute names folded to lower
+  case with no diagnostic. This affects users whose `svelte.config.js` sets
+  `compilerOptions.namespace = 'foreign'`, which the language server passes
+  straight through.
+- 7f95217: Close the last five svelte2tsx output divergences
+
+  `preserveAttributeCase` was never honoured, so attributes on foreign-namespace
+  elements were lower-cased. `type $$ComponentProps` and module-level snippets were
+  emitted in the wrong order relative to `function $$render()`. Angle-bracket type
+  assertions in an instance script were rewritten to `as`, which upstream does only
+  outside `ts` mode — the module script still rewrites unconditionally.
+
+- Updated dependencies [122af14]
+- Updated dependencies [73bdbf2]
+- Updated dependencies [f0c8f3d]
+- Updated dependencies [514bf80]
+- Updated dependencies [ecbfb18]
+- Updated dependencies [01d5780]
+- Updated dependencies [04a5040]
+- Updated dependencies [92c4a66]
+- Updated dependencies [1830053]
+- Updated dependencies [6be59dc]
+- Updated dependencies [77b4f8b]
+- Updated dependencies [a78a21a]
+- Updated dependencies [3e22d14]
+- Updated dependencies [9194c9f]
+- Updated dependencies [83c68bd]
+- Updated dependencies [cc7df16]
+- Updated dependencies [e1161e6]
+- Updated dependencies [7f834ad]
+- Updated dependencies [675b34d]
+- Updated dependencies [da10132]
+- Updated dependencies [1cc832b]
+- Updated dependencies [3e22d14]
+- Updated dependencies [0f05d35]
+- Updated dependencies [0822929]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [715b51c]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [1d290bc]
+- Updated dependencies [7babb78]
+- Updated dependencies [7babb78]
+- Updated dependencies [23e68ac]
+- Updated dependencies [016c7a8]
+- Updated dependencies [24b8bd1]
+- Updated dependencies [6c165c8]
+- Updated dependencies [2af6588]
+- Updated dependencies [92c4a66]
+- Updated dependencies [b6b81ca]
+- Updated dependencies [bc9d8e7]
+- Updated dependencies [4a9f31e]
+- Updated dependencies [b9c51bc]
+- Updated dependencies [5092d12]
+- Updated dependencies [d09479e]
+- Updated dependencies [456d40f]
+- Updated dependencies [ed77eec]
+- Updated dependencies [09950a4]
+- Updated dependencies [2cb9bef]
+- Updated dependencies [8c53ac4]
+- Updated dependencies [09f9ffc]
+- Updated dependencies [d7edc7e]
+- Updated dependencies [0d01d44]
+- Updated dependencies [bad4e54]
+- Updated dependencies [335989a]
+- Updated dependencies [8f72c13]
+- Updated dependencies [366bb66]
+- Updated dependencies [3537f18]
+- Updated dependencies [859b161]
+- Updated dependencies [5f6de88]
+- Updated dependencies [675b34d]
+- Updated dependencies [84ce739]
+- Updated dependencies [27ec092]
+- Updated dependencies [39e5772]
+- Updated dependencies [da6b766]
+- Updated dependencies [ec4540a]
+- Updated dependencies [92c4a66]
+- Updated dependencies [f01033e]
+- Updated dependencies [8c7851c]
+- Updated dependencies [cd5d4e0]
+- Updated dependencies [3c8593c]
+- Updated dependencies [88b8d2b]
+- Updated dependencies [250be54]
+- Updated dependencies [bd466dc]
+- Updated dependencies [46394e4]
+- Updated dependencies [d8bb1e5]
+- Updated dependencies [3e22d14]
+- Updated dependencies [13d5982]
+- Updated dependencies [e799ef4]
+- Updated dependencies [75a5fb1]
+- Updated dependencies [b9c51bc]
+- Updated dependencies [7d6395c]
+- Updated dependencies [3ec9736]
+- Updated dependencies [abb04dd]
+- Updated dependencies [f067d3c]
+- Updated dependencies [73aef74]
+- Updated dependencies [73aef74]
+- Updated dependencies [6936bcc]
+- Updated dependencies [c11fed7]
+- Updated dependencies [c193616]
+- Updated dependencies [482d9a8]
+- Updated dependencies [ca48c0b]
+- Updated dependencies [5a72205]
+- Updated dependencies [ddd9c71]
+- Updated dependencies [b152751]
+- Updated dependencies [115eb9c]
+- Updated dependencies [a69e5ed]
+- Updated dependencies [ddc8be4]
+- Updated dependencies [c2392cf]
+- Updated dependencies [de34a5e]
+- Updated dependencies [6294de3]
+- Updated dependencies [6b299ba]
+- Updated dependencies [8cfabe3]
+- Updated dependencies [92c4a66]
+- Updated dependencies [92c4a66]
+- Updated dependencies [7f95217]
+- Updated dependencies [7f95217]
+- Updated dependencies [097b663]
+- Updated dependencies [03d69cf]
+- Updated dependencies [a8ae964]
+  - @rsvelte/compiler@0.10.7
+
 ## 0.2.12
 
 ### Patch Changes

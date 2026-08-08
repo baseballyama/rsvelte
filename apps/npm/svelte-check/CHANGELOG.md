@@ -1,5 +1,36 @@
 # @rsvelte/svelte-check
 
+## 0.5.12
+
+### Patch Changes
+
+- 8c7851c: Port the compiler to the restructured oxc 0.143 AST
+
+  `ExportNamedDeclaration` was split into three nodes — `ExportDeclaration` (`export <decl>`),
+  a specifier-only `ExportNamedDeclaration` (`export {…}`) and `ExportFromDeclaration`
+  (`export {…} from`) — and `ArrowFunctionExpression` replaced its `expression` flag and
+  `FunctionBody` with an `ArrowFunctionBody` enum. Every match over those nodes now names all
+  three variants explicitly instead of falling through.
+
+  Two behaviour fixes fall out of the split. `export type Foo = true` inside a `namespace` was
+  rejected as a non-type member because oxc now derives the export kind from the declaration
+  rather than storing it, and a chained member object such as
+  `(componentOptions()?.events?.onabort)?.apply(…)` lost its required parentheses because oxc
+  keeps a `ParenthesizedExpression` around the inner chain that the printer was not looking
+  through.
+
+- c2392cf: svelte2tsx now honours `namespace: 'foreign'`. Official svelte2tsx derives
+  `preserveAttributeCase` from it (`htmlxtojsx_v2/index.ts`) and skips the
+  attribute-name case fold, so `<element someAttr="hi">` projects as
+  `"someAttr"`. rsvelte had no `foreign` namespace at all: the value was
+  unreachable from the napi and wasm boundaries (it fell into the `_ =>
+Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
+  and `Svelte2TsxOptions::namespace` was never read by the projection — so even
+  a caller constructing the option directly got attribute names folded to lower
+  case with no diagnostic. This affects users whose `svelte.config.js` sets
+  `compilerOptions.namespace = 'foreign'`, which the language server passes
+  straight through.
+
 ## 0.5.11
 
 ### Patch Changes
