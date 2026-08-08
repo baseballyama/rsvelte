@@ -46,6 +46,8 @@ use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
 use oxc_syntax::symbol::SymbolId;
+
+use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::ast_rewrite::{self, Edit};
@@ -77,10 +79,7 @@ pub fn transform_state_pipeline_ast(
         .filter(|v| !non_reactive_vars.iter().any(|n| n == *v))
         .cloned()
         .collect();
-    if !state_vars
-        .iter()
-        .any(|v| memchr::memmem::find(source.as_bytes(), v.as_bytes()).is_some())
-    {
+    if !state_vars.iter().any(|v| contains_identifier(source, v)) {
         return None;
     }
     if memchr::memchr(b'=', source.as_bytes()).is_none()
@@ -88,7 +87,7 @@ pub fn transform_state_pipeline_ast(
         && memchr::memmem::find(source.as_bytes(), b"--").is_none()
         && !effective_read_names
             .iter()
-            .any(|v| memchr::memmem::find(source.as_bytes(), v.as_bytes()).is_some())
+            .any(|v| contains_identifier(source, v))
     {
         return None;
     }
@@ -135,6 +134,10 @@ fn single_pass(
             ..ParseOptions::default()
         },
         |program| {
+            super::super::profile::record_semantic_build(
+                super::super::profile::SEM_STATE_PIPELINE,
+                program.source_text.len(),
+            );
             let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let semantic = &semantic_ret.semantic;
             let state_var_symbols = find_state_var_symbols(semantic, state_vars);
@@ -752,6 +755,10 @@ fn transform_state_pipeline_in_place(
         },
         |allocator, program| {
             let sites = {
+                super::super::profile::record_semantic_build(
+                    super::super::profile::SEM_STATE_PIPELINE_IN_PLACE,
+                    program.source_text.len(),
+                );
                 let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let semantic = &semantic_ret.semantic;
                 let state_var_symbols = find_state_var_symbols(semantic, state_vars);

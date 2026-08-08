@@ -51,6 +51,10 @@ pub(super) fn collect_state_call_edits(
     ambiguous_vars: &[String],
     non_proxy_vars: &[String],
 ) -> Vec<Edit> {
+    super::super::profile::record_semantic_build(
+        super::super::profile::SEM_STATE_CALL,
+        program.source_text.len(),
+    );
     let semantic_ret = SemanticBuilder::new().build(program);
     let mut collector = StateCallCollector {
         source,
