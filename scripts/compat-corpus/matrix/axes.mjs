@@ -278,7 +278,7 @@ export const COMMENT_SEEDS = {
 };
 
 /**
- * Axis D — how a string literal spells itself, crossed with axis E, the template
+ * Axis F — how a string literal spells itself, crossed with axis G, the template
  * slot whose expression holds it.
  *
  * esrap writes a literal's `raw` verbatim, so official's output carries the
@@ -312,7 +312,7 @@ export const LITERAL_ESCAPES = {
 };
 
 /**
- * Axis E — the template slot the literal sits in. `%s` is the literal.
+ * Axis G — the template slot the literal sits in. `%s` is the literal.
  *
  * This is the first axis in this file that injects into MARKUP rather than into
  * a JS statement inside `<script>`, which gate-coverage 5c records as the
@@ -338,6 +338,114 @@ export const EXPRESSION_SLOTS = {
 	// than the expression converter.
 	'instance-declaration': '<script>\n\tconst s = %s;\n</script>\n\n<p>{s}</p>',
 };
+
+/**
+ * Axis D — expressions that are not a legal `bind:` target, crossed with axis E,
+ * the directive slot they sit in.
+ *
+ * Every other family here generates VALID programs and asks whether the two
+ * compilers agree on the output. This one generates programs the official
+ * compiler rejects and asks whether rsvelte rejects them with the same code —
+ * a question no collected corpus can pose, because published code compiles.
+ * The `compiler-errors` fixtures do pose it, but at one input per code, and
+ * that is not enough: `<Comp bind:value={o.x = obj} />` compiled into a
+ * getter/setter around an assignment while `bind_invalid_expression` had a
+ * passing fixture, because upstream runs `object(node.expression)` once for
+ * both slots and rsvelte had the check on the element path only.
+ *
+ * The element and component slots are the axis that finds that: a validation
+ * written per slot drifts, and only the product notices.
+ */
+export const INVALID_BIND_TARGETS = {
+	assignment: 'o.x = obj',
+	'compound-assignment': 'o.x += 1',
+	call: 'o.f()',
+	'call-plain': 'fn()',
+	binary: 'o.x + 1',
+	conditional: 'flag ? o.x : o.y',
+	literal: "'lit'",
+	number: '1',
+	array: '[o.x]',
+	unary: '!o.x',
+	template: '`t${o.x}`',
+	'new-expression': 'new Thing()',
+	'await-like': 'o.x ?? o.y',
+	'logical-or': 'o.x || o.y',
+	'paren-assignment': '(o.x = obj)',
+	'optional-member': 'o?.x',
+	'optional-call': 'o.f?.()',
+	update: 'o.x++',
+	'arrow-only': '() => o.x',
+	'object-literal': '{ a: o.x }',
+};
+
+/**
+ * Axis E — the `bind:` slot. `%s` is the target expression.
+ *
+ * `bind:this` is here because it takes a different code path from a value
+ * binding on both compilers, and on components a third one again.
+ */
+export const BIND_SLOTS = {
+	'element-value': '<input bind:value={%s} />',
+	'element-group': '<input type="checkbox" bind:group={%s} />',
+	'element-this': '<div bind:this={%s}></div>',
+	'element-clientwidth': '<div bind:clientWidth={%s}></div>',
+	'component-value': '<Comp bind:value={%s} />',
+	'component-this': '<Comp bind:this={%s} />',
+	'component-named': '<Comp bind:whatever={%s} />',
+	'window-scrolly': '<svelte:window bind:scrollY={%s} />',
+};
+
+/**
+ * Axis D2 — expressions that ARE a legal `bind:` target, crossed with the same
+ * slots. The counterpart signal: a validation that rejects too much shows up as
+ * "rsvelte rejects, official accepts", which the invalid rows can never report.
+ *
+ * The TypeScript rows are the discriminating ones. Upstream analyses the AST
+ * with the TS nodes already removed, so `o.x as number` reaches its `object()`
+ * as the bare member chain; a port that walks the parsed AST sees a
+ * `TSAsExpression` and calls the target invalid. `<Radio bind:group={c as T} />`
+ * is real shipped code (flowbite-svelte), which is how that over-rejection got
+ * caught — by a corpus file, not by this gate, and only for the component slot
+ * that file happens to use.
+ */
+export const VALID_BIND_TARGETS = {
+	identifier: { expr: 'obj' },
+	member: { expr: 'o.x' },
+	'deep-member': { expr: 'o.x.y' },
+	'computed-member': { expr: 'o[key]' },
+	'string-computed': { expr: "o['k']" },
+	'getter-setter-pair': { expr: '() => o.x, (v) => (o.x = v)' },
+	'ts-as': { expr: 'o.x as number', ts: true },
+	'ts-as-identifier': { expr: 'obj as object', ts: true },
+	'ts-non-null': { expr: 'o.x!', ts: true },
+	'ts-satisfies': { expr: '(o.x satisfies number)', ts: true },
+	'ts-as-then-non-null': { expr: '(o.x as number)!', ts: true },
+};
+
+/** The declarations every bind case shares, so only the axes differ. */
+export const BIND_PREAMBLE = `<script>
+	import Comp from './Comp.svelte';
+	let o = $state({ x: 1, y: 2 });
+	let obj = $state({});
+	let flag = $state(true);
+	let key = $state('x');
+	function fn() {}
+	class Thing {}
+</script>
+`;
+
+/** Same declarations under `lang="ts"`, for the rows that carry TS syntax. */
+export const BIND_PREAMBLE_TS = `<script lang="ts">
+	import Comp from './Comp.svelte';
+	let o = $state({ x: 1, y: 2 });
+	let obj = $state({});
+	let flag = $state(true);
+	let key = $state('x');
+	function fn() {}
+	class Thing {}
+</script>
+`;
 
 /**
  * Seeds for the comment axis on the `.svelte.(js|ts)` MODULE path — the whole-file

@@ -387,9 +387,30 @@ reported. A 329-case matrix found 21 divergences in seconds.
   position adds 7 cases × 3 targets.
 - `COMMENT_SEEDS` × line boundaries × `COMMENT_KINDS` → family `comment-slot`.
   Insertion is restricted to `<script>` regions, where a JS comment is inert.
+- `INVALID_BIND_TARGETS` × `BIND_SLOTS` and `VALID_BIND_TARGETS` × `BIND_SLOTS`
+  → family `invalid-bind` ((20 + 11) × 8). The odd one out: the invalid half is
+  programs the official compiler **rejects**, so the question is not "same
+  output" but "same error code". The valid half carries the counterpart signal
+  — a validation that rejects too much — which the invalid rows structurally
+  cannot report.
 
 `matrix/mutate.mjs` holds the mutation itself and is shared with the
 corpus-seeded fuzz (Gate 3).
+
+**Why an invalid-input family.** Every other input here is a valid program,
+which is also all the collected corpus can hold — published code compiles. So
+"rsvelte accepts what official rejects" was gated only by the 145
+`compiler-errors` fixtures, at **one input per code**, and a code with a passing
+fixture reads as covered. #2583 is what that misses: `bind_invalid_expression`
+had a passing fixture while `<Comp bind:value={o.x = obj} />` compiled into a
+getter/setter around an assignment, because upstream runs `object(…)` once for
+both slots and rsvelte had the check on the element path only. The element ×
+component axis is what turns one input into a product.
+
+For this family the verdict that matters is the one `error-parity` used to
+swallow: both compilers rejecting says nothing if rsvelte rejected for an
+unrelated reason. `run.mjs` now compares the two error codes and reports
+`error-code-mismatch` when they differ — for every family, not just this one.
 
 **Normalization is identical to `verify.mjs`** (flatten template holes → oxfmt →
 strip blank lines). That is a requirement, not a convenience: a divergence this

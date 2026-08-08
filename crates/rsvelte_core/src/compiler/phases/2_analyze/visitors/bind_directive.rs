@@ -122,12 +122,7 @@ fn visit_common(
             let arena = context.parse_arena;
             let expr_slice = arena.get_js_children(expressions);
             if !expr_slice.is_empty() && expr_slice.len() != 2 {
-                return Err(AnalysisError::validation_at(
-                    "bind_invalid_expression",
-                    "Binding with getter/setter requires exactly two functions",
-                    directive.start,
-                    directive.end,
-                ));
+                return Err(errors::bind_invalid_expression().at(directive.start, directive.end));
             }
         }
 
@@ -163,23 +158,8 @@ fn visit_common(
     }
 
     // Get the leftmost identifier (the binding target)
-    let expr_node = directive.expression.as_node();
-    let binding_name_owned: String;
-    let binding_name: &str = if let Some(left) = get_object_node(&expr_node, context.parse_arena) {
-        left.name().unwrap_or_default()
-    } else {
-        // Fall back to JSON for MemberExpression chains
-        binding_name_owned = get_object_name_via_json(&expr_node).unwrap_or_default();
-        if binding_name_owned.is_empty() {
-            return Err(AnalysisError::validation_at(
-                "bind_invalid_expression",
-                "Invalid binding expression",
-                directive.start,
-                directive.end,
-            ));
-        }
-        &binding_name_owned
-    };
+    let binding_name_owned = bind_target_name(directive, context)?;
+    let binding_name: &str = &binding_name_owned;
 
     // Look up the binding in the scope using proper scope chain traversal
     let binding_idx = context
@@ -424,6 +404,11 @@ pub(super) fn validate_bind_value_for_component(
     directive: &BindDirective,
     context: &VisitorContext,
 ) -> Result<(), AnalysisError> {
+    // Runs before the shape branch below, or a component binding to an
+    // expression that names nothing is lowered into a getter/setter instead of
+    // being rejected.
+    bind_target_name(directive, context)?;
+
     if !directive.expression.is_identifier_node() {
         return Ok(());
     }
@@ -760,6 +745,28 @@ fn is_text_attribute(attr: &crate::ast::template::AttributeNode) -> bool {
     }
 }
 
+/// The binding's target name — upstream's `object(node.expression)`, which is
+/// `null` for anything that is not an identifier or a member chain rooted in
+/// one, and raises `bind_invalid_expression` there.
+///
+/// Element and component bindings must share it: upstream runs the check once,
+/// before it branches on the shape, and a copy per branch drifts.
+pub(super) fn bind_target_name(
+    directive: &BindDirective,
+    context: &VisitorContext,
+) -> Result<String, AnalysisError> {
+    let expr_node = directive.expression.as_node();
+    let name = match get_object_node(&expr_node, context.parse_arena) {
+        Some(left) => left.name().unwrap_or_default().to_string(),
+        // Fall back to JSON for MemberExpression chains
+        None => get_object_name_via_json(&expr_node).unwrap_or_default(),
+    };
+    if name.is_empty() {
+        return Err(errors::bind_invalid_expression().at(directive.start, directive.end));
+    }
+    Ok(name)
+}
+
 /// Get the object (leftmost identifier) from a JsNode expression.
 ///
 /// Corresponds to `object()` in utils/ast.js.
@@ -776,6 +783,15 @@ fn get_object_node<'a>(
         JsNode::Identifier { .. } => Some(node),
         JsNode::MemberExpression { object, .. } => {
             get_object_node(arena.get_js_node(*object), arena)
+        }
+        // Upstream analyses the AST with the TypeScript nodes already removed,
+        // so `x as T` reaches `object()` as the bare `x`.
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. }
+        | JsNode::TSTypeAssertion { expression, .. }
+        | JsNode::TSInstantiationExpression { expression, .. } => {
+            get_object_node(arena.get_js_node(*expression), arena)
         }
         _ => None,
     }
@@ -797,6 +813,11 @@ fn get_object_name_from_json(v: &serde_json::Value) -> Option<String> {
             let obj = v.get("object")?;
             get_object_name_from_json(obj)
         }
+        "TSAsExpression"
+        | "TSSatisfiesExpression"
+        | "TSNonNullExpression"
+        | "TSTypeAssertion"
+        | "TSInstantiationExpression" => get_object_name_from_json(v.get("expression")?),
         _ => None,
     }
 }

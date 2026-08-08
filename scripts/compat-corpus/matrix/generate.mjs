@@ -13,6 +13,11 @@ import {
 	COMMENT_MODULE_SEEDS,
 	LITERAL_ESCAPES,
 	EXPRESSION_SLOTS,
+	INVALID_BIND_TARGETS,
+	VALID_BIND_TARGETS,
+	BIND_SLOTS,
+	BIND_PREAMBLE,
+	BIND_PREAMBLE_TS,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -66,10 +71,35 @@ function literalEscapeCases() {
 	return cases;
 }
 
+function invalidBindCases() {
+	const cases = [];
+	for (const [targetName, expression] of Object.entries(INVALID_BIND_TARGETS)) {
+		for (const [slotName, markup] of Object.entries(BIND_SLOTS)) {
+			cases.push({
+				id: `invalid-bind/${targetName}__${slotName}.svelte`,
+				source: BIND_PREAMBLE + markup.replaceAll('%s', expression) + '\n',
+			});
+		}
+	}
+	for (const [targetName, target] of Object.entries(VALID_BIND_TARGETS)) {
+		for (const [slotName, markup] of Object.entries(BIND_SLOTS)) {
+			cases.push({
+				id: `invalid-bind/valid-${targetName}__${slotName}.svelte`,
+				source:
+					(target.ts ? BIND_PREAMBLE_TS : BIND_PREAMBLE) +
+					markup.replaceAll('%s', target.expr) +
+					'\n',
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
 	'literal-escape': literalEscapeCases,
+	'invalid-bind': invalidBindCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

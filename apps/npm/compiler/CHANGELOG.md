@@ -1,5 +1,120 @@
 # @rsvelte/compiler
 
+## 0.10.8
+
+### Patch Changes
+
+- cd5c928: Stop the client instance-script scan from rewriting comment bodies.
+
+  `strip_unnecessary_arrow_body_parens` scanned the instance script for `=> (` and
+  dropped the parentheses. It skipped string and template literals but not
+  comments, so a comment whose text happened to contain an arrow function was
+  edited too:
+
+  ```js
+  // values.forEach((v) => (valueFilter[v] = true));   // official
+  // values.forEach((v) => valueFilter[v] = true);     // rsvelte
+  ```
+
+  Measured against the whole corpus with the pass removed, it changed output for
+  4 of 14,138 entries and diverged from official on all 4 — three become
+  byte-identical to official once it is gone, and the fourth loses the rewritten
+  comment above. Nothing regresses, because everywhere else esrap already prints
+  the parens the way official does; the pass only ever mattered on inputs where
+  its own text rewrite forced the fallback path. It is removed rather than fixed.
+
+  The corpus gate could not see this. A byte-different output falls back to an AST
+  comparison, and `ast_equiv_batch` applies `CommentPolicy::Ignore` unless
+  `--comments` is passed, so a divergence living entirely inside a comment scores
+  `match`. No ratchet listed these entries either.
+
+- 037afbf: Reject `bind:` to an expression that names no binding on a **component**, not only on an element. `<Comp bind:value={o.x = obj} />` compiled and was lowered into a getter/setter around the assignment where the official compiler raises `bind_invalid_expression`. The element path's message is now upstream's text too, so a user comparing diagnostics sees the same string.
+- 9fafb90: Stop a delimiter inside a comment from ending a class field early (server).
+
+  The server class-member scan accumulates a multi-line field until its brackets
+  balance, and counted every `(`/`)`/`{`/`}`/`[`/`]` byte — including the ones
+  inside comments and strings. A `// )` line inside a `$derived.by(…)`,
+  `$state(…)` or plain multi-line initializer therefore closed the field one line
+  early, and the leftover `);` was emitted as a class member of its own:
+
+  ```js
+  	get snippetProps() { … }
+  	);
+  }
+  ```
+
+  which does not parse. The six depth counters in that scan now run over code
+  bytes only, and over the whole accumulated text rather than one line at a time,
+  so a block comment that spans lines is closed by the same scan that opened it.
+
+- 01e97cd: Keep the operand that follows a line-ending binary operator in a legacy instance script. `let flag = a ||` and `$: v = x ===` with the right operand on the next line closed the statement early, emitting `$.mutable_source(a ||)` / `$.set(v, x ===)` — output no JavaScript parser accepts.
+- d1eedb3: Stop a `;` or `)` inside a comment from ending a legacy `let` initializer, and keep the generated `)` out of a trailing line comment. `let x = a + // ; c` emitted `$.mutable_source(a + //); c` — the generated paren spliced into the comment body — which no JavaScript parser accepts.
+- 6ad88da: Cook every escape when folding a known-const string, not just the codepoint ones. `const sep = '\\'` folded into `<p>{sep}</p>` emitted `p.textContent = '\\\\'` — the escape survived the fold and was escaped a second time on the way out, so the component rendered two backslashes. `\n`, `\t`, `\r`, `\v`, `\b`, `\f`, `\'`, `\"`, a surrogate pair and a line continuation were wrong the same way, on client, server and client-dev alike.
+- 9a27ff9: Keep the newline after a line comment that sits between two declarators.
+
+  A multi-line `let`/`const`/`var` list is accumulated onto a single line before
+  it is split at its top-level commas. The accumulator joined continuation lines
+  with a space, so a `//` comment on one of them swallowed every declarator that
+  followed:
+
+  ```svelte
+  <script>
+  	let a,
+  		b = 1,
+  // c
+  		c;
+  </script>
+  ```
+
+  emitted `let // c c;` — a `let` with no declarator, and output that does not
+  parse. Continuation lines now join with a newline whenever the text so far ends
+  inside a line comment, which is also the shape upstream prints.
+
+- 9a27ff9: Emit a declarator's leading comment above the keyword, not between them.
+
+  Splitting `let a = 1,` / `// c` / `b = 2;` into one statement per declarator
+  produced `let // c` on one line and `b = 2;` on the next. That is valid JS and
+  it is the shape upstream prints, but every later pass in the text pipeline
+  matches `let <name>` on a single line, so all of them missed the declaration
+  and read `b = 2` as an assignment instead: a re-exported prop came out as
+  `labelId("")` and a legacy state variable as `$.set(b, 2)` with `b` never
+  declared.
+
+  The comment now goes on its own line above the keyword, so the declaration is
+  `let b = 2;` again. Only a comment that owns its line moves; one sharing a line
+  with code stays where it is.
+
+- 37fc1e9: Stop legacy `$:` statement order from depending on whitespace.
+
+  `$: {mid=seed*2}` and `$: { mid = seed * 2 }` are the same program, but they
+  compiled to different execution order. The scan that decides which variables a
+  reactive statement assigns — which feeds the topological sort — matched the
+  literal `" = "`, spaces included, so the unspaced form was credited with
+  assigning nothing, never got an ordering edge, and ran before the statement
+  whose value it produces. Anything reading `mid` then saw a stale value on first
+  run. Every compound operator was affected too, not just `=`.
+
+  The scan now finds the name and its operator separately, so any spacing (or
+  none) is recognised. Comparisons are still excluded, and the longest operator
+  wins, so `<=` stays a comparison while `<<=` assigns.
+
+- 8d641ee: Stop a regex literal from being read as a line comment in a legacy instance script. In `/^https?:\/\//` the slash closing the last escape and the slash closing the regex are adjacent, so the client text passes cut the line there — emitting an unterminated regex, and leaving the prop reads after it uncalled.
+- 020cd5c: Let the runes fast path run in dev mode. Eligibility was gated on `!dev` and on `prop_mutation_vars` being empty, so a runes component compiled with `dev: true` — or any component with a mutated prop — took the per-statement text pipeline instead. Neither condition belonged there: `prop_mutation_vars` feeds a pass that runs over the whole result after the loop, and the only dev-only per-statement stage is the `console.` wrap, which is now checked per statement rather than by disabling the path wholesale.
+- 49c34a9: Keep the operand after the rest of the line-ending binary operators in a legacy instance script. Only 8 of the 23 binary operators continued the statement, so `$: kind =\n\titem.a *\n\titem.b;` emitted `$.set(kind, item().a *)` — output no JavaScript parser accepts. `*` `%` `<` `>` `|` `&` `^` `**` `<<` `>>` `,` `in` `instanceof` now continue it too; `in` and `instanceof` only on a word boundary, so the identifier `margin` at a line end does not swallow the next line. `-` and `/` stay excluded: `a--` ends a statement and `/` also closes a block comment, so neither can be decided by suffix matching.
+- 39ba648: Answer the legacy `$:` analysis from the typed AST instead of serializing the instance script
+
+  The three legacy reactive passes — cycle detection, `legacy_dependencies` population
+  and per-statement dependency collection — read their input as `serde_json::Value`, so
+  every top-level `$:` statement was serialized with `JsNode::to_value()` first. That one
+  producer built **77-82% of all the JSON objects and map entries the compiler allocates**
+  on Svelte-4-era code, and with `serde_json`'s `preserve_order` feature each map entry is
+  a key `String` allocation and a hash insert.
+
+  All three passes and their walkers now traverse typed nodes, and the serializer is gone.
+  On a 3,509-file application corpus that removes 100,535 JSON objects and 501,609 map
+  entries, with byte-identical output and warnings across client, server and dev.
+  Components without `$:` are unaffected by construction.
+
 ## 0.10.7
 
 ### Patch Changes

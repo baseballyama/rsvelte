@@ -89,6 +89,9 @@ diagnostics! {
     /// `bind:%name%` can only be used with %elements%
     bind_invalid_target(name: &str, elements: &str) => "`bind:{}` can only be used with {}", name, elements;
 
+    /// Can only bind to an Identifier or MemberExpression or a `{get, set}` pair
+    bind_invalid_expression() => "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression";
+
     /// `bind:group` can only bind to an Identifier or MemberExpression
     bind_group_invalid_expression() => "`bind:group` can only bind to an Identifier or MemberExpression";
 

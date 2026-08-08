@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { selectTargets } from './targets.mjs';
 import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
 import { assertOracleCompiles } from './oracle.mjs';
+import { errorCode } from './error-code.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -97,17 +98,8 @@ if (args.includes('--worker')) {
 	// `https://svelte.dev/e/<code>` link, which restates the code.
 	const errorInfo = (e) => {
 		const message = String(e?.message ?? e);
-		// A pre-#2446 rsvelte binding carried a generic `code`
-		// ("GenericFailure") with the real svelte code embedded in a Rust
-		// `Debug` dump; keep extracting it so an older binding still scores
-		// code parity instead of silently reporting `null` everywhere.
-		let code = e?.code ?? null;
-		if (!code || code === 'GenericFailure') {
-			const m = message.match(/svelte\.dev\/e\/([a-z0-9_]+)/) ?? message.match(/code: "([a-z0-9_]+)"/);
-			if (m) code = m[1];
-		}
 		return {
-			code,
+			code: errorCode(e),
 			message: message.split('\n')[0],
 			line: e?.start?.line ?? null,
 			column: e?.start?.column ?? null,
