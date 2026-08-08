@@ -591,6 +591,43 @@ pub fn take_semantic_builds() -> [(u64, u64); SEMANTIC_SITES.len()] {
     SEMANTIC_BUILDS.replace([(0, 0); SEMANTIC_SITES.len()])
 }
 
+#[cfg(feature = "measure-semantic-build")]
+thread_local! {
+    static SEMANTIC_TIME: Cell<[Duration; SEMANTIC_SITES.len()]> =
+        const { Cell::new([Duration::ZERO; SEMANTIC_SITES.len()]) };
+}
+
+/// Run `build` — a `SemanticBuilder::build` call — recording it against `site`.
+///
+/// The timer only exists under `measure-semantic-build`, because the question it
+/// answers (what share of `compile()` these builds are) is asked once, while the
+/// `Instant` pair around every build would be paid on every compile forever.
+#[inline]
+pub fn semantic_build<T>(site: usize, bytes: usize, build: impl FnOnce() -> T) -> T {
+    record_semantic_build(site, bytes);
+    #[cfg(not(feature = "measure-semantic-build"))]
+    {
+        build()
+    }
+    #[cfg(feature = "measure-semantic-build")]
+    {
+        let start = timer_start();
+        let out = build();
+        let elapsed = timer_elapsed(start);
+        SEMANTIC_TIME.with(|c| {
+            let mut totals = c.get();
+            totals[site] += elapsed;
+            c.set(totals);
+        });
+        out
+    }
+}
+
+#[cfg(feature = "measure-semantic-build")]
+pub fn take_semantic_time() -> [Duration; SEMANTIC_SITES.len()] {
+    SEMANTIC_TIME.replace([Duration::ZERO; SEMANTIC_SITES.len()])
+}
+
 /// Agreement between the one-pass indices and the per-variable scans they
 /// replace.
 ///

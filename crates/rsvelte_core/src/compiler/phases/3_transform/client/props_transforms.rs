@@ -3046,9 +3046,11 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
 
-            // Check it's not already inside a prop(prop()...) wrapper
+            // Check it's not already inside a prop(prop()...) wrapper. The
+            // printer breaks a long setter call across lines, so the `prop(`
+            // need not be adjacent.
             let before = &result[..abs_start];
-            if before.ends_with(&format!("{}(", var_name)) {
+            if before.trim_end().ends_with(&format!("{}(", var_name)) {
                 runes_search_from = abs_start + runes_prefix.len();
                 continue;
             }
@@ -3247,11 +3249,10 @@ pub(super) fn wrap_prop_mutation_validation(
                 continue;
             }
 
-            let inner_probe_start = if result.as_bytes().get(after_outer) == Some(&b'(') {
-                after_outer + 1
-            } else {
-                after_outer
-            };
+            let mut inner_probe_start = skip_leading_ws(&result, after_outer);
+            if result.as_bytes().get(inner_probe_start) == Some(&b'(') {
+                inner_probe_start = skip_leading_ws(&result, inner_probe_start + 1);
+            }
             if !result[inner_probe_start..].starts_with(&inner_call) {
                 search_from = after_outer;
                 continue;
@@ -3322,15 +3323,20 @@ pub(super) fn wrap_prop_mutation_validation(
             // The content inside prop(...) is rest[..close_byte_pos]
             let inner_content = &rest[..close_byte_pos];
 
-            // Check if it ends with `, true`
+            // Check if it ends with `, true` — the comma and the flag may be on
+            // separate lines when the printer broke the call up.
             let inner_trimmed = inner_content.trim_end();
-            if !inner_trimmed.ends_with(", true") {
+            let Some(head) = inner_trimmed
+                .strip_suffix("true")
+                .map(str::trim_end)
+                .and_then(|head| head.strip_suffix(','))
+            else {
                 search_from = abs_start + wrapper_start_len;
                 continue;
-            }
+            };
 
             // Extract the assignment expression (without `, true`)
-            let assignment_expr = inner_trimmed[..inner_trimmed.len() - ", true".len()].trim();
+            let assignment_expr = head.trim();
             // Some call sites wrap the assignment in an extra pair of parens
             // (e.g. `(config().padAngle = value)`) when the result is consumed
             // as an expression; strip one layer before pattern-matching.
@@ -3475,6 +3481,12 @@ pub(super) fn wrap_prop_mutation_validation(
     }
 
     result
+}
+
+/// The byte offset of the first non-whitespace byte at or after `from`.
+fn skip_leading_ws(text: &str, from: usize) -> usize {
+    let rest = &text[from..];
+    from + (rest.len() - rest.trim_start().len())
 }
 
 /// The span of `(<mutation>, $.invalidate_inner_signals(…))` around the
@@ -4614,6 +4626,54 @@ mod pattern_end_unit_tests {
             let end = find_destructuring_pattern_end(pattern).unwrap();
             assert_eq!(&pattern[..end], pattern, "pattern {pattern:?}");
         }
+    }
+}
+
+/// The legacy setter wrap `prop(prop().member = v, true)` is matched as text, but
+/// the printer breaks it across lines once the assigned value is long. The
+/// single-line-only matcher fell through to the runes-mode branch, which cut the
+/// expression at the first newline and spliced the validator call *inside*
+/// `prop(` — leaving an empty argument slot and an orphaned `true`.
+#[cfg(test)]
+mod multiline_setter_wrap_tests {
+    use super::wrap_prop_mutation_validation;
+
+    fn wrap(stmt: &str) -> String {
+        wrap_prop_mutation_validation(
+            stmt,
+            &[("filter".to_string(), None)],
+            "<script>\n  export let filter;\n  filter.onRemove = () => {};\n</script>",
+        )
+    }
+
+    #[test]
+    fn multiline_setter_call_is_wrapped_as_a_whole() {
+        let out = wrap(
+            "filter(\n\tfilter().onRemove = () => {\n\t\tremove(filter().index);\n\t},\n\ttrue\n);",
+        );
+        assert_eq!(
+            out,
+            "$$ownership_validator.mutation(null, ['filter', 'onRemove'], filter(\n\tfilter().onRemove = () => {\n\t\tremove(filter().index);\n\t},\n\ttrue\n), 3, 2);"
+        );
+    }
+
+    /// Control: the single-line shape is unchanged by the tolerance.
+    #[test]
+    fn single_line_setter_call_is_unchanged() {
+        assert_eq!(
+            wrap("filter(filter().onRemove = 1, true);"),
+            "$$ownership_validator.mutation(null, ['filter', 'onRemove'], filter(filter().onRemove = 1, true), 3, 2);"
+        );
+    }
+
+    /// Control: an unrelated call whose argument merely mentions the prop is not
+    /// mistaken for the setter wrap.
+    #[test]
+    fn unrelated_multiline_call_is_left_alone() {
+        assert_eq!(
+            wrap("remove(\n\tfilter().index\n);"),
+            "remove(\n\tfilter().index\n);"
+        );
     }
 }
 

@@ -89,11 +89,11 @@ fn transform_prop_assign_spliced(source: &str, prop_vars: &[String]) -> Option<S
             ParseOptions::default(),
             true,
             |program| {
-                super::super::profile::record_semantic_build(
+                let semantic_ret = super::super::profile::semantic_build(
                     super::super::profile::SEM_PROP_ASSIGN,
                     program.source_text.len(),
+                    || SemanticBuilder::new().with_build_nodes(true).build(program),
                 );
-                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let semantic = &semantic_ret.semantic;
                 let mut collector = PropAssignCollector {
                     source: src,
@@ -376,11 +376,11 @@ pub(crate) fn transform_prop_assign_in_place(
         ParseOptions::default(),
         |allocator, program| {
             let targets = {
-                super::super::profile::record_semantic_build(
+                let semantic_ret = super::super::profile::semantic_build(
                     super::super::profile::SEM_PROP_ASSIGN_IN_PLACE,
                     program.source_text.len(),
+                    || SemanticBuilder::new().with_build_nodes(true).build(program),
                 );
-                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let mut finder = PropAssignFinder {
                     prop_vars,
                     semantic: &semantic_ret.semantic,

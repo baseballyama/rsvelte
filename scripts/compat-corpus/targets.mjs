@@ -22,6 +22,12 @@
  *               verdict cannot see: it compares the error `code` and nothing
  *               else, so a right-coded error with the wrong prose or the wrong
  *               span scores as parity.
+ *   - parseBaseline
+ *               the output-parseability ratchet (see verify.mjs). Separate from
+ *               `baseline` because the output verdict is a comparison against
+ *               official's text: an entry already listed there for a text
+ *               mismatch would suppress a later regression to output that is
+ *               not JavaScript at all.
  */
 export const TARGETS = [
 	{
@@ -34,6 +40,7 @@ export const TARGETS = [
 		warningPositionBaseline: 'warning-position-known-failures.client.json',
 		errorMessageBaseline: 'error-message-known-failures.client.json',
 		errorPositionBaseline: 'error-position-known-failures.client.json',
+		parseBaseline: 'parse-known-failures.client.json',
 	},
 	{
 		key: 'server',
@@ -45,6 +52,7 @@ export const TARGETS = [
 		warningPositionBaseline: 'warning-position-known-failures.server.json',
 		errorMessageBaseline: 'error-message-known-failures.server.json',
 		errorPositionBaseline: 'error-position-known-failures.server.json',
+		parseBaseline: 'parse-known-failures.server.json',
 	},
 	// `dev: true` gates 18 client codegen files plus the CSS transform (empty
 	// rules survive pruning in dev), so dev CSS is compared too.
@@ -58,6 +66,7 @@ export const TARGETS = [
 		warningPositionBaseline: 'warning-position-known-failures.client-dev.json',
 		errorMessageBaseline: 'error-message-known-failures.client-dev.json',
 		errorPositionBaseline: 'error-position-known-failures.client-dev.json',
+		parseBaseline: 'parse-known-failures.client-dev.json',
 	},
 ];
 
