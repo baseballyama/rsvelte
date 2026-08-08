@@ -200,6 +200,7 @@ fn main() {
     let transform_breakdown = totals;
     let script_text_breakdown = profile::take_script_text_breakdown();
     let pa = profile::take_pa_breakdown();
+    let sp = profile::take_state_pipeline_counters();
 
     let total = parse_time + analyze_time + transform_time;
     let pct = |d: std::time::Duration| d.as_secs_f64() / total.as_secs_f64() * 100.0;
@@ -342,6 +343,15 @@ fn main() {
         "    PAIRING entries_outside_parent {}",
         st.entries_outside_parent
     );
+    if sp.calls > 0 {
+        println!(
+            "    STATE-PIPELINE calls {} | bail-at-first-gate {} ({:.1}%) | String clones avoided {}",
+            sp.calls,
+            sp.alloc_then_bail,
+            sp.alloc_then_bail as f64 / sp.calls as f64 * 100.0,
+            sp.wasted_clones
+        );
+    }
     if pa.timer_pairs > 0 {
         println!(
             "    --- process_accum split ({} statements) --- work = input bytes, except join = accumulated lines",

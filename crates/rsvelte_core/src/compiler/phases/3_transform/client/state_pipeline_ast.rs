@@ -73,15 +73,17 @@ pub fn transform_state_pipeline_ast(
     if state_vars.is_empty() {
         return None;
     }
+    crate::compiler::phases::phase3_transform::profile::record_sp_call();
+    if !state_vars.iter().any(|v| contains_identifier(source, v)) {
+        crate::compiler::phases::phase3_transform::profile::record_sp_bail(state_vars.len() as u64);
+        return None;
+    }
     // Pre-filter: anything in non_reactive_vars is excluded from reads.
     let effective_read_names: Vec<String> = state_vars
         .iter()
         .filter(|v| !non_reactive_vars.iter().any(|n| n == *v))
         .cloned()
         .collect();
-    if !state_vars.iter().any(|v| contains_identifier(source, v)) {
-        return None;
-    }
     if memchr::memchr(b'=', source.as_bytes()).is_none()
         && memchr::memmem::find(source.as_bytes(), b"++").is_none()
         && memchr::memmem::find(source.as_bytes(), b"--").is_none()

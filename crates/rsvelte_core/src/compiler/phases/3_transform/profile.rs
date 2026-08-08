@@ -466,6 +466,60 @@ pub fn record_st_runes(d: Duration) {
     ST_RUNES.with(|c| c.set(c.get() + d));
 }
 
+/// `transform_state_pipeline_ast`'s pre-filter accounting. All deterministic,
+/// so a fix that claims to remove this work has to move them.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct StatePipelineCounters {
+    pub calls: u64,
+    /// Calls that built the filtered read-name vector and then took an early
+    /// out without using it.
+    pub alloc_then_bail: u64,
+    /// `String` clones performed by those wasted builds.
+    pub wasted_clones: u64,
+}
+
+#[cfg(feature = "measure-pa-split")]
+thread_local! {
+    static SP_CALLS: Cell<u64> = const { Cell::new(0) };
+    static SP_BAIL: Cell<u64> = const { Cell::new(0) };
+    static SP_WASTED: Cell<u64> = const { Cell::new(0) };
+}
+
+#[cfg(feature = "measure-pa-split")]
+#[inline]
+pub fn record_sp_call() {
+    SP_CALLS.with(|c| c.set(c.get() + 1));
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+#[inline(always)]
+pub fn record_sp_call() {}
+
+#[cfg(feature = "measure-pa-split")]
+#[inline]
+pub fn record_sp_bail(clones: u64) {
+    SP_BAIL.with(|c| c.set(c.get() + 1));
+    SP_WASTED.with(|c| c.set(c.get() + clones));
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+#[inline(always)]
+pub fn record_sp_bail(_clones: u64) {}
+
+#[cfg(feature = "measure-pa-split")]
+pub fn take_state_pipeline_counters() -> StatePipelineCounters {
+    StatePipelineCounters {
+        calls: SP_CALLS.with(|c| c.replace(0)),
+        alloc_then_bail: SP_BAIL.with(|c| c.replace(0)),
+        wasted_clones: SP_WASTED.with(|c| c.replace(0)),
+    }
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+pub fn take_state_pipeline_counters() -> StatePipelineCounters {
+    StatePipelineCounters::default()
+}
+
 /// Named split of `process_accumulated`, in execution order. The two stages the
 /// parent already times separately (`reactive_stmt`, `runes`) are not repeated
 /// here; a reader sums those two, these, and `other` to reach the parent.
