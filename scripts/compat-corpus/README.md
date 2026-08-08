@@ -129,6 +129,10 @@ itself never spends cycles on cosmetic output massaging (rsvelte targets
 # one-time / after pin changes
 pnpm run corpus:sync        # init/update every corpus source submodule
 
+# the oracle needs its OWN dependencies — the repo-root install does not cover
+# the submodule, and without them every worker dies before it compares anything
+(cd submodules/svelte && pnpm install --frozen-lockfile)
+
 # build + stage the rsvelte NAPI binding
 cargo build --release -p rsvelte_napi --lib
 mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node   # .so on Linux

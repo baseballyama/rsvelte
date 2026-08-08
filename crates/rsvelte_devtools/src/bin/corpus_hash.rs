@@ -68,7 +68,22 @@ fn main() {
                 let mut hasher = DefaultHasher::new();
                 result.js.code.hash(&mut hasher);
                 result.css.as_ref().map(|c| &c.code).hash(&mut hasher);
-                format!("{:016x} {}", hasher.finish(), result.js.code.len())
+                // Output equality alone cannot see a changed warning set, which is
+                // how a whole class of divergences stayed invisible before.
+                for w in &result.warnings {
+                    w.code.hash(&mut hasher);
+                    w.message.hash(&mut hasher);
+                    w.start
+                        .as_ref()
+                        .map(|p| (p.line, p.column))
+                        .hash(&mut hasher);
+                }
+                format!(
+                    "{:016x} {} w{}",
+                    hasher.finish(),
+                    result.js.code.len(),
+                    result.warnings.len()
+                )
             }
             Err(err) => format!("ERR {err:?}"),
         };

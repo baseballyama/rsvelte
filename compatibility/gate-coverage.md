@@ -1146,6 +1146,51 @@ refusal machinery"* when the question is *"does it refuse **this**"*. The predic
 meaningful when the refusal's **condition references the selector variable in question** — per
 axis, not per file.
 
+## Every performance gate we own points at the runes end of the population
+
+**This is a gate-coverage finding, not a perf finding.** The output-equality gates above are
+scoped by *what they compare*; the performance gates are scoped by *what population they
+compile*, and that scoping has never been written down. Measured 2026-08-08:
+
+| population | legacy by files | legacy by bytes |
+|---|---|---|
+| CodSpeed benchmark fixtures | — | **8 of 9 are runes** |
+| library corpus (`submodules/`, 23 repos) | 3.65% | **12.34%** |
+| **application source** (huly / open-webui / carbon / SMUI) | **46.74%** | **68.89%** |
+
+Per application repo: huly 74.9%, open-webui 70.3%, carbon 87.9%, SMUI 0.00%.
+
+The cost of the instance-script text machinery is a property of that split, not a constant.
+`process_accumulated` as a share of **total compile**, measured per repo:
+
+| repo | population | `$:` stmts | process_accum | line_scan |
+|---|---|---|---|---|
+| shadcn-svelte / bits-ui / skeleton / layerchart | library, runes | 0 | **1.0–1.7%** | 0.8–1.3% |
+| **SMUI** | application, **0.00% legacy** | **0** | **2.1%** | 1.7% |
+| svelte-heroicons | library, `export let`-only | 1 | 12.1% | 1.8% |
+| smelte / sveltestrap / svelte-ux | library, legacy | 97–196 | 16.1–26.6% | 0.8–1.4% |
+| **huly** | application | 3312 | **22.5%** | 1.2% |
+| **open-webui** | application | 577 | **25.7%** | 1.1% |
+| **carbon** | application | 765 | **30.2%** | 1.5% |
+
+**So the gates are aimed at the 1–2% end of a 1–30% range**, and the population that determines
+real compile volume sits at the other end. A change that removes most of `process_accumulated`
+would read as **flat on CodSpeed and nearly flat on the library corpus**, while being worth
+~22–30% on application source. The reverse also holds: a regression confined to the legacy path
+is invisible to every perf gate we run.
+
+**SMUI is the load-bearing control here.** It is application source and it is 0.00% legacy by a
+source-level marker; its `process_accum` is 2.1%, sitting with the runes libraries rather than
+with the other three applications. Marker and timer agree, so the split above is tracking the
+legacy/runes axis and not merely "applications are different from libraries".
+
+**What is still unmeasured `[U]`:** whether the four application repos are representative of
+application Svelte generally. They were chosen because prior work already cited them, which is a
+selection this document cannot justify. Aggregating them gives **22.8%**, but huly alone is
+**55.8% of that corpus's compile time**, so the aggregate is a statement about how the corpus was
+assembled. (Excluding huly moves it only to 23.3%, so the aggregate is at least not fragile to
+that one repo — but four repos is four repos.)
+
 ## Adding a gate, or a row here
 
 When you add a gate, add its row **before** the ratchet is first baselined, and answer the
