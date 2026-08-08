@@ -400,6 +400,17 @@ pub(super) fn find_statement_end_client(s: &str) -> usize {
     s.len()
 }
 
+/// True when the byte at `i` is escaped, i.e. an ODD number of backslashes
+/// precedes it. `bytes[i - 1] != b'\\'` is a different test: in `'\\'` the
+/// closing quote follows a complete `\\` escape and is not escaped at all.
+fn is_escaped(bytes: &[u8], i: usize) -> bool {
+    let mut n = 0;
+    while n < i && bytes[i - 1 - n] == b'\\' {
+        n += 1;
+    }
+    n % 2 == 1
+}
+
 /// Incrementally update expression depth counters by scanning only the given line.
 /// This avoids re-scanning the entire accumulated text each time a new line is added.
 /// Returns true if the expression is still incomplete (any depth != 0, in string, or in block comment).
@@ -457,7 +468,7 @@ pub(super) fn update_expression_depths(
             && c == b'$'
             && i + 1 < len
             && bytes[i + 1] == b'{'
-            && (i == 0 || bytes[i - 1] != b'\\')
+            && !is_escaped(bytes, i)
         {
             template_interp_stack.push(0);
             *in_string = None;
@@ -467,7 +478,7 @@ pub(super) fn update_expression_depths(
         }
 
         // Handle string literals
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
+        if (c == b'"' || c == b'\'' || c == b'`') && !is_escaped(bytes, i) {
             if let Some(string_char) = *in_string {
                 if c == string_char as u8 {
                     *in_string = None;
@@ -1640,22 +1651,14 @@ pub(super) fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
 
-/// Find the position of the matching closing parenthesis.
+/// Find the position of the matching closing parenthesis, given `s` positioned
+/// just after the opening `(`.
+///
+/// Delegates to the lexical matcher: every caller uses the result to slice or
+/// delete a source range, and a `)` inside a comment, string, template or regex
+/// would cut that range mid-expression (#2601).
 pub(crate) fn find_matching_paren(s: &str) -> Option<usize> {
-    let mut depth = 1;
-    for (i, c) in s.char_indices() {
-        match c {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(i);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
+    crate::compiler::phases::phase1_parse::utils::find_matching_bracket(s, 0, '(')
 }
 
 /// Extract the name of the enclosing function from the text before a block opening.

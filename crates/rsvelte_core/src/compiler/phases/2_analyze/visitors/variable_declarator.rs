@@ -123,7 +123,11 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 .module_scope_declarations
                 .contains_key(&name)
             {
-                return Err(errors::declaration_duplicate_module_import());
+                let mut error = errors::declaration_duplicate_module_import();
+                if let (Some(start), Some(end)) = (id_node.start(), id_node.end()) {
+                    error = error.at(start, end);
+                }
+                return Err(error);
             }
         }
     }
@@ -637,19 +641,24 @@ fn process_props_declaration_typed(
         .as_ref()
         .is_some_and(|ce| ce.props.is_none());
     if custom_elem_has_no_props {
+        // Upstream reports the rest element when there is one, otherwise the whole pattern.
         let warn_on = if id_type == "Identifier" {
-            true
+            Some(id_node)
         } else if let JsNode::ObjectPattern { properties, .. } = id_node {
             arena
                 .get_js_children(*properties)
                 .iter()
-                .any(|p| matches!(p, JsNode::RestElement { .. }))
+                .find(|p| matches!(p, JsNode::RestElement { .. }))
         } else {
-            false
+            None
         };
 
-        if warn_on {
-            context.emit_warning(warnings::custom_element_props_identifier_rest());
+        if let Some(node) = warn_on {
+            let mut warning = warnings::custom_element_props_identifier_rest();
+            if let (Some(start), Some(end)) = (node.start(), node.end()) {
+                warning = warning.at(start, end);
+            }
+            context.emit_warning(warning);
         }
     }
 

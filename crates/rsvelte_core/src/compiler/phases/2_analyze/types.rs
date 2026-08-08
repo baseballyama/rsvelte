@@ -588,12 +588,27 @@ pub fn strip_typescript(source: &str) -> String {
     let parser = Parser::new(&allocator, source, source_type);
     let result = parser.parse();
 
-    if !result.diagnostics.is_empty() {
-        // If parsing fails, return original source and let downstream handle errors
+    if result.panicked {
+        // The AST is a stub; nothing can be stripped from it.
         return source.to_string();
     }
 
-    strip_typescript_from_program(source, &result.program)
+    let stripped = strip_typescript_from_program(source, &result.program);
+
+    // OXC reports rules the official parser does not enforce (a required
+    // parameter after an optional one, say) as parse errors even though it
+    // built a complete AST. Returning the TypeScript source unstripped in that
+    // case emits type annotations into the generated module, so trust the strip
+    // whenever its result is JavaScript — which a partial recovery's would not be.
+    if !result.diagnostics.is_empty() {
+        let allocator = Allocator::default();
+        let check = Parser::new(&allocator, &stripped, SourceType::mjs()).parse();
+        if check.panicked || !check.diagnostics.is_empty() {
+            return source.to_string();
+        }
+    }
+
+    stripped
 }
 
 pub(crate) fn strip_typescript_from_program(
@@ -1810,11 +1825,12 @@ impl ComponentAnalysis {
             component_namespace_is_mathml: options.namespace == crate::compiler::Namespace::Mathml,
             is_typescript: false,
             module_scope_declarations: FxHashMap::default(),
-            is_module_file: options
-                .filename
-                .as_ref()
-                .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
-                .unwrap_or(false),
+            is_module_file: options.is_module_source
+                || options
+                    .filename
+                    .as_ref()
+                    .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
+                    .unwrap_or(false),
         }
     }
 
@@ -2419,6 +2435,31 @@ count! += 1;
             strip_typescript_from_program(source, retained.program()),
             strip_typescript(source)
         );
+    }
+
+    /// OXC enforces TypeScript rules the official parser does not (here, a
+    /// required parameter after an optional one). The AST is complete, so the
+    /// strip must happen — leaving the annotations in emits them into the
+    /// generated module.
+    #[test]
+    fn a_recoverable_typescript_error_does_not_stop_the_strip() {
+        assert_eq!(
+            strip_typescript("function g(p?: string, q: string) {}\n"),
+            "function g(p, q) {}\n"
+        );
+    }
+
+    /// The control for the test above. A constructor parameter property is
+    /// TypeScript this stripper does not lower, so stripping this source yields
+    /// text that is not JavaScript; the recovered AST must therefore not be
+    /// trusted and the source must come back verbatim. Accepting every
+    /// non-panicking parse without checking its result would emit
+    /// `constructor(private a)` into the module.
+    #[test]
+    fn a_strip_that_would_not_yield_javascript_is_refused() {
+        let source =
+            "function g(p?: string, q: string) {}\nclass C { constructor(private a) {} }\n";
+        assert_eq!(strip_typescript(source), source);
     }
 
     #[test]

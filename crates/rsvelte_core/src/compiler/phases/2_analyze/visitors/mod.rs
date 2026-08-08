@@ -683,7 +683,12 @@ pub fn analyze_template(
     if let Some(ref event_name) = context.event_directive_node
         && context.uses_event_attributes
     {
-        return Err(super::errors::mixed_event_handler_syntaxes(event_name));
+        let error = super::errors::mixed_event_handler_syntaxes(event_name);
+        // Upstream attributes this to the first `on:` directive on an element
+        return Err(match &context.analysis.event_directive_node {
+            Some(info) => error.at(info.start, info.end),
+            None => error,
+        });
     }
 
     Ok(())

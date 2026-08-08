@@ -34,7 +34,9 @@ pub fn visit<'a, 'b: 'a>(
                 filename.rsplit(['/', '\\']).next().unwrap_or(filename),
             )
         };
-        context.emit_warning(warnings::svelte_self_deprecated(name, basename));
+        context.emit_warning(
+            warnings::svelte_self_deprecated(name, basename).at(self_.start, self_.end),
+        );
     }
 
     // Analyze attributes — upstream's SvelteSelf.js delegates to the shared

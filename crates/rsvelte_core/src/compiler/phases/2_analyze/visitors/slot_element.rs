@@ -27,7 +27,7 @@ pub fn visit<'a, 'b: 'a>(
 ) -> Result<(), AnalysisError> {
     // In runes mode (without custom elements), emit a deprecation warning
     if context.analysis.runes && context.analysis.custom_element.is_none() {
-        context.emit_warning(warnings::slot_element_deprecated());
+        context.emit_warning(warnings::slot_element_deprecated().at(slot.start, slot.end));
     }
 
     // Mark that we have control flow affecting sibling relationships
@@ -45,7 +45,7 @@ pub fn visit<'a, 'b: 'a>(
                 if a.name == "name" {
                     // The 'name' attribute must be static text
                     if !is_text_attribute(&a.value) {
-                        return Err(errors::slot_element_invalid_name());
+                        return Err(errors::slot_element_invalid_name().at(a.start, a.end));
                     }
 
                     // Extract the name value
@@ -54,7 +54,9 @@ pub fn visit<'a, 'b: 'a>(
                     {
                         // "default" is a reserved word
                         if text.data.as_ref() == "default" {
-                            return Err(errors::slot_element_invalid_name_default());
+                            return Err(
+                                errors::slot_element_invalid_name_default().at(a.start, a.end)
+                            );
                         }
                         name = text.data.to_string();
                     }
