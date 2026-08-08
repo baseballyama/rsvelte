@@ -760,7 +760,7 @@ pub fn visit<'a, 'b: 'a>(
             if let Attribute::Attribute(attr_node) = attr
                 && attr_node.name == "value"
             {
-                return Err(errors::textarea_invalid_content());
+                return Err(errors::textarea_invalid_content().at(element.start, element.end));
             }
         }
 
@@ -843,7 +843,9 @@ pub fn visit<'a, 'b: 'a>(
         if binding.declaration_kind == super::super::DeclarationKind::Import
             && binding.references.is_empty()
         {
-            context.emit_warning(warnings::component_name_lowercase(&element.name));
+            context.emit_warning(
+                warnings::component_name_lowercase(&element.name).at(element.start, element.end),
+            );
         }
     }
 
@@ -906,9 +908,11 @@ pub fn visit<'a, 'b: 'a>(
             let only_warn = current_block_depth > parent_block_depth;
 
             if only_warn {
-                context.emit_warning(warnings::node_invalid_placement_ssr(&message));
+                context.emit_warning(
+                    warnings::node_invalid_placement_ssr(&message).at(element.start, element.end),
+                );
             } else {
-                return Err(errors::node_invalid_placement(&message));
+                return Err(errors::node_invalid_placement(&message).at(element.start, element.end));
             }
         }
 
@@ -934,10 +938,12 @@ pub fn visit<'a, 'b: 'a>(
                 // between an outer `<dd>` and an inner `<dt>`), the descendant
                 // restriction no longer applies. Mirrors upstream's `reset_by`
                 // walk in `is_tag_valid_with_ancestor` (#721).
+                // A custom element in between resets it too — upstream bails out of
+                // the `reset_by` walk on any intervening name containing a hyphen.
                 if let Some(reset_by) = get_descendant_reset_by(ancestor_name)
                     && context.element_ancestors[i + 1..]
                         .iter()
-                        .any(|a| reset_by.contains(&a.as_str()))
+                        .any(|a| reset_by.contains(&a.as_str()) || a.contains('-'))
                 {
                     continue;
                 }
@@ -968,9 +974,11 @@ pub fn visit<'a, 'b: 'a>(
         // Now emit warnings or return errors
         for (message, only_warn) in ancestor_warnings {
             if only_warn {
-                context.emit_warning(warnings::node_invalid_placement_ssr(&message));
+                context.emit_warning(
+                    warnings::node_invalid_placement_ssr(&message).at(element.start, element.end),
+                );
             } else {
-                return Err(errors::node_invalid_placement(&message));
+                return Err(errors::node_invalid_placement(&message).at(element.start, element.end));
             }
         }
     }
@@ -989,10 +997,10 @@ pub fn visit<'a, 'b: 'a>(
                 && !is_svg(node_name)
                 && !is_mathml(node_name)
             {
-                let mut warning = warnings::element_invalid_self_closing_tag(node_name);
-                warning.start = Some(element.start);
-                warning.end = Some(element.end);
-                context.emit_warning(warning);
+                context.emit_warning(
+                    warnings::element_invalid_self_closing_tag(node_name)
+                        .at(element.start, element.end),
+                );
             }
         }
     }

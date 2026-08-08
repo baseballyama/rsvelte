@@ -7,8 +7,8 @@ use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
+use crate::svelte2tsx::template::nodes::special_element::process_fragment_trimmed;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
-use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
 use super::snippet_block::hoist_snippet_blocks;
 
@@ -272,7 +272,7 @@ pub(crate) fn handle_each_block(
     hoist_snippet_blocks(&block.body, source, str);
 
     // Process body children (each blocks don't increment depth)
-    process_fragment_inplace(&block.body, source, options, str, counter, depth);
+    process_fragment_trimmed(&block.body.nodes, source, options, str, counter, depth);
 
     // Handle fallback ({:else}...{/each})
     let body_end = if !block.body.nodes.is_empty() {
@@ -292,7 +292,7 @@ pub(crate) fn handle_each_block(
         str.overwrite(body_end, fallback_start, "}");
 
         // Process fallback
-        process_fragment_inplace(fallback, source, options, str, counter, depth);
+        process_fragment_trimmed(&fallback.nodes, source, options, str, counter, depth);
 
         let fallback_end = if !fallback.nodes.is_empty() {
             fallback.nodes.last().unwrap().end()

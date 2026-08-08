@@ -170,6 +170,8 @@ ratchets. Because a verify against an absent tree would score every entry `match
 asserts ≥99% of manifest entries have compiled output before comparing, and refuses
 `--update-baseline` below 12000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
 every baseline id it did not measure) — `--update-warning-baseline` is held to the same floor.
+`--update-baseline` additionally refuses `--no-fmt`, which counts formatting-only differences as
+failures; `--update-warning-baseline` does not, because warning comparison never normalizes.
 
 The svelte-check diagnostic-parity gate is the odd one out: its unit is a **type-checked project**,
 not per-file text, so module resolution / workspace layout / the `.d.ts` environment are observable

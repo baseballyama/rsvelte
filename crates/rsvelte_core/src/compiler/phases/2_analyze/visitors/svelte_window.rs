@@ -44,13 +44,17 @@ pub fn visit(
             Attribute::OnDirective(on) => {
                 on_directive::visit(on, context)?;
             }
-            Attribute::LetDirective(_) => {
+            Attribute::LetDirective(let_dir) => {
                 // let: directives are NOT allowed on svelte:window
-                return Err(errors::let_directive_invalid_placement());
+                return Err(
+                    errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)
+                );
             }
-            Attribute::SpreadAttribute(_) => {
+            Attribute::SpreadAttribute(spread) => {
                 // Spread attributes are NOT allowed on svelte:window
-                return Err(errors::illegal_element_attribute("svelte:window"));
+                return Err(
+                    errors::illegal_element_attribute("svelte:window").at(spread.start, spread.end)
+                );
             }
             // Regular attributes (e.g. `onkeydown={(e) => …}`) carry expressions
             // that must be analysed — a non-safe call inside them (e.g. an imported

@@ -227,10 +227,10 @@ withCorpus(
 		edit(
 			d,
 			'warning-known-failures.md',
-			'`warning-position-known-failures.<target>.json` the same 74 entries',
-			'`warning-position-known-failures.<target>.json` the same 75 entries',
+			'`warning-position-known-failures.<target>.json` the same 4 entries',
+			'`warning-position-known-failures.<target>.json` the same 5 entries',
 		),
-	(r) => check('a stale restatement fails', [r.code, /states 75 entries/.test(r.out)], [1, true]),
+	(r) => check('a stale restatement fails', [r.code, /states 5 entries/.test(r.out)], [1, true]),
 );
 
 if (failed) {

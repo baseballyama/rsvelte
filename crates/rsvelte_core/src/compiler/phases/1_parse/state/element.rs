@@ -365,12 +365,21 @@ impl<'a> Parser<'a> {
                             .as_ref()
                             .is_none_or(|t| t.tag.as_str() != closing_name)
                         {
+                            // element.js L109: the range runs from the element's
+                            // start to its first child, falling back to the
+                            // triggering tag when it has none.
+                            let end = fragment
+                                .nodes
+                                .first()
+                                .map_or(close_start as u32, |n| n.span().0);
                             self.parse_warnings.push(crate::ast::template::ParseWarning {
                                 code: "element_implicitly_closed".to_string(),
                                 message: format!(
                                     "This element is implicitly closed by the following `</{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
                                     closing_name, name
                                 ),
+                                start: start as u32,
+                                end,
                             });
                         }
                     } else if !self.options.loose {
@@ -425,12 +434,18 @@ impl<'a> Parser<'a> {
                 // Emit element_implicitly_closed warning.
                 // Corresponds to element.js L203-205:
                 //   w.element_implicitly_closed({ start: parent.start, end }, `<${tag.name}>`, `</${parent.name}>`);
+                let end = fragment
+                    .nodes
+                    .first()
+                    .map_or(self.index as u32, |n| n.span().0);
                 self.parse_warnings.push(crate::ast::template::ParseWarning {
                     code: "element_implicitly_closed".to_string(),
                     message: format!(
                         "This element is implicitly closed by the following `<{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
                         reason, name
                     ),
+                    start: start as u32,
+                    end,
                 });
                 // Track which tag was auto-closed so we can raise the correct error later.
                 // Reference: element.js `parser.last_auto_closed_tag` assignment.
@@ -639,6 +654,33 @@ impl<'a> Parser<'a> {
                 }))
             }
             ElementType::SvelteElement => {
+                // element.js L286-296: a missing `this` is attributed to the element's
+                // start, a valueless one to the `this` attribute itself.
+                const MISSING_THIS: &str = "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this";
+                let definition = attributes.iter().find_map(|attr| match attr {
+                    crate::ast::Attribute::Attribute(node) if node.name.as_str() == "this" => {
+                        Some(node)
+                    }
+                    _ => None,
+                });
+                match definition {
+                    None => {
+                        return Err(crate::error::ParseError::svelte(
+                            "svelte_element_missing_this",
+                            MISSING_THIS,
+                            (start, start),
+                        ));
+                    }
+                    Some(node) if matches!(node.value, AttributeValue::True(_)) => {
+                        return Err(crate::error::ParseError::svelte(
+                            "svelte_element_missing_this",
+                            MISSING_THIS,
+                            (node.start as usize, node.end as usize),
+                        ));
+                    }
+                    Some(_) => {}
+                }
+
                 // Check if the "this" attribute is a string value (not an expression)
                 // and emit svelte_element_invalid_this warning if so.
                 // Corresponds to element.js L288-289: if (!is_expression_attribute(definition)) { w.svelte_element_invalid_this(definition); }
@@ -658,6 +700,8 @@ impl<'a> Parser<'a> {
                             self.parse_warnings.push(crate::ast::template::ParseWarning {
                                 code: "svelte_element_invalid_this".to_string(),
                                 message: "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this".to_string(),
+                                start: node.start,
+                                end: node.end,
                             });
                         }
                     }
@@ -1444,8 +1488,10 @@ impl<'a> Parser<'a> {
                         self.index,
                     )
                 } else {
-                    // Plain quoted string without expression is invalid for directives
-                    let error_pos = self.index - 1; // Position at the opening quote
+                    // Plain quoted string without expression is invalid for directives.
+                    // Upstream attributes this to the value node, which starts
+                    // just past the opening quote.
+                    let error_pos = self.index;
                     return Err(crate::error::ParseError::svelte(
                         "directive_invalid_value",
                         "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",

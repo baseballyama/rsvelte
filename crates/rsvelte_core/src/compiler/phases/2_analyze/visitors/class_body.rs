@@ -46,6 +46,22 @@ fn visit_impl(
     // Find constructor for analyzing this.x = $state(...) assignments
     let mut constructor: Option<&Value> = None;
 
+    /// Helper function to get a node's `(start, end)` source range
+    fn span(node: &Value) -> Option<(u32, u32)> {
+        let start = node.get("start")?.as_u64()? as u32;
+        let end = node.get("end")?.as_u64()? as u32;
+        Some((start, end))
+    }
+
+    /// Attach `node`'s source range to `error`, mirroring the node upstream
+    /// passes to its `e.*` constructor.
+    fn at_node(error: AnalysisError, node: &Value) -> AnalysisError {
+        match span(node) {
+            Some((start, end)) => error.at(start, end),
+            None => error,
+        }
+    }
+
     /// Helper function to get the name from a key (Identifier, PrivateIdentifier, or Literal)
     fn get_name(key: &Value) -> Option<String> {
         match key.get("type").and_then(|t| t.as_str()) {
@@ -128,7 +144,7 @@ fn visit_impl(
         if rune.is_some() {
             // Check for duplicate state fields
             if state_fields.contains_key(&name) {
-                return Err(errors::state_field_duplicate(&name));
+                return Err(at_node(errors::state_field_duplicate(&name), node));
             }
 
             // Create the field key (prefixed with @ for static fields)
@@ -142,7 +158,7 @@ fn visit_impl(
             if let Some(existing) = fields.get(&field_key) {
                 // Error if there's already a method or an assigned prop (not just a plain prop)
                 if !(existing.len() == 1 && existing[0] == "prop") {
-                    return Err(errors::duplicate_class_field(&field_key));
+                    return Err(at_node(errors::duplicate_class_field(&field_key), node));
                 }
             }
 
@@ -187,7 +203,7 @@ fn visit_impl(
                         && !existing.is_empty()
                         && !state_fields.contains_key(&field_name)
                     {
-                        return Err(errors::duplicate_class_field(&field_name));
+                        return Err(at_node(errors::duplicate_class_field(&field_name), child));
                     }
                     fields.insert(field_name, vec![kind.to_string()]);
                 }
@@ -229,7 +245,7 @@ fn visit_impl(
                             || existing.contains(&"prop".to_string())
                             || existing.contains(&"assigned_prop".to_string())
                         {
-                            return Err(errors::duplicate_class_field(&field_key));
+                            return Err(at_node(errors::duplicate_class_field(&field_key), child));
                         }
 
                         // Handle getter/setter pairs
@@ -248,7 +264,7 @@ fn visit_impl(
                             continue;
                         }
 
-                        return Err(errors::duplicate_class_field(&field_key));
+                        return Err(at_node(errors::duplicate_class_field(&field_key), child));
                     } else {
                         fields.insert(field_key, vec![kind.to_string()]);
                     }

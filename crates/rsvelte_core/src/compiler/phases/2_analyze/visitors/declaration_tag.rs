@@ -45,7 +45,7 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
             || context.analysis.uses_rest_props
             || context.analysis.instance_has_legacy_patterns)
     {
-        return Err(errors::declaration_tag_no_legacy_mode());
+        return Err(errors::declaration_tag_no_legacy_mode().at(tag.start, tag.end));
     }
 
     // Validate placement: same set of fragment owners as `{@const}`.
@@ -82,7 +82,7 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
         || fragment_owner.is_none();
 
     if !is_valid_placement {
-        return Err(errors::const_tag_invalid_placement());
+        return Err(errors::const_tag_invalid_placement().at(tag.start, tag.end));
     }
 
     // Walk init expressions for state/await/blocker discovery. The declaration

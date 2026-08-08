@@ -38,11 +38,13 @@ fn get_bidirectional_regex() -> &'static Regex {
 
 /// Visit a template element (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if let JsNode::TemplateElement { value, .. } = node
+    if let JsNode::TemplateElement {
+        value, start, end, ..
+    } = node
         && let Some(cooked) = &value.cooked
         && get_bidirectional_regex().is_match(cooked.as_str())
     {
-        context.emit_warning(warnings::bidirectional_control_characters());
+        context.emit_warning(warnings::bidirectional_control_characters().at(*start, *end));
     }
     Ok(())
 }

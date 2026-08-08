@@ -12,12 +12,18 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit an update expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if let JsNode::UpdateExpression { argument, .. } = node {
+    if let JsNode::UpdateExpression {
+        argument,
+        start,
+        end,
+        ..
+    } = node
+    {
         let arena = context.parse_arena;
         let arg_node = arena.get_js_node(*argument);
 
         // Validate assignment
-        validate_assignment_node(arg_node, context, false)?;
+        validate_assignment_node((*start, *end), arg_node, context, false)?;
 
         // Mark the binding as reassigned
         mark_binding_mutation_node(arg_node, context);

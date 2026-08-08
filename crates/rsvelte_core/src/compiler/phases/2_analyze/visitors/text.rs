@@ -29,12 +29,17 @@ pub fn visit(text: &Text, context: &mut VisitorContext) -> Result<(), AnalysisEr
         && REGEX_NOT_WHITESPACE.is_match(&text.data)
         && let Some(message) = is_tag_valid_with_parent("#text", parent_element)
     {
-        return Err(errors::node_invalid_placement(&message));
+        return Err(errors::node_invalid_placement(&message).at(text.start, text.end));
     }
 
     // Check for bidirectional control characters
-    for _m in REGEX_BIDIRECTIONAL_CONTROL_CHARACTERS.find_iter(&text.data) {
-        context.emit_warning(warnings::bidirectional_control_characters());
+    // Upstream offsets the match into `node.data`, not `node.raw`, so an entity
+    // ahead of the match shifts the reported range — mirrored deliberately.
+    for m in REGEX_BIDIRECTIONAL_CONTROL_CHARACTERS.find_iter(&text.data) {
+        let start = text.start + m.start() as u32;
+        context.emit_warning(
+            warnings::bidirectional_control_characters().at(start, start + m.len() as u32),
+        );
     }
 
     Ok(())
