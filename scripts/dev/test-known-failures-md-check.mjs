@@ -198,10 +198,16 @@ withCorpus(
 );
 
 // A sub-population partition must be checked against that sub-population, not
-// against the whole ratchet — `comment-slot`'s 160 is not the matrix ratchet's 162.
+// against the whole ratchet — `comment-slot`'s 232 is not the matrix ratchet's 234.
 withCorpus(
-	(d) => edit(d, 'matrix-known-failures.md', 'by seed: `56 + 56 + 24 + 8 + 8 + 8`', 'by seed: `56 + 58 + 24 + 8 + 8 + 8`'),
-	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 160 entries/.test(r.out)], [1, true]),
+	(d) =>
+		edit(
+			d,
+			'matrix-known-failures.md',
+			'by seed: `56 + 56 + 24 + 24 + 24 + 24 + 8 + 8 + 8`',
+			'by seed: `56 + 58 + 24 + 24 + 24 + 24 + 8 + 8 + 8`',
+		),
+	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 232 entries/.test(r.out)], [1, true]),
 );
 
 withCorpus(
@@ -209,8 +215,8 @@ withCorpus(
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'Partition of `matrix-known-failures.json` by family: `2 + 160`',
-			'Partition of `matrix-known-failures.json` by nothing in particular: `2 + 160`',
+			'Partition of `matrix-known-failures.json` by family: `2 + 232`',
+			'Partition of `matrix-known-failures.json` by nothing in particular: `2 + 232`',
 		),
 	(r) => check('an undeclared partition fails', [r.code, /not declared in PARTITIONS/.test(r.out)], [1, true]),
 );
