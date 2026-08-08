@@ -1,5 +1,33 @@
 # Phase 3 refactor: from string surgery to an AST → printer pipeline
 
+> ## ★★★ 2026-08-08 訂正: 「script 印字の AST 移行」は残作業ではない ★★★
+>
+> **client の script 印字は既に AST + esrap である。**
+> `js_ast::to_oxc` は `JsStatement::Raw` をそのまま出力せず、
+> `parse_chunk`（`to_oxc.rs:1269`）で **oxc AST に再パースし esrap で印字**する。
+> フォールバック理由 `chunk-parse` は、その**再パースの失敗**を指す名前であって
+> 「テキストのまま印字した」という意味ではない。
+> 実測フォールバック率は **bits-ui 2.59% / flowbite 3.86%**（＝ 96〜97% は AST 印字）。
+>
+> **したがって残っているのは印字側ではなく「変換側」** —
+> `line_loop` と前段（prenormalize / collect_vars）が依然テキストを操作している。
+> **この 2 つは規模も難度も桁違いなので、名前で取り違えると
+> 「もう終わっている作業」の見積りが出続ける。**
+> 本文書で「印字を AST 化する」と読める箇所は、
+> **すべて「変換を AST 化する」と読み替えること。**
+>
+> 付随して確定した数値（実測、n=5 コーパス）:
+> - Phase 2 の span が `line_loop` まで生き残る率 ＝ **72.40%〜99.47%（母集団依存）**。
+>   「89.5%」という単一定数は**存在しない**。
+> - 阻害要因は母集団で入れ替わる: **ライブラリは `arrow_parens` 単独**
+>   （bits-ui は 167 件全部）、**アプリは `rehome_reactive_statement_comments`**
+>   （carbon 37 / open-webui 34、ライブラリ 3 コーパスでは **0 件**）。
+> - **アプリ側の解除は reactive-statement 移行に依存する**。
+>   `rehome` は印字の産物ではなく、upstream が `$:` を
+>   `legacy_pre_effect` に作り替えることの模倣だからである。
+>
+> 詳細と一次データは `ast-refactor-handoff.md` §10。
+
 ## Why
 
 Phases 1–2 are in decent shape (real template AST, oxc for JS, scope

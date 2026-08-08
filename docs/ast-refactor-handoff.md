@@ -1377,10 +1377,38 @@ fixture ゲートが緑でも「このパスを踏む形が fixture に無い」
 区別がつかない可能性が残る ＝ **必要条件であって十分条件ではない**。
 **判定は 14,136 entry のコーパスゲート（bits-ui 167 件を含む）で行うこと。**
 
-**副産物（fixture 母集団の非代表性がまた出た）**: prenormalize の内訳が
-実出荷と全く違う。fixture runes は `class fields` が **60/55** 件で最大の変換だが、
-実出荷 5 コーパスでは **0/0**。fixture は legacy 3 倍・失敗率 16 倍という
-既知の歪みに加え、**prenormalize の構成比でも代表していない。**
+#### ★★ fixture コーパスの歪みは「量」ではなく「どれが効くか」にも及ぶ ★★
+
+既知の歪みは **legacy 3 倍・失敗率 16 倍** ＝ いずれも**量**の話だった。
+今回出たのは**種類**の話である:
+
+| 母集団 | 最大の prenormalize 変換 | `class fields` inv/chg |
+|---|---|---|
+| fixture runtime-runes | **`class fields`** | **60 / 55** |
+| 実出荷 5 コーパス（lib/app 両方） | `rehome` または `arrow_parens` | **0 / 0** |
+
+**fixture で「最も効いている変換」は、実出荷では 1 件も発火しない。**
+量の歪みは倍率で割り引けるが、**種類の歪みは割り引けない** —
+fixture でゲートした最適化は、**実出荷に存在しない仕事**を対象にしうる。
+fixture をゲートに使う場合は、**対象の変換が実出荷で何件動くかを
+必ず併記すること。**
+
+#### ★ ツールの母集団も確認した（`.svelte.ts` 除外の罠）★
+
+`corpus_hash` は `.svelte.ts` を除外するため、対象が `.svelte.ts` に
+偏っていれば**構造的に空の母集団に対して IDENTICAL を報告する**。
+bits-ui は `.svelte.ts` にロジックが多いので確認した:
+
+- **`strip_unnecessary_arrow_body_parens` の呼び出し箇所は 1 つだけ**
+  （`client/mod.rs:4719`、`transform_instance_script_for_visitors` 内）＝
+  **`.svelte` の instance script 経路のみ**。`.svelte.ts` モジュールは通らない。
+- `compile_profile` の収集も `extension == "svelte"` のみ。
+- → **167 件は全て `.svelte`。`corpus_hash` の除外はこの実験には効かない。**
+
+**★ ただし自分の計器の射程も同じ形で限定されている ★**:
+bits-ui には `=> (` を含む `.svelte.ts` が **30 件**あるが、
+本節の測定は**一度もそれを見ていない**。
+「bits-ui 72.40% → 100%」は **`.svelte` 母集団についての主張**である。
 
 #### ★ 結果の読み方も先に決めておく ★
 - **出力不変**（コーパスゲートで）→ パスは**今日削除できる**。
