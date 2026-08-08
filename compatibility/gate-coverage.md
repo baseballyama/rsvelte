@@ -59,6 +59,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 16 | Validator fixture suite | per-fixture error code / warning set | ratchet staleness is **not** asserted (207 entries) | [S] |
 | 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
 | 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | warnings compared by **count only** | [S] |
+| 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
 
 Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors) are in
 [§ Cross-cutting](#cross-cutting) at the end.
@@ -780,6 +781,94 @@ matches. This is how `AGENTS.md` reports `Validator 333/333` and "All in-scope f
 
 **Tracked:** #2452. **Closing it:** compare the warning code multiset in the report. Cost: low. The number in
 `AGENTS.md` will drop, which is the point.
+
+---
+
+## 19. Output parseability — `scripts/compat-corpus/verify.mjs` ("output parseability" section)
+
+**Unit.** For each of ~14,025 manifest entries × 3 targets, the single file
+`compatibility/actual/<id>/<target>.js` — rsvelte's generated module, **before** any
+normalization — fed to `acorn.Parser.parse` with
+`{ecmaVersion:'latest', sourceType:'module', allowHashBang:true}` (`parseable.mjs:31`). One bit
+per module: parses, or does not. Ratchet `parse-known-failures.<target>.json`, currently 0
+entries on every target. Official's module is parsed too, but only as the oracle's own control:
+a rejection there exits 2 as a harness failure and can never become a ratchet entry.
+
+**Why it exists.** Gates 1-4 all compare rsvelte's text to official's text, so *wrong text* and
+*text that is not JavaScript* produce the same verdict and land in the same ratchet — and a
+ratchet entry suppresses everything about its entry, not only the divergence it was filed for.
+This gate is a different question with its own ratchet, so an entry listed in
+`known-failures.<target>.json` for a text mismatch cannot absorb a later regression to
+unparseable output. It also closes two blind spots recorded for gate 15: **15d** (wrong
+population — 15 parses the Svelte fixture corpus, not the real-world one) and the oracle half of
+**15b** (15 uses OXC, the parser rsvelte itself parses JavaScript with; this one uses acorn, a
+separate implementation, so an OXC-only acceptance quirk is observable).
+
+**Calibration.** Compiling 3,509 real-world components with the **official** compiler over all
+three targets yields 10,464 modules; acorn under these options rejects 0 of them. Positive
+control in the other direction: of the 30 components for which rsvelte emits output esbuild
+rejects, acorn rejects 30. Both figures are measured, not estimated.
+
+That calibration corpus was **not representative of this gate's population**, and the gate said
+so on its first CI run: official's own client output for
+`compiler-errors/samples/const-tag-snippet-invalid-reference-1` declares `foo` twice in one
+scope, which acorn rejects as an early error. Those pairs are enumerated in
+`parse-oracle-excluded.json` (2 entries, justified in the paired `.md`) and skipped on **both**
+sides — where the reference does not parse there is no claim to make about rsvelte. The list is
+shrink-only in both directions: an unlisted oracle rejection exits 2, and a listed pair whose
+official output now parses also exits 2.
+
+### Blind spot 19a — it says nothing about whether the output is correct
+
+A module that parses can compute the wrong thing, and this gate scores it a pass. **[S]** The
+verdict is the boolean return of one `Parser.parse` call (`parseable.mjs:39-47`); no property of
+the AST is inspected and official's bytes are not consulted. This is not a weakness to close —
+gate 1 is the correctness gate — but it is the reason a green row here is worth exactly one
+claim.
+
+### Blind spot 19b — JS only; CSS, source maps and every other output field are outside it
+
+**[S]** The gate reads `<target>.js` and nothing else (`verify.mjs`, "output parseability"
+loop). `<target>.css` is never handed to a CSS parser, so a malformed stylesheet is invisible
+here exactly as it is to gate 1's byte comparison when the entry is ratcheted. `js.map` is not
+captured by `compile.mjs` at all (blind spot 1c), so there is nothing to validate.
+
+### Blind spot 19c — the population is inherited from the corpus, and the known defects are not in it
+
+**[S]** `corpus-sources.json` lists sveltejs/svelte, svelte.dev and 33 shipped libraries. The 30
+real-world components that currently produce unparseable rsvelte output are in huly, open-webui,
+carbon and SMUI — none of which is a corpus source. The ratchet is therefore empty **because the
+inputs are absent**, not because the class is fixed. This gate is a regression gate for that
+class, not a burn-down of it. Enrolling those repositories would change the number; nothing else
+in this gate's design would.
+
+### Blind spot 19f — an excluded pair is checked on neither side
+
+**[S]** A `parse-oracle-excluded.json` entry removes rsvelte's output from the gate as well as
+official's, so rsvelte could emit anything at all for those 2 pairs and this gate would not
+notice. That is deliberate (there is no reference), but it is a hole, which is why the list is
+enumerated per `(id, target)` and shrink-only rather than a predicate. `scripts/dev/test-corpus-parse-gate.mjs`
+pins it: the "listing the pair skips it on BOTH sides" case seeds an unparseable rsvelte output
+alongside the excluded official one and asserts the run is green *and* that the pair is not
+counted in the parsed population.
+
+### Blind spot 19d — one parser, so a shared acceptance bug is unobservable
+
+**[S]** The oracle is acorn alone. Any construct acorn accepts and a real-world engine (V8,
+JavaScriptCore, esbuild's bundler) rejects passes. The 30-file control shows acorn and esbuild
+agree on today's failures, which is evidence the two are not far apart — it is not evidence that
+they never differ. Closing it would mean a second parser on the same text; cost is one more
+parse of ~42,000 modules and was not measured.
+
+### Blind spot 19e — `--targets` narrows it silently
+
+**[S]** The gate iterates `TARGETS`, which `selectTargets` narrows from `--targets`. A run
+scoped to one target parses one target's modules, exactly like every other comparison in
+`verify.mjs`. The FALSE-SHRINK guard on `--update-parse-baseline` is
+`requireFullCorpus(manifest.length, …)`, which counts *entries*, not entries × targets — so a
+`--targets client --update-parse-baseline` run rewrites only the client ratchet (the loop is
+over `TARGETS`), but nothing warns that the other two were not measured. Inherited from the
+existing diagnostic families, not introduced here.
 
 ---
 

@@ -681,11 +681,16 @@ pub(super) fn transform_constructor_private_reads(
             if !field.is_private {
                 continue;
             }
-            let qualified = format!("this.#{}", field.private_backing_name);
-            match field.rune_type.as_str() {
-                "$state" | "$state.raw" | "$state.frozen" => state_qualified.push(qualified),
-                "$derived" | "$derived.by" => derived_qualified.push(qualified),
-                _ => {}
+            // Upstream keys the read form off `PrivateIdentifier`, not the
+            // receiver, so a field reached through an alias (`const inst = this`)
+            // reads exactly like `this.#x` does.
+            for prefix in find_private_field_prefixes(content, &field.private_backing_name) {
+                let qualified = format!("{}.#{}", prefix, field.private_backing_name);
+                match field.rune_type.as_str() {
+                    "$state" | "$state.raw" | "$state.frozen" => state_qualified.push(qualified),
+                    "$derived" | "$derived.by" => derived_qualified.push(qualified),
+                    _ => {}
+                }
             }
         }
 
@@ -1376,8 +1381,14 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 // being flattened to column 0.
                 let mut pending_source_indent = String::new();
                 let mut depth: i32 = 0;
+                // Upstream clears `in_constructor` on entry to a nested function, so
+                // the block depths at which one opened decide the field read form.
+                let mut block_depth: i32 = 0;
+                let mut fn_block_depths: Vec<i32> = Vec::new();
+                let mut pending_at_ctor_depth = true;
                 for line in constructor_content.lines() {
                     let trimmed = line.trim();
+                    let at_ctor_depth = fn_block_depths.is_empty();
                     if pending.is_empty() {
                         if trimmed.is_empty() {
                             continue;
@@ -1385,10 +1396,11 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                         if is_multiline_assignment_start(trimmed) {
                             pending.push_str(trimmed);
                             pending_source_indent = leading_whitespace(line).to_string();
+                            pending_at_ctor_depth = at_ctor_depth;
                             depth = net_bracket_depth(trimmed);
                         } else {
                             let transformed_line =
-                                transform_constructor_assignment(trimmed, &fields);
+                                transform_constructor_assignment(trimmed, &fields, at_ctor_depth);
                             let _ =
                                 writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                         }
@@ -1398,17 +1410,30 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                         pending.push_str(dedent_line(line, &pending_source_indent));
                         depth += net_bracket_depth(trimmed);
                         if depth <= 0 {
-                            let transformed_line =
-                                transform_constructor_assignment(&pending, &fields);
+                            let transformed_line = transform_constructor_assignment(
+                                &pending,
+                                &fields,
+                                pending_at_ctor_depth,
+                            );
                             let _ =
                                 writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                             pending.clear();
                             depth = 0;
                         }
                     }
+                    let enclosing_depth = block_depth;
+                    let net = net_bracket_depth(trimmed);
+                    block_depth += net;
+                    if net > 0 && opens_function(trimmed) {
+                        fn_block_depths.push(enclosing_depth);
+                    }
+                    while fn_block_depths.last().is_some_and(|&d| block_depth <= d) {
+                        fn_block_depths.pop();
+                    }
                 }
                 if !pending.is_empty() {
-                    let transformed_line = transform_constructor_assignment(&pending, &fields);
+                    let transformed_line =
+                        transform_constructor_assignment(&pending, &fields, pending_at_ctor_depth);
                     let _ = writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                 }
 
@@ -1423,21 +1448,35 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 {
                     let mut state_qualified: Vec<String> = Vec::new();
                     let mut other_qualified: Vec<String> = Vec::new();
+                    let mut v_read_qualified: Vec<String> = Vec::new();
                     for field in &fields {
-                        // Constructor-declared fields keep a `this.#x = $.state(…)`
-                        // INITIALIZER in the body (handled above); AST-wrapping that
-                        // assignment would wrongly produce `$.set(this.#x, $.state(…))`.
-                        // Only class-body-declared fields have plain writes here.
-                        if field.constructor_declared {
+                        if !field.is_private {
                             continue;
                         }
-                        let qualified = format!("this.#{}", field.private_backing_name);
-                        if field.rune_type == "$state" {
-                            state_qualified.push(qualified);
-                        } else if field.rune_type == "$state.raw"
-                            || field.rune_type == "$state.frozen"
+                        for prefix in
+                            find_private_field_prefixes(&ctor_body, &field.private_backing_name)
                         {
-                            other_qualified.push(qualified);
+                            // A constructor-declared field keeps a `this.#x = $.state(…)`
+                            // INITIALIZER in the body (handled above); wrapping that
+                            // assignment would wrongly produce `$.set(this.#x, $.state(…))`.
+                            // Only the `this.` name can match that text, so a write
+                            // through any other receiver is still safe to rewrite.
+                            if prefix == "this" && field.constructor_declared {
+                                continue;
+                            }
+                            let qualified = format!("{}.#{}", prefix, field.private_backing_name);
+                            match field.rune_type.as_str() {
+                                "$state" => {
+                                    v_read_qualified.push(qualified.clone());
+                                    state_qualified.push(qualified);
+                                }
+                                "$state.raw" | "$state.frozen" => {
+                                    v_read_qualified.push(qualified.clone());
+                                    other_qualified.push(qualified);
+                                }
+                                "$derived" | "$derived.by" => other_qualified.push(qualified),
+                                _ => {}
+                            }
                         }
                     }
                     if (!state_qualified.is_empty() || !other_qualified.is_empty())
@@ -1446,6 +1485,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                                 &ctor_body,
                                 &state_qualified,
                                 &other_qualified,
+                                &v_read_qualified,
                             )
                     {
                         ctor_body = rewritten;
@@ -1799,10 +1839,12 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
                 }
             }
         }
+        // A method body is never `in_constructor`, so no name reads through `.v`.
         if let Some(rewritten) = super::private_class_assign_ast::transform_private_class_assign_ast(
             &result,
             &state_qualified,
             &other_qualified,
+            &[],
         ) {
             result = rewritten;
         }
@@ -2137,6 +2179,19 @@ pub(super) fn transform_class_methods_non_this(
                 result = result.replacen(&pre_dec, &format!("$.update_pre({}, -1)", qualified), 1);
             }
 
+            // This function only ever runs on a constructor body, where upstream
+            // `MemberExpression.js` reads a `$state` / `$state.raw` field as `q.v`
+            // rather than `$.get(q)`. Those are left to
+            // `transform_constructor_private_reads`; wrapping them here would emit
+            // the wrong form and bury the `.v` the assignment pass already
+            // produced inside a `$.get(…)`.
+            if matches!(
+                field.rune_type.as_str(),
+                "$state" | "$state.raw" | "$state.frozen"
+            ) {
+                continue;
+            }
+
             // AST-based pre-pass for member-chain reads (`q.foo`, `q[i]`,
             // `q?.foo`). Mirrors the pre-pass already used in
             // `transform_class_methods` (with-this) — see PR #210. The
@@ -2177,8 +2232,37 @@ pub(super) fn transform_class_methods_non_this(
     result
 }
 
+/// Upstream `MemberExpression.js`: inside a constructor a `$state` / `$state.raw`
+/// field reads as `q.v`; every other field kind — and every read outside a
+/// constructor — goes through `$.get(q)`.
+pub(super) fn constructor_field_read(
+    rune_type: &str,
+    qualified: &str,
+    at_ctor_depth: bool,
+) -> String {
+    if at_ctor_depth && matches!(rune_type, "$state" | "$state.raw" | "$state.frozen") {
+        format!("{}.v", qualified)
+    } else {
+        format!("$.get({})", qualified)
+    }
+}
+
+/// Whether a block this line opens is a function body — the only nesting that
+/// clears `in_constructor` upstream. Over-reporting only costs the `.v` read
+/// form, which is what a non-constructor read already uses.
+fn opens_function(line: &str) -> bool {
+    memmem::find(line.as_bytes(), b"=>").is_some()
+        || memmem::find(line.as_bytes(), b"function").is_some()
+}
+
 /// Transform constructor assignments for private state fields and rune calls.
-pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> String {
+/// `at_ctor_depth` is false for a line nested inside a function in the
+/// constructor body, where upstream no longer treats reads as in-constructor.
+pub(super) fn transform_constructor_assignment(
+    line: &str,
+    fields: &[ClassStateField],
+    at_ctor_depth: bool,
+) -> String {
     let mut result = line.trim().to_string();
 
     // Handle constructor-declared rune calls
@@ -2302,14 +2386,20 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
                         let (value, trailing) =
                             split_rhs_at_top_level_semi(&result[op_pos + assign_op.len()..]);
                         let tail = if trailing.is_empty() { ";" } else { trailing };
-                        // Use .v to access the value directly for logical operators
+                        let qualified = format!("this.#{}", field.private_backing_name);
+                        let read =
+                            constructor_field_read(&field.rune_type, &qualified, at_ctor_depth);
+                        // Upstream `AssignmentExpression.js`: the built value is a
+                        // LogicalExpression, which `should_proxy` always proxies, so
+                        // the flag rides on the field kind alone.
+                        let proxy = if field.rune_type == "$state" {
+                            ", true"
+                        } else {
+                            ""
+                        };
                         return format!(
-                            "$.set(this.#{}, this.#{}.v {} {}, true){}",
-                            field.private_backing_name,
-                            field.private_backing_name,
-                            binary_op,
-                            value,
-                            tail
+                            "$.set({}, {} {} {}{}){}",
+                            qualified, read, binary_op, value, proxy, tail
                         );
                     }
                 }
@@ -2333,13 +2423,12 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
                         let (value, trailing) =
                             split_rhs_at_top_level_semi(&result[op_pos + assign_op.len()..]);
                         let tail = if trailing.is_empty() { ";" } else { trailing };
+                        let qualified = format!("this.#{}", field.private_backing_name);
+                        let read =
+                            constructor_field_read(&field.rune_type, &qualified, at_ctor_depth);
                         return format!(
-                            "$.set(this.#{}, $.get(this.#{}) {} {}){}",
-                            field.private_backing_name,
-                            field.private_backing_name,
-                            binary_op,
-                            value,
-                            tail
+                            "$.set({}, {} {} {}){}",
+                            qualified, read, binary_op, value, tail
                         );
                     }
                 }
