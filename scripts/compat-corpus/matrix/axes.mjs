@@ -503,3 +503,98 @@ export function toggle() {
 `,
 	},
 };
+
+/**
+ * `await` / `yield` inside a function's formal parameters — the fourth axis
+ * family, and the second whose inputs the official compiler REJECTS.
+ *
+ * Acorn raises `js_parse_error` for every illegal cell here
+ * (`checkYieldAwaitInDefaultParams`); OXC implements no such rule, so rsvelte
+ * compiled all of them. That is the direction that matters for a drop-in
+ * replacement — a file official refuses builds here and ships.
+ *
+ * The product is what finds it. A check written for one function form does not
+ * see the others (an async method is not an arrow), a check written for the
+ * first parameter does not see the second, and a check that walks the whole
+ * subtree over-rejects the legal rows, where the offending keyword sits in a
+ * NESTED function's body rather than in the parameter list itself.
+ */
+export const PARAM_FUNCTION_FORMS = {
+	'async-arrow': 'const f = async (%s) => p;',
+	'sync-arrow': 'const f = (%s) => p;',
+	'async-fn-decl': 'async function f(%s) {\n\treturn p;\n}',
+	'async-fn-expr': 'const f = async function (%s) {\n\treturn p;\n};',
+	'async-method': 'const o = {\n\tasync m(%s) {\n\t\treturn p;\n\t}\n};',
+	'async-class-method': 'class C {\n\tasync m(%s) {\n\t\treturn p;\n\t}\n}',
+	'async-generator-method': 'const o = {\n\tasync *m(%s) {\n\t\treturn p;\n\t}\n};',
+	'generator-fn-decl': 'function* g(%s) {\n\treturn p;\n}',
+	'generator-method': 'const o = {\n\t*g(%s) {\n\t\treturn p;\n\t}\n};',
+};
+
+/**
+ * The same parameter lists reached through a template expression instead of a
+ * script. rsvelte parses those with a different function, so a fix applied to
+ * the script path alone leaves this one accepting.
+ */
+export const PARAM_TEMPLATE_FORMS = {
+	'attr-async-arrow': '<button onclick={async (%s) => p}>go</button>',
+	'attr-sync-arrow': '<button onclick={(%s) => p}>go</button>',
+	'expr-async-arrow': '<p>{typeof (async (%s) => p)}</p>',
+};
+
+/** Where inside the parameter list the initializer sits. */
+export const PARAM_DEFAULT_SLOTS = {
+	simple: 'p = %s',
+	'object-pattern': '{ p = %s } = {}',
+	'array-pattern': '[p = %s] = []',
+	'second-param': 'a, p = %s',
+	'nested-arrow-param': 'p = ((q = %s) => q)',
+};
+
+/** Initializers acorn rejects in a parameter list, whatever encloses it. */
+export const PARAM_ILLEGAL_INITIALIZERS = {
+	await: 'await load()',
+	yield: 'yield 1',
+};
+
+/**
+ * Initializers that must keep compiling. The nested rows are the discriminating
+ * ones: the keyword is present, and lexically inside the parameter list, but it
+ * belongs to a function of its own — which is exactly what a subtree scan
+ * cannot tell apart from the illegal rows.
+ */
+export const PARAM_LEGAL_INITIALIZERS = {
+	call: 'load()',
+	'nested-async-body': '(async () => await load())',
+	'nested-method-body': '{ async m() { return await load(); } }',
+	'nested-generator-body': 'function* () { yield 1; }',
+	'keyword-lookalike': 'awaitable + yielded',
+};
+
+/** The declarations every parameter case shares, so only the axes differ. */
+export const PARAM_PREAMBLE = `<script>
+	function load() {}
+	let awaitable = 1;
+	let yielded = 1;
+%s
+</script>
+
+<p>ok</p>
+`;
+
+/** Same declarations, with the parameter list in the markup instead. */
+export const PARAM_TEMPLATE_PREAMBLE = `<script>
+	function load() {}
+	let awaitable = 1;
+	let yielded = 1;
+</script>
+
+%s
+`;
+
+/** Same declarations on the `.svelte.js` module path. */
+export const PARAM_MODULE_PREAMBLE = `function load() {}
+let awaitable = 1;
+let yielded = 1;
+%s
+`;

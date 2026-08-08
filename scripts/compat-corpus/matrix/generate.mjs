@@ -18,6 +18,14 @@ import {
 	BIND_SLOTS,
 	BIND_PREAMBLE,
 	BIND_PREAMBLE_TS,
+	PARAM_FUNCTION_FORMS,
+	PARAM_TEMPLATE_FORMS,
+	PARAM_DEFAULT_SLOTS,
+	PARAM_ILLEGAL_INITIALIZERS,
+	PARAM_LEGAL_INITIALIZERS,
+	PARAM_PREAMBLE,
+	PARAM_TEMPLATE_PREAMBLE,
+	PARAM_MODULE_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -95,11 +103,57 @@ function invalidBindCases() {
 	return cases;
 }
 
+function paramDefaultCases() {
+	const cases = [];
+	// The legal rows discriminate on (initializer × form) — where the keyword
+	// sits relative to the nested function, and what encloses the parameter
+	// list. Repeating them over every destructuring shape would add columns
+	// that cannot move independently of `simple`; `nested-arrow-param` is kept
+	// because re-entering a parameter list is the state the scan can get wrong.
+	const LEGAL_SLOTS = ['simple', 'nested-arrow-param'];
+	const initializers = [
+		...Object.entries(PARAM_ILLEGAL_INITIALIZERS).map(([n, e]) => [n, e, null]),
+		...Object.entries(PARAM_LEGAL_INITIALIZERS).map(([n, e]) => [`legal-${n}`, e, LEGAL_SLOTS]),
+	];
+	for (const [initName, initializer, slots] of initializers) {
+		for (const [slotName, slot] of Object.entries(PARAM_DEFAULT_SLOTS)) {
+			if (slots && !slots.includes(slotName)) continue;
+			const params = slot.replaceAll('%s', initializer);
+			for (const [formName, form] of Object.entries(PARAM_FUNCTION_FORMS)) {
+				const statement = form.replaceAll('%s', params);
+				cases.push({
+					id: `param-default/${initName}__${slotName}__${formName}.svelte`,
+					source: PARAM_PREAMBLE.replaceAll(
+						'%s',
+						statement
+							.split('\n')
+							.map((line) => `\t${line}`)
+							.join('\n')
+					),
+				});
+				cases.push({
+					id: `param-default/${initName}__${slotName}__${formName}.svelte.js`,
+					source: PARAM_MODULE_PREAMBLE.replaceAll('%s', statement),
+					kind: 'module',
+				});
+			}
+			for (const [formName, form] of Object.entries(PARAM_TEMPLATE_FORMS)) {
+				cases.push({
+					id: `param-default/${initName}__${slotName}__${formName}.svelte`,
+					source: PARAM_TEMPLATE_PREAMBLE.replaceAll('%s', form.replaceAll('%s', params)),
+				});
+			}
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
 	'literal-escape': literalEscapeCases,
 	'invalid-bind': invalidBindCases,
+	'param-default': paramDefaultCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

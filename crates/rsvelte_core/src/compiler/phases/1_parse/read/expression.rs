@@ -1638,6 +1638,11 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
             {
                 return Some(("Assigning to rvalue".to_string(), 0));
             }
+            if let Some((at, message)) = await_or_yield_in_params(&result.program, content) {
+                // Acorn reports the `await` / `yield` token's start; strip the `(`.
+                let pos = (at as usize).saturating_sub(1).min(content.len());
+                return Some((message.to_string(), pos));
+            }
             None
         })
     };
@@ -1679,7 +1684,7 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-        result.diagnostics.first().map(|first_error| {
+        if let Some(first_error) = result.diagnostics.first() {
             let pos = first_error
                 .labels
                 .first()
@@ -1689,7 +1694,13 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
                         .min(params.len())
                 })
                 .unwrap_or(0);
-            (first_error.message.to_string(), pos)
+            return Some((first_error.message.to_string(), pos));
+        }
+        await_or_yield_in_params(&result.program, params).map(|(at, message)| {
+            (
+                message.to_string(),
+                (at as usize).saturating_sub(1).min(params.len()),
+            )
         })
     })
 }
@@ -1709,14 +1720,16 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, content, source_type).parse();
-        result.diagnostics.first().map(|first_error| {
+        if let Some(first_error) = result.diagnostics.first() {
             let pos = first_error
                 .labels
                 .first()
                 .map(|label| (label.offset() as usize).min(content.len()))
                 .unwrap_or(0);
-            (first_error.message.to_string(), pos)
-        })
+            return Some((first_error.message.to_string(), pos));
+        }
+        await_or_yield_in_params(&result.program, content)
+            .map(|(at, message)| (message.to_string(), (at as usize).min(content.len())))
     })
 }
 
@@ -1841,6 +1854,13 @@ fn parse_expression_with_typescript<'a>(
             // OXC may parse these without errors, but acorn/the Svelte compiler
             // treats them as parse errors ("Assigning to rvalue").
             if is_invalid_assignment_expression(&expr_stmt.expression) {
+                return None;
+            }
+
+            // Same shape: acorn rejects `await` / `yield` in a parameter list
+            // and OXC does not. Failing here routes the caller to
+            // `check_js_parse_error_with_pos`, which reports acorn's message.
+            if await_or_yield_in_params(&result.program, content).is_some() {
                 return None;
             }
 
@@ -6718,6 +6738,102 @@ fn is_acorn_unchecked_ts_grammar_rule(diagnostic: &OxcDiagnostic) -> bool {
             .is_some_and(|n| ACORN_UNCHECKED_TS_GRAMMAR_RULES.contains(&n))
 }
 
+/// `await` / `yield` inside a function's formal parameters — acorn's
+/// `checkYieldAwaitInDefaultParams`, which OXC does not implement, so every
+/// acorn boundary in this file has to ask for it.
+///
+/// A nested function *body* inside a parameter list is its own scope and is
+/// legal; a nested function's *parameters* are not, which is why the flag is
+/// carried into params and cleared only on a body.
+struct AwaitYieldInParams {
+    in_params: bool,
+    found: Option<(u32, &'static str)>,
+}
+
+impl AwaitYieldInParams {
+    fn record(&mut self, at: u32, message: &'static str) {
+        if self.found.is_none_or(|(prev, _)| at < prev) {
+            self.found = Some((at, message));
+        }
+    }
+
+    fn walk_params_then_body(
+        &mut self,
+        params: impl FnOnce(&mut Self),
+        body: impl FnOnce(&mut Self),
+    ) {
+        let outer = self.in_params;
+        self.in_params = true;
+        params(self);
+        self.in_params = false;
+        body(self);
+        self.in_params = outer;
+    }
+}
+
+impl<'a> oxc_ast_visit::Visit<'a> for AwaitYieldInParams {
+    fn visit_function(
+        &mut self,
+        func: &oxc_ast::ast::Function<'a>,
+        _flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        self.walk_params_then_body(
+            |v| oxc_ast_visit::walk::walk_formal_parameters(v, &func.params),
+            |v| {
+                if let Some(body) = &func.body {
+                    oxc_ast_visit::walk::walk_function_body(v, body);
+                }
+            },
+        );
+    }
+
+    fn visit_arrow_function_expression(
+        &mut self,
+        func: &oxc_ast::ast::ArrowFunctionExpression<'a>,
+    ) {
+        self.walk_params_then_body(
+            |v| oxc_ast_visit::walk::walk_formal_parameters(v, &func.params),
+            |v| oxc_ast_visit::walk::walk_arrow_function_body(v, &func.body),
+        );
+    }
+
+    fn visit_await_expression(&mut self, expr: &oxc_ast::ast::AwaitExpression<'a>) {
+        if self.in_params {
+            self.record(
+                expr.span.start,
+                "Await expression cannot be a default value",
+            );
+        }
+        oxc_ast_visit::walk::walk_await_expression(self, expr);
+    }
+
+    fn visit_yield_expression(&mut self, expr: &oxc_ast::ast::YieldExpression<'a>) {
+        if self.in_params {
+            self.record(
+                expr.span.start,
+                "Yield expression cannot be a default value",
+            );
+        }
+        oxc_ast_visit::walk::walk_yield_expression(self, expr);
+    }
+}
+
+/// The offset and acorn message for the first `await` / `yield` in a parameter
+/// list, or `None`. `source` gates the walk — neither keyword can occur without
+/// its own spelling.
+fn await_or_yield_in_params(program: &OxcProgram<'_>, source: &str) -> Option<(u32, &'static str)> {
+    if !source.contains("await") && !source.contains("yield") {
+        return None;
+    }
+    use oxc_ast_visit::Visit;
+    let mut scan = AwaitYieldInParams {
+        in_params: false,
+        found: None,
+    };
+    scan.visit_program(program);
+    scan.found
+}
+
 fn convert_parsed_program<'ast>(
     arena: &ParseArena,
     program: &OxcProgram<'_>,
@@ -6791,13 +6907,15 @@ fn convert_parsed_program<'ast>(
 
             let check_decorator = !is_typescript && content.contains('@');
             let check_with = content.contains("with");
-            if check_decorator || check_with {
+            {
                 let mut finder = StrictModeScan {
                     check_decorator,
                     decorator_at: None,
                     with_at: None,
                 };
-                finder.visit_program(program);
+                if check_decorator || check_with {
+                    finder.visit_program(program);
+                }
 
                 let earliest = [
                     finder
@@ -6810,6 +6928,8 @@ fn convert_parsed_program<'ast>(
                                 .to_string(),
                         )
                     }),
+                    await_or_yield_in_params(program, content)
+                        .map(|(at, message)| (at, message.to_string())),
                 ]
                 .into_iter()
                 .flatten()
