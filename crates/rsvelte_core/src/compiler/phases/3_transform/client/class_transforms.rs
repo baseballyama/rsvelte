@@ -1922,7 +1922,9 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
                 );
             }
 
-            // Handle increment: prefix.#name++ or ++prefix.#name
+            // Deliberate divergence: upstream leaves a constructor-root update
+            // through a non-`this` receiver as `inst.#n.v++`, which writes the
+            // source without notifying (`compatibility/deliberate-divergences.md`).
             let post_inc = format!("{}++", qualified);
             while result.contains(&post_inc) {
                 let replacement = format!("$.update({})", qualified);

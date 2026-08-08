@@ -53,7 +53,8 @@ pub fn visit_component<'a, 'b: 'a>(
                     if let Some(name) = attr_name
                         && name == snippet_name
                     {
-                        return Err(errors::snippet_shadowing_prop(snippet_name));
+                        return Err(errors::snippet_shadowing_prop(snippet_name)
+                            .at(snippet.start, snippet.end));
                     }
                 }
             }
@@ -141,7 +142,7 @@ pub fn visit_component<'a, 'b: 'a>(
                 super::attribute::warn_attribute_quoted(context, attr);
                 // Check for illegal colon in attribute name
                 if let Err(warning) = validate_attribute_name_colon(&attr.name) {
-                    context.emit_warning(warning);
+                    context.emit_warning(warning.at(attr.start, attr.end));
                 }
                 // TODO: if (attribute.name === 'slot') {
                 //     validate_slot_attribute(context, attribute, true);
@@ -158,7 +159,7 @@ pub fn visit_component<'a, 'b: 'a>(
                 if bind.expression.node_type() != Some("SequenceExpression") {
                     // Validate the binding expression (checks for const/import bindings)
                     let bind_node = bind.expression.as_node();
-                    validate_assignment_node(&bind_node, context, true)?;
+                    validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
                     // `bind:x={y}` must target state or props (bind_invalid_value).
                     // Upstream's BindDirective visitor runs this for component
                     // bindings too (BindDirective.js L193-207).
@@ -170,7 +171,9 @@ pub fn visit_component<'a, 'b: 'a>(
                 // Only 'once' modifier is allowed on component events
                 let has_invalid_modifiers = on.modifiers.iter().any(|m| m.as_str() != "once");
                 if has_invalid_modifiers {
-                    return Err(errors::event_handler_invalid_component_modifier());
+                    return Err(
+                        errors::event_handler_invalid_component_modifier().at(on.start, on.end)
+                    );
                 }
 
                 // Note: Event forwarding (on:foo without handler) sets needs_props
@@ -186,7 +189,8 @@ pub fn visit_component<'a, 'b: 'a>(
             _ => {
                 // All other directive types are invalid on components
                 // (TransitionDirective, AnimateDirective, UseDirective, ClassDirective, StyleDirective)
-                return Err(errors::component_invalid_directive());
+                let (start, end) = attr.span();
+                return Err(errors::component_invalid_directive().at(start, end));
             }
         }
     }
