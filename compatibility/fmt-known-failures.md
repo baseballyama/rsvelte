@@ -16,6 +16,12 @@ entries are the seed set from enrolling `submodules/skeleton` in the corpus
 a cluster (9 into the new Cluster 9, 2 into the new Cluster 10, the other 6 into
 existing Clusters 1/2/3).
 
+An id that carries two clusters' divergences at once is filed under its dominant
+one (see *Multiple clusters per id*), so the per-cluster counts below remain a
+partition of the ratchet rather than an over-count:
+
+Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 5 + 1 + 1 + 1`
+
 ## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements

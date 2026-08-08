@@ -85,6 +85,17 @@ codegen-units = 16    # and split codegen so the opt-level-3 lib build does not 
 debug = "line-tables-only"
 strip = false
 
+# One test binary per integration-test file (242 for `rsvelte_core`) means a
+# local `--tests` build writes 14.9 GiB per checkout. `line-tables-only` keeps
+# the file and line a panic backtrace needs and drops the type/variable tables it
+# does not, for 13.7 GiB. Set on `test` and not `dev`: measured, `dev` alone
+# changes nothing here, because the artifacts that dominate are built under the
+# test profile. Most of the tree is unoptimized code, not debuginfo — `debug = 0`
+# only reaches 11.9 GiB — so this is a trim, not a fix; the fix is to build named
+# `--test` targets rather than all of them.
+[profile.test]
+debug = "line-tables-only"
+
 [profile.bench]
 inherits = "release"
 debug = true
