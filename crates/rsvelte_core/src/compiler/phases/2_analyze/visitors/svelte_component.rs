@@ -17,7 +17,9 @@ pub fn visit<'a, 'b: 'a>(
 ) -> Result<(), AnalysisError> {
     // In runes mode, <svelte:component> is deprecated because components are dynamic by default
     if context.analysis.runes {
-        context.emit_warning(warnings::svelte_component_deprecated());
+        context.emit_warning(
+            warnings::svelte_component_deprecated().at(component.start, component.end),
+        );
     }
 
     // `<svelte:component>` must have a `this` attribute — when missing, the
@@ -51,7 +53,7 @@ pub fn visit<'a, 'b: 'a>(
                     context.analysis.uses_component_bindings = true;
                 }
                 let bind_node = bind.expression.as_node();
-                validate_assignment_node(&bind_node, context, true)?;
+                validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
                 // Walk the bind expression to add template references.
                 // This is important for legacy mode state promotion - bindings need
                 // template references to be promoted from 'normal' to 'state' kind.
@@ -83,7 +85,8 @@ pub fn visit<'a, 'b: 'a>(
                 // `validate_component_attributes` path so they raise
                 // `component_invalid_directive` instead of being silently
                 // accepted. (issue #453, H-047)
-                return Err(errors::component_invalid_directive());
+                let (start, end) = attr.span();
+                return Err(errors::component_invalid_directive().at(start, end));
             }
         }
     }

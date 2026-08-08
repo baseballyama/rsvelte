@@ -58,7 +58,7 @@ fn visit_identifier_inner(
     if name == "$" || name.starts_with("$$") {
         // $$ prefixed names except reserved ones ($$props, $$restProps, $$slots) are illegal
         if name != "$$props" && name != "$$restProps" && name != "$$slots" {
-            return Err(errors::global_reference_invalid(name));
+            return Err(errors::global_reference_invalid(name).at(start, end));
         }
     }
 
@@ -424,7 +424,9 @@ fn visit_identifier_inner(
         if binding.scope_index == 0 && binding.reassigned {
             // Route through emit_warning so a `svelte-ignore` in scope can
             // suppress it (H-118); a direct push bypasses the ignore stack.
-            context.emit_warning(warnings::reactive_declaration_module_script_dependency());
+            context.emit_warning(
+                warnings::reactive_declaration_module_script_dependency().at(start, end),
+            );
         }
     }
 

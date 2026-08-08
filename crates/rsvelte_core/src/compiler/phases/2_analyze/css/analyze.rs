@@ -335,7 +335,7 @@ fn analyze_rule(
                 };
 
                 if is_empty && !is_custom_property {
-                    return Err(errors::css_empty_declaration());
+                    return Err(empty_declaration_error(child, state.source));
                 }
             }
             analyze_css_node(child, analysis, &child_state)?;
@@ -587,6 +587,55 @@ fn validate_selectors(
     Ok(())
 }
 
+/// Attribute an error to a CSS node's own span, mirroring the node upstream
+/// passes as the first argument to its `e.*` constructor.
+fn at_node(error: AnalysisError, node: &serde_json::Value) -> AnalysisError {
+    match (
+        node.get("start").and_then(|v| v.as_u64()),
+        node.get("end").and_then(|v| v.as_u64()),
+    ) {
+        (Some(start), Some(end)) => error.at(start as u32, end as u32),
+        _ => error,
+    }
+}
+
+/// Upstream reports an empty declaration as `{ start, end: index }`, where `index`
+/// is the offset just past the `:` — not the declaration node's own end.
+fn empty_declaration_error(declaration: &serde_json::Value, source: Option<&str>) -> AnalysisError {
+    let error = errors::css_empty_declaration();
+    let Some(start) = declaration.get("start").and_then(|v| v.as_u64()) else {
+        return error;
+    };
+    let Some(colon) = source
+        .and_then(|s| s.get(start as usize..))
+        .and_then(|rest| rest.find(':'))
+    else {
+        return error;
+    };
+    error.at(start as u32, start as u32 + colon as u32 + 1)
+}
+
+/// Upstream raises this while reading the selector, at the index it has reached
+/// once the combinator and the whitespace after it are consumed.
+fn trailing_combinator_error(
+    relative_selector: &serde_json::Value,
+    source: Option<&str>,
+) -> AnalysisError {
+    let error = errors::css_selector_invalid();
+    let Some(end) = relative_selector
+        .get("combinator")
+        .and_then(|c| c.get("end"))
+        .and_then(|v| v.as_u64())
+    else {
+        return error;
+    };
+    let Some(rest) = source.and_then(|s| s.get(end as usize..)) else {
+        return error;
+    };
+    let index = end as u32 + (rest.len() - rest.trim_start().len()) as u32;
+    error.at(index, index)
+}
+
 /// Validate a ComplexSelector for :global() usage.
 fn validate_complex_selector(
     complex_selector: &serde_json::Value,
@@ -635,7 +684,7 @@ fn validate_complex_selector(
             if !is_at_start && !is_at_end {
                 for child in children.iter().skip(idx + 1) {
                     if !is_global_relative(child) {
-                        return Err(errors::css_global_invalid_placement());
+                        return Err(at_node(errors::css_global_invalid_placement(), first_sel));
                     }
                 }
             }
@@ -656,7 +705,7 @@ fn validate_complex_selector(
                 {
                     // Validate :global(...) selector contents
                     if let Some(args) = selector.get("args") {
-                        validate_global_args(args, children.len(), selectors.len())?;
+                        validate_global_args(args, selector, children.len(), selectors.len())?;
                     }
 
                     // Ensure :global(element) is at first position in compound selector
@@ -672,14 +721,20 @@ fn validate_complex_selector(
                         && first_inner.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
                         && i != 0
                     {
-                        return Err(errors::css_global_invalid_selector_list());
+                        return Err(at_node(
+                            errors::css_global_invalid_selector_list(),
+                            selector,
+                        ));
                     }
 
                     // Ensure :global(.class) is not followed by a type selector
                     if let Some(next_sel) = selectors.get(i + 1)
                         && next_sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
                     {
-                        return Err(errors::css_type_selector_invalid_placement());
+                        return Err(at_node(
+                            errors::css_type_selector_invalid_placement(),
+                            next_sel,
+                        ));
                     }
 
                     // Ensure :global(...) contains a single selector
@@ -691,7 +746,7 @@ fn validate_complex_selector(
                         && args_children.len() > 1
                         && (children.len() > 1 || selectors.len() > 1)
                     {
-                        return Err(errors::css_global_invalid_selector());
+                        return Err(at_node(errors::css_global_invalid_selector(), selector));
                     }
 
                     // Check for type selector position
@@ -732,7 +787,7 @@ fn validate_complex_selector(
             && let Some(combinator) = relative_selector.get("combinator")
             && combinator.get("type").and_then(|t| t.as_str()) == Some("Combinator")
         {
-            return Err(errors::css_selector_invalid());
+            return Err(at_node(errors::css_selector_invalid(), combinator));
         }
     }
 
@@ -742,7 +797,7 @@ fn validate_complex_selector(
         && selectors.is_empty()
         && last.get("combinator").is_some()
     {
-        return Err(errors::css_selector_invalid());
+        return Err(trailing_combinator_error(last, state.source));
     }
 
     Ok(())
@@ -1003,12 +1058,16 @@ fn check_selector_for_global(selector: &serde_json::Value) -> bool {
 /// Validate the arguments of :global(...).
 fn validate_global_args(
     args: &serde_json::Value,
+    global_selector: &serde_json::Value,
     num_children: usize,
     num_selectors: usize,
 ) -> Result<(), AnalysisError> {
     if let Some(arg_children) = args.get("children").and_then(|c| c.as_array()) {
         if arg_children.len() > 1 && (num_children > 1 || num_selectors > 1) {
-            return Err(errors::css_global_invalid_selector());
+            return Err(at_node(
+                errors::css_global_invalid_selector(),
+                global_selector,
+            ));
         }
     }
     Ok(())
@@ -1036,13 +1095,19 @@ fn validate_global_type_selector_position(
         && first_sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
         && global_idx != 0
     {
-        return Err(errors::css_global_invalid_selector_list());
+        return Err(at_node(
+            errors::css_global_invalid_selector_list(),
+            global_selector,
+        ));
     }
 
     if let Some(next_sel) = all_selectors.get(global_idx + 1)
         && next_sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
     {
-        return Err(errors::css_type_selector_invalid_placement());
+        return Err(at_node(
+            errors::css_type_selector_invalid_placement(),
+            next_sel,
+        ));
     }
 
     Ok(())

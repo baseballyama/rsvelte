@@ -12,7 +12,13 @@ use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 /// Visit an export default declaration (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if let JsNode::ExportDefaultDeclaration { declaration, .. } = node {
+    if let JsNode::ExportDefaultDeclaration {
+        declaration,
+        start,
+        end,
+        ..
+    } = node
+    {
         let arena = context.parse_arena;
         let decl_node = arena.get_js_node(*declaration);
 
@@ -23,7 +29,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             }
             Ok(())
         } else {
-            Err(errors::module_illegal_default_export())
+            Err(errors::module_illegal_default_export().at(*start, *end))
         }
     } else {
         Ok(())

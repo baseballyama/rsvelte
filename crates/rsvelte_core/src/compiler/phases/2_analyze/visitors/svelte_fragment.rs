@@ -17,7 +17,7 @@ pub fn visit<'a, 'b: 'a>(
 ) -> Result<(), AnalysisError> {
     // svelte:fragment must be a direct child of a component
     if !context.is_direct_child_of_component {
-        return Err(errors::svelte_fragment_invalid_placement());
+        return Err(errors::svelte_fragment_invalid_placement().at(frag.start, frag.end));
     }
 
     // Note: <svelte:fragment> does NOT set uses_slots on the parent component.

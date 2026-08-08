@@ -22,7 +22,7 @@ pub fn visit_with_element(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Validate binding for the element
-    validate_binding_for_regular_element(&directive.name, element, context)?;
+    validate_binding_for_regular_element(directive, element, context)?;
 
     // Continue with the rest of the validation
     visit_common(directive, context)
@@ -37,7 +37,7 @@ pub fn visit_with_svelte_element(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Validate binding for the svelte element
-    validate_binding_for_svelte_element(&directive.name, element_name)?;
+    validate_binding_for_svelte_element(directive, element_name)?;
 
     // Continue with the rest of the validation
     visit_common(directive, context)
@@ -54,7 +54,7 @@ fn visit_common(
     // Handle getter/setter syntax (SequenceExpression)
     if directive.expression.node_type() == Some("SequenceExpression") {
         if directive.name == "group" {
-            return Err(errors::bind_group_invalid_expression());
+            return Err(errors::bind_group_invalid_expression().at(directive.start, directive.end));
         }
 
         // Check for invalid parentheses in the binding expression, ignoring any
@@ -159,7 +159,7 @@ fn visit_common(
     // Validate the assignment target
     {
         let node = directive.expression.as_node();
-        validate_assignment_node(&node, context, true)?;
+        validate_assignment_node((directive.start, directive.end), &node, context, true)?;
     }
 
     // Get the leftmost identifier (the binding target)
@@ -225,7 +225,9 @@ fn visit_common(
             binding.kind,
             crate::compiler::phases::phase2_analyze::BindingKind::SnippetParam
         ) {
-            return Err(errors::bind_group_invalid_snippet_parameter());
+            return Err(
+                errors::bind_group_invalid_snippet_parameter().at(directive.start, directive.end)
+            );
         }
 
         // Note: Binding group name registration (populating analysis.binding_groups) is done
@@ -240,18 +242,23 @@ fn visit_common(
     //   if (binding?.kind === 'each' && binding.metadata?.inside_rest) {
     //     w.bind_invalid_each_rest(binding.node, binding.node.name);
     //   }
-    if let Some(binding) = binding
-        && matches!(
-            binding.kind,
-            crate::compiler::phases::phase2_analyze::BindingKind::EachItem
-        )
-        && binding.inside_rest
-    {
-        context.emit_warning(
-            crate::compiler::phases::phase2_analyze::warnings::bind_invalid_each_rest(
-                &binding.name,
-            ),
-        );
+    let each_rest_name = binding
+        .filter(|b| {
+            matches!(
+                b.kind,
+                crate::compiler::phases::phase2_analyze::BindingKind::EachItem
+            ) && b.inside_rest
+        })
+        .map(|b| b.name.clone());
+    if let Some(name) = each_rest_name {
+        // Upstream attributes this to `binding.node`; rsvelte's `Binding` keeps no
+        // declaring-node span for each-item bindings, so recover it from the pattern.
+        let mut warning =
+            crate::compiler::phases::phase2_analyze::warnings::bind_invalid_each_rest(&name);
+        if let Some((start, end)) = find_rest_binding_span(&name, context) {
+            warning = warning.at(start, end);
+        }
+        context.emit_warning(warning);
     }
 
     // Visit child expressions to add template references
@@ -272,6 +279,70 @@ fn visit_common(
     // if node.metadata.expression.has_await { return Err(errors::illegal_await_expression()); }
 
     Ok(())
+}
+
+/// Locate the declaring identifier of an each-item binding that sits inside a rest
+/// element, searching the enclosing `{#each}` context patterns innermost-first.
+fn find_rest_binding_span(name: &str, context: &VisitorContext) -> Option<(u32, u32)> {
+    for node in context.path.iter().rev() {
+        let crate::ast::template::TemplateNode::EachBlock(each) = node else {
+            continue;
+        };
+        let Some(pattern) = each.context.as_ref().map(|c| c.as_node()) else {
+            continue;
+        };
+        if let Some(span) = find_rest_identifier(pattern.as_ref(), name, false, context.parse_arena)
+        {
+            return Some(span);
+        }
+    }
+    None
+}
+
+/// Mirrors `ScopeBuilder::declare_bindings_from_pattern_node_with_kind`'s traversal,
+/// returning the span of the identifier it would have declared with `inside_rest`.
+fn find_rest_identifier(
+    pattern: &JsNode,
+    name: &str,
+    inside_rest: bool,
+    arena: &crate::ast::arena::ParseArena,
+) -> Option<(u32, u32)> {
+    match pattern {
+        JsNode::Identifier {
+            name: id,
+            start,
+            end,
+            ..
+        } => (inside_rest && id.as_str() == name).then_some((*start, *end)),
+        JsNode::ObjectPattern { properties, .. } | JsNode::ObjectExpression { properties, .. } => {
+            arena
+                .get_js_children(*properties)
+                .iter()
+                .find_map(|prop| match prop {
+                    JsNode::RestElement { argument, .. }
+                    | JsNode::SpreadElement { argument, .. } => {
+                        find_rest_identifier(arena.get_js_node(*argument), name, true, arena)
+                    }
+                    JsNode::Property { value, .. } => {
+                        find_rest_identifier(arena.get_js_node(*value), name, inside_rest, arena)
+                    }
+                    _ => None,
+                })
+        }
+        JsNode::ArrayPattern { elements, .. } | JsNode::ArrayExpression { elements, .. } => {
+            elements
+                .iter()
+                .flatten()
+                .find_map(|elem| find_rest_identifier(elem, name, inside_rest, arena))
+        }
+        JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+            find_rest_identifier(arena.get_js_node(*argument), name, true, arena)
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            find_rest_identifier(arena.get_js_node(*left), name, inside_rest, arena)
+        }
+        _ => None,
+    }
 }
 
 /// Validate that an Identifier `bind:x={y}` expression targets state or props.
@@ -373,9 +444,12 @@ pub(super) fn validate_bind_value_for_component(
 }
 /// Validate binding for a Svelte special element (svelte:window, svelte:document, svelte:body).
 fn validate_binding_for_svelte_element(
-    binding_name: &str,
+    directive: &BindDirective,
     element_name: &str,
 ) -> Result<(), AnalysisError> {
+    let binding_name = directive.name.as_str();
+    let (start, end) = (directive.start, directive.end);
+
     // Check if binding exists in binding_properties
     if let Some(property) = BINDING_PROPERTIES.get(binding_name) {
         // Check valid_elements
@@ -390,7 +464,7 @@ fn validate_binding_for_svelte_element(
                 valid_bindings.join(", ")
             );
 
-            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
+            return Err(errors::bind_invalid_name(binding_name, Some(&message)).at(start, end));
         }
 
         // Check invalid_elements
@@ -404,7 +478,7 @@ fn validate_binding_for_svelte_element(
                 valid_bindings.join(", ")
             );
 
-            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
+            return Err(errors::bind_invalid_name(binding_name, Some(&message)).at(start, end));
         }
     } else {
         // Binding not found - try fuzzy match
@@ -418,10 +492,11 @@ fn validate_binding_for_svelte_element(
             return Err(errors::bind_invalid_name(
                 binding_name,
                 Some(&format!("Did you mean '{}'?", match_name)),
-            ));
+            )
+            .at(start, end));
         }
 
-        return Err(errors::bind_invalid_name(binding_name, None));
+        return Err(errors::bind_invalid_name(binding_name, None).at(start, end));
     }
 
     Ok(())
@@ -429,10 +504,12 @@ fn validate_binding_for_svelte_element(
 
 /// Validate binding for a regular element directly (without going through path).
 fn validate_binding_for_regular_element(
-    binding_name: &str,
+    directive: &BindDirective,
     element: &RegularElement,
     context: &VisitorContext,
 ) -> Result<(), AnalysisError> {
+    let binding_name = directive.name.as_str();
+    let (start, end) = (directive.start, directive.end);
     let parent_name = element.name.as_str();
 
     // Check if binding exists in binding_properties
@@ -447,7 +524,7 @@ fn validate_binding_for_regular_element(
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            return Err(errors::bind_invalid_target(binding_name, &valid_list));
+            return Err(errors::bind_invalid_target(binding_name, &valid_list).at(start, end));
         }
 
         // Check invalid_elements
@@ -461,12 +538,12 @@ fn validate_binding_for_regular_element(
                 valid_bindings.join(", ")
             );
 
-            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
+            return Err(errors::bind_invalid_name(binding_name, Some(&message)).at(start, end));
         }
 
         // Special validation for <input> elements
         if parent_name == "input" && binding_name != "this" {
-            validate_input_binding(binding_name, element, context)?;
+            validate_input_binding(directive, element, context)?;
         }
 
         // Special validation for <select> elements
@@ -479,12 +556,13 @@ fn validate_binding_for_regular_element(
             return Err(errors::bind_invalid_target(
                 binding_name,
                 "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",
-            ));
+            )
+            .at(start, end));
         }
 
         // Validate contenteditable bindings
         if is_content_editable_binding(binding_name) {
-            validate_contenteditable_binding(element)?;
+            validate_contenteditable_binding(directive, element)?;
         }
     } else {
         // Binding not found - try fuzzy match
@@ -498,10 +576,11 @@ fn validate_binding_for_regular_element(
             return Err(errors::bind_invalid_name(
                 binding_name,
                 Some(&format!("Did you mean '{}'?", match_name)),
-            ));
+            )
+            .at(start, end));
         }
 
-        return Err(errors::bind_invalid_name(binding_name, None));
+        return Err(errors::bind_invalid_name(binding_name, None).at(start, end));
     }
 
     Ok(())
@@ -509,10 +588,13 @@ fn validate_binding_for_regular_element(
 
 /// Validate binding for <input> elements based on their type attribute.
 fn validate_input_binding(
-    binding_name: &str,
+    directive: &BindDirective,
     element: &crate::ast::template::RegularElement,
     _context: &VisitorContext,
 ) -> Result<(), AnalysisError> {
+    let binding_name = directive.name.as_str();
+    let (start, end) = (directive.start, directive.end);
+
     // Find the type attribute
     let type_attr = element.attributes.iter().find_map(|attr| {
         if let crate::ast::template::Attribute::Attribute(a) = attr
@@ -527,7 +609,7 @@ fn validate_input_binding(
         // Check if type attribute is dynamic
         if !is_text_attribute(type_attr) {
             if binding_name != "value" || matches!(type_attr.value, AttributeValue::True(_)) {
-                return Err(errors::attribute_invalid_type());
+                return Err(errors::attribute_invalid_type().at(type_attr.start, type_attr.end));
             }
         } else {
             // Get the static type value
@@ -547,7 +629,8 @@ fn validate_input_binding(
                     return Err(errors::bind_invalid_target(
                         binding_name,
                         &format!("`<input type=\"checkbox\">`{}", hint),
-                    ));
+                    )
+                    .at(start, end));
                 }
 
                 // Validate bind:files
@@ -555,7 +638,8 @@ fn validate_input_binding(
                     return Err(errors::bind_invalid_target(
                         binding_name,
                         "`<input type=\"file\">`",
-                    ));
+                    )
+                    .at(start, end));
                 }
             }
         }
@@ -565,17 +649,16 @@ fn validate_input_binding(
         // type-checked, so binding them to a type-less input is accepted
         // (matches `BindDirective.js`). H-036.
         if binding_name == "checked" {
-            return Err(errors::bind_invalid_target(
-                binding_name,
-                "`<input type=\"checkbox\">`",
-            ));
+            return Err(
+                errors::bind_invalid_target(binding_name, "`<input type=\"checkbox\">`")
+                    .at(start, end),
+            );
         }
 
         if binding_name == "files" {
-            return Err(errors::bind_invalid_target(
-                binding_name,
-                "`<input type=\"file\">`",
-            ));
+            return Err(
+                errors::bind_invalid_target(binding_name, "`<input type=\"file\">`").at(start, end),
+            );
         }
     }
 
@@ -587,33 +670,32 @@ fn validate_select_binding(
     element: &crate::ast::template::RegularElement,
 ) -> Result<(), AnalysisError> {
     // Find the multiple attribute that is dynamic (not static text, not boolean true)
-    let multiple = element.attributes.iter().find(|attr| {
-        if let crate::ast::template::Attribute::Attribute(a) = attr {
-            if a.name == "multiple" {
-                // Check if the value is dynamic (not static text and not boolean true)
-                match &a.value {
-                    AttributeValue::True(_) => false,      // Static boolean true is OK
-                    AttributeValue::Expression(_) => true, // Dynamic expression is an error
-                    AttributeValue::Sequence(seq) => {
-                        // Check if any part is an expression (dynamic)
-                        seq.iter().any(|part| {
-                            matches!(
-                                part,
-                                crate::ast::template::AttributeValuePart::ExpressionTag(_)
-                            )
-                        })
-                    }
-                }
-            } else {
-                false
-            }
-        } else {
-            false
+    let multiple = element.attributes.iter().find_map(|attr| {
+        let crate::ast::template::Attribute::Attribute(a) = attr else {
+            return None;
+        };
+        if a.name != "multiple" {
+            return None;
         }
+        // Check if the value is dynamic (not static text and not boolean true)
+        let is_dynamic = match &a.value {
+            AttributeValue::True(_) => false,      // Static boolean true is OK
+            AttributeValue::Expression(_) => true, // Dynamic expression is an error
+            AttributeValue::Sequence(seq) => {
+                // Check if any part is an expression (dynamic)
+                seq.iter().any(|part| {
+                    matches!(
+                        part,
+                        crate::ast::template::AttributeValuePart::ExpressionTag(_)
+                    )
+                })
+            }
+        };
+        is_dynamic.then_some(a)
     });
 
-    if multiple.is_some() {
-        return Err(errors::attribute_invalid_multiple());
+    if let Some(multiple) = multiple {
+        return Err(errors::attribute_invalid_multiple().at(multiple.start, multiple.end));
     }
 
     Ok(())
@@ -621,6 +703,7 @@ fn validate_select_binding(
 
 /// Validate contenteditable bindings.
 fn validate_contenteditable_binding(
+    directive: &BindDirective,
     element: &crate::ast::template::RegularElement,
 ) -> Result<(), AnalysisError> {
     // Find contenteditable attribute
@@ -633,15 +716,12 @@ fn validate_contenteditable_binding(
         None
     });
 
-    if contenteditable.is_none() {
-        return Err(errors::attribute_contenteditable_missing());
-    }
+    let Some(attr) = contenteditable else {
+        return Err(errors::attribute_contenteditable_missing().at(directive.start, directive.end));
+    };
 
-    if let Some(attr) = contenteditable
-        && !is_text_attribute(attr)
-        && !matches!(attr.value, AttributeValue::True(_))
-    {
-        return Err(errors::attribute_contenteditable_dynamic());
+    if !is_text_attribute(attr) && !matches!(attr.value, AttributeValue::True(_)) {
+        return Err(errors::attribute_contenteditable_dynamic().at(attr.start, attr.end));
     }
 
     Ok(())

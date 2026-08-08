@@ -38,11 +38,13 @@ fn get_bidirectional_regex() -> &'static Regex {
 
 /// Visit a literal value (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    if let JsNode::Literal { value, .. } = node
+    if let JsNode::Literal {
+        value, start, end, ..
+    } = node
         && let LiteralValue::String(s) = value
         && get_bidirectional_regex().is_match(s.as_str())
     {
-        context.emit_warning(warnings::bidirectional_control_characters());
+        context.emit_warning(warnings::bidirectional_control_characters().at(*start, *end));
     }
     Ok(())
 }

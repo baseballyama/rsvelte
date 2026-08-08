@@ -43,7 +43,11 @@ fn compute_all_preceding_ignores(
         match node {
             TemplateNode::Comment(comment) => {
                 // Extract svelte-ignore codes and accumulate them
-                let extracted = extract_svelte_ignore_with_warnings(&comment.data, runes);
+                let extracted = extract_svelte_ignore_with_warnings(
+                    comment.start + 4, // `<!--`.len()
+                    &comment.data,
+                    runes,
+                );
                 pending_ignores.extend(extracted.ignores);
                 // The official scan walks the preceding comment run backwards from the
                 // annotated node, so the comment nearest it reports first.
