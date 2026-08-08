@@ -8,12 +8,13 @@ Re-baseline with `pnpm run corpus:mutate:update`.
 what the normalizer absorbs, so these verdicts are only comparable across runs on the same
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
+The bucket has since been burned down from 525 to **36**, and `unparseable` from 2 to **0**.
 
 ## Why this gate exists
 
 The collected corpus is at **0 known failures on all three targets** — it is saturated. That
 does not mean the compiler is correct; it means this input distribution has nothing left to
-teach. So the 14,131 entries stop being the test set and become a **seed set**: insert one
+teach. So the 14,138 entries stop being the test set and become a **seed set**: insert one
 semantics-preserving comment at a line boundary inside a `<script>` region and require parity
 on the mutant.
 
@@ -44,7 +45,7 @@ whitespace and trailing commas away:
 | `comment-mismatch` | **no** | the comment was dropped, duplicated or relocated, or a line broke differently |
 
 The split is the difference between a gate and a backlog dump. The full sweep produces
-**13,758** comment-only divergences against **525** code ones — ratcheting per id without the
+**12,910** comment-only divergences against **36** code ones — ratcheting per id without the
 split would mean a 13,000-entry file that churns on every submodule bump and buries the class
 that matters. Comment fidelity is already ratcheted per id by Gate 2
 (`matrix-known-failures.md`), on **generated** seeds that do not move when a submodule bumps,
@@ -62,36 +63,38 @@ re-measured under 0.62, so it is in for honest reporting rather than to change a
 the gate prints must be the reason for the verdict, and before this a reviewer could see
 `import 'x'` vs `import "x"` and dismiss a real finding sitting further down the same file.
 
-## Mutation known failures (`mutation-known-failures.json`, 525 entries)
+## Mutation known failures (`mutation-known-failures.json`, 36 entries)
 
-Full sweep: 14,129 seeds → 12,116 mutants → 36,348 comparisons, under oxfmt 0.62.0.
+Full sweep: 14,138 seeds → 12,166 mutants → 36,498 comparisons, under oxfmt 0.62.0.
 
 | verdict | entries |
 |---|---|
-| `code-mismatch` | 523 |
-| `unparseable` | 2 |
+| `code-mismatch` | 36 |
+| `unparseable` | **0** |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
 
-By target: `client-dev` 222, `client` 220, `server` 83.
+By target: `client` 19, `client-dev` 11, `server` 6.
 
-### The two `unparseable` entries — [#2546](https://github.com/baseballyama/rsvelte/issues/2546)
+### `unparseable` is now 0 — [#2546](https://github.com/baseballyama/rsvelte/issues/2546) closed
 
-`svelte-calendar/src/lib/docs/SvgThing__m0__block-with-brace.svelte` on `client` and
-`client-dev`: rsvelte emits `const h;`, which is a syntax error, where official compiles the
-mutant fine. **rsvelte's output here is wrong, not accepted** — these are parked so the gate
-can land, and they clear when #2546 does.
+The two parked entries (`svelte-calendar/.../SvgThing__m0__block-with-brace.svelte` on `client`
+and `client-dev`, where rsvelte emitted `const h;`) are gone, along with the wider invalid-JS
+cluster the full sweep surfaced: **16 unparseable at `d88546a7`, 10 after #2639/#2642, 0 after
+#2619/#2626**. Nine distinct seeds, closed by four PRs.
 
-`split_comma_separated_declarations` accumulates source lines until the declaration looks
-finished, and its `are_brackets_balanced` counts the `}` inside `/* } c */` as code, so
-`const wrap = …` swallows the following `let w, h;`. `split_top_level_commas`, run on that
-same accumulated string a few lines later, **is** comment-aware and splits at the `,`, and
-every part is re-prefixed with the first line's keyword. The defect is the inconsistency
-between two scans over one string, and it is the #2253 signature that #2283 consolidated five
-other scans out of.
+That progression is also the positive control for reading the current 0 — the same counter was
+non-zero twice on the same day, so this zero is a measurement rather than an instrument that
+cannot move.
 
-The seed also carried the same id as a `code-mismatch` before this; one comparison yields one
-verdict, so those two entries are superseded, not additional.
+Two of those PRs are worth separating, because each looks ineffective under the other's gate.
+#2619 changed 8 real corpus files and **0** mutation seeds; #2626 changed **0** real files and 5
+of the remaining seeds. A `0/0/0` corpus delta meant the byte-identity corpus could not express
+the shape, not that the change did nothing.
+
+**One shape in this family remains unreachable by this gate at any corpus size**: a delimiter
+inside an ordinary string literal reproduces the same defect with no comment present, and the
+operator inserts comments and only comments. See `gate-coverage.md` row 20a.
 
 ### The delimiter is one mechanism, no longer the dominant one
 
@@ -101,38 +104,49 @@ cannot drift from the ratchet it describes:
 
 | comment kind | findings | mutants | per 1,000 |
 |---|---|---|---|
-| `line-with-semi` (`// ; c`) | 87 | 1,520 | 57.2 |
-| `line-with-brace` (`// } c`) | 86 | 1,554 | 55.3 |
-| `block-with-paren` (`/* ) c */`) | 75 | 1,470 | 51.0 |
-| `block` (`/* c */`) | 61 | 1,511 | 40.4 |
-| `line-with-paren` (`// ) c`) | 60 | 1,556 | 38.6 |
-| `block-with-brace` (`/* } c */`) | 58 | 1,532 | 37.9 |
-| `svelte-ignore` | 52 | 1,460 | 35.6 |
-| `line` (`// c`) | 46 | 1,513 | 30.4 |
+| `line-with-semi` (`// ; c`) | 8 | 1,532 | 5.2 |
+| `block-with-paren` (`/* ) c */`) | 7 | 1,474 | 4.7 |
+| `block-with-brace` (`/* } c */`) | 7 | 1,535 | 4.6 |
+| `block` (`/* c */`) | 6 | 1,518 | 4.0 |
+| `line-with-paren` (`// ) c`) | 5 | 1,562 | 3.2 |
+| `line-with-brace` (`// } c`) | 3 | 1,558 | 1.9 |
+| `line` (`// c`) | 0 | 1,520 | 0.0 |
+| `svelte-ignore` | 0 | 1,467 | 0.0 |
 
-**Delimiter-carrying kinds: 46.0 per 1,000. Plain comments: 35.4. Ratio 1.30×.**
+**Delimiter-carrying kinds: 3.3 per 1,000. Plain comments: 2.0. Ratio 1.66×.**
 
-Under oxfmt 0.61 this ratio was **2.81×** and the section claimed the mechanism *was* the
-delimiter. It no longer supports that: the plain-comment rate rose from 8.0 to 35.4 per 1,000
-while the delimiter rate only doubled, so most of what 0.61 was absorbing is insensitive to the
-comment's content. The delimiter signal is real and still there — it is simply not the majority
-of this bucket.
+The ratio has now been measured at 2.81× (oxfmt 0.61), 1.30× (0.62), and 1.66× (0.62, after the
+invalid-JS burndown). It is not a stable property of the compiler: the first move was the
+normalizer changing what it absorbs, and the second was fixing delimiter-signature defects,
+which removes findings from the numerator by construction. Read it as a description of the
+current residue, not as a measure of the mechanism's importance.
+
+The two plain kinds are now at **0 findings each**, so every surviving code divergence in this
+bucket involves a delimiter-carrying comment.
 
 The delimiter share is the #2253 signature: a text-level rewrite locates a terminator by
 scanning bytes instead of lexing, so a `}` / `)` / `;` inside a comment is read as code. #2283
 consolidated five such scans behind `shared/js_scan.rs::skip_opaque`.
 
-The content-insensitive majority is a different mechanism. Sampling the first difference in the
-string each verdict is computed from, **353 of 525 (91%)** are a parenthesis: official emits
-`() => (items())` where rsvelte emits `() => items()`. On the unmutated seed the two agree, so
-inserting a comment is what changes rsvelte's paren emission.
+The paren mechanism recorded here — official emitting `() => (items())` where rsvelte emits
+`() => items()`, with the two agreeing on the unmutated seed — was measured as **353 of 525
+(91%)** of first-differences against the 525-entry baseline. **It has not been re-derived
+against the 36**, and the artifacts a passing run would need for it are deleted on success, so
+the share is left as a historical figure rather than restated. Do not quote 91% of the current
+bucket; re-measure with `--keep-artifacts` if the number is needed.
 
 ### By source repository
 
-`svelte` 151, `layerchart` 75, `flowbite-svelte` 69, `svelte.dev` 44, `skeleton` 43,
-`bits-ui` 24, `svelte-heroicons` 24, `shadcn-svelte` 14, `svelte-ux` 14, then a tail of ≤10
-each. The concentration tracks how much class-field and rest-props code each project ships,
-not anything about the projects themselves.
+`svelte` 17, `svelte.dev` 4, `flowbite-svelte` 3, `layerchart` 3, `powertable` 3, `layercake` 2,
+`runed` 2, `svelte-sonner` 2.
+
+**Two of the 36 are `runed`, and that is the reason this table is worth reading.** `runed` was
+one of two corpus submodules absent from the tree during the first attempt at this
+re-baseline. `collect.mjs` skips a missing source with a warning and exits 0, so the run
+measured 14,035 entries and looked complete — and `--update-baseline` would have deleted both of
+these as fixed while they still diverge, after which CI would have reported them as new. The
+`MIN_FULL_CORPUS_ENTRIES` floor cannot catch that: 14,035 clears a 12,000 lower bound. Only 2
+of the 36 corpus sources are marked `required`.
 
 ### Sensitivity to the normalizer
 
@@ -175,5 +189,5 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
   rewrite every entry for that file — surfacing as a regression and a staleness at once, for a
   divergence that had not changed.
 - Seeds already listed in `known-failures.<target>.json` are excluded: they diverge before
-  anything is inserted, so a divergent mutant of one is not attributable to the mutation. 2 of
-  14,131 entries are currently excluded on that basis.
+  anything is inserted, so a divergent mutant of one is not attributable to the mutation. **0**
+  of 14,138 entries are currently excluded on that basis — the collected corpus is saturated.

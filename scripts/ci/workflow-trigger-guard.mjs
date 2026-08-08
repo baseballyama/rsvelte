@@ -39,6 +39,11 @@ const PR_TRIGGERS = ['pull_request', 'pull_request_target'];
 // Keys that restrict a trigger to particular base branches.
 const BRANCH_FILTER_KEYS = ['branches', 'branches-ignore'];
 
+// A concurrency group must contain one of these to vary between two pushes to
+// the same branch. `github.ref` does not: it is `refs/heads/main` for every
+// merge, so a ref-keyed cancelling group makes each merge kill its predecessor.
+const PER_PUSH_CONTEXTS = ['github.sha', 'github.run_id'];
+
 /**
  * Workflows permitted to filter their PR trigger by base branch, each with the
  * reason. The reason is the point of the list: without it the intent survives
@@ -150,7 +155,23 @@ export function analyzeWorkflow(source, { name = '<source>' } = {}) {
 			.filter((k) => BRANCH_FILTER_KEYS.includes(k));
 		triggers.push({ trigger: trigger.key, filters });
 	}
-	return { triggers };
+
+	const pushes = directChildren(lines, onIndex + 1, 0).some((c) => c.key === 'push');
+
+	// Top-level only. A job-level `concurrency:` is scoped to that job and is how
+	// release.yml legitimately serialises its publish step.
+	let concurrency = null;
+	const concIndex = lines.findIndex((l) => indentOf(l) === 0 && keyOf(l) === 'concurrency');
+	if (concIndex !== -1) {
+		concurrency = { group: '', cancels: false };
+		for (const child of directChildren(lines, concIndex + 1, 0)) {
+			const value = inlineValueOf(child.line);
+			if (child.key === 'group') concurrency.group = value;
+			if (child.key === 'cancel-in-progress') concurrency.cancels = value === 'true';
+		}
+	}
+
+	return { triggers, pushes, concurrency };
 }
 
 /**
@@ -169,7 +190,25 @@ export function checkWorkflows(dir, allowlist = ALLOWLIST) {
 
 	for (const file of files) {
 		const source = readFileSync(join(dir, file), 'utf8');
-		const { triggers } = analyzeWorkflow(source, { name: file });
+		const { triggers, pushes, concurrency } = analyzeWorkflow(source, { name: file });
+
+		if (
+			pushes &&
+			concurrency?.cancels &&
+			!PER_PUSH_CONTEXTS.some((ctx) => concurrency.group.includes(ctx))
+		) {
+			violations.push({
+				file,
+				message:
+					`\`concurrency.group\` is \`${concurrency.group}\` with \`cancel-in-progress: true\`, ` +
+					`but this workflow runs on \`push\`. Every push to a branch shares one \`github.ref\`, ` +
+					`so each merge cancels its predecessor and the branch carries no verdict — which reads ` +
+					`exactly like a green one (#2435/#2593). Key the group by ` +
+					`\`\${{ github.head_ref || github.sha }}\` so pushes cannot collide, or set ` +
+					`\`cancel-in-progress: false\`.`,
+			});
+		}
+
 		for (const { trigger, filters } of triggers) {
 			if (filters.length === 0) continue;
 			filtered.add(file);

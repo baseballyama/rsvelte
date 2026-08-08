@@ -40,6 +40,37 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`, the `.svelte.js`
 module path) is internal IR construction with unchanged output — a maintainability cleanup only.
 
+**The client instance-script pipeline is the exception, and it is a correctness hazard, not a
+cleanup.** That pipeline still decides where a statement or an expression ends by scanning
+characters. Feeding every corpus output to a JS parser — a question no ratchet asks, because
+each one scores match/mismatch and so cannot distinguish "wrong text" from "text that is not
+JavaScript" — found **35 real-world components where rsvelte emitted output no JS parser
+accepts**, all confirmed against official (#2590, #2592, #2596, #2598, #2599, #2603). Every
+one is the same shape: a scanner assuming input it did not get.
+
+| what the scanner assumed | what broke it |
+|---|---|
+| a statement never ends on `=>` | an arrow body starting on the next line |
+| an RHS ends at `;`, `,` or an unbalanced closer | semicolon-free source (`standard` style) |
+| `\` before a quote means it is escaped | `'\\'` — the backslash was itself escaped |
+| a `$: if (…)` header ends its statement | `else` on the following line |
+| the setter call is rendered on one line | the printer breaking it across lines |
+
+Do not size this work against the performance case: re-parsing is 3-4% of compile time, the
+profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass
+`SemanticBuilder` construction measured ~2% with a 3.3% ceiling (#2602). **The justification
+is that these defect classes are unreachable in an AST pipeline, not that it is faster.**
+
+Two cautions before treating any of this as closed. The parse gate (#2591) catches only the
+loud half, and **how loud a given defect is depends on the input, not on the defect**: #2603's
+one mis-splice made 9 files unparseable and 6 files parseable-and-wrong (one assigns a boolean
+instead of a ternary's result), and #2598 emitted a bare `$:` labelled statement that every
+parser accepts. Sizing a text-scanning defect by its parse-gate count therefore understates it —
+see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that produced every one of
+these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not corpus sources**,
+so the gate baselines at 0 while the instances live outside the population it inspects; that is
+why each fix lands a `compatibility/pattern-corpus` repro.
+
 **The `JsNode` → `serde_json::Value` cost is one site, and it is not the lazy cache.**
 `to_value` has 54 call sites; every materialization figure this project has quoted (27,488 →
 12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
@@ -184,7 +215,7 @@ the corpus gate would also report. `--update-baseline` refuses to run under `--n
 
 ### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
 
-The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,027 corpus
+The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,138 corpus
 entries stop being the test set and become a **seed set**. One semantics-preserving comment is
 inserted at a line boundary inside a `<script>` region and parity is required on the mutant.
 PRs get a deterministic sample; main gets the full sweep (which is what the two-sided ratchet
@@ -195,11 +226,12 @@ vanish) in its first run.
 
 **Only the code class is ratcheted.** A divergent mutant is `code-mismatch` when the difference
 survives normalizing comments, whitespace and trailing commas away, `comment-mismatch`
-otherwise. The full sweep yields 213 of the former and 13,242 of the latter; ratcheting per id
+otherwise. The full sweep yields **36** of the former and 12,910 of the latter; ratcheting per id
 without that split would be a 13,000-entry file that churns on every submodule bump. Comment
 fidelity is ratcheted per id by Gate 2 instead, on generated seeds that do not move when a
-submodule bumps. Delimiter-carrying comments find code divergences **2.81×** as often as plain
-ones (22.4 vs 8.0 per 1,000 mutants) — the #2253 signature.
+submodule bumps. The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30×
+(0.62) and **1.66×** (0.62, post-burndown): it tracks the normalizer and the current residue,
+not the mechanism's importance, so do not cite it as a constant.
 
 Compilation runs in child processes (mirroring `compile.mjs`): a panic aborts the process, so a
 single-process sweep loses the whole run to one bad mutant — which is what happened first. The

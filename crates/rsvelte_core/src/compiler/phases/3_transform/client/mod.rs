@@ -6241,6 +6241,10 @@ fn transform_instance_script_for_visitors(
                     || t.ends_with('?')
                     // Binary `+` continuation: line ends with `+ ` (i.e., `+` not as part of `++`)
                     || (t.ends_with('+') && !t.ends_with("++"))
+                    // The exclusions above only keep a comparison out of the
+                    // assignment test; a line ending in one continues just the
+                    // same, its right operand being on the next line.
+                    || expression_utils::ends_with_binary_operator(t)
             };
 
             // A brace-less control-flow header (`$: if (cond)`, `else`, `for(...)`,
