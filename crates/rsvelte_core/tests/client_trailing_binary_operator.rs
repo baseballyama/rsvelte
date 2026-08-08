@@ -158,6 +158,24 @@ fn an_identifier_ending_in_in_is_not_the_in_operator() {
     );
 }
 
+/// `let m: Map<string, number>` ends in `>` and is a complete statement, so
+/// treating a trailing `>` as a continuation would swallow the next declaration —
+/// silently, since the result still parses. It does not, but only because
+/// `remove_typescript_nodes` strips the annotation before these scanners run;
+/// this pins that ordering rather than the tails being unambiguous. `|` (union)
+/// and `<`/`>` (generics) are the same argument.
+#[test]
+fn a_typescript_annotation_tail_is_not_a_continuation() {
+    let source = "<script lang=\"ts\">\n  let u: string | number\n  let m: Map<string, number>\n  let n = 1;\n  function go() { n = 2; u = 'a'; m = new Map() }\n</script>\n\n<p on:click={go}>{n}{u}{m}</p>\n";
+    let out = compile_to(source, GenerateMode::Client);
+    assert!(
+        out.contains("let u = $.mutable_source()")
+            && out.contains("let m = $.mutable_source()")
+            && out.contains("let n = $.mutable_source(1)"),
+        "a TS annotation's trailing `|` / `>` swallowed the next declaration:\n{out}"
+    );
+}
+
 /// `a++` ends a statement even though it ends in `+`. Reading every trailing `+`
 /// as a continuation would swallow the next statement.
 #[test]
