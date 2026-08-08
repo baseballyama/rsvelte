@@ -40,6 +40,15 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`, the `.svelte.js`
 module path) is internal IR construction with unchanged output — a maintainability cleanup only.
 
+**`JsNode` → `serde_json::Value` (`as_json()`) is closed as a performance target.** After
+#2510 / #2570 / #2576 the *entire* remaining materialization is 0.1–0.6% of compile time, and
+the reachable subset is smaller still — so a perfect fix cannot pay. The remaining JSON readers
+are a maintainability item, not a speed one; do not open a performance brief against them
+without new evidence. Ceiling table, the reason `get_literal_value` is the linchpin, and the
+reader-set attribution method (which generalises to **any** per-node cache here — first-reader
+attribution names the wrong site) are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-08--jsnode--serde_jsonvalue-is-closed-as-a-performance-target).
+
 **Key Design Decisions:**
 
 - Memory-efficient layout (u32 positions, compact_str)

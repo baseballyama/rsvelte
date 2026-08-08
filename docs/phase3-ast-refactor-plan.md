@@ -195,3 +195,61 @@ A session of corpus burndown (#1092, 248→120 known failures) probed how far th
   single-pass AST pipeline. Treat the 84 `wrap_derived_reads`/
   `transform_store_refs` call sites as one transform to consolidate, not as
   independently-portable units.
+
+## Findings (2026-08-08 — `JsNode` → `serde_json::Value` is closed as a performance target)
+
+`as_json()` materialization was a top optimization target for months (#2510,
+#2570, #2576 between them took Huly from 27,488 materializations to 3,649). It is
+now **spent**. Measured on `origin/main` @ 03d69cf5, timing `JsNode::to_value`
+against the compile clock in the same process — which bounds *any* win from this
+target, including a perfect one:
+
+| corpus | files | materializations | objects | to_value % of compile |
+|---|---|---|---|---|
+| huly/plugins, client | 2,123 | 3,649 | 21,016 | **0.18%** |
+| huly/plugins, client-dev | 2,123 | 3,798 | 21,479 | **0.11%** |
+| open-webui, client | 650 | 4,998 | 26,627 | **0.61%** |
+| open-webui, client-dev | 650 | 5,251 | 27,524 | **0.23%** |
+| carbon, client | 287 | 899 | 2,756 | **0.29%** |
+| SMUI, client | 449 | 973 | 5,828 | **0.55%** |
+
+Shares are the minimum of three runs (the machine was loaded; the spread reached
+6x on identical work, which is itself why an A/B cannot resolve an effect this
+size). Dev mode is **lower**, not higher — the fixed `to_value` cost is a smaller
+share of a slower compile.
+
+The **reachable** subset is smaller still. `get_literal_value` appears in every
+large reader set (68.9% of open-webui expressions, 30.4% of huly), so nothing
+zeroes without it — and typing it means porting the ~500-line context-dependent
+constant folder (`has_call_json` → `is_pure_json` / `references_any_binding_json`
+/ `arg_contains_state_or_raw_state_binding` / `has_reactive_state_json`). Its
+dominant root shape is corpus-specific — `CallExpression` on open-webui (2,227 of
+3,567 calls) but `Identifier`/`MemberExpression` on huly, where `CallExpression`
+is 149 — so the cheap typed arms pay on one corpus and ~0% on the largest.
+
+**The remaining JSON readers are a maintainability item, not a speed one.** Do not
+open a performance brief against them without new evidence that moves the table
+above.
+
+### Attribute a per-expression cache by reader *set*, not first reader
+
+The instrument that closed this generalises to **any per-expression or per-node
+cache in this codebase**: when a value is memoised per node, `#[track_caller]`
+attribution names only the *first* reader, so converting the site it blames moves
+the count by **zero** and the load simply shifts to a neighbour. That is not a
+precision loss — it points at the wrong site. Here it blamed
+`extract_metadata_from_tag` for 66.7% of materializations; converting it left the
+count unchanged and `expression_has_reactive_state` rose 1,933 → 20,264. Record
+instead the **set** of distinct callers per node (push into the node, flush on
+`Drop`) and read off which *groups* of predicates must be converted together — the
+reduction is the number of expressions for which *every* reader is eliminated.
+
+A ~240-line `measure-json` patch adding caller attribution, the reader-set probe,
+a `to_value` timer and a `--dev` flag to `json_materialize_count` was written for
+this measurement and deliberately **not merged** (a feature-gated instrument with
+no reader is a maintenance cost). It was left at
+`…/58e89901-1dd1-461f-9ecf-885ad915f3c3/scratchpad/json-residual-instrumentation.patch`
+in session scratch, which is **ephemeral** — assume it is gone and rebuild from
+the description above; it is an afternoon's work against
+`crates/rsvelte_core/src/ast/js.rs` and
+`crates/rsvelte_devtools/src/bin/json_materialize_count.rs`.
