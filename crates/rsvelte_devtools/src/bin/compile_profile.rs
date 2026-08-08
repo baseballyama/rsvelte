@@ -343,6 +343,45 @@ fn main() {
         "    PAIRING entries_outside_parent {}",
         st.entries_outside_parent
     );
+    let pn = profile::take_prenormalize_counters();
+    if pn.files > 0 {
+        let any_changed =
+            pn.chg_comments + pn.chg_class_fields + pn.chg_split_decls + pn.chg_arrow_parens;
+        let any_invoked =
+            pn.inv_comments + pn.inv_class_fields + pn.inv_split_decls + pn.inv_arrow_parens;
+        println!(
+            "    SPAN-VALIDITY files {} | text changed {} ({:.2}%) => spans valid {:.2}%",
+            pn.files,
+            pn.text_changed,
+            pn.text_changed as f64 / pn.files as f64 * 100.0,
+            (pn.files - pn.text_changed) as f64 / pn.files as f64 * 100.0
+        );
+        println!(
+            "      PN invoked {} vs changed {} | comments {}/{} class {}/{} split {}/{} arrow_parens {}/{}  (invoked/changed)",
+            any_invoked,
+            any_changed,
+            pn.inv_comments,
+            pn.chg_comments,
+            pn.inv_class_fields,
+            pn.chg_class_fields,
+            pn.inv_split_decls,
+            pn.chg_split_decls,
+            pn.inv_arrow_parens,
+            pn.chg_arrow_parens,
+        );
+        println!(
+            "      IDENTITY text_changed {} vs files-with-any-change {} -> {} | sum(changed) {} exceeds by {} (files two transforms both touched)",
+            pn.text_changed,
+            pn.any_changed_files,
+            if pn.text_changed == pn.any_changed_files {
+                "HOLDS"
+            } else {
+                "FAILS"
+            },
+            any_changed,
+            any_changed as i64 - pn.any_changed_files as i64,
+        );
+    }
     if sp.calls > 0 {
         println!(
             "    STATE-PIPELINE calls {} | bail-at-first-gate {} ({:.1}%) | String clones avoided {}",

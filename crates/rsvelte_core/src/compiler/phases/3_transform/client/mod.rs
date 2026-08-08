@@ -143,6 +143,11 @@ pub(super) static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
 // $derived destructuring patterns in the same component.
 // This is reset at the start of each component transformation.
 thread_local! {
+    /// Set when any prenormalize transform changed the text, so a file touched
+    /// by two of them is counted once rather than twice.
+    #[cfg(feature = "measure-pa-split")]
+    pub(super) static PN_FILE_TOUCHED: Cell<bool> = const { Cell::new(false) };
+
     pub(super) static SCRIPT_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
     // Counter for looking up which $$array variable to use when processing nested patterns
     // This must stay in sync with SCRIPT_ARRAY_COUNTER
@@ -4643,11 +4648,24 @@ fn transform_instance_script_for_visitors(
     // Upstream rebuilds every `$:` statement as a synthesized
     // `legacy_pre_effect(...)` call, so its comments have nothing left to
     // attach to. Everything else in the script keeps them.
+    // Span-validity gate for the text->AST migration: Phase 2's spans survive
+    // into the line loop exactly when prenormalize leaves the text untouched.
+    #[cfg(feature = "measure-pa-split")]
+    let pn_entry_text: &str = script;
+    super::profile::record_pn(super::profile::PN_FILES);
+
     let script: std::borrow::Cow<str> = if analysis.runes || !legacy_script_has_dollar_token(script)
     {
         std::borrow::Cow::Borrowed(script)
     } else {
-        std::borrow::Cow::Owned(rehome_reactive_statement_comments(script))
+        super::profile::record_pn(super::profile::PN_INV_COMMENTS);
+        let out = rehome_reactive_statement_comments(script);
+        #[cfg(feature = "measure-pa-split")]
+        if out != script {
+            super::profile::record_pn(super::profile::PN_CHG_COMMENTS);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        std::borrow::Cow::Owned(out)
     };
 
     // Transform class fields only if the script contains class definitions with runes
@@ -4655,7 +4673,14 @@ fn transform_instance_script_for_visitors(
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some())
     {
-        std::borrow::Cow::Owned(transform_class_fields_client(&script))
+        super::profile::record_pn(super::profile::PN_INV_CLASS);
+        let out = transform_class_fields_client(&script);
+        #[cfg(feature = "measure-pa-split")]
+        if out != *script {
+            super::profile::record_pn(super::profile::PN_CHG_CLASS);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        std::borrow::Cow::Owned(out)
     } else {
         script
     };
@@ -4667,7 +4692,14 @@ fn transform_instance_script_for_visitors(
     let script: std::borrow::Cow<str> = if split_top_level_declarations
         || (class_transform_can_add_declarations && might_have_comma_separated_declaration(&script))
     {
-        std::borrow::Cow::Owned(crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script))
+        super::profile::record_pn(super::profile::PN_INV_SPLIT);
+        let out = crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script);
+        #[cfg(feature = "measure-pa-split")]
+        if out != *script {
+            super::profile::record_pn(super::profile::PN_CHG_SPLIT);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        std::borrow::Cow::Owned(out)
     } else {
         script
     };
@@ -4683,10 +4715,27 @@ fn transform_instance_script_for_visitors(
     let script_rest = if memmem::find(script_rest_raw.as_bytes(), b"=> (").is_some()
         || memmem::find(script_rest_raw.as_bytes(), b"=>(").is_some()
     {
-        strip_unnecessary_arrow_body_parens(&script_rest_raw)
+        super::profile::record_pn(super::profile::PN_INV_ARROW);
+        let out = strip_unnecessary_arrow_body_parens(&script_rest_raw);
+        #[cfg(feature = "measure-pa-split")]
+        if out != script_rest_raw {
+            super::profile::record_pn(super::profile::PN_CHG_ARROW);
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+        }
+        out
     } else {
         script_rest_raw
     };
+
+    #[cfg(feature = "measure-pa-split")]
+    {
+        if script_rest != pn_entry_text {
+            super::profile::record_pn(super::profile::PN_TEXT_CHANGED);
+        }
+        if PN_FILE_TOUCHED.with(|c| c.replace(false)) {
+            super::profile::record_pn(super::profile::PN_ANY_CHANGED);
+        }
+    }
 
     super::profile::record_st_prenormalize(super::profile::timer_elapsed(_stage));
     let _stage = super::profile::timer_start();

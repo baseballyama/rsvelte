@@ -466,6 +466,86 @@ pub fn record_st_runes(d: Duration) {
     ST_RUNES.with(|c| c.set(c.get() + d));
 }
 
+/// Prenormalize accounting for the text->AST migration's span-validity gate.
+///
+/// Phase 2's spans stay valid into `line_loop` exactly when prenormalize left
+/// the script byte-identical. `invoked` and `changed` are counted separately
+/// because a transform can run its guard, do nothing, and still be counted as a
+/// blocker by anyone reading the guard conditions instead of the outcome.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct PrenormalizeCounters {
+    pub files: u64,
+    /// Files whose text differs between pipeline entry and `line_loop` entry.
+    pub text_changed: u64,
+    pub inv_comments: u64,
+    pub chg_comments: u64,
+    pub inv_class_fields: u64,
+    pub chg_class_fields: u64,
+    pub inv_split_decls: u64,
+    pub chg_split_decls: u64,
+    pub inv_arrow_parens: u64,
+    pub chg_arrow_parens: u64,
+    /// Files where at least one transform changed the text. Distinct from the
+    /// sum of the per-transform counts, which double-counts a file that two
+    /// transforms both touched -- that difference is why the naive identity
+    /// `text_changed == sum(changed)` fails for a benign reason.
+    pub any_changed_files: u64,
+}
+
+#[cfg(feature = "measure-pa-split")]
+thread_local! {
+    static PN: Cell<[u64; 11]> = const { Cell::new([0; 11]) };
+}
+
+#[cfg(feature = "measure-pa-split")]
+#[inline]
+pub fn record_pn(idx: usize) {
+    PN.with(|c| {
+        let mut a = c.get();
+        a[idx] += 1;
+        c.set(a);
+    });
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+#[inline(always)]
+pub fn record_pn(_idx: usize) {}
+
+pub const PN_FILES: usize = 0;
+pub const PN_TEXT_CHANGED: usize = 1;
+pub const PN_INV_COMMENTS: usize = 2;
+pub const PN_CHG_COMMENTS: usize = 3;
+pub const PN_INV_CLASS: usize = 4;
+pub const PN_CHG_CLASS: usize = 5;
+pub const PN_INV_SPLIT: usize = 6;
+pub const PN_CHG_SPLIT: usize = 7;
+pub const PN_INV_ARROW: usize = 8;
+pub const PN_CHG_ARROW: usize = 9;
+pub const PN_ANY_CHANGED: usize = 10;
+
+#[cfg(feature = "measure-pa-split")]
+pub fn take_prenormalize_counters() -> PrenormalizeCounters {
+    let a = PN.with(|c| c.replace([0; 11]));
+    PrenormalizeCounters {
+        files: a[0],
+        text_changed: a[1],
+        inv_comments: a[2],
+        chg_comments: a[3],
+        inv_class_fields: a[4],
+        chg_class_fields: a[5],
+        inv_split_decls: a[6],
+        chg_split_decls: a[7],
+        inv_arrow_parens: a[8],
+        chg_arrow_parens: a[9],
+        any_changed_files: a[10],
+    }
+}
+
+#[cfg(not(feature = "measure-pa-split"))]
+pub fn take_prenormalize_counters() -> PrenormalizeCounters {
+    PrenormalizeCounters::default()
+}
+
 /// `transform_state_pipeline_ast`'s pre-filter accounting. All deterministic,
 /// so a fix that claims to remove this work has to move them.
 #[derive(Default, Debug, Clone, Copy)]
