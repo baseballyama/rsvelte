@@ -172,3 +172,7 @@ compatibility/check-e2e-report.json
 /target-ast/
 /target-rt/
 /target-verify/
+
+# plugin-swap gate: the ratchet + its .md are tracked, the run output is not
+compatibility/plugin-swap-report.json
+compatibility/.plugin-swap-*.json

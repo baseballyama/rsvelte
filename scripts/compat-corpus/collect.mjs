@@ -50,7 +50,20 @@ const SOURCES = JSON.parse(fs.readFileSync(path.join(__dirname, 'corpus-sources.
 /** Recursively list files, skipping node_modules/.git and other junk. */
 function walk(dir, out = []) {
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-		if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.svelte-kit') continue;
+		// `dist` is build output: a local build (the plugin-swap gate's `prepare`
+		// step) leaves one behind, and it would enter the corpus as duplicated
+		// entries. Two sources DO commit a `dist/` (svelte-table, svelte-toggle)
+		// but neither holds a `.svelte`/`.svelte.[jt]s` file, so this skip drops
+		// zero entries today — verified by collecting with and without it (14130
+		// both ways). A future source that ships components under `dist/` would
+		// lose them here.
+		if (
+			entry.name === 'node_modules' ||
+			entry.name === '.git' ||
+			entry.name === '.svelte-kit' ||
+			entry.name === 'dist'
+		)
+			continue;
 		const full = path.join(dir, entry.name);
 		if (entry.isDirectory()) walk(full, out);
 		else if (entry.isFile()) out.push(full);

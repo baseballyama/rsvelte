@@ -940,6 +940,12 @@ jobs:
       - name: Run vite-plugin-svelte native shim smoke test
         run: pnpm run test:vps-shim
 
+      # The fixture-level counterpart: reads a real .svelte file off disk and
+      # runs the preprocess -> compile -> hmrDiff path a Vite transform takes.
+      # Shipped in package.json but never wired into CI until now.
+      - name: Run vite-plugin-svelte fixture test
+        run: pnpm run test:vps-fixture
+
   corpus-verify-flags:
     name: Corpus verify baseline-flag contract
     runs-on: ubuntu-latest

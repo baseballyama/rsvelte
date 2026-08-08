@@ -581,6 +581,104 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
 There is no separate scheduled "ecosystem" workflow — the corpus *is* the
 ecosystem coverage, and the weekly submodule bumps are what keep it current.
 
+## Plugin-swap parity (the layer the corpus cannot see)
+
+Every track above compares compiler **output**. None of them observes which
+files the **Vite plugin** decides to hand to the compiler, so a plugin that
+silently skips a dependency's `.svelte.js` module is green across all of them
+and still breaks every real app.
+
+`plugin-swap-verify.mjs` runs a pinned real project's own test suite twice
+against **one** dependency tree — official `@sveltejs/vite-plugin-svelte`, then
+`@rsvelte/vite-plugin-svelte` — and requires the same tests to pass.
+
+```bash
+pnpm run plugin-swap            # sync submodule + build NAPI + verify
+pnpm run plugin-swap:verify     # verify only (tree already installed)
+pnpm run plugin-swap:update     # re-baseline after a fix
+node scripts/compat-corpus/plugin-swap-verify.mjs bits-ui --skip-install
+```
+
+Targets live in [`plugin-swap-targets.json`](./plugin-swap-targets.json). The gate
+runs from its own workflow (`plugin-swap.yml`), scoped per-PR to the paths that
+can move plugin-layer file selection and scheduled + on push to main otherwise —
+for a `crates/**` change the corpus already proves byte-identical output, so this
+gate adds near-zero information there at real cost.
+
+The ratchet is **two-sided** (#2287): a baselined entry that starts passing fails
+the gate exactly as a new divergence does. `--update` refuses to *grow* the
+baseline without `--allow-growth`, so a bad run cannot enshrine its own wreckage.
+
+### Why it is hermetic (and therefore a PR gate)
+
+The predecessor `ecosystem-ci` installed targets with `--no-frozen-lockfile` to
+track upstream, so an unrelated npm release could turn a PR red — which is why
+it could only ever be nightly, and why every failure issue it filed was noise.
+This gate inverts that:
+
+- **`--frozen-lockfile`** — the target's own lockfile pins vite/vitest/svelte.
+- **Symlink swap, no re-resolution.** The resolved plugin directory is replaced
+  in place, so *nothing else in the target's tree moves*. An `overrides` +
+  reinstall would re-float the whole graph (measured: one reinstall drifted vite
+  7.1.5→7.3.6, vitest 3.2.4→3.2.7, playwright 1.60→1.62).
+- **Playwright pinned by the target's lockfile**, cached on its hash, installed
+  `--with-deps` on Linux (webkit will not launch on a bare `ubuntu-latest`).
+- **`swap-noop` is a hard failure** — if the swap silently doesn't take, the run
+  would be verifying the official plugin against itself.
+- **A zero baseline is a hard failure.** If the official plugin cannot pass its
+  own suite at a committed pin, the gate has verified nothing and says so. It is
+  deliberately not treated as "no regressions": that would make the gate loudest
+  that all is well exactly when it knows least.
+- **One vitest project per invocation**, keyed `project|file|test`. The JSON
+  reporter carries no project discriminator at vitest 3.2.4, so a merged report
+  let one surviving engine mask another's dead suite.
+
+The residual, stated rather than left to be derived: the shim's own runtime deps
+resolve through the symlink's realpath, so they come from the **rsvelte root**
+lockfile, not the target's. That is intended — the point is to test the shim as
+shipped — and both lockfiles are committed, so runs are reproducible. But the two
+sides are pinned by two different lockfiles, and a root-lockfile bump moves the
+swapped side alone.
+
+Upstream drift still arrives, but through the weekly submodule bump, where it
+lands as its own PR instead of someone else's.
+
+### Flake handling
+
+A candidate `test-regression` is re-run once, for just that file, inside the swap
+window; it is only reported if it reproduces. Without that, one flaky test in the
+target becomes a red on an unrelated PR with no obvious cause — which is how
+ecosystem-ci earned its reputation the first time. `suite-load-failure` skips the
+re-run: a dead module is deterministic, and it is the class that found #2299.
+
+### Two resolution invariants the gate asserts
+
+Both were learned the hard way — each produced a confident, entirely fictional
+result before being asserted.
+
+1. **The shim and the target must resolve the same `vite`.** Node resolves a
+   symlinked package's imports from its *realpath*, so an earlier symlink-based
+   swap had the shim importing vite 8 (rolldown) while driving a vite 7
+   (esbuild) server. `setup-optimizer.js` branches on `rolldownVersion`, so it
+   registered its optimizer plugins where nothing read them and every prebundled
+   dependency `.svelte.js` reached the browser uncompiled — a 1239 → 0
+   measurement that was entirely the harness. The shim is now staged as a real
+   directory with peers linked from the **target**, and the versions are
+   compared before the run.
+
+2. **The target's svelte must equal the version rsvelte mirrors.** Official's
+   plugin compiles with `svelte/compiler` resolved *from the target*, so its
+   output always matches the runtime that target ships. rsvelte's compiler is
+   pinned to the svelte it mirrors. bits-ui at 5.46.4 against a 5.56.8 mirror
+   produced 2436 "regressions" — all from `rest_props`'s `exclude` changing
+   Array (`.includes`) → Set (`.has`) between those versions.
+
+The second is a **standing constraint, not a bug**: a target is only valid while
+its svelte pin equals the mirrored version, and the weekly submodule bump can
+invalidate that at any time. The gate hard-fails rather than reporting a diff it
+cannot attribute, but choosing how to live with it (pin the target's svelte
+during setup, or only enrol matching targets) is an open decision.
+
 ## Lint parity (eslint-plugin-svelte)
 
 A third track verifies that the native `rsvelte-lint` produces the **same
