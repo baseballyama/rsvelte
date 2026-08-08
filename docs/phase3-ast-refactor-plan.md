@@ -240,16 +240,32 @@ One `Box` per expression node (`Expression::from_node` is
 `Box::new(TypedExpr::new(node))`), and — because `serde_json` is built with
 `preserve_order` — every `Value` object key is a fresh `String` malloc plus an
 `IndexMap` slot plus a SipHash, drawn from a set of only **88 distinct static keys**
-(no dynamic keys on this path). Two independent instruments agree on the magnitude:
-**~8.9 allocations per JSON object** (huly, both sides' corrected runs), and **1.78
-allocations per map entry** on huly — exactly what `preserve_order` predicts (one key
-`String` + ~0.78 amortised table growth). carbon and open-webui compute to 8.87 and
-8.82 on the same method; those two divide by object counts taken before a warm-up
-double-count was fixed in the counting instrument (absolutes ran ~4.7% high,
-proportions unaffected), so read them as "the same order as huly", not as a
-three-corpus agreement to three digits. This is the only identified item whose
-magnitude is the right order. **It needs its own scoping; do not start it from this
-doc — but start the next brief here rather than re-deriving it.**
+(no dynamic keys on this path). Two independent instruments — an allocator-event
+sampler and an object/entry counter, sharing no assumption — agree on the magnitude
+across three corpora:
+
+| corpus | allocations at the site | objects | **per object** | map entries | **per map entry** |
+|---|---|---|---|---|---|
+| huly | 635,202 | 71,293 | **8.910** | 356,896 | **1.780** |
+| carbon | 122,291 | 13,790 | **8.868** | 67,522 | **1.811** |
+| open-webui | 136,305 | 15,452 | **8.821** | 77,191 | **1.766** |
+
+1.0% spread on per-object, 2.5% on per-entry. The per-entry figure is the
+mechanistically meaningful one: **~1.78 allocations per map entry is exactly what
+`preserve_order` predicts** — one `String` malloc for the key plus ~0.78 amortised
+`IndexMap` table/vec growth — and it had no freedom to land there by accident. This
+is the only identified item whose magnitude is the right order. **It needs its own
+scoping; do not start it from this doc — but start the next brief here rather than
+re-deriving it.**
+
+The producer is a single function. `to_value`'s row above is a roll-up (limit 1
+below); on legacy-`$:` corpora it resolves almost entirely to
+`instance_labeled_statements_json` (`2_analyze/mod.rs`), which serialises every
+top-level `LabeledStatement` in the instance script. Measured inclusively from the
+allocation side it is **84.7% / 91.5% / 36.0% / 0%** of all `to_value` allocation on
+huly / carbon / open-webui / SMUI — the counter's independent object shares are
+77% / 82% / 34% / 0%. **SMUI is a clean zero on both instruments**, so this is gated
+on legacy `$:` density, not on component size.
 
 ### FxHash probe: a lower bound on the key-representation fix, not a rejected optimisation
 
