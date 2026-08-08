@@ -216,13 +216,16 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             value, raw, regex, ..
         } => match value {
             LiteralValue::String(s) => {
-                if raw.starts_with('"') {
+                // esrap writes `node.raw` whenever it is set, so quote style AND
+                // escape spelling come from the source; the printer's escape set
+                // is not esrap's, and cooking here loses `\t`, `\x41`, …
+                if raw.is_empty() {
+                    JsExpr::Literal(JsLiteral::String(s.to_string().into()))
+                } else {
                     JsExpr::Literal(JsLiteral::RawString {
                         value: s.to_string().into(),
                         raw: raw.to_string().into(),
                     })
-                } else {
-                    JsExpr::Literal(JsLiteral::String(s.to_string().into()))
                 }
             }
             LiteralValue::Number(n) => {
@@ -1703,12 +1706,11 @@ fn convert_literal(
 
     match value {
         Some(Value::String(s)) => {
-            // Check the `raw` property to preserve original quote style.
-            // The official Svelte compiler (esrap) preserves the original quote style
-            // from user source code. If the raw representation uses double quotes,
-            // emit via Raw() to preserve them through OXC normalization.
+            // esrap writes `node.raw` whenever it is set, so quote style AND
+            // escape spelling come from the source; the printer's escape set is
+            // not esrap's, and cooking here loses `\t`, `\x41`, …
             if let Some(Value::String(raw)) = obj.get("raw")
-                && raw.starts_with('"')
+                && !raw.is_empty()
             {
                 return JsExpr::Literal(JsLiteral::RawString {
                     value: s.clone().into(),

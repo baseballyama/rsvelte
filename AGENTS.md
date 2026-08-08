@@ -198,9 +198,20 @@ corpus could never have found them — the same lesson as the warning gate, one 
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
 ratcheted through `compatibility/matrix-known-failures.json` with per-cluster justification in
-the paired `.md`. Two declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
-position, and comment kind × insertion slot — expanded into ~2,000 comparisons that run in
-**~5 s** and need only `submodules/svelte` plus the NAPI binding, so it gates every PR.
+the paired `.md`. Three declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
+position, comment kind × insertion slot, and string-literal escape × template expression slot —
+expanded into ~3,200 comparisons that run in **~7 s** and need only `submodules/svelte` plus the
+NAPI binding, so it gates every PR.
+
+The third family is the first to inject into **markup** rather than into a JS statement inside
+`<script>`, which gate-coverage 5c names as this gate's largest blind spot. Its axis is chosen
+for a class no other gate can see: esrap writes a literal's `raw`, so official's output carries
+the source's escape spelling, and a printer that re-emits the cooked value produces text that
+**parses and computes the right value** while differing byte-for-byte. Neither the parse gate
+nor a runtime test can observe that. Nor can a committed repro file, which is the reason the
+axis had to be generated: the fmt oracle rewrites single quotes to double, and double-quoted
+literals were the one shape that already worked — the formatted form of the repro reproduces
+nothing.
 
 It exists because the collected corpus samples the **marginal** distribution of published code
 while every bug in the #2253/#2254/#2255/#2256 batch was an **interaction**: #2254's shape occurs

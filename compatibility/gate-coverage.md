@@ -45,7 +45,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403) | [S] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start` | error **`end`** and `frame` — never captured | [D] |
-| 5 | Generated shape matrix | per-case × target JS text | `.svelte.(js\|ts)` shapes; CSS; warnings; template positions | [S] |
+| 5 | Generated shape matrix | per-case × target JS text | CSS; warnings; both-reject error detail; most template positions | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1430 generated components | `js.code`; **an empty population exits 0** | [D] |
@@ -218,8 +218,8 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 665 generated cases × 3 targets = 1995 comparisons of `js.code` only
-(`matrix/run.mjs:106,110,164-166`), oxfmt-normalized identically to `verify.mjs`.
+**Unit.** 1081 generated cases × 3 targets = 3243 comparisons of `js.code` only
+(`matrix/run.mjs:134,139,166-167`), oxfmt-normalized identically to `verify.mjs`.
 
 ### Blind spot 5a — generated inputs are always `.svelte` components
 
@@ -242,14 +242,26 @@ Sharpest form: `axes.mjs:186` generates a `// svelte-ignore a11y_…` comment ki
 injects svelte-ignore directives and then structurally cannot observe whether they suppress
 anything.
 
-### Blind spot 5c — no template-markup positions
+### Blind spot 5c — template-markup positions, now partially covered
 
-Every position in `axes.mjs:117-165` injects into a JS statement context inside the instance
-`<script>` (or an inline handler body). Absent: `{expr}` interpolation, attribute values,
-`{#if}` / `{#each}` / `{#await}` expression slots, `bind:`, `use:`, `transition:`, spread
-attributes, `{@html}`, `{@const}`. **[S]** Comment insertion is likewise restricted to
-`<script>` bodies (`mutate.mjs:22-34`, `:48`), a deliberate and documented exclusion
-(`mutate.mjs:9-13`) — so HTML comments `<!-- -->` are never mutated.
+Every position in `axes.mjs`'s `POSITIONS` injects into a JS statement context inside the
+instance `<script>` (or an inline handler body). The `literal-escape` family adds the first
+markup axis — `EXPRESSION_SLOTS`, 14 slots: `{expr}`, an attribute value, `{@const}`, a handler
+body, `{#if}` / `{#each}` / `{#await}` / `{#key}` heads, `{@html}`, `{@render}`, `class:` and
+`style:` directives, a spread attribute, and an instance declaration.
+
+It crosses those slots with **one** axis: how a string literal spells itself. Still
+**unmeasured**: every other expression shape in those same slots, and the directive families
+`use:` / `transition:` / `animate:` / `in:` / `out:`, which no slot here reaches. **[S]** Comment
+insertion is likewise restricted to `<script>` bodies (`mutate.mjs:22-34`, `:48`), a deliberate
+and documented exclusion (`mutate.mjs:9-13`) — so HTML comments `<!-- -->` are never mutated.
+
+What the escape axis is for is worth stating, because the class is easy to dismiss as cosmetic:
+these divergences produce output that **parses and computes the right value** and differs only
+in text. The parse gate cannot see them, a runtime test cannot see them, and the only gate that
+can is a byte comparison — which is why the axis had to be generated rather than collected: a
+formatted repro file is not one, since the fmt oracle rewrites the very quote style that
+distinguishes the failing shape from the working one.
 
 ### Blind spot 5d — both-reject cases discard the error entirely
 
@@ -257,9 +269,9 @@ attributes, `{@html}`, `{@const}`. **[S]** Comment insertion is likewise restric
 captured. **[S]** rsvelte can reject a shape with an entirely wrong code at an entirely wrong
 offset and the case is scored as parity.
 
-**Closing 5b/5c:** the matrix runs in ~5 s on ~2000 comparisons. Adding a third axis family
-(template-position × comment kind) or reading `.warnings` is cheap relative to every other gate
-here. This is the highest value-per-cost item in this document.
+**Closing 5b/5c:** the matrix runs in ~7 s on ~3200 comparisons. Widening the markup axis
+(a second expression axis against `EXPRESSION_SLOTS`) or reading `.warnings` is cheap relative
+to every other gate here. This remains the highest value-per-cost item in this document.
 
 ---
 

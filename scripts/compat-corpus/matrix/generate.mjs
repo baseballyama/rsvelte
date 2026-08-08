@@ -5,7 +5,15 @@
  * key), so adding a row to one axis never renumbers the others.
  */
 
-import { BINDINGS, POSITIONS, COMMENT_KINDS, COMMENT_SEEDS, COMMENT_MODULE_SEEDS } from './axes.mjs';
+import {
+	BINDINGS,
+	POSITIONS,
+	COMMENT_KINDS,
+	COMMENT_SEEDS,
+	COMMENT_MODULE_SEEDS,
+	LITERAL_ESCAPES,
+	EXPRESSION_SLOTS,
+} from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
 function bindingPositionCases() {
@@ -45,9 +53,23 @@ function commentSlotCases() {
 	return cases;
 }
 
+function literalEscapeCases() {
+	const cases = [];
+	for (const [escapeName, literal] of Object.entries(LITERAL_ESCAPES)) {
+		for (const [slotName, markup] of Object.entries(EXPRESSION_SLOTS)) {
+			cases.push({
+				id: `literal-escape/${escapeName}__${slotName}.svelte`,
+				source: markup.replaceAll('%s', literal) + '\n',
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
+	'literal-escape': literalEscapeCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

@@ -84,6 +84,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2598-escaped-backslash-reactive-statement.svelte` | [#2598](https://github.com/baseballyama/rsvelte/pull/2598) | The same scanner defect with a `$:` statement after the string instead of an `export`: the label survives into the component body as a labelled statement, which **parses**. No parse-level gate can see this half — only output equality can, which is why it is pinned here separately |
 | `2599-reactive-else-next-line.svelte` | [#2599](https://github.com/baseballyama/rsvelte/pull/2599) | A `$:` whose `if` header and `else` clause are on **separate lines** — the client instance-script line accumulator decides where a statement ends by looking at what the next line starts with, and its continuation set (`.`, `?`, `:`, `&&`, `||`, `??`) had no entry for the `else` keyword, so the statement was closed after the `if` and the `else` fell outside the reactive body |
 | `2607-escaped-backslash-constant-fold.svelte` | [#2607](https://github.com/baseballyama/rsvelte/issues/2607) | A known-const `'\\'` folded into an element's `textContent`. The fold read the initializer's **source text** and left every non-codepoint escape undecoded, so the emitter escaped it a second time and the component rendered two backslashes. Output is valid JavaScript computing the wrong string — the parse gate is blind to it, and it diverged on client, server **and** client-dev |
+| `2653-literal-raw-escape-spelling.svelte` | [#2653](https://github.com/baseballyama/rsvelte/issues/2653) | A single-quoted string literal in a template expression. esrap writes a literal's `raw`, so official's output carries the source spelling; rsvelte kept `raw` only when it started with `"` and re-printed everything else from the cooked value, turning `'a\tb'` into a real tab and `'\x41'` into `'A'`. The **value is right** and the output parses — a source-text divergence, invisible to the parse gate. Deliberately unformatted: the fmt oracle rewrites the quotes to `"`, which is the one shape that already worked |
 
 ## `matrix/` — the axes around those repros
 
@@ -233,6 +234,29 @@ read as an element's only child, so the resolution decides between a static
 | `boundary-children.svelte` | `{@const}` in `<svelte:boundary>` children |
 | `destructured-const.svelte` | destructuring `{@const { value } = …}` |
 | `shadows-prop.svelte` | the shadowed binding is a **prop** (the read must not become `$$props.x`) |
+
+### `string-escape-spelling/` — the same escapes, one step later (around #2653)
+
+`string-escape-fold/` covers escapes on the **fold** path, where the compiler
+computes a *value* and re-escapes it once. This one covers the escapes that
+never get folded: a literal that reaches the template-expression converter and
+is printed back out. esrap writes a literal's `raw`, so official's output
+carries the source's spelling; a printer that re-emits the cooked value agrees
+about the string and disagrees about its text — output that parses and runs
+correctly, which is why it sat under the parse gate.
+
+`newline-escape.svelte` and `backslash-escape.svelte` are the **negative
+controls**: `\n` and `\\` are in the printer's own escape set, so they matched
+before the fix and must keep matching.
+
+**Kept deliberately unformatted (single-quoted).** The fmt oracle rewrites every
+literal to double quotes, and a double-quoted literal was the one shape that
+*already* kept its `raw` — so the formatted form of every file here reproduces
+nothing. This class cannot be pinned by a file that is a formatter fixed point;
+the formatted shape is not a stricter version of the input, it is a different
+input. The generated `literal-escape` matrix family is the primary gate for the
+class (it constructs its own sources and never passes through the formatter);
+these files are the committed repro beside it.
 
 ### `string-escape-fold/` — escape kind × fold site (around #2607)
 
