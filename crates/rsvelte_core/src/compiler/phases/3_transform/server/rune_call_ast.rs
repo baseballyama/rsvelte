@@ -96,11 +96,11 @@ pub(crate) fn transform_rune_calls_combined(script: &str, prefixes: &[&str]) -> 
             ..ParseOptions::default()
         },
         |program| {
-            super::super::profile::record_semantic_build(
+            let semantic_ret = super::super::profile::semantic_build(
                 super::super::profile::SEM_SERVER_RUNE_CALL,
                 program.source_text.len(),
+                || SemanticBuilder::new().build(program),
             );
-            let semantic_ret = SemanticBuilder::new().build(program);
             let mut collector = RuneCallCollector {
                 semantic: &semantic_ret.semantic,
                 script,

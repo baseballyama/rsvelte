@@ -219,11 +219,11 @@ pub fn transform_state_reads_ast(
             ..ParseOptions::default()
         },
         |program| {
-            super::super::profile::record_semantic_build(
+            let semantic_ret = super::super::profile::semantic_build(
                 super::super::profile::SEM_STATE_READS,
                 program.source_text.len(),
+                || SemanticBuilder::new().with_build_nodes(true).build(program),
             );
-            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let semantic = &semantic_ret.semantic;
             let effective_names: Vec<String> = effective.iter().map(|s| s.to_string()).collect();
             let state_var_symbols = find_state_var_symbols(semantic, &effective_names);

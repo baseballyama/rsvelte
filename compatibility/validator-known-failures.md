@@ -17,7 +17,7 @@ compatibility/validator-known-failures.json (they already pass)` is your change
 succeeding, not unrelated breakage. Re-run the suite and delete the entries it
 names; never hand-edit a count to match.
 
-## Current baseline: `validator-known-failures.json`, 179 entries
+## Current baseline: `validator-known-failures.json`, 172 entries
 
 Every cluster count below is measured from the failure report the suite prints,
 by classifying each block on what actually diverges, not by subtracting from the
@@ -26,9 +26,9 @@ previous baseline:
 | cluster | entries | what diverges |
 |---|---:|---|
 | error span not populated | 141 | `start`/`end` come back `None..None` |
-| warning span-only | 35 | `code` and `message` match; spans differ |
-| warning content | 3 | codes, messages or their order differ |
-| | **179** | |
+| warning span-only | 30 | `code` and `message` match; spans differ |
+| warning content | 1 | codes, messages or their order differ |
+| | **172** | |
 
 - **Error spans not populated (141).** Many `AnalysisError` call sites construct
   the error without threading the triggering node's span through, so `start`/`end`
@@ -39,7 +39,7 @@ previous baseline:
   `crates/rsvelte_core/src/compiler/phases/2_analyze` rather than one bug — fixing
   it means auditing each `AnalysisError::*` construction individually.
 
-- **Warning span-only (35).** The warning `code` and `message` match upstream
+- **Warning span-only (30).** The warning `code` and `message` match upstream
   exactly and appear in the same order; only the reported `start`/`end` differs —
   and the divergence is **rsvelte reporting no span at all** (`None..None`) where
   upstream reports a real range, not a span that is merely too wide, because the
@@ -54,24 +54,28 @@ previous baseline:
   **plausible wrong** span rather than none, which is the worse symptom of the
   same defect.
 
-- **Warning content (3).** These are *not* span bugs, and fixing the spans would
-  leave every one of them failing. They are listed individually below because a
-  cluster of three has no excuse to be described in aggregate.
+- **Warning content (1).** Not a span bug, and fixing the spans would leave it
+  failing.
 
-### The three content divergences
+### The one content divergence
 
-- **`unknown-code` — warning emission order, not spans.** All six warnings match
-  on code and message and the multisets are equal, but rsvelte emits the three
-  `svelte-ignore` comment-code warnings (`legacy_code`, `unknown_code`) as a
-  batch ahead of the three a11y warnings, where upstream interleaves all six in
-  source order (lines 3, 5, 8, 10, 13, 14). Neither compiler sorts its warning
-  list, so this is a genuine difference in *when* the comment pass runs, and the
-  ordered comparison in `warnings_match` is what exposes it. Those three warnings
-  also carry `None` spans, but that is a second, independent defect: populating
-  the spans would not reorder anything.
+- **`svelte-self-deprecated`** — a message wording difference. The format string
+  interpolates the component's own name into its example import, and rsvelte
+  lowercases it: `import Input from './input.svelte'` where upstream writes
+  `import Self from './Self.svelte'`. One string to correct.
 
-- **`attribute-quoted`** and **`svelte-self-deprecated`** — singleton message
-  wording differences, each a one-line correction to the format string.
+### Two content divergences that are now span-only
+
+Re-measured with this baseline: `unknown-code` and `attribute-quoted` no longer
+diverge on content, so both moved into the span-only cluster and the claims the
+old doc made about them no longer hold.
+
+`unknown-code` was recorded as an emission-*order* bug — the `svelte-ignore`
+comment-code warnings emitted as a batch ahead of the a11y warnings. The suite's
+report now shows all six interleaved in upstream's source order, so whatever
+reordered the comment pass fixed it, and only the `None` spans remain.
+`attribute-quoted` was recorded as a wording difference; its messages now match
+verbatim.
 
 ### Corrections made when this baseline was measured
 
