@@ -1243,28 +1243,44 @@ pub(super) fn in_string_content(stack: &[TemplateStateFrame]) -> bool {
     )
 }
 
+/// What a quote character at some offset turned out to be.
+enum Quote {
+    /// A string that opens and closes on this line; the offset is just past it.
+    Closed(usize),
+    /// A string carried to the next line by a trailing `\`.
+    Continued,
+    /// Neither — an apostrophe in a comment, a quote inside a regex literal,
+    /// or any other byte this line-at-a-time scanner has no context for. The
+    /// character is not a string opener and must not push a frame.
+    NotAString,
+}
+
 /// Scan from the byte after an opening quote to just past the closing one.
-/// `None` means the string ran to the end of the line, which JavaScript allows
-/// only through a line continuation — the next line begins inside the string.
-fn scan_quoted(bytes: &[u8], mut i: usize, quote: u8) -> Option<usize> {
+///
+/// A string may only cross a line break through a line continuation, so a run
+/// to the end of the line is `Continued` when the last byte is the escaping
+/// backslash and `NotAString` otherwise. Treating every unterminated quote as
+/// a carried string is what a comment containing `isn't` breaks.
+fn scan_quoted(bytes: &[u8], mut i: usize, quote: u8) -> Quote {
     let len = bytes.len();
     while i < len {
-        if bytes[i] == b'\\' && i + 1 < len {
+        if bytes[i] == b'\\' {
+            if i + 1 == len {
+                return Quote::Continued;
+            }
             i += 2;
             continue;
         }
         if bytes[i] == quote {
-            return Some(i + 1);
+            return Quote::Closed(i + 1);
         }
         i += 1;
     }
-    None
+    Quote::NotAString
 }
 
 /// Stack-based template/interpolation tracker. Mutates `stack` as the line
-/// is scanned. This is the canonical implementation — the `bool`-based
-/// `update_template_literal_state` wrapper exists for callers that only
-/// care about the outer template state.
+/// is scanned.
 pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<TemplateStateFrame>) {
     let bytes = line.as_bytes();
     let len = bytes.len();
@@ -1274,11 +1290,11 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
         match stack.last().copied() {
             Some(TemplateStateFrame::Quoted(quote)) => {
                 match scan_quoted(bytes, i, quote) {
-                    Some(next) => {
+                    Quote::Closed(next) => {
                         stack.pop();
                         i = next;
                     }
-                    None => return,
+                    Quote::Continued | Quote::NotAString => return,
                 }
                 continue;
             }
@@ -1303,11 +1319,12 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
                     continue;
                 } else if c == b'\'' || c == b'"' {
                     match scan_quoted(bytes, i + 1, c) {
-                        Some(next) => i = next,
-                        None => {
+                        Quote::Closed(next) => i = next,
+                        Quote::Continued => {
                             stack.push(TemplateStateFrame::Quoted(c));
                             return;
                         }
+                        Quote::NotAString => i += 1,
                     }
                     continue;
                 } else if c == b'`' {
@@ -1337,11 +1354,12 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
             None => {
                 if c == b'\'' || c == b'"' {
                     match scan_quoted(bytes, i + 1, c) {
-                        Some(next) => i = next,
-                        None => {
+                        Quote::Closed(next) => i = next,
+                        Quote::Continued => {
                             stack.push(TemplateStateFrame::Quoted(c));
                             return;
                         }
+                        Quote::NotAString => i += 1,
                     }
                     continue;
                 } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
