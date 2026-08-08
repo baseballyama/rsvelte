@@ -308,7 +308,9 @@ pub fn validate_opening_tag(
         if let Some(second) = chars.next()
             && second != expected
         {
-            return Err(errors::block_unexpected_character(&expected.to_string()));
+            // avoid a sea of red and only mark the first few characters
+            return Err(errors::block_unexpected_character(&expected.to_string())
+                .at(start as u32, start as u32 + 5));
         }
     }
     Ok(())
@@ -333,7 +335,7 @@ pub fn validate_block_not_empty(
             && !text.raw.is_empty()
             && text.raw.trim().is_empty()
         {
-            return Ok(Some(warnings::block_empty()));
+            return Ok(Some(warnings::block_empty().at(text.start, text.end)));
         }
     }
     Ok(None)
@@ -848,6 +850,7 @@ fn is_safe_identifier_name(name: &str, context: &VisitorContext) -> bool {
 /// Reject assignments to `const` bindings. Corresponds to
 /// `validate_no_const_assignment` in utils.js.
 pub fn validate_no_const_assignment_node(
+    node_span: (u32, u32),
     argument: &JsNode,
     context: &VisitorContext,
     is_binding: bool,
@@ -856,7 +859,7 @@ pub fn validate_no_const_assignment_node(
     match argument {
         JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
-                validate_no_const_assignment_node(elem, context, is_binding)?;
+                validate_no_const_assignment_node(node_span, elem, context, is_binding)?;
             }
         }
         JsNode::ObjectPattern { properties, .. } => {
@@ -864,6 +867,7 @@ pub fn validate_no_const_assignment_node(
                 match property {
                     JsNode::Property { value, .. } => {
                         validate_no_const_assignment_node(
+                            node_span,
                             arena.get_js_node(*value),
                             context,
                             is_binding,
@@ -871,6 +875,7 @@ pub fn validate_no_const_assignment_node(
                     }
                     JsNode::RestElement { argument, .. } => {
                         validate_no_const_assignment_node(
+                            node_span,
                             arena.get_js_node(*argument),
                             context,
                             is_binding,
@@ -931,11 +936,12 @@ pub fn validate_no_const_assignment_node(
                         "constant"
                     };
 
-                    if is_binding {
-                        return Err(errors::constant_binding(thing));
+                    let error = if is_binding {
+                        errors::constant_binding(thing)
                     } else {
-                        return Err(errors::constant_assignment(thing));
-                    }
+                        errors::constant_assignment(thing)
+                    };
+                    return Err(error.at(node_span.0, node_span.1));
                 }
             }
         }
@@ -948,11 +954,12 @@ pub fn validate_no_const_assignment_node(
 /// Validate an assignment / update target. Corresponds to `validate_assignment`
 /// in utils.js.
 pub fn validate_assignment_node(
+    node_span: (u32, u32),
     argument: &JsNode,
     context: &VisitorContext,
     is_bind_directive: bool,
 ) -> Result<(), AnalysisError> {
-    validate_no_const_assignment_node(argument, context, is_bind_directive)?;
+    validate_no_const_assignment_node(node_span, argument, context, is_bind_directive)?;
 
     // Handle Identifier assignments
     if let Some(name) = argument.name() {
@@ -969,7 +976,7 @@ pub fn validate_assignment_node(
                 && let Some(ref props_id) = context.analysis.props_id
                 && &binding.name == props_id
             {
-                return Err(errors::constant_assignment("$props.id()"));
+                return Err(errors::constant_assignment("$props.id()").at(node_span.0, node_span.1));
             }
 
             // See the matching guard in `validate_assignment`: only fire the
@@ -1041,7 +1048,8 @@ pub fn validate_assignment_node(
                         if let (Some(ns), Some(fs)) = (node_start, field_start)
                             && ns < fs
                         {
-                            return Err(errors::state_field_invalid_assignment());
+                            return Err(errors::state_field_invalid_assignment()
+                                .at(node_span.0, node_span.1));
                         }
                     }
                     break;
@@ -1235,7 +1243,9 @@ pub fn walk_js_expression_node(
                     && name != "$$restProps"
                     && name != "$$slots")
             {
-                return Err(super::super::super::errors::global_reference_invalid(name));
+                return Err(
+                    super::super::super::errors::global_reference_invalid(name).at(*start, *end)
+                );
             }
 
             // Check for store scoped subscription errors
@@ -1353,7 +1363,11 @@ pub fn walk_js_expression_node(
             }
         }
         JsNode::CallExpression {
-            callee, arguments, ..
+            callee,
+            arguments,
+            start,
+            end,
+            ..
         } => {
             let callee_node = arena.get_js_node(*callee);
             let rune_name = get_rune_name_node(callee_node, context);
@@ -1365,7 +1379,7 @@ pub fn walk_js_expression_node(
                 )
                 && context.in_const_tag
             {
-                return Err(errors::state_invalid_placement(rn));
+                return Err(errors::state_invalid_placement(rn).at(*start, *end));
             }
 
             if rune_name.is_none() && !is_safe_identifier_node(callee_node, context) {
@@ -1409,9 +1423,14 @@ pub fn walk_js_expression_node(
             validate_template_await(context, expression)?;
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
-        JsNode::UpdateExpression { argument, .. } => {
+        JsNode::UpdateExpression {
+            argument,
+            start,
+            end,
+            ..
+        } => {
             let arg_node = arena.get_js_node(*argument);
-            validate_assignment_node(arg_node, context, false)?;
+            validate_assignment_node((*start, *end), arg_node, context, false)?;
             walk_js_expression_node(arg_node, context, metadata)?;
         }
         JsNode::ConditionalExpression {
@@ -1454,10 +1473,16 @@ pub fn walk_js_expression_node(
                 walk_js_expression_node(expr, context, metadata)?;
             }
         }
-        JsNode::AssignmentExpression { left, right, .. } => {
+        JsNode::AssignmentExpression {
+            left,
+            right,
+            start,
+            end,
+            ..
+        } => {
             let left_node = arena.get_js_node(*left);
             let right_node = arena.get_js_node(*right);
-            validate_assignment_node(left_node, context, false)?;
+            validate_assignment_node((*start, *end), left_node, context, false)?;
             super::super::assignment_expression::mark_binding_mutation_node(left_node, context);
             walk_js_expression_node(left_node, context, metadata)?;
             walk_js_expression_node(right_node, context, metadata)?;

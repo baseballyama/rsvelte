@@ -16,8 +16,9 @@ pub fn visit<'a, 'b: 'a>(
     context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     // Check for illegal attributes - svelte:head cannot have any attributes or directives
-    if !head.attributes.is_empty() {
-        return Err(errors::svelte_head_illegal_attribute());
+    if let Some(attribute) = head.attributes.first() {
+        let (start, end) = attribute.span();
+        return Err(errors::svelte_head_illegal_attribute().at(start, end));
     }
 
     // Check for duplicate

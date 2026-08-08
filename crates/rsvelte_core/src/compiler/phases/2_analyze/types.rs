@@ -1825,11 +1825,12 @@ impl ComponentAnalysis {
             component_namespace_is_mathml: options.namespace == crate::compiler::Namespace::Mathml,
             is_typescript: false,
             module_scope_declarations: FxHashMap::default(),
-            is_module_file: options
-                .filename
-                .as_ref()
-                .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
-                .unwrap_or(false),
+            is_module_file: options.is_module_source
+                || options
+                    .filename
+                    .as_ref()
+                    .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
+                    .unwrap_or(false),
         }
     }
 

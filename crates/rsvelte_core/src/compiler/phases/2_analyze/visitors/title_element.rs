@@ -16,8 +16,9 @@ pub fn visit<'a, 'b: 'a>(
     context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     // Check for illegal attributes - title cannot have any attributes or directives
-    if !title.attributes.is_empty() {
-        return Err(errors::title_illegal_attribute());
+    if let Some(attribute) = title.attributes.first() {
+        let (start, end) = attribute.span();
+        return Err(errors::title_illegal_attribute().at(start, end));
     }
 
     // Check that all children are Text or ExpressionTag
@@ -27,7 +28,8 @@ pub fn visit<'a, 'b: 'a>(
                 // These are allowed
             }
             _ => {
-                return Err(errors::title_invalid_content());
+                let (start, end) = child.span();
+                return Err(errors::title_invalid_content().at(start, end));
             }
         }
     }

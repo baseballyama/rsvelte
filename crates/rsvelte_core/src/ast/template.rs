@@ -97,6 +97,10 @@ pub struct ParseWarning {
     pub code: String,
     /// Warning message
     pub message: String,
+    /// Start byte offset of the node the warning is attributed to.
+    pub start: u32,
+    /// End byte offset of the node the warning is attributed to.
+    pub end: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
@@ -188,6 +192,42 @@ pub enum TemplateNode<'a> {
 impl<'a> AsRef<TemplateNode<'a>> for TemplateNode<'a> {
     fn as_ref(&self) -> &TemplateNode<'a> {
         self
+    }
+}
+
+impl<'a> TemplateNode<'a> {
+    /// The node's `(start, end)` source range.
+    pub fn span(&self) -> (u32, u32) {
+        match self {
+            TemplateNode::Text(n) => (n.start, n.end),
+            TemplateNode::Comment(n) => (n.start, n.end),
+            TemplateNode::TitleElement(n) => (n.start, n.end),
+            TemplateNode::SlotElement(n) => (n.start, n.end),
+            TemplateNode::SvelteBody(n)
+            | TemplateNode::SvelteDocument(n)
+            | TemplateNode::SvelteFragment(n)
+            | TemplateNode::SvelteBoundary(n)
+            | TemplateNode::SvelteHead(n)
+            | TemplateNode::SvelteOptions(n)
+            | TemplateNode::SvelteSelf(n)
+            | TemplateNode::SvelteWindow(n) => (n.start, n.end),
+            TemplateNode::ExpressionTag(n) => (n.start, n.end),
+            TemplateNode::HtmlTag(n) => (n.start, n.end),
+            TemplateNode::ConstTag(n) => (n.start, n.end),
+            TemplateNode::DeclarationTag(n) => (n.start, n.end),
+            TemplateNode::DebugTag(n) => (n.start, n.end),
+            TemplateNode::RenderTag(n) => (n.start, n.end),
+            TemplateNode::AttachTag(n) => (n.start, n.end),
+            TemplateNode::IfBlock(n) => (n.start, n.end),
+            TemplateNode::EachBlock(n) => (n.start, n.end),
+            TemplateNode::AwaitBlock(n) => (n.start, n.end),
+            TemplateNode::KeyBlock(n) => (n.start, n.end),
+            TemplateNode::SnippetBlock(n) => (n.start, n.end),
+            TemplateNode::RegularElement(n) => (n.start, n.end),
+            TemplateNode::Component(n) => (n.start, n.end),
+            TemplateNode::SvelteComponent(n) => (n.start, n.end),
+            TemplateNode::SvelteElement(n) => (n.start, n.end),
+        }
     }
 }
 
@@ -614,6 +654,25 @@ pub enum Attribute<'a> {
     AnimateDirective(AnimateDirective<'a>),
     UseDirective(UseDirective<'a>),
     LetDirective(LetDirective<'a>),
+}
+
+impl<'a> Attribute<'a> {
+    /// The attribute's `(start, end)` source range.
+    pub fn span(&self) -> (u32, u32) {
+        match self {
+            Attribute::Attribute(n) => (n.start, n.end),
+            Attribute::SpreadAttribute(n) => (n.start, n.end),
+            Attribute::AttachTag(n) => (n.start, n.end),
+            Attribute::BindDirective(n) => (n.start, n.end),
+            Attribute::OnDirective(n) => (n.start, n.end),
+            Attribute::ClassDirective(n) => (n.start, n.end),
+            Attribute::StyleDirective(n) => (n.start, n.end),
+            Attribute::TransitionDirective(n) => (n.start, n.end),
+            Attribute::AnimateDirective(n) => (n.start, n.end),
+            Attribute::UseDirective(n) => (n.start, n.end),
+            Attribute::LetDirective(n) => (n.start, n.end),
+        }
+    }
 }
 
 impl<'a> serde::Serialize for Attribute<'a> {

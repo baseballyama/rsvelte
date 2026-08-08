@@ -115,6 +115,19 @@ pub struct ScriptTextBreakdown {
     pub process_accumulated: Duration,
     /// Completed statements handed to the processor.
     pub statements: u64,
+    /// Source lines visited by the line loop.
+    pub loop_lines: u64,
+    /// Statements the runes fast path emitted without calling the processor.
+    pub fastpath_statements: u64,
+    /// Calls to the brace-less-control-header probe, and the bytes it had to
+    /// materialise to answer. Both are load-independent, so a change that
+    /// claims to remove this work has to move them.
+    pub ctrl_header_calls: u64,
+    pub ctrl_header_bytes: u64,
+    /// Script bytes handed to each whole-script scan in `collect_vars`,
+    /// summed over the scans that actually ran.
+    pub collect_scan_bytes: u64,
+    pub collect_scan_passes: u64,
     /// `transform_client_runes_with_skip_and_state`, the per-statement rune rewrite.
     pub runes: Duration,
     /// The legacy `$:` reactive-statement branch.
@@ -209,6 +222,12 @@ thread_local! {
     static ST_ENTRIES: Cell<u64> = const { Cell::new(0) };
     static ST_PROCESS_ACCUMULATED: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_STATEMENTS: Cell<u64> = const { Cell::new(0) };
+    static ST_LOOP_LINES: Cell<u64> = const { Cell::new(0) };
+    static ST_FASTPATH_STATEMENTS: Cell<u64> = const { Cell::new(0) };
+    static ST_CTRL_HEADER_CALLS: Cell<u64> = const { Cell::new(0) };
+    static ST_CTRL_HEADER_BYTES: Cell<u64> = const { Cell::new(0) };
+    static ST_COLLECT_SCAN_BYTES: Cell<u64> = const { Cell::new(0) };
+    static ST_COLLECT_SCAN_PASSES: Cell<u64> = const { Cell::new(0) };
     static ST_RUNES: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_REACTIVE_STMT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_REACTIVE_CALLS: Cell<u64> = const { Cell::new(0) };
@@ -489,6 +508,28 @@ pub fn record_st_line_loop(d: Duration) {
 }
 
 #[inline]
+pub fn record_st_loop_lines(n: u64) {
+    ST_LOOP_LINES.with(|c| c.set(c.get() + n));
+}
+
+#[inline]
+pub fn record_st_fastpath_statement() {
+    ST_FASTPATH_STATEMENTS.with(|c| c.set(c.get() + 1));
+}
+
+#[inline]
+pub fn record_st_ctrl_header(bytes: u64) {
+    ST_CTRL_HEADER_CALLS.with(|c| c.set(c.get() + 1));
+    ST_CTRL_HEADER_BYTES.with(|c| c.set(c.get() + bytes));
+}
+
+#[inline]
+pub fn record_st_collect_scan(bytes: u64) {
+    ST_COLLECT_SCAN_PASSES.with(|c| c.set(c.get() + 1));
+    ST_COLLECT_SCAN_BYTES.with(|c| c.set(c.get() + bytes));
+}
+
+#[inline]
 pub fn record_st_ast_transforms(d: Duration) {
     ST_AST_TRANSFORMS.with(|c| c.set(c.get() + d));
 }
@@ -508,6 +549,12 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         calls: ST_CALLS.with(|c| c.replace(0)),
         process_accumulated: ST_PROCESS_ACCUMULATED.with(|c| c.replace(Duration::ZERO)),
         statements: ST_STATEMENTS.with(|c| c.replace(0)),
+        loop_lines: ST_LOOP_LINES.with(|c| c.replace(0)),
+        fastpath_statements: ST_FASTPATH_STATEMENTS.with(|c| c.replace(0)),
+        ctrl_header_calls: ST_CTRL_HEADER_CALLS.with(|c| c.replace(0)),
+        ctrl_header_bytes: ST_CTRL_HEADER_BYTES.with(|c| c.replace(0)),
+        collect_scan_bytes: ST_COLLECT_SCAN_BYTES.with(|c| c.replace(0)),
+        collect_scan_passes: ST_COLLECT_SCAN_PASSES.with(|c| c.replace(0)),
         runes: ST_RUNES.with(|c| c.replace(Duration::ZERO)),
         reactive_stmt: ST_REACTIVE_STMT.with(|c| c.replace(Duration::ZERO)),
         reactive_calls: ST_REACTIVE_CALLS.with(|c| c.replace(0)),

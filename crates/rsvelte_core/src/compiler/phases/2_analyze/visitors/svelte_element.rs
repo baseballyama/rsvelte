@@ -247,27 +247,35 @@ pub fn visit<'a, 'b: 'a>(
             let name = bind.name.as_str();
             match name {
                 "value" => {
-                    return Err(AnalysisError::validation(
+                    return Err(AnalysisError::validation_at(
                         "bind_invalid_target",
                         "`bind:value` can only be used with `<input>`, `<textarea>`, `<select>`",
+                        bind.start,
+                        bind.end,
                     ));
                 }
                 "files" => {
-                    return Err(AnalysisError::validation(
+                    return Err(AnalysisError::validation_at(
                         "bind_invalid_target",
                         "`bind:files` can only be used with `<input type=\"file\">`",
+                        bind.start,
+                        bind.end,
                     ));
                 }
                 "group" => {
-                    return Err(AnalysisError::validation(
+                    return Err(AnalysisError::validation_at(
                         "bind_invalid_target",
                         "`bind:group` can only be used with `<input type=\"checkbox\">` or `<input type=\"radio\">`",
+                        bind.start,
+                        bind.end,
                     ));
                 }
                 "checked" => {
-                    return Err(AnalysisError::validation(
+                    return Err(AnalysisError::validation_at(
                         "bind_invalid_target",
                         "`bind:checked` can only be used with `<input type=\"checkbox\">` or `<input type=\"radio\">`",
+                        bind.start,
+                        bind.end,
                     ));
                 }
                 _ => {}

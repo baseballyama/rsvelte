@@ -24,9 +24,13 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         // fall back to Value-based logic
         let is_new_expr = matches!(expr_node, JsNode::NewExpression { .. });
         if is_new_expr {
+            let span = (
+                expr_node.start().unwrap_or_default(),
+                expr_node.end().unwrap_or_default(),
+            );
             let value = node.to_value();
             if let Some(expr_val) = value.get("expression") {
-                check_legacy_component_creation(expr_val, context);
+                check_legacy_component_creation(expr_val, span, context);
             }
         }
     }
@@ -35,7 +39,11 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 }
 
 /// Check for legacy `new Component({ target: ... })` pattern and emit warning.
-fn check_legacy_component_creation(expression: &Value, context: &mut VisitorContext) {
+fn check_legacy_component_creation(
+    expression: &Value,
+    span: (u32, u32),
+    context: &mut VisitorContext,
+) {
     if expression.get("type").and_then(|t| t.as_str()) != Some("NewExpression") {
         return;
     }
@@ -124,7 +132,7 @@ fn check_legacy_component_creation(expression: &Value, context: &mut VisitorCont
             if is_default_import {
                 // Route through emit_warning so a `svelte-ignore` in scope can
                 // suppress it (H-118).
-                context.emit_warning(warnings::legacy_component_creation());
+                context.emit_warning(warnings::legacy_component_creation().at(span.0, span.1));
             }
         }
     }
