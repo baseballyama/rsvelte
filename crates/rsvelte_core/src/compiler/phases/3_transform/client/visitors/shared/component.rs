@@ -2324,6 +2324,9 @@ fn visit_slot_children(
     children: &[&TemplateNode],
     context: &mut ComponentContext,
 ) -> Vec<JsStatement> {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_SLOT_CHILDREN,
+    );
     use crate::compiler::phases::phase3_transform::client::transform_template::Namespace;
     use crate::compiler::phases::phase3_transform::utils::clean_nodes_refs;
 

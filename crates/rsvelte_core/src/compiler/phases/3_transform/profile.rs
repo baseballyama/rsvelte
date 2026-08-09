@@ -759,7 +759,7 @@ pub fn take_pa_breakdown() -> PaBreakdown {
     PaBreakdown::default()
 }
 
-pub const TF_KINDS: [&str; 40] = [
+pub const TF_KINDS: [&str; 41] = [
     "component",
     "svelte_component",
     "svelte_self",
@@ -802,6 +802,7 @@ pub const TF_KINDS: [&str; 40] = [
     "bc:component_call",
     "bc:css_props",
     "bc:meta_stmt",
+    "bc:slot_children",
 ];
 
 pub const TF_BC_LET: usize = 27;
@@ -817,6 +818,7 @@ pub const TF_BC_COMP_EXPR: usize = 36;
 pub const TF_BC_COMP_CALL: usize = 37;
 pub const TF_BC_CSS_PROPS: usize = 38;
 pub const TF_BC_META: usize = 39;
+pub const TF_BC_SLOT_CHILDREN: usize = 40;
 
 /// Self time and call count per template node kind, drained together with the
 /// `template_fragment` parent they are compared against.
