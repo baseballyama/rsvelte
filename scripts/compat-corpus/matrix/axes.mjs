@@ -275,6 +275,18 @@ export const COMMENT_SEEDS = {
 
 <button onclick={() => (local += 1)}>{local}</button>
 `,
+	// The SSR constant fold rebuilds logical lines by scanning bytes, so the
+	// slot BETWEEN `=` and its value is a distinct hazard from the slot above
+	// the declaration — a `//` there swallows the value once the lines join.
+	'const-fold-line-continuation': `<script>
+	let n = $state(0);
+	const cont =
+		"a\\
+\t\tb";
+</script>
+
+<p>{cont}{n}</p>
+`,
 };
 
 /**

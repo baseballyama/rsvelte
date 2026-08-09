@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 799 entries)
+## Matrix known failures (`matrix-known-failures.json`, 807 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 18 + 60 + 422 + 3`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 422 + 3`
 
 ### `binding-position` — 2 entries
 
@@ -49,15 +49,15 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 204 entries
+### `comment-slot` — 212 entries
 
 Two sub-clusters with distinct causes: the `.svelte` template seeds below and the
 remainder of the `.svelte.(js|ts)` module path (#2399). The class-field relocation
 (#2437) cleared entirely.
 
-#### `.svelte` template seeds — 132 entries
+#### `.svelte` template seeds — 140 entries
 
-One comment inserted at each line boundary inside every `<script>` region of 6 seeds,
+One comment inserted at each line boundary inside every `<script>` region of 7 seeds,
 across 8 comment kinds. A comment is the one token that may appear between any two other
 tokens, so any code path that finds a terminator by scanning bytes rather than lexing
 breaks here — #2253 was five such scans in one file.
@@ -66,7 +66,7 @@ Classified by comparing the **multiset of comments** in each output:
 
 | what diverges | entries | of which server |
 |---|---|---|
-| rsvelte drops a comment the official compiler keeps | 72 | 56 |
+| rsvelte drops a comment the official compiler keeps | 80 | 64 |
 | the comment survives but lands somewhere else | 32 | 0 |
 | rsvelte keeps a comment the official compiler drops | 28 | 24 |
 | **anything other than the comment itself** | **0** | — |
@@ -87,6 +87,7 @@ By seed:
 | `class-private-state` | 8 |
 | `class-static-block` | 8 |
 | `snippet-render` | 8 |
+| `const-fold-line-continuation` | 8 |
 
 The 20 entries #2437 cleared were the `client` / `client-dev` halves of
 `class-private-state__L03__*` and `class-static-block__L07__*` — the line-comment kinds
@@ -108,12 +109,27 @@ outright; upstream deletes nothing, and its cursor re-homes them onto the next s
 statement (and keeps a second copy wherever a `BlockStatement` nested in the `$:` body
 still carries a source span). The remaining `legacy-reactive` entries are all `server`.
 
-Server still dominates (80 of these 132 — unchanged in count by #2368, which cleared
-`client` / `client-dev` entries only), and its 56 remaining drops are one residual class: a
+Server still dominates (88 of these 140 — unchanged in count by #2368, which cleared
+`client` / `client-dev` entries only), and its 64 remaining drops are one residual class: a
 comment TRAILING the last top-level statement of a script region, which upstream flushes
 into the generated component function's parameter list or into a template interpolation
-(`$$renderer.push(\`…${$.escape(/* c */ b)}…\`)`). It is 7 line slots × 8 comment kinds.
+(`$$renderer.push(\`…${$.escape(/* c */ b)}…\`)`). It is 8 line slots × 8 comment kinds.
 See `server/ast/comments.rs`.
+
+##### `const-fold-line-continuation` — 8 entries, all `server`, all the trailing class
+
+The seed exists for the slot BETWEEN `=` and its value, which no other seed reaches: the SSR
+constant fold rebuilds logical lines by scanning bytes, and a `//` there swallows the value
+once the lines join (#2669 / #2671). That slot — `L04` — **matches**, on all 8 comment kinds
+and all 3 targets, and it is the reason the seed was added; it is listed here only to say
+that its absence from this file is a measurement, not an oversight. `L02`, `L03` and `L05`
+match too. `L03` is #2669's own slot, so the byte comparison covers that defect on every PR
+rather than only in the full mutation sweep on `main`.
+
+The 8 listed entries are all `L06`, the line before `</script>`, and they join the trailing
+class above rather than forming one of their own. Not #2727: that one splices a `//` INTO
+`$.set(…)` on the client, whereas these are a plain drop, on `server` only, identical across
+block and line kinds.
 
 #### module path (`.svelte.(js|ts)`) — 72 entries, all #2399
 
@@ -164,13 +180,13 @@ all 8 kinds, i.e. **24 of the 192 cases**.
 #### Both sub-clusters together
 
 The two partition claims below span the whole `comment-slot` family, so each adds the module
-path's 72 to the template seeds' 132. The module path contributes to a single bucket: all 72
+path's 72 to the template seeds' 140. The module path contributes to a single bucket: all 72
 are *rsvelte keeps a comment official drops*, which joins the template seeds' own 28 in that
-bucket for a combined 100 — the opposite direction from the 72 rsvelte drops.
+bucket for a combined 100 — the opposite direction from the 80 rsvelte drops.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `72 + 32 + 100 + 0`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `80 + 32 + 100 + 0`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8 + 8`
 
 ### `each-collection` — 90 entries
 
