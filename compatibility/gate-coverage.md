@@ -37,7 +37,7 @@ than four unrelated rows — cite it from a row instead of re-deriving it:
 
 | instance | the reading that is wrong |
 |---|---|
-| §5b, warning codes on the matrix | "0 warning divergences" — the five families that predate `directive-element` emit **0 warnings of any code** over 4134 accepted (case, target) pairs, so the comparison had no population at all |
+| §5b, warning codes on the matrix | "0 warning divergences" — the six families that predate `directive-element` emit **0 warnings of any code** over 4704 accepted (case, target) pairs, so the comparison had no population at all |
 | #2707, `verify.mjs` warning comparison | a wiped corpus tree makes an absent `warnings.json` read as "official emitted no warnings" rather than "there is no tree"; the ≥99%-coverage guard covers the output comparison only |
 | #2579 | a baseline entry that "already PASSes" cannot be told from one the run never measured |
 | #2704 | a normalizer that erases the divergence before the comparison sees it |
@@ -285,8 +285,8 @@ divergence under a positional one, which is the #2314 argument applied to a seco
 
 Adding the comparison measured nothing on its own — an instance of *the vacuous green* above —
 and the number is worth keeping because it
-makes the usual "the baseline is empty, so we are fine" reading falsifiable: across the **4134**
-accepted (case, target) pairs of the five families that predate `directive-element`, **both
+makes the usual "the baseline is empty, so we are fine" reading falsifiable: across the **4704**
+accepted (case, target) pairs of the six families that predate `directive-element`, **both
 compilers emit zero warnings of any code**. The empty warning baseline there is
 *unreachability*, not saturation. `directive-element` and `bind-setter` supply 538 warned pairs
 over six codes (`a11y_click_events_have_key_events`, `a11y_no_static_element_interactions`,
