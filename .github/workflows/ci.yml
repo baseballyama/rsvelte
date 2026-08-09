@@ -1108,3 +1108,21 @@ jobs:
 
       - name: Run prerequisite coverage guard tests
         run: node scripts/ci/test-prereq-coverage-guard.mjs
+
+  ratchet-doc-guard:
+    name: Ratchet doc parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # "Every ratchet on disk is declared" holds over the union of two branches,
+      # so no PR run can establish it: a `pull_request` merge ref is frozen when
+      # the event is created and may predate the rule it is checked against. The
+      # run that decides it is the push to `main`, and Corpus Compat cannot be
+      # that run — it is path-filtered and an hour long. This needs neither
+      # submodules nor a build, so it lives here instead.
+      - name: Verify known-failures.md matches the JSON ratchets
+        run: node scripts/compat-corpus/known-failures-md-check.mjs

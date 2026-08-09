@@ -11,7 +11,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ALLOWLIST, analyzeWorkflow, checkWorkflows } from './workflow-trigger-guard.mjs';
+import {
+	ALLOWLIST,
+	JOB_CONCURRENCY_ALLOWLIST,
+	analyzeWorkflow,
+	checkWorkflows,
+} from './workflow-trigger-guard.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REAL_WORKFLOW_DIR = join(HERE, '..', '..', '.github', 'workflows');
@@ -67,7 +72,7 @@ console.log('workflow-trigger-guard self-test');
 
 check('flags an unallowlisted `pull_request: branches:` filter, naming the file', () => {
 	withDir({ 'offender.yml': FILTERED }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
 		assert(
 			violations[0].file === 'offender.yml',
@@ -78,7 +83,11 @@ check('flags an unallowlisted `pull_request: branches:` filter, naming the file'
 
 check('an allowlisted filter is accepted', () => {
 	withDir({ 'offender.yml': FILTERED }, (dir) => {
-		const { violations } = checkWorkflows(dir, { 'offender.yml': 'measures against a main baseline' });
+		const { violations } = checkWorkflows(
+			dir,
+			{ 'offender.yml': 'measures against a main baseline' },
+			{},
+		);
 		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 	});
 });
@@ -88,14 +97,14 @@ check('an allowlisted filter is accepted', () => {
 check('a `branches:` filter under `push:` alone is not a violation', () => {
 	const body = `name: push only\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    paths:\n      - 'src/**'\n${JOBS}`;
 	withDir({ 'pushonly.yml': body }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 	});
 });
 
 check('a bare `pull_request:` with no nested keys is not a violation', () => {
 	withDir({ 'bare.yml': UNFILTERED }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 	});
 });
@@ -105,7 +114,7 @@ check('a bare `pull_request:` with no nested keys is not a violation', () => {
 check('block-sequence `branches:` listed after `types:`/`paths:` is caught', () => {
 	const body = `name: late\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    types: [opened, synchronize]\n    paths:\n      - 'src/**'\n    branches:\n      - main\n      - 'release/**'\n${JOBS}`;
 	withDir({ 'late.yml': body }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
 	});
 });
@@ -113,7 +122,7 @@ check('block-sequence `branches:` listed after `types:`/`paths:` is caught', () 
 check('`branches-ignore:` is caught on the same axis', () => {
 	const body = `name: ignore\n\non:\n  pull_request:\n    branches-ignore: ['legacy/**']\n${JOBS}`;
 	withDir({ 'ignore.yml': body }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
 	});
 });
@@ -121,7 +130,7 @@ check('`branches-ignore:` is caught on the same axis', () => {
 check('`pull_request_target:` is caught too', () => {
 	const body = `name: target\n\non:\n  pull_request_target:\n    branches: [main]\n${JOBS}`;
 	withDir({ 'target.yml': body }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
 	});
 });
@@ -129,7 +138,7 @@ check('`pull_request_target:` is caught too', () => {
 check('a commented-out `branches:` does not count', () => {
 	const body = `name: commented\n\non:\n  pull_request:\n    # branches: [main]\n    types: [opened]\n${JOBS}`;
 	withDir({ 'commented.yml': body }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 	});
 });
@@ -137,7 +146,7 @@ check('a commented-out `branches:` does not count', () => {
 check('a `branches:` key nested deeper than the trigger does not count', () => {
 	const body = `name: deep\n\non:\n  pull_request:\n    types: [opened]\n${JOBS}    env:\n      branches: nope\n`;
 	withDir({ 'deep.yml': body }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+		const { violations } = checkWorkflows(dir, {}, {});
 		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 	});
 });
@@ -146,7 +155,7 @@ check('a `branches:` key nested deeper than the trigger does not count', () => {
 
 check('an allowlist entry for an unfiltered workflow is a stale-entry violation', () => {
 	withDir({ 'bare.yml': UNFILTERED }, (dir) => {
-		const { violations } = checkWorkflows(dir, { 'bare.yml': 'reason' });
+		const { violations } = checkWorkflows(dir, { 'bare.yml': 'reason' }, {});
 		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
 		assert(/stale/i.test(violations[0].message), `expected a stale-entry message`);
 	});
@@ -154,7 +163,7 @@ check('an allowlist entry for an unfiltered workflow is a stale-entry violation'
 
 check('an allowlist entry for a missing workflow is a stale-entry violation', () => {
 	withDir({ 'bare.yml': UNFILTERED }, (dir) => {
-		const { violations } = checkWorkflows(dir, { 'gone.yml': 'reason' });
+		const { violations } = checkWorkflows(dir, { 'gone.yml': 'reason' }, {});
 		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
 		assert(violations[0].file === 'gone.yml', `expected the missing file to be named`);
 	});
@@ -176,7 +185,7 @@ check('an empty workflow directory throws rather than reporting clean', () => {
 	let threw = false;
 	withDir({}, (dir) => {
 		try {
-			checkWorkflows(dir, {});
+			checkWorkflows(dir, {}, {});
 		} catch {
 			threw = true;
 		}
@@ -203,7 +212,7 @@ check('a ref-keyed cancelling group on a push workflow is rejected', () => {
 			'a.yml': `name: a${PUSH_ON}\nconcurrency:\n  group: a-\${{ github.ref }}\n  cancel-in-progress: true\n${JOBS}`,
 		},
 		(dir) => {
-			const { violations } = checkWorkflows(dir, {});
+			const { violations } = checkWorkflows(dir, {}, {});
 			assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
 			assert(/carries no verdict/.test(violations[0].message), 'expected the verdict wording');
 		},
@@ -216,7 +225,7 @@ check('the same group keyed by github.sha is accepted', () => {
 			'a.yml': `name: a${PUSH_ON}\nconcurrency:\n  group: a-\${{ github.head_ref || github.sha }}\n  cancel-in-progress: true\n${JOBS}`,
 		},
 		(dir) => {
-			const { violations } = checkWorkflows(dir, {});
+			const { violations } = checkWorkflows(dir, {}, {});
 			assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 		},
 	);
@@ -228,7 +237,7 @@ check('cancel-in-progress: false makes the group key irrelevant', () => {
 			'a.yml': `name: a${PUSH_ON}\nconcurrency:\n  group: a-\${{ github.ref }}\n  cancel-in-progress: false\n${JOBS}`,
 		},
 		(dir) => {
-			const { violations } = checkWorkflows(dir, {});
+			const { violations } = checkWorkflows(dir, {}, {});
 			assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 		},
 	);
@@ -240,19 +249,82 @@ check('a ref-keyed cancelling group without a push trigger is accepted', () => {
 			'a.yml': `name: a\non:\n  pull_request:\nconcurrency:\n  group: a-\${{ github.ref }}\n  cancel-in-progress: true\n${JOBS}`,
 		},
 		(dir) => {
-			const { violations } = checkWorkflows(dir, {});
+			const { violations } = checkWorkflows(dir, {}, {});
 			assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
 		},
 	);
 });
 
-check('a job-level concurrency block is not read as the workflow-level one', () => {
-	const source = `name: a${PUSH_ON}\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: a-\${{ github.ref }}\n      cancel-in-progress: true\n    steps:\n      - run: echo hi\n`;
-	const { concurrency } = analyzeWorkflow(source);
-	assert(concurrency === null, `expected no top-level concurrency, got ${JSON.stringify(concurrency)}`);
-	withDir({ 'a.yml': source }, (dir) => {
-		const { violations } = checkWorkflows(dir, {});
+// --- The same mechanism one level down: a job-level cancelling group. ---
+
+/** A push workflow whose single job `publish` carries `group` and `cancels`. */
+function jobLevel(group, cancels = 'true') {
+	return (
+		`name: a${PUSH_ON}\njobs:\n  publish:\n    runs-on: ubuntu-latest\n` +
+		`    concurrency:\n      group: ${group}\n      cancel-in-progress: ${cancels}\n` +
+		`    steps:\n      - run: echo hi\n`
+	);
+}
+
+check('a job-level block is still not read as the workflow-level one', () => {
+	const { concurrency, jobs } = analyzeWorkflow(jobLevel('a-${{ github.ref }}'));
+	assert(
+		concurrency === null,
+		`expected no top-level concurrency, got ${JSON.stringify(concurrency)}`,
+	);
+	assert(jobs.length === 1 && jobs[0].id === 'publish', `expected the job, got ${JSON.stringify(jobs)}`);
+});
+
+check('a ref-keyed cancelling job group on a push workflow is rejected', () => {
+	withDir({ 'a.yml': jobLevel('a-${{ github.ref }}') }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
+		assert(/job `publish`/.test(violations[0].message), 'expected the job to be named');
+	});
+});
+
+check('an allowlisted converging job group is accepted', () => {
+	withDir({ 'a.yml': jobLevel('a-${{ github.ref }}') }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, { 'a.yml': { publish: 'converges on one PR' } });
 		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
+check('a job group keyed by github.sha needs no entry', () => {
+	withDir({ 'a.yml': jobLevel('a-${{ github.head_ref || github.sha }}') }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
+check('a serialising job group (cancel-in-progress: false) needs no entry', () => {
+	withDir({ 'a.yml': jobLevel('a-${{ github.ref }}', 'false') }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
+check('a job group on a workflow with no push trigger is accepted', () => {
+	const body = jobLevel('a-${{ github.ref }}').replace(PUSH_ON.trim(), 'on:\n  pull_request:');
+	withDir({ 'a.yml': body }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
+check('a job entry for a group that no longer cancels is a stale-entry violation', () => {
+	withDir({ 'a.yml': jobLevel('a-${{ github.sha }}') }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, { 'a.yml': { publish: 'converges' } });
+		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
+		assert(/stale/i.test(violations[0].message), 'expected a stale-entry message');
+	});
+});
+
+check('a job entry for a missing workflow is a stale-entry violation', () => {
+	withDir({ 'a.yml': jobLevel('a-${{ github.sha }}') }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, { 'gone.yml': { publish: 'converges' } });
+		assert(violations.length === 1, `expected 1 violation, got ${violations.length}`);
+		assert(violations[0].file === 'gone.yml', 'expected the missing file to be named');
 	});
 });
 
@@ -268,6 +340,34 @@ check('every shipped allowlist entry carries a non-empty reason', () => {
 	for (const [file, reason] of Object.entries(ALLOWLIST)) {
 		assert(typeof reason === 'string' && reason.trim().length > 20, `${file}: reason too thin`);
 	}
+	for (const [file, jobs] of Object.entries(JOB_CONCURRENCY_ALLOWLIST)) {
+		for (const [id, reason] of Object.entries(jobs)) {
+			assert(
+				typeof reason === 'string' && reason.trim().length > 20,
+				`${file}/${id}: reason too thin`,
+			);
+		}
+	}
+});
+
+// A guard that is clean because it looks at nothing is also clean. Emptying the
+// job allowlist must reproduce exactly the shipped entries against the real
+// tree — the check is wired iff those two sets agree.
+check('the shipped job allowlist is exactly what the real tree flags without it', () => {
+	const { violations } = checkWorkflows(REAL_WORKFLOW_DIR, ALLOWLIST, {});
+	const flagged = violations
+		.map((v) => /^job `([^`]+)`/.exec(v.message)?.[1])
+		.map((id, i) => (id ? `${violations[i].file}/${id}` : null))
+		.filter(Boolean)
+		.sort();
+	const declared = Object.entries(JOB_CONCURRENCY_ALLOWLIST)
+		.flatMap(([file, jobs]) => Object.keys(jobs).map((id) => `${file}/${id}`))
+		.sort();
+	assert(flagged.length > 0, 'expected the real tree to have job-level groups to flag');
+	assert(
+		JSON.stringify(flagged) === JSON.stringify(declared),
+		`flagged ${JSON.stringify(flagged)} but declared ${JSON.stringify(declared)}`,
+	);
 });
 
 console.log(

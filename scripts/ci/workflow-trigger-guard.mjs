@@ -60,6 +60,31 @@ export const ALLOWLIST = {
 		'Reports coverage as a delta against main; the delta is meaningless when the base is not main.',
 };
 
+/**
+ * Jobs permitted a ref-keyed cancelling `concurrency:` of their own, keyed
+ * `file.yml` -> job id -> reason.
+ *
+ * The exemption is not "it is a job rather than a workflow" — the mechanism is
+ * identical one level down. It is that the job converges: it drives a single
+ * mutable target (a pull request, a deployment) where the newest commit's run
+ * subsumes every older one, so a superseded run destroys no verdict. A job that
+ * *reports* on the commit it was started for can never qualify.
+ *
+ * @type {Record<string, Record<string, string>>}
+ */
+export const JOB_CONCURRENCY_ALLOWLIST = {
+	'release.yml': {
+		'version-pr':
+			'Refreshes the single "Version Packages" PR from the tip of main; a newer push already contains the older push\'s changesets, so superseding is the intended behaviour.',
+		'close-version-cycle':
+			'Shares the version-PR group precisely so a publish commit supersedes an in-flight updater before it can reopen the PR from stale state.',
+	},
+	'deploy-docs.yml': {
+		build:
+			'Builds the single GitHub Pages site; only the newest main commit can be deployed, and a build break survives into the next push\'s run.',
+	},
+};
+
 /** Strip a trailing `# comment` that is not inside quotes. */
 function stripComment(line) {
 	let quote = null;
@@ -118,6 +143,17 @@ function directChildren(lines, startIndex, parentIndent) {
 	return children;
 }
 
+/** Read the `group:` / `cancel-in-progress:` under a `concurrency:` at `index`. */
+function readConcurrency(lines, index) {
+	const block = { group: '', cancels: false };
+	for (const child of directChildren(lines, index + 1, indentOf(lines[index]))) {
+		const value = inlineValueOf(child.line);
+		if (child.key === 'group') block.group = value;
+		if (child.key === 'cancel-in-progress') block.cancels = value === 'true';
+	}
+	return block;
+}
+
 /**
  * Parse one workflow's PR-trigger branch filters.
  *
@@ -158,26 +194,47 @@ export function analyzeWorkflow(source, { name = '<source>' } = {}) {
 
 	const pushes = directChildren(lines, onIndex + 1, 0).some((c) => c.key === 'push');
 
-	// Top-level only. A job-level `concurrency:` is scoped to that job and is how
-	// release.yml legitimately serialises its publish step.
-	let concurrency = null;
 	const concIndex = lines.findIndex((l) => indentOf(l) === 0 && keyOf(l) === 'concurrency');
-	if (concIndex !== -1) {
-		concurrency = { group: '', cancels: false };
-		for (const child of directChildren(lines, concIndex + 1, 0)) {
-			const value = inlineValueOf(child.line);
-			if (child.key === 'group') concurrency.group = value;
-			if (child.key === 'cancel-in-progress') concurrency.cancels = value === 'true';
+	const concurrency = concIndex === -1 ? null : readConcurrency(lines, concIndex);
+
+	// Job-level groups are the same mechanism one level down, so they are read
+	// separately rather than folded into the workflow-level one.
+	const jobs = [];
+	const jobsIndex = lines.findIndex((l) => indentOf(l) === 0 && keyOf(l) === 'jobs');
+	if (jobsIndex !== -1) {
+		for (const job of directChildren(lines, jobsIndex + 1, 0)) {
+			const child = directChildren(lines, job.index + 1, indentOf(job.line)).find(
+				(c) => c.key === 'concurrency',
+			);
+			if (child) jobs.push({ id: job.key, concurrency: readConcurrency(lines, child.index) });
 		}
 	}
 
-	return { triggers, pushes, concurrency };
+	return { triggers, pushes, concurrency, jobs };
 }
+
+/** True when two pushes to one branch would share this cancelling group. */
+function collidesAcrossPushes(concurrency) {
+	return (
+		concurrency?.cancels === true &&
+		!PER_PUSH_CONTEXTS.some((ctx) => concurrency.group.includes(ctx))
+	);
+}
+
+const VERDICT_EXPLANATION =
+	'Every push to a branch shares one `github.ref`, so each merge cancels its predecessor and the ' +
+	'branch carries no verdict — which reads exactly like a green one (#2435/#2593). Key the group ' +
+	'by `${{ github.head_ref || github.sha }}` so pushes cannot collide, or set ' +
+	'`cancel-in-progress: false`.';
 
 /**
  * @returns {{violations: Array<{file: string, message: string}>, checked: number}}
  */
-export function checkWorkflows(dir, allowlist = ALLOWLIST) {
+export function checkWorkflows(
+	dir,
+	allowlist = ALLOWLIST,
+	jobAllowlist = JOB_CONCURRENCY_ALLOWLIST,
+) {
 	const files = readdirSync(dir)
 		.filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
 		.sort();
@@ -187,26 +244,36 @@ export function checkWorkflows(dir, allowlist = ALLOWLIST) {
 
 	const violations = [];
 	const filtered = new Set();
+	const collidingJobs = new Map();
 
 	for (const file of files) {
 		const source = readFileSync(join(dir, file), 'utf8');
-		const { triggers, pushes, concurrency } = analyzeWorkflow(source, { name: file });
+		const { triggers, pushes, concurrency, jobs } = analyzeWorkflow(source, { name: file });
 
-		if (
-			pushes &&
-			concurrency?.cancels &&
-			!PER_PUSH_CONTEXTS.some((ctx) => concurrency.group.includes(ctx))
-		) {
+		if (pushes && collidesAcrossPushes(concurrency)) {
 			violations.push({
 				file,
 				message:
 					`\`concurrency.group\` is \`${concurrency.group}\` with \`cancel-in-progress: true\`, ` +
-					`but this workflow runs on \`push\`. Every push to a branch shares one \`github.ref\`, ` +
-					`so each merge cancels its predecessor and the branch carries no verdict — which reads ` +
-					`exactly like a green one (#2435/#2593). Key the group by ` +
-					`\`\${{ github.head_ref || github.sha }}\` so pushes cannot collide, or set ` +
-					`\`cancel-in-progress: false\`.`,
+					`but this workflow runs on \`push\`. ${VERDICT_EXPLANATION}`,
 			});
+		}
+
+		if (pushes) {
+			const colliding = jobs.filter((j) => collidesAcrossPushes(j.concurrency));
+			if (colliding.length > 0) collidingJobs.set(file, new Set(colliding.map((j) => j.id)));
+			for (const job of colliding) {
+				if (Object.hasOwn(jobAllowlist[file] ?? {}, job.id)) continue;
+				violations.push({
+					file,
+					message:
+						`job \`${job.id}\` sets its own \`concurrency.group\` \`${job.concurrency.group}\` ` +
+						`with \`cancel-in-progress: true\`, and this workflow runs on \`push\`. ` +
+						`${VERDICT_EXPLANATION} If the job converges instead of reporting — it drives one ` +
+						`pull request or one deployment, so the newest run subsumes the older — add it to ` +
+						`JOB_CONCURRENCY_ALLOWLIST in scripts/ci/workflow-trigger-guard.mjs with that reason.`,
+				});
+			}
 		}
 
 		for (const { trigger, filters } of triggers) {
@@ -243,6 +310,25 @@ export function checkWorkflows(dir, allowlist = ALLOWLIST) {
 		}
 	}
 
+	for (const [file, entries] of Object.entries(jobAllowlist)) {
+		if (!files.includes(file)) {
+			violations.push({
+				file,
+				message: `has JOB_CONCURRENCY_ALLOWLIST entries but no such workflow exists; remove them.`,
+			});
+			continue;
+		}
+		for (const id of Object.keys(entries)) {
+			if (collidingJobs.get(file)?.has(id)) continue;
+			violations.push({
+				file,
+				message:
+					`job \`${id}\` is allowlisted for a cancelling ref-keyed \`concurrency:\` it no longer ` +
+					`has. Remove the stale JOB_CONCURRENCY_ALLOWLIST entry.`,
+			});
+		}
+	}
+
 	return { violations, checked: files.length };
 }
 
@@ -263,9 +349,14 @@ function main(argv) {
 	}
 
 	if (result.violations.length === 0) {
+		const jobEntries = Object.values(JOB_CONCURRENCY_ALLOWLIST).reduce(
+			(n, jobs) => n + Object.keys(jobs).length,
+			0,
+		);
 		console.log(
 			`workflow-trigger-guard: ${result.checked} workflows checked, ` +
-				`${Object.keys(ALLOWLIST).length} allowlisted base-branch filters, no violations.`,
+				`${Object.keys(ALLOWLIST).length} allowlisted base-branch filters, ` +
+				`${jobEntries} allowlisted converging job groups, no violations.`,
 		);
 		return EXIT_CLEAN;
 	}
