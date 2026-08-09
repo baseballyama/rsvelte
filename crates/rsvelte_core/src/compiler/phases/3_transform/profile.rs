@@ -117,6 +117,9 @@ pub struct ScriptTextBreakdown {
     pub statements: u64,
     /// Source lines visited by the line loop.
     pub loop_lines: u64,
+    /// Scripts whose statement boundaries came from the parser / from the scanner.
+    pub boundary_ast: u64,
+    pub boundary_scan: u64,
     /// Statements the runes fast path emitted without calling the processor.
     pub fastpath_statements: u64,
     /// Calls to the brace-less-control-header probe, and the bytes it had to
@@ -223,6 +226,8 @@ thread_local! {
     static ST_PROCESS_ACCUMULATED: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ST_STATEMENTS: Cell<u64> = const { Cell::new(0) };
     static ST_LOOP_LINES: Cell<u64> = const { Cell::new(0) };
+    static ST_BOUNDARY_AST: Cell<u64> = const { Cell::new(0) };
+    static ST_BOUNDARY_SCAN: Cell<u64> = const { Cell::new(0) };
     static ST_FASTPATH_STATEMENTS: Cell<u64> = const { Cell::new(0) };
     static ST_CTRL_HEADER_CALLS: Cell<u64> = const { Cell::new(0) };
     static ST_CTRL_HEADER_BYTES: Cell<u64> = const { Cell::new(0) };
@@ -950,6 +955,18 @@ pub fn record_st_line_loop(d: Duration) {
     ST_LINE_LOOP.with(|c| c.set(c.get() + d));
 }
 
+/// Scripts whose statement boundaries came from the parser, and those that fell
+/// back to the scanner. A byte-identical corpus proves nothing about which path
+/// ran, so the adoption rate has to be counted rather than inferred.
+#[inline]
+pub fn record_st_boundary_source(from_ast: bool) {
+    if from_ast {
+        ST_BOUNDARY_AST.with(|c| c.set(c.get() + 1));
+    } else {
+        ST_BOUNDARY_SCAN.with(|c| c.set(c.get() + 1));
+    }
+}
+
 #[inline]
 pub fn record_st_loop_lines(n: u64) {
     ST_LOOP_LINES.with(|c| c.set(c.get() + n));
@@ -993,6 +1010,8 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         process_accumulated: ST_PROCESS_ACCUMULATED.with(|c| c.replace(Duration::ZERO)),
         statements: ST_STATEMENTS.with(|c| c.replace(0)),
         loop_lines: ST_LOOP_LINES.with(|c| c.replace(0)),
+        boundary_ast: ST_BOUNDARY_AST.with(|c| c.replace(0)),
+        boundary_scan: ST_BOUNDARY_SCAN.with(|c| c.replace(0)),
         fastpath_statements: ST_FASTPATH_STATEMENTS.with(|c| c.replace(0)),
         ctrl_header_calls: ST_CTRL_HEADER_CALLS.with(|c| c.replace(0)),
         ctrl_header_bytes: ST_CTRL_HEADER_BYTES.with(|c| c.replace(0)),
