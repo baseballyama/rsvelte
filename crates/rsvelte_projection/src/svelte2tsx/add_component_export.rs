@@ -470,6 +470,9 @@ pub(crate) fn add_component_export(
                     closing.push_str(doc);
                     closing.push('\n');
                 }
+                if !use_ts_syntax {
+                    closing.push_str("export ");
+                }
                 closing.push_str("const ");
                 closing.push_str(&safe_name);
                 closing.push_str(" = ");
@@ -483,11 +486,20 @@ pub(crate) fn add_component_export(
                     render_call,
                 );
                 closing.push_str(");\n");
-                closing.push_str("/*\u{03A9}ignore_start\u{03A9}*/type ");
-                closing.push_str(&safe_name);
-                closing.push_str(" = InstanceType<typeof ");
-                closing.push_str(&safe_name);
-                closing.push_str(">;\n");
+                closing.push_str("/*\u{03A9}ignore_start\u{03A9}*/");
+                if use_ts_syntax {
+                    closing.push_str("type ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(" = InstanceType<typeof ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(">;\n");
+                } else {
+                    closing.push_str("/** @typedef {InstanceType<typeof ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(">} ");
+                    closing.push_str(&safe_name);
+                    closing.push_str(" */\n");
+                }
                 closing.push_str("/*\u{03A9}ignore_end\u{03A9}*/export default ");
                 closing.push_str(&safe_name);
                 closing.push(';');

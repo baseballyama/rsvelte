@@ -183,7 +183,12 @@ pub(super) fn handle_export_named_decl(
                         // widener so the two combine into ONE ignore block in the
                         // right order (`: KitType; x = any(x);`), not separate
                         // out-of-order blocks. Mirrors `emitKitType`.
-                        let kit_type: Option<&str> = if is_instance && !has_type_annotation {
+                        // `ts.getJSDocType` counts here too, so an explicitly
+                        // typed prop keeps the author's type.
+                        let kit_type: Option<&str> = if is_instance
+                            && !has_type_annotation
+                            && !has_jsdoc_type
+                        {
                             binding_pattern_simple_name(&declarator.id).and_then(|name| {
                                 classify_kit_route_file(basename).and_then(|layout| {
                                     if !is_let {

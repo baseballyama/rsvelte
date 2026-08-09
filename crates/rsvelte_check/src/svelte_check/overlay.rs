@@ -526,8 +526,9 @@ pub fn materialize_overlay_with(
     let allow_js = resolve_allow_js(tsconfig_path);
     let mut module_bridges: Vec<(PathBuf, PathBuf)> = Vec::new();
     let mut withheld_js_modules: Vec<PathBuf> = Vec::new();
+    let mut external_js_shadows = false;
     for pkg in &external {
-        emit_external_shadows(
+        external_js_shadows |= emit_external_shadows(
             pkg,
             workspace,
             &emit_dir,
@@ -555,9 +556,31 @@ pub fn materialize_overlay_with(
 
     let mut entries = Vec::with_capacity(files.len());
     let mut augments: Vec<CompanionAugment> = Vec::new();
+    let mut any_js_shadow = external_js_shadows;
     for abs_source in &abs_files {
         let rel = safe_relative(abs_source, workspace);
-        let tsx_rel = append_extension(&rel, ".tsx");
+        let stats = current_stats(abs_source);
+        let cached_entry = manifest.entries.get(abs_source);
+        // An unchanged file keeps the extension its own shadow already has, so
+        // the cache hit below still costs no read.
+        let ext = match (stats, cached_entry) {
+            (Some((mtime, size)), Some(entry))
+                if incremental
+                    && entry.mtime_ms == mtime
+                    && entry.size == size
+                    && entry.out_path.extension().is_some_and(|e| e == "jsx") =>
+            {
+                ".jsx"
+            }
+            (Some((mtime, size)), Some(entry))
+                if incremental && entry.mtime_ms == mtime && entry.size == size =>
+            {
+                ".tsx"
+            }
+            _ => shadow_extension(abs_source),
+        };
+        any_js_shadow |= ext == ".jsx";
+        let tsx_rel = append_extension(&rel, ext);
         let dts_rel = append_extension(&rel, ".d.ts");
         let tsx_path = emit_dir.join(&tsx_rel);
         let dts_path = emit_dir.join(&dts_rel);
@@ -565,9 +588,8 @@ pub fn materialize_overlay_with(
         if let Some(parent) = tsx_path.parent() {
             fs::create_dir_all(parent)?;
         }
+        remove_stale_counterpart(&tsx_path, ext);
 
-        let stats = current_stats(abs_source);
-        let cached_entry = manifest.entries.get(abs_source);
         let stats_match = match (stats, cached_entry) {
             (Some((mtime, size)), Some(entry)) => {
                 entry.mtime_ms == mtime
@@ -744,6 +766,7 @@ pub fn materialize_overlay_with(
         has_augments,
         &alias_path_overrides,
         &global_types,
+        any_js_shadow,
     );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
@@ -910,7 +933,7 @@ fn emit_external_shadows(
     blank_svelte_reference: bool,
     namespace: Svelte2TsxNamespace,
     accessors: bool,
-) -> Result<(), OverlayError> {
+) -> Result<bool, OverlayError> {
     // Mirror the package's own `node_modules` into the shadow dir so the
     // shadow's bare-package imports (`import type { X } from 'sortablejs'`,
     // incl. its `@types/*` declarations) resolve from the SAME context as the
@@ -931,15 +954,19 @@ fn emit_external_shadows(
         fs::create_dir_all(&pkg.mirror_dir)?;
         let _ = symlink_dir(&real_nm, &mirror_nm);
     }
+    let mut any_js_shadow = false;
     for abs_source in &pkg.svelte_files {
         let rel = safe_relative(abs_source, &pkg.real_dir);
-        let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ".tsx"));
+        let source = fs::read_to_string(abs_source)?;
+        let is_ts_file = looks_like_ts_svelte(&source);
+        let ext = shadow_extension_for(is_ts_file);
+        any_js_shadow |= ext == ".jsx";
+        let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ext));
         let dts_path = pkg.mirror_dir.join(append_extension(&rel, ".d.ts"));
         if let Some(parent) = tsx_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let source = fs::read_to_string(abs_source)?;
-        let is_ts_file = looks_like_ts_svelte(&source);
+        remove_stale_counterpart(&tsx_path, ext);
         let opts = Svelte2TsxOptions {
             filename: abs_source.display().to_string(),
             is_ts_file,
@@ -989,7 +1016,7 @@ fn emit_external_shadows(
         fs::write(&dts_path, &dts_content)?;
         write_esm_bridge(&tsx_path, &dts_content, false)?;
     }
-    Ok(())
+    Ok(any_js_shadow)
 }
 
 fn materialize_kit_files(
@@ -1202,6 +1229,51 @@ fn looks_like_ts_svelte(source: &str) -> bool {
     lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
 }
 
+/// The extension a component's shadow carries: `.tsx` for a `lang="ts"`
+/// component, `.jsx` for a JavaScript one.
+///
+/// TypeScript honours JSDoc type annotations **only in JS files**, so a
+/// JS-authored component emitted as `.tsx` has every `/** @type {...} */` in
+/// it silently discarded — which both invents implicit-`any` errors the user
+/// cannot act on and hides real violations of the types they did declare
+/// (issue #2730). Official svelte-check reaches the same place through
+/// `ScriptKind.JS` on its in-memory snapshot; an on-disk overlay has to say it
+/// with the file name. Whether such a shadow is then *checked* stays the
+/// project's own `checkJs` decision, matching upstream.
+///
+/// Falls back to `.tsx` for an unreadable source, which is what the caller
+/// would have produced anyway.
+fn shadow_extension(source_path: &Path) -> &'static str {
+    match fs::read_to_string(source_path) {
+        Ok(source) => shadow_extension_for(looks_like_ts_svelte(&source)),
+        Err(_) => ".tsx",
+    }
+}
+
+/// The same decision made from an already-classified source.
+fn shadow_extension_for(is_ts_file: bool) -> &'static str {
+    if is_ts_file { ".tsx" } else { ".jsx" }
+}
+
+/// Delete the shadow (and its source map) this component would have had under
+/// the *other* extension. Both live under the overlay's `include`, so a
+/// leftover from before the component changed language — or from before
+/// [`shadow_extension`] existed — would enter the program a second time and
+/// duplicate every declaration in it.
+fn remove_stale_counterpart(shadow: &Path, ext: &str) {
+    let Some(stem) = shadow
+        .to_str()
+        .and_then(|s| s.strip_suffix(ext))
+        .map(str::to_owned)
+    else {
+        return;
+    };
+    let other = if ext == ".tsx" { ".jsx" } else { ".tsx" };
+    let counterpart = PathBuf::from(format!("{stem}{other}"));
+    let _ = fs::remove_file(&counterpart);
+    let _ = fs::remove_file(append_extension(&counterpart, ".map"));
+}
+
 fn build_overlay_tsconfig(
     cache_dir: &Path,
     original: Option<&Path>,
@@ -1211,6 +1283,7 @@ fn build_overlay_tsconfig(
     has_companion_augmentation: bool,
     alias_path_overrides: &[(String, PathBuf)],
     global_types: &GlobalTypes,
+    any_js_shadow: bool,
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -1220,6 +1293,17 @@ fn build_overlay_tsconfig(
     let mut compiler_opts = serde_json::Map::new();
     compiler_opts.insert("noEmit".into(), true.into());
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
+    // A `.jsx` shadow (see `shadow_extension`) is only admitted to the program
+    // when JS files are. `allowJs` defaults to OFF, so without this every
+    // JS-authored component would silently leave the program — and take its
+    // importers' resolution with it. Upstream gets the same effect from
+    // `allowNonTsExtensions`, which no tsconfig can express. It stays off for a
+    // project with no JS component, so a TS-only overlay is unchanged.
+    // `checkJs` is deliberately NOT forced: whether a JS component is checked
+    // remains the project's own decision, exactly as upstream leaves it.
+    if any_js_shadow {
+        compiler_opts.insert("allowJs".into(), true.into());
+    }
     // `rewrite_aliased_svelte_imports` rewrites alias-resolved `.svelte`
     // imports to relative `.svelte.tsx` specifiers (no rootDirs bridge
     // applies across an alias), which tsgo/tsc otherwise reject unless the
@@ -2378,7 +2462,9 @@ fn compute_alias_path_overrides(
     for pkg in external {
         for abs_source in &pkg.svelte_files {
             let rel = safe_relative(abs_source, &pkg.real_dir);
-            let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ".tsx"));
+            let tsx_path = pkg
+                .mirror_dir
+                .join(append_extension(&rel, shadow_extension(abs_source)));
             candidates.push((canonicalized(abs_source), tsx_path));
         }
     }
@@ -2596,8 +2682,11 @@ fn prune_orphaned_module_bridges(mirror_dir: &Path, written: &std::collections::
         if written.contains(&bridge) {
             continue;
         }
-        let shadow = bridge.with_file_name(format!("{base}.svelte.tsx"));
-        if shadow.is_file() {
+        if [".tsx", ".jsx"].iter().any(|ext| {
+            bridge
+                .with_file_name(format!("{base}.svelte{ext}"))
+                .is_file()
+        }) {
             continue;
         }
         let _ = fs::remove_file(&bridge);
@@ -3260,7 +3349,7 @@ fn rewrite_aliased_svelte_imports(
                 })
                 .max_by_key(|(rel, _)| resolved_canon.as_os_str().len() - rel.as_os_str().len())?
         };
-        let shadow = append_extension(&mirror_dir.join(rel), ".tsx");
+        let shadow = append_extension(&mirror_dir.join(rel), shadow_extension(&resolved_canon));
         let mut rewritten = lexical_relative_posix(generated_dir, &shadow);
         if !rewritten.starts_with('.') {
             rewritten = format!("./{rewritten}");
@@ -3559,12 +3648,13 @@ mod tests {
         for entry in &layout.entries {
             assert!(entry.tsx_path.exists(), "{:?}", entry.tsx_path);
             assert!(entry.dts_path.exists(), "{:?}", entry.dts_path);
-            // .tsx mirrors source relative path under emit_dir/svelte
+            // shadow mirrors source relative path under emit_dir/svelte;
+            // a JS-authored component gets `.jsx` so JSDoc is honoured
             let rel = entry
                 .tsx_path
                 .strip_prefix(&layout.emit_dir)
                 .expect("tsx under emit_dir");
-            assert!(rel.to_string_lossy().ends_with(".svelte.tsx"));
+            assert!(rel.to_string_lossy().ends_with(".svelte.jsx"));
         }
 
         // Overlay tsconfig parses as JSON and includes our svelte folder.
@@ -4311,7 +4401,7 @@ mod tests {
         );
         // Pair's bridge is the component's, pointing at the shadow.
         let pair = read("Pair.d.svelte.ts").unwrap();
-        assert!(pair.contains("./Pair.svelte.tsx"), "{pair}");
+        assert!(pair.contains("./Pair.svelte.jsx"), "{pair}");
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -4756,7 +4846,7 @@ mod tests {
             .as_str()
             .unwrap_or_else(|| panic!("no exact override for $lib/Pair.svelte:\n{paths}"));
         assert!(
-            pair.ends_with("Pair.svelte.tsx"),
+            pair.ends_with("Pair.svelte.jsx"),
             "the companion outranked its own component: {pair}"
         );
 
@@ -5068,7 +5158,7 @@ mod tests {
 
         // The shadow's own type reference would pull the original back in
         // through a channel `paths` cannot reach.
-        let tsx = fs::read_to_string(tmp.join(".svelte-check/svelte/src/App.svelte.tsx")).unwrap();
+        let tsx = fs::read_to_string(tmp.join(".svelte-check/svelte/src/App.svelte.jsx")).unwrap();
         assert!(
             !tsx.contains("reference types=\"svelte\""),
             "the svelte type reference must be blanked:\n{tsx}"
