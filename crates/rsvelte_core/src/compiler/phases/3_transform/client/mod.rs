@@ -4660,24 +4660,120 @@ fn statement_end_lines_from_spans(
     flush
 }
 
+/// The same spans, for a `script` that TypeScript stripping rewrote, placed
+/// through the projection that records which source bytes survived into it.
+///
+/// Only the first and last byte of each span are mapped, never the whole span:
+/// `let a: number = 1;` loses `: number`, so no annotated statement is one
+/// contiguous copied run, while its two endpoints almost always are — and the
+/// endpoints are all a line boundary needs.
+///
+/// A span whose endpoints both fail to map is a construct stripping deleted
+/// outright (`interface Foo {}`), so it is skipped rather than treated as a
+/// failure: bailing on it would give up on every file that declares a type.
+/// One endpoint mapping without the other is not interpretable, so that bails.
+fn statement_end_lines_via_projection(
+    script: &str,
+    program: &oxc_ast::ast::Program<'_>,
+    projection: &ScriptProjection,
+) -> Option<Vec<bool>> {
+    use oxc_span::GetSpan as _;
+
+    let place = |start: u32, end: u32| -> Option<Option<(u32, u32)>> {
+        if end <= start {
+            return Some(None);
+        }
+        let first = projection.output_range_for_source(start..start + 1);
+        let last = projection.output_range_for_source(end - 1..end);
+        match (first, last) {
+            (Some(first), Some(last)) => Some(Some((first.start, last.end))),
+            (None, None) => Some(None),
+            _ => None,
+        }
+    };
+
+    let mut stmt_spans: Vec<(u32, u32)> = Vec::with_capacity(program.body.len());
+    for stmt in &program.body {
+        let span = stmt.span();
+        if let Some(mapped) = place(span.start, span.end)? {
+            stmt_spans.push(mapped);
+        }
+    }
+    let mut comment_spans: Vec<(u32, u32)> = Vec::with_capacity(program.comments.len());
+    for comment in &program.comments {
+        if let Some(mapped) = place(comment.span.start, comment.span.end)? {
+            comment_spans.push(mapped);
+        }
+    }
+    // Every statement vanishing means the projection placed nothing, which is
+    // not an answer about `script` -- fall back rather than report "no
+    // statement covers any line", which reads as "flush everywhere".
+    if stmt_spans.is_empty() && comment_spans.is_empty() {
+        return None;
+    }
+    let limit = script.len() as u32;
+    if stmt_spans
+        .iter()
+        .chain(comment_spans.iter())
+        .any(|&(s, e)| e > limit || s > e)
+    {
+        return None;
+    }
+    Some(statement_end_lines_from_spans(
+        script,
+        stmt_spans.into_iter(),
+        comment_spans.into_iter(),
+    ))
+}
+
 /// The spans, in `script` coordinates, that `retained` already holds — when
 /// `script` is a verbatim, uniquely-locatable region of the text it parsed and
 /// no statement straddles that region's edge.
 fn statement_end_lines_from_retained(
     script: &str,
     retained: &crate::ast::oxc_program::RetainedProgram<'_>,
+    is_typescript: bool,
+    projection: Option<&ScriptProjection>,
 ) -> Option<Vec<bool>> {
     use oxc_span::GetSpan as _;
 
     if retained.panicked() || !retained.diagnostics().is_empty() {
+        super::profile::record_st_boundary_bail(super::profile::BOUNDARY_BAIL_DIAGNOSTICS);
         return None;
     }
     let core = script.trim();
     let source = retained.source();
     let mut matches = source.match_indices(core);
-    let (core_start, _) = matches.next()?;
+    let text_differs = match (is_typescript, projection.is_some()) {
+        (true, true) => super::profile::BOUNDARY_BAIL_TEXT_DIFFERS_TS,
+        (true, false) => super::profile::BOUNDARY_BAIL_TS_NO_PROJECTION,
+        (false, _) => super::profile::BOUNDARY_BAIL_TEXT_DIFFERS_JS,
+    };
+    // The text is not verbatim. Stripping is what rewrote it, and the
+    // projection records which bytes survived, so the spans can still be
+    // placed -- without it there is nothing left to try.
+    let fall_back_to_projection = || match projection {
+        Some(projection) => {
+            match statement_end_lines_via_projection(script, retained.program(), projection) {
+                Some(ends) => Some(ends),
+                None => {
+                    super::profile::record_st_boundary_bail(
+                        super::profile::BOUNDARY_BAIL_PROJECTION_FAILED,
+                    );
+                    None
+                }
+            }
+        }
+        None => {
+            super::profile::record_st_boundary_bail(text_differs);
+            None
+        }
+    };
+    let Some((core_start, _)) = matches.next() else {
+        return fall_back_to_projection();
+    };
     if matches.next().is_some() {
-        return None;
+        return fall_back_to_projection();
     }
     let core_end = (core_start + core.len()) as u32;
     let core_start = core_start as u32;
@@ -4702,6 +4798,7 @@ fn statement_end_lines_from_retained(
             .iter()
             .any(|comment| straddles(comment.span.start, comment.span.end))
     {
+        super::profile::record_st_boundary_bail(super::profile::BOUNDARY_BAIL_STRADDLE);
         return None;
     }
     // `core` is matched as text, so a region that merely *looks* like the script
@@ -4717,6 +4814,7 @@ fn statement_end_lines_from_retained(
             .iter()
             .any(|comment| comment.span.start == core_start)
     {
+        super::profile::record_st_boundary_bail(super::profile::BOUNDARY_BAIL_UNANCHORED);
         return None;
     }
     Some(statement_end_lines_from_spans(
@@ -4742,6 +4840,8 @@ fn statement_end_lines_from_retained(
 fn top_level_statement_end_lines(
     script: &str,
     retained: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
+    is_typescript: bool,
+    projection: Option<&ScriptProjection>,
 ) -> Option<Vec<bool>> {
     use oxc_span::GetSpan as _;
 
@@ -4749,7 +4849,15 @@ fn top_level_statement_end_lines(
         return None;
     }
 
-    let reused = retained.and_then(|retained| statement_end_lines_from_retained(script, retained));
+    let reused = match retained {
+        Some(retained) => {
+            statement_end_lines_from_retained(script, retained, is_typescript, projection)
+        }
+        None => {
+            super::profile::record_st_boundary_bail(super::profile::BOUNDARY_BAIL_NO_RETAINED);
+            None
+        }
+    };
     if let Some(ends) = reused.as_ref()
         && !super::profile::boundary_oracle_enabled()
     {
@@ -6511,7 +6619,17 @@ fn transform_instance_script_for_visitors(
     // means the text did not parse, which is not a defect here — the script is
     // mid-pipeline and may not be valid on its own — so the heuristics stay as
     // the fallback.
-    let stmt_end_lines = top_level_statement_end_lines(&script_rest, retained_program);
+    // The projection maps into the script as it entered this function. When
+    // prenormalize rewrote the text, it maps somewhere that no longer exists,
+    // and unlike the verbatim path -- which re-finds its own text and so cannot
+    // be wrong about this -- nothing downstream would catch it.
+    let projection_still_applies = script_rest == original_script;
+    let stmt_end_lines = top_level_statement_end_lines(
+        &script_rest,
+        retained_program,
+        analysis.is_typescript,
+        source_projection.filter(|_| projection_still_applies),
+    );
     super::profile::record_st_boundary_source(stmt_end_lines.is_some());
 
     super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
