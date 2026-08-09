@@ -382,6 +382,17 @@ fn main() {
         st.boundary_scan
     );
     println!(
+        "    BOUNDARY reused Phase-1 parse {} / {} ({:.2}%) | added a parse {}",
+        st.boundary_retained,
+        st.boundary_ast,
+        if st.boundary_ast == 0 {
+            0.0
+        } else {
+            st.boundary_retained as f64 / st.boundary_ast as f64 * 100.0
+        },
+        st.boundary_ast.saturating_sub(st.boundary_retained)
+    );
+    println!(
         "    COUNTERS loop_lines {} | fastpath_stmts {} | ctrl_header {} calls / {} bytes | collect_scan {} passes / {} bytes",
         st.loop_lines,
         st.fastpath_statements,
@@ -538,6 +549,17 @@ fn main() {
         oracle.mismatches,
         if oracle.checks == 0 {
             " (set RSVELTE_INDEX_ORACLE to run it)"
+        } else {
+            ""
+        }
+    );
+    let boundary_oracle = profile::take_boundary_oracle();
+    println!(
+        "  boundary oracle: {} checks, {} mismatches{}",
+        boundary_oracle.checks,
+        boundary_oracle.mismatches,
+        if boundary_oracle.checks == 0 {
+            " (set RSVELTE_BOUNDARY_ORACLE to run it)"
         } else {
             ""
         }

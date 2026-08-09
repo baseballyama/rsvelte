@@ -4585,27 +4585,180 @@ thread_local! {
         RefCell::new(oxc_allocator::Allocator::default());
 }
 
-/// Per line, whether the accumulated statement ends there.
+/// Per line of `script`, whether the accumulated statement ends there, given
+/// the top-level statement spans and the comment spans — both already in
+/// `script`'s own byte coordinates.
 ///
 /// True on a line that ends a top-level statement, and also on a line no
 /// statement covers — a comment or blank between statements. The scanner this
 /// replaces flushes those too (their depths are balanced), and the stages
 /// downstream read the first line of what they are handed, so folding a leading
 /// comment into the next statement stops `export let` from being recognised.
-///
+fn statement_end_lines_from_spans(
+    script: &str,
+    stmt_spans: impl Iterator<Item = (u32, u32)>,
+    comment_spans: impl Iterator<Item = (u32, u32)>,
+) -> Vec<bool> {
+    let mut line_starts: Vec<u32> = vec![0];
+    for (i, b) in script.bytes().enumerate() {
+        if b == b'\n' {
+            line_starts.push(i as u32 + 1);
+        }
+    }
+    let line_of = |byte: u32| match line_starts.binary_search(&byte) {
+        Ok(i) => i,
+        Err(i) => i - 1,
+    };
+    let line_count = line_starts.len();
+    let mut covered = vec![false; line_count];
+    let mut flush = vec![false; line_count];
+    // Lines where a block comment is still open at end of line. The text
+    // pipeline cannot cut there — half a comment is not a statement — and
+    // neither could the scanner, whose depth tracker stays inside the comment.
+    let mut comment_open = vec![false; line_count];
+
+    // `end` is exclusive, so a span's last byte is one before it; a span ending
+    // exactly at a newline would otherwise be attributed to the following line.
+    let lines_of = |start: u32, end: u32| {
+        (
+            line_of(start),
+            line_of(end.saturating_sub(1)).min(line_count - 1),
+        )
+    };
+
+    for (start, end) in stmt_spans {
+        let (first, last) = lines_of(start, end);
+        for c in covered.iter_mut().take(last + 1).skip(first) {
+            *c = true;
+        }
+        flush[last] = true;
+    }
+    for (start, end) in comment_spans {
+        let (first, last) = lines_of(start, end);
+        // A comment inside a statement is not a cut point — the scanner this
+        // replaces cannot stop there either, its depths being unbalanced — so
+        // only a comment that stands between statements ends a unit.
+        if !covered[last] {
+            flush[last] = true;
+        }
+        for open in comment_open.iter_mut().take(last).skip(first) {
+            *open = true;
+        }
+        for c in covered.iter_mut().take(last + 1).skip(first) {
+            *c = true;
+        }
+    }
+    for (l, f) in flush.iter_mut().enumerate() {
+        if !covered[l] {
+            *f = true;
+        }
+        if comment_open[l] {
+            *f = false;
+        }
+    }
+    flush
+}
+
+/// The spans, in `script` coordinates, that `retained` already holds — when
+/// `script` is a verbatim, uniquely-locatable region of the text it parsed and
+/// no statement straddles that region's edge.
+fn statement_end_lines_from_retained(
+    script: &str,
+    retained: &crate::ast::oxc_program::RetainedProgram<'_>,
+) -> Option<Vec<bool>> {
+    use oxc_span::GetSpan as _;
+
+    if retained.panicked() || !retained.diagnostics().is_empty() {
+        return None;
+    }
+    let core = script.trim();
+    let source = retained.source();
+    let mut matches = source.match_indices(core);
+    let (core_start, _) = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    let core_end = (core_start + core.len()) as u32;
+    let core_start = core_start as u32;
+    // Where `core` sits inside `script`, so a span lands on the same line the
+    // caller's line split produced.
+    let lead = (script.len() - script.trim_start().len()) as u32;
+    let rebase = |start: u32, end: u32| (start - core_start + lead, end - core_start + lead);
+
+    let program = retained.program();
+    let in_core = |start: u32, end: u32| start >= core_start && end <= core_end;
+    // A span crossing the edge would have been cut by the text that produced
+    // `script`, so it says nothing about `script`'s boundaries — and dropping
+    // it silently would leave the lines it covers looking uncovered.
+    let straddles =
+        |start: u32, end: u32| end > core_start && start < core_end && !in_core(start, end);
+    if program
+        .body
+        .iter()
+        .any(|stmt| straddles(stmt.span().start, stmt.span().end))
+        || program
+            .comments
+            .iter()
+            .any(|comment| straddles(comment.span.start, comment.span.end))
+    {
+        return None;
+    }
+    // `core` is matched as text, so a region that merely *looks* like the script
+    // — inside a template literal, say — would match too, and would hold no
+    // statements at all, which the caller would read as "every line flushes".
+    // Something has to begin exactly where it begins.
+    if !program
+        .body
+        .iter()
+        .any(|stmt| stmt.span().start == core_start)
+        && !program
+            .comments
+            .iter()
+            .any(|comment| comment.span.start == core_start)
+    {
+        return None;
+    }
+    Some(statement_end_lines_from_spans(
+        script,
+        program
+            .body
+            .iter()
+            .map(|stmt| (stmt.span().start, stmt.span().end))
+            .filter(|&(s, e)| in_core(s, e))
+            .map(|(s, e)| rebase(s, e)),
+        program
+            .comments
+            .iter()
+            .map(|c| (c.span.start, c.span.end))
+            .filter(|&(s, e)| in_core(s, e))
+            .map(|(s, e)| rebase(s, e)),
+    ))
+}
+
 /// `None` when the text does not parse. That is not a defect: this runs on a
 /// script that is part-way through the text pipeline, so the caller keeps its
 /// scanning heuristics as the fallback.
-fn top_level_statement_end_lines(script: &str) -> Option<Vec<bool>> {
+fn top_level_statement_end_lines(
+    script: &str,
+    retained: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
+) -> Option<Vec<bool>> {
     use oxc_span::GetSpan as _;
 
     if script.trim().is_empty() {
         return None;
     }
 
+    let reused = retained.and_then(|retained| statement_end_lines_from_retained(script, retained));
+    if let Some(ends) = reused.as_ref()
+        && !super::profile::boundary_oracle_enabled()
+    {
+        super::profile::record_st_boundary_retained();
+        return Some(ends.clone());
+    }
+
     // A separate arena from `ast_state_transform`'s: that one resets on entry,
     // and both would then be live in the same call.
-    STMT_BOUNDARY_ALLOCATOR.with(|cell| {
+    let fresh = STMT_BOUNDARY_ALLOCATOR.with(|cell| {
         const MAX_RETAINED_BYTES: usize = 16 * 1024 * 1024;
         let mut alloc = cell.borrow_mut();
         alloc.reset();
@@ -4617,67 +4770,19 @@ fn top_level_statement_end_lines(script: &str) -> Option<Vec<bool>> {
         let ends = if parsed.panicked || !parsed.diagnostics.is_empty() {
             None
         } else {
-            let mut line_starts: Vec<u32> = vec![0];
-            for (i, b) in script.bytes().enumerate() {
-                if b == b'\n' {
-                    line_starts.push(i as u32 + 1);
-                }
-            }
-            let line_of = |byte: u32| match line_starts.binary_search(&byte) {
-                Ok(i) => i,
-                Err(i) => i - 1,
-            };
-            let line_count = line_starts.len();
-            let mut covered = vec![false; line_count];
-            let mut flush = vec![false; line_count];
-            // Lines where a block comment is still open at end of line. The text
-            // pipeline cannot cut there — half a comment is not a statement —
-            // and neither could the scanner, whose depth tracker stays inside
-            // the comment.
-            let mut comment_open = vec![false; line_count];
-
-            // `span.end` is exclusive, so a span's last byte is one before it;
-            // a span ending exactly at a newline would otherwise be attributed
-            // to the following line.
-            let lines_of = |span: oxc_span::Span| {
-                (
-                    line_of(span.start),
-                    line_of(span.end.saturating_sub(1)).min(line_count - 1),
-                )
-            };
-
-            for stmt in &parsed.program.body {
-                let (first, last) = lines_of(stmt.span());
-                for c in covered.iter_mut().take(last + 1).skip(first) {
-                    *c = true;
-                }
-                flush[last] = true;
-            }
-            for comment in &parsed.program.comments {
-                let (first, last) = lines_of(comment.span);
-                // A comment inside a statement is not a cut point — the scanner
-                // this replaces cannot stop there either, its depths being
-                // unbalanced — so only a comment that stands between statements
-                // ends a unit.
-                if !covered[last] {
-                    flush[last] = true;
-                }
-                for open in comment_open.iter_mut().take(last).skip(first) {
-                    *open = true;
-                }
-                for c in covered.iter_mut().take(last + 1).skip(first) {
-                    *c = true;
-                }
-            }
-            for (l, f) in flush.iter_mut().enumerate() {
-                if !covered[l] {
-                    *f = true;
-                }
-                if comment_open[l] {
-                    *f = false;
-                }
-            }
-            Some(flush)
+            Some(statement_end_lines_from_spans(
+                script,
+                parsed
+                    .program
+                    .body
+                    .iter()
+                    .map(|stmt| (stmt.span().start, stmt.span().end)),
+                parsed
+                    .program
+                    .comments
+                    .iter()
+                    .map(|c| (c.span.start, c.span.end)),
+            ))
         };
 
         drop(parsed);
@@ -4685,7 +4790,16 @@ fn top_level_statement_end_lines(script: &str) -> Option<Vec<bool>> {
             *alloc = oxc_allocator::Allocator::default();
         }
         ends
-    })
+    });
+
+    if super::profile::boundary_oracle_enabled()
+        && let Some(reused) = reused
+    {
+        super::profile::record_boundary_oracle(fresh.as_ref() == Some(&reused));
+        super::profile::record_st_boundary_retained();
+        return Some(reused);
+    }
+    fresh
 }
 
 fn transform_instance_script_for_visitors(
@@ -6396,7 +6510,7 @@ fn transform_instance_script_for_visitors(
     // means the text did not parse, which is not a defect here — the script is
     // mid-pipeline and may not be valid on its own — so the heuristics stay as
     // the fallback.
-    let stmt_end_lines = top_level_statement_end_lines(&script_rest);
+    let stmt_end_lines = top_level_statement_end_lines(&script_rest, retained_program);
     super::profile::record_st_boundary_source(stmt_end_lines.is_some());
 
     super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
@@ -6469,22 +6583,25 @@ fn transform_instance_script_for_visitors(
         // Add line to accumulator (zero-copy borrow from script_lines)
         accumulated_lines.push(line);
 
-        // Incrementally update depth counters (only scans this new line, not the whole buffer)
-        update_expression_depths(
-            line,
-            &mut depth_paren,
-            &mut depth_bracket,
-            &mut depth_brace,
-            &mut depth_in_string,
-            &mut depth_in_block_comment,
-            &mut depth_template_interp_stack,
-        );
-
         // The parser's answer when we have one. It settles all four heuristics
         // below at once, so each of them is neutralised rather than consulted.
         let complete_hint = stmt_end_lines
             .as_ref()
             .map(|ends| ends.get(line_idx).copied().unwrap_or(true));
+
+        // These counters feed `is_expression_incomplete` and nothing else, so
+        // the parser's answer makes the per-line character scan dead work.
+        if complete_hint.is_none() {
+            update_expression_depths(
+                line,
+                &mut depth_paren,
+                &mut depth_bracket,
+                &mut depth_brace,
+                &mut depth_in_string,
+                &mut depth_in_block_comment,
+                &mut depth_template_interp_stack,
+            );
+        }
 
         // Check if we have a complete statement (balanced braces/parens)
         if complete_hint.unwrap_or_else(|| {

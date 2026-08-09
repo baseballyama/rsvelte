@@ -120,6 +120,9 @@ pub struct ScriptTextBreakdown {
     /// Scripts whose statement boundaries came from the parser / from the scanner.
     pub boundary_ast: u64,
     pub boundary_scan: u64,
+    /// Of `boundary_ast`, those answered from the program Phase 1 already
+    /// parsed rather than from a parse this pipeline added.
+    pub boundary_retained: u64,
     /// Statements the runes fast path emitted without calling the processor.
     pub fastpath_statements: u64,
     /// Calls to the brace-less-control-header probe, and the bytes it had to
@@ -228,6 +231,7 @@ thread_local! {
     static ST_LOOP_LINES: Cell<u64> = const { Cell::new(0) };
     static ST_BOUNDARY_AST: Cell<u64> = const { Cell::new(0) };
     static ST_BOUNDARY_SCAN: Cell<u64> = const { Cell::new(0) };
+    static ST_BOUNDARY_RETAINED: Cell<u64> = const { Cell::new(0) };
     static ST_FASTPATH_STATEMENTS: Cell<u64> = const { Cell::new(0) };
     static ST_CTRL_HEADER_CALLS: Cell<u64> = const { Cell::new(0) };
     static ST_CTRL_HEADER_BYTES: Cell<u64> = const { Cell::new(0) };
@@ -967,6 +971,12 @@ pub fn record_st_boundary_source(from_ast: bool) {
     }
 }
 
+/// Of the AST-sourced boundaries, those that cost no parse.
+#[inline]
+pub fn record_st_boundary_retained() {
+    ST_BOUNDARY_RETAINED.with(|c| c.set(c.get() + 1));
+}
+
 #[inline]
 pub fn record_st_loop_lines(n: u64) {
     ST_LOOP_LINES.with(|c| c.set(c.get() + n));
@@ -1012,6 +1022,7 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         loop_lines: ST_LOOP_LINES.with(|c| c.replace(0)),
         boundary_ast: ST_BOUNDARY_AST.with(|c| c.replace(0)),
         boundary_scan: ST_BOUNDARY_SCAN.with(|c| c.replace(0)),
+        boundary_retained: ST_BOUNDARY_RETAINED.with(|c| c.replace(0)),
         fastpath_statements: ST_FASTPATH_STATEMENTS.with(|c| c.replace(0)),
         ctrl_header_calls: ST_CTRL_HEADER_CALLS.with(|c| c.replace(0)),
         ctrl_header_bytes: ST_CTRL_HEADER_BYTES.with(|c| c.replace(0)),
@@ -1169,5 +1180,30 @@ pub fn record_index_oracle(agrees: bool) {
 
 pub fn take_index_oracle() -> IndexOracle {
     let (checks, mismatches) = INDEX_ORACLE.replace((0, 0));
+    IndexOracle { checks, mismatches }
+}
+
+thread_local! {
+    static BOUNDARY_ORACLE: Cell<(u64, u64)> = const { Cell::new((0, 0)) };
+}
+
+/// Whether reusing Phase 1's program answers the boundary question the same way
+/// a fresh parse of the pipeline's own text does. A byte-identical corpus is
+/// not evidence: the reuse could be bailing on every file.
+pub fn boundary_oracle_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RSVELTE_BOUNDARY_ORACLE").is_some())
+}
+
+#[inline]
+pub fn record_boundary_oracle(agrees: bool) {
+    BOUNDARY_ORACLE.with(|c| {
+        let (checks, mismatches) = c.get();
+        c.set((checks + 1, mismatches + u64::from(!agrees)));
+    });
+}
+
+pub fn take_boundary_oracle() -> IndexOracle {
+    let (checks, mismatches) = BOUNDARY_ORACLE.replace((0, 0));
     IndexOracle { checks, mismatches }
 }
