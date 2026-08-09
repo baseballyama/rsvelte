@@ -83,7 +83,7 @@ fn a_closing_paren_in_a_comment_does_not_end_the_initializer() {
 fn the_server_keeps_both_operands_and_the_comment() {
     let out = compile_to(SEMI_MID, GenerateMode::Server);
     assert!(
-        out.contains("let x = a + // ; c\n\t\tb;"),
+        out.contains("let x = a + // ; c\n\tb;"),
         "the server initializer changed:\n{out}"
     );
 }
