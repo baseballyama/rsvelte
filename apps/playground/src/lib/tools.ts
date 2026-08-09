@@ -2,10 +2,11 @@
 // guides (`/docs`) and the multi-tool playground (`/playground?tool=…`).
 //
 // `runnable` marks the tools that can execute entirely in the browser on
-// WebAssembly. The two that can't — svelte-check (drives the native `tsgo`
-// type-checker) and vite-plugin-svelte (needs a running Vite / Node dev
-// server) — still get a playground entry, but it explains the limitation
-// and links the guide instead of running.
+// WebAssembly. The ones that can't — svelte-check (drives a native TypeScript
+// compiler), the language server (speaks LSP to an editor) and
+// vite-plugin-svelte (needs a running Vite / Node dev server) — still get a
+// playground entry, but it explains the limitation and links the guide
+// instead of running.
 
 export type ToolId =
 	| 'compiler'
@@ -13,6 +14,7 @@ export type ToolId =
 	| 'fmt'
 	| 'lint'
 	| 'svelte-check'
+	| 'language-server'
 	| 'vite-plugin-svelte';
 
 export interface Tool {
@@ -55,19 +57,29 @@ export const TOOLS: Tool[] = [
 	{
 		id: 'lint',
 		label: 'lint',
-		pkg: 'rsvelte_lint',
+		pkg: '@rsvelte/lint',
 		tagline:
-			'Lint a .svelte component with the Rust-native linter (compiler warnings + a11y + native rules). Powers the language server; not yet a standalone npm CLI.',
+			'Lint a .svelte component with the Rust-native linter (compiler warnings + a11y + the ported eslint-plugin-svelte rules).',
 		runnable: true
 	},
 	{
 		id: 'svelte-check',
 		label: 'svelte-check',
 		pkg: '@rsvelte/svelte-check',
-		tagline: 'Project type-checker CLI — a Rust walker + overlay driving tsc or the native tsgo.',
+		tagline:
+			'Project type-checker CLI — a Rust walker + overlay driving tsc or the TypeScript 7 native compiler.',
 		runnable: false,
 		cantRunReason:
-			'svelte-check type-checks a whole project through a native TypeScript backend (tsc or tsgo), which cannot run in a browser. Use the CLI; the guide shows how.'
+			'svelte-check type-checks a whole project through a native TypeScript backend (tsc or the TypeScript 7 native compiler), which cannot run in a browser. Use the CLI; the guide shows how.'
+	},
+	{
+		id: 'language-server',
+		label: 'language-server',
+		pkg: '@rsvelte/language-server',
+		tagline: 'LSP server serving diagnostics, formatting, completions and hover from the Rust core.',
+		runnable: false,
+		cantRunReason:
+			'A language server answers LSP requests from an editor over stdio, so there is nothing to run in a browser tab. Point your editor at it; the guide shows how.'
 	},
 	{
 		id: 'vite-plugin-svelte',

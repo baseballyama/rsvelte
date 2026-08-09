@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { GUIDES } from '$lib/docs';
+	import { GUIDE_LIST } from '$lib/docs';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
-	import DocsSidebar from '$lib/components/DocsSidebar.svelte';
-	import DocsToc from '$lib/components/DocsToc.svelte';
+	import DocsShell from '$lib/components/DocsShell.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 
@@ -15,14 +14,6 @@
 
 	const migration = `- import { compile } from 'svelte/compiler';
 + import { compile } from '@rsvelte/compiler';`;
-
-	const packageUses: Record<string, string> = {
-		compiler: 'Compile Svelte components for client and server.',
-		svelte2tsx: 'Generate TypeScript shadow files from Svelte components.',
-		fmt: 'Format .svelte files.',
-		'svelte-check': 'Type-check Svelte projects from the command line.',
-		'vite-plugin-svelte': 'Compile Svelte applications with Vite.',
-	};
 </script>
 
 <svelte:head>
@@ -36,9 +27,7 @@
 <div class="page">
 	<SiteNav active="docs" />
 
-	<div class="docs-shell">
-		<DocsSidebar current="overview" />
-
+	<DocsShell current="overview" {toc}>
 		<main class="article">
 			<nav class="breadcrumbs" aria-label="Breadcrumb">
 				<a href="{base}/">Documentation</a>
@@ -70,10 +59,10 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each GUIDES as guide (guide.id)}
+							{#each GUIDE_LIST as guide (guide.id)}
 								<tr>
 									<td><a href="{base}/docs/{guide.id}">{guide.title}</a></td>
-									<td>{packageUses[guide.id]}</td>
+									<td>{guide.useFor}</td>
 									<td><code>{guide.pkg}</code></td>
 								</tr>
 							{/each}
@@ -124,9 +113,7 @@
 				</a>
 			</nav>
 		</main>
-
-		<DocsToc items={toc} />
-	</div>
+	</DocsShell>
 
 	<SiteFooter />
 </div>
@@ -138,17 +125,8 @@
 		flex-direction: column;
 	}
 
-	.docs-shell {
-		flex: 1;
-		width: 100%;
-		max-width: 1440px;
-		margin: 0 auto;
-		display: grid;
-		grid-template-columns: 230px minmax(0, 52rem) 200px;
-		justify-content: center;
-	}
-
 	.article {
+		grid-area: main;
 		min-width: 0;
 		padding: 3rem clamp(2rem, 5vw, 4rem) 5rem;
 	}
@@ -316,18 +294,9 @@
 		color: var(--accent);
 	}
 
-	@media (max-width: 1120px) {
-		.docs-shell {
-			grid-template-columns: 230px minmax(0, 1fr);
-		}
-	}
-
 	@media (max-width: 860px) {
-		.docs-shell {
-			grid-template-columns: 1fr;
-		}
-
 		.article {
+			padding-top: 2rem;
 			padding-inline: clamp(1rem, 5vw, 2.5rem);
 		}
 	}

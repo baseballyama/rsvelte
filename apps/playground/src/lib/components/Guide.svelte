@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import { GUIDES, type Guide } from '$lib/docs';
-	import DocsSidebar from '$lib/components/DocsSidebar.svelte';
-	import DocsToc from '$lib/components/DocsToc.svelte';
+	import { GUIDE_LIST, type Guide } from '$lib/docs';
+	import DocsShell from '$lib/components/DocsShell.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
@@ -20,9 +19,11 @@
 			.replace(/[^a-z0-9]+/g, '-')
 			.replace(/(^-|-$)/g, '');
 
-	const guideIndex = $derived(GUIDES.findIndex((item) => item.id === guide.id));
-	const previousGuide = $derived(guideIndex > 0 ? GUIDES[guideIndex - 1] : null);
-	const nextGuide = $derived(guideIndex < GUIDES.length - 1 ? GUIDES[guideIndex + 1] : null);
+	const guideIndex = $derived(GUIDE_LIST.findIndex((item) => item.id === guide.id));
+	const previousGuide = $derived(guideIndex > 0 ? GUIDE_LIST[guideIndex - 1] : null);
+	const nextGuide = $derived(
+		guideIndex < GUIDE_LIST.length - 1 ? GUIDE_LIST[guideIndex + 1] : null,
+	);
 	const toc = $derived(
 		guide.sections.map((section) => ({
 			label: section.title,
@@ -34,9 +35,7 @@
 <div class="page">
 	<SiteNav active="docs" />
 
-	<div class="docs-shell">
-		<DocsSidebar current={guide.id} />
-
+	<DocsShell current={guide.id} {toc}>
 		<main class="wrap">
 			<nav class="crumbs" aria-label="Breadcrumb">
 				<a href="{base}/docs">Docs</a>
@@ -151,9 +150,7 @@
 				{/if}
 			</nav>
 		</main>
-
-		<DocsToc items={toc} />
-	</div>
+	</DocsShell>
 
 	<SiteFooter />
 </div>
@@ -165,17 +162,8 @@
 		flex-direction: column;
 	}
 
-	.docs-shell {
-		flex: 1;
-		width: 100%;
-		max-width: 1440px;
-		margin: 0 auto;
-		display: grid;
-		grid-template-columns: 230px minmax(0, 52rem) 200px;
-		justify-content: center;
-	}
-
 	.wrap {
+		grid-area: main;
 		width: 100%;
 		min-width: 0;
 		padding: 3.5rem clamp(2rem, 5vw, 4rem) 5rem;
@@ -400,17 +388,9 @@
 		color: var(--accent);
 	}
 
-	@media (max-width: 1120px) {
-		.docs-shell {
-			grid-template-columns: 230px minmax(0, 1fr);
-		}
-	}
-
-	@media (max-width: 800px) {
-		.docs-shell {
-			grid-template-columns: 1fr;
-		}
+	@media (max-width: 860px) {
 		.wrap {
+			padding-top: 2rem;
 			padding-inline: clamp(1rem, 5vw, 2.5rem);
 		}
 	}

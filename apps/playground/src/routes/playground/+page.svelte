@@ -293,6 +293,12 @@
 		if (id === 'svelte-check') {
 			return { lang: 'bash', code: 'pnpm add -D @rsvelte/svelte-check\nrsvelte-check --watch' };
 		}
+		if (id === 'language-server') {
+			return {
+				lang: 'bash',
+				code: 'pnpm add -D @rsvelte/language-server\nrsvelte-language-server'
+			};
+		}
 		return {
 			lang: 'js',
 			code: `import { svelte } from '@rsvelte/vite-plugin-svelte';\n\nexport default { plugins: [svelte()] };`

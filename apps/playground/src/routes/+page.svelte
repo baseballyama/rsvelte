@@ -2,10 +2,9 @@
 	import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import type { TestResults } from '$lib/types/test-results';
-	import { GUIDES } from '$lib/docs';
+	import { GUIDE_LIST } from '$lib/docs';
 	import CodeBlock from '$lib/components/CodeBlock.svelte';
-	import DocsSidebar from '$lib/components/DocsSidebar.svelte';
-	import DocsToc from '$lib/components/DocsToc.svelte';
+	import DocsShell from '$lib/components/DocsShell.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 
@@ -47,9 +46,7 @@ const result = compile(source, {
 <div class="page">
 	<SiteNav active="docs" />
 
-	<div class="docs-shell">
-		<DocsSidebar current="introduction" />
-
+	<DocsShell current="introduction" {toc}>
 		<main class="article">
 			<nav class="breadcrumbs" aria-label="Breadcrumb">
 				<span>Documentation</span>
@@ -115,7 +112,7 @@ const result = compile(source, {
 							</tr>
 						</thead>
 						<tbody>
-							{#each GUIDES as guide (guide.id)}
+							{#each GUIDE_LIST as guide (guide.id)}
 								<tr>
 									<td>
 										<a href="{base}/docs/{guide.id}">{guide.title}</a>
@@ -156,9 +153,7 @@ const result = compile(source, {
 				</a>
 			</nav>
 		</main>
-
-		<DocsToc items={toc} />
-	</div>
+	</DocsShell>
 
 	<SiteFooter />
 </div>
@@ -170,17 +165,8 @@ const result = compile(source, {
 		flex-direction: column;
 	}
 
-	.docs-shell {
-		flex: 1;
-		width: 100%;
-		max-width: 1440px;
-		margin: 0 auto;
-		display: grid;
-		grid-template-columns: 230px minmax(0, 52rem) 200px;
-		justify-content: center;
-	}
-
 	.article {
+		grid-area: main;
 		min-width: 0;
 		padding: 3rem clamp(2rem, 5vw, 4rem) 5rem;
 	}
@@ -369,18 +355,9 @@ const result = compile(source, {
 		color: var(--accent);
 	}
 
-	@media (max-width: 1120px) {
-		.docs-shell {
-			grid-template-columns: 230px minmax(0, 1fr);
-		}
-	}
-
 	@media (max-width: 860px) {
-		.docs-shell {
-			grid-template-columns: 1fr;
-		}
-
 		.article {
+			padding-top: 2rem;
 			padding-inline: clamp(1rem, 5vw, 2.5rem);
 		}
 	}
