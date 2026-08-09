@@ -367,6 +367,15 @@ The same is true of spelling: every generated row puts exactly one space between
 the `/`, so `return/re/` — a different byte layout for the same token pair — is never
 produced. **[S]**
 
+This family carries the class alone: there is deliberately **no `pattern-corpus` repro** beside
+it. Every shape that pins the defect puts a `/[//]/` in a legacy `$:` statement, and Gate 3's
+comment mutant then inserts a `//` comment on the last `<script>` line, which a *different*
+pre-existing scan splices inside the emitted `$.set(…)` — unparseable output on all four
+candidate shapes tried (`typeof`, a `return` IIFE, a `case` test, and a legacy function, the last
+of which does not even reach parity unmutated). A seed that lands red would enrol a
+`mutation-known-failures` entry, and that entry suppresses every verdict about the seed —
+including the one it was added to produce. **[D]**
+
 The controls are ASCII-only, and the one that discriminates a **backwards** scan
 (`comment-ending-in-keyword`) is a block comment on one line. A `//` comment whose text ends in a
 keyword is the sharper input and is **not** generated here: rsvelte drops that comment from its
