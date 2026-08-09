@@ -1504,7 +1504,7 @@ pub(super) fn is_destructured_param_binding(
             // contents are read rather than bound.
             '{' => {
                 let ok = match prev {
-                    Some('{') | Some(',') => !child_is_bracket,
+                    Some('{' | ',') => !child_is_bracket,
                     Some(':') => true,
                     _ => false,
                 };
@@ -1513,13 +1513,13 @@ pub(super) fn is_destructured_param_binding(
                 }
             }
             '[' => {
-                if !matches!(prev, Some('[') | Some(',')) {
+                if !matches!(prev, Some('[' | ',')) {
                     return false;
                 }
             }
             '(' => {
                 return inside_pattern
-                    && matches!(prev, Some('(') | Some(','))
+                    && matches!(prev, Some('(' | ','))
                     && is_function_param_list(index, chars, open);
             }
             _ => return false,

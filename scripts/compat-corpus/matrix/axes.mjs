@@ -950,7 +950,7 @@ export const PARAM_PATTERN_PREAMBLE = `<script>
 %s
 </script>
 
-<p>{out}</p>
+<p>{out}{id}</p>
 `;
 
 /** Same declarations, with the callback in the markup instead. */
@@ -960,4 +960,5 @@ export const PARAM_PATTERN_MARKUP_PREAMBLE = `<script>
 </script>
 
 %s
+<p>{id}</p>
 `;
