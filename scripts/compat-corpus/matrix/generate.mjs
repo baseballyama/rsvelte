@@ -34,6 +34,11 @@ import {
 	SLASH_DIVISION_CONTROLS,
 	SLASH_HOSTS,
 	REGEX_BODIES,
+	PARAM_PATTERN_SHAPES,
+	PARAM_PATTERN_SCRIPT_CONTEXTS,
+	PARAM_PATTERN_MARKUP_CONTEXTS,
+	PARAM_PATTERN_PREAMBLE,
+	PARAM_PATTERN_MARKUP_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -236,6 +241,25 @@ function keywordRegexCases() {
 	return cases;
 }
 
+function paramPatternCases() {
+	const cases = [];
+	for (const [shapeName, shape] of Object.entries(PARAM_PATTERN_SHAPES)) {
+		for (const [contextName, statement] of Object.entries(PARAM_PATTERN_SCRIPT_CONTEXTS)) {
+			cases.push({
+				id: `param-pattern/${shapeName}__${contextName}.svelte`,
+				source: PARAM_PATTERN_PREAMBLE.replaceAll('%s', statement.replaceAll('%s', shape)),
+			});
+		}
+		for (const [contextName, markup] of Object.entries(PARAM_PATTERN_MARKUP_CONTEXTS)) {
+			cases.push({
+				id: `param-pattern/${shapeName}__${contextName}.svelte`,
+				source: PARAM_PATTERN_MARKUP_PREAMBLE.replaceAll('%s', markup.replaceAll('%s', shape)),
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
@@ -244,6 +268,7 @@ export const FAMILIES = {
 	'param-default': paramDefaultCases,
 	'each-collection': eachCollectionCases,
 	'keyword-regex': keywordRegexCases,
+	'param-pattern': paramPatternCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

@@ -1475,6 +1475,111 @@ pub(super) fn is_shorthand_object_property(
     is_object_literal_property_position(index, chars, var_start)
 }
 
+/// Check whether the identifier at `var_start` occupies a *binding* slot of a
+/// destructuring pattern that is a function parameter — `({ foo }) => …`,
+/// `([foo]) => …`, `function f({ a: { foo } })`. Such a slot declares a new
+/// local, so neither the `foo()` wrap nor the `foo: foo()` shorthand expansion
+/// may apply; both spell an invalid binding pattern.
+///
+/// Walks outward one bracket at a time, requiring each level to sit in a
+/// binding slot of its parent, so a default value (`({ a = foo }) => …`,
+/// `((o = { foo }) => o)`) and a computed key (`({ [foo]: v }) => …`) — both
+/// real reads — stay out.
+pub(super) fn is_destructured_param_binding(
+    index: &ScanIndex,
+    chars: &[char],
+    var_start: usize,
+) -> bool {
+    let mut pos = var_start;
+    let mut child_is_bracket = false;
+    let mut inside_pattern = false;
+
+    loop {
+        let Some(open) = index.enclosing_any(pos) else {
+            return false;
+        };
+        let prev = prev_binding_slot_char(chars, pos);
+        match chars[open] {
+            // A `[` opening right after `{` or `,` is a computed key, whose
+            // contents are read rather than bound.
+            '{' => {
+                let ok = match prev {
+                    Some('{') | Some(',') => !child_is_bracket,
+                    Some(':') => true,
+                    _ => false,
+                };
+                if !ok {
+                    return false;
+                }
+            }
+            '[' => {
+                if !matches!(prev, Some('[') | Some(',')) {
+                    return false;
+                }
+            }
+            '(' => {
+                return inside_pattern
+                    && matches!(prev, Some('(') | Some(','))
+                    && is_function_param_list(index, chars, open);
+            }
+            _ => return false,
+        }
+        inside_pattern = true;
+        child_is_bracket = chars[open] == '[';
+        pos = open;
+    }
+}
+
+/// The character before `pos` that decides its slot, skipping whitespace and a
+/// rest marker (`{ ...foo }` binds `foo` exactly as `{ foo }` does).
+fn prev_binding_slot_char(chars: &[char], pos: usize) -> Option<char> {
+    let mut j = pos;
+    while j > 0 && chars[j - 1].is_whitespace() {
+        j -= 1;
+    }
+    if j >= 3 && chars[j - 3..j].iter().all(|&c| c == '.') {
+        j -= 3;
+        while j > 0 && chars[j - 1].is_whitespace() {
+            j -= 1;
+        }
+    }
+    (j > 0).then(|| chars[j - 1])
+}
+
+/// Whether the group opened at `open` is a function parameter list: an arrow's
+/// (`) =>`) or a `function` expression/declaration's.
+fn is_function_param_list(index: &ScanIndex, chars: &[char], open: usize) -> bool {
+    if let Some(close) = index.closer_of(open).filter(|&c| chars[c] == ')') {
+        let mut k = close + 1;
+        while k < chars.len() && chars[k].is_whitespace() {
+            k += 1;
+        }
+        if k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>' {
+            return true;
+        }
+    }
+
+    // `function (…)` / `function name (…)`; a bare identifier before `(` is a
+    // call, not a definition.
+    let mut j = open;
+    for _ in 0..2 {
+        while j > 0 && chars[j - 1].is_whitespace() {
+            j -= 1;
+        }
+        let end = j;
+        while j > 0 && is_identifier_char(chars[j - 1]) {
+            j -= 1;
+        }
+        if chars[j..end].iter().copied().eq("function".chars()) {
+            return true;
+        }
+        if j == end {
+            return false;
+        }
+    }
+    false
+}
+
 /// Check if a variable at the given position is the KEY of an explicit
 /// (non-shorthand) object-literal property, e.g. the `foo` in
 /// `{ foo: bar }`. Used to avoid rewriting a property key as if it were a

@@ -883,3 +883,81 @@ let awaitable = 1;
 let yielded = 1;
 %s
 `;
+
+/**
+ * Axis H — where a reactive name sits inside a function's binding PATTERN,
+ * crossed with axis I, the statement context the pattern is reached through.
+ *
+ * A name in a pattern slot is a DECLARATION, not a read, so nothing may wrap it:
+ * `({ id: id() }) =>` is not a binding pattern and no parser accepts it. The
+ * `read-` rows are the opposite signal — there the name IS a read (a default
+ * value, a computed key, an object literal defaulting a parameter, the body),
+ * and a guard written as "anything lexically inside a parameter list" silently
+ * drops its reactivity instead of emitting invalid syntax.
+ *
+ * The context axis is what makes the family discriminating rather than a list of
+ * shapes. Only the legacy `$:` statement routes the expression through the
+ * client text rewriter; a function body, a declaration initializer and every
+ * template slot reach the AST path, which was already correct. A shape axis
+ * alone would have measured a path that never had the defect — which is the same
+ * reason the collected corpus scored 0 while the shape was shipping.
+ */
+export const PARAM_PATTERN_SHAPES = {
+	'object-shorthand': '({ id }) => id',
+	'object-alias': '({ k: id }) => id',
+	'object-nested': '({ a: { id } }) => id',
+	'object-rest': '({ ...id }) => id',
+	'object-second-prop': '({ a, id }) => a + id',
+	'array-element': '([id]) => id',
+	'array-second-element': '([a, id]) => a + id',
+	'array-nested': '([[id]]) => id',
+	'array-rest': '([...id]) => id',
+	'object-in-array': '([{ id }]) => id',
+	'array-in-object': '({ a: [id] }) => id',
+	'second-param': '(a, { id }) => a + id',
+	'fn-expression': 'function ({ id }) { return id; }',
+	'named-fn-expression': 'function pick({ id }) { return id; }',
+	'read-object-default': '({ k = id }) => k',
+	'read-array-default': '([k = id]) => k',
+	'read-computed-key': '({ [id]: k }) => k',
+	'read-param-default-object': '(o = { id }) => o',
+	'read-param-default-array': '(o = [id]) => o',
+	'read-body': '(k) => k + id',
+};
+
+/** Script statements holding the callback. `%s` is the shape. */
+export const PARAM_PATTERN_SCRIPT_CONTEXTS = {
+	'reactive-assignment': '\t$: out = rows.map(%s);',
+	'reactive-object-value': '\t$: out = { list: rows.map(%s) };',
+	'reactive-block': '\t$: {\n\t\tout = rows.map(%s);\n\t}',
+	'reactive-if': '\t$: if (rows.length) {\n\t\tout = rows.map(%s);\n\t}',
+	'function-body': '\tfunction run() {\n\t\tout = rows.map(%s);\n\t}\n\trun();',
+	'declaration-init': '\tconst init = rows.map(%s);\n\t$: out = init;',
+};
+
+/** Template slots holding the same callback. `%s` is the shape. */
+export const PARAM_PATTERN_MARKUP_CONTEXTS = {
+	interpolation: '<p>{rows.map(%s)}</p>',
+	'event-handler': '<button on:click={() => rows.map(%s)}>x</button>',
+	'each-expression': '{#each rows.map(%s) as v}<p>{v}</p>{/each}',
+};
+
+/** The declarations every script case shares, so only the axes differ. */
+export const PARAM_PATTERN_PREAMBLE = `<script>
+	export let id = 1;
+	export let rows = [];
+	let out;
+%s
+</script>
+
+<p>{out}</p>
+`;
+
+/** Same declarations, with the callback in the markup instead. */
+export const PARAM_PATTERN_MARKUP_PREAMBLE = `<script>
+	export let id = 1;
+	export let rows = [];
+</script>
+
+%s
+`;

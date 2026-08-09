@@ -11,8 +11,8 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, ski
 use super::scan_index::{ScanIndex, ScanIndexBuilder};
 use super::{
     extract_destructured_prop_names, find_matching_paren, get_or_compile_regex,
-    is_explicit_property_key, is_inside_string_literal, is_shadowed_by_function_param,
-    is_shorthand_object_property,
+    is_destructured_param_binding, is_explicit_property_key, is_inside_string_literal,
+    is_shadowed_by_function_param, is_shorthand_object_property,
 };
 
 /// True when the identifier at `var_start` (len `var_len`) is a *binding* in an
@@ -425,7 +425,11 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 //   (shorthand `{ foo }` is expanded to `{ foo: foo() }` below);
                 // - the BINDING in an arrow-function parameter list (`name =>`,
                 //   `(a, name) =>`), which declares a new local shadowing the
-                //   prop — `(name()) =>` is invalid syntax.
+                //   prop — `(name()) =>` is invalid syntax;
+                // - a binding slot of a DESTRUCTURING parameter pattern
+                //   (`({ name }) =>`, `([name]) =>`), which is the same
+                //   declaration one bracket in — `({ name: name() }) =>` is not
+                //   a binding pattern.
                 // Under the oracle every guard is asked at every candidate
                 // position, not only where the cheap checks let the question
                 // through, so the comparison covers the guards themselves rather
@@ -446,6 +450,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                     && !is_shadowed_by_function_param(&index, &chars, i, prop_name)
                     && !is_explicit_property_key(&index, &chars, i, prop_len)
                     && !is_arrow_param_binding(&index, &chars, i, prop_len)
+                    && !is_destructured_param_binding(&index, &chars, i)
                 {
                     // Check if this is a shorthand property in an object literal.
                     // e.g., `{ value }` should become `{ value: value() }` not `{ value() }`

@@ -220,7 +220,7 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 2226 generated cases × 3 targets = 6678 comparisons. Where both compilers accept, the
+**Unit.** 2406 generated cases × 3 targets = 7218 comparisons. Where both compilers accept, the
 unit is `js.code` only (`matrix/run.mjs:134,139,166-167`), oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code** (`:150`), which the `invalid-bind` and
 `param-default` families exist to exercise.
@@ -339,7 +339,6 @@ It is also blind to the two axes it holds fixed: the item is always an **Identif
 (never a destructuring pattern, which takes a different transform), and the mode is always
 **legacy**, because the reassigned-item read does not exist under runes. A runes-only variant of
 this family would measure nothing, which is why the preamble is deliberately rune-free.
-
 ### Blind spot 5g — the `keyword-regex` family fixes one body per host and one host per body
 
 Family `keyword-regex` (`axes.mjs` — 15 reserved words that cannot end an expression × 9 hosts,
@@ -389,6 +388,27 @@ previous-byte rule, and the Phase-1 scan that finds where a `{…}` template exp
 rule of its own — `{typeof /[//]/.exec(v)}` is rejected with "`<p>` was left open". Nothing in
 this family distinguishes which of those a case routes through; the 178-comparison measurement
 above is the evidence that they exist, not a partition of them. **[D]**
+
+### Blind spot 5h — `param-pattern` fixes the binding kind and the pattern's host
+
+Family `param-pattern` (`axes.mjs` — 20 pattern shapes × 6 script contexts + 3 markup contexts)
+crosses a *binding* slot of a destructuring parameter with the statement context the callback is
+reached through. The context axis is the load-bearing one: only the legacy `$:` rows route the
+expression through the client text rewriter, and #2608 was invisible in every other context, so
+a shape axis on its own would have measured a path that never had the defect.
+
+Two things it structurally cannot reach. The **binding kind is fixed** at one: every case
+declares `export let id` (`PARAM_PATTERN_PREAMBLE`), so the name occupying the pattern slot is
+always a legacy prop. A `$state` local, a `$derived`, a store auto-subscription, a `$props()`
+member and an each-block item all have their own wrap routines and their own pattern slot, and
+none of them is generated here — **unmeasured**. The **host of the pattern is fixed** too: it is
+always a function parameter list passed to `rows.map(...)`. A `catch (…)` clause, a
+`for (const { id } of …)` head, a `const { id } = …` declaration and a class method's parameters
+are binding positions of the same kind that no row reaches. **[S]**
+
+And the comparison is the one every gate in this document shares: the case scores on whether the
+two texts are equal, not on whether rsvelte's text is JavaScript. It reports #2608 because
+official's output differs, not because `({ id: id() }) =>` fails to parse — see 19a.
 
 **Closing 5b/5c:** the matrix runs in ~10 s on ~5,250 comparisons. Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) or reading `.warnings` is cheap relative to
