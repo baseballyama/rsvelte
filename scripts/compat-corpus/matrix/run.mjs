@@ -208,16 +208,17 @@ for (const testCase of cases) {
 		// only — the position backlog is an order of magnitude larger on the
 		// collected gate and folding it in here would bury every semantic
 		// divergence under it (the argument settled in #2314).
-		const missingWarnings = bagDiff(codeBag(expectedResult), codeBag(actualResult));
-		const extraWarnings = bagDiff(codeBag(actualResult), codeBag(expectedResult));
-		if (missingWarnings.length || extraWarnings.length) {
+		// The verdict carries the code and the direction because the ratchet key is
+		// (id, verdict, target): a case listed for one missing code would otherwise
+		// absorb a regression in a different one — verified, not assumed. Reverting
+		// #2521 with a plain `warning-mismatch` verdict left the gate green.
+		const warningDiffs = [
+			...bagDiff(codeBag(expectedResult), codeBag(actualResult)).map((c) => `warning-missing:${c}`),
+			...bagDiff(codeBag(actualResult), codeBag(expectedResult)).map((c) => `warning-extra:${c}`),
+		];
+		for (const verdict of new Set(warningDiffs)) {
 			counts['warning-mismatch'] += 1;
-			failures.push({
-				id: testCase.id,
-				target: target.key,
-				verdict: 'warning-mismatch',
-				detail: `missing: ${missingWarnings.join(', ') || '(none)'} | extra: ${extraWarnings.join(', ') || '(none)'}`,
-			});
+			failures.push({ id: testCase.id, target: target.key, verdict, detail: verdict });
 		}
 
 		const dir = path.join(TREE, testCase.id);

@@ -255,6 +255,10 @@ pairing is measurable rather than rhetorical: over the 4,134 accepted (case, tar
 five older families, **both compilers emit zero warnings** — the comparison alone would have run
 on an empty population, and the population alone would have been scored on the wrong field.
 Positions stay with the collected gate, where they ratchet separately for the #2314 reason.
+Each diverging code is its own ratchet entry (`warning-missing:<code>`), because the key is
+`(id, verdict, target)`: under a flat `warning-mismatch` verdict, re-breaking #2521 left this
+gate green — the cases were already listed for a *different* missing warning. **A ratchet entry
+suppresses everything its key cannot tell apart**, so put the class in the key.
 `bind-setter` needs no new comparison — #2484's dev-mode `$.assign` divergence is in the output —
 only the element axis, because that defect was reported against `<svelte:component>` (which
 matched) and the live sites are `<svelte:body>` and `<svelte:self>`.

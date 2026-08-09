@@ -249,7 +249,7 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by
 | `error-mismatch` | `svelte-fragment` | 102 | every attribute is accepted; official raises `svelte_fragment_invalid_attribute` for everything but a `slot` attribute and `let:`. 17 kinds (`let:` and a plain `onclick=` attribute are legal upstream, and both match). |
 | `error-mismatch` | `svelte-self` | 60 | the component directive check does not run: 54 are `component_invalid_directive` (`use:` `transition:` `in:` `out:` `animate:` `class:` `style:`), 6 are `event_handler_invalid_component_modifier`. |
 | `error-mismatch` | `svelte-body` | 24 | 12 `bind_invalid_target` (`bind:value` accepted), 6 `let_directive_invalid_placement`, 6 `svelte_body_illegal_attribute` (a spread attribute). |
-| `warning-mismatch` | `svelte-element` | 24 | `a11y_no_static_element_interactions` never fires. 4 handler spellings × 2 modes × 3 targets. |
+| `warning-missing:a11y_no_static_element_interactions` | `svelte-element` | 24 | the warning never fires. 4 handler spellings × 2 modes × 3 targets. |
 | `js-mismatch` | `svelte-body` | 22 | 20 are `transition:` / `in:` / `out:` / `animate:` emitting nothing where official emits `$.transition` / `$.animation`; 2 are legacy-mode `bind:this` failing to make the target a `mutable_source`. |
 | `js-mismatch` | `svelte-document` | 20 | same transition/animation cause. |
 | `js-mismatch` | `svelte-window` | 20 | same transition/animation cause. |
@@ -261,11 +261,18 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by
 The `js-mismatch` rows are `client` and `client-dev` only — the server target emits nothing for a
 transition on either compiler, so it agrees by construction and is not evidence of anything.
 
-The `warning-mismatch` row is the same defect class as #2497, one code over:
+The warning row is the same defect class as #2497, one code over:
 rsvelte emits **no a11y warning at all** for `<svelte:element>`, on any rule, so the four rows
 that reach it (`on:click`, `on:click|once`, `on:click|preventDefault`, `onclick=`) are one cause,
 not four. It is also the row that justifies the warning comparison this family shipped with:
 a warning that never fires leaves the output byte-identical, so `js.code` cannot report it.
+
+Its verdict carries the **code**, and that is not cosmetic. With a flat `warning-mismatch`
+verdict these 24 entries share their ratchet key with every other warning on the same case and
+target — and re-breaking #2521 (so `event_directive_deprecated` stops firing on
+`<svelte:element>`) was measured to leave the gate **green**, because three of the four rows
+were already listed. Keying on `warning-missing:<code>` / `warning-extra:<code>` makes that
+revert produce 9 new ids instead.
 
 The split by mode is `212` legacy / `210` runes — near-even, which is the evidence that the mode
 axis is not decoration. The two extra legacy entries are the `bind:this` on `<svelte:body>` row,

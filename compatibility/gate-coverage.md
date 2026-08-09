@@ -242,8 +242,15 @@ is the *only* place a module comment divergence can be observed at all (cf. #239
 `run.mjs` still forces `css: 'external'`, and `result.css`, `result.metadata` and `result.js.map`
 are never accessed. **[S]**
 
-`result.warnings` is read: the two multisets of warning **codes** are compared and diverge as
-`warning-mismatch`. What that comparison drops is the warning's `start` — rsvelte can emit the
+`result.warnings` is read: the two multisets of warning **codes** are compared, and each
+diverging code becomes its own entry, `warning-missing:<code>` / `warning-extra:<code>`. The
+code is in the **verdict** rather than only in the printed detail because the ratchet key is
+`(id, verdict, target)` and nothing else: under a flat `warning-mismatch` verdict, a case listed
+for one code absorbs a regression in every other code on the same case and target. That is
+measured, not feared — re-breaking #2521 under the flat verdict left this gate **green**,
+because the same three cases were already listed for a missing a11y warning. **[D]**
+
+What the comparison drops is the warning's `start` — rsvelte can emit the
 right code at the wrong line and column and the case scores as parity. **[S]** The collected gate
 ratchets positions separately (`warning-position-known-failures.*`) and its backlog is an order
 of magnitude larger than its code backlog; folding the two together here would bury a semantic
