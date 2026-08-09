@@ -57,8 +57,23 @@ created with are fixed:
 Keep it empty: a new entry means a message regression, and the honest fix is the format
 string, not the baseline.
 
+## "No longer diverging" is two states, and one of them is a regression
+
+The comparison only runs where codes and counts already agree, so an entry stops appearing in
+`diverged` under two conditions that used to be reported with identical wording: its message
+was fixed, or its **codes/counts regressed** and it never reached the text comparison at all.
+Deleting an entry for the second reason permanently hides the regression that caused it.
+
+The test therefore separates them. A listed entry that stops diverging fails as *"now match —
+remove them"* only if it was actually **compared**; otherwise it fails as *"no longer reach the
+message comparison … this is a REGRESSION, not a fix"*, naming the cause. The set of causes and
+the ratchet for fixtures that legitimately leave the comparison are in
+[`validator-message-not-comparable.md`](validator-message-not-comparable.md).
+
 ## Removing an entry
 
 Fix the message, then delete the id here and in the `.json`. The ratchet is two-sided: a listed
 entry that starts matching fails the suite just as a new divergence does, so the fix and the
-re-baseline land in the same PR.
+re-baseline land in the same PR. If the suite says the entry is *no longer comparable*, do not
+delete it — that verdict is a regression report, and the entry is the only thing still naming
+the fixture.

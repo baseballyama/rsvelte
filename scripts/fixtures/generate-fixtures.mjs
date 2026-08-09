@@ -360,6 +360,22 @@ async function generateCssFixture(sampleDir, outputDir, config) {
   }
 }
 
+// The shared `parseConfigText` fallback deliberately drops `runes`/`customElement`/`dev`
+// (see its comment). The validator oracle needs them: compiled under defaults, official
+// emits warnings its own expectations do not have, and the fixture then silently drops
+// out of the warning-message comparison instead of failing.
+function parseValidatorCompileOptions(sampleDir) {
+  const configPath = path.join(sampleDir, '_config.js');
+  if (!fs.existsSync(configPath)) return {};
+  const text = fs.readFileSync(configPath, 'utf-8');
+  const options = {};
+  const runes = text.match(/\brunes\s*:\s*(true|false)\b/);
+  if (runes) options.runes = runes[1] === 'true';
+  if (/\bcustomElement\s*:\s*true\b/.test(text)) options.customElement = true;
+  if (/\bdev\s*:\s*true\b/.test(text)) options.dev = true;
+  return options;
+}
+
 async function generateValidatorFixture(sampleDir, outputDir, config) {
   let inputPath = path.join(sampleDir, 'input.svelte');
   let isModule = false;
@@ -378,13 +394,22 @@ async function generateValidatorFixture(sampleDir, outputDir, config) {
   fs.mkdirSync(outputDir, { recursive: true });
 
   try {
+    const sampleOptions = {
+      ...parseValidatorCompileOptions(sampleDir),
+      ...config.compileOptions,
+    };
+
     let result;
     if (isModule) {
-      result = compileModule(source, { filename: 'input.svelte.js' });
+      result = compileModule(source, {
+        filename: 'input.svelte.js',
+        ...sampleOptions,
+      });
     } else {
       result = compile(source, {
         generate: 'client',
         filename: 'input.svelte',
+        ...sampleOptions,
       });
     }
 

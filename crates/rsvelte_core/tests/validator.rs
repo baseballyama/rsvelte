@@ -11,17 +11,17 @@ mod common;
 // small CI runners. `common::test_thread_pool()` provides a bounded pool ready
 // for use once the hypothesis is verified locally.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use common::{
-    ExpectedValidatorError, FixtureCoverage, SkipReason, check_validator_error,
+    ExpectedValidatorError, ExpectedWarning, FixtureCoverage, SkipReason, check_validator_error,
     get_svelte_test_samples, load_expected_validator_error, read_fixture_file, sample_name,
-    svelte_samples_dir, validator_error_result,
+    svelte_samples_dir, validator_error_result, validator_warnings_detail,
+    validator_warnings_match,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
-use serde::Deserialize;
 
 /// Grow-only fixture floor, measured against the pinned Svelte submodule: 334
 /// samples, 2 of which opt out through `_config.js` (`skip: true` /
@@ -31,22 +31,6 @@ const MIN_VALIDATOR_FIXTURES: usize = 332;
 /// Get all validator test samples.
 fn get_validator_samples() -> Vec<PathBuf> {
     get_svelte_test_samples("validator")
-}
-
-/// Position in source code.
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-struct Position {
-    line: u32,
-    column: u32,
-}
-
-/// Expected warning from warnings.json.
-#[derive(Debug, Deserialize)]
-struct ExpectedWarning {
-    code: String,
-    message: String,
-    start: Position,
-    end: Position,
 }
 
 /// A validator test fixture.
@@ -60,6 +44,8 @@ struct ValidatorFixture {
     runes: Option<bool>,
     /// Compile option: custom element mode
     custom_element: bool,
+    /// Compile option: dev mode
+    dev: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -73,6 +59,7 @@ struct TestConfig {
     skip: bool,
     runes: Option<bool>,
     custom_element: bool,
+    dev: bool,
 }
 
 fn parse_test_config(sample_dir: &Path) -> TestConfig {
@@ -81,6 +68,7 @@ fn parse_test_config(sample_dir: &Path) -> TestConfig {
         skip: false,
         runes: None,
         custom_element: false,
+        dev: false,
     };
 
     if config_path.exists()
@@ -108,6 +96,10 @@ fn parse_test_config(sample_dir: &Path) -> TestConfig {
         // Extract customElement option from compileOptions
         if content.contains("customElement: true") || content.contains("customElement:true") {
             config.custom_element = true;
+        }
+
+        if content.contains("dev: true") || content.contains("dev:true") {
+            config.dev = true;
         }
     }
 
@@ -173,6 +165,7 @@ fn load_validator_fixture(sample_dir: &Path) -> Result<ValidatorFixture, SkipRea
         expected_error,
         runes: config.runes,
         custom_element: config.custom_element,
+        dev: config.dev,
     })
 }
 
@@ -188,32 +181,12 @@ struct TestResult {
     warnings_expected: usize,
 }
 
-/// Mirrors upstream `test.ts`'s ordered `assert.deepEqual` over
-/// `{code, message, start, end}` warning arrays.
-fn warnings_match(
-    actual: &[rsvelte_core::compiler::Warning],
-    expected: &[ExpectedWarning],
-) -> bool {
-    if actual.len() != expected.len() {
-        return false;
-    }
-    actual.iter().zip(expected.iter()).all(|(a, e)| {
-        a.code == e.code
-            && common::strip_error_link(&a.message) == e.message
-            && a.start
-                .as_ref()
-                .is_some_and(|p| p.line as u32 == e.start.line && p.column as u32 == e.start.column)
-            && a.end
-                .as_ref()
-                .is_some_and(|p| p.line as u32 == e.end.line && p.column as u32 == e.end.column)
-    })
-}
-
 /// Run a single validator test.
 fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
     let input = fixture.input.clone();
     let runes = fixture.runes;
     let custom_element = fixture.custom_element;
+    let dev = fixture.dev;
 
     // No `filename`: upstream's `tests/validator/test.ts` passes only
     // `generate` plus the sample's own options, so diagnostics that branch on
@@ -223,6 +196,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
             InputType::Module => {
                 let options = ModuleCompileOptions {
                     generate: GenerateMode::Client,
+                    dev,
                     ..Default::default()
                 };
                 compile_module(&input, options)
@@ -232,6 +206,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                     generate: GenerateMode::Client,
                     runes,
                     custom_element,
+                    dev,
                     ..Default::default()
                 };
                 compile(&input, options)
@@ -269,7 +244,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                     // (code, stripped message, start/end position), not just a count.
                     let expected_warnings_count = fixture.expected_warnings.len();
 
-                    if warnings_match(&result.warnings, &fixture.expected_warnings) {
+                    if validator_warnings_match(&result.warnings, &fixture.expected_warnings) {
                         TestResult {
                             name: fixture.name.clone(),
                             passed: true,
@@ -279,33 +254,8 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                             warnings_expected: expected_warnings_count,
                         }
                     } else {
-                        let mut detail = format!(
-                            "Expected {} warnings, got {}.\n",
-                            expected_warnings_count,
-                            result.warnings.len()
-                        );
-                        for w in &result.warnings {
-                            let _ = writeln!(
-                                detail,
-                                "  actual:   [{}] {} @ {:?}..{:?}",
-                                w.code,
-                                common::strip_error_link(&w.message),
-                                w.start.as_ref().map(|p| (p.line, p.column)),
-                                w.end.as_ref().map(|p| (p.line, p.column)),
-                            );
-                        }
-                        for w in &fixture.expected_warnings {
-                            let _ = writeln!(
-                                detail,
-                                "  expected: [{}] {} @ {}:{}..{}:{}",
-                                w.code,
-                                w.message,
-                                w.start.line,
-                                w.start.column,
-                                w.end.line,
-                                w.end.column,
-                            );
-                        }
+                        let detail =
+                            validator_warnings_detail(&result.warnings, &fixture.expected_warnings);
                         TestResult {
                             name: fixture.name.clone(),
                             passed: false,
@@ -427,8 +377,32 @@ fn test_validator() {
         .map(|r| r.name.as_str())
         .collect();
 
+    let ran: BTreeSet<&str> = results
+        .iter()
+        .filter(|r| !r.skipped)
+        .map(|r| r.name.as_str())
+        .collect();
+
     let regressions: Vec<&str> = failing.difference(&known_set).copied().collect();
-    let fixed: Vec<&str> = known_set.difference(&failing).copied().collect();
+    // "Not failing" is two states, and only one of them is good news: a listed id
+    // that no longer names a runnable fixture was never measured at all.
+    let fixed: Vec<&str> = known_set
+        .difference(&failing)
+        .copied()
+        .filter(|id| ran.contains(id))
+        .collect();
+    let unmeasured: Vec<&str> = known_set.difference(&ran).copied().collect();
+
+    println!(
+        "\nRatchet: {} listed, {} of them ran, {} failing overall, {} regressions, \
+         {} stale, {} unmeasured",
+        known_set.len(),
+        known_set.len() - unmeasured.len(),
+        failing.len(),
+        regressions.len(),
+        fixed.len(),
+        unmeasured.len()
+    );
 
     if !fixed.is_empty() {
         println!(
@@ -438,6 +412,17 @@ fn test_validator() {
             fixed.len()
         );
         for id in &fixed {
+            println!("  {id}");
+        }
+    }
+
+    if !unmeasured.is_empty() {
+        println!(
+            "\n❌ {} ratchet entries name no runnable fixture — they are NOT passing, they \
+             are unmeasured. Deleting them hides whatever removed the fixture:",
+            unmeasured.len()
+        );
+        for id in &unmeasured {
             println!("  {id}");
         }
     }
@@ -465,11 +450,68 @@ fn test_validator() {
         "{} stale entries in compatibility/validator-known-failures.json (they already pass)",
         fixed.len()
     );
+    assert!(
+        unmeasured.is_empty(),
+        "{} entr(ies) in compatibility/validator-known-failures.json name no runnable fixture \
+         — they are unmeasured, not fixed: {unmeasured:?}",
+        unmeasured.len()
+    );
 }
 
-/// Grow-only floor, measured against the pinned Svelte submodule: 158 of the 334
-/// samples emit warnings whose codes already line up with official. Never lower it.
-const MIN_MESSAGE_COMPARISONS: usize = 158;
+/// Grow-only floor, measured against the pinned Svelte submodule: 165 of the 334
+/// samples reach the message comparison. Never lower it.
+const MIN_MESSAGE_COMPARISONS: usize = 165;
+
+/// Grow-only floor on the raw number of warning *messages* compared. `compared`
+/// counts fixtures, and a fixture where both sides emit zero warnings reaches the
+/// comparison while comparing nothing — so the fixture count alone can hold while
+/// every text comparison disappears.
+const MIN_MESSAGE_TEXTS: usize = 546;
+
+/// Why a fixture never reached the warning-message comparison.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum NotComparable {
+    /// Upstream's `_config.js` opts the sample out (`skip` / `warningFilter`).
+    OptedOut,
+    /// The sample carries no readable input.
+    NoInput,
+    /// No generated `warnings.json` — the official run left no oracle.
+    NoOracle,
+    /// Official rejected this input and so did rsvelte: there is nothing to compare.
+    BothRejected,
+    /// rsvelte panicked.
+    Panicked,
+    /// rsvelte rejected an input official accepted.
+    RsvelteRejected,
+    /// rsvelte accepted an input official rejected.
+    RsvelteAccepted,
+    /// The two sides disagree on how many warnings were emitted.
+    CountDiffers,
+    /// The two sides disagree on which codes were emitted, or on their order.
+    CodesDiffer,
+}
+
+impl NotComparable {
+    /// Structural causes are properties of the fixture. Everything else is an
+    /// rsvelte divergence that also silently removes the fixture from this gate.
+    fn is_structural(self) -> bool {
+        matches!(self, Self::OptedOut | Self::NoInput | Self::BothRejected)
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::OptedOut => "opted out by upstream _config.js",
+            Self::NoInput => "no readable input file",
+            Self::NoOracle => "no generated warnings.json oracle",
+            Self::BothRejected => "both compilers reject the input",
+            Self::Panicked => "rsvelte panicked",
+            Self::RsvelteRejected => "rsvelte rejects an input official accepts",
+            Self::RsvelteAccepted => "rsvelte accepts an input official rejects",
+            Self::CountDiffers => "warning counts disagree",
+            Self::CodesDiffer => "warning codes disagree",
+        }
+    }
+}
 
 /// Warning message text, ratcheted independently of `validator-known-failures.json`.
 ///
@@ -488,18 +530,33 @@ fn validator_warning_messages_match_official() {
     let known: BTreeSet<String> = load_ratchet("validator-message-known-failures.json")
         .into_iter()
         .collect();
+    let declared_incomparable: BTreeSet<String> =
+        load_ratchet("validator-message-not-comparable.json")
+            .into_iter()
+            .collect();
 
-    let mut compared = 0usize;
+    let mut compared: BTreeSet<String> = BTreeSet::new();
+    let mut texts = 0usize;
+    let mut incomparable: BTreeMap<String, NotComparable> = BTreeMap::new();
     let mut diverged: BTreeSet<String> = BTreeSet::new();
     let mut detail = String::new();
 
     for sample_dir in get_validator_samples() {
-        let Ok(fixture) = load_validator_fixture(sample_dir.as_path()) else {
-            continue;
+        let name = sample_name(&sample_dir).to_string();
+        let fixture = match load_validator_fixture(sample_dir.as_path()) {
+            Ok(fixture) => fixture,
+            Err(SkipReason::Justified) => {
+                incomparable.insert(name, NotComparable::OptedOut);
+                continue;
+            }
+            Err(_) => {
+                incomparable.insert(name, NotComparable::NoInput);
+                continue;
+            }
         };
-        let name = fixture.name.clone();
 
         let Some(raw) = common::load_fixture_output("validator", &name, "warnings.json") else {
+            incomparable.insert(name, NotComparable::NoOracle);
             continue;
         };
         let Ok(expected) = serde_json::from_str::<Vec<ExpectedWarning>>(&raw) else {
@@ -514,6 +571,7 @@ fn validator_warning_messages_match_official() {
                     ModuleCompileOptions {
                         generate: GenerateMode::Client,
                         filename: Some(format!("{}/input.svelte.js", name)),
+                        dev: fixture.dev,
                         ..Default::default()
                     },
                 ),
@@ -524,28 +582,51 @@ fn validator_warning_messages_match_official() {
                         filename: Some(format!("{}/input.svelte", name)),
                         runes: fixture.runes,
                         custom_element: fixture.custom_element,
+                        dev: fixture.dev,
                         ..Default::default()
                     },
                 ),
             }));
-        let Ok(Ok(result)) = compiled else {
-            continue;
+        let official_rejects = fixture.expected_error.is_some();
+        let result = match compiled {
+            Err(_) => {
+                incomparable.insert(name, NotComparable::Panicked);
+                continue;
+            }
+            Ok(Err(_)) if official_rejects => {
+                incomparable.insert(name, NotComparable::BothRejected);
+                continue;
+            }
+            Ok(Err(_)) => {
+                incomparable.insert(name, NotComparable::RsvelteRejected);
+                continue;
+            }
+            Ok(Ok(_)) if official_rejects => {
+                incomparable.insert(name, NotComparable::RsvelteAccepted);
+                continue;
+            }
+            Ok(Ok(result)) => result,
         };
 
         // Codes and counts are the other ratchets' business; only compare text
         // where the two sides already agree on which warnings were emitted.
-        if result.warnings.len() != expected.len()
-            || !result
-                .warnings
-                .iter()
-                .zip(expected.iter())
-                .all(|(a, e)| a.code == e.code)
+        if result.warnings.len() != expected.len() {
+            incomparable.insert(name, NotComparable::CountDiffers);
+            continue;
+        }
+        if !result
+            .warnings
+            .iter()
+            .zip(expected.iter())
+            .all(|(a, e)| a.code == e.code)
         {
+            incomparable.insert(name, NotComparable::CodesDiffer);
             continue;
         }
 
-        compared += 1;
+        compared.insert(name.clone());
         for (a, e) in result.warnings.iter().zip(expected.iter()) {
+            texts += 1;
             let actual = common::strip_error_link(&a.message);
             let want = common::strip_error_link(&e.message);
             if actual != want && diverged.insert(name.clone()) {
@@ -558,16 +639,63 @@ fn validator_warning_messages_match_official() {
         }
     }
 
-    assert!(
-        compared >= MIN_MESSAGE_COMPARISONS,
-        "only {compared} fixture(s) reached message comparison, floor is \
-         {MIN_MESSAGE_COMPARISONS}. This floor is grow-only — if the comparison stopped \
-         running, fix it rather than lowering the floor."
+    // Raw counts, never a rate: "0 divergences" and "0 comparisons" print the same
+    // percentage, and only one of them is good news.
+    let mut by_cause: BTreeMap<NotComparable, Vec<&str>> = BTreeMap::new();
+    for (name, cause) in &incomparable {
+        by_cause.entry(*cause).or_default().push(name.as_str());
+    }
+    println!(
+        "\n=== Validator warning messages ===\n{} fixture(s) compared, {} message(s) compared, \
+         {} not comparable",
+        compared.len(),
+        texts,
+        incomparable.len()
     );
+    for (cause, names) in &by_cause {
+        println!("  {:>3}  {} ({names:?})", names.len(), cause.label());
+    }
+
+    // A fixture that stops being comparable for a non-structural reason has left this
+    // gate entirely; it is neither passing nor failing here, so it must be declared.
+    let undeclared_incomparable: Vec<String> = incomparable
+        .iter()
+        .filter(|(name, cause)| !cause.is_structural() && !declared_incomparable.contains(*name))
+        .map(|(name, cause)| format!("{name} ({})", cause.label()))
+        .collect();
+    let declared_but_comparable: Vec<&String> = declared_incomparable
+        .iter()
+        .filter(|n| !incomparable.contains_key(*n) || incomparable[*n].is_structural())
+        .collect();
 
     let new_failures: Vec<&String> = diverged.iter().filter(|n| !known.contains(*n)).collect();
-    let now_passing: Vec<&String> = known.iter().filter(|n| !diverged.contains(*n)).collect();
+    // Three states, not two: a listed entry that stopped diverging either matches
+    // now (delete it) or stopped being compared at all (a regression that deleting
+    // the entry would bury).
+    let now_matching: Vec<&String> = known
+        .iter()
+        .filter(|n| compared.contains(*n) && !diverged.contains(*n))
+        .collect();
+    let no_longer_comparable: Vec<String> = known
+        .iter()
+        .filter(|n| !compared.contains(*n))
+        .map(|n| {
+            let cause = incomparable
+                .get(n)
+                .map_or("the fixture no longer exists", |c| c.label());
+            format!("{n} ({cause})")
+        })
+        .collect();
 
+    // Named fixtures before aggregate floors: both fire on the same regression, and
+    // only the first message says which fixture left.
+    assert!(
+        undeclared_incomparable.is_empty(),
+        "{} fixture(s) dropped out of the warning-message comparison for a non-structural \
+         reason and are not in compatibility/validator-message-not-comparable.json: \
+         {undeclared_incomparable:?}",
+        undeclared_incomparable.len()
+    );
     assert!(
         new_failures.is_empty(),
         "{} validator warning message(s) diverge from official and are not in \
@@ -575,10 +703,36 @@ fn validator_warning_messages_match_official() {
         new_failures.len()
     );
     assert!(
-        now_passing.is_empty(),
+        no_longer_comparable.is_empty(),
+        "{} entr(ies) in compatibility/validator-message-known-failures.json no longer reach \
+         the message comparison: {no_longer_comparable:?}. This is a REGRESSION, not a fix — \
+         deleting the entry would permanently hide whatever stopped the comparison.",
+        no_longer_comparable.len()
+    );
+    assert!(
+        now_matching.is_empty(),
         "{} entr(ies) in compatibility/validator-message-known-failures.json now match — \
-         remove them (and their justification in the paired .md): {now_passing:?}",
-        now_passing.len()
+         remove them (and their justification in the paired .md): {now_matching:?}",
+        now_matching.len()
+    );
+    assert!(
+        declared_but_comparable.is_empty(),
+        "{} entr(ies) in compatibility/validator-message-not-comparable.json are comparable \
+         again — remove them (and their justification in the paired .md): \
+         {declared_but_comparable:?}",
+        declared_but_comparable.len()
+    );
+    assert!(
+        compared.len() >= MIN_MESSAGE_COMPARISONS,
+        "only {} fixture(s) reached message comparison, floor is \
+         {MIN_MESSAGE_COMPARISONS}. This floor is grow-only — if the comparison stopped \
+         running, fix it rather than lowering the floor.",
+        compared.len()
+    );
+    assert!(
+        texts >= MIN_MESSAGE_TEXTS,
+        "only {texts} warning message(s) were compared, floor is {MIN_MESSAGE_TEXTS}. \
+         This floor is grow-only."
     );
 }
 

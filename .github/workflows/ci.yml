@@ -272,10 +272,10 @@ jobs:
           # pointing at `.git/modules/svelte/`, not a directory the action
           # can hash.
           path: fixtures
-          # Bump `v2` to invalidate previously-cached fixtures: the
-          # generate-fixtures script now propagates `compileOptions.hmr`
-          # from `_config.js`, so any cache pre-dating that change is stale.
-          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+          # Bump the version to invalidate previously-cached fixtures: the
+          # generate-fixtures script now propagates the validator samples' own
+          # `runes` / `customElement` / `dev`, so an older cache is stale.
+          key: fixtures-v3-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Cache Svelte compiler build
         # The Svelte compiler is built identically across CI / Compatibility
@@ -432,7 +432,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: fixtures
-          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+          key: fixtures-v3-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Cache Svelte compiler build
         id: svelte-build-cache
@@ -832,10 +832,10 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: fixtures
-          # Bump `v2` to invalidate previously-cached fixtures: the
-          # generate-fixtures script now propagates `compileOptions.hmr`
-          # from `_config.js`, so any cache pre-dating that change is stale.
-          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+          # Bump the version to invalidate previously-cached fixtures: the
+          # generate-fixtures script now propagates the validator samples' own
+          # `runes` / `customElement` / `dev`, so an older cache is stale.
+          key: fixtures-v3-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
       - name: Cache Svelte compiler build
         # See the matching step in the `test` job above.

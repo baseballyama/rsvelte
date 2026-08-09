@@ -56,16 +56,17 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 13 | svelte-check Layer 2 (e2e) | same key, 3 units in 2 repos | same fields; whether the oracle finds anything at all | [U] |
 | 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
 | 15 | `ast_gate_preconditions` | "rsvelte's own output parses" | compile **failures** are skipped — errors make it greener | [S] |
-| 16 | Validator fixture suite | per-fixture error code / warning set | ratchet staleness is **not** asserted (207 entries) | [S] |
+| 16 | Validator fixture suite | per-fixture ordered `(code, message, start, end)` warnings + error code/message/span; message text against a generated oracle | only 5 `_config.js` keys are read, and `options.json` not at all — a sample runs under options upstream never used | [S] |
 | 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
-| 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | warnings compared by **count only** | [S] |
+| 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | it asserts nothing — a number moving cannot fail CI | [S] |
 | 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
 | 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size | [D] |
 | 21 | Published-artifact glibc floor | max `GLIBC_*` version referenced by each Linux artifact | whether the binary actually **runs** anywhere; every non-glibc dependency | [D] |
 | 22 | NAPI option boundary | per declared option key: baseline vs. one-key variant, through the raw addon | it never compares against **official** — a key wired to the wrong semantics stays green | [S] |
 | 23 | Escaped-quote lookback shape | one line of Rust source, over every `.rs` under `crates/` + `apps/` | it matches a **spelling**; a scanner with *no* escape check at all produces no line to match | [D] |
 
-Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, the **performance**
+Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
+drift, vacuity floors, the **performance**
 gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
 are in [§ Cross-cutting](#cross-cutting) at the end.
 
@@ -958,22 +959,75 @@ outputs parse; nothing asserts that.
 
 ## 16. Validator fixture suite — `crates/rsvelte_core/tests/validator.rs`
 
-**Unit.** Per fixture, the emitted error code / warning set against the upstream expectation.
-Ratchet: `compatibility/validator-known-failures.json`, **207 entries** against a 332-fixture
-floor (`validator.rs:29`) — ~62% of the suite is on the forgive list.
+**Unit.** Two tests over the same 334 upstream samples.
 
-### Blind spot 16a — the ratchet is one-sided; staleness is not asserted
+`test_validator` compares, per fixture, the **ordered** warning array as
+`(code, stripped message, start line:col, end line:col)` — `validator_warnings_match` in
+`tests/common/mod.rs`, mirroring upstream's `assert.deepEqual` — plus the expected error's
+code / message / span. Oracle: the sample's checked-in `warnings.json` / `errors.json`. Ratchet
+`compatibility/validator-known-failures.json`, **0 entries**, against a 332-fixture floor
+(`validator.rs:29`).
 
-`validator.rs:454-458` asserts `regressions.is_empty()` only. `fixed` is computed at `:431` and
-merely printed (`:433-442`). **[S]** Positive control that two-sidedness is the house rule:
-`sourcemaps_gate.rs:1061` and `css-prune-sweep.mjs:514` both make staleness fatal, and
-`verify.mjs:588-603` calls it out explicitly ("a large *now PASS* delta on the next PR is
-indistinguishable from noise, so a real regression can hide inside it").
+`validator_warning_messages_match_official` compares warning **message text** for every fixture
+where the two sides already agree on codes and counts, against the *generated* oracle
+(`fixtures/*/validator/<name>/warnings.json`) rather than the checked-in file — see
+`compatibility/validator-message-known-failures.md` for why the oracle has to be "official run
+on this input" and not "official's committed expectation". Ratchets
+`validator-message-known-failures.json` (**0**) and `validator-message-not-comparable.json`
+(**0**).
 
-Consequence: the 207-entry list is under no shrink pressure, and an entry that starts passing
-silently re-covers a future regression on that same fixture. Per
-`compatibility/validator-known-failures.md`, ~141 of the 207 are *"error spans come back
-`None..None`"* — the same class gate 4a shows the corpus cannot see either.
+### Blind spot 16a — closed: two-sided, and "not failing" is three states, not two (#2452, #2579)
+
+Both ratchets are two-sided, and both now separate the two ways an entry can stop failing.
+`test_validator` distinguishes a listed id that **ran and passed** (stale, delete it) from one
+that names **no runnable fixture** (unmeasured — deleting it buries whatever removed the
+fixture). The message test distinguishes a listed id that was **compared and now matches**
+from one that **no longer reaches the comparison**, and reports the latter as a regression
+naming its cause. **[S]** Before this, a fixture whose codes or counts regressed left
+`diverged` through the `continue` filters and was reported with the same wording as a fixed
+message; #2579 records the instance on `main`.
+
+The `NotComparable` taxonomy is the mechanism: three causes are structural (`OptedOut`,
+`NoInput`, `BothRejected`) and six are rsvelte divergences (`NoOracle`, `Panicked`,
+`RsvelteRejected`, `RsvelteAccepted`, `CountDiffers`, `CodesDiffer`) that must be declared in
+`validator-message-not-comparable.json`. Raw counts — fixtures compared, **messages** compared,
+and a per-cause histogram — are printed every run, because a rate cannot tell "no divergences"
+from "no comparisons".
+
+### Blind spot 16b — the two floors are floors, not equalities
+
+`MIN_VALIDATOR_FIXTURES = 332`, `MIN_MESSAGE_COMPARISONS`, `MIN_MESSAGE_TEXTS`. **[S]** A floor
+set below the measured value leaves headroom in which a fixture can silently stop being
+compared without any entry appearing anywhere — which is precisely why `MIN_MESSAGE_TEXTS`
+exists alongside `MIN_MESSAGE_COMPARISONS`: the latter counts *fixtures*, and a fixture where
+both sides emit zero warnings reaches the comparison while comparing nothing, so the fixture
+count can hold while every text comparison disappears.
+
+### Blind spot 16c — `_config.js` is read by substring match, and only four keys are read
+
+`parse_test_config` (`validator.rs`) greps the file for `skip`, `warningFilter`, `runes`,
+`customElement` and `dev`. **[S]** Any other `compileOptions` key upstream adds is silently
+dropped, and the fixture then runs — and passes — under options upstream never used. The same
+applies to `options.json`, which upstream's `test.ts` spreads over `compileOptions` and this
+harness ignores entirely; today exactly one sample has one (`error-mode-warn`) and it is
+`skip: true`, so the hole is currently unreachable rather than absent. `dev` was in this
+position until #2452/#2579: two samples (`each-block-multiple-children`, `non-empty-block-dev`)
+set `dev: true` and ran in prod mode, both expecting `[]` warnings — a **vacuously** green pair.
+
+### Blind spot 16d — `generate: client`, where upstream passes `generate: false`
+
+Upstream's `test.ts` runs analysis only; this harness compiles for the client
+(`GenerateMode::Client`). **[S]** Any diagnostic that upstream would report from analysis but
+that rsvelte only reaches during a *server* transform is unobservable here — the fixture suite
+never runs a validator sample through SSR codegen.
+
+### Blind spot 16e — the input is not normalised the way upstream normalises it
+
+Upstream strips trailing whitespace (`.replace(/\s+$/, '')`) and every `\r` before compiling;
+`read_fixture_file` (`common/mod.rs:148`) only rewrites `\r\n` → `\n`. **[S]** A warning whose
+span reaches the end of the file, or a sample containing a lone `\r`, is therefore compared
+against a position upstream computed on a different string. No current fixture is in that
+shape — this is **unmeasured** as a live defect and recorded as a harness divergence.
 
 ---
 
@@ -1023,17 +1077,33 @@ either side has no `return` statement (`:520-523`).
 
 This is the source of the Test Status table in `AGENTS.md` and `README.md`.
 
-### Blind spot 18a — warnings are compared by count
+### Blind spot 18a — closed: warnings were compared by count (#2452)
 
-`compatibility_report.rs:751`: `let warnings_match = actual_count == expected_warnings.len();`
-**[S]** Never the code, never the message, never the span. Emitting
-`a11y_missing_attribute` where upstream emits `a11y_img_redundant_alt` on the same sample
-matches. This is how `AGENTS.md` reports `Validator 333/333` and "All in-scope fixtures pass
-(100.0%)" while `validator-known-failures.json` holds 207 real divergences.
-(`tests/validator.rs` *does* check the code — for the 125 fixtures not on the ratchet.)
+The report used to score a validator sample on `actual_count == expected_warnings.len()` —
+never the code, never the message, never the span, so emitting `a11y_missing_attribute` where
+upstream emits `a11y_img_redundant_alt` on the same sample matched. That is how `Validator
+333/333` could coexist with a 207-entry `validator-known-failures.json`: the two suites were
+measuring different things.
 
-**Tracked:** #2452. **Closing it:** compare the warning code multiset in the report. Cost: low. The number in
-`AGENTS.md` will drop, which is the point.
+It now calls the same `validator_warnings_match` that `tests/validator.rs` calls, on the same
+ordered `(code, message, start, end)` tuple, and — like `test.ts` — passes **no `filename`**, so
+diagnostics that interpolate it see the sentinel upstream saw. **[D]** The discriminating run
+is in the PR that closed #2452: with the count comparison, mutating a warning's message text
+left the report at `Validator 333/333`; with the shape comparison it drops.
+
+### Blind spot 18b — the report asserts nothing; it is a *report*
+
+`generate_compatibility_report` is `#[ignore]`d and writes JSON; the CI job runs it, uploads
+the artifact and diffs it against `main` with `continue-on-error: true` (`ci.yml:884-886`).
+**[S]** A number moving in the report cannot by itself fail CI — the enforcement lives in the
+fixture suites and their ratchets. Treat the table in `AGENTS.md` as a published summary of
+what those gates assert, never as the gate.
+
+### Blind spot 18c — the number's population is the pinned submodule
+
+`Validator 333/333` counts the samples upstream ships at the pinned commit, minus the one
+`skip: true` sample. **[S]** A sample upstream deletes takes its coverage with it and the ratio
+stays at 100%; only `MIN_VALIDATOR_FIXTURES` (a floor, see 16b) notices, and only in bulk.
 
 ---
 
@@ -1439,6 +1509,32 @@ stale-entry hazard the two-sided corpus ratchets exist to prevent.
 ---
 
 ## Cross-cutting
+
+### C0. A ratchet key is a lossy encoding, and it loses in two directions
+
+Every ratchet compares by a key, and the key is a spelling of the gate's state space. Any two
+states it cannot spell apart become one verdict, and the transition between them is then
+unobservable. This has now bitten in **both** directions, with a measured instance each — so
+treat it as a property of ratchets, not as one gate's oversight:
+
+- **Grow side — two failures share a symbol.** The corpus warning ratchet keyed
+  `(id, verdict, target)` with a flat `warning-mismatch`, so two *different* missing warnings on
+  one id were indistinguishable. **[D]** #2715's positive control (re-break #2521 so
+  `event_directive_deprecated` stops firing) came back **green**, because 3 of 4 cases were
+  already listed for a different missing warning; re-keyed to `warning-missing:<code>` the same
+  revert yields **9** new ids. Bound on the history: any warning regression landing on an
+  already-listed id was invisible until that re-key.
+- **Shrink side — a failure stops producing a verdict.** The validator message ratchet folded
+  "now matches" into the same outcome as "no longer compared" (gate 16a), and `verify.mjs`'s
+  error loop `continue`s past a missing artifact into `errorCounts.match++`, so an absent tree
+  scores 100% error parity (#2707). **[D]**
+
+**The two fixes are not substitutes, and neither subsumes the other.** Refining the key only
+separates entries that still emit one; an entry that leaves the population emits nothing, so
+there is no key to refine. Adding a third state only helps entries that vanish; it says nothing
+about two failures sharing a symbol while both are present. When adding a ratchet, ask both:
+*can two different failures land on one key?* and *what happens to an entry that stops being
+measured?*
 
 ### C1. Path filters — gates that do not run on some PRs
 

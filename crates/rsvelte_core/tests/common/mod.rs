@@ -695,6 +695,66 @@ pub struct ExpectedValidatorError {
     pub end: Option<ExpectedPosition>,
 }
 
+/// One entry of a validator sample's `warnings.json`.
+#[derive(Debug, Deserialize)]
+pub struct ExpectedWarning {
+    pub code: String,
+    pub message: String,
+    pub start: ExpectedPosition,
+    pub end: ExpectedPosition,
+}
+
+/// Mirrors upstream `validator/test.ts`'s ordered `assert.deepEqual` over
+/// `{code, message, start, end}` warning arrays.
+pub fn validator_warnings_match(
+    actual: &[rsvelte_core::compiler::Warning],
+    expected: &[ExpectedWarning],
+) -> bool {
+    actual.len() == expected.len()
+        && actual.iter().zip(expected.iter()).all(|(a, e)| {
+            a.code == e.code
+                && strip_error_link(&a.message) == e.message
+                && a.start.as_ref().is_some_and(|p| {
+                    p.line as u32 == e.start.line && p.column as u32 == e.start.column
+                })
+                && a.end
+                    .as_ref()
+                    .is_some_and(|p| p.line as u32 == e.end.line && p.column as u32 == e.end.column)
+        })
+}
+
+/// Human-readable actual-vs-expected listing for a failed
+/// [`validator_warnings_match`].
+pub fn validator_warnings_detail(
+    actual: &[rsvelte_core::compiler::Warning],
+    expected: &[ExpectedWarning],
+) -> String {
+    use std::fmt::Write as _;
+    let mut detail = format!(
+        "Expected {} warnings, got {}.\n",
+        expected.len(),
+        actual.len()
+    );
+    for w in actual {
+        let _ = writeln!(
+            detail,
+            "  actual:   [{}] {} @ {:?}..{:?}",
+            w.code,
+            strip_error_link(&w.message),
+            w.start.as_ref().map(|p| (p.line, p.column)),
+            w.end.as_ref().map(|p| (p.line, p.column)),
+        );
+    }
+    for w in expected {
+        let _ = writeln!(
+            detail,
+            "  expected: [{}] {} @ {}:{}..{}:{}",
+            w.code, w.message, w.start.line, w.start.column, w.end.line, w.end.column,
+        );
+    }
+    detail
+}
+
 /// Read the first entry of a validator sample's `errors.json`.
 ///
 /// Typed on purpose: an entry without a `code` must be a hard parse failure,

@@ -8,6 +8,12 @@ of only comparing diagnostic counts, mirroring what
 already passes, so an entry that starts passing must be removed by the change
 that made it pass.
 
+"Not failing" is **two** states and the suite separates them: a listed entry that
+ran and passed is stale (delete it), while a listed entry that names no runnable
+fixture is *unmeasured* — the fixture was renamed, deleted or started being
+skipped — and deleting it would bury whatever removed the fixture. Both are fatal;
+only the first invites a re-baseline.
+
 **If you are here because `test_validator` failed and you were not working on a
 ratchet:** the list is empty, so a failure now means a *new* divergence — the
 honest fix is the diagnostic, not the baseline. Re-run the suite and read the

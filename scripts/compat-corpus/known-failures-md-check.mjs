@@ -126,6 +126,11 @@ const RATCHETS = [
 		key: 'validator-message-known-failures.json',
 		jsons: ['validator-message-known-failures.json'],
 	},
+	{
+		doc: 'validator-message-not-comparable.md',
+		key: 'validator-message-not-comparable.json',
+		jsons: ['validator-message-not-comparable.json'],
+	},
 	{ doc: 'mutation-known-failures.md', key: 'mutation-known-failures.json', jsons: ['mutation-known-failures.json'] },
 	{ doc: 'sourcemap-known-failures.md', key: 'sourcemap-known-failures.json', jsons: ['sourcemap-known-failures.json'] },
 	{ doc: 'sourcemap-oracle-excluded.md', key: 'sourcemap-oracle-excluded.json', jsons: ['sourcemap-oracle-excluded.json'] },
@@ -242,7 +247,9 @@ function main() {
 // ---- 1. every ratchet JSON on disk is declared --------------------------------
 const onDisk = fs
 	.readdirSync(CORPUS)
-	.filter((f) => f.endsWith('.json') && /known-failures|excluded/.test(f))
+	// `not-comparable` is a ratchet whose entries are neither failures nor
+	// exclusions, so it would not be discovered by the other two names.
+	.filter((f) => f.endsWith('.json') && /known-failures|excluded|not-comparable/.test(f))
 	.sort();
 const declared = new Set(RATCHETS.flatMap((r) => r.jsons));
 for (const f of onDisk) {

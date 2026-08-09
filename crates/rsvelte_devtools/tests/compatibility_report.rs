@@ -20,7 +20,8 @@ use common::{
     ensure_fixtures_exist, error_code_matches, fixture_samples_dir, fixtures_path,
     get_fixture_samples, get_svelte_test_samples, load_expected_validator_error,
     load_fixture_output, read_fixture_file, runtime_fixture_options, runtime_skip_names,
-    svelte_path, svelte_samples_dir, validator_error_result, write_actual_output,
+    svelte_path, svelte_samples_dir, validator_error_result, validator_warnings_detail,
+    validator_warnings_match, write_actual_output,
 };
 use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
@@ -641,7 +642,7 @@ fn run_validator_tests() -> CategoryResult {
         let warnings_path = sample_dir.join("warnings.json");
         let errors_path = sample_dir.join("errors.json");
 
-        let expected_warnings: Vec<serde_json::Value> = if warnings_path.exists() {
+        let expected_warnings: Vec<common::ExpectedWarning> = if warnings_path.exists() {
             // An unreadable or malformed warnings.json must fail loudly, not
             // silently collapse to "expect zero warnings" (which would make the
             // fixture pass regardless of what the compiler actually emits).
@@ -665,6 +666,7 @@ fn run_validator_tests() -> CategoryResult {
         let mut warning_filter_codes: Vec<String> = Vec::new();
         let mut config_runes: Option<bool> = None;
         let mut config_custom_element = false;
+        let mut config_dev = false;
 
         if config_path.exists()
             && let Ok(config) = fs::read_to_string(&config_path)
@@ -698,22 +700,29 @@ fn run_validator_tests() -> CategoryResult {
             if config.contains("customElement: true") || config.contains("customElement:true") {
                 config_custom_element = true;
             }
+
+            if config.contains("dev: true") || config.contains("dev:true") {
+                config_dev = true;
+            }
         }
 
+        // No `filename`: the expectations are upstream's own, and `test.ts` passes
+        // only `generate` plus the sample's options, so diagnostics that interpolate
+        // the filename must see the same unset sentinel upstream saw.
         let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             if is_module_test {
                 let options = ModuleCompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/input.svelte.js", name)),
+                    dev: config_dev,
                     ..Default::default()
                 };
                 compile_module(&input, options)
             } else {
                 let options = CompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/input.svelte", name)),
                     runes: config_runes,
                     custom_element: config_custom_element,
+                    dev: config_dev,
                     ..Default::default()
                 };
                 compile(&input, options)
@@ -743,16 +752,19 @@ fn run_validator_tests() -> CategoryResult {
                     } else {
                         // Apply warningFilter if present - filter out warnings whose code
                         // is in the exclusion list
-                        let actual_count = if !warning_filter_codes.is_empty() {
+                        let actual: Vec<_> = if !warning_filter_codes.is_empty() {
                             output
                                 .warnings
                                 .iter()
                                 .filter(|w| !warning_filter_codes.contains(&w.code))
-                                .count()
+                                .cloned()
+                                .collect()
                         } else {
-                            output.warnings.len()
+                            output.warnings.clone()
                         };
-                        let warnings_match = actual_count == expected_warnings.len();
+                        // Upstream's `assert.deepEqual` shape — code, message and span,
+                        // in order. A count comparison scores the wrong warning as a pass.
+                        let warnings_match = validator_warnings_match(&actual, &expected_warnings);
                         let details = SampleDetails {
                             warnings_matched: Some(warnings_match),
                             ..Default::default()
@@ -770,11 +782,7 @@ fn run_validator_tests() -> CategoryResult {
                             result.add_sample(SampleResult {
                                 name,
                                 status: TestStatus::Failed,
-                                error: Some(format!(
-                                    "Expected {} warnings, got {}",
-                                    expected_warnings.len(),
-                                    actual_count
-                                )),
+                                error: Some(validator_warnings_detail(&actual, &expected_warnings)),
                                 skip_reason: None,
                                 details: Some(details),
                             });

@@ -418,7 +418,7 @@ Svelte bump.
 | Compiler Errors | 145/145 |
 | Compiler Snapshot | 30/30 |
 | CSS | 181/181 |
-| Validator | 333/333 |
+| Validator | 333/333 (warnings compared by full shape since #2452 — see below) |
 | SSR | 99/99 |
 | Hydration | 79/79 |
 | Runtime Legacy | 1207/1207 |
@@ -433,6 +433,16 @@ Svelte bump.
 All in-scope fixtures pass (100.0%). The 76 `migrate` fixtures (Svelte 4 → 5 migrator) are
 intentionally out of scope: rsvelte is a Svelte 5 compiler port, not a migration tool. Do
 not start migrate work without an explicit scope change.
+
+**`Validator 333/333` did not move when it was made falsifiable, and that is the interesting
+part.** Until #2452 the report scored a validator sample on `actual_count ==
+expected_warnings.len()` — never the code, never the message, never the span — so the row was
+a warning *arity* check wearing a parity label. It now runs the same ordered
+`(code, message, start, end)` comparison as `tests/validator.rs`, with no `filename`, mirroring
+upstream's `test.ts`. Measured both ways on the same tree: unperturbed it is 333/333 under
+either rule, and with one warning's message text deliberately altered it drops to **322/333**
+under the shape rule while the count rule still reports **333/333**. Cite the number as
+"333/333 on full warning shape"; a bare 333/333 meant something weaker before this commit.
 
 ### Source-map gate
 
