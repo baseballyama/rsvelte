@@ -22,6 +22,9 @@ use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::scope::ScopeId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::async_derived_dev::{
+    AsyncDerivedLocations, destructured_label, dev_args, first_bound_name,
+};
 use super::destructure_transforms::{
     ArrayHelperRead, build_fallback_string, extract_destructure_paths, js_number_to_string,
     unthunk_string,
@@ -29,7 +32,6 @@ use super::destructure_transforms::{
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
-    wrap_await_with_save_in_async_derived,
 };
 use super::props_transforms::transform_props_destructuring;
 use super::rune_transforms::{process_derived_destructuring_pattern, wrap_state_value};
@@ -237,6 +239,8 @@ struct StateVarCollector<'a, 's> {
     /// Component filename for `$inspect.trace()` label suffix generation.
     /// See `AstTransformConfig::filename`.
     filename: Option<&'s str>,
+    /// See `AstTransformConfig::async_derived_locations`.
+    async_derived_locations: Option<&'a AsyncDerivedLocations>,
     /// Var-declared state vars that need $.safe_get() instead of $.get().
     var_state_vars: Vec<String>,
     /// Collected replacements.
@@ -348,6 +352,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         dev: bool,
         analysis_source: Option<&'s str>,
         filename: Option<&'s str>,
+        async_derived_locations: Option<&'a AsyncDerivedLocations>,
         prop_source_vars: &'a [String],
         non_bindable_prop_vars: &[String],
         store_sub_vars: &[String],
@@ -381,6 +386,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             dev,
             analysis_source,
             filename,
+            async_derived_locations,
             var_state_vars,
             replacements: Vec::new(),
             replacements_sorted: true,
@@ -1332,22 +1338,26 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             wrapped_source.clone()
         } else if contains_await {
             // Async derived destructuring — mirror the text path's
-            // `await $.async_derived(...)` emission.
-            let saved_content = wrap_await_with_save_in_async_derived(wrapped_source.trim());
+            // `await $.async_derived(...)` emission. Upstream's
+            // `VariableDeclaration.js` passes the value through unchanged; only
+            // `create_derived` (`{@const}`) wraps it in `$.save(...)`.
+            let saved_content = wrapped_source.trim().to_string();
             let inner_expr = strip_top_level_await_from_expr(&saved_content);
             let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
+            let is_array_pattern = matches!(&declarator.id, BindingPattern::ArrayPattern(_));
+            let label = destructured_label(is_array_pattern);
+            let lookup_name = first_bound_name(&declarator.id).unwrap_or_default();
+            let dev_tail = dev_args(self.async_derived_locations, label, &lookup_name);
 
             if inner_has_nested_await {
                 let is_object = saved_content.trim().starts_with('{');
                 let stmt = if is_object {
                     format!(
-                        "{} = await $.async_derived(async () => ({}))",
-                        d_name, saved_content
+                        "{d_name} = await $.async_derived(async () => ({saved_content}){dev_tail})"
                     )
                 } else {
                     format!(
-                        "{} = await $.async_derived(async () => {})",
-                        d_name, saved_content
+                        "{d_name} = await $.async_derived(async () => {saved_content}{dev_tail})"
                     )
                 };
                 declarations.push(stmt);
@@ -1356,12 +1366,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 let inner_is_object = inner_trimmed.starts_with('{');
                 if inner_is_object {
                     declarations.push(format!(
-                        "{} = await $.async_derived(() => ({}))",
-                        d_name, inner_expr
+                        "{d_name} = await $.async_derived(() => ({inner_expr}){dev_tail})"
                     ));
                 } else {
                     let thunk_arg = unthunk_string(&inner_expr);
-                    declarations.push(format!("{} = await $.async_derived({})", d_name, thunk_arg));
+                    declarations.push(format!(
+                        "{d_name} = await $.async_derived({thunk_arg}{dev_tail})"
+                    ));
                 }
             }
             format!("$.get({})", d_name)
@@ -1795,20 +1806,21 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             // boundary inside a deriver are now an error rather than a
             // silently-restored context. Keep `should_save = false` for parity.
             let should_save = false;
+            let dev_tail = dev_args(self.async_derived_locations, var_name, var_name);
             let async_derived_call = if inner_has_nested_await {
                 let is_obj = walked_for_emit.starts_with('{');
                 if is_obj {
-                    format!("$.async_derived(async () => ({}))", walked_for_emit)
+                    format!("$.async_derived(async () => ({walked_for_emit}){dev_tail})")
                 } else {
-                    format!("$.async_derived(async () => {})", walked_for_emit)
+                    format!("$.async_derived(async () => {walked_for_emit}{dev_tail})")
                 }
             } else {
                 let inner_is_object = inner_trimmed.starts_with('{');
                 if inner_is_object {
-                    format!("$.async_derived(() => ({}))", inner_expr)
+                    format!("$.async_derived(() => ({inner_expr}){dev_tail})")
                 } else {
                     let thunk_arg = unthunk_string(&inner_expr);
-                    format!("$.async_derived({})", thunk_arg)
+                    format!("$.async_derived({thunk_arg}{dev_tail})")
                 }
             };
             let replacement = if should_save {
@@ -4112,6 +4124,9 @@ pub(super) struct AstTransformConfig<'a> {
     /// The component filename (used in the `$inspect.trace()` label
     /// suffix together with `analysis_source`).
     pub filename: Option<&'a str>,
+    /// Dev-mode `$.async_derived(thunk, label, location)` locations, keyed by
+    /// bound name. `None` outside dev, where upstream emits neither argument.
+    pub async_derived_locations: Option<&'a AsyncDerivedLocations>,
     pub prop_source_vars: &'a [String],
     pub prop_assignment_transform_vars: &'a [String],
     pub non_bindable_prop_vars: &'a [String],
@@ -4678,6 +4693,7 @@ fn collect_state_var_replacements(
         config.dev,
         config.analysis_source,
         config.filename,
+        config.async_derived_locations,
         config.prop_source_vars,
         config.non_bindable_prop_vars,
         config.store_sub_vars,
@@ -4717,6 +4733,7 @@ fn collect_state_var_replacements_without_semantic_scan(
         config.dev,
         config.analysis_source,
         config.filename,
+        config.async_derived_locations,
         config.prop_source_vars,
         config.non_bindable_prop_vars,
         config.store_sub_vars,
@@ -4753,6 +4770,7 @@ mod tests {
             dev: false,
             analysis_source: None,
             filename: None,
+            async_derived_locations: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -4784,6 +4802,7 @@ mod tests {
             dev: false,
             analysis_source: None,
             filename: None,
+            async_derived_locations: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -4820,6 +4839,7 @@ mod tests {
             dev: false,
             analysis_source: None,
             filename: None,
+            async_derived_locations: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -4866,6 +4886,7 @@ mod tests {
             dev: false,
             analysis_source: None,
             filename: None,
+            async_derived_locations: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],
@@ -5150,6 +5171,7 @@ mod tests {
             dev: false,
             analysis_source: None,
             filename: None,
+            async_derived_locations: None,
             prop_source_vars: &[],
             prop_assignment_transform_vars: &[],
             non_bindable_prop_vars: &[],

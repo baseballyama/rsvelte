@@ -11,6 +11,7 @@ use std::fmt::Write as _;
 mod assign_dev_ast;
 mod ast;
 mod ast_state_transform;
+mod async_derived_dev;
 mod await_reactivity_loss_ast;
 mod class_body_ast;
 mod class_transforms;
@@ -6655,6 +6656,25 @@ fn transform_instance_script_for_visitors(
                     None
                 })
                 .collect();
+            // Read off the ORIGINAL script: the AST pass below walks a
+            // post-rune-transform copy whose spans no longer map to the source
+            // `locate_node` measures against.
+            let async_derived_locations = dev
+                .then_some(analysis.instance_script_content.as_ref())
+                .flatten()
+                .map(|script| {
+                    async_derived_dev::collect(
+                        &analysis.source,
+                        script.start,
+                        analysis
+                            .source
+                            .get(script.start as usize..script.end as usize)
+                            .unwrap_or_default(),
+                        analysis.filename.as_str(),
+                        analysis.is_typescript,
+                        analysis.runes,
+                    )
+                });
             let ast_config = ast_state_transform::AstTransformConfig {
                 state_vars: &state_vars,
                 non_reactive_vars: &non_reactive_state_vars,
@@ -6666,6 +6686,7 @@ fn transform_instance_script_for_visitors(
                 dev,
                 analysis_source: Some(&analysis.source),
                 filename: Some(analysis.filename.as_str()),
+                async_derived_locations: async_derived_locations.as_ref(),
                 prop_source_vars: &prop_source_vars,
                 prop_assignment_transform_vars: &prop_assignment_transform_vars,
                 non_bindable_prop_vars: &non_bindable_prop_vars,

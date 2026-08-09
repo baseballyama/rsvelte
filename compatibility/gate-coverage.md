@@ -91,6 +91,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 21 | Published-artifact glibc floor | max `GLIBC_*` version referenced by each Linux artifact | whether the binary actually **runs** anywhere; every non-glibc dependency | [D] |
 | 22 | NAPI option boundary | per declared option key: baseline vs. one-key variant, through the raw addon | it never compares against **official** — a key wired to the wrong semantics stays green | [S] |
 | 23 | Escaped-quote lookback shape | one line of Rust source, over every `.rs` under `crates/` + `apps/` | it matches a **spelling**; a scanner with *no* escape check at all produces no line to match | [D] |
+| 24 | `await_waterfall` runtime parity | the `await_waterfall` warnings a **mounted** rsvelte-compiled component logs vs. official's, 3 cases | one warning code, one component shape; nothing else about the running component is observed | [D] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -161,6 +162,16 @@ Never passed anywhere in the corpus pipeline: `runes`, `namespace`, `accessors`,
 `customElement`, `preserveWhitespace`, `preserveComments`, `hmr`, `discloseVersion`,
 `sourcemap`, `modernAst`. **[S]** Also `server` + `dev: true` is not a target
 (`targets.mjs:21-51`), so SSR dev codegen is compared by no gate in the repo.
+
+`experimental.async` is the one that has since been measured, and it was not merely
+uncovered — it made a whole *source shape* unreachable. `$derived(await …)` is an
+`experimental_async` compile error without it, so the corpus scored 0 occurrences of the
+shape at 14k entries and would score 0 at 140k. #2540 shipped inside that hole:
+`$.async_derived(thunk)` missing both dev arguments across every shape and every entry
+point. The matrix now carries the option per case (`matrix/run.mjs`, `generate.mjs`'s
+`async-derived` family) and the first run of that family recorded **253** divergences.
+Discriminating case for the "what a gate does not look at is not what inputs it lacks"
+rule: adding real-world repositories could not have found any of them.
 
 **Closing it:** each additional option roughly multiplies compile time and the ~0.19 GiB/target
 artifact cost. `preserveComments` is the cheapest and highest-value one (it would make 1a
@@ -249,10 +260,12 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 2963 generated cases × 3 targets = 8889 comparisons. Where both compilers accept, the
+**Unit.** NNNN generated cases × 3 targets = MMMM comparisons. Where both compilers accept, the
 unit is `js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code**, which the `invalid-bind` and
-`param-default` families exist to exercise.
+`param-default` families exist to exercise. A case may also carry `options`, merged over the
+per-target option set — the `async-derived` family is the only user, and the only place in the
+repo where a compile **option** is an axis rather than a constant (cf. blind spot 1d).
 
 ### Blind spot 5a — CLOSED: the module entry point is generated now
 
@@ -305,6 +318,21 @@ Sharpest remaining form: `axes.mjs` generates a `// svelte-ignore a11y_…` comm
 the `comment-slot` seeds, and those seeds produce no a11y warning on either compiler — so the
 gate injects svelte-ignore directives into a population where there is nothing to suppress, and
 would score a broken suppression as `match`. **[S]**
+
+The `async-derived` family narrows one corner of that and shows the rest is worse than "not
+compared". Its `ignore` axis puts `svelte-ignore await_waterfall` on the declaration, and
+whether it took effect **is** visible in `js.code` there, because upstream encodes the decision
+as a dropped third argument to `$.async_derived`. But `await_waterfall` is a *runtime* warning:
+it never enters `result.warnings` for either compiler, so gates 2-3 could not see it either.
+Between them, an ignore directive for a runtime warning was observable by no gate in the repo —
+which is how #2540's second half (`svelte-ignore await_waterfall` was a no-op) went unreported.
+Gate 24 is the part that watches the suppression itself rather than its encoding.
+
+Also unobservable here for the same reason the ignore rows mostly are: every `async-derived`
+row that carries a comment is already a known failure for comment **reproduction** in the
+hoisted `var` declaration, and a listed entry suppresses everything else about that entry. The
+argument-list assertions therefore live in
+`crates/rsvelte_core/tests/async_derived_dev_args_2540.rs`, not here.
 
 ### Blind spot 5c — template-markup positions, now partially covered
 
@@ -1595,6 +1623,74 @@ ratchet, so silencing a real violation costs one line. There is one entry today
 (`js_ast/codegen.rs`'s `b != b'\\'`, a character-class test rather than a lookback). Nothing
 asserts the list is minimal, and nothing fails when a listed line disappears — the same
 stale-entry hazard the two-sided corpus ratchets exist to prevent.
+
+---
+
+## 24. `await_waterfall` runtime parity — `scripts/compat-corpus/await-waterfall-runtime.mjs`
+
+**Unit.** Three component sources, each compiled by BOTH compilers with
+`{ generate: 'client', dev: true, experimental: { async: true } }`, written to disk inside
+`submodules/svelte/packages/svelte` (so `svelte/internal/client` self-resolves), imported,
+`mount`ed into a jsdom document, and left running long enough for the runtime's `setTimeout`
+to fire. The compared value is the multiset of `await_waterfall` warnings `console.warn`
+received, keyed by the derived's label. It is the only gate in the repo that **executes**
+compiled output.
+
+**Why it exists.** `await_waterfall` is raised by
+`internal/client/reactivity/deriveds.js` and gated on `location !== undefined` — an argument
+the compiler either passes or does not. Omitting it produces output that parses, formats,
+matches nothing anyone diffed, and disarms the warning. A warning that can never fire is
+invisible to a warning ratchet **by construction**: its baseline is `0` before and after, and
+"the code never appears" is indistinguishable from "the code is correct". That is the
+zero-needs-a-negative-control trap, and this script is its negative control.
+
+**Both halves are asserted, and the order matters.** The oracle is checked first: if
+official's output does not warn exactly `['a']` for the waterfall case and exactly `[]` for the
+ignored case, the run fails as `HARNESS` and rsvelte's result is never compared. Without that,
+"neither compiler warned" — precisely the state #2540 shipped in — would be a pass.
+
+### 24a — one warning code, and it is the only runtime warning anything here executes [D]
+
+`IGNORABLE_RUNTIME_WARNINGS` has 7 members (`await_reactivity_loss`,
+`binding_property_non_reactive`, `hydration_attribute_changed`, `hydration_html_changed`,
+`ownership_invalid_binding`, `ownership_invalid_mutation`, `state_snapshot_uncloneable`, plus
+this one). Every one of them is compiler-*encoded* the same way — a `svelte-ignore` lookup that
+changes generated arguments — and #2486 group D records that no gate over compiler output can
+watch any of them. This script watches one. The other seven are **unmeasured**, and the reason
+is cost, not principle: each needs its own runnable shape.
+
+### 24b — it observes `console.warn` only, and only for the duration it waits [S]
+
+The mount is given a fixed 200 ms before the assertion. A warning that arrives later, one
+routed anywhere other than `console.warn`, and everything else the mounted component does —
+rendered HTML, thrown errors, `unmount` behaviour, reactivity — are outside the key.
+`document.body.innerHTML` is asserted by nothing.
+
+### 24c — one component shape, so the *location string* is never compared [S]
+
+The cases differ only in the ignore comment. The runtime prints the location into the warning
+text and this script does not read it, so a location pointing at the wrong line, the wrong
+file, or the wrong declaration would pass every case here. That field is compared by
+`crates/rsvelte_core/tests/async_derived_dev_args_2540.rs` (exact column, against the official
+compiler's own output) and by the `async-derived` matrix family — never by this gate.
+
+### 24d — dev is enabled through `NODE_ENV`, and nothing asserts it took [S]
+
+`esm-env` resolves `DEV` at module load from `process.env.NODE_ENV` (the `dev-fallback.js`
+export condition). The script sets it before its first dynamic import. If a future Node,
+bundler condition or `esm-env` release changed that resolution, `DEV` would be `false`, the
+runtime's whole warning block would be dead, and every case would report `[]`. The oracle check
+in gate 24 preamble catches exactly this — official would stop warning and the run would fail as
+`HARNESS` rather than pass silently — which is the only reason this is [S] and not a hole.
+
+### 24e — a missing jsdom or binding exits 2, and CI must be the thing that runs it [S]
+
+Both are hard failures (`process.exit(2)`), not skips, so the vacuity floor that gate 8a
+records does not apply. But the script is wired into exactly one job (`corpus-compat.yml`'s
+`shape-matrix`), which is path-filtered on `crates/**` and `scripts/compat-corpus/**`; a change
+to `submodules/svelte` alone reaches it (the submodule paths are listed), a change to the
+runtime's warning gating inside a *newer pinned* submodule therefore does reach it, but nothing
+else in the repo runs it.
 
 ---
 

@@ -45,6 +45,9 @@ import {
 	BIND_SETTER_SHAPES,
 	BIND_SETTER_HOSTS,
 	BIND_SETTER_PREAMBLE,
+	ASYNC_DERIVED_DECLARATIONS,
+	ASYNC_DERIVED_IGNORES,
+	ASYNC_DERIVED_ENTRIES,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -294,8 +297,29 @@ function bindSetterShapeCases() {
 	return cases;
 }
 
+function asyncDerivedCases() {
+	const cases = [];
+	for (const [entryName, entry] of Object.entries(ASYNC_DERIVED_ENTRIES)) {
+		for (const [declName, declaration] of Object.entries(ASYNC_DERIVED_DECLARATIONS)) {
+			for (const [ignoreName, ignore] of Object.entries(ASYNC_DERIVED_IGNORES)) {
+				cases.push({
+					id: `async-derived/${entryName}__${declName}__${ignoreName}${entry.ext ?? '.svelte'}`,
+					source: entry.wrap(ignore.replaceAll('%s', declaration)),
+					kind: entry.kind,
+					// The one axis no other family varies. Without it the shape is
+					// an `experimental_async` compile error in both compilers —
+					// error-parity, which is agreement about nothing.
+					options: { experimental: { async: true } },
+				});
+			}
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
+	'async-derived': asyncDerivedCases,
 	'comment-slot': commentSlotCases,
 	'literal-escape': literalEscapeCases,
 	'invalid-bind': invalidBindCases,

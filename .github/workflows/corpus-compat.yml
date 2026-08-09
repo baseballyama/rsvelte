@@ -617,6 +617,13 @@ jobs:
       - name: Shape matrix parity (ratchet against matrix-known-failures.json)
         run: node scripts/compat-corpus/matrix/run.mjs
 
+      # The only gate here that RUNS the compiled output instead of reading it.
+      # `await_waterfall` is a runtime warning gated on an argument the compiler
+      # either passes or does not, so a text comparison can be green while the
+      # warning is disarmed — which is the state #2540 shipped in.
+      - name: await_waterfall runtime parity
+        run: node scripts/compat-corpus/await-waterfall-runtime.mjs
+
       - name: Upload matrix artifacts on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

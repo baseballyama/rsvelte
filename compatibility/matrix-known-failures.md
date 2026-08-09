@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 807 entries)
+## Matrix known failures (`matrix-known-failures.json`, 1060 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 422 + 3`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 422 + 3 + 253`
 
 ### `binding-position` — 2 entries
 
@@ -327,6 +327,72 @@ while the live sites are `<svelte:body>` and `<svelte:self>`. The shapes the iss
 (`setter-through-call`, `sequence-bodied-setter`) all pass on the element and component hosts
 now; what survives is the same predicate reached through a special element. A repro file cannot
 find that, because the reporter picks the element.
+
+---
+
+### `async-derived` — 253 entries
+
+Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 253 was
+reachable by any gate in the repo before this family existed, because every harness compiles
+with a fixed `{ generate, dev, filename }` and `$derived(await …)` is an `experimental_async`
+compile error without `experimental.async`. The shape occurs 0 times in the 14k-entry corpus
+and would occur 0 times in a 140k-entry one. This family is the first to make a compile
+**option** an axis (`generate.mjs`'s `options`, merged in `run.mjs`), which is what turns the
+shape from unreachable into measured.
+
+The one thing #2540 itself fixed — the `label` / `location` arguments `$.async_derived` carries
+in dev — is *not* in this list; the rows that isolate it (`instance__identifier__none`,
+`instance__multi-declarator__none`, all three targets) pass. What remains are five independent
+defects the family exposed on the way, all of them older than the family:
+
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `154 + 39 + 18 + 14 + 13 + 13 + 2`
+
+| # | cause | entries |
+|---|---|---|
+| 1 | `<script module>` / `compileModule` async-derived lowering | 154 |
+| 2 | the `$$d` temp appears in the hoisted `var` list | 39 |
+| 3 | `svelte-ignore` comment not reproduced on the hoisted declaration | 18 |
+| 4 | a block comment before the declaration produces **invalid JavaScript** | 14 |
+| 5a | no `$.save(…)` around a non-final `await` | 13 |
+| 5b | `$derived.by(async …)` is suspended as if it were an async derived | 13 |
+| — | server `$$renderer.async` split lost alongside cause 3 | 2 |
+
+**1 — the module entry points.** Every `module__*` and `script-module__*` entry. The instance
+script goes through the AST state transform; `<script module>` and `.svelte.js` go through the
+module text pipeline, and that pipeline gets the dev lowering inside out — it emits
+`(await $.track_reactivity_loss($.async_derived(() => p)))()` where upstream emits
+`await $.async_derived(async () => (await $.track_reactivity_loss(p))(), 'a', '…')`, i.e. the
+instrumentation wraps the *call* instead of the thunk body. Destructured module declarations
+are not lowered at all (`const [a, b] = await $.async_derived(() => p)`), and the module
+`server` target reads the derived without calling it (`return a` for `return a()`). Adding the
+dev arguments to this path would have been invisible, so #2540 did not: the shape above it is
+wrong first.
+
+**2 — `var $$d, a, b;`.** rsvelte hoists its own destructuring temp into the component's
+top-level `var` list; upstream keeps it local to the `$.run` callback. Present on `client`,
+`server` and `client-dev` alike, so it is not dev instrumentation.
+
+**3 and 4 — the ignore comment.** Upstream re-emits the `svelte-ignore` comment inside the
+declaration it hoists (`var // svelte-ignore await_waterfall\n a;`); rsvelte drops it. Where the
+comment is a block comment on the same line as the declaration, rsvelte does worse than drop it
+— it splices it into the async hoist and produces
+`$.run([async () => void (/* svelte-ignore await_waterfall */ const a = await …)])`, a `const`
+in expression position that no JavaScript parser accepts. Cause 4 is a real bug, found by this
+family, and the reason the `block-inline` slot is worth its 14 entries.
+
+**Because of 3, the ignore axis cannot gate what it was added for.** A listed entry suppresses
+everything about that entry, so a regression in the ignored form's argument list would not show
+here. The assertions that do watch it are
+`crates/rsvelte_core/tests/async_derived_dev_args_2540.rs` (exact argument list, three ignore
+placements) and `scripts/compat-corpus/await-waterfall-runtime.mjs` (the warning actually
+fires, and the ignore actually suppresses it). Clearing cause 3 hands the axis back to this
+gate.
+
+**5 — two lowering divergences the axis found incidentally.** A multi-`await` derived loses the
+`$.save(…)` upstream wraps every non-final `await` in, and `$derived.by(async () => …)` is
+routed through the async-derived hoist (`var a; $.run([…])` plus a `$$promises` blocker) where
+upstream emits a plain `const a = $.derived(async () => …)` — rsvelte suspends on a derived
+upstream does not.
 
 ## Burn-down
 

@@ -1158,3 +1158,81 @@ export const BIND_SETTER_PREAMBLE = `<script>
 
 %s
 `;
+
+/**
+ * Async `$derived` × the dev arguments `$.async_derived` carries — the axis
+ * family that varies a COMPILE OPTION rather than a source shape.
+ *
+ * `experimental.async` is what makes the shape legal at all, and no other gate
+ * sets it: `compile.mjs` passes exactly `{ generate, dev, filename }`, so
+ * `$derived(await …)` is a population the collected corpus cannot hold at any
+ * size. That is how #2540 shipped — `$.async_derived(thunk)` with both dev
+ * arguments missing, which disarms the `await_waterfall` runtime warning (it is
+ * gated on `location !== undefined`) and makes its `svelte-ignore` a no-op.
+ *
+ * The `ignore` axis is the discriminating half: upstream drops the LOCATION and
+ * keeps the LABEL when `svelte-ignore await_waterfall` covers the declaration,
+ * so "both", "neither" and "label only" are three distinguishable outputs.
+ * `unrelated` carries a `svelte-ignore` for a different code — a check that
+ * looks for any ignore comment rather than for this one passes every other row
+ * and fails that one.
+ */
+export const ASYNC_DERIVED_DECLARATIONS = {
+	identifier: 'const a = $derived(await p);',
+	'object-pattern': 'const { a, b } = $derived(await p);',
+	'array-pattern': 'const [a, b] = $derived(await p);',
+	'renamed-object': 'const { x: a } = $derived(await p);',
+	'nested-await': 'const a = $derived((await p) + (await q));',
+	'multi-declarator': 'const a = $derived(await p), b = $derived(await q);',
+	'derived-by-async': 'const a = $derived.by(async () => await p);',
+	'not-async': 'const a = $derived(p);',
+};
+
+/** Where the `svelte-ignore` comment sits relative to the declaration. */
+export const ASYNC_DERIVED_IGNORES = {
+	none: '%s',
+	'line-before': '// svelte-ignore await_waterfall\n\t%s',
+	'block-before': '/* svelte-ignore await_waterfall */\n\t%s',
+	'block-inline': '/* svelte-ignore await_waterfall */ %s',
+	unrelated: '// svelte-ignore state_referenced_locally\n\t%s',
+};
+
+/**
+ * The three entry points the declaration is reached through. They are separate
+ * code paths in rsvelte — the instance script goes through the AST state
+ * transform, `<script module>` and `compileModule` through the module text
+ * pipeline — so a fix applied to one leaves the others emitting the old shape.
+ */
+export const ASYNC_DERIVED_ENTRIES = {
+	instance: {
+		wrap: (body) => `<script>
+	let { p, q } = $props();
+	${body}
+</script>
+
+<p>{typeof a}</p>
+`,
+	},
+	'script-module': {
+		wrap: (body) => `<script module>
+	const p = Promise.resolve(1);
+	const q = Promise.resolve(2);
+	${body}
+</script>
+
+<p>ok</p>
+`,
+	},
+	module: {
+		ext: '.svelte.js',
+		kind: 'module',
+		wrap: (body) => `const p = Promise.resolve(1);
+const q = Promise.resolve(2);
+${body.replace(/^\t/gm, '')}
+export function read() {
+	return a;
+}
+`,
+	},
+};
+

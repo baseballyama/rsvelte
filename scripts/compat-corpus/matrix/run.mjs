@@ -150,6 +150,10 @@ for (const testCase of cases) {
 		const isModule = testCase.kind === 'module';
 		const options = { generate: target.generate, dev: target.dev, filename: path.basename(testCase.id) };
 		if (!isModule) options.css = 'external';
+		// A per-case compile OPTION, not a source shape. Every other harness here
+		// passes a fixed option set, so a defect that only exists under a flag
+		// (`experimental.async`) is unreachable for them at any corpus size.
+		Object.assign(options, testCase.options ?? {});
 		const compileWith = (compiler) =>
 			isModule ? compiler.compileModule(testCase.source, options) : compiler.compile(testCase.source, options);
 		let expected = null;
