@@ -618,7 +618,7 @@ pub(crate) fn prepare_and_analyze<'source>(
     }
 
     // Remove TypeScript nodes from script content if TypeScript is detected.
-    remove_typescript_from_ast(ast)?;
+    remove_typescript_from_ast(ast, &retained_scripts)?;
 
     // Merge parsed <svelte:options> into compile options.
     // Reference: svelte/packages/svelte/src/compiler/index.js
@@ -1129,7 +1129,10 @@ fn check_module_store_subscriptions(
 /// and if so, applies `remove_typescript_nodes` to strip type annotations.
 /// This matches the official Svelte compiler behavior where TypeScript stripping
 /// happens during compilation, not during parsing.
-fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::error::ParseError> {
+fn remove_typescript_from_ast(
+    ast: &mut crate::ast::Root,
+    retained: &crate::ast::oxc_program::RetainedScripts<'_>,
+) -> Result<(), crate::error::ParseError> {
     use crate::ast::AttributeValue;
     use crate::ast::AttributeValuePart;
 
@@ -1148,9 +1151,19 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
 
     fn strip_ts_from_script(
         script: &mut crate::ast::Script,
+        retained: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
     ) -> Result<(), crate::error::ParseError> {
         use crate::ast::js::Expression;
-        match &mut script.content {
+        // A decorator on anything but a class declaration has no typed
+        // representation, so it has to be found on the OXC program instead.
+        // `retained` is only `None` for an empty script, which cannot hold one.
+        let decorator = retained.and_then(|program| {
+            phases::phase1_parse::remove_typescript_nodes::first_decorator_span(
+                program.program(),
+                script.content_offset as usize,
+            )
+        });
+        let stripped = match &mut script.content {
             // Typed path: mutate the arena-backed typed tree in place, keeping
             // the script `Expression::Typed` (no expensive `as_json()` round
             // trip). The serialize arena is installed by the caller's
@@ -1166,6 +1179,16 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
             Expression::Lazy { .. } => {
                 unreachable!("Expression::Lazy must be resolved before strip_ts")
             }
+        };
+        // Upstream walks one tree, so the earliest offending node wins.
+        match (decorator, &stripped) {
+            (Some(span), Ok(())) => {
+                Err(phases::phase1_parse::remove_typescript_nodes::decorator_error(span))
+            }
+            (Some(span), Err(other)) if span.0 < other.span().0 => {
+                Err(phases::phase1_parse::remove_typescript_nodes::decorator_error(span))
+            }
+            _ => stripped,
         }
     }
 
@@ -1180,10 +1203,10 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::e
 
     if any_is_typescript {
         if let Some(ref mut instance) = ast.instance {
-            strip_ts_from_script(instance)?;
+            strip_ts_from_script(instance, retained.instance.as_ref())?;
         }
         if let Some(ref mut module) = ast.module {
-            strip_ts_from_script(module)?;
+            strip_ts_from_script(module, retained.module.as_ref())?;
         }
         // Also strip TypeScript from the fragment (template expressions).
         // The official Svelte compiler calls remove_typescript_nodes on the entire fragment:

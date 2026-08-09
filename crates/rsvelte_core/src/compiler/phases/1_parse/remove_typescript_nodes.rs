@@ -75,6 +75,57 @@ fn recurse_range(range: IdRange, arena: &ParseArena) -> Result<(), ParseError> {
     Ok(())
 }
 
+const DECORATOR_FEATURE: &str = "decorators (related TSC proposal is not stage 4 yet)";
+
+/// Document-relative span of the earliest decorator in `program`, or `None`.
+///
+/// Only a class *declaration* carries decorators in the typed tree; a decorated
+/// member has no `JsNode` field to hold them, so the OXC program is the only
+/// place the rest of them can still be seen.
+pub(crate) fn first_decorator_span(
+    program: &oxc_ast::ast::Program<'_>,
+    offset: usize,
+) -> Option<(usize, usize)> {
+    use oxc_ast_visit::Visit;
+
+    // A decorator is always spelled with `@`, so this skips the walk entirely
+    // for the scripts that cannot contain one.
+    memchr::memchr(b'@', program.source_text.as_bytes())?;
+
+    struct Scan {
+        first: Option<(u32, u32)>,
+    }
+
+    impl<'a> Visit<'a> for Scan {
+        fn visit_decorator(&mut self, decorator: &oxc_ast::ast::Decorator<'a>) {
+            if self
+                .first
+                .is_none_or(|(start, _)| decorator.span.start < start)
+            {
+                self.first = Some((decorator.span.start, decorator.span.end));
+            }
+        }
+
+        // Upstream's `ExportDefaultDeclaration` visitor returns the node instead
+        // of `context.next()`, so nothing under a default export is ever visited.
+        fn visit_export_default_declaration(
+            &mut self,
+            _decl: &oxc_ast::ast::ExportDefaultDeclaration<'a>,
+        ) {
+        }
+    }
+
+    let mut scan = Scan { first: None };
+    scan.visit_program(program);
+    scan.first
+        .map(|(start, end)| (offset + start as usize, offset + end as usize))
+}
+
+/// The upstream `Decorator` visitor error, for a span already in document coordinates.
+pub(crate) fn decorator_error(span: (usize, usize)) -> ParseError {
+    ParseError::typescript_invalid_feature(DECORATOR_FEATURE, span)
+}
+
 /// Build a typed `EmptyStatement` carrying `node`'s span (the span is irrelevant
 /// to analyze, which treats every `EmptyStatement` as a no-op, but we keep it for
 /// faithfulness).
@@ -96,13 +147,10 @@ pub fn remove_typescript_nodes_typed(
     match node.node_type() {
         // Decorators are not supported.
         Some("Decorator") => {
-            return Err(ParseError::typescript_invalid_feature(
-                "decorators (related TSC proposal is not stage 4 yet)",
-                (
-                    node.start().unwrap_or(0) as usize,
-                    node.end().unwrap_or(0) as usize,
-                ),
-            ));
+            return Err(decorator_error((
+                node.start().unwrap_or(0) as usize,
+                node.end().unwrap_or(0) as usize,
+            )));
         }
 
         // Enums are not supported.
