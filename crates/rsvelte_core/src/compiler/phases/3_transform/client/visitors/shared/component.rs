@@ -802,6 +802,9 @@ fn process_let_directive(
     lets: &mut Vec<JsStatement>,
     let_names: &mut Vec<(String, Option<String>)>,
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_LET,
+    );
     let prop_name = &let_dir.name;
 
     // Check if expression is an Identifier or null (simple case)
@@ -975,6 +978,9 @@ fn process_on_directive(
     context: &mut ComponentContext,
     events: &mut IndexMap<String, Vec<JsExpr>>,
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_ON,
+    );
     // If no expression, mark that component needs props for event bubbling
     // This is handled via build_event_handler which sets needs_props_from_events
 
@@ -1014,6 +1020,9 @@ fn process_spread_attribute(
     props_and_spreads: &mut Vec<PropsEntry>,
     memoizer: &mut crate::compiler::phases::phase3_transform::client::types::Memoizer,
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_SPREAD,
+    );
     let expression = convert_expression(&spread.expression, context);
 
     // Check if the expression has reactive state and function calls.
@@ -1083,6 +1092,9 @@ fn process_regular_attribute(
     custom_css_props: &mut Vec<JsObjectMember>,
     memoizer: &mut crate::compiler::phases::phase3_transform::client::types::Memoizer,
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_ATTR,
+    );
     // Handle custom CSS properties (--var)
     if attr.name.starts_with("--") {
         // Build the attribute value with potential memoization
@@ -1353,6 +1365,9 @@ fn process_bind_directive<'a>(
     component_name: &str,
     ignored_codes: &[String],
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_BIND,
+    );
     // Convert the expression without transforms first
     let raw_expression = convert_expression(&bind.expression, context);
 
@@ -2061,6 +2076,9 @@ fn process_attach_tag(
     context: &mut ComponentContext,
     props_and_spreads: &mut Vec<PropsEntry>,
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_ATTACH,
+    );
     let expression = convert_expression(&attach.expression, context);
 
     // Check if expression has reactive state using the proper check.
@@ -2122,6 +2140,9 @@ fn process_snippet_block(
     props_and_spreads: &mut Vec<PropsEntry>,
     serialized_slots: &mut Vec<JsObjectMember>,
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_SNIPPET,
+    );
     // Use the snippet_block visitor to generate the full snippet function
     // This properly handles the snippet body, parameters, and placement
     use crate::compiler::phases::phase3_transform::client::visitors::snippet_block::snippet_block;
@@ -2190,6 +2211,9 @@ fn build_slot_function(
     let_names: &[(String, Option<String>)],
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_SLOT_FN,
+    );
     if children.is_empty() {
         return None;
     }
@@ -2885,6 +2909,9 @@ fn build_component_expression(
     component_name: &str,
     context: &mut ComponentContext,
 ) -> JsExpr {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_COMP_EXPR,
+    );
     match node {
         ComponentNode::Component(_) => {
             // For dynamic component identified by name
@@ -2956,6 +2983,9 @@ fn build_component_call(
     bind_this: Option<&Expression<'_>>,
     context: &mut ComponentContext,
 ) -> JsExpr {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_COMP_CALL,
+    );
     let callee = if is_component_dynamic {
         b::id(intermediate_name)
     } else {
@@ -3028,6 +3058,9 @@ fn build_with_css_props(
     bind_this: Option<&Expression>,
     component_start: u32,
 ) {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_CSS_PROPS,
+    );
     // Determine wrapper element based on namespace
     let is_svg = context.state.metadata.namespace == "svg";
     let wrapper_element = if is_svg { "g" } else { "svelte-css-wrapper" };
@@ -3103,6 +3136,9 @@ fn build_props_expression(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     props_and_spreads: Vec<PropsEntry>,
 ) -> JsExpr {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_PROPS,
+    );
     if props_and_spreads.is_empty() {
         return b::object(vec![]);
     }
@@ -3168,6 +3204,9 @@ fn build_component_meta_stmt(
     dev: bool,
     source: &str,
 ) -> JsStatement {
+    let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
+        crate::compiler::phases::phase3_transform::profile::TF_BC_META,
+    );
     if !dev {
         return b::stmt(arena, expression);
     }

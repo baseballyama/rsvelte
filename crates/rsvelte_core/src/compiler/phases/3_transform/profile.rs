@@ -759,7 +759,7 @@ pub fn take_pa_breakdown() -> PaBreakdown {
     PaBreakdown::default()
 }
 
-pub const TF_KINDS: [&str; 27] = [
+pub const TF_KINDS: [&str; 40] = [
     "component",
     "svelte_component",
     "svelte_self",
@@ -787,20 +787,59 @@ pub const TF_KINDS: [&str; 27] = [
     "svelte_fragment",
     "slot_element",
     "other",
+    // Stages inside `build_component`. Self time, like the rows above, so they
+    // are subtracted from the `component` row rather than added beside it.
+    "bc:let_directive",
+    "bc:on_directive",
+    "bc:spread_attribute",
+    "bc:regular_attribute",
+    "bc:bind_directive",
+    "bc:attach_tag",
+    "bc:snippet_block",
+    "bc:slot_function",
+    "bc:props_expression",
+    "bc:component_expression",
+    "bc:component_call",
+    "bc:css_props",
+    "bc:meta_stmt",
 ];
+
+pub const TF_BC_LET: usize = 27;
+pub const TF_BC_ON: usize = 28;
+pub const TF_BC_SPREAD: usize = 29;
+pub const TF_BC_ATTR: usize = 30;
+pub const TF_BC_BIND: usize = 31;
+pub const TF_BC_ATTACH: usize = 32;
+pub const TF_BC_SNIPPET: usize = 33;
+pub const TF_BC_SLOT_FN: usize = 34;
+pub const TF_BC_PROPS: usize = 35;
+pub const TF_BC_COMP_EXPR: usize = 36;
+pub const TF_BC_COMP_CALL: usize = 37;
+pub const TF_BC_CSS_PROPS: usize = 38;
+pub const TF_BC_META: usize = 39;
 
 /// Self time and call count per template node kind, drained together with the
 /// `template_fragment` parent they are compared against.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct TfBreakdown {
     pub time: [Duration; TF_KINDS.len()],
     pub calls: [u64; TF_KINDS.len()],
 }
 
+// `Default` is only derivable for arrays up to 32 entries.
+impl Default for TfBreakdown {
+    fn default() -> Self {
+        Self {
+            time: [Duration::ZERO; TF_KINDS.len()],
+            calls: [0; TF_KINDS.len()],
+        }
+    }
+}
+
 #[cfg(feature = "measure-tf-split")]
 thread_local! {
-    static TF_TIME: [Cell<u64>; TF_KINDS.len()] = Default::default();
-    static TF_CALLS: [Cell<u64>; TF_KINDS.len()] = Default::default();
+    static TF_TIME: [Cell<u64>; TF_KINDS.len()] = const { [const { Cell::new(0) }; TF_KINDS.len()] };
+    static TF_CALLS: [Cell<u64>; TF_KINDS.len()] = const { [const { Cell::new(0) }; TF_KINDS.len()] };
     /// Time the frames below the open one have already claimed. The visitor is
     /// recursive, so an inclusive timer would charge an element for everything
     /// inside it; each frame subtracts what its children took.
