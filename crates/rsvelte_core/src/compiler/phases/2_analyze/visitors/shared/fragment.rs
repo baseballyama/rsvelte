@@ -121,8 +121,10 @@ pub fn analyze<'a, 'b: 'a>(
                 // as it reaches the annotated node, which interleaves these warnings with
                 // that node's own in source order. Text nodes only consume the codes.
                 if !is_text {
+                    // Emitted before `push_ignore` below, so an enclosing `svelte-ignore`
+                    // suppresses these but the run's own codes cannot suppress themselves.
                     for warning in preceding.warnings {
-                        context.analysis.warnings.push(warning);
+                        context.emit_warning(warning);
                     }
                 }
                 preceding.ignores
