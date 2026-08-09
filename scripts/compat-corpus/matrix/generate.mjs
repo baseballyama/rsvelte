@@ -198,9 +198,12 @@ const KEYWORD_REGEX_HOST_EXCLUSIONS = {
 function keywordRegexCases() {
 	const cases = [];
 	const excluded = (row, host) => (KEYWORD_REGEX_HOST_EXCLUSIONS[row] ?? []).includes(host);
-	// The regex body only has to vary against the token axis — it is the token
-	// that selects the branch, and crossing every body with every host would add
-	// columns that cannot move independently of `delimiters`.
+	// `slash-in-class` is the body that MOVES — it is the one that turns 12 of the
+	// 15 keyword rows red when the previous-byte rule is restored — but it is run
+	// against the legacy `$:` host only. Every other host still holds a scanner
+	// with the previous-byte rule of its own, so crossing it there would enrol
+	// ~178 comparisons of a defect this family did not come to measure. The host
+	// cross therefore runs `delimiters`; see gate-coverage blind spot 5f.
 	const BODY_HOST = 'legacy-reactive';
 	const DEFAULT_BODY = 'delimiters';
 	for (const [prefixName, template] of Object.entries(SLASH_REGEX_PREFIXES)) {

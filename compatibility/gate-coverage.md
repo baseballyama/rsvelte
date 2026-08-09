@@ -351,10 +351,21 @@ only widened one direction scores green on the other half.
 
 What it does **not** generate is the product: `generate.mjs`'s `keywordRegexCases` crosses every
 keyword with every host at **one** regex body (`delimiters`), and every regex body with every
-keyword at **one** host (`legacy-reactive`). A scanner that breaks only on, say, `slash-in-class`
-inside a class-body member is unmeasured. **[S]** The same is true of spelling: every generated
-row puts exactly one space between the keyword and the `/`, so `return/re/` — a different byte
-layout for the same token pair — is never produced.
+keyword at **one** host (`legacy-reactive`). The two axes are not interchangeable, and the
+measurement says so. Only `slash-in-class` (`/[//]/` — a character class holding two slashes, so
+the body carries a `//` that a division reading exposes) discriminates the shared-helper defect
+at all: restoring the previous-byte rule turns **24** comparisons red on it and **0** on
+`delimiters`. Swapping the host cross to `slash-in-class` on the *fixed* tree turns **178**
+comparisons red across five hosts — 30 on `legacy-prop-default`, 24 on `legacy-function`, 66 on
+the two template-expression hosts (where rsvelte **rejects source official accepts**), 14 on
+`runes-class-method`, 2 on `legacy-reactive-block`. Those are previous-byte scanners the shared
+helper does not own, so this row's **[D]** evidence is that the host cross is deliberately run on
+the body that does *not* move: `/[//]/` outside the legacy `$:` host is a live divergence, not a
+gap in generation.
+
+The same is true of spelling: every generated row puts exactly one space between the keyword and
+the `/`, so `return/re/` — a different byte layout for the same token pair — is never
+produced. **[S]**
 
 The controls are ASCII-only, and the one that discriminates a **backwards** scan
 (`comment-ending-in-keyword`) is a block comment on one line. A `//` comment whose text ends in a
@@ -365,7 +376,10 @@ instead, in `js_scan.rs`'s `a_comment_ending_in_a_keyword_does_not_open_a_regex`
 
 Finally, the family reaches only the scanners that go through `shared::js_scan::skip_opaque`.
 `shared/class_body.rs:54` keeps a **private copy** of `slash_starts_regex` with the same
-previous-byte rule, and nothing here distinguishes a case that routes through it. **[U]**
+previous-byte rule, and the Phase-1 scan that finds where a `{…}` template expression ends has a
+rule of its own — `{typeof /[//]/.exec(v)}` is rejected with "`<p>` was left open". Nothing in
+this family distinguishes which of those a case routes through; the 178-comparison measurement
+above is the evidence that they exist, not a partition of them. **[D]**
 
 **Closing 5b/5c:** the matrix runs in ~10 s on ~5,250 comparisons. Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) or reading `.warnings` is cheap relative to
