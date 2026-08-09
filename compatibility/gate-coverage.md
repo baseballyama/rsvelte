@@ -647,7 +647,7 @@ space is a boundary).
 ## 12-13. svelte-check diagnostic parity (Layer 1 fixtures, Layer 2 e2e)
 
 **Unit.** A multiset of `` `${severity} ${relpath}:${line} ${code}` `` (`check-diagnostics.mjs:18`,
-`:63`). Layer 1 = 30 committed scenarios under `compatibility/check-fixtures/`
+`:63`). Layer 1 = 36 committed scenarios under `compatibility/check-fixtures/`
 (`check-verify.mjs:149-156`); Layer 2 = 3 units in 2 real repos
 (`check-e2e-verify.mjs:62-98`), sharing the same parsing module (`:49`).
 
@@ -687,7 +687,7 @@ false positives and nothing else. **This is a question, not a finding.** Resolve
 ### Blind spot 12d — the CLI surface is one point
 
 `check-verify.mjs:197-202` forwards only `--workspace`, `--tsconfig`, and per-scenario `args`.
-Exactly one of 30 scenarios uses `args` (`ts7-native`: `["--tsgo"]`). **[D]** `--threshold`,
+Exactly one of 36 scenarios uses `args` (`ts7-native`: `["--tsgo"]`). **[D]** `--threshold`,
 `--fail-on-warnings`, `--ignore`, `--compiler-warnings`, `--config`, `--watch` and the `human` /
 `machine` / `github-actions` output formats are compared against the oracle nowhere.
 
@@ -704,6 +704,37 @@ carried a third copy of the same wrong predicate.
 The lesson generalises past this gate: a flag that selects an input source is not one more
 option to forward, it is a **second population**. Compare 5a, where the same shape (an entry
 point nothing reached) hid a whole compiler path.
+
+### Blind spot 12f — the `compilerOptions` surface is compared only at the keys a scenario sets
+
+Six scenarios now set a `compilerOptions` key (`svelte-config-namespace-{foreign,html}`,
+`svelte-config-accessors{,-off}`, `svelte-config-{un,}recognised-option`), each half of a pair
+whose two projects are byte-identical apart from that one value. That is what makes 12d's
+"essentially no explicit-config branch is exercised" one notch less true — but only for those
+keys. The compiler accepts 32 options
+(`crates/rsvelte_check/src/svelte_check/options_schema.rs`'s `COMPONENT_OPTIONS`, derived from
+`validate-options.js` by `schema_matches_upstream`), and the rest are compared against the
+oracle nowhere.
+
+Three things this gate structurally cannot see, all **[S]** unless noted:
+
+* **Deprecation and `warn_removed` warnings.** `accessors: true`, `immutable: true`,
+  `hydratable`, `enableSourcemap`, `loopGuardTimeout` and `generate: 'dom'` produce *warnings*
+  through the compiler's `warn_once`, whose `warned` set is module-global — so upstream emits
+  each at most **once per svelte-check process**, on whichever component happened to compile
+  first. rsvelte-check does not reproduce them at all. **[D]** Confirmed against the pinned
+  oracle: two successive `compile(..., { accessors: true })` calls yield
+  `options_deprecated_accessors` on the first and nothing on the second. This is also why the
+  accessors pair keys off `customElement` rather than `accessors` — `accessors: true` would put
+  a once-per-run warning inside the scenario and force a ratchet entry, which would then
+  suppress every other divergence in it.
+* **Anything the static config reader cannot evaluate.** The oracle imports the config, rsvelte
+  parses it; `namespace: ns` or a spread is a legal value to one and unreadable to the other. A
+  scenario written with a computed value would compare "no diagnostic" to "no diagnostic" for
+  the wrong reason.
+* **Which of `svelte.config.*`, the inline `svelte()` / `sveltekit()` plugin options, and
+  `--config` supplied the value.** Every scenario uses `svelte.config.js`; the precedence rules
+  in `config.rs` are covered by unit tests only, and `--config` by nothing (12d).
 
 ### Blind spot 12e — the tsc/tsgo equivalence claim is asserted, not measured
 

@@ -35,15 +35,12 @@ use oxc_parser::Parser as OxcParser;
 use oxc_span::SourceType;
 
 use super::kit_file::{lookup_property, unwrap_define_config_object};
+use super::options_schema::{ConfigObject, ConfigValue, OptionDiagnostic};
 use crate::svelte2tsx::Svelte2TsxNamespace;
-
-/// Namespaces the Svelte 5 compiler accepts for `compilerOptions.namespace`
-/// (`validate-options.js`'s `list(['html', 'mathml', 'svg'])`).
-const COMPILER_NAMESPACES: [&str; 3] = ["html", "mathml", "svg"];
 
 /// Subset of Svelte `compilerOptions` that influence svelte-check
 /// diagnostics. Extend as more options gain diagnostic relevance.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct CompilerOptionsSettings {
     /// `compilerOptions.experimental.async` — allows top-level / derived
     /// `await`. When false (the default), the compiler emits the
@@ -58,6 +55,16 @@ pub struct CompilerOptionsSettings {
     /// the Svelte 5 compiler rejects, and both consequences are
     /// user-visible.
     pub namespace: Option<String>,
+    /// `compilerOptions.accessors` — turns every `let` binding into a
+    /// component export, which moves the component's public type.
+    pub accessors: Option<bool>,
+    /// `compilerOptions.customElement` — the fallback `accessors` reads when
+    /// it is unset, because custom elements always get accessors.
+    pub custom_element: Option<bool>,
+    /// Every statically-readable `compilerOptions` entry, merged across the
+    /// sources below. Upstream forwards this object wholesale to
+    /// `svelte.compile`, so it is also what gets validated.
+    pub raw: ConfigObject,
 }
 
 impl CompilerOptionsSettings {
@@ -66,11 +73,10 @@ impl CompilerOptionsSettings {
     /// compiler options change between runs (the `.svelte` source
     /// mtime/size is unaffected by a config edit, so the per-file key
     /// alone can't notice it).
+    /// Fingerprinting the whole parsed object rather than the fields read off
+    /// it keeps a newly-consumed option from silently reusing a stale cache.
     pub fn signature(&self) -> String {
-        format!(
-            "async={};runes={:?};namespace={:?}",
-            self.experimental_async, self.runes, self.namespace
-        )
+        format!("{:?}", self.raw)
     }
 
     /// The namespace the TSX projection runs under. Mirrors
@@ -86,14 +92,18 @@ impl CompilerOptionsSettings {
         }
     }
 
-    /// The configured namespace when the Svelte 5 compiler would reject it.
-    /// `svelte.compile` validates its options, so upstream svelte-check
-    /// surfaces `options_invalid_value` for every checked component of such
-    /// a project; rsvelte builds `CompileOptions` from a typed enum and so
-    /// has to make that check itself.
-    pub fn invalid_namespace(&self) -> Option<&str> {
-        let ns = self.namespace.as_deref()?;
-        (!COMPILER_NAMESPACES.contains(&ns)).then_some(ns)
+    /// Whether the TSX projection runs with accessors. Mirrors
+    /// `DocumentSnapshot.ts`'s `accessors ?? customElement`: a custom element
+    /// exposes its props as properties whether or not `accessors` is set.
+    pub fn projection_accessors(&self) -> bool {
+        self.accessors.or(self.custom_element).unwrap_or(false)
+    }
+
+    /// The diagnostic `svelte.compile` would raise for these options before
+    /// compiling anything, which upstream therefore reports on every checked
+    /// component.
+    pub fn option_diagnostic(&self) -> Option<OptionDiagnostic> {
+        super::options_schema::validate_component_options(&self.raw)
     }
 }
 
@@ -419,25 +429,86 @@ fn vite_uses_inline_sveltekit_config(source: &str, source_type: SourceType) -> b
     false
 }
 
-/// Read `compilerOptions.{experimental.async, runes, namespace}` out of an
-/// object expression (either a svelte.config root object or a svelte-plugin
-/// options object). Only sets a field when a literal of the right kind is
-/// present.
+/// Read the whole `compilerOptions` object out of an object expression
+/// (either a svelte.config root object or a svelte-plugin options object)
+/// and merge it over what earlier sources declared, then re-derive the typed
+/// fields. Only statically-readable literals are captured; anything else is
+/// recorded as [`ConfigValue::Unknown`] so it is neither used nor judged.
 fn extract_compiler_options(obj: &oxc::ObjectExpression, settings: &mut CompilerOptionsSettings) {
     let Some(oxc::Expression::ObjectExpression(co)) = lookup_property(obj, "compilerOptions")
     else {
         return;
     };
-    if let Some(oxc::Expression::BooleanLiteral(b)) = lookup_property(co, "runes") {
-        settings.runes = Some(b.value);
+    settings.raw.merge(&read_object(co));
+
+    if let Some(ConfigValue::Bool(b)) = settings.raw.get("runes") {
+        settings.runes = Some(*b);
     }
-    if let Some(oxc::Expression::StringLiteral(s)) = lookup_property(co, "namespace") {
-        settings.namespace = Some(s.value.to_string());
+    if let Some(ConfigValue::Bool(b)) = settings.raw.get("accessors") {
+        settings.accessors = Some(*b);
     }
-    if let Some(oxc::Expression::ObjectExpression(exp)) = lookup_property(co, "experimental")
-        && let Some(oxc::Expression::BooleanLiteral(b)) = lookup_property(exp, "async")
+    if let Some(ConfigValue::Bool(b)) = settings.raw.get("customElement") {
+        settings.custom_element = Some(*b);
+    }
+    if let Some(ConfigValue::Str(s)) = settings.raw.get("namespace") {
+        settings.namespace = Some(s.clone());
+    }
+    if let Some(ConfigValue::Object(exp)) = settings.raw.get("experimental")
+        && let Some(ConfigValue::Bool(b)) = exp.get("async")
     {
-        settings.experimental_async = b.value;
+        settings.experimental_async = *b;
+    }
+}
+
+/// Statically evaluate an object literal one property at a time.
+fn read_object(obj: &oxc::ObjectExpression) -> ConfigObject {
+    let mut entries = Vec::new();
+    let mut complete = true;
+    for prop in &obj.properties {
+        let oxc::ObjectPropertyKind::ObjectProperty(p) = prop else {
+            // A spread hides keys we would otherwise call unrecognised.
+            complete = false;
+            continue;
+        };
+        let name = match &p.key {
+            oxc::PropertyKey::StaticIdentifier(id) => id.name.to_string(),
+            oxc::PropertyKey::StringLiteral(s) => s.value.to_string(),
+            _ => {
+                complete = false;
+                continue;
+            }
+        };
+        entries.push((name, read_value(&p.value)));
+    }
+    if complete {
+        ConfigObject::complete(entries)
+    } else {
+        ConfigObject::partial(entries)
+    }
+}
+
+fn read_value(expr: &oxc::Expression) -> ConfigValue {
+    match expr {
+        oxc::Expression::BooleanLiteral(b) => ConfigValue::Bool(b.value),
+        oxc::Expression::NumericLiteral(n) => ConfigValue::Number(n.value),
+        oxc::Expression::StringLiteral(s) => ConfigValue::Str(s.value.to_string()),
+        oxc::Expression::NullLiteral(_) => ConfigValue::Null,
+        oxc::Expression::ObjectExpression(o) => ConfigValue::Object(read_object(o)),
+        oxc::Expression::ArrayExpression(_) => ConfigValue::Array,
+        oxc::Expression::ArrowFunctionExpression(_) | oxc::Expression::FunctionExpression(_) => {
+            ConfigValue::Function
+        }
+        oxc::Expression::ParenthesizedExpression(p) => read_value(&p.expression),
+        oxc::Expression::TSAsExpression(a) => read_value(&a.expression),
+        oxc::Expression::TSSatisfiesExpression(s) => read_value(&s.expression),
+        oxc::Expression::TSNonNullExpression(n) => read_value(&n.expression),
+        oxc::Expression::UnaryExpression(u) => match (u.operator, &u.argument) {
+            (oxc::UnaryOperator::UnaryNegation, oxc::Expression::NumericLiteral(n)) => {
+                ConfigValue::Number(-n.value)
+            }
+            _ => ConfigValue::Unknown,
+        },
+        _ => ConfigValue::Unknown,
     }
 }
 
@@ -546,6 +617,19 @@ mod tests {
 
     fn write(dir: &Path, name: &str, body: &str) {
         std::fs::write(dir.join(name), body).unwrap();
+    }
+
+    /// Settings as the loader would build them: the typed fields are views of
+    /// `raw`, so a hand-built one that skips it is not a reachable state.
+    fn settings_with(key: &str, value: ConfigValue) -> CompilerOptionsSettings {
+        let mut settings = CompilerOptionsSettings {
+            raw: ConfigObject::complete(vec![(key.to_string(), value.clone())]),
+            ..Default::default()
+        };
+        if let (ConfigValue::Str(s), "namespace") = (&value, key) {
+            settings.namespace = Some(s.clone());
+        }
+        settings
     }
 
     #[test]
@@ -657,7 +741,10 @@ mod tests {
         let s = load_compiler_options(&dir);
         assert_eq!(s.namespace.as_deref(), Some("foreign"));
         assert_eq!(s.projection_namespace(), Svelte2TsxNamespace::Foreign);
-        assert_eq!(s.invalid_namespace(), Some("foreign"));
+        assert_eq!(
+            s.option_diagnostic().map(|d| d.code),
+            Some("options_invalid_value")
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -673,7 +760,7 @@ mod tests {
         let s = load_compiler_options(&dir);
         assert_eq!(s.namespace.as_deref(), Some("svg"));
         assert_eq!(s.projection_namespace(), Svelte2TsxNamespace::Svg);
-        assert_eq!(s.invalid_namespace(), None);
+        assert_eq!(s.option_diagnostic(), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -704,20 +791,18 @@ mod tests {
     #[test]
     fn only_compiler_illegal_namespaces_are_reported() {
         for legal in ["html", "svg", "mathml"] {
-            let s = CompilerOptionsSettings {
-                namespace: Some(legal.to_string()),
-                ..Default::default()
-            };
-            assert_eq!(s.invalid_namespace(), None, "{legal} is a compiler value");
+            let s = settings_with("namespace", ConfigValue::Str(legal.to_string()));
+            assert_eq!(s.option_diagnostic(), None, "{legal} is a compiler value");
         }
         for illegal in ["foreign", "HTML", ""] {
-            let s = CompilerOptionsSettings {
-                namespace: Some(illegal.to_string()),
-                ..Default::default()
-            };
-            assert_eq!(s.invalid_namespace(), Some(illegal));
+            let s = settings_with("namespace", ConfigValue::Str(illegal.to_string()));
+            assert_eq!(
+                s.option_diagnostic().map(|d| d.code),
+                Some("options_invalid_value"),
+                "{illegal}"
+            );
         }
-        assert_eq!(CompilerOptionsSettings::default().invalid_namespace(), None);
+        assert_eq!(CompilerOptionsSettings::default().option_diagnostic(), None);
     }
 
     /// A non-literal value is unreadable, and reporting it as invalid would
@@ -732,7 +817,7 @@ mod tests {
         );
         let s = load_compiler_options(&dir);
         assert_eq!(s.namespace, None);
-        assert_eq!(s.invalid_namespace(), None);
+        assert_eq!(s.option_diagnostic(), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -1082,17 +1167,13 @@ mod tests {
     #[test]
     fn signature_changes_with_options() {
         let a = CompilerOptionsSettings::default();
-        let b = CompilerOptionsSettings {
-            experimental_async: true,
-            ..Default::default()
-        };
+        let b = settings_with("dev", ConfigValue::Bool(true));
         assert_ne!(a.signature(), b.signature());
-        // The overlay shadows depend on the namespace, so the signature that
-        // invalidates them has to move with it.
-        let c = CompilerOptionsSettings {
-            namespace: Some("foreign".to_string()),
-            ..Default::default()
-        };
-        assert_ne!(a.signature(), c.signature());
+        // The overlay shadows depend on the namespace and on `accessors`, so
+        // the signature that invalidates them has to move with either.
+        for key in ["namespace", "accessors", "someFutureOption"] {
+            let c = settings_with(key, ConfigValue::Str("foreign".to_string()));
+            assert_ne!(a.signature(), c.signature(), "{key}");
+        }
     }
 }

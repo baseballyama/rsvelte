@@ -1,0 +1,5 @@
+{
+	"description": "Control for `svelte-config-accessors`: same sources, `customElement: false`. Without accessors a `let` prop is not a component export, so reading it off the instance is a type error \u2014 which is what makes the pair discriminating rather than merely present.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

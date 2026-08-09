@@ -468,6 +468,7 @@ pub fn materialize_overlay_with(
     fs::create_dir_all(&emit_dir)?;
     let manifest_path = cache_dir.join("manifest.json");
     let namespace = compiler_opts.projection_namespace();
+    let accessors = compiler_opts.projection_accessors();
     let config_signature = compiler_opts.signature();
     // Chosen up front: every shadow's `<reference types="svelte" />` has to be
     // blanked as it is emitted once the blanked copy stands in for the package.
@@ -534,6 +535,7 @@ pub fn materialize_overlay_with(
             &ext_root_dir_pairs,
             global_types.svelte_types.is_some(),
             namespace,
+            accessors,
         )?;
         module_bridges.extend(emit_svelte_module_bridges(
             &pkg.real_dir,
@@ -591,7 +593,7 @@ pub fn materialize_overlay_with(
                 filename: abs_source.display().to_string(),
                 is_ts_file,
                 mode: Svelte2TsxMode::Ts,
-                accessors: false,
+                accessors,
                 namespace,
                 version: SvelteVersion::V5,
                 runes: None,
@@ -907,6 +909,7 @@ fn emit_external_shadows(
     ext_pairs: &[(PathBuf, PathBuf)],
     blank_svelte_reference: bool,
     namespace: Svelte2TsxNamespace,
+    accessors: bool,
 ) -> Result<(), OverlayError> {
     // Mirror the package's own `node_modules` into the shadow dir so the
     // shadow's bare-package imports (`import type { X } from 'sortablejs'`,
@@ -941,7 +944,7 @@ fn emit_external_shadows(
             filename: abs_source.display().to_string(),
             is_ts_file,
             mode: Svelte2TsxMode::Ts,
-            accessors: false,
+            accessors,
             namespace,
             version: SvelteVersion::V5,
             runes: None,

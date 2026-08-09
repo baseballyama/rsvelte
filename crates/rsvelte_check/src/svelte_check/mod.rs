@@ -12,6 +12,7 @@ pub mod config;
 pub mod kit_file;
 pub mod manifest;
 pub mod mapper;
+pub mod options_schema;
 pub mod overlay;
 pub mod runner;
 pub mod tsgo;

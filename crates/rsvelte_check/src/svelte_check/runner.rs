@@ -628,6 +628,19 @@ fn diagnostics_for_file(file: &Path, compiler_opts: &CompilerOptionsSettings) ->
             }];
         }
     };
+    // `svelte.compile` validates its options before it parses anything, so
+    // upstream reports this instead of — not alongside — the component's own
+    // diagnostics, once per checked component.
+    if let Some(invalid) = compiler_opts.option_diagnostic() {
+        return vec![Diagnostic {
+            file: file.to_path_buf(),
+            severity: DiagnosticSeverity::Error,
+            code: Some(invalid.code.into()),
+            message: invalid.message,
+            range: None,
+            source: "svelte",
+        }];
+    }
     let opts = CompileOptions {
         generate: GenerateMode::Client,
         filename: Some(file.display().to_string()),
@@ -637,25 +650,7 @@ fn diagnostics_for_file(file: &Path, compiler_opts: &CompilerOptionsSettings) ->
         runes: compiler_opts.runes,
         ..Default::default()
     };
-    let mut diagnostics: Vec<Diagnostic> = Vec::new();
-    // `svelte.compile` validates its options before it compiles anything, so
-    // upstream reports this once per checked component, not once per project.
-    if compiler_opts.invalid_namespace().is_some() {
-        diagnostics.push(Diagnostic {
-            file: file.to_path_buf(),
-            severity: DiagnosticSeverity::Error,
-            code: Some("options_invalid_value".into()),
-            message: "Invalid compiler option: namespace should be one of \"html\", \"mathml\" \
-                      or \"svg\"\nhttps://svelte.dev/e/options_invalid_value"
-                .into(),
-            range: Some(Range {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
-            }),
-            source: "svelte",
-        });
-    }
-    diagnostics.extend(match compile(&source, opts) {
+    match compile(&source, opts) {
         Ok(res) => res
             .warnings
             .into_iter()
@@ -667,7 +662,7 @@ fn diagnostics_for_file(file: &Path, compiler_opts: &CompilerOptionsSettings) ->
                 range: range_from_warning(w.start.as_ref(), w.end.as_ref()),
                 source: "svelte",
             })
-            .collect::<Vec<_>>(),
+            .collect(),
         Err(e) => vec![Diagnostic {
             file: file.to_path_buf(),
             severity: DiagnosticSeverity::Error,
@@ -676,8 +671,7 @@ fn diagnostics_for_file(file: &Path, compiler_opts: &CompilerOptionsSettings) ->
             range: None,
             source: "svelte",
         }],
-    });
-    diagnostics
+    }
 }
 
 fn range_from_warning(
