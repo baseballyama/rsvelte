@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/lint-darwin-arm64",
-  "version": "0.10.9",
+  "version": "0.10.10",
   "description": "Prebuilt rsvelte-lint binary for darwin-arm64",
   "license": "MIT",
   "repository": {
