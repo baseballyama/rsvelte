@@ -275,7 +275,9 @@ fn main() {
         } else {
             st_compile.boundary_retained as f64 / st_compile.boundary_ast as f64 * 100.0
         },
-        st_compile.boundary_ast.saturating_sub(st_compile.boundary_retained)
+        st_compile
+            .boundary_ast
+            .saturating_sub(st_compile.boundary_retained)
     );
     println!(
         "  [store_subs measured through compile(), total {:7.2}ms]",
