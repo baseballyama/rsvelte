@@ -15,8 +15,10 @@
 // This guard does NOT establish that an unfiltered workflow is *correct* off a
 // non-main base — that depends on the workflow's own logic (`changeset.yml` is
 // safe only because its gate diffs against `git merge-base HEAD origin/main`
-// rather than the PR base; see #1799). It answers one question: is every
-// base-branch filter on the `pull_request` trigger deliberate and explained?
+// rather than the PR base; see #1799). It answers two questions: is every
+// base-branch filter on the `pull_request` trigger deliberate and explained, and
+// can any cancelling `concurrency:` group — workflow-level or job-level — be
+// shared by two pushes to one branch?
 //
 // Exit codes: 0 = clean, 2 = violations found, 1 = internal/parse error.
 

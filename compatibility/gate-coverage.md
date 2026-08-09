@@ -1154,6 +1154,12 @@ fixture gate runs on every PR. `corpus-compat.yml` **is** path-filtered (`push:`
 `known-failures-md-check.mjs` covers `known-failures.md` (`:37`), `warning-known-failures.md`
 (`:89`) and `matrix-known-failures.md` (`:153`). `ls compatibility/*.md` returns **16**.
 
+It runs from two places: `corpus-compat.yml:183` (path-filtered on both triggers, see C1) and
+`ci.yml`'s `ratchet-doc-guard` job (unfiltered). The second site exists because the assertion is
+over the **union** of two branches, which no `pull_request` run can observe — its merge ref is
+frozen when the event is created — so the only run that can decide it is the push to `main`, and
+the path filter meant most merges never started one.
+
 **[D] `compatibility/sourcemap-known-failures.md:158` says `| ratchet entries | 75 | **73** |`
 while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked family.
 
