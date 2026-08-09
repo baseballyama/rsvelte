@@ -23,6 +23,7 @@
 use serde_json::Value;
 
 use rsvelte_core::compiler::phases::phase2_analyze::{Binding, BindingKind, DeclarationKind};
+use rsvelte_core::compiler::utils::{char_at, char_before, is_js_ident_continue};
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
@@ -229,7 +230,6 @@ fn collect_pattern_names(pat: Option<&Value>, out: &mut Vec<String>) {
 /// TypeScript stripper removes (type annotations, generics) or that live in
 /// JSDoc, so a textual hit anywhere else vetoes the report.
 fn occurs_outside(source: &str, name: &str, decl_start: u32) -> bool {
-    let bytes = source.as_bytes();
     let mut from = 0usize;
     while let Some(rel) = source[from..].find(name) {
         let at = from + rel;
@@ -237,22 +237,15 @@ fn occurs_outside(source: &str, name: &str, decl_start: u32) -> bool {
         if at as u32 == decl_start {
             continue;
         }
-        let before_ok = at == 0 || !is_ident_or_non_ascii_byte(bytes[at - 1]);
-        let after = at + name.len();
-        let after_ok = after >= bytes.len() || !is_ident_or_non_ascii_byte(bytes[after]);
+        // A neighbour is glue only if it could continue the identifier; every
+        // other character (including non-ASCII space) is a word boundary.
+        let before_ok = char_before(source, at).is_none_or(|c| !is_js_ident_continue(c));
+        let after_ok = char_at(source, at + name.len()).is_none_or(|c| !is_js_ident_continue(c));
         if before_ok && after_ok {
             return true;
         }
     }
     false
-}
-
-/// Byte-level boundary guard: every non-ASCII byte counts as glue, so a hit
-/// abutting one is not a standalone occurrence. Wider than a JS identifier
-/// character, and the name says so — `svelte_scan::is_ascii_ident_byte` is the
-/// narrower guard used elsewhere in this crate.
-fn is_ident_or_non_ascii_byte(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80
 }
 
 #[cfg(test)]
@@ -405,5 +398,79 @@ mod tests {
     #[test]
     fn component_used_only_in_template_is_not_unused() {
         assert_clean("<script>\n  import Child from './Child.svelte';\n</script>\n<Child />");
+    }
+
+    /// A JSDoc `@type` is the shape this rule's textual fallback exists for, and
+    /// a non-ASCII space in it must not hide the use.
+    #[test]
+    fn nbsp_separated_jsdoc_use_is_not_unused() {
+        assert_clean(
+            "<script>\n  import { Foo } from './x';\n  /** @type {\u{a0}Foo} */\n  let v = null;\n</script>\n<p>{v}</p>",
+        );
+    }
+
+    /// A neighbour that can continue an identifier keeps the hit non-standalone,
+    /// so the binding stays reported — the direction a blanket
+    /// "non-ASCII is a boundary" rule would break.
+    #[test]
+    fn identifier_neighbour_still_hides_the_occurrence() {
+        assert_reports(
+            "<script>\n  const foo = 1;\n</script>\n<p>foo\u{7dcf}</p>",
+            "foo",
+        );
+        assert_reports(
+            "<script>\n  const foo = 1;\n</script>\n<p>foo\u{e9}</p>",
+            "foo",
+        );
+    }
+
+    /// Boundary characters: an occurrence flanked by them is standalone.
+    /// `U+0085` is here because it is not `ID_Continue`, independent of the
+    /// separate question of whether a JS parser accepts it as whitespace.
+    #[test]
+    fn non_identifier_neighbours_are_word_boundaries() {
+        for sep in [
+            ' ',
+            '\n',
+            '.',
+            '\u{85}',
+            '\u{a0}',
+            '\u{1680}',
+            '\u{2000}',
+            '\u{2009}',
+            '\u{2028}',
+            '\u{2029}',
+            '\u{202f}',
+            '\u{205f}',
+            '\u{3000}',
+            '\u{feff}',
+            '\u{2014}',
+            '\u{3001}',
+            '\u{1f600}',
+        ] {
+            let src = format!("x{sep}foo{sep}y");
+            assert!(
+                super::occurs_outside(&src, "foo", u32::MAX),
+                "U+{:04X} must be a word boundary",
+                sep as u32
+            );
+        }
+    }
+
+    /// The other direction of the same predicate: `ID_Start` / `ID_Continue`
+    /// characters, `$`, `_` and the zero-width joiners are identifier glue.
+    #[test]
+    fn identifier_neighbours_are_glue() {
+        for glue in [
+            'a', 'Z', '0', '_', '$', '\u{e9}', '\u{7dcf}', '\u{5d0}', '\u{3005}', '\u{200c}',
+            '\u{200d}',
+        ] {
+            let src = format!("x{glue}foo{glue}y");
+            assert!(
+                !super::occurs_outside(&src, "foo", u32::MAX),
+                "U+{:04X} must be identifier glue",
+                glue as u32
+            );
+        }
     }
 }
