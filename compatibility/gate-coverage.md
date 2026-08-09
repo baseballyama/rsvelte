@@ -260,7 +260,7 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 3083 generated cases × 3 targets = 9249 comparisons. Where both compilers accept, the
+**Unit.** 3123 generated cases × 3 targets = 9369 comparisons. Where both compilers accept, the
 unit is `js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code**, which the `invalid-bind` and
 `param-default` families exist to exercise. A case may also carry `options`, merged over the
@@ -1642,7 +1642,9 @@ the compiler either passes or does not. Omitting it produces output that parses,
 matches nothing anyone diffed, and disarms the warning. A warning that can never fire is
 invisible to a warning ratchet **by construction**: its baseline is `0` before and after, and
 "the code never appears" is indistinguishable from "the code is correct". That is the
-zero-needs-a-negative-control trap, and this script is its negative control.
+zero-needs-a-negative-control trap, and this script is its negative control. Note that no
+sharpening of a *compile-time* warning key reaches it — gate 5's `warning-missing:<code>` and
+gates 2-3 both read `result.warnings`, and a runtime warning never appears there at all.
 
 **Both halves are asserted, and the order matters.** The oracle is checked first: if
 official's output does not warn exactly `['a']` for the waterfall case and exactly `[]` for the
