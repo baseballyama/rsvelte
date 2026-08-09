@@ -45,7 +45,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403) | [S] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start` | error **`end`** and `frame` — never captured | [D] |
-| 5 | Generated shape matrix | per-case × target JS text, or error `code` where official rejects | CSS; warnings; error **message** and **position**; most template positions | [S] |
+| 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1430 generated components | `js.code`; **an empty population exits 0** | [D] |
@@ -221,9 +221,9 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 2406 generated cases × 3 targets = 7218 comparisons. Where both compilers accept, the
-unit is `js.code` only (`matrix/run.mjs:134,139,166-167`), oxfmt-normalized identically to
-`verify.mjs`; where both reject it is the error **code** (`:150`), which the `invalid-bind` and
+**Unit.** 2963 generated cases × 3 targets = 8889 comparisons. Where both compilers accept, the
+unit is `js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to
+`verify.mjs`; where both reject it is the error **code**, which the `invalid-bind` and
 `param-default` families exist to exercise.
 
 ### Blind spot 5a — CLOSED: the module entry point is generated now
@@ -237,14 +237,31 @@ The entry point matters on its own: it is a different parse call in rsvelte, not
 **Tracked:** #2425, closed. It was load-bearing while open: PR #2436 established that the matrix
 is the *only* place a module comment divergence can be observed at all (cf. #2399).
 
-### Blind spot 5b — CSS and warnings
+### Blind spot 5b — CSS, and the warning **position**; codes are compared now
 
-`run.mjs:99` forces `css: 'external'` and `run.mjs:106,110` read `.js.code` only. `result.css`,
-`result.warnings`, `result.metadata`, `result.js.map` are never accessed. **[S]**
+`run.mjs` still forces `css: 'external'`, and `result.css`, `result.metadata` and `result.js.map`
+are never accessed. **[S]**
 
-Sharpest form: `axes.mjs:186` generates a `// svelte-ignore a11y_…` comment kind — the gate
-injects svelte-ignore directives and then structurally cannot observe whether they suppress
-anything.
+`result.warnings` is read: the two multisets of warning **codes** are compared and diverge as
+`warning-mismatch`. What that comparison drops is the warning's `start` — rsvelte can emit the
+right code at the wrong line and column and the case scores as parity. **[S]** The collected gate
+ratchets positions separately (`warning-position-known-failures.*`) and its backlog is an order
+of magnitude larger than its code backlog; folding the two together here would bury a semantic
+divergence under a positional one, which is the #2314 argument applied to a second gate.
+
+Adding the comparison measured nothing on its own, and the number is worth keeping because it
+makes the usual "the baseline is empty, so we are fine" reading falsifiable: across the **4134**
+accepted (case, target) pairs of the five families that predate `directive-element`, **both
+compilers emit zero warnings of any code**. The empty warning baseline there is
+*unreachability*, not saturation. `directive-element` and `bind-setter` supply 538 warned pairs
+over six codes (`a11y_click_events_have_key_events`, `a11y_no_static_element_interactions`,
+`event_directive_deprecated`, `svelte_component_deprecated`, `svelte_self_deprecated`,
+`export_let_unused`) and 24 of them diverge. **[D]**
+
+Sharpest remaining form: `axes.mjs` generates a `// svelte-ignore a11y_…` comment kind against
+the `comment-slot` seeds, and those seeds produce no a11y warning on either compiler — so the
+gate injects svelte-ignore directives into a population where there is nothing to suppress, and
+would score a broken suppression as `match`. **[S]**
 
 ### Blind spot 5c — template-markup positions, now partially covered
 
@@ -254,11 +271,16 @@ markup axis — `EXPRESSION_SLOTS`, 14 slots: `{expr}`, an attribute value, `{@c
 body, `{#if}` / `{#each}` / `{#await}` / `{#key}` heads, `{@html}`, `{@render}`, `class:` and
 `style:` directives, a spread attribute, and an instance declaration.
 
-It crosses those slots with **one** axis: how a string literal spells itself. Still
-**unmeasured**: every other expression shape in those same slots, and the directive families
-`use:` / `transition:` / `animate:` / `in:` / `out:`, which no slot here reaches. **[S]** Comment
-insertion is likewise restricted to `<script>` bodies (`mutate.mjs:22-34`, `:48`), a deliberate
-and documented exclusion (`mutate.mjs:9-13`) — so HTML comments `<!-- -->` are never mutated.
+It crosses those slots with **one** axis: how a string literal spells itself. The
+`directive-element` family closes the directive half of what this row used to list as
+unmeasured: `use:` / `transition:` / `animate:` / `in:` / `out:` / `on:` / `bind:` / `class:` /
+`style:` / `let:` / `{@attach}` / spread now appear against 13 element kinds in both modes.
+Still **unmeasured**: every other expression shape in the `EXPRESSION_SLOTS` positions — the
+directive family varies the directive's *kind* and its *host*, never the shape of the expression
+inside it (except for `bind-setter`, which varies the expression and fixes the directive).
+**[S]** Comment insertion is likewise restricted to `<script>` bodies (`mutate.mjs:22-34`,
+`:48`), a deliberate and documented exclusion (`mutate.mjs:9-13`) — so HTML comments `<!-- -->`
+are never mutated.
 
 `param-default` adds two markup slots of its own (`PARAM_TEMPLATE_FORMS`: an event-handler
 attribute and an `{expr}` interpolation) for a different reason — rsvelte parses a template
@@ -411,9 +433,35 @@ And the comparison is the one every gate in this document shares: the case score
 two texts are equal, not on whether rsvelte's text is JavaScript. It reports #2608 because
 official's output differs, not because `({ id: id() }) =>` fails to parse — see 19a.
 
-**Closing 5b/5c:** the matrix runs in ~10 s on ~5,250 comparisons. Widening the markup axis (a
-second expression axis against `EXPRESSION_SLOTS`) or reading `.warnings` is cheap relative to
-every other gate here. This is the highest value-per-cost item in this document.
+### Blind spot 5i — the directive families see the parent, not the ancestry or the sibling
+
+Families `directive-element` (19 directive kinds × 13 element kinds × 2 modes) and `bind-setter`
+(7 `bind:` expression shapes × 9 element kinds) enumerate the product of a directive and its
+**immediate host**. That is the axis that finds a rule written per-parent instead of once:
+upstream tests `context.path.at(-1)` inside the directive's own visitor, rsvelte handles the
+attribute list in each element visitor, and #2497 is the drift (`event_directive_deprecated`
+fired on `RegularElement`, not on `SvelteElement`). Mode is an axis because the deprecation
+warnings are gated on `analysis.runes`, so a runes-only family cannot report an over-warn in
+legacy mode and a legacy-only one cannot report the miss.
+
+What the product does **not** vary: the ancestry above the host (only `each-keyed-element`
+carries one, and it exists because `animate:` placement is a property of the ancestors rather
+than the element), the number of directives on one host (`transition_duplicate`,
+`transition_conflict`, `animation_duplicate` and `mixed_event_handler_syntaxes` are all
+**two-attribute** rules and every generated case carries exactly one), and the directive's
+*name* (`on:click`, `bind:value` and `use:action` are one spelling each, so
+`bind_invalid_name`-shaped rules are sampled at one name per host). **[S]**
+
+`bind-setter` is the counterpart product — expression shape against element kind, directive
+fixed — and it exists because #2484 was reported against `<svelte:component>`, which **matched
+official**, while the live divergences are on `<svelte:body>` and `<svelte:self>`. A cell that
+names its element removes that class of misattribution; a hand-written repro cannot, because the
+reporter chooses the element. **[D]**
+
+**Closing 5b/5c:** the matrix runs in ~15 s on ~8,900 comparisons. Widening the markup axis (a
+second expression axis against `EXPRESSION_SLOTS`) is cheap relative to every other gate here.
+This is the highest value-per-cost item in this document. The `.warnings` half of that
+recommendation is done.
 
 ---
 

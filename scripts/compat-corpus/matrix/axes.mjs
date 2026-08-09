@@ -962,3 +962,187 @@ export const PARAM_PATTERN_MARKUP_PREAMBLE = `<script>
 %s
 <p>{id}</p>
 `;
+
+/**
+ * Axis H — the directive kind, crossed with axis I, the element kind hosting it,
+ * crossed with the component's mode.
+ *
+ * Which parents a per-directive rule applies to is written once upstream (a
+ * `parent_type` test inside the directive's own visitor) and per-parent in
+ * rsvelte (each element visitor handles its own attribute list), so the rule
+ * drifts exactly where the product is not enumerated. #2497 is that shape:
+ * `event_directive_deprecated` fired on `RegularElement` and not on
+ * `SvelteElement`, though upstream's single predicate names both.
+ *
+ * Mode is an axis rather than a constant because the deprecation warnings are
+ * gated on `analysis.runes` — a runes-only family cannot report an over-warn in
+ * legacy mode, and a legacy-only one cannot report the miss that motivated this.
+ *
+ * There is deliberately no skip list. Cells the official compiler rejects are
+ * not dropped: `run.mjs` compares the two error **codes**, so an illegal
+ * combination is a comparison rather than a hole, and skipping it would report
+ * coverage the family does not have.
+ */
+export const DIRECTIVE_KINDS = {
+	on: 'on:click={handler}',
+	'on-once': 'on:click|once={handler}',
+	// Legal on an element, rejected on a component (only `once` is allowed there).
+	'on-preventdefault': 'on:click|preventDefault={handler}',
+	// The modern spelling: the negative control for every `on:` row, since no
+	// deprecation rule may fire for it on any parent.
+	'onclick-attribute': 'onclick={handler}',
+	'bind-value': 'bind:value={text}',
+	'bind-this': 'bind:this={ref}',
+	'bind-getter-setter': 'bind:value={() => text, (v) => (text = v)}',
+	use: 'use:action',
+	'use-argument': 'use:action={1}',
+	transition: 'transition:fade',
+	'transition-argument': 'transition:fade={{ duration: 1 }}',
+	in: 'in:fade',
+	out: 'out:fade',
+	animate: 'animate:flip',
+	class: 'class:on={flag}',
+	style: 'style:color={color}',
+	let: 'let:x',
+	attach: '{@attach attachment}',
+	spread: '{...props}',
+};
+
+/**
+ * Axis I — the element kind. `%s` is the directive.
+ *
+ * `regular-input` sits next to `regular-element` because `bind:value` is legal
+ * on one and not the other, so the pair separates "this parent rejects the
+ * directive kind" from "this parent rejects this binding name".
+ * `each-keyed-element` is the only host where `animate:` is legal, which is a
+ * property of the ANCESTRY rather than of the element.
+ */
+export const DIRECTIVE_HOSTS = {
+	'regular-element': '<div %s>x</div>',
+	'regular-input': '<input %s />',
+	'svelte-element': '<svelte:element this={tag} %s>x</svelte:element>',
+	component: '<Comp %s />',
+	'svelte-component': '<svelte:component this={Comp} %s />',
+	'svelte-self': '{#if flag}<svelte:self %s />{/if}',
+	'svelte-window': '<svelte:window %s />',
+	'svelte-body': '<svelte:body %s />',
+	'svelte-document': '<svelte:document %s />',
+	'svelte-head': '<svelte:head %s>x</svelte:head>',
+	'svelte-boundary': '<svelte:boundary %s>x</svelte:boundary>',
+	'svelte-fragment': '<Comp><svelte:fragment %s>x</svelte:fragment></Comp>',
+	'each-keyed-element': '{#each items as item (item.id)}<div %s>x</div>{/each}',
+};
+
+/**
+ * The declarations every directive case shares. The two modes declare the same
+ * names so only the mode differs: runes mode is detected from rune usage, so a
+ * preamble with no rune in it IS the legacy arm.
+ */
+export const DIRECTIVE_MODES = {
+	runes: `<script>
+	import Comp from './Comp.svelte';
+	import { fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
+	let text = $state('a');
+	let ref = $state(null);
+	let flag = $state(true);
+	let color = $state('red');
+	let tag = $state('div');
+	let items = $state([{ id: 1 }]);
+	let props = $state({});
+	function handler() {}
+	function action() {}
+	function attachment() {
+		return () => {};
+	}
+</script>
+
+%s
+`,
+	legacy: `<script>
+	import Comp from './Comp.svelte';
+	import { fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
+	export let text = 'a';
+	let ref = null;
+	let flag = true;
+	let color = 'red';
+	let tag = 'div';
+	let items = [{ id: 1 }];
+	let props = {};
+	function handler() {}
+	function action() {}
+	function attachment() {
+		return () => {};
+	}
+</script>
+
+%s
+`,
+};
+
+/**
+ * Axis J — the shape of a `bind:` expression, crossed with axis K, the element
+ * kind it is bound on.
+ *
+ * A different product from axis H × I: that one asks which parents a rule
+ * applies to, this one asks how the setter half of a two-way binding ROUTES.
+ * Upstream exempts an assignment from the dev `$.assign` wrap by testing the
+ * assignment's own ancestor chain; an implementation that instead exempts the
+ * setter's whole subtree agrees on every simple row and disagrees on the nested
+ * ones. #2484 was wrong in both directions at once and the matrix stayed at 162
+ * cases throughout, because `binding-position` varies binding kind inside script
+ * bodies and never emits a `bind:` expression at all.
+ *
+ * `sequence-bodied-setter` is the discriminating row: the arrow's body is a
+ * `SequenceExpression`, so NEITHER assignment's parent is the arrow and upstream
+ * wraps both. A subtree-scoped exemption reports zero there and looks correct
+ * everywhere else.
+ */
+export const BIND_SETTER_SHAPES = {
+	plain: 's.x',
+	'getter-setter': '() => s.x, (v) => (s.y = o)',
+	'setter-through-call': '() => s.x, wrap((v) => (s.y = o))',
+	'nested-arrow-in-setter': '() => s.x, (v) => (s.y = wrap(() => (d.e = o)))',
+	'sequence-bodied-setter': '() => s.x, (v) => (s.y = o, d.e = o)',
+	'block-bodied-setter': '() => s.x, (v) => { s.y = o; }',
+	'block-bodied-setter-two-assignments': '() => s.x, (v) => { s.y = o; d.e = o; }',
+};
+
+/**
+ * Axis K — the element the binding sits on. `%s` is the expression.
+ *
+ * Naming the element in the case id is the point: #2484 was reported against
+ * `<svelte:component>` and the failing site was `<svelte:window>`, because the
+ * reporter had no cell that separated them.
+ */
+export const BIND_SETTER_HOSTS = {
+	element: '<input bind:value={%s} />',
+	'element-this': '<div bind:this={%s}></div>',
+	component: '<Comp bind:value={%s} />',
+	'component-this': '<Comp bind:this={%s} />',
+	'svelte-component': '<svelte:component this={Comp} bind:value={%s} />',
+	'svelte-self': '{#if flag}<svelte:self bind:value={%s} />{/if}',
+	'svelte-window': '<svelte:window bind:scrollY={%s} />',
+	'svelte-document': '<svelte:document bind:activeElement={%s} />',
+	'svelte-body': '<svelte:body bind:clientWidth={%s} />',
+};
+
+/**
+ * The declarations every setter-shape case shares. The bound values must be
+ * non-primitive: a primitive right-hand side silences the dev wrap on both
+ * compilers, which would make every row agree about nothing.
+ */
+export const BIND_SETTER_PREAMBLE = `<script>
+	import Comp from './Comp.svelte';
+	let s = $state({ x: {}, y: {} });
+	let d = $state({ e: {} });
+	let o = $state({ k: 1 });
+	let flag = $state(true);
+	function wrap(f) {
+		return f;
+	}
+</script>
+
+%s
+`;

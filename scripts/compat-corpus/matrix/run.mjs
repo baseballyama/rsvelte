@@ -20,6 +20,13 @@
  * what "identical output" means. `--no-fmt` skips oxfmt for a fast local loop
  * and inflates the count — never baseline from it.
  *
+ * Warning CODES are compared alongside the output, because a warning that never
+ * fires has no output to diverge on — `js.code` alone cannot report it. That
+ * comparison was worth nothing until the `directive-element` family arrived: the
+ * five families that predate it emit zero warnings from either compiler over all
+ * 4134 accepted (case, target) pairs, so the comparison would have run on an
+ * empty population. Positions are deliberately left to the collected gate.
+ *
  * Ratchet: compatibility/matrix-known-failures.json, shrink-only and two-sided
  * (a new failure AND a listed entry that already passes both fail), justified
  * per entry in the paired .md.
@@ -96,7 +103,7 @@ const rsvelte = require(BINDING);
 
 // ---- generate + compile ----------------------------------------------------
 
-// The axes generate 1749 cases on an unmodified tree; the floor only has to
+// The axes generate 2306 cases on an unmodified tree; the floor only has to
 // separate "generation broke" from "the gate got easier".
 const MIN_MATRIX_CASES = 1000;
 
@@ -106,13 +113,32 @@ console.log(`[matrix] cases: ${cases.length}  targets: ${TARGETS.map((t) => t.ke
 
 fs.rmSync(TREE, { recursive: true, force: true });
 
-const counts = { match: 0, 'error-parity': 0, 'js-mismatch': 0, 'error-mismatch': 0, 'error-code-mismatch': 0 };
+const counts = {
+	match: 0,
+	'error-parity': 0,
+	'js-mismatch': 0,
+	'error-mismatch': 0,
+	'error-code-mismatch': 0,
+	'warning-mismatch': 0,
+};
 /** Pending byte comparisons, resolved after the trees are normalized. */
 const pending = [];
 const failures = [];
 
 function firstLine(message) {
 	return String(message).split('\n')[0];
+}
+
+const codeBag = (result) => (result.warnings ?? []).map((w) => w.code ?? '(none)').sort();
+/** Multiset difference a \ b: a code emitted twice on one side and once on the other still diverges. */
+function bagDiff(a, b) {
+	const rest = [...b];
+	return a.filter((x) => {
+		const i = rest.indexOf(x);
+		if (i === -1) return true;
+		rest.splice(i, 1);
+		return false;
+	});
 }
 
 for (const testCase of cases) {
@@ -130,13 +156,17 @@ for (const testCase of cases) {
 		let actual = null;
 		let expectedError = null;
 		let actualError = null;
+		let expectedResult = null;
+		let actualResult = null;
 		try {
-			expected = compileWith(svelte).js.code;
+			expectedResult = compileWith(svelte);
+				expected = expectedResult.js.code;
 		} catch (e) {
 			expectedError = { message: firstLine(e.message), code: errorCode(e) };
 		}
 		try {
-			actual = compileWith(rsvelte).js.code;
+			actualResult = compileWith(rsvelte);
+				actual = actualResult.js.code;
 		} catch (e) {
 			actualError = { message: firstLine(e.message), code: errorCode(e) };
 		}
@@ -171,6 +201,23 @@ for (const testCase of cases) {
 					: `rsvelte rejects, official accepts: ${actualError.message}`,
 			});
 			continue;
+		}
+
+		// Independent of the byte comparison below: a warning that never fires
+		// has no output to diverge on, so `js.code` alone cannot report it. Codes
+		// only — the position backlog is an order of magnitude larger on the
+		// collected gate and folding it in here would bury every semantic
+		// divergence under it (the argument settled in #2314).
+		const missingWarnings = bagDiff(codeBag(expectedResult), codeBag(actualResult));
+		const extraWarnings = bagDiff(codeBag(actualResult), codeBag(expectedResult));
+		if (missingWarnings.length || extraWarnings.length) {
+			counts['warning-mismatch'] += 1;
+			failures.push({
+				id: testCase.id,
+				target: target.key,
+				verdict: 'warning-mismatch',
+				detail: `missing: ${missingWarnings.join(', ') || '(none)'} | extra: ${extraWarnings.join(', ') || '(none)'}`,
+			});
 		}
 
 		const dir = path.join(TREE, testCase.id);
@@ -227,7 +274,7 @@ if (UPDATE_BASELINE) {
 	// ratchet. This one is absolute.
 	if (cases.length < MIN_MATRIX_CASES) {
 		console.error(`\n[matrix] refusing to baseline from ${cases.length} generated cases (expected >= ${MIN_MATRIX_CASES}).`);
-		console.error('  the axes generate ~1749; far below that means generation broke, not that the gate got easier.');
+		console.error('  the axes generate ~2306; far below that means generation broke, not that the gate got easier.');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');

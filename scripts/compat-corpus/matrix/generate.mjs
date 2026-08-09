@@ -39,6 +39,12 @@ import {
 	PARAM_PATTERN_MARKUP_CONTEXTS,
 	PARAM_PATTERN_PREAMBLE,
 	PARAM_PATTERN_MARKUP_PREAMBLE,
+	DIRECTIVE_KINDS,
+	DIRECTIVE_HOSTS,
+	DIRECTIVE_MODES,
+	BIND_SETTER_SHAPES,
+	BIND_SETTER_HOSTS,
+	BIND_SETTER_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -260,6 +266,34 @@ function paramPatternCases() {
 	return cases;
 }
 
+function directiveElementCases() {
+	const cases = [];
+	for (const [modeName, preamble] of Object.entries(DIRECTIVE_MODES)) {
+		for (const [directiveName, directive] of Object.entries(DIRECTIVE_KINDS)) {
+			for (const [hostName, markup] of Object.entries(DIRECTIVE_HOSTS)) {
+				cases.push({
+					id: `directive-element/${modeName}__${directiveName}__${hostName}.svelte`,
+					source: preamble.replaceAll('%s', markup.replaceAll('%s', directive)),
+				});
+			}
+		}
+	}
+	return cases;
+}
+
+function bindSetterShapeCases() {
+	const cases = [];
+	for (const [shapeName, expression] of Object.entries(BIND_SETTER_SHAPES)) {
+		for (const [hostName, markup] of Object.entries(BIND_SETTER_HOSTS)) {
+			cases.push({
+				id: `bind-setter/${shapeName}__${hostName}.svelte`,
+				source: BIND_SETTER_PREAMBLE.replaceAll('%s', markup.replaceAll('%s', expression)),
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
@@ -269,6 +303,8 @@ export const FAMILIES = {
 	'each-collection': eachCollectionCases,
 	'keyword-regex': keywordRegexCases,
 	'param-pattern': paramPatternCases,
+	'directive-element': directiveElementCases,
+	'bind-setter': bindSetterShapeCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {
