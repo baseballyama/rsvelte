@@ -28,6 +28,33 @@ citation no longer resolves, re-derive the claim rather than deleting it.
 
 ---
 
+## A named blind-spot class: the vacuous green
+
+**A comparison whose empty result is indistinguishable from an unreachable population.** The
+gate runs, finds nothing, and reports the same thing it would report if it could never have
+found anything. Four gates in this file are instances, which is why the class gets a name rather
+than four unrelated rows — cite it from a row instead of re-deriving it:
+
+| instance | the reading that is wrong |
+|---|---|
+| §5b, warning codes on the matrix | "0 warning divergences" — the five families that predate `directive-element` emit **0 warnings of any code** over 4134 accepted (case, target) pairs, so the comparison had no population at all |
+| #2707, `verify.mjs` warning comparison | a wiped corpus tree makes an absent `warnings.json` read as "official emitted no warnings" rather than "there is no tree"; the ≥99%-coverage guard covers the output comparison only |
+| #2579 | a baseline entry that "already PASSes" cannot be told from one the run never measured |
+| #2704 | a normalizer that erases the divergence before the comparison sees it |
+
+The defence is always the same two moves, and they are cheap: **print the denominator next to
+the verdict**, and **ask what a positive instance would have looked like** before believing a
+zero. §5b carries the denominator for exactly this reason.
+
+A sibling failure mode, distinct enough to name separately: **a ratchet entry suppresses
+everything its key cannot tell apart.** Not an empty population — a coarse key. §5b is the
+worked example: under a flat `warning-mismatch` verdict, three cases listed for a missing a11y
+warning silently absorbed a re-break of #2521 on the *same* cases, and the gate stayed green.
+Putting the diverging code in the verdict fixed it. When you add a verdict, ask what two
+different defects it maps onto the same string.
+
+---
+
 ## Reading the corpus in one sentence
 
 The collected corpus samples the *marginal* distribution of published Svelte code. That is
@@ -256,7 +283,8 @@ ratchets positions separately (`warning-position-known-failures.*`) and its back
 of magnitude larger than its code backlog; folding the two together here would bury a semantic
 divergence under a positional one, which is the #2314 argument applied to a second gate.
 
-Adding the comparison measured nothing on its own, and the number is worth keeping because it
+Adding the comparison measured nothing on its own — an instance of *the vacuous green* above —
+and the number is worth keeping because it
 makes the usual "the baseline is empty, so we are fine" reading falsifiable: across the **4134**
 accepted (case, target) pairs of the five families that predate `directive-element`, **both
 compilers emit zero warnings of any code**. The empty warning baseline there is
