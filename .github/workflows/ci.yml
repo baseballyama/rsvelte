@@ -978,6 +978,22 @@ jobs:
       - name: Check the CSS-prune sweep compares warnings
         run: node scripts/dev/test-css-prune-sweep-warning-verdict.mjs
 
+  release-comment:
+    name: Release comment mapping
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # The release job that posts these comments runs once per release and
+      # only on main, so a mistake in the CHANGELOG -> pull request mapping
+      # would first surface as comments on the wrong issues. The parsers are
+      # pure and dependency-free, so pin them on every PR instead.
+      - name: Check the released-version comment mapping
+        run: node scripts/dev/test-release-comment.mjs
+
   vps-version-check:
     name: VPS native VERSION drift check
     runs-on: ubuntu-latest

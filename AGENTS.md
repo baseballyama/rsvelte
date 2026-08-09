@@ -385,6 +385,12 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 - Run `cargo fmt && cargo clippy --all-targets --all-features -- -D warnings` before committing
 - Push immediately after committing
 - Releases are automated via Changesets Release PRs
+- After a successful publish, `scripts/release/comment-released-versions.mjs` comments the exact
+  `package@version` on every PR whose changeset shipped and on the issues that PR closed. The
+  mapping comes from the CHANGELOGs, not the commit range: `@changesets/cli/changelog` prefixes
+  each entry with the hash of the commit that added the changeset, so a PR with no changeset —
+  chore, test, docs — is deliberately not commented on. Preview with
+  `node scripts/release/comment-released-versions.mjs --base <prev-release>^ --dry-run`
 - A **brand-new** platform package cannot be published by CI: npm OIDC trusted publishing
   only works for a name that already exists. Bootstrap it once with
   `pnpm run bootstrap-platform-packages -- --run <ci-run-id> --yes`, attach the trusted

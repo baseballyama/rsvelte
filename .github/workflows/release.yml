@@ -526,3 +526,37 @@ jobs:
           title: 'chore(release): version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Tell every pull request that shipped in this release — and the issues it
+  # closed — which `package@version` carries it. Runs after `publish` so a
+  # comment is never posted for a release that did not reach the registry.
+  comment-released-versions:
+    name: Comment released versions
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Job-level permissions REPLACE the workflow-level block, and the default
+    # there has no `issues: write` — without it the issue comments 404.
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The script resolves each changeset's short hash back to its commit
+          # and diffs package versions against `HEAD^`; both need real history.
+          fetch-depth: 0
+          submodules: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      # No `pnpm install`: the script has no dependencies, so it runs against a
+      # bare checkout even if the release left node_modules in an odd state.
+      - name: Comment released versions on pull requests and issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/release/comment-released-versions.mjs
