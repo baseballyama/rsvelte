@@ -564,24 +564,31 @@ impl<'a> Parser<'a> {
     pub fn parse_block_open(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.advance(); // consume '#'
 
-        let keyword = self.read_identifier();
-
-        match keyword.as_str() {
-            "if" => self.parse_if_block(start),
-            "each" => self.parse_each_block(start),
-            "await" => self.parse_await_block(start),
-            "key" => self.parse_key_block(start),
-            "snippet" => self.parse_snippet_block(start),
-            _ => {
-                // Unknown block, skip to closing brace using memchr
-                if let Some(pos) = memchr::memchr(b'}', &self.bytes[self.index..]) {
-                    self.index += pos + 1;
-                } else {
-                    self.index = self.bytes.len();
-                }
-                Ok(None)
-            }
+        // Upstream dispatches with `parser.eat(...)`, a prefix match, so `{#ifx}`
+        // is an `{#if}` missing its separator rather than an unknown block.
+        if self.eat_optional("if") {
+            return self.parse_if_block(start);
         }
+        if self.eat_optional("each") {
+            return self.parse_each_block(start);
+        }
+        if self.eat_optional("await") {
+            return self.parse_await_block(start);
+        }
+        if self.eat_optional("key") {
+            return self.parse_key_block(start);
+        }
+        if self.eat_optional("snippet") {
+            return self.parse_snippet_block(start);
+        }
+
+        // Unknown block, skip to closing brace using memchr
+        if let Some(pos) = memchr::memchr(b'}', &self.bytes[self.index..]) {
+            self.index += pos + 1;
+        } else {
+            self.index = self.bytes.len();
+        }
+        Ok(None)
     }
 
     /// Consume the matching `{/keyword}` close tag for the current block.
@@ -626,7 +633,7 @@ impl<'a> Parser<'a> {
 
     /// Parse {#if} block.
     pub fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Read the test expression using find_matching_bracket to handle
         // strings, comments, and regex inside the expression (e.g., /^\d{4}/)
@@ -710,7 +717,7 @@ impl<'a> Parser<'a> {
 
         if self.eat_optional("if") {
             // {:else if ...}
-            self.skip_whitespace();
+            self.require_whitespace()?;
             let alt_expr_start = self.index;
             let end = find_matching_bracket(self.source, alt_expr_start, '{')
                 .unwrap_or(self.source.len());
@@ -803,7 +810,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Parse the iterable expression (up to " as " or closing "}")
         let expr_start = self.index;
@@ -1275,7 +1282,7 @@ impl<'a> Parser<'a> {
 
     /// Parse {#await} block.
     pub fn parse_await_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Read the expression (until 'then', 'catch', or '}')
         let expr_start = self.index;
@@ -1540,6 +1547,11 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
 
             if self.eat_optional("then") {
+                // Upstream eats `}` before requiring the separator, so `{:then}`
+                // stays legal while `{:thenv}` is not.
+                if !self.match_str("}") {
+                    self.require_whitespace()?;
+                }
                 self.skip_whitespace();
 
                 // Check if there's a value identifier/pattern
@@ -1559,6 +1571,9 @@ impl<'a> Parser<'a> {
 
                 then_fragment = Some(self.parse_fragment()?);
             } else if self.eat_optional("catch") {
+                if !self.match_str("}") {
+                    self.require_whitespace()?;
+                }
                 self.skip_whitespace();
 
                 // Check if there's an error identifier/pattern
@@ -1612,7 +1627,7 @@ impl<'a> Parser<'a> {
 
     /// Parse {#key} block.
     pub fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Read the key expression using find_matching_bracket to handle
         // strings, comments, and regex inside the expression
@@ -1653,7 +1668,7 @@ impl<'a> Parser<'a> {
 
     /// Parse {#snippet name(params)} block.
     pub fn parse_snippet_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Parse the snippet name (identifier)
         let name_start = self.index;
@@ -1870,19 +1885,12 @@ impl<'a> Parser<'a> {
                 _ => None,
             };
             if let Some((kw, len)) = matched_kw {
-                // Check if followed by identifier chars
-                let pos_after_kw = self.index + len;
-                if pos_after_kw < self.bytes.len() {
-                    let next_byte = self.bytes[pos_after_kw];
-                    if next_byte.is_ascii_alphanumeric() || next_byte == b'_' {
-                        return Err(crate::error::ParseError::svelte(
-                            "expected_whitespace",
-                            "Expected whitespace",
-                            (pos_after_kw, pos_after_kw),
-                        ));
-                    }
-                }
                 self.index += len;
+                // `{@debug}` is upstream's one argument-less special tag, so it
+                // is the only keyword that does not require a separator.
+                if kw != "debug" {
+                    self.require_whitespace()?;
+                }
                 CompactString::from(kw)
             } else {
                 self.read_identifier()

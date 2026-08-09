@@ -2209,7 +2209,7 @@ impl<'a> Parser<'a> {
         &mut self,
         start: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Parse the expression until the closing }
         let expr_start = self.index;

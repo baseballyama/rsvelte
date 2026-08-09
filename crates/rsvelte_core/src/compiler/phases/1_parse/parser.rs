@@ -1020,7 +1020,8 @@ impl<'a> Parser<'a> {
             return Err(ParseError::svelte(
                 "expected_whitespace",
                 "Expected whitespace",
-                (self.index, self.index + 1),
+                // Upstream passes a bare index, so `start` and `end` coincide.
+                (self.index, self.index),
             ));
         }
 
