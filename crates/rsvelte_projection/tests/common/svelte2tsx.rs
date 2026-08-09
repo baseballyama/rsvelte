@@ -690,7 +690,7 @@ fn find_balanced_end(text: &str) -> Option<usize> {
     while i < bytes.len() {
         let ch = bytes[i] as char;
         if in_string {
-            if ch == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+            if ch == string_char && !rsvelte_core::compiler::utils::is_escaped(bytes, i) {
                 in_string = false;
             }
         } else if ch == '/' && bytes.get(i + 1) == Some(&b'*') {

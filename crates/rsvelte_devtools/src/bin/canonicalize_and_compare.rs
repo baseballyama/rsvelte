@@ -425,7 +425,7 @@ fn normalize_template_literal_whitespace(code: &str) -> String {
             continue;
         }
         if in_string {
-            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            if c == string_char && !rsvelte_core::compiler::utils::is_escaped_char(&chars, i) {
                 in_string = false;
             }
             result.push(c);
@@ -517,7 +517,7 @@ fn strip_line_comments(code: &str) -> String {
     while i < len {
         let c = chars[i];
         if in_string {
-            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            if c == string_char && !rsvelte_core::compiler::utils::is_escaped_char(&chars, i) {
                 in_string = false;
             }
             result.push(c);

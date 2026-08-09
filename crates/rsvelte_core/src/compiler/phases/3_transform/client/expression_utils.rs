@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use std::fmt::Write as _;
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::utils::{is_escaped, is_escaped_char};
 
 use super::scan_index::ScanIndex;
 
@@ -462,17 +463,6 @@ pub(super) fn find_statement_end_client(s: &str) -> usize {
     }
 
     len
-}
-
-/// True when the byte at `i` is escaped, i.e. an ODD number of backslashes
-/// precedes it. `bytes[i - 1] != b'\\'` is a different test: in `'\\'` the
-/// closing quote follows a complete `\\` escape and is not escaped at all.
-fn is_escaped(bytes: &[u8], i: usize) -> bool {
-    let mut n = 0;
-    while n < i && bytes[i - 1 - n] == b'\\' {
-        n += 1;
-    }
-    n % 2 == 1
 }
 
 /// Incrementally update expression depth counters by scanning only the given line.
@@ -2126,7 +2116,7 @@ pub(super) fn is_top_level_binary_expression(expr: &str) -> bool {
         let c = bytes[i];
 
         if in_string {
-            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+            if c == string_char && !is_escaped(bytes, i) {
                 in_string = false;
                 prev_significant = Some(c);
             }
@@ -2442,7 +2432,7 @@ pub(super) fn contains_top_level_ternary(expr: &str) -> bool {
         let c = bytes[i];
 
         if in_string {
-            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+            if c == string_char && !is_escaped(bytes, i) {
                 in_string = false;
             }
             i += 1;
@@ -2487,7 +2477,7 @@ pub(super) fn contains_top_level_logical(expr: &str) -> bool {
         let c = bytes[i];
 
         if in_string {
-            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+            if c == string_char && !is_escaped(bytes, i) {
                 in_string = false;
             }
             i += 1;
@@ -2709,7 +2699,7 @@ fn scan_for_direct_await(expr: &str) -> bool {
             i += 1;
             continue;
         }
-        if in_string && c == string_char && (i == 0 || chars[i - 1] != '\\') {
+        if in_string && c == string_char && !is_escaped_char(&chars, i) {
             in_string = false;
             i += 1;
             continue;
@@ -3059,13 +3049,14 @@ mod proxy_detection_tests {
 
 #[cfg(test)]
 mod await_scan_tests {
-    use super::{contains_direct_await_in_expression, is_identifier_char};
+    use super::{contains_direct_await_in_expression, is_escaped_char, is_identifier_char};
 
     /// The scanner as it stood before the per-character `String` builds were
-    /// removed, kept verbatim so the inputs below compare two implementations
-    /// rather than one against a hand-written expectation. The `"async"` arm is
-    /// the branch the refactor dropped; the corpus never reaches it, so its
-    /// equivalence has to be pinned by construction here instead.
+    /// removed, so the inputs below compare two implementations rather than one
+    /// against a hand-written expectation. The `"async"` arm is the branch the
+    /// refactor dropped; the corpus never reaches it, so its equivalence has to
+    /// be pinned by construction here instead. Everything else tracks the
+    /// production scanner, or the oracle would pin a defect rather than a shape.
     fn pre_refactor_scan(expr: &str) -> bool {
         let chars: Vec<char> = expr.chars().collect();
         let mut i = 0;
@@ -3082,7 +3073,7 @@ mod await_scan_tests {
                 i += 1;
                 continue;
             }
-            if in_string && c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            if in_string && c == string_char && !is_escaped_char(&chars, i) {
                 in_string = false;
                 i += 1;
                 continue;
@@ -3166,6 +3157,8 @@ mod await_scan_tests {
             "await async () => 1",
             "async",
             "async\u{3000}=> await x",
+            r"'\\' + await x",
+            r"`p\\` + await x",
         ];
         for expr in cases {
             assert_eq!(

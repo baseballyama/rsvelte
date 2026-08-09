@@ -29,11 +29,11 @@ fn overlay(src: &str, filename: &str) -> String {
 fn braces_balanced(s: &str) -> bool {
     let mut depth: i32 = 0;
     let mut in_str: Option<char> = None;
-    let mut prev = '\0';
-    for c in s.chars() {
+    let chars: Vec<char> = s.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
         match in_str {
             Some(q) => {
-                if c == q && prev != '\\' {
+                if c == q && !rsvelte_core::compiler::utils::is_escaped_char(&chars, i) {
                     in_str = None;
                 }
             }
@@ -47,7 +47,6 @@ fn braces_balanced(s: &str) -> bool {
         if depth < 0 {
             return false;
         }
-        prev = c;
     }
     depth == 0
 }

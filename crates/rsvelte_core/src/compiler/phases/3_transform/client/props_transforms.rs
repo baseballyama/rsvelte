@@ -7,6 +7,7 @@ use std::fmt::Write as _;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
+use crate::compiler::utils::{is_escaped, is_escaped_char};
 
 use super::scan_index::{ScanIndex, ScanIndexBuilder};
 use super::{
@@ -3225,7 +3226,7 @@ pub(super) fn wrap_prop_mutation_validation(
             let mut in_str: Option<char> = None;
             for (ci, c) in after_expr_start.char_indices() {
                 if let Some(quote) = in_str {
-                    if c == quote && (ci == 0 || after_expr_start.as_bytes()[ci - 1] != b'\\') {
+                    if c == quote && !is_escaped(after_expr_start.as_bytes(), ci) {
                         in_str = None;
                     }
                 } else {
@@ -3338,7 +3339,7 @@ pub(super) fn wrap_prop_mutation_validation(
             while ci < rest_chars.len() {
                 let c = rest_chars[ci];
                 if let Some(quote) = in_str {
-                    if c == quote && (ci == 0 || rest_chars[ci - 1] != '\\') {
+                    if c == quote && !is_escaped_char(&rest_chars, ci) {
                         in_str = None;
                     }
                     if c == '`'

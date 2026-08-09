@@ -10,6 +10,7 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, cod
 use crate::compiler::phases::phase3_transform::shared::offsets::{
     ByteOffset, CharOffset, CharToByte,
 };
+use crate::compiler::utils::{is_escaped, is_escaped_char};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Statement};
 use oxc_parser::{ParseOptions, Parser};
@@ -193,7 +194,7 @@ pub(super) fn find_and_transform_one_destructure(
                 i += 1;
                 continue;
             }
-        } else if Some(c) == in_string && (i == 0 || chars[i - 1] != '\\') {
+        } else if Some(c) == in_string && !is_escaped_char(&chars, i) {
             in_string = None;
             i += 1;
             continue;
@@ -773,7 +774,7 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
         let c = chars[i];
 
         if in_string.is_some() {
-            if Some(c) == in_string && (i == 0 || chars[i - 1] != '\\') {
+            if Some(c) == in_string && !is_escaped_char(&chars, i) {
                 in_string = None;
             }
             i += 1;
@@ -900,14 +901,14 @@ pub(super) fn code_contains_await(code: &str) -> bool {
                     continue;
                 }
                 // Check for end of template literal
-                if c == b'`' && (i == 0 || bytes[i - 1] != b'\\') {
+                if c == b'`' && !is_escaped(bytes, i) {
                     in_string = None;
                     i += 1;
                     continue;
                 }
             } else {
                 // Inside single or double quoted string
-                if c == quote && (i == 0 || bytes[i - 1] != b'\\') {
+                if c == quote && !is_escaped(bytes, i) {
                     in_string = None;
                     i += 1;
                     continue;

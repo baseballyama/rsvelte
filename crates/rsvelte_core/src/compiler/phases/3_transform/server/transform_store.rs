@@ -4,6 +4,7 @@
 //! for server-side code generation, including `$store` -> `$.store_get()` transforms
 //! and store assignment transforms.
 
+use crate::compiler::utils::{is_escaped, is_escaped_char};
 use std::fmt::Write as _;
 
 /// Check if a character is a valid JavaScript identifier character.
@@ -80,7 +81,7 @@ fn transform_store_property_mutations(script: &str) -> String {
             if !in_string {
                 in_string = true;
                 string_char = c;
-            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            } else if c == string_char && !is_escaped_char(&chars, i) {
                 in_string = false;
             }
             result.push(c);
@@ -141,7 +142,7 @@ fn transform_store_property_mutations(script: &str) -> String {
                                         inner_in_string = true;
                                         inner_string_char = ch;
                                     } else if ch == inner_string_char
-                                        && (chain_end == 0 || chars[chain_end - 1] != '\\')
+                                        && !is_escaped_char(&chars, chain_end)
                                     {
                                         inner_in_string = false;
                                     }
@@ -542,7 +543,7 @@ fn has_store_targets(pattern: &str) -> bool {
     while i < len {
         let c = chars[i];
         if let Some(q) = in_string {
-            if c == q && (i == 0 || chars[i - 1] != '\\') {
+            if c == q && !is_escaped_char(&chars, i) {
                 in_string = None;
             }
             i += 1;
@@ -1051,7 +1052,7 @@ fn find_statement_end(s: &str) -> usize {
     while i < len {
         let c = bytes[i];
 
-        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
+        if (c == b'"' || c == b'\'' || c == b'`') && !is_escaped(bytes, i) {
             if !in_string {
                 in_string = true;
                 string_char = c;

@@ -19,6 +19,7 @@
 use crate::ast::template::DeclarationTag;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
+use crate::compiler::utils::is_escaped;
 
 /// Visit a declaration tag.
 ///
@@ -430,7 +431,7 @@ fn body_has_top_level_comma(body: &str) -> bool {
     while i < bytes.len() {
         let c = bytes[i];
         if in_string {
-            if c == string_ch && (i == 0 || bytes[i - 1] != b'\\') {
+            if c == string_ch && !is_escaped(bytes, i) {
                 in_string = false;
             }
         } else {

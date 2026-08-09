@@ -37,6 +37,7 @@ use crate::ast::typed_expr::{
     alloc_deser_children, alloc_deser_node, child_node_from_value,
 };
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::utils::is_escaped;
 use compact_str::CompactString;
 
 // Thread-local OXC allocator reused across all expression parses to avoid
@@ -480,7 +481,7 @@ fn try_parse_call_expression<'a>(
 
         for (i, &b) in args_bytes.iter().enumerate() {
             if in_string != 0 {
-                if b == in_string && (i == 0 || args_bytes[i - 1] != b'\\') {
+                if b == in_string && !is_escaped(args_bytes, i) {
                     in_string = 0;
                 }
                 continue;
@@ -608,7 +609,7 @@ fn try_parse_ternary<'a>(
 
     for (i, &b) in bytes.iter().enumerate() {
         if in_string != 0 {
-            if b == in_string && (i == 0 || bytes[i - 1] != b'\\') {
+            if b == in_string && !is_escaped(bytes, i) {
                 in_string = 0;
             }
             continue;
@@ -639,7 +640,7 @@ fn try_parse_ternary<'a>(
     for (i, &b) in bytes[q_pos + 1..].iter().enumerate() {
         let abs_i = q_pos + 1 + i;
         if in_string != 0 {
-            if b == in_string && (i == 0 || bytes[abs_i - 1] != b'\\') {
+            if b == in_string && !is_escaped(bytes, abs_i) {
                 in_string = 0;
             }
             continue;
@@ -726,7 +727,7 @@ fn try_parse_parenthesized<'a>(
     let mut close = None;
     for (i, &b) in bytes[1..].iter().enumerate() {
         if in_string != 0 {
-            if b == in_string && (i == 0 || bytes[i] != b'\\') {
+            if b == in_string && !is_escaped(bytes, i + 1) {
                 in_string = 0;
             }
             continue;

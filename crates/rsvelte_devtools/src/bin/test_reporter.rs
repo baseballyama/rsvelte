@@ -469,7 +469,7 @@ fn normalize_quotes(js: &str) -> String {
 
     while i < chars.len() {
         let c = chars[i];
-        if c == '"' && (i == 0 || chars[i - 1] != '\\') {
+        if c == '"' && !rsvelte_core::compiler::utils::is_escaped_char(&chars, i) {
             result.push('\'');
         } else {
             result.push(c);
@@ -492,10 +492,13 @@ fn collapse_multiline_constructs(js: &str) -> String {
     while i < chars.len() {
         let c = chars[i];
 
-        if !in_string && c == '`' && (i == 0 || chars[i - 1] != '\\') {
+        if !in_string && c == '`' && !rsvelte_core::compiler::utils::is_escaped_char(&chars, i) {
             in_template = !in_template;
         }
-        if !in_template && (c == '\'' || c == '"') && (i == 0 || chars[i - 1] != '\\') {
+        if !in_template
+            && (c == '\'' || c == '"')
+            && !rsvelte_core::compiler::utils::is_escaped_char(&chars, i)
+        {
             if !in_string {
                 in_string = true;
                 string_char = c;

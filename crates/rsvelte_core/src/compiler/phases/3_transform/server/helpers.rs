@@ -1625,7 +1625,7 @@ fn extract_identifiers_from_js(expr: &str) -> Vec<String> {
             if !in_string {
                 in_string = true;
                 string_char = c;
-            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            } else if c == string_char && !crate::compiler::utils::is_escaped_char(&chars, i) {
                 in_string = false;
             }
             i += 1;

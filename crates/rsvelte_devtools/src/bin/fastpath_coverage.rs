@@ -61,7 +61,7 @@ fn main() {
                 while j < bytes.len() && depth > 0 {
                     let b = bytes[j];
                     if in_string != 0 {
-                        if b == in_string && (j == 0 || bytes[j - 1] != b'\\') {
+                        if b == in_string && !rsvelte_core::compiler::utils::is_escaped(bytes, j) {
                             in_string = 0;
                         }
                     } else {

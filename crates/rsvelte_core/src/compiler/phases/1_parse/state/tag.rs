@@ -18,6 +18,7 @@ use crate::ast::template::{
 };
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::utils::is_escaped;
 use crate::error::ParseResult;
 
 use super::super::parser::{Parser, StackEntry, is_js_whitespace};
@@ -2002,7 +2003,7 @@ impl<'a> Parser<'a> {
                 while i < bytes.len() {
                     let c = bytes[i];
                     if in_string {
-                        if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+                        if c == string_char && !is_escaped(bytes, i) {
                             in_string = false;
                         }
                         i += 1;
@@ -2521,7 +2522,7 @@ fn find_top_level_assignment(body: &str) -> Option<usize> {
     while i < bytes.len() {
         let c = bytes[i];
         if in_string {
-            if c == string_ch && (i == 0 || bytes[i - 1] != b'\\') {
+            if c == string_ch && !is_escaped(bytes, i) {
                 in_string = false;
             }
             i += 1;
@@ -2568,7 +2569,7 @@ fn split_top_level_commas(body: &str) -> Vec<(usize, &str)> {
     while i < bytes.len() {
         let c = bytes[i];
         if in_string {
-            if c == string_ch && (i == 0 || bytes[i - 1] != b'\\') {
+            if c == string_ch && !is_escaped(bytes, i) {
                 in_string = false;
             }
             i += 1;

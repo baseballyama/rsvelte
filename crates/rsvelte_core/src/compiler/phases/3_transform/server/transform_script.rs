@@ -10,6 +10,7 @@ use super::transform_store::{
     transform_store_assignments, transform_store_destructure_assignments,
 };
 use crate::compiler::phases::phase3_transform::shared::class_body::split_class_members_onto_lines;
+use crate::compiler::utils::{is_escaped, is_escaped_char};
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 use std::fmt::Write as _;
@@ -481,7 +482,7 @@ fn line_opens_unclosed_template_literal(line: &str) -> bool {
     while i < chars.len() {
         let ch = chars[i];
         if in_str {
-            if ch == str_ch && (i == 0 || chars[i - 1] != '\\') {
+            if ch == str_ch && !is_escaped_char(&chars, i) {
                 in_str = false;
             }
             i += 1;
@@ -490,7 +491,7 @@ fn line_opens_unclosed_template_literal(line: &str) -> bool {
         if ch == '\'' || ch == '"' {
             in_str = true;
             str_ch = ch;
-        } else if ch == '`' && (i == 0 || chars[i - 1] != '\\') {
+        } else if ch == '`' && !is_escaped_char(&chars, i) {
             backtick_count += 1;
         }
         i += 1;
@@ -512,7 +513,7 @@ fn line_closes_template_literal(line: &str) -> bool {
     while i < chars.len() {
         let ch = chars[i];
         if in_str {
-            if ch == str_ch && (i == 0 || chars[i - 1] != '\\') {
+            if ch == str_ch && !is_escaped_char(&chars, i) {
                 in_str = false;
             }
             i += 1;
@@ -521,7 +522,7 @@ fn line_closes_template_literal(line: &str) -> bool {
         if ch == '\'' || ch == '"' {
             in_str = true;
             str_ch = ch;
-        } else if ch == '`' && (i == 0 || chars[i - 1] != '\\') {
+        } else if ch == '`' && !is_escaped_char(&chars, i) {
             return true;
         }
         i += 1;
@@ -539,7 +540,7 @@ fn format_js_line(line: &str) -> String {
     while i < chars.len() {
         let c = chars[i];
 
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == '"' || c == '\'' || c == '`') && !is_escaped_char(&chars, i) {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -939,7 +940,7 @@ fn find_matching_paren_for_state(s: &str) -> Option<usize> {
     let mut string_char = ' ';
 
     for (i, c) in s.char_indices() {
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || s.as_bytes()[i - 1] != b'\\') {
+        if (c == '"' || c == '\'' || c == '`') && !is_escaped(s.as_bytes(), i) {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -4329,7 +4330,7 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                 while end < chars.len() && depth > 0 {
                     let c = chars[end];
 
-                    if (c == '"' || c == '\'' || c == '`') && (end == 0 || chars[end - 1] != '\\') {
+                    if (c == '"' || c == '\'' || c == '`') && !is_escaped_char(&chars, end) {
                         if !in_string {
                             in_string = true;
                             string_char = c;
@@ -4381,7 +4382,7 @@ fn find_rune_shadow_ranges(script: &str, rune_name: &str) -> Vec<(usize, usize)>
         if chars[i] == '"' || chars[i] == '\'' || chars[i] == '`' {
             let quote = chars[i];
             i += 1;
-            while i < len && !(chars[i] == quote && (i == 0 || chars[i - 1] != '\\')) {
+            while i < len && (chars[i] != quote || is_escaped_char(&chars, i)) {
                 i += 1;
             }
             if i < len {
@@ -4454,7 +4455,7 @@ fn find_rune_shadow_ranges(script: &str, rune_name: &str) -> Vec<(usize, usize)>
                                 while body_end < len && brace_depth > 0 {
                                     let c = chars[body_end];
                                     if (c == '"' || c == '\'' || c == '`')
-                                        && (body_end == 0 || chars[body_end - 1] != '\\')
+                                        && !is_escaped_char(&chars, body_end)
                                     {
                                         if !in_str {
                                             in_str = true;
@@ -4490,9 +4491,7 @@ fn find_rune_shadow_ranges(script: &str, rune_name: &str) -> Vec<(usize, usize)>
             let mut str_char = ' ';
             while paren_end < len && depth > 0 {
                 let c = chars[paren_end];
-                if (c == '"' || c == '\'' || c == '`')
-                    && (paren_end == 0 || chars[paren_end - 1] != '\\')
-                {
+                if (c == '"' || c == '\'' || c == '`') && !is_escaped_char(&chars, paren_end) {
                     if !in_str {
                         in_str = true;
                         str_char = c;
@@ -4533,7 +4532,7 @@ fn find_rune_shadow_ranges(script: &str, rune_name: &str) -> Vec<(usize, usize)>
                         while body_end < len && brace_depth > 0 {
                             let c = chars[body_end];
                             if (c == '"' || c == '\'' || c == '`')
-                                && (body_end == 0 || chars[body_end - 1] != '\\')
+                                && !is_escaped_char(&chars, body_end)
                             {
                                 if !in_str2 {
                                     in_str2 = true;

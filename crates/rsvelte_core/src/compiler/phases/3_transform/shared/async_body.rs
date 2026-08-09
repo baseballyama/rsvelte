@@ -1905,7 +1905,7 @@ fn is_function_var_declaration(s: &str) -> bool {
                 while pos < bytes.len() {
                     let c = bytes[pos];
                     if (c == b'"' || c == b'\'' || c == b'`')
-                        && (pos == 0 || bytes[pos - 1] != b'\\')
+                        && !crate::compiler::utils::is_escaped(bytes, pos)
                     {
                         if !in_string {
                             in_string = true;

@@ -77,6 +77,31 @@ pub fn next_char_boundary(source: &str, at: usize) -> usize {
         .map_or(at + 1, |c| at + c.len_utf8())
 }
 
+/// Is the byte at `i` escaped by the backslash run that precedes it?
+///
+/// The one-byte lookback `bytes[i - 1] != b'\\'` answers a different question: in
+/// `'\\'` the closing quote follows a *complete* `\\` escape and is not escaped at
+/// all, so a scanner using that test never closes the string. A byte is escaped
+/// only when the run of backslashes immediately before it has odd length.
+#[inline]
+pub fn is_escaped(bytes: &[u8], i: usize) -> bool {
+    let mut n = 0;
+    while n < i && bytes[i - 1 - n] == b'\\' {
+        n += 1;
+    }
+    n % 2 == 1
+}
+
+/// [`is_escaped`] over a `char` slice, for scanners that index characters.
+#[inline]
+pub fn is_escaped_char(chars: &[char], i: usize) -> bool {
+    let mut n = 0;
+    while n < i && chars[i - 1 - n] == '\\' {
+        n += 1;
+    }
+    n % 2 == 1
+}
+
 /// List of Element events that will be delegated.
 ///
 /// Corresponds to `DELEGATED_EVENTS` in utils.js.
@@ -282,7 +307,7 @@ mod ident_classifier_tests {
 
 #[cfg(test)]
 mod char_step_tests {
-    use super::next_char_boundary;
+    use super::{is_escaped, is_escaped_char, next_char_boundary};
 
     /// Discriminating: the whole point of the helper is that the step is the
     /// character's width, not 1.
@@ -304,5 +329,70 @@ mod char_step_tests {
     #[test]
     fn steps_past_the_end_without_panicking() {
         assert_eq!(next_char_boundary("ab", 2), 3);
+    }
+
+    /// Exhaustive over the axis the one-byte lookback gets wrong: the length of
+    /// the backslash run before the quote, for every quote character.
+    #[test]
+    fn a_quote_is_escaped_exactly_when_the_backslash_run_is_odd() {
+        for quote in ['\'', '"', '`'] {
+            for run in 0..=4usize {
+                let text = format!("x{}{quote}", "\\".repeat(run));
+                let i = text.len() - 1;
+                let chars: Vec<char> = text.chars().collect();
+                let expected = run % 2 == 1;
+                assert_eq!(
+                    is_escaped(text.as_bytes(), i),
+                    expected,
+                    "bytes: {run} backslashes before {quote}"
+                );
+                assert_eq!(
+                    is_escaped_char(&chars, chars.len() - 1),
+                    expected,
+                    "chars: {run} backslashes before {quote}"
+                );
+            }
+        }
+    }
+
+    /// Discriminating case: the one-byte lookback and the run-parity test agree
+    /// on `\'` and disagree on `\\'`, so a scanner that only ever sees the first
+    /// shape reads as covered while carrying the defect.
+    #[test]
+    fn the_run_parity_test_differs_from_a_one_byte_lookback() {
+        let one_escape = br"a\'";
+        let complete_escape = br"a\\'";
+        assert!(is_escaped(one_escape, one_escape.len() - 1));
+        assert!(!is_escaped(complete_escape, complete_escape.len() - 1));
+        assert_eq!(
+            complete_escape[complete_escape.len() - 2],
+            b'\\',
+            "the byte before the quote is a backslash in both shapes"
+        );
+    }
+
+    /// A backslash run that starts at offset 0 must not read past the slice.
+    #[test]
+    fn a_run_at_the_start_of_the_slice_terminates() {
+        assert!(!is_escaped(b"'", 0));
+        assert!(is_escaped(br"\'", 1));
+        assert!(!is_escaped(br"\\'", 2));
+        assert!(!is_escaped_char(&['\''], 0));
+        assert!(is_escaped_char(&['\\', '\''], 1));
+        assert!(!is_escaped_char(&['\\', '\\', '\''], 2));
+    }
+
+    /// The byte and char forms must answer identically on multibyte input, where
+    /// the two index spaces diverge.
+    #[test]
+    fn the_byte_and_char_forms_agree_across_a_multibyte_character() {
+        let text = "\u{540d}\\\\'";
+        let chars: Vec<char> = text.chars().collect();
+        assert!(!is_escaped(text.as_bytes(), text.len() - 1));
+        assert!(!is_escaped_char(&chars, chars.len() - 1));
+        let odd = "\u{540d}\\'";
+        let odd_chars: Vec<char> = odd.chars().collect();
+        assert!(is_escaped(odd.as_bytes(), odd.len() - 1));
+        assert!(is_escaped_char(&odd_chars, odd_chars.len() - 1));
     }
 }

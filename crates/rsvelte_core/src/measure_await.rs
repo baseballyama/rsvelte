@@ -111,7 +111,7 @@ fn replay(expr: &str) -> bool {
             i += 1;
             continue;
         }
-        if in_string && c == string_char && (i == 0 || chars[i - 1] != '\\') {
+        if in_string && c == string_char && !crate::compiler::utils::is_escaped_char(&chars, i) {
             in_string = false;
             i += 1;
             continue;

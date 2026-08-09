@@ -7,6 +7,7 @@ use memchr::memmem;
 use oxc_allocator::Allocator;
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::utils::is_escaped;
 
 // Thread-local OXC allocator reused across normalize_js_with_oxc calls to avoid
 // repeated allocator creation/destruction overhead. The allocator is reset
@@ -179,7 +180,7 @@ pub(super) fn find_matching_close_paren(s: &str) -> Option<usize> {
         let c = bytes[i];
 
         if in_string {
-            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+            if c == string_char && !is_escaped(bytes, i) {
                 in_string = false;
             }
             i += 1;

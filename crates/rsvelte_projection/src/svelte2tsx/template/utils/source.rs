@@ -2,6 +2,7 @@
 
 use crate::ast::template::Attribute;
 use crate::svelte2tsx::template::attributes::attribute_end;
+use rsvelte_core::compiler::utils::is_escaped;
 
 /// Find the end of the opening tag (position after the closing `>`).
 ///
@@ -34,7 +35,7 @@ pub(crate) fn find_opening_tag_end(
 
         match in_string {
             Some(quote) => {
-                if ch == quote && (i == 0 || bytes[i - 1] != b'\\') {
+                if ch == quote && !is_escaped(bytes, i) {
                     in_string = None;
                 }
             }
