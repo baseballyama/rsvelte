@@ -50,6 +50,21 @@ fn a_slash_at_end_of_line_does_not_split_the_statement() {
     asserts_single_statement("/");
 }
 
+/// The boundaries are read off the program Phase 1 parsed, whose spans are in
+/// the *whole* script's coordinates while this pipeline sees the script with
+/// its imports already removed. An import above the statement is what makes the
+/// two coordinate systems differ, so without it the rebasing is untested.
+#[test]
+fn an_import_above_the_statement_does_not_shift_the_boundaries() {
+    let out = client(
+        "<script>\n  import { noop } from './noop.js';\n  export let a = 1;\n  export let b = 2;\n  let n = 0;\n  $: v = a -\n    b;\n  noop;\n</script>\n\n<p>{v}{n}</p>\n",
+    );
+    assert!(
+        out.contains("$.deep_read_state(a()), $.deep_read_state(b())"),
+        "the import shifted the statement boundaries:\n{out}"
+    );
+}
+
 /// Controls: these two were already in the scanner's list, so they held before
 /// this change and must still hold.
 #[test]
