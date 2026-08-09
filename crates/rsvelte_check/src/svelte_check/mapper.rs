@@ -20,6 +20,52 @@ use super::tsgo::RawTsDiagnostic;
 struct EntryMap {
     svelte_source: PathBuf,
     map: SourceMap,
+    /// Every segment in generated order, for [`EntryMap::is_inserted_text`].
+    segments: Vec<Segment>,
+}
+
+/// One source-map segment, flattened out of `sourcemap::Token` because the
+/// crate exposes no way to step from a looked-up token to its neighbour.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Segment {
+    dst_line: u32,
+    dst_col: u32,
+    /// `None` for a generated-only segment (no source position).
+    src: Option<(u32, u32, u32)>,
+}
+
+impl EntryMap {
+    /// Does this generated position fall inside text svelte2tsx **inserted**,
+    /// as opposed to text it rewrote?
+    ///
+    /// Inserted text carries no segments at all, so a greatest-lower-bound
+    /// lookup silently answers with the segment before the gap — which is how
+    /// a diagnostic about the SvelteKit `$types` annotation svelte2tsx injects
+    /// ends up pinned to the author's `export let form`. Official svelte-check
+    /// drops it instead (`hasNoNegativeLines`), because MagicString gives it a
+    /// source-less segment there and `originalPositionFor` returns null.
+    ///
+    /// rsvelte's map has no such segment, so the gap is identified by its
+    /// ends: an insertion consumed nothing, so the segments on either side
+    /// point at the **same** source position. A rewritten chunk is bounded by
+    /// its source start and its source end, which differ — and a diagnostic
+    /// inside one of those still belongs to the author's code.
+    fn is_inserted_text(&self, dst_line: u32, dst_col: u32) -> bool {
+        let start = self
+            .segments
+            .partition_point(|s| (s.dst_line, s.dst_col) <= (dst_line, dst_col));
+        let Some(prev) = start.checked_sub(1).map(|i| self.segments[i]) else {
+            return false;
+        };
+        // Exactly on a segment: the position is mapped, gap or not.
+        if prev.dst_line != dst_line || prev.dst_col == dst_col {
+            return false;
+        }
+        let Some(next) = self.segments.get(start) else {
+            return false;
+        };
+        next.dst_line == dst_line && next.src.is_some() && next.src == prev.src
+    }
 }
 
 /// TS `1xxx` codes that are emitted by the BINDER/CHECKER (semantic), not the
@@ -402,6 +448,9 @@ pub fn map_tsgo_diagnostics(
             // back to the start of the rewritten source range.
             let q_line = diag.line.saturating_sub(1);
             let q_col = diag.column.saturating_sub(1);
+            if entry_map.is_inserted_text(q_line, q_col) {
+                continue;
+            }
             let token = entry_map.map.lookup_token(q_line, q_col);
             if let Some(t) = token {
                 let src_line = t.get_src_line();
@@ -550,9 +599,21 @@ fn remap_kit_position(
 fn build_entry_map(entry: &OverlayEntry) -> Option<EntryMap> {
     let raw_map = entry.source_map.as_deref()?;
     let map = SourceMap::from_slice(raw_map.as_bytes()).ok()?;
+    let mut segments: Vec<Segment> = map
+        .tokens()
+        .map(|t| Segment {
+            dst_line: t.get_dst_line(),
+            dst_col: t.get_dst_col(),
+            src: t
+                .get_source()
+                .map(|_| (t.get_src_id(), t.get_src_line(), t.get_src_col())),
+        })
+        .collect();
+    segments.sort_by_key(|s| (s.dst_line, s.dst_col));
     Some(EntryMap {
         svelte_source: entry.source_path.clone(),
         map,
+        segments,
     })
 }
 
@@ -617,6 +678,69 @@ mod tests {
         assert!(!is_in_generated_code(t, def, def + 3), "after region");
         // No markers at all → never generated.
         assert!(!is_in_generated_code("plain text", 2, 4));
+    }
+
+    /// The SvelteKit `$types` annotation svelte2tsx injects for an untyped
+    /// route prop is pure insertion, so a diagnostic in it belongs to nobody.
+    /// The author's own identifier, two columns further along the same line,
+    /// must stay mapped — an insertion test that swallowed the line would pass
+    /// the first assertion and hide every real error on it.
+    #[test]
+    fn injected_kit_annotation_is_inserted_text_but_the_prop_is_not() {
+        use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+
+        let result = svelte2tsx(
+            "<script>\n\texport let form;\n</script>\n\n<pre>{form}</pre>\n",
+            Svelte2TsxOptions {
+                filename: "+page.svelte".to_string(),
+                is_ts_file: false,
+                emit_jsdoc: true,
+                ..Default::default()
+            },
+        )
+        .expect("svelte2tsx");
+        let map =
+            SourceMap::from_slice(result.map.as_ref().expect("map").as_bytes()).expect("parse map");
+        let mut segments: Vec<Segment> = map
+            .tokens()
+            .map(|t| Segment {
+                dst_line: t.get_dst_line(),
+                dst_col: t.get_dst_col(),
+                src: t
+                    .get_source()
+                    .map(|_| (t.get_src_id(), t.get_src_line(), t.get_src_col())),
+            })
+            .collect();
+        segments.sort_by_key(|s| (s.dst_line, s.dst_col));
+        let entry_map = EntryMap {
+            svelte_source: PathBuf::from("+page.svelte"),
+            map,
+            segments,
+        };
+
+        let at = |needle: &str| {
+            let off = result
+                .code
+                .find(needle)
+                .unwrap_or_else(|| panic!("{needle} not in:\n{}", result.code));
+            let line = result.code[..off].matches('\n').count() as u32;
+            let col = result.code[..off]
+                .rsplit_once('\n')
+                .map_or(off, |(_, tail)| tail.chars().count()) as u32;
+            (line, col)
+        };
+
+        let (line, col) = at("ActionData");
+        assert!(
+            entry_map.is_inserted_text(line, col),
+            "the injected annotation should have no source position"
+        );
+
+        let (line, col) = at("form/*\u{03A9}ignore_start\u{03A9}*/");
+        assert!(
+            !entry_map.is_inserted_text(line, col),
+            "the author's own identifier must stay mapped"
+        );
     }
 
     #[test]
