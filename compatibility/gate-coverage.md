@@ -623,6 +623,24 @@ which `lint-collect.mjs:42-43` does list. **[S]** In CI the lint corpus contains
 file from the Svelte repo and no documentation snippet. `compatibility/pattern-corpus` — the 32
 hand-written regression repros — is also not in that list.
 
+### Blind spot 11g — every `svelte_scan` source-scan rule is outside the universe
+
+The four rules that resolve their facts by scanning `<script>` text through
+`crates/rsvelte_lint/src/svelte_scan.rs` are *all* in `EXCLUDE`, each for a different structural
+reason: `svelte/no-unused-props` (`lint-universe.mjs:26`, type-aware),
+`svelte/require-event-prefix` (`:33`, the oracle has no checker),
+`svelte/experimental-require-strict-events` (`:40`) and
+`svelte/require-event-dispatcher-types` (`:41`, both Svelte 3/4-only). **[D]** The word-boundary
+predicate they share can therefore be wrong in *both* directions with the ratchet at zero
+entries and CI green: `is_ascii_ident_byte` classified every non-ASCII character as a boundary,
+so `interface $$Eventsé {}` satisfied the `$$Events` requirement, an `as créer` alias truncated
+to `cr` and its call went unreported, and a whole-object `const prôps: Props = $props()`
+panicked on a mid-character slice (#2684). Because the rules are outside the universe rather
+than listed as failures, "re-baseline the ratchet" is not a remedy for this family; the
+compensating control is `crates/rsvelte_lint/tests/non_ascii_word_boundary.rs`, which drives all
+four rules through `lint_source` in both directions (a non-ASCII letter is glue; a non-ASCII
+space is a boundary).
+
 ---
 
 ## 12-13. svelte-check diagnostic parity (Layer 1 fixtures, Layer 2 e2e)

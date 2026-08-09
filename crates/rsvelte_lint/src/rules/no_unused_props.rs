@@ -23,7 +23,10 @@ use rsvelte_diagnostics::Diagnostic;
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{blank_comments, is_ascii_ident_byte, script_blocks, script_is_ts};
+use crate::svelte_scan::{
+    blank_comments, ident_continues_at, ident_continues_before, ident_run_end, ident_run_start,
+    script_blocks, script_is_ts,
+};
 use crate::validator::{range_from_byte, to_dsev};
 
 pub static META: RuleMeta = RuleMeta {
@@ -527,12 +530,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
                 .strip_prefix(':')
                 .map(|r| {
                     let r = r.trim();
-                    let n = r
-                        .as_bytes()
-                        .iter()
-                        .position(|&c| !is_ascii_ident_byte(c))
-                        .unwrap_or(r.len());
-                    r[..n].to_string()
+                    r[..ident_run_end(r, 0)].to_string()
                 })
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| key.clone());
@@ -540,10 +538,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
             continue;
         }
         // Plain identifier key, optional `: local` / `= default`.
-        let name_end = bytes
-            .iter()
-            .position(|&c| !is_ascii_ident_byte(c))
-            .unwrap_or(bytes.len());
+        let name_end = ident_run_end(seg, 0);
         if name_end == 0 {
             continue;
         }
@@ -553,12 +548,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
             .strip_prefix(':')
             .map(|r| {
                 let r = r.trim();
-                let n = r
-                    .as_bytes()
-                    .iter()
-                    .position(|&c| !is_ascii_ident_byte(c))
-                    .unwrap_or(r.len());
-                r[..n].to_string()
+                r[..ident_run_end(r, 0)].to_string()
             })
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| key.clone());
@@ -597,7 +587,6 @@ fn member_chains(
     var: &str,
     exclude: Option<(usize, usize)>,
 ) -> (Vec<Vec<String>>, Vec<Vec<String>>) {
-    let bytes = source.as_bytes();
     let vb = var.as_bytes();
     let mut paths = Vec::new();
     let mut spreads = Vec::new();
@@ -613,9 +602,7 @@ fn member_chains(
         {
             continue;
         }
-        let before = start.checked_sub(1).map(|b| bytes[b]);
-        let after = bytes.get(end).copied();
-        if before.is_some_and(is_ascii_ident_byte) || after.is_some_and(is_ascii_ident_byte) {
+        if ident_continues_before(source, start) || ident_continues_at(source, end) {
             continue; // not a whole-word match
         }
         let p = skip_ws_back(source, start);
@@ -655,16 +642,13 @@ fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
             None
         };
         if let Some(q) = dot {
-            let mut q = skip_ws_forward(source, q);
-            let s = q;
-            while q < bytes.len() && is_ascii_ident_byte(bytes[q]) {
-                q += 1;
-            }
-            if q == s {
+            let s = skip_ws_forward(source, q);
+            let end = ident_run_end(source, s);
+            if end == s {
                 break;
             }
-            chain.push(source[s..q].to_string());
-            pos = q;
+            chain.push(source[s..end].to_string());
+            pos = end;
         } else if bytes[pos] == b'[' {
             let mut q = skip_ws_forward(source, pos + 1);
             if q < bytes.len() && (bytes[q] == b'\'' || bytes[q] == b'"') {
@@ -918,8 +902,8 @@ fn has_whole_object_spread(source: &str, var_name: &str) -> bool {
         if bytes[i..i + vb.len()] == *vb {
             // Check next char.
             let next = bytes.get(i + vb.len()).copied();
-            let next_is_member =
-                next.is_some_and(|c| c == b'.' || c == b'[' || is_ascii_ident_byte(c));
+            let next_is_member = next.is_some_and(|c| c == b'.' || c == b'[')
+                || ident_continues_at(source, i + vb.len());
             if !next_is_member {
                 return true;
             }
@@ -989,10 +973,7 @@ fn find_props_info(content: &str, blanked: &str, content_start: usize) -> Option
         // Whole-object form: `const props: Props = $props()`.
         let var_end_rel = before_colon.len();
         // Find start of var name (walk back over identifier chars).
-        let var_name_start = blanked[..var_end_rel]
-            .rfind(|c: char| !is_ascii_ident_byte(c as u8))
-            .map(|i| i + 1)
-            .unwrap_or(0);
+        let var_name_start = ident_run_start(blanked, var_end_rel);
         let var_name = content[var_name_start..var_end_rel].trim().to_string();
         if var_name.is_empty()
             || !var_name
@@ -1046,7 +1027,7 @@ fn is_type_imported(blanked: &str, name: &str) -> bool {
     let mut i = 0;
     while i + 6 <= bytes.len() {
         if &bytes[i..i + 6] == b"import" {
-            let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
+            let before_ok = !ident_continues_before(blanked, i);
             if before_ok {
                 let end = blanked[i..]
                     .find(';')
@@ -1055,10 +1036,8 @@ fn is_type_imported(blanked: &str, name: &str) -> bool {
                     .unwrap_or(blanked.len());
                 let import_stmt = &blanked[i..end];
                 if let Some(name_pos) = import_stmt.find(name) {
-                    let before_ok2 =
-                        name_pos == 0 || !is_ascii_ident_byte(import_stmt.as_bytes()[name_pos - 1]);
-                    let after_ok = name_pos + nb.len() >= import_stmt.len()
-                        || !is_ascii_ident_byte(import_stmt.as_bytes()[name_pos + nb.len()]);
+                    let before_ok2 = !ident_continues_before(import_stmt, name_pos);
+                    let after_ok = !ident_continues_at(import_stmt, name_pos + nb.len());
                     if before_ok2 && after_ok {
                         return true;
                     }
@@ -1081,14 +1060,13 @@ fn find_named_type_body_no_extends(
     content_start: usize,
 ) -> Option<(String, usize)> {
     let nb = name.as_bytes();
-    let bytes = blanked.as_bytes();
 
     for kw in ["interface", "type"] {
         let mut search_from = 0usize;
         while let Some(rel) = blanked[search_from..].find(kw) {
             let kw_start = search_from + rel;
             let kw_end = kw_start + kw.len();
-            let before_ok = kw_start == 0 || !is_ascii_ident_byte(bytes[kw_start - 1]);
+            let before_ok = !ident_continues_before(blanked, kw_start);
             if !before_ok {
                 search_from = kw_end;
                 continue;
@@ -1101,8 +1079,7 @@ fn find_named_type_body_no_extends(
                 continue;
             }
             let after_name = rest_start + nb.len();
-            let after_char = bytes.get(after_name).copied();
-            if after_char.is_some_and(is_ascii_ident_byte) {
+            if ident_continues_at(blanked, after_name) {
                 search_from = kw_end;
                 continue;
             }
@@ -1229,10 +1206,7 @@ fn extract_member_name(seg: &str) -> Option<String> {
     }
 
     // Plain identifier (possibly followed by `?`, `:`, `(`)
-    let name_end = bytes
-        .iter()
-        .position(|&c| !is_ascii_ident_byte(c))
-        .unwrap_or(bytes.len());
+    let name_end = ident_run_end(seg, 0);
     if name_end == 0 {
         return None;
     }
@@ -1325,10 +1299,7 @@ fn extract_destructure_prop_name(seg: &str) -> Option<String> {
 
     // Plain identifier (take just the name, not `= default` or `: alias` or
     // nested `{ ... }`)
-    let name_end = bytes
-        .iter()
-        .position(|&c| !is_ascii_ident_byte(c))
-        .unwrap_or(bytes.len());
+    let name_end = ident_run_end(seg, 0);
     if name_end == 0 {
         return None;
     }
@@ -1372,15 +1343,15 @@ mod tests {
 
     #[test]
     fn member_chains_walks_back_over_multibyte_chars() {
-        // `々` is E3 80 85: its last byte cast to `char` is U+0085 NEL, which
+        // U+2005 is E2 80 85: its last byte cast to `char` is U+0085 NEL, which
         // `is_whitespace` accepts — a byte cursor steps into the character.
         assert_eq!(
-            member_chains("ab\u{3005}foo.bar", "foo", None).0,
+            member_chains("ab\u{2005}foo.bar", "foo", None).0,
             vec![vec!["bar".to_string()]]
         );
         // NBSP reaches the same place through its 0xA0 continuation byte.
         assert_eq!(
-            member_chains("ab\u{4EE0}foo.bar", "foo", None).0,
+            member_chains("ab\u{a0}foo.bar", "foo", None).0,
             vec![vec!["bar".to_string()]]
         );
         // A newline between does not save it: the cursor eats the newline, then
@@ -1396,13 +1367,40 @@ mod tests {
         // The `...` lookbehind slices three bytes back from a cursor that is
         // already on a boundary, which still lands inside a 4-byte character.
         assert_eq!(
-            member_chains("\u{1D54F}foo.bar", "foo", None).0,
+            member_chains("\u{1F600}foo.bar", "foo", None).0,
             vec![vec!["bar".to_string()]]
         );
         // Real Unicode whitespace before a spread is still recognised.
         assert_eq!(
             member_chains("...\u{3000}foo.bar", "foo", None).1,
             vec![vec!["bar".to_string()]]
+        );
+    }
+
+    /// The other direction of the same predicate: a non-ASCII letter beside the
+    /// name is identifier glue, so the hit is a different variable.
+    #[test]
+    fn member_chains_non_ascii_letter_is_glue() {
+        for src in [
+            "ab\u{3005}foo.bar",
+            "\u{1D54F}foo.bar",
+            "\u{e9}foo.bar",
+            "foo\u{e9}.bar",
+        ] {
+            assert!(
+                member_chains(src, "foo", None).0.is_empty(),
+                "{src:?} contains no standalone `foo`"
+            );
+        }
+    }
+
+    /// A member name runs to the end of the identifier, not to the first
+    /// non-ASCII byte.
+    #[test]
+    fn parse_member_chain_keeps_non_ascii_letters() {
+        assert_eq!(
+            parse_member_chain("foo.b\u{e4}r", 3),
+            vec!["b\u{e4}r".to_string()]
         );
     }
 

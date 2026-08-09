@@ -8,6 +8,8 @@
 //! [`ScriptRule`](crate::script::ScriptRule) trait can see together. A focused
 //! source scan over the `<script>` region keeps them simple and dependency-free.
 
+use rsvelte_core::compiler::utils::{char_at, char_before, is_js_ident_continue};
+
 /// Byte range `[start, end)` of each `<script …>…</script>` element's inner
 /// content, paired with the element's start-tag byte range `[tag_start, tag_gt)`
 /// (the `<` … `>` of the opening tag).
@@ -180,7 +182,7 @@ fn declares_type_in(content: &str, name: &str) -> bool {
         while let Some(rel) = content[from..].find(kw) {
             let kw_start = from + rel;
             let kw_end = kw_start + kw.len();
-            let before_ok = kw_start == 0 || !is_ascii_ident_byte(content.as_bytes()[kw_start - 1]);
+            let before_ok = !ident_continues_before(content, kw_start);
             // Require whitespace then the name then a non-identifier boundary.
             let rest = &content[kw_end..];
             let trimmed = rest.trim_start();
@@ -188,10 +190,7 @@ fn declares_type_in(content: &str, name: &str) -> bool {
             if before_ok
                 && consumed > 0
                 && let Some(after_name) = trimmed.strip_prefix(name)
-                && after_name
-                    .as_bytes()
-                    .first()
-                    .is_none_or(|&c| !is_ascii_ident_byte(c))
+                && !ident_continues_at(after_name, 0)
             {
                 return true;
             }
@@ -201,8 +200,39 @@ fn declares_type_in(content: &str, name: &str) -> bool {
     false
 }
 
-pub(crate) fn is_ascii_ident_byte(c: u8) -> bool {
-    c == b'_' || c == b'$' || c.is_ascii_alphanumeric()
+/// Whether the character starting at byte `at` can continue a JavaScript
+/// identifier — the word-boundary test these source scans need.
+///
+/// The predicate is the one ECMA-262 names (`IdentifierPartChar`), so an
+/// accented letter or a CJK character is glue and a non-ASCII space is a
+/// boundary. A byte test cannot answer either: every byte of a multi-byte
+/// character fails `is_ascii_alphanumeric`, so `foo` in `naïvefoo` would read as
+/// a standalone word.
+pub(crate) fn ident_continues_at(source: &str, at: usize) -> bool {
+    char_at(source, at).is_some_and(is_js_ident_continue)
+}
+
+/// Whether the character ending at byte `end` can continue a JavaScript
+/// identifier — see [`ident_continues_at`].
+pub(crate) fn ident_continues_before(source: &str, end: usize) -> bool {
+    char_before(source, end).is_some_and(is_js_ident_continue)
+}
+
+/// Byte offset just past the identifier run that starts at byte `from`.
+pub(crate) fn ident_run_end(source: &str, from: usize) -> usize {
+    source[from..]
+        .char_indices()
+        .find(|&(_, c)| !is_js_ident_continue(c))
+        .map_or(source.len(), |(i, _)| from + i)
+}
+
+/// Byte offset where the identifier run that ends at byte `end` starts.
+pub(crate) fn ident_run_start(source: &str, end: usize) -> usize {
+    source[..end]
+        .char_indices()
+        .rev()
+        .find(|&(_, c)| !is_js_ident_continue(c))
+        .map_or(0, |(i, c)| i + c.len_utf8())
 }
 
 /// Replace the contents of `//` line comments and `/* */` block comments in
@@ -308,6 +338,104 @@ mod tests {
         assert_eq!(out.matches('\n').count(), 1, "newline preserved");
         assert!(out.starts_with("a "), "code before comment kept: {out:?}");
         assert!(out.ends_with(" c"), "code after comment kept: {out:?}");
+    }
+
+    /// A boundary is a character that cannot continue an identifier — including
+    /// every non-ASCII space, which a byte test and this one agree on.
+    #[test]
+    fn non_identifier_neighbours_are_word_boundaries() {
+        for sep in [
+            ' ',
+            '\n',
+            '.',
+            '\u{85}',
+            '\u{a0}',
+            '\u{1680}',
+            '\u{2000}',
+            '\u{2009}',
+            '\u{2028}',
+            '\u{2029}',
+            '\u{202f}',
+            '\u{205f}',
+            '\u{3000}',
+            '\u{feff}',
+            '\u{2014}',
+            '\u{3001}',
+            '\u{1f600}',
+        ] {
+            let src = format!("{sep}foo{sep}");
+            let at = sep.len_utf8();
+            assert!(
+                !ident_continues_before(&src, at),
+                "U+{:04X} must be a word boundary",
+                sep as u32
+            );
+            assert!(
+                !ident_continues_at(&src, at + 3),
+                "U+{:04X} must be a word boundary",
+                sep as u32
+            );
+            assert_eq!(ident_run_end(&src, at), at + 3);
+            assert_eq!(ident_run_start(&src, at + 3), at);
+        }
+    }
+
+    /// The direction a byte test gets backwards: `ID_Continue` characters, `$`,
+    /// `_` and the zero-width joiners are identifier glue, so `foo` inside
+    /// `na\u{ef}vefoo` is not a standalone word.
+    #[test]
+    fn identifier_neighbours_are_glue() {
+        for glue in [
+            'a',
+            'Z',
+            '0',
+            '_',
+            '$',
+            '\u{e9}',
+            '\u{7dcf}',
+            '\u{5d0}',
+            '\u{3005}',
+            '\u{200c}',
+            '\u{200d}',
+            '\u{1d54f}',
+        ] {
+            let src = format!("{glue}foo{glue}");
+            let at = glue.len_utf8();
+            assert!(
+                ident_continues_before(&src, at),
+                "U+{:04X} must be identifier glue",
+                glue as u32
+            );
+            assert!(
+                ident_continues_at(&src, at + 3),
+                "U+{:04X} must be identifier glue",
+                glue as u32
+            );
+            assert_eq!(ident_run_end(&src, 0), src.len());
+            assert_eq!(ident_run_start(&src, src.len()), 0);
+        }
+    }
+
+    /// `interface $$Slots\u{e9}` declares a different type; a non-ASCII space
+    /// before the keyword is still a boundary.
+    #[test]
+    fn type_declaration_boundaries_are_character_classified() {
+        assert!(!script_declares_type(
+            "<script lang=\"ts\">\ninterface $$Slots\u{e9} {}\n</script>",
+            "$$Slots"
+        ));
+        assert!(!script_declares_type(
+            "<script lang=\"ts\">\n\u{e9}interface $$Slots {}\n</script>",
+            "$$Slots"
+        ));
+        assert!(script_declares_type(
+            "<script lang=\"ts\">\n\u{a0}interface $$Slots {}\n</script>",
+            "$$Slots"
+        ));
+        assert!(script_declares_type(
+            "<script lang=\"ts\">\ninterface $$Slots\u{a0}{}\n</script>",
+            "$$Slots"
+        ));
     }
 
     #[test]
