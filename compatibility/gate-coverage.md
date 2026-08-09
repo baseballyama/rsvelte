@@ -220,7 +220,7 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 1949 generated cases × 3 targets = 5847 comparisons. Where both compilers accept, the
+**Unit.** 2226 generated cases × 3 targets = 6678 comparisons. Where both compilers accept, the
 unit is `js.code` only (`matrix/run.mjs:134,139,166-167`), oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code** (`:150`), which the `invalid-bind` and
 `param-default` families exist to exercise.

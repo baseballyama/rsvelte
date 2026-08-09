@@ -203,7 +203,7 @@ function keywordRegexCases() {
 	// against the legacy `$:` host only. Every other host still holds a scanner
 	// with the previous-byte rule of its own, so crossing it there would enrol
 	// ~178 comparisons of a defect this family did not come to measure. The host
-	// cross therefore runs `delimiters`; see gate-coverage blind spot 5f.
+	// cross therefore runs `delimiters`; see gate-coverage blind spot 5g.
 	const BODY_HOST = 'legacy-reactive';
 	const DEFAULT_BODY = 'delimiters';
 	for (const [prefixName, template] of Object.entries(SLASH_REGEX_PREFIXES)) {
