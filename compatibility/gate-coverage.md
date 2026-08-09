@@ -37,7 +37,7 @@ than four unrelated rows — cite it from a row instead of re-deriving it:
 
 | instance | the reading that is wrong |
 |---|---|
-| §5b, warning codes on the matrix | "0 warning divergences" — the six families that predate `directive-element` emit **0 warnings of any code** over 4704 accepted (case, target) pairs, so the comparison had no population at all |
+| §5b, warning codes on the matrix | "0 warning divergences" — **seven of the ten families emit 0 warnings of any code**, over 5244 accepted (case, target) pairs, so on those the comparison has no population at all |
 | #2707, `verify.mjs` warning comparison | a wiped corpus tree makes an absent `warnings.json` read as "official emitted no warnings" rather than "there is no tree"; the ≥99%-coverage guard covers the output comparison only |
 | #2579 | a baseline entry that "already PASSes" cannot be told from one the run never measured |
 | #2704 | a normalizer that erases the divergence before the comparison sees it |
@@ -285,13 +285,20 @@ divergence under a positional one, which is the #2314 argument applied to a seco
 
 Adding the comparison measured nothing on its own — an instance of *the vacuous green* above —
 and the number is worth keeping because it
-makes the usual "the baseline is empty, so we are fine" reading falsifiable: across the **4704**
-accepted (case, target) pairs of the six families that predate `directive-element`, **both
-compilers emit zero warnings of any code**. The empty warning baseline there is
-*unreachability*, not saturation. `directive-element` and `bind-setter` supply 538 warned pairs
-over six codes (`a11y_click_events_have_key_events`, `a11y_no_static_element_interactions`,
+makes the usual "the baseline is empty, so we are fine" reading falsifiable. Measured per
+family: **seven of the ten emit zero warnings of any code from either compiler**, over **5244**
+accepted (case, target) pairs — `binding-position`, `comment-slot`, `literal-escape`,
+`invalid-bind`, `param-default`, `each-collection`, `param-pattern`. An empty warning baseline
+on those is *unreachability*, not saturation.
+
+The three that do reach warnings all diverge, which is the other half of the same point.
+`directive-element` and `bind-setter` supply 538 warned pairs over six codes
+(`a11y_click_events_have_key_events`, `a11y_no_static_element_interactions`,
 `event_directive_deprecated`, `svelte_component_deprecated`, `svelte_self_deprecated`,
-`export_let_unused`) and 24 of them diverge. **[D]**
+`export_let_unused`); 24 diverge. `keyword-regex` — a family written for a *parser* question,
+by another author, with no warning intent — supplies 60 over two codes and **18 diverge**. That
+last one is the generalization argument: the comparison earns its place on populations nobody
+built for it. **[D]**
 
 Sharpest remaining form: `axes.mjs` generates a `// svelte-ignore a11y_…` comment kind against
 the `comment-slot` seeds, and those seeds produce no a11y warning on either compiler — so the
@@ -493,7 +500,7 @@ official**, while the live divergences are on `<svelte:body>` and `<svelte:self>
 names its element removes that class of misattribution; a hand-written repro cannot, because the
 reporter chooses the element. **[D]**
 
-**Closing 5b/5c:** the matrix runs in ~15 s on ~8,900 comparisons. Widening the markup axis (a
+**Closing 5b/5c:** the matrix costs ~20 s of CPU on ~8,900 comparisons (wall clock on a box running other agents' builds is unusable — a paired A/B inverted once). Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) is cheap relative to every other gate here.
 This is the highest value-per-cost item in this document. The `.warnings` half of that
 recommendation is done.

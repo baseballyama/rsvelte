@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 781 entries)
+## Matrix known failures (`matrix-known-failures.json`, 799 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 60 + 422 + 3`
+Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 18 + 60 + 422 + 3`
 
 ### `binding-position` — 2 entries
 
@@ -191,6 +191,23 @@ three targets, and so does every tight-binding control (`list`, `o.list`, `o['li
 `(list)`). The `await list` rows are error-parity — both compilers reject them — which is 30 of
 the family's comparisons and not a ratchet entry.
 
+### `keyword-regex` — 18 entries
+
+Not the family's own axis, and not its author's doing: these appear because this PR added
+warning-**code** comparison to the gate, and `keyword-regex` is the one pre-existing family whose
+inputs reach a warning. All 18 are one cause on all three targets —
+`perf_avoid_nested_class` never fires for a `class` declared inside a legacy `$:` reactive
+statement. The six cases are the `extends` row against every host and body that puts the class
+there (`legacy-reactive`, `legacy-reactive-block`, and the four `body-*` rows, which run against
+`legacy-reactive` by construction).
+
+Partition of `matrix-known-failures.json` entries under `keyword-regex/` by target: `6 + 6 + 6`
+
+Worth stating because it is the generalization argument for the comparison: a family written for
+a *parser* question, by another author, with no warning intent, contributes 60 warned (case,
+target) pairs and 18 divergences. The comparison earns its place on populations nobody built for
+it.
+
 ### `param-pattern` — 60 entries
 
 Every entry is the **legacy reactive dependency list**, not the statement body: rsvelte emits
@@ -240,8 +257,7 @@ The single most useful fact about the set is where it is **not**: zero entries o
 official across every kind and both modes; the special elements are where per-parent handling has
 drifted from upstream's one predicate per directive.
 
-Partition of `matrix-known-failures.json` entries under `directive-element/` by
-(verdict, host): `114 + 102 + 60 + 24 + 24 + 22 + 20 + 20 + 12 + 12 + 6 + 6`
+Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `114 + 102 + 60 + 24 + 24 + 22 + 20 + 20 + 12 + 12 + 6 + 6`
 
 | verdict | host | entries | cause |
 |---|---|---:|---|

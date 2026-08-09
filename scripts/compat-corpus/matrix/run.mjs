@@ -22,9 +22,9 @@
  *
  * Warning CODES are compared alongside the output, because a warning that never
  * fires has no output to diverge on — `js.code` alone cannot report it. That
- * comparison was worth nothing until the `directive-element` family arrived: the
- * six families that predate it emit zero warnings from either compiler over all
- * 4704 accepted (case, target) pairs, so the comparison would have run on an
+ * comparison was worth nothing until the `directive-element` family arrived:
+ * seven of the ten families emit zero warnings from either compiler over all
+ * 5244 accepted (case, target) pairs, so on those the comparison runs on an
  * empty population. Positions are deliberately left to the collected gate.
  *
  * Ratchet: compatibility/matrix-known-failures.json, shrink-only and two-sided
@@ -103,7 +103,7 @@ const rsvelte = require(BINDING);
 
 // ---- generate + compile ----------------------------------------------------
 
-// The axes generate 2506 cases on an unmodified tree; the floor only has to
+// The axes generate 2963 cases on an unmodified tree; the floor only has to
 // separate "generation broke" from "the gate got easier".
 const MIN_MATRIX_CASES = 1000;
 
@@ -275,7 +275,7 @@ if (UPDATE_BASELINE) {
 	// ratchet. This one is absolute.
 	if (cases.length < MIN_MATRIX_CASES) {
 		console.error(`\n[matrix] refusing to baseline from ${cases.length} generated cases (expected >= ${MIN_MATRIX_CASES}).`);
-		console.error('  the axes generate ~2506; far below that means generation broke, not that the gate got easier.');
+		console.error('  the axes generate ~2963; far below that means generation broke, not that the gate got easier.');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');

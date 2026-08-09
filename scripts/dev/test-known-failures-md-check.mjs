@@ -198,7 +198,7 @@ withCorpus(
 );
 
 // A sub-population partition must be checked against that sub-population, not
-// against the whole ratchet — `comment-slot`'s 204 is not the matrix ratchet's 781.
+// against the whole ratchet — `comment-slot`'s 204 is not the matrix ratchet's 799.
 withCorpus(
 	(d) =>
 		edit(
@@ -215,8 +215,8 @@ withCorpus(
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 60 + 422 + 3`',
-			'Partition of `matrix-known-failures.json` by nothing in particular: `2 + 232 + 90 + 60 + 422 + 3`',
+			'Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 18 + 60 + 422 + 3`',
+			'Partition of `matrix-known-failures.json` by nothing in particular: `2 + 232 + 90 + 18 + 60 + 422 + 3`',
 		),
 	(r) => check('an undeclared partition fails', [r.code, /not declared in PARTITIONS/.test(r.out)], [1, true]),
 );

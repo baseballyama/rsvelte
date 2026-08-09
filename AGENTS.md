@@ -198,12 +198,13 @@ corpus could never have found them — the same lesson as the warning gate, one 
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
 ratcheted through `compatibility/matrix-known-failures.json` with per-cluster justification in
-the paired `.md`. Eight declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
+the paired `.md`. Ten declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
 position, comment kind × insertion slot, invalid `bind:` target × directive slot,
 string-literal escape × template expression slot, `await`/`yield` in a formal parameter list
-× function form × entry point, `{#each}` collection expression × item use, directive kind ×
-element kind × mode, and `bind:` setter shape × element kind — expanded into ~7,500 comparisons
-that run in **~13 s** and need
+× function form × entry point, `{#each}` collection expression × item use, the token a `/`
+follows × host, a name's slot in a binding pattern × statement context, directive kind ×
+element kind × mode, and `bind:` setter shape × element kind — expanded into ~8,900 comparisons
+at **~20 s of CPU** and need
 only `submodules/svelte` plus the NAPI binding, so it gates every PR.
 
 The `bind:` and `param-default` families are the odd ones out and the reason is worth stating:
