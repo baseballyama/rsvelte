@@ -88,7 +88,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403); a rule family measured at **one** of its ~40 codes (2d) | [D] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
-| 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules; whether a folded constant is the *right* value | [S] |
+| 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | neither output is parsed — identical **non-JavaScript** scores `match`; CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules; whether a folded constant is the *right* value | [D] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
@@ -339,12 +339,13 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 3807 generated cases × 3 targets = 11421 comparisons. Where both compilers accept, the
-unit is `js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to
-`verify.mjs`; where both reject it is the error **code**, which the `invalid-bind` and
-`param-default` families exist to exercise. A case may also carry `options`, merged over the
-per-target option set — the `async-derived` family is the only user, and the only place in the
-repo where a compile **option** is an axis rather than a constant (cf. blind spot 1d).
+**Unit.** Generated cases × **up to** 3 targets each. Where both compilers accept, the unit is
+`js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to `verify.mjs`;
+where both reject it is the error **code**, which the `invalid-bind` and `param-default` families
+exist to exercise. A case may also carry `options`, merged over the per-target option set — the
+`async-derived` family is the only user, and the only place in the repo where a compile **option**
+is an axis rather than a constant (cf. blind spot 1d). "Up to" because a case may also decline a
+target outright — blind spot 5m.
 
 ### Blind spot 5a — CLOSED: the module entry point is generated now
 
@@ -660,6 +661,37 @@ slot, an attribute expression, or between two elements — the same restriction 
 records for `POSITIONS` and `mutate.mjs`. And the family reaches only comments attached to a
 statement the transform *removes*; a comment attached to one it keeps and *rewrites* is covered
 by `comment-slot`, not here. **[S]**
+
+### Blind spot 5l — identical garbage is a pass, and 5f/5h's closing note is its general form
+
+5f and 5h each end on "the comparison scores text equality, not whether rsvelte's text is
+JavaScript". The sharpest statement of that is the case where **both** compilers emit text no
+parser accepts: `run.mjs` then scores `match`, and the gate reports success for reproducing
+invalid output. It has no counterpart to `verify.mjs`'s `output-unparseable` verdict
+(`verify.mjs:101-112`).
+
+**[D]** — the `private-field` family's 784 cases include 240 server cells where upstream itself
+emits an assignment to a call expression (`this.#f()++`, `inst.#f() += 1`); the discriminating one
+is `private-field/derived__this__ctor-root__post-increment.svelte.js` on `server`, whose two
+outputs are the same invalid module. Only
+`crates/rsvelte_core/tests/private_field_constructor_grid_2573.rs` observes it, by parsing every
+cell it generates.
+
+The mirror form matters too: oxfmt cannot format an unparseable file, so those cells fall back to
+comparing **raw** text, and an unrelated whitespace difference surfaces as a `js-mismatch` there
+and nowhere else. Both directions argue for the same fix — parse both sides here as `verify.mjs`
+does.
+
+### Blind spot 5m — a case may opt out of a target
+
+`run.mjs` lets a generated case name the targets it is compared on, and `generate.mjs` uses it for
+the 208 `private-field` comparisons where the official compiler's **server** output is not
+JavaScript: with no valid oracle, equality scores reproducing garbage as a pass and anything else
+as a failure. Those cells are therefore unmeasured **against official** on `server` **[D]** — they
+are covered instead by the Rust grid above, which asserts what rsvelte emits and requires the
+recorded set to shrink deliberately rather than silently. The hazard the field introduces is that
+it can also hide a real divergence; only "official's output for this target does not parse"
+justifies it, and nothing enforces that rule mechanically.
 
 ### Blind spot 5n — `constant-fold` compares text, so it cannot see what the folded code *does*
 

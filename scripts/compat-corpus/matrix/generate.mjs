@@ -57,6 +57,12 @@ import {
 	REMOVAL_COMMENT_KINDS,
 	REMOVAL_HOSTS,
 	REMOVAL_SUCCESSORS,
+	PRIVATE_FIELD_KINDS,
+	PRIVATE_FIELD_RECEIVERS,
+	PRIVATE_FIELD_POSITIONS,
+	PRIVATE_FIELD_OPERATORS,
+	PRIVATE_FIELD_UPDATE_OPERATORS,
+	PRIVATE_FIELD_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -383,6 +389,42 @@ function asyncDerivedCases() {
 	return cases;
 }
 
+const CLIENT_ONLY = ['client', 'client-dev'];
+
+function privateFieldCases() {
+	const cases = [];
+	for (const [kindName, initializer] of Object.entries(PRIVATE_FIELD_KINDS)) {
+		const isDerived = kindName.startsWith('derived');
+		for (const [receiverName, receiver] of Object.entries(PRIVATE_FIELD_RECEIVERS)) {
+			// `++`/`--` through a non-`this` receiver is a recorded deliberate
+			// divergence on the client, which an equality gate cannot express.
+			const operators =
+				receiverName === 'this'
+					? { ...PRIVATE_FIELD_OPERATORS, ...PRIVATE_FIELD_UPDATE_OPERATORS }
+					: PRIVATE_FIELD_OPERATORS;
+			for (const [positionName, member] of Object.entries(PRIVATE_FIELD_POSITIONS)) {
+				for (const [operatorName, statement] of Object.entries(operators)) {
+					const isUpdate = operatorName in PRIVATE_FIELD_UPDATE_OPERATORS;
+					const isWrite = isUpdate || !operatorName.startsWith('read-');
+					// A private `$derived` field is a callable on the server, and
+					// upstream writes through one without unwrapping it —
+					// `this.#f()++`, `inst.#f() += 1`, `inst.#f() = v`. Those are
+					// not JavaScript, so there is nothing to compare against.
+					const noServerOracle = isDerived && (isUpdate || (isWrite && receiverName !== 'this'));
+					const body = member.replaceAll('%s', () => statement.replaceAll('%r', () => receiver));
+					cases.push({
+						id: `private-field/${kindName}__${receiverName}__${positionName}__${operatorName}.svelte.js`,
+						source: PRIVATE_FIELD_PREAMBLE.replace('%f', () => initializer).replace('%s', () => body),
+						kind: 'module',
+						...(noServerOracle ? { targets: CLIENT_ONLY } : {}),
+					});
+				}
+			}
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -397,6 +439,7 @@ export const FAMILIES = {
 	'directive-element': directiveElementCases,
 	'bind-setter': bindSetterShapeCases,
 	'removed-statement-comment': removedStatementCommentCases,
+	'private-field': privateFieldCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

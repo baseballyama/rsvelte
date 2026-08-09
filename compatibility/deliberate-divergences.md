@@ -88,11 +88,37 @@ update rows are the ones that need one, because upstream's output there is valid
   `o.#n.v--`, and no subscriber of `o` ever hears about it. `$.update(o.#n)` notifies.
   Upstream's own lowering of `this.#n++` in the same constructor is `$.update(this.#n)`, so
   the helper form is upstream's semantics, not ours.
-The same argument would extend to the constructor-root **read** — `.v` is the untracked read
-and `$.get` the tracked one, so upstream's shortcut under-tracks any receiver that is not the
-object under construction. rsvelte nonetheless takes upstream's form there (#2464), because
-both forms parse and the correctness argument above rests on the parse column. Whether the
-read should follow the update is open: **#2629**.
+The constructor-root **read** looks like the same argument one field over, and #2629 asked
+whether it should follow. **It should not, and the reason is not that both forms parse.**
+
+The behavioural half of the question is real, and was settled by running it rather than arguing
+it. Compile
+
+```js
+export class Box {
+	#n = $state(0);
+	constructor(other) { if (other) globalThis.__seen.push(other.#n); }
+	bump() { this.#n++; }
+}
+```
+
+with official, construct a second `Box` from a live one inside a `$.render_effect`, and `bump()`:
+
+| read form in the constructor | effect runs | values seen |
+|---|---|---|
+| upstream's `other.#n.v` | 1 | `[0]` |
+| `$.get(other.#n)` | 2 | `[0, 1]` |
+
+So `.v` really does drop the dependency, exactly as #2574 claimed. What does not carry over is
+the *other* leg of the update argument. At a constructor root upstream lowers `this.#n++` to
+`$.update(this.#n)` and `inst.#n++` to `inst.#n.v++` — two forms for one position, so rsvelte
+picks the one upstream itself uses for the receiver that is not in doubt. For a **read** upstream
+lowers every receiver to `.v`: there is no second form to prefer, and emitting `$.get` would be
+rsvelte inventing a lowering upstream never produces at a constructor root. Under-tracking a
+constructor-root read is upstream's semantics, not an inconsistency inside it, and the fix
+belongs in `MemberExpression.js` — the same receiver check that closes the two update rows above.
+
+Pinned by `private_field_constructor_grid_2573.rs::a_state_field_read_at_a_constructor_root_takes_upstreams_shortcut`.
 
 ### What would make this entry disappear
 
@@ -126,3 +152,43 @@ Three sites lower an update through a non-`this` receiver, one comment each:
 `private_class_assign_ast.rs` (`visit_update_expression` for the spliced collector,
 `rewrite_update` for the in-place path — both reached from method bodies) and
 `class_transforms.rs::transform_class_methods_non_this` (the constructor root).
+
+---
+
+## Private `$derived` field written on the server
+
+**Pinned by** `crates/rsvelte_core/tests/private_field_constructor_grid_2573.rs`
+(`reproduces_upstreams_invalid_server_output`).
+
+On the server a private `$derived` field holds a **callable** — `#f = $.derived(() => …)`, read
+as `this.#f()` and written as `this.#f(v)`. Upstream's server visitor wraps the read and then
+leaves the surrounding write alone, so for two shapes it emits an assignment whose target is a
+call expression:
+
+| input (`#f = $derived(this.#s * 2)`) | official | parses | rsvelte | parses |
+|---|---|---|---|---|
+| `this.#f += 1` | `this.#f(this.#f() + 1);` | yes | same | yes |
+| `this.#f = 5` | `this.#f(5);` | yes | same | yes |
+| `this.#f++` | `this.#f()++;` | **no** | same | **no** |
+| `inst.#f += 1` | `inst.#f() += 1;` | **no** | same | **no** |
+| `inst.#f = 5` | `inst.#f() = 5;` | **no** | `inst.#f = 5;` | yes |
+
+The first two rows were rsvelte defects and are fixed — the read-wrapping pass classified the
+operator by the byte after `this.#f`, saw `+` rather than `=`, and wrapped the assignment
+*target* into `this.#f() += 1`; a plain `=` outside a constructor was the quiet half, valid
+JavaScript that overwrote the callable with a number so the next read threw.
+
+The remaining rows are **not settled the way the client entry above is**: rsvelte reproduces
+upstream's invalid output for the update and the non-`this` compound rows, which the rule at the
+top of this file says it should not. They are left as they are here, and tracked separately,
+because unwrapping them means choosing a server lowering upstream never emits for a receiver
+that is not `this` — the same decision #2483 took for the client, and it deserves its own
+measurement rather than being folded into a fix for the two rows above.
+
+### Why no gate sees it
+
+- **Generated matrix**: it never parses either output (gate-coverage 5f), and for these cells it
+  has no valid oracle at all, so `matrix/generate.mjs` compares them on the client targets only.
+- **Corpus gate**: `pattern/issues/2573-ctor-private-derived-write.svelte.js` covers the two
+  fixed rows on all three targets. Nothing in the collected corpus writes a private `$derived`
+  field through any receiver — `known-failures.server.json` is `[]`.

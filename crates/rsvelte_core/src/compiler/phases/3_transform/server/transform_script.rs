@@ -5713,67 +5713,14 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 }
             }
             ClassMember::Method(lines) => {
-                let is_constructor = lines
-                    .first()
-                    .is_some_and(|l| memmem::find(l.trim().as_bytes(), b"constructor(").is_some());
-
                 let method_text = lines.join("\n");
-                let mut transformed =
-                    transform_private_derived_accesses_server(&method_text, &derived_private_names);
-
-                // In constructors, convert assignments to derived private fields:
-                // `this.#field = value` → `this.#field(value)`
-                // This only applies when the value is NOT a $.derived() call
-                // (those are already handled by the constructor scanning above)
-                if is_constructor && !derived_private_names.is_empty() {
-                    for private_name in &derived_private_names {
-                        let assign_pattern = format!("this.{} = ", private_name);
-                        let mut new_transformed = String::new();
-                        let mut remaining = transformed.as_str();
-
-                        while let Some(pos) = remaining.find(&assign_pattern) {
-                            new_transformed.push_str(&remaining[..pos]);
-                            let after_assign = &remaining[pos + assign_pattern.len()..];
-
-                            // Check if the value is a $.derived() call - if so, leave as-is
-                            let value_trimmed = after_assign.trim_start();
-                            if value_trimmed.starts_with("$.derived(") {
-                                new_transformed.push_str(&assign_pattern);
-                                remaining = after_assign;
-                                continue;
-                            }
-
-                            // Find the end of the value (semicolon at the same nesting level)
-                            let mut depth = 0;
-                            let mut value_end = None;
-                            for (i, c) in after_assign.char_indices() {
-                                match c {
-                                    '(' | '{' | '[' => depth += 1,
-                                    ')' | '}' | ']' => depth -= 1,
-                                    ';' if depth == 0 => {
-                                        value_end = Some(i);
-                                        break;
-                                    }
-                                    _ => {}
-                                }
-                            }
-
-                            if let Some(end) = value_end {
-                                let value = after_assign[..end].trim();
-                                let _ =
-                                    write!(new_transformed, "this.{}({});", private_name, value);
-                                remaining = &after_assign[end + 1..];
-                            } else {
-                                // No semicolon found, leave as-is
-                                new_transformed.push_str(&assign_pattern);
-                                remaining = after_assign;
-                            }
-                        }
-
-                        new_transformed.push_str(remaining);
-                        transformed = new_transformed;
-                    }
-                }
+                let transformed = rewrite_private_derived_writes_server(
+                    &transform_private_derived_accesses_server(
+                        &method_text,
+                        &derived_private_names,
+                    ),
+                    &derived_private_names,
+                );
 
                 // Skip the usual blank-line separator when a block comment
                 // directly precedes this method (the comment's trailing `\n`
@@ -5792,8 +5739,10 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 // Field/Method arms already do this; ArrowFn previously emitted
                 // verbatim, leaving `this.#<derived>` reads uncalled.
                 let arrow_text = lines.join("\n");
-                let transformed =
-                    transform_private_derived_accesses_server(&arrow_text, &derived_private_names);
+                let transformed = rewrite_private_derived_writes_server(
+                    &transform_private_derived_accesses_server(&arrow_text, &derived_private_names),
+                    &derived_private_names,
+                );
                 new_class_body.push_str(&transformed);
                 new_class_body.push('\n');
                 last_was_comment = false;
@@ -5820,6 +5769,124 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         before_class, class_header, new_class_body, after_class_transformed
     );
 
+    result
+}
+
+/// Split `= …` / `+= …` / `>>>= …` off the text following an assignment target,
+/// returning the operator without its trailing `=` (empty for a plain `=`) and
+/// the rest. `==`, `===` and `=>` are not assignments.
+fn split_assignment_operator(after: &str) -> Option<(&str, &str)> {
+    // Longest first: `>>>=` also starts with `>>=`, `||=` with `|=`.
+    const COMPOUND: &[&str] = &[
+        ">>>=", "<<=", ">>=", "**=", "||=", "&&=", "??=", "+=", "-=", "*=", "/=", "%=", "&=", "|=",
+        "^=",
+    ];
+    let trimmed = after.trim_start();
+    for op in COMPOUND {
+        if let Some(rest) = trimmed.strip_prefix(op) {
+            return Some((&op[..op.len() - 1], rest));
+        }
+    }
+    let rest = trimmed.strip_prefix('=')?;
+    if rest.starts_with('=') || rest.starts_with('>') {
+        return None;
+    }
+    Some(("", rest))
+}
+
+fn ends_with_this_receiver(code: &str) -> bool {
+    let Some(head) = code.strip_suffix("this") else {
+        return false;
+    };
+    !head
+        .chars()
+        .next_back()
+        .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+/// Byte offset of the `;` that ends a value, or `None` if the value runs past
+/// the end of its enclosing bracket — an unbalanced closer means the scan
+/// started somewhere this rewrite cannot reason about.
+fn value_end_semicolon(value: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    for (i, c) in
+        crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(value.as_bytes())
+    {
+        match c {
+            b'(' | b'{' | b'[' => depth += 1,
+            b')' | b'}' | b']' => {
+                depth -= 1;
+                if depth < 0 {
+                    return None;
+                }
+            }
+            b';' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// A private `$derived` field holds a callable on the server, so a write to it
+/// is a setter call: `this.#f = v` → `this.#f(v)`, `this.#f += 1` →
+/// `this.#f(this.#f() + 1)`. Reads are already wrapped when this runs, so the
+/// compound operand is spelled with the call form.
+///
+/// `this` only — upstream lowers any other receiver to an assignment to a call
+/// expression, which is not JavaScript, and rsvelte reproduces that rather than
+/// inventing a form upstream never emits.
+fn rewrite_private_derived_writes_server(code: &str, derived_private_names: &[String]) -> String {
+    if derived_private_names.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for private_name in derived_private_names {
+        let target = format!("this.{private_name}");
+        let mut rewritten = String::new();
+        let mut remaining = result.as_str();
+        while let Some(pos) = remaining.find(&target) {
+            rewritten.push_str(&remaining[..pos]);
+            let after = &remaining[pos + target.len()..];
+            let mut keep = || {
+                rewritten.push_str(&target);
+            };
+            if after
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_alphanumeric() || c == '_')
+            {
+                keep();
+                remaining = after;
+                continue;
+            }
+            let Some((operator, rest)) = split_assignment_operator(after) else {
+                keep();
+                remaining = after;
+                continue;
+            };
+            let value = rest.trim_start();
+            // The field's own declaration keeps its initializer.
+            if operator.is_empty() && value.starts_with("$.derived(") {
+                keep();
+                remaining = after;
+                continue;
+            }
+            let Some(end) = value_end_semicolon(value) else {
+                keep();
+                remaining = after;
+                continue;
+            };
+            let operand = value[..end].trim();
+            if operator.is_empty() {
+                let _ = write!(rewritten, "{target}({operand})");
+            } else {
+                let _ = write!(rewritten, "{target}({target}() {operator} {operand})");
+            }
+            remaining = &value[end..];
+        }
+        rewritten.push_str(remaining);
+        result = rewritten;
+    }
     result
 }
 
@@ -5860,9 +5927,13 @@ fn transform_private_derived_accesses_server(
                 continue;
             }
 
-            let is_assignment = {
-                let trimmed_after = after_match.trim_start();
-                trimmed_after.starts_with('=') && !trimmed_after.starts_with("==")
+            // A compound target is lowered to a setter call afterwards, but only
+            // through `this`: upstream wraps every other receiver, and matching
+            // its `inst.#f() += 1` is the recorded divergence.
+            let is_assignment = match split_assignment_operator(after_match) {
+                Some(("", _)) => true,
+                Some(_) => ends_with_this_receiver(&new_result),
+                None => false,
             };
 
             // A READ of a private `$derived` field is always rewritten to a call

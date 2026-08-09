@@ -109,7 +109,11 @@ const MIN_MATRIX_CASES = 1000;
 
 const cases = generate(FAMILY_KEYS);
 console.log(`[matrix] families: ${FAMILY_KEYS.join(', ')}`);
-console.log(`[matrix] cases: ${cases.length}  targets: ${TARGETS.map((t) => t.key).join(', ')}  comparisons: ${cases.length * TARGETS.length}`);
+const comparisons = cases.reduce(
+	(n, c) => n + TARGETS.filter((t) => !c.targets || c.targets.includes(t.key)).length,
+	0
+);
+console.log(`[matrix] cases: ${cases.length}  targets: ${TARGETS.map((t) => t.key).join(', ')}  comparisons: ${comparisons}`);
 
 fs.rmSync(TREE, { recursive: true, force: true });
 
@@ -142,7 +146,13 @@ function bagDiff(a, b) {
 }
 
 for (const testCase of cases) {
-	for (const target of TARGETS) {
+	// A case may name the targets it can be compared on. The only reason to use
+	// it is an oracle that does not exist: where the official compiler's output
+	// for a target is not JavaScript, "identical bytes" scores reproducing
+	// garbage as a pass and any other divergence as a failure, so the comparison
+	// carries no signal. Never narrow a case to hide a divergence — the ratchet
+	// is for that.
+	for (const target of TARGETS.filter((t) => !testCase.targets || testCase.targets.includes(t.key))) {
 		// `.svelte.(js|ts)` cases are a different entry point, not a flag:
 		// `compile` rejects module source outright ("Expected token }"), so
 		// dispatching on `kind` is what makes the module cases a comparison

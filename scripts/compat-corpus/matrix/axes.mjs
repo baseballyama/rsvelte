@@ -1383,3 +1383,107 @@ export const REMOVAL_HOSTS = {
  * two cannot tell "re-homed correctly" from "dropped, and nothing followed".
  */
 export const REMOVAL_SUCCESSORS = ['succ-none', 'succ-stmt'];
+
+/**
+ * A `#private` class field declared by a rune — the fifth axis family, and the
+ * only one whose product is the constructor rewrite.
+ *
+ * Upstream decides the lowering from four things at once: which rune declared
+ * the field (`AssignmentExpression.js:86-91` proxies only a plain `$state`,
+ * `MemberExpression.js:15-18` reads `$state` / `$state.raw` as `.v` and a
+ * `$derived` through `$.get`), whether the statement is inside a constructor
+ * but outside any nested function (`shared/function.js:9-13`), the receiver,
+ * and the operator. rsvelte reached the same four decisions from three
+ * different code paths, so every fix so far has covered a rectangle of the
+ * product and left its neighbours: #2395 was `this` × `$state` compounds,
+ * #2467 the same operators through a non-`this` receiver, #2573 `$derived`
+ * updates at a constructor root. None of the three is visible to the collected
+ * corpus — `client` sat at 0 known failures throughout — and the sole private
+ * field seed in `COMMENT_SEEDS` writes `this.#n = 1`, one cell that was always
+ * right.
+ *
+ * The update operators are declared apart because the non-`this` half of that
+ * row is a recorded deliberate divergence (`compatibility/deliberate-divergences.md`),
+ * and an output-equality gate has no way to say "expected to differ".
+ */
+export const PRIVATE_FIELD_KINDS = {
+	state: '$state(0)',
+	'state-raw': '$state.raw({})',
+	derived: '$derived(this.#s * 2)',
+	'derived-by': '$derived.by(() => this.#s * 2)',
+};
+
+/**
+ * Upstream keys the private-field path off `PrivateIdentifier` and never off
+ * the receiver, so all three must compile alike; `alias` and `param` differ in
+ * that only one of them can be the object under construction.
+ */
+export const PRIVATE_FIELD_RECEIVERS = {
+	this: 'this.#f',
+	alias: 'inst.#f',
+	param: 'o.#f',
+};
+
+/** Where the statement sits — the axis that decides `in_constructor`. */
+export const PRIVATE_FIELD_POSITIONS = {
+	'ctor-root': `	constructor(o) {
+		const inst = this;
+		%s
+	}`,
+	'ctor-block': `	constructor(o) {
+		const inst = this;
+		if (o) {
+			%s
+		}
+	}`,
+	'ctor-nested-fn': `	constructor(o) {
+		const inst = this;
+		setTimeout(() => {
+			%s
+		});
+	}`,
+	method: `	m(o) {
+		const inst = this;
+		%s
+	}`,
+};
+
+/**
+ * Operators every receiver shares. The arithmetic rows are not interchangeable
+ * for a text scanner: `-=` neighbours `--`, and `/=` opens what also closes a
+ * block comment.
+ */
+export const PRIVATE_FIELD_OPERATORS = {
+	'assign-object': '%r = { a: 1 };',
+	'assign-primitive': '%r = 5;',
+	'add-assign': '%r += 1;',
+	'sub-assign': '%r -= 1;',
+	'div-assign': '%r /= 2;',
+	'exp-assign': '%r **= 2;',
+	'and-assign': '%r &= 5;',
+	'ushr-assign': '%r >>>= 5;',
+	'logical-or-assign': '%r ||= 5;',
+	'logical-and-assign': '%r &&= 5;',
+	'nullish-assign': '%r ??= 5;',
+	'read-call': 'log(%r);',
+	'read-declaration': 'const a = %r;',
+	'read-member': 'const b = %r.foo;',
+	'read-optional': 'const c = %r?.bar;',
+};
+
+/** `this` only — see the note above `PRIVATE_FIELD_KINDS`. */
+export const PRIVATE_FIELD_UPDATE_OPERATORS = {
+	'post-increment': '%r++;',
+	'post-decrement': '%r--;',
+	'pre-increment': '++%r;',
+	'pre-decrement': '--%r;',
+};
+
+/** The declarations every private-field case shares, so only the axes differ. */
+export const PRIVATE_FIELD_PREAMBLE = `export class R {
+	#s = $state(1);
+	#f = %f;
+
+%s
+}
+`;
