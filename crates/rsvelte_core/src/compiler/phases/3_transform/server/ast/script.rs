@@ -496,8 +496,12 @@ fn transform_script<'a>(
                     }
                 }
                 Statement::VariableDeclaration(vd) => {
-                    count_non_reparse(&ret.program.comments, vd.span);
-                    out.extend(lower_variable_declaration(vd, src, is_instance, state));
+                    let lowered =
+                        lower_variable_declaration(vd, src, is_instance, state, &mut verbatim);
+                    if verbatim.is_none() {
+                        count_non_reparse(&ret.program.comments, vd.span);
+                    }
+                    out.extend(lowered);
                 }
                 // INSTANCE-only `ExportNamedDeclaration` override (写经 the per-instance
                 // visitor added in `transform-server.js` line ~127): a declaration-less
@@ -521,8 +525,17 @@ fn transform_script<'a>(
                                 exp.span.start,
                                 vd.span.start,
                             );
-                            count_non_reparse(&ret.program.comments, vd.span);
-                            out.extend(lower_variable_declaration(vd, src, is_instance, state));
+                            let lowered = lower_variable_declaration(
+                                vd,
+                                src,
+                                is_instance,
+                                state,
+                                &mut verbatim,
+                            );
+                            if verbatim.is_none() {
+                                count_non_reparse(&ret.program.comments, vd.span);
+                            }
+                            out.extend(lowered);
                         }
                         decl => {
                             // `export function` / `export class` → keep the inner
@@ -1681,16 +1694,120 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
     }
 }
 
+/// Re-parse a whole `VariableDeclaration` from its source span and read-wrap
+/// each init, for the declarations whose lowering is otherwise nothing but a
+/// re-parse of the pattern and the init. Rebuilding those from SUB-slices leaves
+/// the statement's nodes with no coherent set of source positions, so the
+/// comment carry-over can only collapse them onto one address and every comment
+/// INTERIOR to the initializer is lost; a whole-statement re-parse keeps them.
+///
+/// `None` (fall back to the per-declarator rebuild) unless the declaration is a
+/// single declarator of a kind the rebuild would have reproduced verbatim —
+/// `using` / `await using` are rewritten to `let` there, and a multi-declarator
+/// `let a = …, b = …` is split into one statement per declarator.
+fn reparse_var_decl_whole<'a>(
+    vd: &oxc_ast::ast::VariableDeclaration,
+    src: &str,
+    state: &mut ServerTransformState<'a>,
+) -> Option<Statement<'a>> {
+    if vd.declarations.len() != 1
+        || !matches!(
+            vd.kind,
+            VariableDeclarationKind::Let
+                | VariableDeclarationKind::Const
+                | VariableDeclarationKind::Var
+        )
+    {
+        return None;
+    }
+    let slice = src.get(vd.span.start as usize..vd.span.end as usize)?;
+    let mut stmt = state.reparse_statement(slice)?;
+    let Statement::VariableDeclaration(out_vd) = &mut stmt else {
+        return None;
+    };
+    for d in out_vd.declarations.iter_mut() {
+        if let Some(init) = d.init.as_mut() {
+            super::read_wrap::wrap_reads(
+                init,
+                state.b,
+                state.analysis,
+                state.analysis.root.instance_scope_index,
+            );
+        }
+    }
+    Some(stmt)
+}
+
+/// The rune a declarator's init is, if any.
+///
+/// Store-rune conflict: `let x = $state()` where the `$state` store subscription
+/// is LEXICALLY VISIBLE at the instance scope is a store read, not the rune.
+/// Upstream's `get_rune` returns null (the auto-created `$state`
+/// store-subscription binding shadows the rune), so the declarator falls through
+/// to the ordinary read-wrap path, which emits
+/// `$.store_get(($$store_subs ??= {}), "$state", state)()`.
+///
+/// The lookup uses the `$`-PREFIXED callee name (`$state`), not the base
+/// `state`, and requires an actual STORE-SUBSCRIPTION binding
+/// (`BindingKind::StoreSub`, created only when the store is really read as
+/// `$state`). This precisely distinguishes the conflict from an ordinary rune:
+/// `let props = $props()` binds `props` but registers no `$props` store
+/// subscription, and `let state = $state(0)` (no `$state` read anywhere)
+/// registers none either — both correctly stay runes. The ancestor-or-self
+/// visibility check excludes a same-named binding in a DESCENDANT scope surfaced
+/// by the intentionally root-polluted scope table.
+///
+/// INSTANCE-only: store auto-subscriptions exist only in the instance script, so
+/// a module-script `const data = $state({…})` (with an unrelated module `const
+/// state`) stays the rune (`inspect-derived-2`).
+fn declarator_rune(
+    d: &oxc_ast::ast::VariableDeclarator,
+    is_instance: bool,
+    state: &ServerTransformState<'_>,
+) -> Option<DeclRune> {
+    let rune = d.init.as_ref().and_then(detect_decl_rune)?;
+    if is_instance
+        && let Some(callee) = d.init.as_ref().and_then(rune_callee_name)
+        && let Some(bidx) = state
+            .analysis
+            .root
+            .get_binding(callee, state.analysis.root.instance_scope_index)
+        && matches!(
+            state.analysis.root.bindings[bidx].kind,
+            BindingKind::StoreSub
+        )
+        && state.analysis.root.is_scope_ancestor_of(
+            state.analysis.root.bindings[bidx].scope_index,
+            state.analysis.root.instance_scope_index,
+        )
+    {
+        return None;
+    }
+    Some(rune)
+}
+
 /// Lower a single `VariableDeclaration` (runes branch). Returns the rebuilt
 /// statements (ONE per top-level declarator, mirroring the server text-oracle's
 /// `split_comma_separated_declarations`), or an empty vec if every declarator
-/// was dropped.
+/// was dropped. `verbatim` is set to the source range when the declaration was
+/// re-parsed WHOLE, which is what lets its interior comments be replayed.
 fn lower_variable_declaration<'a>(
     vd: &oxc_ast::ast::VariableDeclaration,
     src: &str,
     is_instance: bool,
     state: &mut ServerTransformState<'a>,
+    verbatim: &mut Option<Span>,
 ) -> Vec<Statement<'a>> {
+    if vd
+        .declarations
+        .first()
+        .is_some_and(|d| declarator_rune(d, is_instance, state).is_none())
+        && let Some(stmt) = reparse_var_decl_whole(vd, src, state)
+    {
+        *verbatim = Some(vd.span);
+        return vec![stmt];
+    }
+
     let b = state.b;
     let kind = match vd.kind {
         VariableDeclarationKind::Const => VariableDeclarationKind::Const,
@@ -1710,47 +1827,7 @@ fn lower_variable_declaration<'a>(
         // Per-source-declarator pair accumulator.
         let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> =
             Vec::new();
-        let mut rune = d.init.as_ref().and_then(detect_decl_rune);
-        // Store-rune conflict: `let x = $state()` where the `$state` store
-        // subscription is LEXICALLY VISIBLE at the instance scope is a store
-        // read, not the rune. Upstream's `get_rune` returns null (the auto-created
-        // `$state` store-subscription binding shadows the rune), so the declarator
-        // falls through to the ordinary read-wrap path, which emits
-        // `$.store_get(($$store_subs ??= {}), "$state", state)()`. Nullify the
-        // rune here so the `None` branch below handles it.
-        //
-        // Look up the `$`-PREFIXED callee name (`$state`), not the base `state`,
-        // and require it to be an actual STORE-SUBSCRIPTION binding
-        // (`BindingKind::StoreSub`, created only when the store is really read as
-        // `$state`). This precisely distinguishes the conflict from an ordinary
-        // rune: `let props = $props()` binds `props` but registers no `$props`
-        // store subscription, and `let state = $state(0)` (no `$state` read
-        // anywhere) registers none either — both correctly stay runes. The
-        // ancestor-or-self visibility check excludes a same-named binding in a
-        // DESCENDANT scope surfaced by the intentionally root-polluted scope table.
-        //
-        // INSTANCE-only: store auto-subscriptions exist only in the instance
-        // script, so a module-script `const data = $state({…})` (with an unrelated
-        // module `const state`) stays the rune (`inspect-derived-2`).
-        if is_instance
-            && rune.is_some()
-            && let Some(callee) = d.init.as_ref().and_then(rune_callee_name)
-            && let Some(bidx) = state
-                .analysis
-                .root
-                .get_binding(callee, state.analysis.root.instance_scope_index)
-            && matches!(
-                state.analysis.root.bindings[bidx].kind,
-                BindingKind::StoreSub
-            )
-            && state.analysis.root.is_scope_ancestor_of(
-                state.analysis.root.bindings[bidx].scope_index,
-                state.analysis.root.instance_scope_index,
-            )
-        {
-            rune = None;
-        }
-        match rune {
+        match declarator_rune(d, is_instance, state) {
             None => {
                 // Non-rune declarator: re-parse the whole declarator span as a
                 // `let <decl>;` so the pattern + init survive verbatim, then
@@ -2788,14 +2865,18 @@ fn transform_script_legacy<'a>(
                                 exp.span.start,
                                 vd.span.start,
                             );
-                            count_non_reparse(&ret.program.comments, vd.span);
-                            out.extend(lower_legacy_var_decl(
+                            let lowered = lower_legacy_var_decl(
                                 vd,
                                 src,
                                 state,
                                 true,
                                 &mut array_counter,
-                            ));
+                                &mut verbatim,
+                            );
+                            if verbatim.is_none() {
+                                count_non_reparse(&ret.program.comments, vd.span);
+                            }
+                            out.extend(lowered);
                         }
                         other => {
                             // `export function` / `export class` → keep the inner
@@ -2825,14 +2906,18 @@ fn transform_script_legacy<'a>(
                     }
                 }
                 Statement::VariableDeclaration(vd) => {
-                    count_non_reparse(&ret.program.comments, vd.span);
-                    out.extend(lower_legacy_var_decl(
+                    let lowered = lower_legacy_var_decl(
                         vd,
                         src,
                         state,
                         false,
                         &mut array_counter,
-                    ));
+                        &mut verbatim,
+                    );
+                    if verbatim.is_none() {
+                        count_non_reparse(&ret.program.comments, vd.span);
+                    }
+                    out.extend(lowered);
                 }
                 Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$" => {
                     // Top-level legacy reactive `$:` statement. Upstream keeps the
@@ -3175,14 +3260,31 @@ fn collect_read_identifiers_in_statement(stmt: &Statement, out: &mut Vec<String>
 }
 
 /// Lower a legacy `VariableDeclaration`. `is_export` marks `export let …`
-/// declarators whose simple-identifier bindings are bindable props.
+/// declarators whose simple-identifier bindings are bindable props. `verbatim`
+/// is set to the source range when the declaration was re-parsed WHOLE, which is
+/// what lets its interior comments be replayed.
 fn lower_legacy_var_decl<'a>(
     vd: &oxc_ast::ast::VariableDeclaration,
     src: &str,
     state: &mut ServerTransformState<'a>,
     is_export: bool,
     array_counter: &mut u32,
+    verbatim: &mut Option<Span>,
 ) -> Vec<Statement<'a>> {
+    if vd.declarations.first().is_some_and(|d| {
+        let mut leaves: Vec<String> = Vec::new();
+        collect_binding_pattern_idents(&d.id, &mut leaves);
+        // A prop lowers to `$$props[…]` and a destructured state expands into a
+        // temp group; a plain or identifier-state declarator does neither.
+        !leaves.iter().any(|n| legacy_binding_is_prop(state, n))
+            && (matches!(d.id, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
+                || !leaves.iter().any(|n| legacy_binding_is_state(state, n)))
+    }) && let Some(stmt) = reparse_var_decl_whole(vd, src, state)
+    {
+        *verbatim = Some(vd.span);
+        return vec![stmt];
+    }
+
     let b = state.b;
     let kind = match vd.kind {
         VariableDeclarationKind::Const => VariableDeclarationKind::Const,

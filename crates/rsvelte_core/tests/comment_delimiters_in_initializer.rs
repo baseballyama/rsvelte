@@ -16,6 +16,12 @@
 //! inputs, not decoration. The real-world corpus contains none of them — 10,389
 //! files are byte-identical across this change — which is why they need a test
 //! of their own.
+//!
+//! The SERVER half of the file is here for the opposite reason: the corpus gate
+//! ignores comments entirely (`ast_equiv_batch` runs under
+//! `CommentPolicy::Ignore`), so a divergence living only in a comment is scored
+//! a pass on every entry and every target. A dropped comment is observable
+//! nowhere but in a text assertion like these.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -69,14 +75,91 @@ fn a_closing_paren_in_a_comment_does_not_end_the_initializer() {
     );
 }
 
-/// The server target never ran this scan; it drops the comment and keeps both
-/// operands. That is the control: a fix that reached the server would move it.
+/// The server target never ran this scan, so it must keep both operands
+/// whatever the client does. It keeps the comment too: the server rebuilds a
+/// declaration from its source, and a comment INTERIOR to the initializer only
+/// survives when that rebuild is a whole-statement re-parse.
 #[test]
-fn the_server_still_keeps_both_operands() {
+fn the_server_keeps_both_operands_and_the_comment() {
     let out = compile_to(SEMI_MID, GenerateMode::Server);
     assert!(
-        out.contains("let x = a + b;"),
+        out.contains("let x = a + // ; c\n\t\tb;"),
         "the server initializer changed:\n{out}"
+    );
+}
+
+/// A declaration is rebuilt from re-parsed SUB-slices (pattern, then init), so
+/// its nodes carry no coherent set of source positions and the comment
+/// carry-over can only collapse them onto one address — which drops every
+/// comment interior to the initializer and re-flows it onto one line. These
+/// three cover the bracket kinds that interior position comes in.
+const OBJECT_INIT: &str = "<script>\n\tlet data = {\n\t\t/* c */\n\t\ta: 1\n\t};\n\tfunction go() { data = { a: 2 }; }\n</script>\n\n<p on:click={go}>{data.a}</p>\n";
+
+const ARRAY_INIT: &str = "<script>\n\tlet items = [\n\t\t/* ) c */\n\t\t1\n\t];\n\tfunction go() { items = [2]; }\n</script>\n\n<p on:click={go}>{items[0]}</p>\n";
+
+const CALL_ARGS: &str = "<script>\n\tlet v = foo(\n\t\t/* ) c */\n\t\t1\n\t);\n\tfunction go() { v = 2; }\n</script>\n\n<p on:click={go}>{v}</p>\n";
+
+#[test]
+fn a_comment_inside_an_object_initializer_survives_the_server() {
+    let out = compile_to(OBJECT_INIT, GenerateMode::Server);
+    assert!(
+        out.contains("let data = {\n\t\t/* c */\n\t\ta: 1\n\t};"),
+        "the object initializer lost its comment or its layout:\n{out}"
+    );
+}
+
+#[test]
+fn a_comment_inside_an_array_initializer_survives_the_server() {
+    let out = compile_to(ARRAY_INIT, GenerateMode::Server);
+    assert!(
+        out.contains("let items = [\n\t\t/* ) c */\n\t\t1\n\t];"),
+        "the array initializer lost its comment or its layout:\n{out}"
+    );
+}
+
+#[test]
+fn a_comment_inside_a_call_argument_list_survives_the_server() {
+    let out = compile_to(CALL_ARGS, GenerateMode::Server);
+    assert!(
+        out.contains("let v = foo(\n\t\t/* ) c */\n\t\t1\n\t);"),
+        "the call argument list lost its comment or its layout:\n{out}"
+    );
+}
+
+/// Control: a comment interior to a statement BODY already survived, and a
+/// whole-statement re-parse of a DECLARATION must not disturb it.
+#[test]
+fn a_comment_inside_an_if_block_still_survives_the_server() {
+    let source = "<script>\n\tlet a = 1;\n\tlet b = 0;\n\tif (a) {\n\t\t/* inner */\n\t\tb = 1;\n\t}\n</script>\n{b}\n";
+    let out = compile_to(source, GenerateMode::Server);
+    assert!(
+        out.contains("if (a) {\n\t\t/* inner */\n\t\tb = 1;\n\t}"),
+        "the if-block comment moved:\n{out}"
+    );
+}
+
+/// Control: a declaration the server must NOT keep verbatim. `export let x` is
+/// prop-lowered to `$$props['x']`, so the whole-statement re-parse cannot apply
+/// — a guard that let it through would emit the source declaration unchanged.
+#[test]
+fn an_exported_prop_is_still_prop_lowered() {
+    let source = "<script>\n\texport let x = {\n\t\t/* c */\n\t\ta: 1\n\t};\n</script>\n{x.a}\n";
+    let out = compile_to(source, GenerateMode::Server);
+    assert!(
+        out.contains("$$props['x']"),
+        "the prop was emitted as a plain declaration:\n{out}"
+    );
+}
+
+/// Control: a multi-declarator declaration is still SPLIT into one statement
+/// per declarator, which a whole-statement re-parse would undo.
+#[test]
+fn a_multi_declarator_declaration_is_still_split() {
+    let source = "<script>\n\tlet a = 1, b = 2;\n\tfunction go() { a = 3; b = 4; }\n</script>\n\n<p on:click={go}>{a}{b}</p>\n";
+    let out = compile_to(source, GenerateMode::Server);
+    assert!(
+        out.contains("let a = 1;\n\tlet b = 2;"),
+        "the declarators were not split:\n{out}"
     );
 }
 
