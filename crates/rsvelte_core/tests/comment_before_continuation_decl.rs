@@ -113,3 +113,17 @@ fn a_plain_string_folds_with_a_block_comment_above_it() {
         "the no-continuation control moved:\n{out}"
     );
 }
+
+/// Guards the hazard the fix introduces rather than the defect it removes:
+/// comment text is now dropped from the joined line, so a commented-out
+/// declaration must not become a folded constant.
+#[test]
+fn a_commented_out_declaration_is_not_folded() {
+    let out = server(
+        "<script>\n  let n = $state(0);\n  /* const cont = \"zz\"; */\n  const cont = \"ab\";\n</script>\n\n<p>{cont}{n}</p>\n",
+    );
+    assert!(
+        out.contains("<p>ab0</p>"),
+        "a commented-out declaration was folded:\n{out}"
+    );
+}
