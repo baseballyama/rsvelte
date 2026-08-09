@@ -48,6 +48,11 @@ import {
 	ASYNC_DERIVED_DECLARATIONS,
 	ASYNC_DERIVED_IGNORES,
 	ASYNC_DERIVED_ENTRIES,
+	REMOVED_STATEMENTS,
+	REMOVAL_COMMENT_SLOTS,
+	REMOVAL_COMMENT_KINDS,
+	REMOVAL_HOSTS,
+	REMOVAL_SUCCESSORS,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -284,6 +289,40 @@ function directiveElementCases() {
 	return cases;
 }
 
+function removedStatementCommentCases() {
+	const cases = [];
+	const indent = (text, pad) =>
+		text
+			.split('\n')
+			.map((line) => (line === '' ? line : pad + line))
+			.join('\n');
+	for (const [stmtName, template] of Object.entries(REMOVED_STATEMENTS)) {
+		for (const slot of REMOVAL_COMMENT_SLOTS) {
+			if (slot === 'interior' && !template.includes('%I')) continue;
+			for (const kindName of REMOVAL_COMMENT_KINDS) {
+				const comment = COMMENT_KINDS[kindName];
+				for (const [hostName, host] of Object.entries(REMOVAL_HOSTS)) {
+					for (const succName of REMOVAL_SUCCESSORS) {
+						let stmt = template.replace('\n%I', slot === 'interior' ? `\n\t${comment}` : '');
+						if (slot === 'leading') stmt = `${comment}\n${stmt}`;
+						if (slot === 'trailing') stmt = `${stmt} ${comment}`;
+						// One nesting level for `module`, two for a component `<script>`
+						// (three inside `instance-fn`'s function body).
+						const pad = hostName === 'instance-fn' ? '\t\t' : '\t';
+						const succ = succName === 'succ-stmt' ? `${pad}console.log(2);\n` : '';
+						cases.push({
+							id: `removed-statement-comment/${stmtName}__${slot}-${kindName}__${hostName}__${succName}${host.ext}`,
+							source: host.wrap(indent(stmt, pad), succ),
+							...(host.ext === '.svelte.js' ? { kind: 'module' } : {}),
+						});
+					}
+				}
+			}
+		}
+	}
+	return cases;
+}
+
 function bindSetterShapeCases() {
 	const cases = [];
 	for (const [shapeName, expression] of Object.entries(BIND_SETTER_SHAPES)) {
@@ -329,6 +368,7 @@ export const FAMILIES = {
 	'param-pattern': paramPatternCases,
 	'directive-element': directiveElementCases,
 	'bind-setter': bindSetterShapeCases,
+	'removed-statement-comment': removedStatementCommentCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

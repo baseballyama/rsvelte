@@ -1236,3 +1236,77 @@ export function read() {
 	},
 };
 
+/**
+ * Statements the SERVER transform REMOVES, × the comment slot the comment sits
+ * in — the fifth axis family, and the first whose subject is what a removal
+ * takes with it rather than what it emits.
+ *
+ * Upstream removes the statement NODE and lets esrap's comment cursor flush the
+ * orphaned comments from the enclosing (located) body. rsvelte removed a source
+ * RANGE on the `.svelte.js` module path and left the comment region of a dropped
+ * statement unreferenced on the component path, so both took the comments with
+ * the statement (#2567).
+ *
+ * The product is what finds it, because the two paths are different code and
+ * they failed differently: the module path kept the LEADING comment and ate only
+ * the INTERIOR one, the component path ate both. A single case in either slot,
+ * on either host, reads as a complete repro of a defect that is half fixed.
+ *
+ * `%I` marks the interior slot; a removal with no callback body has none.
+ */
+export const REMOVED_STATEMENTS = {
+	effect: '$effect(() => {\n%I\n\tconsole.log(a);\n});',
+	'effect-pre': '$effect.pre(() => {\n%I\n\tconsole.log(a);\n});',
+	'effect-root': '$effect.root(() => {\n%I\n\tconsole.log(a);\n});',
+	inspect: '$inspect(a);',
+};
+
+/** Where the comment sits relative to the removed statement. */
+export const REMOVAL_COMMENT_SLOTS = ['leading', 'interior', 'trailing'];
+
+/**
+ * The [`COMMENT_KINDS`] subset this family carries. The delimiter-bearing rows
+ * are not decoration: the module path finds the removed statement's end with a
+ * paren/brace scanner, so a `)` or `}` inside the comment is what tells a
+ * comment-blind scan apart from a comment-aware one — and the whole family
+ * exists because that scan deleted a range.
+ */
+export const REMOVAL_COMMENT_KINDS = [
+	'line',
+	'block',
+	'line-with-brace',
+	'line-with-paren',
+	'block-with-paren',
+	'svelte-ignore',
+];
+
+/**
+ * What encloses the removed statement. `module` is `compileModule` — a different
+ * entry point AND a different pipeline (text rewriting, not the AST comment
+ * carry-over); `instance-top` is the component instance script's top level, the
+ * only host whose region bookkeeping a removal can strand; `instance-fn` nests
+ * it one function deep, where the statement is not a top-level region at all.
+ */
+export const REMOVAL_HOSTS = {
+	module: {
+		ext: '.svelte.js',
+		wrap: (stmt, succ) => `export function f(a) {\n${stmt}\n${succ}}\n`,
+	},
+	'instance-top': {
+		ext: '.svelte',
+		wrap: (stmt, succ) => `<script>\n\tlet a = 1;\n${stmt}\n${succ}</script>\n\n<p>{a}</p>\n`,
+	},
+	'instance-fn': {
+		ext: '.svelte',
+		wrap: (stmt, succ) =>
+			`<script>\n\tlet a = 1;\n\tfunction f() {\n${stmt}\n${succ}\t}\n\tf();\n</script>\n\n<p>{a}</p>\n`,
+	},
+};
+
+/**
+ * Whether a statement survives AFTER the removed one. With no successor the
+ * orphaned comments have nothing to re-home onto, and upstream and rsvelte
+ * resolve that differently from the successor case — so scoring only one of the
+ * two cannot tell "re-homed correctly" from "dropped, and nothing followed".
+ */
+export const REMOVAL_SUCCESSORS = ['succ-none', 'succ-stmt'];

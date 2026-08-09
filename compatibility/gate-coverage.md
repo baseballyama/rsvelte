@@ -339,7 +339,7 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 3123 generated cases × 3 targets = 9369 comparisons. Where both compilers accept, the
+**Unit.** 3519 generated cases × 3 targets = 10557 comparisons. Where both compilers accept, the
 unit is `js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code**, which the `invalid-bind` and
 `param-default` families exist to exercise. A case may also carry `options`, merged over the
@@ -582,7 +582,6 @@ are binding positions of the same kind that no row reaches. **[S]**
 And the comparison is the one every gate in this document shares: the case scores on whether the
 two texts are equal, not on whether rsvelte's text is JavaScript. It reports #2608 because
 official's output differs, not because `({ id: id() }) =>` fails to parse — see 19a.
-
 ### Blind spot 5i — the directive families see the parent, not the ancestry or the sibling
 
 Families `directive-element` (19 directive kinds × 13 element kinds × 2 modes) and `bind-setter`
@@ -637,7 +636,34 @@ exactly like a shape axis. **[S]**
 
 ---
 
-**Closing 5b/5c:** the matrix costs ~20 s of CPU on ~8,900 comparisons (wall clock on a box running other agents' builds is unusable — a paired A/B inverted once). Widening the markup axis (a
+### Blind spot 5k — comments are observable HERE and nowhere else, and only inside `<script>`
+
+This gate compares oxfmt-normalized `js.code` **as text** (`run.mjs:260-262`, verdict
+`js-mismatch`) with no AST fallback, so a divergence living only in comments is a failure here.
+That makes §5 the only gate in this document that can observe one at all: gate 1 defers every
+byte-different pair to `ast_equiv_batch` under `CommentPolicy::Ignore` (blind spot 1a), and
+gate 20 buckets it as `comment-mismatch`, which is counted and **not ratcheted** (blind spot
+20e). A `pattern-corpus` file for a dropped comment therefore gates nothing — it passes with or
+without the fix — which is why #2567's repro is a Rust text assertion
+(`crates/rsvelte_core/tests/server_removed_statement_comments_2567.rs`) rather than a corpus
+entry.
+
+The `removed-statement-comment` family (396 cases) is the generated half of that: statements the
+server REMOVES (`$effect` / `$effect.pre` / `$effect.root` / `$inspect`) × comment slot
+(leading / interior / trailing) × 6 comment kinds × host (`compileModule`, instance-script top
+level, one function deep) × successor present or absent. The host axis is load-bearing rather
+than decorative — the module path removes a source RANGE and the component path drops an
+unreferenced comment region, so before #2567 the two ate *different* subsets of the same two
+comments, and a repro on either alone reads as a complete fix.
+
+What it still cannot see, measured rather than guessed: **the comment payload never leaves a
+`<script>` body.** Every host here wraps a JS statement; no case puts a comment in a markup
+slot, an attribute expression, or between two elements — the same restriction blind spot 5c
+records for `POSITIONS` and `mutate.mjs`. And the family reaches only comments attached to a
+statement the transform *removes*; a comment attached to one it keeps and *rewrites* is covered
+by `comment-slot`, not here. **[S]**
+
+**Closing 5b/5c:** the matrix costs ~20 s of CPU on ~10,000 comparisons (wall clock on a box running other agents' builds is unusable — a paired A/B inverted once). Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) is cheap relative to every other gate here.
 This is the highest value-per-cost item in this document. The `.warnings` half of that
 recommendation is done.

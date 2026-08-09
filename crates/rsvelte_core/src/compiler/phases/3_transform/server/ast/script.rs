@@ -333,6 +333,14 @@ fn register_comment_region(
     registry.register(text, &kept)
 }
 
+/// Whether an emitted statement can carry a comment region. An `EmptyStatement`
+/// cannot: a bare one is filtered out by the printer, and a kept one (`;;`) is a
+/// span sentinel that [`comments::Place`] refuses to rewrite — either way the
+/// region would go unreferenced and its comments die.
+fn anchors_a_region(stmt: &Statement<'_>) -> bool {
+    !matches!(stmt, Statement::EmptyStatement(_))
+}
+
 /// Source offset the spans of a statement re-parsed from `src[start..end]` are
 /// relative to — `reparse_statement` trims its input.
 fn reparse_origin(src: &str, start: u32, end: u32) -> u32 {
@@ -468,12 +476,14 @@ fn transform_script<'a>(
     classify_comments(&ret.program.body, &ret.program.comments);
 
     let mut out: Vec<Statement<'a>> = Vec::new();
-    let mut prev_end: u32 = 0;
+    // Start of the region the next EMITTED statement carries. A statement the
+    // transform drops does not advance it, so its comments (leading and interior
+    // alike) are re-homed onto the next survivor — upstream removes the node and
+    // lets esrap's cursor flush them from the enclosing body for the same effect.
+    let mut region_start: u32 = 0;
 
     for stmt in ret.program.body.iter() {
-        let region_start = prev_end;
         let stmt_span = stmt.span();
-        prev_end = stmt_span.end;
         let out_len = out.len();
         let sink_len = import_sink.as_deref().map_or(0, Vec::len);
         // Set by every branch that re-parses the statement WHOLE from a source
@@ -712,9 +722,13 @@ fn transform_script<'a>(
             }
         }
 
-        // Anchor the region on the FIRST statement this source statement emitted;
-        // emitting nothing leaves the region unreferenced, so its comments die
-        // with the statement instead of landing inside an unrelated node.
+        let into_sink = import_sink.as_deref().is_some_and(|s| s.len() > sink_len);
+        let anchor = out.iter().skip(out_len).position(anchors_a_region);
+        if !into_sink && anchor.is_none() {
+            continue;
+        }
+        // Anchor the region on the first statement this source statement emitted
+        // that can carry one.
         if let Some(mut place) = place_on_region(
             &mut state.comments,
             src,
@@ -723,16 +737,17 @@ fn transform_script<'a>(
             stmt_span,
             verbatim,
         ) {
-            if import_sink.as_deref().is_some_and(|s| s.len() > sink_len) {
+            if into_sink {
                 if let Some(sink) = import_sink.as_deref_mut()
                     && let Some(first) = sink.get_mut(sink_len)
                 {
                     place.visit_statement(first);
                 }
-            } else if let Some(first) = out.get_mut(out_len) {
+            } else if let Some(first) = anchor.and_then(|i| out.get_mut(out_len + i)) {
                 place.visit_statement(first);
             }
         }
+        region_start = stmt_span.end;
     }
 
     // Lower `$state` / `$derived` class-field initializers in every emitted
@@ -2799,12 +2814,12 @@ fn transform_script_legacy<'a>(
     // within) so the second array destructure is named `$$array_1`, not `$$array`
     // (写经 the per-component `scope.generate('$$array')`).
     let mut array_counter: u32 = 0;
-    let mut prev_end: u32 = 0;
+    // See the runes loop: a dropped statement does not advance the region, so its
+    // comments are re-homed onto the next survivor instead of dying with it.
+    let mut region_start: u32 = 0;
 
     for stmt in ret.program.body.iter() {
-        let region_start = prev_end;
         let stmt_span = stmt.span();
-        prev_end = stmt_span.end;
         let out_len = out.len();
         let reactive_len = reactive.len();
         let sink_len = import_sink.as_deref().map_or(0, Vec::len);
@@ -3021,9 +3036,13 @@ fn transform_script_legacy<'a>(
             }
         }
 
-        // Anchor the region on the FIRST statement this source statement emitted;
-        // emitting nothing leaves the region unreferenced, so its comments die
-        // with the statement instead of landing inside an unrelated node.
+        let into_sink = import_sink.as_deref().is_some_and(|s| s.len() > sink_len);
+        let anchor = out.iter().skip(out_len).position(anchors_a_region);
+        if !into_sink && anchor.is_none() && reactive.len() == reactive_len {
+            continue;
+        }
+        // Anchor the region on the first statement this source statement emitted
+        // that can carry one.
         if let Some(mut place) = place_on_region(
             &mut state.comments,
             src,
@@ -3032,13 +3051,13 @@ fn transform_script_legacy<'a>(
             stmt_span,
             verbatim,
         ) {
-            if import_sink.as_deref().is_some_and(|s| s.len() > sink_len) {
+            if into_sink {
                 if let Some(sink) = import_sink.as_deref_mut()
                     && let Some(first) = sink.get_mut(sink_len)
                 {
                     place.visit_statement(first);
                 }
-            } else if let Some(first) = out.get_mut(out_len) {
+            } else if let Some(first) = anchor.and_then(|i| out.get_mut(out_len + i)) {
                 place.visit_statement(first);
             } else if let Some(entry) = reactive.get_mut(reactive_len) {
                 // Upstream rebuilds the `$` label as a loc-less `b.labeled(...)`
@@ -3054,6 +3073,7 @@ fn transform_script_legacy<'a>(
                 }
             }
         }
+        region_start = stmt_span.end;
     }
 
     // Topologically reorder the reactive `$:` statements so each runs after the

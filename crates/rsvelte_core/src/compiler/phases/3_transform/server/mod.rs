@@ -289,6 +289,80 @@ where
     current
 }
 
+/// Byte ranges of the `//` / `/* */` comments in `source[start..end]` that lie in
+/// JS code — the lexical counterpart of [`code_match_positions`], which skips the
+/// same string / template literals.
+fn comment_ranges_in(source: &str, start: usize, end: usize) -> Vec<(usize, usize)> {
+    let bytes = source.as_bytes();
+    let n = end.min(bytes.len());
+    let mut out = Vec::new();
+    let mut i = start;
+    while i < n {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                i = skip_string_literal(bytes, i);
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
+                let from = i;
+                i += 2;
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                out.push((from, i));
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
+                let from = i;
+                i += 2;
+                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(n);
+                out.push((from, i));
+                continue;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    out
+}
+
+/// The text a removed statement `source[start..end)` leaves behind: its interior
+/// comments, replayed at the removal point on their own lines.
+///
+/// Upstream removes the statement NODE, so esrap still flushes the comments that
+/// were inside it from the enclosing (located) body. Deleting the source range
+/// wholesale would take them with it.
+fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> String {
+    // Only a statement on its own line can host a replayed `//` comment without
+    // commenting out whatever shares the line.
+    let line_start = source[..start].rfind('\n').map(|n| n + 1).unwrap_or(0);
+    let indent = &source[line_start..start];
+    if !indent.chars().all(|c| c == ' ' || c == '\t') {
+        return String::new();
+    }
+    let ranges = comment_ranges_in(source, start, end);
+    if ranges.is_empty() {
+        return String::new();
+    }
+    let mut out = String::new();
+    for (i, &(from, to)) in ranges.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+            out.push_str(indent);
+        }
+        out.push_str(source[from..to].trim_end());
+    }
+    // Nothing may follow a replayed comment on its line.
+    if !matches!(source.as_bytes().get(end), None | Some(b'\n') | Some(b'\r')) {
+        out.push('\n');
+        out.push_str(indent);
+    }
+    out
+}
+
 /// Strip $effect and $effect.root blocks from source code.
 /// In SSR, effects don't run, so they should be removed or replaced with no-ops.
 /// - `$effect.root(() => { ... })` -> `() => {}` (returns a no-op cleanup function)
@@ -314,6 +388,11 @@ fn strip_effects_from_source(source: &str) -> String {
         end
     };
 
+    let remove_statement = |s: &str, pos: usize, expr_end: usize| -> (usize, String) {
+        let end = consume_statement_tail(s, expr_end);
+        (end, kept_comments_of_removed_range(s, pos, end))
+    };
+
     // `$effect.root(...)` has two upstream lowerings:
     //   - statement position  → removed entirely (ExpressionStatement.js → b.empty)
     //   - expression position  → `() => {}` no-op cleanup fn (CallExpression.js)
@@ -326,7 +405,7 @@ fn strip_effects_from_source(source: &str) -> String {
         let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
         let is_statement = s[line_start..pos].chars().all(|c| c.is_whitespace());
         if is_statement {
-            Some((consume_statement_tail(s, expr_end), String::new()))
+            Some(remove_statement(s, pos, expr_end))
         } else {
             Some((expr_end, "() => {}".to_string()))
         }
@@ -337,7 +416,7 @@ fn strip_effects_from_source(source: &str) -> String {
         let call_start = pos + 12;
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1;
-        Some((consume_statement_tail(s, expr_end), String::new()))
+        Some(remove_statement(s, pos, expr_end))
     });
 
     // Strip $effect(() => { ... }) blocks ($effect.root/$effect.pre are already
@@ -347,7 +426,7 @@ fn strip_effects_from_source(source: &str) -> String {
         let call_start = pos + 8; // after "$effect("
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1;
-        Some((consume_statement_tail(s, expr_end), String::new()))
+        Some(remove_statement(s, pos, expr_end))
     })
 }
 
@@ -504,7 +583,7 @@ fn post_process_for_server(source: &str) -> String {
         if end < s.len() && bytes[end] == b';' {
             end += 1;
         }
-        Some((end, String::new()))
+        Some((end, kept_comments_of_removed_range(s, pos, end)))
     });
 
     // Replace $.proxy(x) with just x (no proxying on server)
