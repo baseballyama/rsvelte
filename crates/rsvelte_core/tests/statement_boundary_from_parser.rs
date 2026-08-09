@@ -100,6 +100,40 @@ fn the_boundaries_come_from_the_program_phase_1_already_parsed() {
     );
 }
 
+/// TypeScript is 100% of the cases where the pipeline's text is not verbatim,
+/// so the projection is the only thing that can place the spans there. The
+/// annotations make the verbatim match fail on purpose — without them stripping
+/// is a no-op, the verbatim path answers, and this test would prove nothing.
+///
+/// `interface Props` is the skip rule: stripping deletes it outright, so neither
+/// endpoint maps, and treating that as a failure would give up on every file
+/// that declares a type.
+#[test]
+fn a_typescript_script_places_its_boundaries_through_the_projection() {
+    use rsvelte_core::compiler::phases::phase3_transform::profile;
+
+    let _ = profile::take_script_text_breakdown();
+    let source = "<script lang=\"ts\">\n  interface Props { label: string }\n  let { label }: Props = $props();\n  let count: number = $state(0);\n  const doubled: number = $derived(count * 2);\n</script>\n\n<p>{label}{count}{doubled}</p>\n";
+    compile(
+        source,
+        CompileOptions {
+            filename: Some("A.svelte".to_string()),
+            generate: GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .expect("compile failed");
+    let st = profile::take_script_text_breakdown();
+
+    assert!(
+        st.boundary_retained > 0,
+        "a TypeScript script added a parse instead of placing spans through the \
+         projection: {} from a parser, {} reused",
+        st.boundary_ast,
+        st.boundary_retained
+    );
+}
+
 /// Controls: these two were already in the scanner's list, so they held before
 /// this change and must still hold.
 #[test]

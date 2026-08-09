@@ -123,6 +123,10 @@ pub struct ScriptTextBreakdown {
     /// Of `boundary_ast`, those answered from the program Phase 1 already
     /// parsed rather than from a parse this pipeline added.
     pub boundary_retained: u64,
+    /// Why the rest could not be: indexed by `BOUNDARY_BAIL_*`. Without this the
+    /// only visible number is the reuse rate, which says a parse was added but
+    /// not what would have to change to stop adding it.
+    pub boundary_bail: [u64; BOUNDARY_BAIL_KINDS],
     /// Statements the runes fast path emitted without calling the processor.
     pub fastpath_statements: u64,
     /// Calls to the brace-less-control-header probe, and the bytes it had to
@@ -232,6 +236,8 @@ thread_local! {
     static ST_BOUNDARY_AST: Cell<u64> = const { Cell::new(0) };
     static ST_BOUNDARY_SCAN: Cell<u64> = const { Cell::new(0) };
     static ST_BOUNDARY_RETAINED: Cell<u64> = const { Cell::new(0) };
+    static ST_BOUNDARY_BAIL: [Cell<u64>; BOUNDARY_BAIL_KINDS] =
+        const { [const { Cell::new(0) }; BOUNDARY_BAIL_KINDS] };
     static ST_FASTPATH_STATEMENTS: Cell<u64> = const { Cell::new(0) };
     static ST_CTRL_HEADER_CALLS: Cell<u64> = const { Cell::new(0) };
     static ST_CTRL_HEADER_BYTES: Cell<u64> = const { Cell::new(0) };
@@ -977,6 +983,46 @@ pub fn record_st_boundary_retained() {
     ST_BOUNDARY_RETAINED.with(|c| c.set(c.get() + 1));
 }
 
+pub const BOUNDARY_BAIL_KINDS: usize = 8;
+/// Phase 1 kept no program for this script.
+pub const BOUNDARY_BAIL_NO_RETAINED: usize = 0;
+/// It kept one, but the parse did not come out clean.
+pub const BOUNDARY_BAIL_DIAGNOSTICS: usize = 1;
+/// The pipeline's text is not a verbatim region of what Phase 1 parsed, on a
+/// TypeScript script — stripping rewrote it.
+pub const BOUNDARY_BAIL_TEXT_DIFFERS_TS: usize = 2;
+/// Same, but the script is not TypeScript, so stripping cannot be the cause and
+/// a projection through it would not help.
+pub const BOUNDARY_BAIL_TEXT_DIFFERS_JS: usize = 5;
+/// TypeScript, and no projection exists to map the retained spans through — so
+/// using the projection cannot recover this one. Separating it keeps "the cause
+/// is TS" from being read as "a projection fixes it".
+pub const BOUNDARY_BAIL_TS_NO_PROJECTION: usize = 6;
+/// A projection existed and still could not place the spans. Separate from
+/// `TEXT_DIFFERS_TS` so a projection path that silently never works is visible
+/// as its own number rather than folded back into the reason it was built for.
+pub const BOUNDARY_BAIL_PROJECTION_FAILED: usize = 7;
+/// A statement or comment crosses the region's edge.
+pub const BOUNDARY_BAIL_STRADDLE: usize = 3;
+/// Nothing begins where the region begins.
+pub const BOUNDARY_BAIL_UNANCHORED: usize = 4;
+
+pub const BOUNDARY_BAIL_NAMES: [&str; BOUNDARY_BAIL_KINDS] = [
+    "no retained program",
+    "retained parse unclean",
+    "text differs, TypeScript",
+    "span straddles the edge",
+    "region unanchored",
+    "text differs, not TypeScript",
+    "TypeScript, no projection",
+    "projection could not place the spans",
+];
+
+#[inline]
+pub fn record_st_boundary_bail(kind: usize) {
+    ST_BOUNDARY_BAIL.with(|a| a[kind].set(a[kind].get() + 1));
+}
+
 #[inline]
 pub fn record_st_loop_lines(n: u64) {
     ST_LOOP_LINES.with(|c| c.set(c.get() + n));
@@ -1023,6 +1069,7 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
         boundary_ast: ST_BOUNDARY_AST.with(|c| c.replace(0)),
         boundary_scan: ST_BOUNDARY_SCAN.with(|c| c.replace(0)),
         boundary_retained: ST_BOUNDARY_RETAINED.with(|c| c.replace(0)),
+        boundary_bail: ST_BOUNDARY_BAIL.with(|a| std::array::from_fn(|i| a[i].replace(0))),
         fastpath_statements: ST_FASTPATH_STATEMENTS.with(|c| c.replace(0)),
         ctrl_header_calls: ST_CTRL_HEADER_CALLS.with(|c| c.replace(0)),
         ctrl_header_bytes: ST_CTRL_HEADER_BYTES.with(|c| c.replace(0)),

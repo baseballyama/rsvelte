@@ -279,6 +279,26 @@ fn main() {
             .boundary_ast
             .saturating_sub(st_compile.boundary_retained)
     );
+    {
+        let bailed: u64 = st_compile.boundary_bail.iter().sum();
+        let mut kinds: Vec<(usize, u64)> = st_compile
+            .boundary_bail
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (i, *n))
+            .filter(|&(_, n)| n > 0)
+            .collect();
+        kinds.sort_by_key(|&(_, n)| std::cmp::Reverse(n));
+        for (i, n) in kinds {
+            println!(
+                "  [    bail: {:<28} {:6}  ({:5.1}% of {} bails)]",
+                profile::BOUNDARY_BAIL_NAMES[i],
+                n,
+                n as f64 / bailed.max(1) as f64 * 100.0,
+                bailed
+            );
+        }
+    }
     println!(
         "  [store_subs measured through compile(), total {:7.2}ms]",
         ms(compile_total)
