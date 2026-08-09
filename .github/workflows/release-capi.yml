@@ -46,8 +46,8 @@ jobs:
         include:
           - { os: macos-latest,   target: aarch64-apple-darwin,       triple: darwin-arm64,    archive: tar.gz, lib: librsvelte_capi.dylib,  staticlib: librsvelte_capi.a }
           - { os: macos-latest,   target: x86_64-apple-darwin,        triple: darwin-x64,      archive: tar.gz, lib: librsvelte_capi.dylib,  staticlib: librsvelte_capi.a }
-          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,   triple: linux-x64-gnu,   archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a }
-          - { os: ubuntu-latest,  target: aarch64-unknown-linux-gnu,  triple: linux-arm64-gnu, archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: ubuntu-22.04,   target: x86_64-unknown-linux-gnu,   triple: linux-x64-gnu,   archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a }
+          - { os: ubuntu-22.04,   target: aarch64-unknown-linux-gnu,  triple: linux-arm64-gnu, archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
           - { os: windows-latest, target: x86_64-pc-windows-msvc,     triple: win32-x64-msvc,  archive: zip,    lib: rsvelte_capi.dll,       staticlib: rsvelte_capi.lib, implib: rsvelte_capi.dll.lib }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -146,6 +146,16 @@ jobs:
           echo "${ver}" > "${stage}/VERSION"
           echo "$(git rev-parse HEAD)" > "${stage}/COMMIT"
           ls -lR "${stage}"
+
+      # The shipped shared object must not need a newer glibc than the floor
+      # we promise; the check reads the artifact, not the runner (#2675).
+      - name: Check glibc floor
+        if: startsWith(matrix.triple, 'linux-')
+        shell: bash
+        run: |
+          ver="${{ steps.ver.outputs.version }}"
+          scripts/release/check-glibc-floor.sh \
+            "stage/rsvelte_capi-${ver}-${{ matrix.triple }}/lib/${{ matrix.lib }}"
 
       - name: Pack archive
         id: pack

@@ -51,6 +51,45 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+  glibc-floor:
+    name: Glibc floor
+    # The release matrix builds the Linux artifacts on ubuntu-22.04 and asserts
+    # they need no glibc newer than 2.35, but release.yml only runs on the
+    # version-packages merge — so the assertion and the image that satisfies it
+    # were never exercised until a publish. This builds one shipped binary the
+    # same way and runs the same script, including a negative control: with the
+    # floor lowered the script must fail, or a green run would prove nothing.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - uses: ./.github/actions/setup-rust
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: glibc-floor
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build a shipped binary
+        run: cargo build -p rsvelte_fmt --bin rsvelte-fmt
+
+      - name: Check glibc floor
+        run: scripts/release/check-glibc-floor.sh target/debug/rsvelte-fmt
+
+      - name: Negative control — the check must be able to fail
+        run: |
+          if GLIBC_FLOOR=2.0 scripts/release/check-glibc-floor.sh target/debug/rsvelte-fmt; then
+            echo "::error::check-glibc-floor.sh passed a binary below the floor"
+            exit 1
+          fi
+
   playground-lockfile:
     name: Playground lockfile
     # Deploy Docs only runs on pushes to main, so a stale

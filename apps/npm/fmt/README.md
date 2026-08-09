@@ -25,7 +25,7 @@ The package resolves the right prebuilt native binary for your platform via
 | OS | Architecture |
 |---|---|
 | macOS | arm64, x64 |
-| Linux | x64 (glibc), arm64 (glibc) |
+| Linux | x64 (glibc ≥ 2.35), arm64 (glibc ≥ 2.35) |
 | Windows | x64 (MSVC) |
 
 If your platform isn't listed, please [open an issue](https://github.com/baseballyama/rsvelte/issues).

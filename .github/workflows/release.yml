@@ -88,8 +88,8 @@ jobs:
         include:
           - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
           - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
+          - { os: ubuntu-22.04, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
           - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.triple == 'linux-x64-gnu' && 60 || 30 }}
@@ -140,6 +140,14 @@ jobs:
           cp "target/${{ matrix.target }}/dist/svelte_check${{ matrix.ext }}" \
              "stage/svelte-check${{ matrix.ext }}"
 
+      # A published binary must not need a newer glibc than the floor the
+      # runner image happens to provide; the check reads the artifact, so an
+      # image bump cannot raise the requirement silently (#2675).
+      - name: Check glibc floor
+        if: startsWith(matrix.triple, 'linux-')
+        shell: bash
+        run: scripts/release/check-glibc-floor.sh stage/*
+
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -161,8 +169,8 @@ jobs:
         include:
           - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, dylib: librsvelte_napi.dylib }
           - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, dylib: librsvelte_napi.dylib }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: librsvelte_napi.so }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: librsvelte_napi.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: librsvelte_napi.so }
+          - { os: ubuntu-22.04, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: librsvelte_napi.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
           - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, dylib: rsvelte_napi.dll }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -205,6 +213,14 @@ jobs:
           mkdir -p stage
           cp "target/${{ matrix.target }}/dist-napi/${{ matrix.dylib }}" stage/rsvelte.node
 
+      # A published binary must not need a newer glibc than the floor the
+      # runner image happens to provide; the check reads the artifact, so an
+      # image bump cannot raise the requirement silently (#2675).
+      - name: Check glibc floor
+        if: startsWith(matrix.triple, 'linux-')
+        shell: bash
+        run: scripts/release/check-glibc-floor.sh stage/*
+
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -225,8 +241,8 @@ jobs:
         include:
           - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
           - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
+          - { os: ubuntu-22.04, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
           - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -264,6 +280,14 @@ jobs:
           cp "target/${{ matrix.target }}/dist/rsvelte-fmt${{ matrix.ext }}" \
              "stage/rsvelte-fmt${{ matrix.ext }}"
 
+      # A published binary must not need a newer glibc than the floor the
+      # runner image happens to provide; the check reads the artifact, so an
+      # image bump cannot raise the requirement silently (#2675).
+      - name: Check glibc floor
+        if: startsWith(matrix.triple, 'linux-')
+        shell: bash
+        run: scripts/release/check-glibc-floor.sh stage/*
+
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -289,8 +313,8 @@ jobs:
         include:
           - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '', dylib: librsvelte_lint.dylib }
           - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '', dylib: librsvelte_lint.dylib }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '', dylib: librsvelte_lint.so }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc, dylib: librsvelte_lint.so }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '', dylib: librsvelte_lint.so }
+          - { os: ubuntu-22.04, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc, dylib: librsvelte_lint.so }
           - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe', dylib: rsvelte_lint.dll }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -348,6 +372,14 @@ jobs:
           cp "target/${{ matrix.target }}/dist-lint/${{ matrix.dylib }}" \
              "stage/rsvelte_lint.node"
 
+      # A published binary must not need a newer glibc than the floor the
+      # runner image happens to provide; the check reads the artifact, so an
+      # image bump cannot raise the requirement silently (#2675).
+      - name: Check glibc floor
+        if: startsWith(matrix.triple, 'linux-')
+        shell: bash
+        run: scripts/release/check-glibc-floor.sh stage/*
+
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -370,8 +402,8 @@ jobs:
         include:
           - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
           - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
+          - { os: ubuntu-22.04, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
           - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -408,6 +440,14 @@ jobs:
           mkdir -p stage
           cp "target/${{ matrix.target }}/dist-lsp/rsvelte-language-server${{ matrix.ext }}" \
              "stage/rsvelte-language-server${{ matrix.ext }}"
+
+      # A published binary must not need a newer glibc than the floor the
+      # runner image happens to provide; the check reads the artifact, so an
+      # image bump cannot raise the requirement silently (#2675).
+      - name: Check glibc floor
+        if: startsWith(matrix.triple, 'linux-')
+        shell: bash
+        run: scripts/release/check-glibc-floor.sh stage/*
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

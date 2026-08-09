@@ -61,6 +61,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | warnings compared by **count only** | [S] |
 | 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
 | 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size | [D] |
+| 21 | Published-artifact glibc floor | max `GLIBC_*` version referenced by each Linux artifact | whether the binary actually **runs** anywhere; every non-glibc dependency | [D] |
 
 Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, the **performance**
 gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
@@ -1077,6 +1078,33 @@ comment fidelity per id on generated seeds that do not move when a submodule bum
 comment regression on a *collected* seed is invisible here.
 
 ---
+
+## 21. Published-artifact glibc floor — `scripts/release/check-glibc-floor.sh`
+
+**Unit.** Per Linux artifact staged for publication, the highest `GLIBC_x.y` version its
+dynamic symbols and `.gnu.version_r` entries reference, compared against a declared floor
+(2.35, the glibc of the `ubuntu-22.04` image the release matrix now builds on).
+
+**Why it exists.** Every gate in this file compares *what the compiler produced*. None of them
+looks at the file that reaches npm. `ubuntu-latest` moved to Ubuntu 24.04, every published
+`linux-*-gnu` artifact started requiring glibc 2.39, and the whole test suite stayed green
+because nothing it runs is the shipped binary (#2675).
+
+### Blind spot 21a — it reads symbols, not behaviour [D]
+
+A binary whose highest reference is under the floor can still fail to start: a `dlopen`ed
+library, a `GLIBC_PRIVATE` symbol, or a non-glibc shared object (`libgcc_s`, `libstdc++`)
+whose own floor is higher are all invisible here. The discriminating case is the reverse
+direction and is what the CI negative control asserts: with `GLIBC_FLOOR=2.0` the same
+artifact must be rejected, which is the only evidence that a green run means anything.
+
+### Blind spot 21b — the floor is a number in a workflow, not a tested claim [S]
+
+Nothing checks that 2.35 is the glibc of the image named in `runs-on`. Pin and floor are two
+independent edits, and lowering `runs-on` to an older image while leaving the floor at 2.35
+would keep passing — the check only fails when the artifact needs *more* than the floor. What
+it does close is the direction that actually broke: an image bump can no longer raise the
+requirement silently.
 
 ## Cross-cutting
 
