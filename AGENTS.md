@@ -259,6 +259,17 @@ while every bug in the #2253/#2254/#2255/#2256 batch was an **interaction**: #22
 generating the product can. **Corpus size is no longer the axis worth growing.** The two that are:
 what we compare (warning parity above) and how inputs are constructed (this).
 
+**That claim is about interactions the generator was told to cross, not about coverage, and it
+does not make the collected corpus redundant.** A generated family is bounded by its author's
+axis values, so the author's blind spot sits inside the generator by construction — the same
+shape as the enumeration hazard recorded for reachability arguments. #2535 is the
+counterexample: its css-prune grid was green on all 1,955 rows while an over-prune shipped that
+three real `svelte.dev` components reproduce, because the shape needs a two-compound parent
+**and** a subject `&`, and every family row its author wrote had a single-compound parent. The
+collected corpus caught what the generated one could not. Treat the two as complements — when a
+generated family comes back clean, ask which axis value you did not think to write, not only
+which input the corpus lacks.
+
 The `directive-element` family is the first whose motivating defect the gate's **comparison**
 could not express. Which parents a per-directive rule applies to is one `parent_type` test
 upstream and one arm per element visitor in rsvelte, so the rule drifts wherever the product is

@@ -9,7 +9,9 @@
  *
  * This script *generates* many tiny synthetic components from a grid of
  * ingredients — selector shape × sibling-producing markup context × an
- * unrelated "corruptor" node elsewhere in the template — compiles each with
+ * unrelated "corruptor" node elsewhere in the template (families A/B/C/C3),
+ * plus a second product of selector shape × usage site from
+ * `css-prune-families.mjs` (families D-H) — compiles each with
  * BOTH the official `svelte/compiler` and rsvelte (NAPI binding), and diffs both
  * the emitted `css.code` and the `(code, line, column)` of every warning. The
  * prune decision is visible in the CSS as "(unused)" comments plus
@@ -41,6 +43,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { normHash, verdictOf, warningKeys } from './css-prune-verdict.mjs';
+import { generateSelectorFamilies } from './css-prune-families.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,7 +52,7 @@ const CORPUS = path.join(ROOT, 'compatibility');
 const RATCHET = path.join(CORPUS, 'css-prune-known-failures.json');
 
 // Exact, not a floor: the grid is deterministic, so any drift is a source edit.
-const EXPECTED_COMPONENTS = 1430;
+const EXPECTED_COMPONENTS = 1969;
 
 const args = process.argv.slice(2);
 const argValue = (name, fallback = null) => {
@@ -333,6 +336,8 @@ function* generate() {
 			}
 		}
 	}
+	// Families D-H: selector shape × usage site (issue #2535).
+	yield* generateSelectorFamilies();
 }
 
 // ---------------------------------------------------------------------------

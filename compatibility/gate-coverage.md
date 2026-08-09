@@ -23,8 +23,24 @@ It answers three questions per gate:
 blank, because the next person reads the row as surveyed and never looks again. If you have
 neither a discriminating case nor a code citation, write `[U]`.
 
-Line numbers are as of the commit that added or last revised the row. Code moves; when a
-citation no longer resolves, re-derive the claim rather than deleting it.
+**And a row that was true when written can go stale, which reads exactly the same.** Every row
+here is an as-of statement about a tree, not a standing property of the gate: the hole it
+describes may since have been filled by someone who never opened this file. §8a was an
+instance — it claimed "there is no population floor anywhere in the file" while
+`EXPECTED_COMPONENTS` had been in that file on `main` all along. A guessed row and a stale row
+fail in the same direction and are indistinguishable on reading, so before *relying* on a row —
+citing it to justify a decision, or leaving a gap unclosed because it is "already known" —
+re-run its evidence rather than trusting it. A `[D]` row states an input; re-run it. An `[S]`
+row states a file and line; re-read it. The correction costs minutes; the row's authority
+costs whatever it deterred.
+
+**And when you re-run it, check that the check does not share a dependency with what it
+checks.** A verification step that resolves the same ref, reads the same field, or normalizes
+the same way as the thing under test is not a verification step — it can manufacture the very
+symptom it was meant to detect, or erase it. Several entries below are instances of the same
+shape: a guard whose predicate is permissive in both quantifiers, a positive control whose
+comparison key cannot separate the two cases, a gate whose normalizer deletes the field in
+question.
 
 ---
 
@@ -75,7 +91,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
-| 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1430 generated components | `js.code`; **an empty population exits 0** | [D] |
+| 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
@@ -644,30 +660,56 @@ the sharpest case. Cost: low.
 
 ## 8. css-prune sweep — `scripts/compat-corpus/css-prune-sweep.mjs`
 
-**Unit.** 1430 generated components; `css.code` after hash normalization plus the sorted
+**Unit.** 1969 generated components; `css.code` after hash normalization plus the sorted
 `code@line:col` of every warning, compared by `css-prune-verdict.mjs`;
-`generate: 'client'`, `dev: false`, `css: 'external'`.
+`generate: 'client'`, `dev: false`, `css: 'external'`. Two products: families A/B/C/C3
+(`css-prune-sweep.mjs`) vary the markup around a fixed set of sibling selectors; families D-H
+(`css-prune-families.mjs`) vary the selector against a fixed set of arrangements.
 
-### Blind spot 8a — an empty population exits 0
+### Blind spot 8a — an empty population exits 0 — CLOSED, and this row was stale
 
-**[D] Verified locally:**
+`EXPECTED_COMPONENTS` (`css-prune-sweep.mjs:52`, check at `:352`) pins the grid size
+**exactly**, not as a floor, and runs before either compiler is imported. It was already
+present on `origin/main` — `git show origin/main:scripts/compat-corpus/css-prune-sweep.mjs`
+has it at the same lines — so this row described a hole that had been filled and nobody
+re-read it. That is the failure mode the file warns about in reverse: a row can go stale as
+easily as it can be guessed, and a stale row reads as surveyed.
+
+Exactness rather than a floor is right here because the grid is a pure product of the axes in
+two source files — its size is a property of the repository, not of a corpus on disk — so any
+drift is a source edit that should be stated deliberately.
+
+**[D] Verified locally** by deleting `SELECTORS_D`'s `& &` row (7 components) and running
+`--check`:
 
 ```
-$ node scripts/compat-corpus/css-prune-sweep.mjs --list --filter ZZZNOMATCH
-0 components
-EXIT=0
+EXIT=2
+[css-prune-sweep] grid produced 1962 components, expected 1969
+  the generator lost cases; a sweep over a shrunken grid passes by comparing less
 ```
 
-There is no population floor anywhere in the file — `command grep -n "all.length\|MIN_\|EXPECTED_\|floor"`
-returns one hit, `:482`, a `console.log`. With `--check`, an empty grid produces
-`divergedIds = []` against a `[]` baseline, so `regressions` and `fixed` are both empty and
-`:515-516` prints "no regressions" and exits 0. Gutting `SELECTORS_A/B/C/C3` is
-indistinguishable from a clean sweep.
+### Blind spot 8e — every element in the grid is a plain `<div>`, `<p>` or `<span>`, in one component
 
-Positive control that this asymmetry is a real gap and not a house style: the sibling gates do
-carry floors — `artifacts.mjs:79` (`MIN_FULL_CORPUS_ENTRIES = 12000`),
-`svelte2tsx-verify.mjs:85-88` (`MIN_MANIFEST_ENTRIES = 1000`), `verify.mjs:204-210`,
-`sourcemaps_gate.rs:1011-1028`.
+Both products build their markup from a fixed vocabulary — `ROLE`
+(`css-prune-sweep.mjs:83-91`) and `ARRANGE` / `MARKUP_H`
+(`css-prune-families.mjs:33-41`, `:120-140`). **[S]** Nothing in the grid is a `<Component />`,
+a `<slot>` receiving content from a parent, or an element in an imported component, so the
+whole question of *which component's elements a selector is pruned against* is outside the
+unit. Upstream's `prune()` iterates one component's `elements`, and every case here has exactly
+one component, so a defect that mixed up element ownership across a component boundary would
+score green on all 1969.
+
+Related and narrower: the `<option>`/`<selectedcontent>` cloning path in `get_ancestor_elements`
+/ `get_descendant_elements` has no row at all, and rsvelte's own
+`structural_ancestry_is_lexical` bails out precisely when a `<selectedcontent>` is present — so
+the guard is untested by this gate in both directions. The `selectedcontent` **CSS fixture**
+covers one instance of it; the generated product does not reach it.
+
+### Blind spot 8f — `dev: false` only
+
+`compileCss` (`:379-384`) pins `dev: false`. **[S]** Pruning is target-independent (that is what
+`--both` asserts, when it is passed), but `dev: true` changes empty-rule handling — rsvelte
+threads a `dev` flag through `CssContext` for exactly that — and no row here exercises it.
 
 ### Blind spot 8b — `--both` cannot fail
 
@@ -690,9 +732,26 @@ sorted `code@line:col` of every warning after the CSS compares equal, and
 comparator, and also asserts the sweep still routes through it).
 
 `js.code` is still discarded — the sweep is a phase-2 gate and the corpus pipeline compares JS
-on real code, so this is deliberate rather than a gap.
+on real code, so this is deliberate rather than a gap. It is not free, though, and #2744 is
+what it costs: **which elements receive the `.svelte-<hash>` scope class is only observable in
+the generated JS/HTML**, so a rule that is correctly kept but whose matched element is never
+scoped — an emitted rule that can never fire — is green here at any grid size. That defect was
+caught by the corpus output-equality gate, on a committed repro, not by this one.
 
-**Tracked:** #2445. **Closing 8a:** one assertion. Cost: trivial.
+### Blind spot 8d — the `css.code` half is the only half that moves for a scoping bug
+
+The key is `css.code` **plus** the warning multiset, and 8c fixed the direction where the CSS
+agrees and the warnings do not. The opposite direction is live and currently occupied: the four
+entries in `css-prune-known-failures.json` are `css.code`-only, with byte-identical
+`css_unused_selector` sets on both sides (#2719 / #2720 / #2721). **[D]** Verified by the
+ratchet itself — each of the four is reported `css-mismatch`, and re-running the comparator
+against the warning key alone scores all four `match`.
+
+That is not a hole in this gate (it does compare `css.code`). It is a fact about every gate
+*named* for `css_unused_selector`: a selector-scoping defect — a missing `.svelte-<hash>`, a
+`:where()` that should not be there — changes what ships and produces no warning at all.
+
+**Tracked:** #2445 (8b).
 
 ---
 

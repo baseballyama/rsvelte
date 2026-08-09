@@ -20,25 +20,50 @@ removed when its component starts matching the official compiler, never added
 without a justification below. New divergences absent from this file fail
 `--check` as regressions.
 
-Every entry here is a **genuine rsvelte prune bug** (rsvelte diverges from the
-correct official output), not an oracle bug — so the goal is to drive this file
-to empty, not to accept the entries permanently. They are ratcheted rather than
+Every entry here is a **genuine rsvelte bug** (rsvelte diverges from the correct
+official output), not an oracle bug — so the goal is to drive this file to empty,
+not to accept the entries permanently. They are ratcheted rather than
 hard-failed only so the harness can land before every underlying fix does.
 
-Sweep shape: 1430 components, ~5s. Client and server prune identically
+Sweep shape: 1969 components, ~5s. Client and server prune identically
 (`--both` reports 0 client≠server divergences), so the sweep compiles one target
 (`generate: 'client'`, `css: 'external'`) per component.
+
+Two products feed it, and they vary different axes. Families **A/B/C/C3** live in
+`css-prune-sweep.mjs` and vary the *markup* around a small fixed set of sibling
+selectors, because the bug they were built for (#1700) was in the per-sibling
+traversal. Families **D-H** live in `css-prune-families.mjs` and vary the
+*selector* against a fixed set of arrangements — explicit `&`,
+`:is()`/`:where()`/`:not()`/`:has()` arguments, `:root`, trailing `:global(...)`,
+and attributes whose value the compiler must reason about (#2535).
 
 The comparison key lives in `scripts/compat-corpus/css-prune-verdict.mjs`, apart
 from the sweep so it can be exercised without the NAPI binding;
 `scripts/dev/test-css-prune-sweep-warning-verdict.mjs` pins it in CI and fails on
 a comparator that stops looking at warnings.
 
-## Divergence clusters (`css-prune-known-failures.json`, 0 entries — all root causes fixed)
+## Divergence clusters (`css-prune-known-failures.json`, 4 entries)
 
-The ratchet is empty: the sweep reports 0 divergences. The four root causes
-found by this sweep are all fixed. The history is kept here as the record of why
-the ratchet could shrink.
+All four are **`css.code`-only**: the two compilers agree about which selectors
+are used, and the `css_unused_selector` sets are identical. They are not prune
+bugs at all — they are selector-*scoping* bugs that the D-H families exposed
+because those families are the first to generate `:is()` arguments. Read that
+as a warning about this ratchet rather than as reassurance: the comparison key
+this whole gate is named for scores all four green, and only the `css.code` half
+of the key moves.
+
+Each is tracked separately so a partial fix cannot silently close the others.
+
+| entry | issue | cause |
+|---|---|---|
+| `E/is(.a)>.b/nested_ab` | [#2719](https://github.com/baseballyama/rsvelte/issues/2719) | Upstream scopes a complex selector's own relative selectors first and descends into `:is()` arguments afterwards, so the argument inherits an already-bumped specificity and is written `:where(.svelte-X)`. rsvelte scopes arguments during the compound walk, in source order, and emits the plain class. A real specificity difference in shipped CSS, not cosmetic |
+| `E/is(.a,.miss)+.b/sibling_ab` | [#2719](https://github.com/baseballyama/rsvelte/issues/2719) | Same cause with a sibling combinator. Kept as a second entry because the control that isolates the ordering is the *absence* of a divergence when the `:is()` is the whole selector — `E/is(.a,.b)`'s other arrangements match on both sides |
+| `E/is(.a,.b)/only_b` | [#2720](https://github.com/baseballyama/rsvelte/issues/2720) | Official comments an unused `:is()` branch out **in place**, taking its trailing comma; rsvelte emits the surviving branch first and appends the commented-out one, reordering the argument list |
+| `E/is(.a):is(.b)/compound_ab` | [#2721](https://github.com/baseballyama/rsvelte/issues/2721) | Upstream skips the scoping modifier only for a **standalone** `:is()` (`selectors.length === 1`); with two of them the compound still gets a leading `.svelte-X`. rsvelte omits it, so the emitted rule carries no scoping class of its own and is not scoped to the component |
+
+## Fixed root causes
+
+The history below is kept as the record of why the ratchet could shrink.
 
 ### 1. `<svelte:head>` void-element perturbation — FIXED (issue #1700)
 
@@ -112,6 +137,48 @@ in #2534 (regression test
 the sweep never saw it: the pruned stylesheet is byte-identical in both
 directions, so a `css.code`-only key scored all 16 as `match`. The comparison key
 now includes warnings.
+
+### 5. Five selector-shape families — FIXED (issue #2535)
+
+#2474 closed the implicit-`&` ancestor case and named five families it did not
+touch. Measured on the D-H grid (539 components) against `origin/main` and again
+with the fix, identical denominators both sides:
+
+| family | before | after | of which warning divergences (before → after) |
+|---|---|---|---|
+| D explicit `&` under a non-ancestor parent | 19/70 | 0/70 | 19 → 0 |
+| E `:is()`/`:where()`/`:not()`/`:has()` arguments and compounds | 36/126 | 4/126 | 32 → 0 |
+| F `:root` | 6/70 | 0/70 | 6 → 0 |
+| G trailing `:global(...)` | 4/126 | 0/126 | 4 → 0 |
+| H dynamic attributes | 2/147 | 0/147 | 2 → 0 |
+| **total** | **67/539** | **4/539** | **63 → 0** |
+
+Families A/B/C/C3 are 0/1430 on both sides.
+
+Two of D's rows (`deep_.a:hover_&`, `deep_.miss_&`) were added *after* the grid
+was first green, because the first version of the explicit-`&` fix over-pruned
+three real `svelte.dev` components and the grid did not see it — every family-D
+row then written had a single-compound parent, and the shape needs a
+two-compound parent **and** a subject `&`. They are worth reading as a pair: on
+`origin/main` they contribute 3 of D's 19, all warning-only under-reports, so
+the rows are discriminating in both directions rather than only against the
+regression that prompted them.
+
+The E row is wider than the family name suggests. `.a:is(.b)` turned out not to
+be an `:is()` problem: `.a.b` and `#i.a` split across two elements diverged the
+same way, because each simple selector was checked for existence *separately*.
+The fix is `is_structural_compound_unused`, which requires one element to satisfy
+the whole compound. The shapes that show it (`.a.b`, `:is(.a):is(.b)`,
+`.a:where(.b)`, `div.a:is(.b)`, `p.a`) were added to the grid **after** the first
+baseline was taken; on the reverted compiler they account for 14 of E's 36 and
+for 4 of G's 4, so the pre-existing-rows-only figures are 46 → 3 over 392
+components. Both numbers are reported because neither alone is the whole claim.
+
+Not fixed here, and split out because it lives in a different pass:
+`:root<compound>:has(...)` is now correctly reported as used, but the element it
+matches is still not given the scope class, so the emitted rule cannot fire
+(#2744). This gate cannot see that at any grid size — it discards `js.code`, and
+element scoping is only observable there.
 
 ### Known limitation: combinators inside a resolved compound (issue #1719)
 

@@ -1528,6 +1528,13 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
             return true;
         }
 
+        // A compound must be satisfied by ONE element; testing each simple
+        // selector for existence separately keeps `.a.b` alive when `.a` and
+        // `.b` sit on different elements.
+        if is_structural_compound_unused(rel_selectors, ctx) {
+            return true;
+        }
+
         // :has() unused detection - check if :has() arguments can match within the subject element's subtree
         // This is guarded inside is_has_selector_unused by has_opaque_sibling_boundaries check
         if is_has_selector_unused(rel_selectors, ctx) {
@@ -1617,7 +1624,24 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
                         && s.get("name").and_then(|n| n.as_str()) == Some("has")
                 });
 
-                if has_root && !has_has {
+                // Upstream `truncate` drops every simple selector except `:has`
+                // from a `:root` compound, so `.x` in `:root.x:has(.a)` is
+                // unscoped and must not prune the rule on its own.
+                if has_root {
+                    if has_has {
+                        let has_only: Vec<Value> = selectors
+                            .iter()
+                            .filter(|s| {
+                                s.get("type").and_then(|t| t.as_str())
+                                    == Some("PseudoClassSelector")
+                                    && s.get("name").and_then(|n| n.as_str()) == Some("has")
+                            })
+                            .cloned()
+                            .collect();
+                        if has_only.iter().any(|s| is_simple_selector_unused(s, ctx)) {
+                            return true;
+                        }
+                    }
                     continue;
                 }
 
@@ -1778,16 +1802,25 @@ fn is_nested_selector_unused_against_ancestors(rel_selectors: &[Value], ctx: &Cs
     {
         return false;
     }
-    // Rejects an explicit `&` too, which upstream resolves compound-wise instead
-    // of prepending — those shapes are handled by the nesting-specific checks.
-    if !level_is_structurally_evaluable(rel_selectors) {
-        return false;
-    }
-
     let parent_preludes = ctx.parent_preludes.borrow();
     let Some(chains) = build_parent_chains(&parent_preludes, parent_preludes.len()) else {
         return false;
     };
+
+    if !level_is_structurally_evaluable(rel_selectors) {
+        // An explicit `&` is not prepended to but substituted into the level.
+        if let Some(resolved) = resolve_explicit_nesting_chains(rel_selectors, &chains) {
+            return resolved
+                .iter()
+                .all(|chain| is_structural_descendant_chain_unused(chain, ctx));
+        }
+        if let Some(conjunctions) = resolve_subject_nesting_conjunctions(rel_selectors, &chains) {
+            return conjunctions
+                .iter()
+                .all(|chains| is_structural_chain_conjunction_unused(chains, ctx));
+        }
+        return false;
+    }
 
     chains.iter().all(|prefix| {
         let mut chain = prefix.clone();
@@ -1795,6 +1828,214 @@ fn is_nested_selector_unused_against_ancestors(rel_selectors: &[Value], ctx: &Cs
         chain.extend(rel_selectors[1..].iter().cloned());
         is_structural_descendant_chain_unused(&chain, ctx)
     })
+}
+
+/// True when `rel` is a compound that means exactly `&` — a lone
+/// NestingSelector, or a single-branch `:is(&)` / `:where(&)` around one.
+fn compound_is_nesting_only(rel: &Value) -> bool {
+    let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    if sels.len() != 1 {
+        return false;
+    }
+    let sel = &sels[0];
+    match sel.get("type").and_then(|t| t.as_str()) {
+        Some("NestingSelector") => true,
+        Some("PseudoClassSelector") => {
+            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            if name != "is" && name != "where" {
+                return false;
+            }
+            sel.get("args")
+                .and_then(|a| a.get("children"))
+                .and_then(|c| c.as_array())
+                .is_some_and(|branches| {
+                    branches.len() == 1
+                        && branches[0]
+                            .get("children")
+                            .and_then(|c| c.as_array())
+                            .is_some_and(|rels| {
+                                rels.len() == 1 && compound_is_nesting_only(&rels[0])
+                            })
+                })
+        }
+        _ => false,
+    }
+}
+
+fn combinator_name(rel: &Value) -> &str {
+    rel.get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ")
+}
+
+/// Substitute each `&` compound of a nesting level with every alternative parent
+/// chain, mirroring upstream `apply_selector`'s `NestingSelector` case: an
+/// explicit `&` is resolved *in place* against `parent.prelude` rather than
+/// prepended, so `.a { & .b { … } }` requires an `.a` **ancestor** of `.b`.
+/// `None` for anything the structural walker cannot model.
+///
+/// Splicing a multi-compound parent into the middle of a chain would impose an
+/// order upstream does not: in `a { span { a:hover & { … } } }` the `&` is a
+/// constraint on the subject itself, so one `<a>` can satisfy both the parent's
+/// ancestor link and `a:hover`, where the spliced form demands two nested ones.
+/// Only a head `&` is order-free, so anywhere else the parent must be a single
+/// compound.
+fn resolve_explicit_nesting_chains(
+    rel_selectors: &[Value],
+    parent_chains: &[Vec<Value>],
+) -> Option<Vec<Vec<Value>>> {
+    let mut has_nesting = false;
+    let multi_compound_parent = parent_chains.iter().any(|chain| chain.len() > 1);
+    for (i, rel) in rel_selectors.iter().enumerate() {
+        if i > 0 && !matches!(combinator_name(rel), " " | ">") {
+            return None;
+        }
+        if compound_is_nesting_only(rel) {
+            if i > 0 && multi_compound_parent {
+                return None;
+            }
+            has_nesting = true;
+        } else if !level_is_structurally_evaluable(std::slice::from_ref(rel)) {
+            return None;
+        }
+    }
+    if !has_nesting {
+        return None;
+    }
+
+    let mut out = Vec::with_capacity(parent_chains.len());
+    for parent in parent_chains {
+        if parent
+            .iter()
+            .skip(1)
+            .any(|rel| !matches!(combinator_name(rel), " " | ">"))
+        {
+            return None;
+        }
+        let mut chain: Vec<Value> = Vec::new();
+        for rel in rel_selectors {
+            if !compound_is_nesting_only(rel) {
+                chain.push(rel.clone());
+                continue;
+            }
+            let combinator = rel.get("combinator").cloned();
+            for (j, parent_rel) in parent.iter().enumerate() {
+                let mut cloned = parent_rel.clone();
+                if j == 0
+                    && let Value::Object(map) = &mut cloned
+                {
+                    match &combinator {
+                        Some(c) => {
+                            map.insert("combinator".to_string(), c.clone());
+                        }
+                        None => {
+                            map.remove("combinator");
+                        }
+                    }
+                }
+                chain.push(cloned);
+            }
+        }
+        if chain.len() < 2 {
+            return None;
+        }
+        out.push(chain);
+    }
+    (!out.is_empty()).then_some(out)
+}
+
+/// The multi-compound-parent case [`resolve_explicit_nesting_chains`] refuses:
+/// a lone trailing `&`. Upstream matches it as a second constraint on the
+/// subject, so the parent chain and the enclosing prefix are two chains that
+/// must be satisfied by the *same* element rather than one spliced chain.
+/// Returns, per parent alternative, the chains that must hold together.
+fn resolve_subject_nesting_conjunctions(
+    rel_selectors: &[Value],
+    parent_chains: &[Vec<Value>],
+) -> Option<Vec<Vec<Vec<Value>>>> {
+    let last = rel_selectors.len().checked_sub(1)?;
+    if last == 0 || !compound_is_nesting_only(&rel_selectors[last]) {
+        return None;
+    }
+    for (i, rel) in rel_selectors.iter().enumerate() {
+        if i > 0 && !matches!(combinator_name(rel), " " | ">") {
+            return None;
+        }
+        if i < last && !level_is_structurally_evaluable(std::slice::from_ref(rel)) {
+            return None;
+        }
+    }
+
+    let subject_combinator = rel_selectors[last].get("combinator").cloned();
+    let mut out = Vec::with_capacity(parent_chains.len());
+    for parent in parent_chains {
+        if parent
+            .iter()
+            .skip(1)
+            .any(|rel| !matches!(combinator_name(rel), " " | ">"))
+        {
+            return None;
+        }
+        let subject = parent.last()?;
+        let mut prefix_chain: Vec<Value> = rel_selectors[..last].to_vec();
+        let mut tail = subject.clone();
+        if let Value::Object(map) = &mut tail {
+            match &subject_combinator {
+                Some(c) => {
+                    map.insert("combinator".to_string(), c.clone());
+                }
+                None => {
+                    map.remove("combinator");
+                }
+            }
+        }
+        prefix_chain.push(tail);
+        out.push(vec![parent.clone(), prefix_chain]);
+    }
+    (!out.is_empty()).then_some(out)
+}
+
+/// Returns `true` when no single element is the subject of *every* chain.
+fn is_structural_chain_conjunction_unused(chains: &[Vec<Value>], ctx: &CssContext) -> bool {
+    if chains.is_empty()
+        || ctx.has_dynamic_elements
+        || ctx.dom_structure.elements.is_empty()
+        || !structural_ancestry_is_lexical(ctx)
+    {
+        return false;
+    }
+    for chain in chains {
+        if chain.is_empty() {
+            return false;
+        }
+        for rel in chain.iter().skip(1) {
+            if !matches!(combinator_name(rel), " " | ">") {
+                return false;
+            }
+        }
+        for rel in chain {
+            let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+                return false;
+            };
+            if sels.is_empty() || !sels.iter().all(structural_simple_selector_is_evaluable) {
+                return false;
+            }
+        }
+    }
+    for (idx, el) in ctx.dom_structure.elements.iter().enumerate() {
+        let satisfies_all = chains.iter().all(|chain| {
+            let subject = &chain[chain.len() - 1];
+            structural_element_matches_compound(el, subject)
+                && structural_ancestors_satisfy_links(chain, chain.len() - 1, idx, ctx)
+        });
+        if satisfies_all {
+            return false;
+        }
+    }
+    true
 }
 
 /// Returns `true` when `rel_selectors` contains a NestingSelector (`&`) and the
@@ -2217,7 +2458,27 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
                 && s.get("name").and_then(|n| n.as_str()) == Some("host")
         });
 
-    if !first_is_host {
+    // A `:root` compound without `:has` is global-like exactly like `:host`:
+    // upstream never matches it against an element, so a `>` link out of it can
+    // only be satisfied when the subject is a root child.
+    let first_is_root = !first_is_host
+        && first
+            .get("selectors")
+            .and_then(|s| s.as_array())
+            .is_some_and(|arr| {
+                let named = |n: &str| {
+                    arr.iter().any(|s| {
+                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.get("name").and_then(|n2| n2.as_str()) == Some(n)
+                    })
+                };
+                named("root") && !named("has")
+            });
+
+    if !first_is_host && !first_is_root {
+        return false;
+    }
+    if first_is_root && (ctx.has_dynamic_elements || !structural_ancestry_is_lexical(ctx)) {
         return false;
     }
 
@@ -3027,6 +3288,9 @@ fn functional_pseudo_selector_list(rel: &Value) -> Option<&Vec<Value>> {
 /// per-branch `NestingSelector` OR recursion instead of bailing on the first
 /// unevaluable shape.
 fn collect_relative_selector_branches(rels: &[Value], out: &mut Vec<Vec<Value>>) {
+    // Upstream links a nested rule to its parent through `get_relative_selectors`,
+    // which drops the parent's trailing `:global(...)` before matching.
+    let rels = truncate_trailing_globals(rels);
     if level_is_structurally_evaluable(rels) {
         out.push(rels.to_vec());
         return;
@@ -3611,6 +3875,52 @@ fn is_structural_descendant_chain_unused(rel_selectors: &[Value], ctx: &CssConte
     true
 }
 
+/// Returns `true` when a lone compound selector matches no element. Only
+/// applies to compounds carrying at least two constraints — a single constraint
+/// is already decided by [`is_simple_selector_unused`], whose per-name
+/// deoptimizations this walker deliberately does not reproduce.
+fn is_structural_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    if rel_selectors.len() != 1
+        || ctx.has_dynamic_elements
+        || ctx.dom_structure.elements.is_empty()
+        || !structural_ancestry_is_lexical(ctx)
+    {
+        return false;
+    }
+    let rel = &rel_selectors[0];
+    let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    if sels.len() < 2 || !sels.iter().all(structural_simple_selector_is_evaluable) {
+        return false;
+    }
+    if sels
+        .iter()
+        .filter(|s| structural_simple_selector_constrains(s))
+        .count()
+        < 2
+    {
+        return false;
+    }
+    !ctx.dom_structure
+        .elements
+        .iter()
+        .any(|el| structural_element_matches_compound(el, rel))
+}
+
+/// Whether a simple selector narrows which elements a compound can match.
+fn structural_simple_selector_constrains(sel: &Value) -> bool {
+    let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+    match sel.get("type").and_then(|t| t.as_str()) {
+        Some("TypeSelector") => name != "*",
+        Some("ClassSelector") | Some("IdSelector") | Some("AttributeSelector") => true,
+        Some("PseudoClassSelector") => {
+            matches!(name, "is" | "where") && functional_pseudo_branches(sel).is_some()
+        }
+        _ => false,
+    }
+}
+
 fn structural_ancestors_satisfy_links(
     rels: &[Value],
     link_idx: usize,
@@ -3691,8 +4001,30 @@ fn structural_simple_selector_is_evaluable(sel: &Value) -> bool {
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
             // `:global` scoping and the global-like `:host`/`:root` (which
             // match outside the component tree) are not evaluable here.
-            !matches!(name, "global" | "host" | "root")
-                && sel.get("args").map(|a| a.is_null()).unwrap_or(true)
+            if matches!(name, "global" | "host" | "root") {
+                return false;
+            }
+            if sel.get("args").map(|a| a.is_null()).unwrap_or(true) {
+                return true;
+            }
+            match name {
+                // Upstream leaves `:not(...)` contents unscoped and never lets
+                // them reject an element, so it constrains nothing.
+                "not" => true,
+                "is" | "where" => functional_pseudo_branches(sel).is_some_and(|branches| {
+                    branches.iter().all(|branch| {
+                        functional_branch_compound(branch).is_none_or(|rel| {
+                            rel.get("selectors")
+                                .and_then(|s| s.as_array())
+                                .is_some_and(|sels| {
+                                    !sels.is_empty()
+                                        && sels.iter().all(structural_simple_selector_is_evaluable)
+                                })
+                        })
+                    })
+                }),
+                _ => false,
+            }
         }
         Some("PseudoElementSelector") => true,
         _ => false,
@@ -3741,12 +4073,35 @@ fn structural_element_matches_compound(
                     .and_then(|f| if f.is_null() { None } else { f.as_str() });
                 structural_element_matches_attribute(el, name, matcher, value, flags)
             }
-            // Bare pseudo-classes (:hover, :first-of-type, …) and
-            // pseudo-elements never constrain prune matching upstream.
-            Some("PseudoClassSelector") | Some("PseudoElementSelector") => true,
+            // A `:is()` / `:where()` compound matches when any argument branch
+            // does; upstream assumes a multi-part branch matches. Everything
+            // else (`:hover`, `:not(...)`, pseudo-elements) constrains nothing.
+            Some("PseudoClassSelector") => match functional_pseudo_branches(sel) {
+                Some(branches) if matches!(name, "is" | "where") => branches.iter().any(|branch| {
+                    functional_branch_compound(branch)
+                        .is_none_or(|r| structural_element_matches_compound(el, r))
+                }),
+                _ => true,
+            },
+            Some("PseudoElementSelector") => true,
             _ => false,
         }
     })
+}
+
+/// The argument selector list of a functional pseudo-class, or `None` when it
+/// takes no arguments.
+fn functional_pseudo_branches(sel: &Value) -> Option<&Vec<Value>> {
+    sel.get("args")
+        .and_then(|a| a.get("children"))
+        .and_then(|c| c.as_array())
+}
+
+/// The single compound of an argument branch. `None` for a multi-part branch,
+/// which upstream assumes matches rather than resolving.
+fn functional_branch_compound(complex: &Value) -> Option<&Value> {
+    let rels = complex.get("children").and_then(|c| c.as_array())?;
+    (rels.len() == 1).then(|| &rels[0])
 }
 
 fn structural_element_matches_attribute(
@@ -3756,7 +4111,9 @@ fn structural_element_matches_attribute(
     value: Option<&str>,
     flags: Option<&str>,
 ) -> bool {
-    if el.has_spread || el.is_dynamic_tag {
+    // An unknown tag name does not add attributes — upstream matches a
+    // `<svelte:element>` against its declared attribute list like any other.
+    if el.has_spread {
         return true;
     }
     if is_whitelisted_attribute(&el.tag_name, attr_name) {
@@ -4067,17 +4424,28 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
                     continue;
                 }
 
-                // When subject is empty (just pseudo-classes like standalone :has()),
-                // use global check since any element could be the subject
+                // A subject-less `:has(...)` is `*:has(...)`: upstream still
+                // requires the argument to match INSIDE some element's subtree,
+                // so an existence check over the whole component is too weak —
+                // unless the subject may be an element outside this component,
+                // which is upstream's `include_self`.
                 if subject_elements.is_empty()
                     && subject_info.tag_name.is_none()
                     && subject_info.classes.is_empty()
                     && subject_info.id.is_none()
                     && !subject_info.is_universal
                 {
-                    let all_has_args_unused = has_children
-                        .iter()
-                        .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx));
+                    let all_has_args_unused = if enclosing_rule_is_global_or_root(ctx) {
+                        has_children
+                            .iter()
+                            .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx))
+                    } else {
+                        let every_element: Vec<usize> =
+                            (0..ctx.dom_structure.elements.len()).collect();
+                        has_children.iter().all(|has_complex| {
+                            is_has_argument_unused(has_complex, &every_element, ctx)
+                        })
+                    };
                     if all_has_args_unused && !has_children.is_empty() {
                         return true;
                     }
@@ -4097,6 +4465,40 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     }
 
     false
+}
+
+/// Upstream `include_self`: the subject of a `:has(...)` may be an element
+/// outside this component when any enclosing rule is `:global(...)` or `:root`,
+/// in which case the argument is checked against the element itself as well as
+/// its subtree.
+fn enclosing_rule_is_global_or_root(ctx: &CssContext) -> bool {
+    ctx.parent_preludes.borrow().iter().any(|prelude| {
+        prelude
+            .get("children")
+            .and_then(|c| c.as_array())
+            .is_some_and(|complexes| {
+                complexes.iter().any(|complex| {
+                    complex
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .is_some_and(|rels| {
+                            rels.iter().any(|rel| {
+                                relative_selector_is_global_pseudo(rel)
+                                    || rel.get("selectors").and_then(|s| s.as_array()).is_some_and(
+                                        |sels| {
+                                            sels.iter().any(|s| {
+                                                s.get("type").and_then(|t| t.as_str())
+                                                    == Some("PseudoClassSelector")
+                                                    && s.get("name").and_then(|n| n.as_str())
+                                                        == Some("root")
+                                            })
+                                        },
+                                    )
+                            })
+                        })
+                })
+            })
+    })
 }
 
 /// Check if a :has() argument is unused when the subject is :root or :global
@@ -4541,7 +4943,7 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             // Note: :not() is handled differently - even if the inner selector doesn't exist,
             // :not(X) matches "all elements that are NOT X", so it's always potentially used
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            if (name == "is" || name == "has")
+            if (name == "is" || name == "where" || name == "has")
                 && let Some(args) = sel.get("args")
                 && let Some(children) = args.get("children").and_then(|c| c.as_array())
             {
@@ -4661,10 +5063,6 @@ fn is_attribute_selector_unused_parsed(
         return false;
     }
 
-    if ctx.has_dynamic_elements {
-        return false;
-    }
-
     let operator = matcher.unwrap_or("");
     let expected_value = value.map(unquote_css_value);
 
@@ -4677,9 +5075,6 @@ fn is_attribute_selector_unused_parsed(
 
     for element in &ctx.dom_structure.elements {
         if element.has_spread {
-            return false;
-        }
-        if element.is_dynamic_tag {
             return false;
         }
         if is_whitelisted_attribute(&element.tag_name, attr_name) {
