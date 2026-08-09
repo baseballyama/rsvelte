@@ -63,6 +63,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size | [D] |
 | 21 | Published-artifact glibc floor | max `GLIBC_*` version referenced by each Linux artifact | whether the binary actually **runs** anywhere; every non-glibc dependency | [D] |
 | 22 | NAPI option boundary | per declared option key: baseline vs. one-key variant, through the raw addon | it never compares against **official** — a key wired to the wrong semantics stays green | [S] |
+| 23 | Escaped-quote lookback shape | one line of Rust source, over every `.rs` under `crates/` + `apps/` | it matches a **spelling**; a scanner with *no* escape check at all produces no line to match | [D] |
 
 Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, the **performance**
 gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
@@ -1317,6 +1318,69 @@ have the JS decoder restore it; this gate adds the two JSON entries (`compile`, 
 which build the map in Rust. Neither covers `compileBuffers`, `compileModuleBuffers`, the
 `*ZeroCopy` entries, or `compileModule`'s map — and no assertion generalizes: each is a named
 field on a named entry.
+
+---
+
+## 23. Escaped-quote lookback shape — `crates/rsvelte_core/tests/escaped_quote_lookback_guard.rs`
+
+**Unit.** One line of Rust source, from every `.rs` file under `crates/` and `apps/` (1,114
+tracked files; the test asserts it walked at least 900, so a broken walk cannot report a clean
+tree). A line is a violation when it spells `!= '\\'` or `!= b'\\'` outside a comment and is not
+in the `ALLOWED` list. Verdict: the violation set must be empty.
+
+**Why it exists.** This is not an output gate; it forbids a *shape*. 37 shipped scanners (plus 14
+more in instruments and test helpers) decided "is this
+quote escaped?" with a one-character lookback, which is a different question — `'\\'` closes its
+string and the character before the quote is still a backslash. Every one of the ~22 gates above
+compares outputs, so each instance is only visible when some corpus entry happens to contain a
+string ending in `\\` **in the position that scanner reads**; #2598 shipped with a witness for
+exactly one site, and the rest were invisible at any corpus size. The one shared
+helper (`compiler::utils::is_escaped` / `is_escaped_char`) makes the correct predicate the only
+convenient one, and this test makes the incorrect one non-compiling in review terms: the class
+becomes unrepresentable rather than merely fixed.
+
+**Discriminating.** Restoring any single site to the lookback spelling turns it red and names
+the file and line. The paired `the_detector_fires_on_the_forbidden_shape` test is the control on
+the detector itself, in both directions (it fires on both index spellings, and stays quiet on a
+doc comment that quotes the shape and on a call to the helper).
+
+### Blind spot 23a — it matches a *spelling*, not the predicate [S]
+
+The detector is a substring test. A scanner that re-derives the same wrong answer differently —
+`chars[i - 1] == '\\'` in the positive direction, a `prev` variable updated in a stream, a
+hand-inlined backslash-counting loop, or a `match` on the preceding byte — passes. Two such
+spellings existed in this repo before this PR and had to be found by reading rather than by the
+needle: five copies of `if c == q && prev != '\\'` in `crates/rsvelte_projection/tests/` (a
+streaming form with no index), and the byte-relative
+`bytes[i] != b'\\'` in `1_parse/read/expression.rs` (correct indexing, different variable). Both
+are now on the helper, so today's tree has no such site — but nothing stops the next one.
+
+### Blind spot 23b — a scanner with *no* escape check at all is invisible [D]
+
+The needle requires the comparison to be present. A quote-tracking loop that never asks about
+escaping is a superset of this defect and produces no line for the detector to match.
+Discriminating case, still open in this tree:
+`3_transform/client/destructure_transforms.rs:894` decides `${` starts an interpolation with
+`c == b'$' && bytes[i + 1] == b'{'` and no escape test at all, so `` `a\${b}` `` — where the
+`$` *is* escaped — is read as a real interpolation. The sibling defect in
+`client/expression_utils.rs` was fixed in #2598 with the quote; this copy was not, and this gate
+cannot see it.
+
+### Blind spot 23c — Rust only, and only two directories [S]
+
+`collect_rs_files` walks `crates/` and `apps/`, filtering on the `.rs` extension. The same
+question is asked in JavaScript in this repo — `scripts/compat-corpus/normalize.mjs` and the
+corpus tooling all scan strings — and no gate inspects those. The directory list is also a
+literal: a new top-level Rust directory is silently outside the population, and the
+`MIN_FILES_SCANNED` floor is loose enough (900 vs 1,114) not to notice one.
+
+### Blind spot 23d — `ALLOWED` is unbounded and unjustified by the harness [S]
+
+An entry is a `(path, trimmed line)` pair with no required reason field and no shrink-only
+ratchet, so silencing a real violation costs one line. There is one entry today
+(`js_ast/codegen.rs`'s `b != b'\\'`, a character-class test rather than a lookback). Nothing
+asserts the list is minimal, and nothing fails when a listed line disappears — the same
+stale-entry hazard the two-sided corpus ratchets exist to prevent.
 
 ---
 
