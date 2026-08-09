@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 1360 entries)
+## Matrix known failures (`matrix-known-failures.json`, 1368 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 398 + 3 + 253 + 324`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 398 + 3 + 253 + 324 + 8`
 
 ### `binding-position` — 2 entries
 
@@ -431,6 +431,32 @@ gate.
 routed through the async-derived hoist (`var a; $.run([…])` plus a `$$promises` blocker) where
 upstream emits a plain `const a = $.derived(async () => …)` — rsvelte suspends on a derived
 upstream does not.
+### `constant-fold` — 8 entries
+
+Four expressions (`'ab'.at(0)`, `(1).toFixed(2)`, `Math.max(1, 2)`,
+`Math.max(1, 2).toFixed(0)`) × `client` / `client-dev`, and **one slot**: the
+`{@render}` argument. Every other slot in the family passes for all four, and
+`server` passes everywhere.
+
+They are not a folding divergence — they are memoisation. Upstream memoises a render
+argument when the expression `has_call`, which its `is_pure` makes **false** for a call
+whose callee and arguments are all pure, so `{@render row(Math.max(1, 2))}` is emitted
+verbatim. rsvelte decides the same question with `render_tag_has_call`
+(`client/visitors/render_tag.rs`), a value-level walk that reports any `CallExpression`
+anywhere and takes no `context`, so it has no notion of purity and wraps the argument in
+a `$.derived_safe_equal`. Both outputs compute the same value; the difference is one
+extra signal.
+
+Pre-existing and newly *measured*, not newly introduced: this family is new, and nothing
+in the change that added it touches the render-tag path. Two of the four
+(`string-literal-call`, `number-literal-call`) were already diverging on the first run of
+the family, before any fix in that PR had landed; the other two were masked by the
+`has_state` divergence that PR fixed and surfaced with it gone.
+
+They clear when `render_tag_has_call` is given the purity rule `has_call_json`
+(`client/visitors/shared/utils.rs`) already implements — which is a change to the
+memoisation path, deliberately left out of the folding fix so that a regression in one
+cannot be read as the other.
 
 ## Burn-down
 

@@ -88,7 +88,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403); a rule family measured at **one** of its ~40 codes (2d) | [D] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
-| 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules | [S] |
+| 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules; whether a folded constant is the *right* value | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
@@ -339,7 +339,7 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 3519 generated cases × 3 targets = 10557 comparisons. Where both compilers accept, the
+**Unit.** 3767 generated cases × 3 targets = 11301 comparisons. Where both compilers accept, the
 unit is `js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code**, which the `invalid-bind` and
 `param-default` families exist to exercise. A case may also carry `options`, merged over the
@@ -634,8 +634,6 @@ The rest of that class — `runes`, `namespace`, `accessors`, `customElement`,
 does surface in `js.code` and is reachable. Cost is not the constraint: an option axis compiles
 exactly like a shape axis. **[S]**
 
----
-
 ### Blind spot 5k — comments are observable HERE and nowhere else, and only inside `<script>`
 
 This gate compares oxfmt-normalized `js.code` **as text** (`run.mjs:260-262`, verdict
@@ -663,10 +661,38 @@ records for `POSITIONS` and `mutate.mjs`. And the family reaches only comments a
 statement the transform *removes*; a comment attached to one it keeps and *rewrites* is covered
 by `comment-slot`, not here. **[S]**
 
-**Closing 5b/5c:** the matrix costs ~20 s of CPU on ~10,000 comparisons (wall clock on a box running other agents' builds is unusable — a paired A/B inverted once). Widening the markup axis (a
-second expression axis against `EXPRESSION_SLOTS`) is cheap relative to every other gate here.
-This is the highest value-per-cost item in this document. The `.warnings` half of that
-recommendation is done.
+### Blind spot 5n — `constant-fold` compares text, so it cannot see what the folded code *does*
+
+Family `constant-fold` (17 expression kinds × 15 `EXPRESSION_SLOTS`, plus 2 `const`
+indirections × 5 slots) is the second expression axis against the markup slots, and the
+first that asks whether the two compilers agree on **which expressions are constant**. It
+straddles upstream's `scope.evaluate` boundaries deliberately — a member read on an array
+literal vs on a string literal, `Math.PI` vs `[1, 2].length`, a template literal whose
+interpolations are known vs one whose interpolation is `null`.
+
+What it cannot see, structurally: **whether the folded value is correct**. The unit is
+`js.code` text, so a fold that produces the wrong constant on *both* sides of a comparison
+is out of reach by construction, and a fold that produces the right text for the wrong
+reason is indistinguishable from one that does not. #2607 is that shape one axis over — a
+known-const `'\\'` folded to two backslashes, valid JavaScript computing the wrong string —
+and only a runtime test can catch it. **[S]**
+
+The second gap is the **direction of a residue**: the family scores match/mismatch, so an
+entry that diverges because rsvelte folds too much and one that diverges because it folds
+too little are the same verdict. Both are in this family's history — #2662 and #2665 were
+opposite directions of one evaluator — and the ratchet cannot tell them apart. The paired
+`.md` has to say which. **[D]**
+
+Third, the indirection axis stops at two levels (`const` → `const`). A fold that survives
+two and stops at three is **unmeasured**; the depth guards in the folder
+(`MAX_INITIAL_EVAL_DEPTH = 8`, `REACTIVE_INIT_DEPTH >= 8`) are above it and nothing here
+reaches them. **[S]**
+
+**Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,100 comparisons (wall clock on a box
+running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
+first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
+slots (`use:` / `transition:` / `animate:` / `in:` / `out:`) remain unreached by any family, and
+the `.warnings` half of that recommendation is done.
 
 ---
 
