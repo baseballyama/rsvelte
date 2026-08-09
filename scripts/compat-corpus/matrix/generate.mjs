@@ -30,6 +30,10 @@ import {
 	EACH_ITEM_SLOTS,
 	EACH_PREAMBLE,
 	EACH_EPILOGUE,
+	SLASH_REGEX_PREFIXES,
+	SLASH_DIVISION_CONTROLS,
+	SLASH_HOSTS,
+	REGEX_BODIES,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -165,6 +169,70 @@ function eachCollectionCases() {
 	return cases;
 }
 
+/**
+ * Rows whose host cross is narrowed, and why. Each entry names a pre-existing
+ * divergence that has nothing to do with the slash and reproduces with no regex
+ * in the source — ratcheting it here would put an entry in the baseline that
+ * suppresses the row this family added it to measure.
+ */
+const KEYWORD_REGEX_HOST_EXCLUSIONS = {
+	// `$derived` holding an `await` inside a NESTED async function compiles to
+	// `await $.async_derived(…)` inside a non-async component function, which no
+	// JS parser accepts. `$derived((async () => await String(v))())` does it too.
+	await: ['runes-derived'],
+	// A `class` declaration inside a template expression is dropped from the
+	// client output. `{(() => { class T {} return 1; })()}` does it too.
+	extends: ['template-expression', 'event-handler'],
+	// Comment placement in the expression converter (blind spot 1a): official
+	// keeps `/* return */` where rsvelte drops or moves it. The legacy hosts are
+	// where the scan this control guards actually runs.
+	'control-comment-ending-in-keyword': [
+		'legacy-prop-default',
+		'runes-derived',
+		'runes-class-method',
+		'template-expression',
+		'event-handler',
+	],
+};
+
+function keywordRegexCases() {
+	const cases = [];
+	const excluded = (row, host) => (KEYWORD_REGEX_HOST_EXCLUSIONS[row] ?? []).includes(host);
+	// The regex body only has to vary against the token axis — it is the token
+	// that selects the branch, and crossing every body with every host would add
+	// columns that cannot move independently of `delimiters`.
+	const BODY_HOST = 'legacy-reactive';
+	const DEFAULT_BODY = 'delimiters';
+	for (const [prefixName, template] of Object.entries(SLASH_REGEX_PREFIXES)) {
+		for (const [hostName, host] of Object.entries(SLASH_HOSTS)) {
+			if (excluded(prefixName, hostName)) continue;
+			cases.push({
+				id: `keyword-regex/${prefixName}__${hostName}${host.ext}`,
+				source: host.wrap(template.replaceAll('%s', REGEX_BODIES[DEFAULT_BODY])),
+				kind: host.kind,
+			});
+		}
+		for (const [bodyName, body] of Object.entries(REGEX_BODIES)) {
+			if (bodyName === DEFAULT_BODY) continue;
+			cases.push({
+				id: `keyword-regex/${prefixName}__body-${bodyName}.svelte`,
+				source: SLASH_HOSTS[BODY_HOST].wrap(template.replaceAll('%s', body)),
+			});
+		}
+	}
+	for (const [controlName, expression] of Object.entries(SLASH_DIVISION_CONTROLS)) {
+		for (const [hostName, host] of Object.entries(SLASH_HOSTS)) {
+			if (excluded(`control-${controlName}`, hostName)) continue;
+			cases.push({
+				id: `keyword-regex/control-${controlName}__${hostName}${host.ext}`,
+				source: host.wrap(expression),
+				kind: host.kind,
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
@@ -172,6 +240,7 @@ export const FAMILIES = {
 	'invalid-bind': invalidBindCases,
 	'param-default': paramDefaultCases,
 	'each-collection': eachCollectionCases,
+	'keyword-regex': keywordRegexCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

@@ -340,6 +340,199 @@ export const EXPRESSION_SLOTS = {
 };
 
 /**
+ * Axis H — the token a `/` follows, crossed with axis I, the host that holds the
+ * expression.
+ *
+ * Whether a `/` opens a regex literal or divides is decided by the PRECEDING
+ * TOKEN, and every hand-written scanner in the client instance-script text
+ * pipeline decided it from the preceding BYTE. An identifier-looking byte reads
+ * as "an operand ended here", so the `n` of `return` turned `return /re/` into a
+ * division and the rest of the line was misparsed.
+ *
+ * The keyword rows are every ECMA-262 §12.7.2 reserved word that CANNOT end an
+ * expression and can be followed by a regex literal in expression position, plus
+ * the contextual `of` of a `for…of` head. The five reserved words that CAN end
+ * an expression — `this`, `super`, `true`, `false`, `null` — are excluded by
+ * construction: a `/` after them is a division, and they belong with the
+ * controls below.
+ *
+ * `%s` is the regex literal. Every row reads `v` AFTER the literal, for two
+ * reasons: a scan that mis-read the literal drops or fails to rewrite the reads
+ * behind it, which is the observable damage; and a bare literal operand is
+ * constant-folded by one compiler and not the other, which would make the row
+ * diverge for a reason that has nothing to do with the slash.
+ */
+export const SLASH_REGEX_PREFIXES = {
+	return: '(() => { return %s.test(String(v)); })()',
+	typeof: 'typeof %s.exec(String(v))',
+	void: '(void %s.test(String(v)), String(v))',
+	delete: '(delete %s.lastIndex ? v : 0)',
+	instanceof: '(%s instanceof RegExp ? v : 0)',
+	in: "('0' in %s.exec(String(v)) ? 1 : 0)",
+	new: 'new RegExp(%s).test(String(v))',
+	case: '(() => { switch (String(v)) { case %s.source: return 1; default: return 2; } })()',
+	of: '(() => { for (const q of [%s]) return q.test(String(v)); })()',
+	do: '(() => { do { return %s.test(String(v)); } while (false); })()',
+	else: '(() => { if (v) return 0; else return %s.test(String(v)); })()',
+	throw: '(() => { try { throw %s; } catch (e) { return e.test(String(v)); } })()',
+	yield: '(function* () { yield %s.test(String(v)); })()',
+	await: '(async () => await %s.test(String(v)))()',
+	extends: '(() => { class T extends %s.constructor { m() { return v; } } return new T().m(); })()',
+};
+
+/**
+ * The regex literal itself. `delimiters` is the discriminating body — a scanner
+ * that read the literal as a division goes on to count the `;{}()` inside it as
+ * code, which is what every terminator hunt in these passes is looking for.
+ * `plain` is the negative control (nothing inside it can move a scan), and
+ * `escaped-slash` is #2618's adjacency, which a division reading re-exposes.
+ */
+export const REGEX_BODIES = {
+	delimiters: '/[;{})(]/',
+	plain: '/ab/',
+	'escaped-slash': '/a\\/\\/b/',
+	'slash-in-class': '/[//]/',
+	flags: '/ab/gi',
+};
+
+/**
+ * The counterpart polarity: a `/` that IS a division and must stay one. A fix
+ * that widened the regex reading would score green on every row above and
+ * silently swallow the rest of these lines.
+ *
+ * `ident-ending-in-keyword` and `property-named-like-keyword` are the two a
+ * keyword allow-list gets wrong when it matches a suffix instead of a whole
+ * token; `comment-ending-in-keyword` is the one a scan that looks BACKWARDS from
+ * the slash gets wrong, because the run it finds is inside a comment the scan
+ * had already stepped over.
+ */
+export const SLASH_DIVISION_CONTROLS = {
+	chain: 'v / 2 / 4',
+	update: '(() => { let n = Number(v); return n++ / 2 / 4; })()',
+	'ident-ending-in-keyword': '(() => { const preturn = Number(v); return preturn / 2 / 4; })()',
+	'property-named-like-keyword': '(() => { const o = { in: Number(v), return: 4 }; return o.in / o.return / 2; })()',
+	'string-ending-in-keyword': "('return'.length / 2 / Number(v))",
+	'regex-flag-then-division': '(/ab/gi.lastIndex / 2 / Number(v))',
+	'comment-ending-in-keyword': '(v /* return */ / 2 / 4)',
+	'this-then-division': '(function () { return this / 2 / Number(v); }).call(4)',
+	'true-then-division': '(() => { return true / 2 / Number(v); })()',
+	'null-then-division': '(() => { return null / 2 / Number(v); })()',
+};
+
+/**
+ * Axis I — the host that holds the expression. `%s` is the expression.
+ *
+ * The point of this axis is that the scanners are per-pass: the legacy `$:`
+ * accumulator, the prop-read rewriter, the class-body splitter and the template
+ * expression converter each have their own scan, and a fix applied to the shared
+ * helper has to reach all of them. The runes and module hosts are the negative
+ * controls — they take different routes and were never expected to break.
+ */
+export const SLASH_HOSTS = {
+	'legacy-reactive': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	export let v;
+	let k;
+	$: k = ${expr};
+</script>
+
+<p>{k}{v}</p>
+`,
+	},
+	'legacy-reactive-block': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	export let v;
+	let k;
+	$: {
+		k = ${expr};
+	}
+</script>
+
+<p>{k}{v}</p>
+`,
+	},
+	'legacy-prop-default': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	export let v = 1;
+	export let p = ${expr};
+	let k;
+	$: k = p;
+</script>
+
+<p>{k}{v}</p>
+`,
+	},
+	'legacy-function': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	export let v;
+	let k;
+	function f() {
+		return ${expr};
+	}
+	$: k = f();
+</script>
+
+<p>{k}{v}</p>
+`,
+	},
+	'runes-derived': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	let v = $state(1);
+	const k = $derived(${expr});
+</script>
+
+<p>{k}{v}</p>
+`,
+	},
+	'runes-class-method': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	let v = $state(1);
+	class C {
+		#n = $state(0);
+		m() {
+			return [this.#n, ${expr}];
+		}
+	}
+	const c = new C();
+</script>
+
+<p>{c.m()}{v}</p>
+`,
+	},
+	'template-expression': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	let v = $state(1);
+</script>
+
+<p>{${expr}}</p>
+`,
+	},
+	'event-handler': {
+		ext: '.svelte',
+		wrap: (expr) => `<script>
+	let v = $state(1);
+</script>
+
+<button onclick={() => ${expr}}>x</button>
+`,
+	},
+	module: {
+		ext: '.svelte.js',
+		kind: 'module',
+		wrap: (expr) => `let v = $state(1);
+export const k = ${expr};
+`,
+	},
+};
+
+/**
  * Axis D — expressions that are not a legal `bind:` target, crossed with axis E,
  * the directive slot they sit in.
  *

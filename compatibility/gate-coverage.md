@@ -340,6 +340,33 @@ It is also blind to the two axes it holds fixed: the item is always an **Identif
 **legacy**, because the reassigned-item read does not exist under runes. A runes-only variant of
 this family would measure nothing, which is why the preamble is deliberately rune-free.
 
+### Blind spot 5g — the `keyword-regex` family fixes one body per host and one host per body
+
+Family `keyword-regex` (`axes.mjs` — 15 reserved words that cannot end an expression × 9 hosts,
+plus 15 × 4 regex bodies on the legacy `$:` host, plus 10 division controls × 9 hosts) exists
+because whether a `/` opens a regex literal is decided by the preceding **token** and every
+hand-written scan in the client instance-script pipeline decided it from the preceding **byte**
+(#2620). Its two polarities are regex-read-as-division and division-read-as-regex; a fix that
+only widened one direction scores green on the other half.
+
+What it does **not** generate is the product: `generate.mjs`'s `keywordRegexCases` crosses every
+keyword with every host at **one** regex body (`delimiters`), and every regex body with every
+keyword at **one** host (`legacy-reactive`). A scanner that breaks only on, say, `slash-in-class`
+inside a class-body member is unmeasured. **[S]** The same is true of spelling: every generated
+row puts exactly one space between the keyword and the `/`, so `return/re/` — a different byte
+layout for the same token pair — is never produced.
+
+The controls are ASCII-only, and the one that discriminates a **backwards** scan
+(`comment-ending-in-keyword`) is a block comment on one line. A `//` comment whose text ends in a
+keyword is the sharper input and is **not** generated here: rsvelte drops that comment from its
+output (blind spot 1a), so the row would diverge for a reason unrelated to the slash and a
+ratchet entry would then suppress the control it was added to be. That case is asserted directly
+instead, in `js_scan.rs`'s `a_comment_ending_in_a_keyword_does_not_open_a_regex`.
+
+Finally, the family reaches only the scanners that go through `shared::js_scan::skip_opaque`.
+`shared/class_body.rs:54` keeps a **private copy** of `slash_starts_regex` with the same
+previous-byte rule, and nothing here distinguishes a case that routes through it. **[U]**
+
 **Closing 5b/5c:** the matrix runs in ~10 s on ~5,250 comparisons. Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) or reading `.warnings` is cheap relative to
 every other gate here. This is the highest value-per-cost item in this document.
