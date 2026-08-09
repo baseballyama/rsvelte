@@ -61,6 +61,11 @@ pub struct ManifestEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Manifest {
     pub version: u32,
+    /// `CompilerOptionsSettings::signature()` of the run that wrote this
+    /// manifest — the shadows depend on those options, which no per-file
+    /// `(mtime, size)` key can observe.
+    #[serde(default)]
+    pub config_signature: String,
     /// Keyed by absolute source path while in memory; serialised with
     /// workspace-relative paths via [`save`] / [`load`] so the file is
     /// portable across machines.
@@ -71,6 +76,7 @@ impl Manifest {
     pub fn empty() -> Self {
         Self {
             version: MANIFEST_VERSION,
+            config_signature: String::new(),
             entries: HashMap::new(),
         }
     }
@@ -86,6 +92,8 @@ pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
     #[derive(Deserialize)]
     struct OnDiskManifest {
         version: u32,
+        #[serde(default)]
+        config_signature: String,
         #[serde(default)]
         entries: HashMap<String, OnDiskEntry>,
     }
@@ -128,6 +136,7 @@ pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
     }
     Manifest {
         version: parsed.version,
+        config_signature: parsed.config_signature,
         entries,
     }
 }
@@ -142,6 +151,7 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
     #[derive(Serialize)]
     struct OnDiskManifest {
         version: u32,
+        config_signature: String,
         entries: HashMap<String, OnDiskEntry>,
     }
     #[derive(Serialize)]
@@ -170,6 +180,7 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
     }
     let body = OnDiskManifest {
         version: manifest.version,
+        config_signature: manifest.config_signature.clone(),
         entries: out_entries,
     };
     let json = serde_json::to_string_pretty(&body).map_err(std::io::Error::other)?;

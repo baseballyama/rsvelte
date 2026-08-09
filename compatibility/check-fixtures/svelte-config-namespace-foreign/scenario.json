@@ -1,0 +1,5 @@
+{
+	"description": "`compilerOptions.namespace` reaches the TSX projection. Paired with `svelte-config-namespace-html`, whose project is byte-identical apart from the namespace value: only `foreign` suppresses svelte2tsx's attribute-name case fold, so `contentEditable` survives as written and stops matching `HTMLProps<'div'>`. `foreign` is also not a value the Svelte 5 compiler accepts, so `svelte.compile` rejects the options object once per checked component — both halves have to be reproduced for this scenario to reach parity.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}

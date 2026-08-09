@@ -25,6 +25,7 @@ use oxc_ast::ast as oxc;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::SourceType;
 
+use super::config::CompilerOptionsSettings;
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::{self, AddedCode, KitFilesSettings};
 use super::manifest::{self, Manifest, ManifestEntry, current_stats};
@@ -108,9 +109,10 @@ struct SveltePackage {
 /// pair (`svelte-shims.d.ts` / `svelte-jsx.d.ts`), which rsvelte does not
 /// vendor because it is a Svelte 5 compiler — Svelte 3 falls back to the v4
 /// pair; and `svelte-native-jsx.d.ts`, which only types the
-/// `svelteNative.JSX` namespace rsvelte never emits (the overlay always runs
-/// svelte2tsx with `Svelte2TsxNamespace::Html`), matching upstream
-/// svelte-check's own commented-out entry in `incremental.ts`.
+/// `svelteNative.JSX` typings namespace rsvelte never emits — upstream selects
+/// that one from the tsconfig's `svelteOptions.namespace`, a separate input
+/// from `compilerOptions.namespace`, matching svelte-check's own commented-out
+/// entry in `incremental.ts`.
 fn select_global_types(workspace: &Path, cache_dir: &Path) -> GlobalTypes {
     // The resolved path is written into the overlay tsconfig, which lives in
     // a different directory than the CLI's cwd a relative `--workspace`
@@ -391,7 +393,14 @@ pub fn materialize_overlay(
     files: &[PathBuf],
     tsconfig_path: Option<&Path>,
 ) -> Result<OverlayLayout, OverlayError> {
-    materialize_overlay_with(workspace, files, tsconfig_path, false, &[])
+    materialize_overlay_with(
+        workspace,
+        files,
+        tsconfig_path,
+        false,
+        &[],
+        &CompilerOptionsSettings::default(),
+    )
 }
 
 /// Same as [`materialize_overlay_with`] but also materialises SvelteKit
@@ -407,9 +416,16 @@ pub fn materialize_overlay_with_kit(
     incremental: bool,
     settings: &KitFilesSettings,
     ignore: &[String],
+    compiler_opts: &CompilerOptionsSettings,
 ) -> Result<OverlayLayout, OverlayError> {
-    let mut layout =
-        materialize_overlay_with(workspace, svelte_files, tsconfig_path, incremental, ignore)?;
+    let mut layout = materialize_overlay_with(
+        workspace,
+        svelte_files,
+        tsconfig_path,
+        incremental,
+        ignore,
+        compiler_opts,
+    )?;
     layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
     materialize_kit_types(workspace, &layout.emit_dir, kit_files)?;
     // A kit file already has a mirror copy at its own path, which resolves its
@@ -445,20 +461,31 @@ pub fn materialize_overlay_with(
     tsconfig_path: Option<&Path>,
     incremental: bool,
     ignore: &[String],
+    compiler_opts: &CompilerOptionsSettings,
 ) -> Result<OverlayLayout, OverlayError> {
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
     fs::create_dir_all(&emit_dir)?;
     let manifest_path = cache_dir.join("manifest.json");
+    let namespace = compiler_opts.projection_namespace();
+    let config_signature = compiler_opts.signature();
     // Chosen up front: every shadow's `<reference types="svelte" />` has to be
     // blanked as it is emitted once the blanked copy stands in for the package.
     let global_types = select_global_types(workspace, &cache_dir);
 
+    // The shadows depend on `compilerOptions` too, and a config edit moves
+    // neither the source mtime nor its size.
     let mut manifest = if incremental {
-        manifest::load(&manifest_path, workspace)
+        let cached = manifest::load(&manifest_path, workspace);
+        if cached.config_signature == config_signature {
+            cached
+        } else {
+            Manifest::empty()
+        }
     } else {
         Manifest::empty()
     };
+    manifest.config_signature = config_signature;
 
     // Resolve every input to an absolute path up-front so we can use
     // it both as the manifest key and (later) for prune.
@@ -506,6 +533,7 @@ pub fn materialize_overlay_with(
             svelte_resolver.as_ref(),
             &ext_root_dir_pairs,
             global_types.svelte_types.is_some(),
+            namespace,
         )?;
         module_bridges.extend(emit_svelte_module_bridges(
             &pkg.real_dir,
@@ -564,7 +592,7 @@ pub fn materialize_overlay_with(
                 is_ts_file,
                 mode: Svelte2TsxMode::Ts,
                 accessors: false,
-                namespace: Svelte2TsxNamespace::Html,
+                namespace,
                 version: SvelteVersion::V5,
                 runes: None,
                 // emit_jsdoc=true is required so tsgo doesn't choke on
@@ -878,6 +906,7 @@ fn emit_external_shadows(
     resolver: Option<&oxc_resolver::Resolver>,
     ext_pairs: &[(PathBuf, PathBuf)],
     blank_svelte_reference: bool,
+    namespace: Svelte2TsxNamespace,
 ) -> Result<(), OverlayError> {
     // Mirror the package's own `node_modules` into the shadow dir so the
     // shadow's bare-package imports (`import type { X } from 'sortablejs'`,
@@ -913,7 +942,7 @@ fn emit_external_shadows(
             is_ts_file,
             mode: Svelte2TsxMode::Ts,
             accessors: false,
-            namespace: Svelte2TsxNamespace::Html,
+            namespace,
             version: SvelteVersion::V5,
             runes: None,
             emit_jsdoc: true,
@@ -3421,6 +3450,25 @@ mod tests {
     static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     use std::fs;
     use std::io::Write;
+
+    /// Shadows the real entry point with the default compiler options; the
+    /// tests below are about layout and module resolution, not config.
+    fn materialize_overlay_with(
+        workspace: &Path,
+        files: &[PathBuf],
+        tsconfig_path: Option<&Path>,
+        incremental: bool,
+        ignore: &[String],
+    ) -> Result<OverlayLayout, OverlayError> {
+        super::materialize_overlay_with(
+            workspace,
+            files,
+            tsconfig_path,
+            incremental,
+            ignore,
+            &CompilerOptionsSettings::default(),
+        )
+    }
 
     #[test]
     fn strip_jsonc_comments_preserves_non_ascii() {

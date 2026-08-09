@@ -35,6 +35,11 @@ use oxc_parser::Parser as OxcParser;
 use oxc_span::SourceType;
 
 use super::kit_file::{lookup_property, unwrap_define_config_object};
+use crate::svelte2tsx::Svelte2TsxNamespace;
+
+/// Namespaces the Svelte 5 compiler accepts for `compilerOptions.namespace`
+/// (`validate-options.js`'s `list(['html', 'mathml', 'svg'])`).
+const COMPILER_NAMESPACES: [&str; 3] = ["html", "mathml", "svg"];
 
 /// Subset of Svelte `compilerOptions` that influence svelte-check
 /// diagnostics. Extend as more options gain diagnostic relevance.
@@ -47,6 +52,12 @@ pub struct CompilerOptionsSettings {
     /// `compilerOptions.runes` — forces runes mode on/off. `None` =
     /// auto-detect (the compiler default).
     pub runes: Option<bool>,
+    /// `compilerOptions.namespace`, verbatim. Kept as the raw string
+    /// because the projection and the compiler disagree about the legal
+    /// set: svelte2tsx still honours the Svelte 4 value `foreign`, which
+    /// the Svelte 5 compiler rejects, and both consequences are
+    /// user-visible.
+    pub namespace: Option<String>,
 }
 
 impl CompilerOptionsSettings {
@@ -56,7 +67,33 @@ impl CompilerOptionsSettings {
     /// mtime/size is unaffected by a config edit, so the per-file key
     /// alone can't notice it).
     pub fn signature(&self) -> String {
-        format!("async={};runes={:?}", self.experimental_async, self.runes)
+        format!(
+            "async={};runes={:?};namespace={:?}",
+            self.experimental_async, self.runes, self.namespace
+        )
+    }
+
+    /// The namespace the TSX projection runs under. Mirrors
+    /// `DocumentSnapshot.ts`'s `namespace: document.config?.compilerOptions
+    /// ?.namespace`: the config string reaches svelte2tsx unvalidated, and
+    /// only `foreign` changes what it emits (attribute case is preserved).
+    pub fn projection_namespace(&self) -> Svelte2TsxNamespace {
+        match self.namespace.as_deref() {
+            Some("svg") => Svelte2TsxNamespace::Svg,
+            Some("mathml") => Svelte2TsxNamespace::Mathml,
+            Some("foreign") => Svelte2TsxNamespace::Foreign,
+            _ => Svelte2TsxNamespace::Html,
+        }
+    }
+
+    /// The configured namespace when the Svelte 5 compiler would reject it.
+    /// `svelte.compile` validates its options, so upstream svelte-check
+    /// surfaces `options_invalid_value` for every checked component of such
+    /// a project; rsvelte builds `CompileOptions` from a typed enum and so
+    /// has to make that check itself.
+    pub fn invalid_namespace(&self) -> Option<&str> {
+        let ns = self.namespace.as_deref()?;
+        (!COMPILER_NAMESPACES.contains(&ns)).then_some(ns)
     }
 }
 
@@ -382,9 +419,10 @@ fn vite_uses_inline_sveltekit_config(source: &str, source_type: SourceType) -> b
     false
 }
 
-/// Read `compilerOptions.{experimental.async, runes}` out of an object
-/// expression (either a svelte.config root object or a svelte-plugin
-/// options object). Only sets a field when a boolean literal is present.
+/// Read `compilerOptions.{experimental.async, runes, namespace}` out of an
+/// object expression (either a svelte.config root object or a svelte-plugin
+/// options object). Only sets a field when a literal of the right kind is
+/// present.
 fn extract_compiler_options(obj: &oxc::ObjectExpression, settings: &mut CompilerOptionsSettings) {
     let Some(oxc::Expression::ObjectExpression(co)) = lookup_property(obj, "compilerOptions")
     else {
@@ -392,6 +430,9 @@ fn extract_compiler_options(obj: &oxc::ObjectExpression, settings: &mut Compiler
     };
     if let Some(oxc::Expression::BooleanLiteral(b)) = lookup_property(co, "runes") {
         settings.runes = Some(b.value);
+    }
+    if let Some(oxc::Expression::StringLiteral(s)) = lookup_property(co, "namespace") {
+        settings.namespace = Some(s.value.to_string());
     }
     if let Some(oxc::Expression::ObjectExpression(exp)) = lookup_property(co, "experimental")
         && let Some(oxc::Expression::BooleanLiteral(b)) = lookup_property(exp, "async")
@@ -602,6 +643,96 @@ mod tests {
         );
         let s = load_compiler_options(&dir);
         assert_eq!(s.runes, Some(true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_namespace_from_svelte_config() {
+        let dir = workspace("ns_svelte");
+        write(
+            &dir,
+            "svelte.config.js",
+            "export default { compilerOptions: { namespace: 'foreign' } };",
+        );
+        let s = load_compiler_options(&dir);
+        assert_eq!(s.namespace.as_deref(), Some("foreign"));
+        assert_eq!(s.projection_namespace(), Svelte2TsxNamespace::Foreign);
+        assert_eq!(s.invalid_namespace(), Some("foreign"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_namespace_from_vite_plugin_call() {
+        let dir = workspace("ns_vite");
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            export default { plugins: [svelte({ compilerOptions: { namespace: 'svg' } })] };"#,
+        );
+        let s = load_compiler_options(&dir);
+        assert_eq!(s.namespace.as_deref(), Some("svg"));
+        assert_eq!(s.projection_namespace(), Svelte2TsxNamespace::Svg);
+        assert_eq!(s.invalid_namespace(), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Only `foreign` changes what svelte2tsx emits, so the mapping has to be
+    /// pinned alongside the fact that every compiler-legal value is inert.
+    #[test]
+    fn namespace_maps_to_the_projection_namespace() {
+        let cases = [
+            (None, Svelte2TsxNamespace::Html),
+            (Some("html"), Svelte2TsxNamespace::Html),
+            (Some("svg"), Svelte2TsxNamespace::Svg),
+            (Some("mathml"), Svelte2TsxNamespace::Mathml),
+            (Some("foreign"), Svelte2TsxNamespace::Foreign),
+            (Some("nonsense"), Svelte2TsxNamespace::Html),
+        ];
+        for (raw, expected) in cases {
+            let s = CompilerOptionsSettings {
+                namespace: raw.map(str::to_string),
+                ..Default::default()
+            };
+            assert_eq!(s.projection_namespace(), expected, "namespace {raw:?}");
+        }
+    }
+
+    /// The compiler's legal set is narrower than the projection's: `foreign`
+    /// is a Svelte 4 value svelte2tsx still honours and `svelte.compile`
+    /// rejects.
+    #[test]
+    fn only_compiler_illegal_namespaces_are_reported() {
+        for legal in ["html", "svg", "mathml"] {
+            let s = CompilerOptionsSettings {
+                namespace: Some(legal.to_string()),
+                ..Default::default()
+            };
+            assert_eq!(s.invalid_namespace(), None, "{legal} is a compiler value");
+        }
+        for illegal in ["foreign", "HTML", ""] {
+            let s = CompilerOptionsSettings {
+                namespace: Some(illegal.to_string()),
+                ..Default::default()
+            };
+            assert_eq!(s.invalid_namespace(), Some(illegal));
+        }
+        assert_eq!(CompilerOptionsSettings::default().invalid_namespace(), None);
+    }
+
+    /// A non-literal value is unreadable, and reporting it as invalid would
+    /// be a false positive on a project that computes a legal one.
+    #[test]
+    fn dynamic_namespace_is_not_read() {
+        let dir = workspace("ns_dynamic");
+        write(
+            &dir,
+            "svelte.config.js",
+            "import { ns } from './ns.js';\nexport default { compilerOptions: { namespace: ns } };",
+        );
+        let s = load_compiler_options(&dir);
+        assert_eq!(s.namespace, None);
+        assert_eq!(s.invalid_namespace(), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -950,14 +1081,18 @@ mod tests {
 
     #[test]
     fn signature_changes_with_options() {
-        let a = CompilerOptionsSettings {
-            experimental_async: false,
-            runes: None,
-        };
+        let a = CompilerOptionsSettings::default();
         let b = CompilerOptionsSettings {
             experimental_async: true,
-            runes: None,
+            ..Default::default()
         };
         assert_ne!(a.signature(), b.signature());
+        // The overlay shadows depend on the namespace, so the signature that
+        // invalidates them has to move with it.
+        let c = CompilerOptionsSettings {
+            namespace: Some("foreign".to_string()),
+            ..Default::default()
+        };
+        assert_ne!(a.signature(), c.signature());
     }
 }

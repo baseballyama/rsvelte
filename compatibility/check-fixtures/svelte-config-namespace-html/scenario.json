@@ -1,0 +1,5 @@
+{
+	"description": "Control for `svelte-config-namespace-foreign`: same sources, `namespace: 'html'`. Every value the Svelte 5 compiler accepts leaves the projection unchanged (svelte2tsx branches on `foreign` alone), so this scenario must keep exactly the one diagnostic that does not depend on the namespace — without it, a projection that never folds attribute case at all would satisfy the `foreign` scenario too.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}
