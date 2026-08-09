@@ -1028,6 +1028,12 @@ jobs:
       - name: Check the output-parseability gate
         run: node scripts/dev/test-corpus-parse-gate.mjs
 
+      # The lint gate's rewrite floor and its compared population. Both linters
+      # are stubbed, so this runs without the lint submodules, the dist-lint
+      # build or the eslint oracle that the Lint parity job needs.
+      - name: Check the lint gate's population floor
+        run: node scripts/dev/test-lint-verify-population-floor.mjs
+
       # The ratchet-doc count parser. Lives here rather than in Corpus Compat so
       # it runs without the corpus: it needs no submodules and no build.
       - name: Check the known-failures doc count parser

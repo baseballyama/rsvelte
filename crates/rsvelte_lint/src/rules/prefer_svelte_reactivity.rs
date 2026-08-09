@@ -17,8 +17,8 @@
 //! usage (`date.getTime()`, `map.get(k)`) is fine.
 //!
 //! The plugin additionally flags exported instances in `*.svelte.js` /
-//! `*.svelte.ts` modules; those fixtures are `.svelte.js` files (not collected
-//! by the component oracle) and that path is intentionally not ported here.
+//! `*.svelte.ts` modules; that path is not ported yet, and the corpus gate now
+//! measures it (23 entries in `compatibility/lint-known-failures.json`).
 
 use serde_json::Value;
 

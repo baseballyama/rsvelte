@@ -1,17 +1,28 @@
 # known-failures.json — why entries are accepted (lint corpus)
 
 The lint-parity corpus (`scripts/compat-corpus/lint-verify.mjs`) lints every
-`.svelte` source in `eslint-plugin-svelte` + `svelte-eslint-parser` plus the
-real-world libraries bits-ui / flowbite-svelte / melt-ui / shadcn-svelte with both
-the real `eslint-plugin-svelte` (oracle) and native `rsvelte-lint`, recording every
-finding that appears on exactly one side. The ratchet may only shrink.
+`.svelte`, `.svelte.js` and `.svelte.ts` source in `eslint-plugin-svelte` +
+`svelte-eslint-parser` plus the real-world libraries bits-ui / flowbite-svelte /
+melt-ui / shadcn-svelte / skeleton with both the real `eslint-plugin-svelte`
+(oracle) and native `rsvelte-lint`, recording every finding that appears on
+exactly one side. The ratchet may only shrink.
 `FP` = rsvelte reports, oracle silent. `FN` = oracle reports, rsvelte silent.
 
 The exact-fixture oracle gate (`crates/rsvelte_lint/tests/eslint_plugin_oracle.rs`)
 is the authoritative behaviour check and must stay 100%; this corpus is the
 real-world volume check.
 
-## Current baseline: `lint-known-failures.json`, 80 entries — 80 divergences (32 FP, 48 FN)
+## Current baseline: `lint-known-failures.json`, 104 entries — 104 divergences (32 FP, 72 FN)
+
+**24 of the 104 are the `.svelte.(js|ts)` surface, enrolled when it entered the gate.**
+Until then the diff loop iterated `kind === 'component'` only, so both linters were
+run over rune modules and the result was discarded. 23 of the 24 are one rule —
+`prefer-svelte-reactivity`, whose module path `rules/prefer_svelte_reactivity.rs:19-21`
+declined to port *citing the absence of this coverage as the reason*. That makes them
+a licensed gap now forced into view rather than drift, which is why they are enrolled
+rather than fixed here: the fix is a rule port, not a harness change. The 24th is
+`no-navigation-without-base` on a module, same shape as the 6 component `no-goto-without-base`
+entries below.
 
 The former largest cluster — `no-top-level-browser-globals` (136 FP) — is now
 resolved: an oxc-semantic scope resolver (`rsvelte_lint::compiler_scope` +
@@ -28,21 +39,25 @@ higher volume:
 
 - **`sort-attributes` — 36 (11 FP / 25 FN).** Attribute ordering around
   `bind:`/directives and inline `/* eslint … */` custom `order`.
+- **`prefer-svelte-reactivity` — 25 (25 FN).** 2 on components; 23 on
+  `.svelte.(js|ts)` modules, the deliberately unported path described above.
 - **`valid-prop-names-in-kit-pages` (16 FP) / `no-goto-without-base` (6 FN).**
   SvelteKit route-file-type gating + `resolve()`/base-path handling on real
   `src/routes/+page.svelte` files.
 - **`prefer-const` (9 — 8 FN / 1 FP) / `no-target-blank` (7 FN).** Small per-rule
   tail (TS `let`, `{@const}`, template-attribute reassignment scan).
 - **Singletons:** `experimental-require-slot-types` (2 FP),
-  `prefer-svelte-reactivity` (2 FN), `prefer-destructured-store-props` (2 FP).
+  `prefer-destructured-store-props` (2 FP), `no-navigation-without-base` (1 FN,
+  on a module).
 
-By repo: flowbite-svelte 45, bits-ui 18, shadcn-svelte 17 (melt-ui 0).
+By repo: flowbite-svelte 45, bits-ui 28, shadcn-svelte 18, eslint-plugin-svelte 10,
+melt-ui 3. By file kind: 80 component, 24 module.
 
 The three splits above each cover every entry exactly once:
 
-Partition of `lint-known-failures.json` by rule: `36 + 16 + 6 + 9 + 7 + 2 + 2 + 2`
-Partition of `lint-known-failures.json` by direction: `32 + 48`
-Partition of `lint-known-failures.json` by repo: `45 + 18 + 17 + 0`
+Partition of `lint-known-failures.json` by rule: `36 + 25 + 16 + 6 + 9 + 7 + 2 + 2 + 1`
+Partition of `lint-known-failures.json` by direction: `32 + 72`
+Partition of `lint-known-failures.json` by repo: `45 + 28 + 18 + 10 + 3`
 
 ## Harness-config decisions (NOT rsvelte bugs)
 

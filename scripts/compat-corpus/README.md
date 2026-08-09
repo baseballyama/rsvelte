@@ -635,7 +635,7 @@ engines, diffed.)
 pnpm run lint-corpus:sync             # init the eslint + real-world (bits-ui/flowbite/melt/shadcn/skeleton) submodules
 pnpm run lint-corpus:oracle-install   # install the pinned real eslint-plugin-svelte (oracle)
 cargo build --profile dist-lint --bin rsvelte-lint   # `panic = "unwind"` → per-file panic isolation holds
-pnpm run lint-corpus:collect          # gather .svelte sources -> compatibility/lint-sources/
+pnpm run lint-corpus:collect          # gather .svelte / .svelte.(js|ts) sources -> compatibility/lint-sources/
 pnpm run lint-corpus:verify           # diff oracle vs rsvelte-lint, ratchet lint-known-failures.json
 # or, all of the above:
 pnpm run lint-corpus                   # sync + install + collect + verify
@@ -659,6 +659,11 @@ pnpm run lint-corpus:update            # re-baseline lint-known-failures.json af
   so the oracle's version detection treats every source as a Svelte 5 +
   SvelteKit 2 project — matching `rsvelte-lint`, which fires the
   SvelteKit-conditional rules unconditionally.
+- **Population** — every `.svelte`, `.svelte.js` and `.svelte.ts` entry in
+  `lint-manifest.json`. `--ci` collects exactly the repos the ratchet describes
+  (`CI_REPOS` in `lint-universe.mjs`), and `--update` refuses to rewrite from any
+  other repo set, from fewer than 6000 sources, or from a manifest whose sources
+  are not on disk — a rewrite deletes every entry it did not reproduce.
 - **Ratchet** — every finding present on exactly one side is a *divergence*,
   recorded in `compatibility/lint-known-failures.json` (tracked). The set may
   only **shrink**: a NEW divergence fails CI; fixed ones are pruned with

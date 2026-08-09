@@ -566,12 +566,27 @@ model when adding floors elsewhere.
 **Unit.** Per file, a **Set** of `` `${ruleId}\t${line}:${col}\t${message}` `` (`:90`). This is
 the only gate in the repo that *does* compare message text.
 
-### Blind spot 11a — `.svelte.js` / `.svelte.ts` are outside the gate on *both* sides
+### Blind spot 11a — `.svelte.js` / `.svelte.ts` were outside the gate on *both* sides — CLOSED (#2465 → #2448)
 
-`lint-verify.mjs:84` filters the manifest to `kind === 'component'`, so the oracle — which is
-configured for `**/*.svelte.js` / `**/*.svelte.ts` (`lint-oracle/run.mjs:132`) and lints
-whatever file list it is handed (`:181`) — is never asked about a module. The diff loop
-iterates components only (`:178`). **[S]**
+**Status: closed.** `lint-verify.mjs` compares modules as of #2448, after #2465 taught the CLI
+to collect them. **[D]** The run states the population it graded:
+`compared: 6578 component (oracle 73209 / rsvelte 73194 findings), 160 module (oracle 418 /
+rsvelte 394 findings), 23 oracle-unparseable, 0 unmeasured of 6761`. Enrolling the surface added
+**24 divergences** (80 → 104), 23 of them the one rule this row predicted — see the licence
+paragraph below. A population with no module in it now exits 2 rather than reading as clean
+(`lint-verify.mjs:300`), because a re-introduced filter is otherwise indistinguishable from a
+passing run; `scripts/dev/test-lint-verify-population-floor.mjs` is the negative control.
+
+**What the module half still does not see.** It is the same comparison key, so 11b/11d/11e apply
+unchanged. Two module-specific limits on top: eslint-plugin-svelte's `flat/base` gives a module
+no Svelte *template*, so only script-AST rules can fire on those 160 entries — the 418/394
+findings are drawn from a smaller rule set than the component figure, and a template-rule
+divergence is unreachable there by construction. And the corpus's module population is 160 of
+6761 (2.4%), all from library code; `lint-collect.mjs` extracts markdown modules only for the
+two curated doc repos, which 11f already excludes from CI.
+
+The original finding, and the correction it needed, are kept below because the correction is the
+transferable part.
 
 **Correction (2026-08-07).** An earlier revision of this row said rsvelte-lint's module findings
 "land in `byFile`" and that "both sides produce module findings; neither is compared". That was
@@ -594,11 +609,15 @@ is public and implemented, `engine.rs:124,132` dispatch `.svelte.js`/`.svelte.ts
 several rules implement the `ScriptRule` hook specifically to reach it (`no_store_async.rs:5`,
 `require_stores_init.rs:4`). Only the CLI's file collection is missing.
 
-**This blind spot is a feedback loop, not a gap.** `prefer_svelte_reactivity.rs:19-21` declines
+**This blind spot is a feedback loop, not a gap.** `prefer_svelte_reactivity.rs:19-21` declined
 to port a rule path upstream implements, stating the reason outright: *"The plugin additionally
 flags exported instances in `*.svelte.js` / `*.svelte.ts` modules; those fixtures are
 `.svelte.js` files (not collected by the component oracle) and that path is intentionally not
 ported here."*
+
+**[D] The prediction held on the numbers.** Of the 24 entries enrolment added, **23 are that
+rule**, and the 24th is a second module-only path (`no-navigation-without-base`). The licensed
+gap was not a fraction of the new backlog — it was almost all of it.
 
 Read that carefully. The ungated surface did not merely *hide* divergence — it **licensed** it,
 and the licence is written down in a place where nothing forces it into view. A gap leaks; a
@@ -619,9 +638,13 @@ specifically to avoid this (`check-verify.mjs:31-35`).
 
 ### Blind spot 11c — an oracle-fatal file drops rsvelte's findings for it, with no ceiling
 
-`lint-verify.mjs:182-187`: `if (o?.fatal) { oracleFatal++; continue; }`. **[S]** rsvelte can
+`lint-verify.mjs:272-276`: `if (o.fatal) { oracleFatal++; continue; }`. **[S]** rsvelte can
 emit 50 false positives in a file `svelte-eslint-parser` rejects and it is invisible; the count
-is printed (`:206`) and never gated.
+is printed (`:289`) and never gated. Its neighbour *is* gated as of #2520: an entry the oracle
+returned **no result for** used to take the same silent path through `o?.set ?? new Set()`,
+which reads a missing measurement as "the oracle found nothing"; it now aborts (`:291-297`).
+The two look identical in the output and are opposite verdicts — "the oracle read it and
+rejected it" vs "the oracle never answered".
 
 ### Blind spot 11d — autofixes, suggestions and severity
 
@@ -638,14 +661,25 @@ autofix output byte-for-byte on fixtures.
 excluded. `lint-verify.mjs:167-168` prints `universe.length` and asserts nothing. **[S]**
 Removing a rule from `crates/rsvelte_lint/src/registry.rs` drops it from the universe, filters
 it out on *both* sides (`:110`, `:145`), and goes green — for any rule with no entry in the
-80-entry ratchet. A rule rsvelte never implemented is invisible by construction.
+104-entry ratchet. A rule rsvelte never implemented is invisible by construction. The rule axis
+is also the one axis the `--update` floor added by #2520 does **not** cover: the floor counts
+sources, so a rewrite taken from a run whose universe collapsed still passes it.
 
 ### Blind spot 11f — CI collects a narrower corpus than the script offers
 
-`corpus-compat.yml:380` passes an explicit source list omitting `svelte` and `svelte.dev`,
-which `lint-collect.mjs:42-43` does list. **[S]** In CI the lint corpus contains no `.svelte`
+`corpus-compat.yml:420` runs `lint-collect.mjs --ci`, whose repo list (`lint-universe.mjs:24`)
+omits `svelte` and `svelte.dev`, which `lint-collect.mjs:43-44` does offer. **[S]** In CI the lint corpus contains no `.svelte`
 file from the Svelte repo and no documentation snippet. `compatibility/pattern-corpus` — the 32
 hand-written regression repros — is also not in that list.
+
+**[D] The entry-count floor added by #2520 cannot police that list on its own**, because it is a
+**lower** bound: the CI list yields 6761 entries and the floor is 6000, so dropping `melt-ui`
+(84 files) leaves 6677 and clears it, and a *superset* run clears it by definition. The repo set
+is what makes this axis exact — `--update` now requires it to equal `CI_REPOS`
+(`lint-universe.mjs:24`), which `lint-collect.mjs --ci` and `corpus-compat.yml:420` both consume,
+so the collector, the workflow and the rewrite guard cannot disagree about which population the
+ratchet describes. Both directions are covered: a missing repo would delete its entries, an extra
+repo would add entries that fail every later run as stale.
 
 ### Blind spot 11g — every `svelte_scan` source-scan rule is outside the universe
 
@@ -1315,7 +1349,7 @@ while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked
 | corpus verify | manifest ≥ 1000; ≥99% compiled; ≥12000 to rebaseline | `verify.mjs:204,224`; `artifacts.mjs:79` |
 | svelte2tsx verify | manifest ≥ 1000 components; ≥12000 to rebaseline | `svelte2tsx-verify.mjs:85,237` |
 | fmt verify | `included` ≥ 1000 — **but not the comparisons performed** | `fmt-verify.mjs:69`; gap at `:97` |
-| lint verify | zero corpus files → exit 2; **no universe floor** | `lint-verify.mjs:163`; gap at `:167` |
+| lint verify | manifest ≥ 1000; ≥99% with a source on disk; ≥6000 **and** repo set == `CI_REPOS` to rebaseline; ≥1 module compared; 0 unmeasured | `lint-verify.mjs:39,44,47,218-236`; **no universe floor** — gap at `:239` |
 | sourcemaps gate | 3 floors (samples, anchors, identical outputs) | `sourcemaps_gate.rs:1011-1028` |
 | fmt Rust corpus | non-empty samples + `assert!(!in_corpus_job())` on every skip | `svelte_dev_corpus.rs:71-74,262` |
 | ast gate preconditions | input files > 1000 — **no output floor** | `ast_gate_preconditions.rs:57`; gap at `:90` |
@@ -1508,12 +1542,13 @@ sees.
 | `check-verify.mjs` | scenarios > 0 (`:179`) | scenarios | **yes** (its blind spot is elsewhere: no diagnostic floor) |
 | **`fmt-verify.mjs`** | `included.length` from `fmt/meta.json` (`:69`) | files read from `fmt/oracle/` (`:95`), `continue` when absent (`:97`) | **NO** → #2447 |
 | **`css-prune-sweep.mjs`** | *nothing* (`:482` is a `console.log`) | generated `cases` | **NO** → #2445 |
-| **`lint-verify.mjs`** | `files.length === 0` (`:163`) | oracle gets `files` (`:178`); **rsvelte gets the whole `SOURCES` dir** (`:124`) | **NO** — two populations inside one comparison; this is the mechanism of blind spot 11a |
+| `lint-verify.mjs` | manifest ≥1000 (`:104`), ≥99% with a source (`:114`), ≥6000 to rewrite (`:219`) | the same `entries` array (`:264`), which also builds the oracle's file list (`:238`) | **yes, since #2520/#2448** — rsvelte is still pointed at the whole `SOURCES` dir (`:158`), so a finding on a file outside `entries` now aborts (`:199-206`) rather than being dropped |
 | **`ast_gate_preconditions.rs`** | `files.len() > 1000` on *discovered inputs* (`:57`) | only successfully-**compiled** files (`continue` at `:90`) | **NO** → blind spot 15a; the difference is unmeasured |
 | **`matrix/run.mjs`** | *nothing* — `cases.length` is printed at `:84`, never asserted | generated `cases` | **NO** — same shape as #2445 |
 | `svelte2tsx_fixtures.rs` | `total_tested >= 254` (`:155`), derived from the loop itself | same | **yes** |
 
-**5 of 9 fail**, two of which (`matrix/run.mjs`, and the `lint-verify.mjs` framing) this predicate
+**4 of 9 fail** (5 when this predicate was first applied; `lint-verify.mjs` was fixed by
+#2520/#2448), two of which (`matrix/run.mjs`, and the `lint-verify.mjs` framing) this predicate
 found rather than a full read.
 
 **Companion tell, and it *is* greppable: asymmetric handling of symmetric inputs.** In
@@ -1535,6 +1570,14 @@ Denominator: **1087 tracked `.mjs`/`.rs` files scanned; 5 accept both.**
 | **`matrix/run.mjs`** | `--families`, `--targets` | `--update-baseline` | **PARTIAL — 2 of 3 axes.** Refuses `--no-fmt` (`:184`) and the `--families` subset (`:188-189`, naming FALSE-SHRINK explicitly). Does **not** refuse `--targets` |
 | `verify.mjs` | `--targets` | `--update-baseline` | **scopes instead of refusing** — `UPDATE_SCOPE` (`:104-112`, `:182`) writes only the measured targets, plus `requireFullCorpus` (`:164-172`). A valid alternative |
 | **`css-prune-sweep.mjs`** | `--filter` (`:52`, applied `:324`) | `--update-baseline` (`:57`, `:476`) | **NO** — the write is unguarded |
+
+**[D] The predicate has a blind spot of its own, and #2520 is it.** `lint-verify.mjs` is not in
+the table because it accepts no selector — argv reads are `--update` and `--show` and nothing
+else. Its population is narrowed *outside the script*, by which repos `lint-collect.mjs` was
+given (7 of the 9 it offers), and `--update` then rewrote from whatever that produced. **A grep
+for "selector flag + writer flag" cannot see a gate whose selector is a separate command.** The
+fix is therefore a floor on the measured population plus an exact repo-set check
+(`lint-verify.mjs:218-236`), not a refused flag combination.
 
 **Corrected count: 2 unguarded holes of 5, not 1.** An earlier revision of this table scored
 `matrix/run.mjs` as guarded because it refuses *something*. It refuses `--families`; `--targets`

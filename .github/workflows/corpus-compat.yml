@@ -417,7 +417,7 @@ jobs:
         run: npm --prefix scripts/compat-corpus/lint-oracle install --no-package-lock
 
       - name: Collect lint corpus
-        run: node scripts/compat-corpus/lint-collect.mjs eslint-plugin-svelte svelte-eslint-parser bits-ui flowbite-svelte melt-ui shadcn-svelte skeleton
+        run: node scripts/compat-corpus/lint-collect.mjs --ci
 
       - name: Verify lint parity (ratchet against lint-known-failures.json)
         run: node scripts/compat-corpus/lint-verify.mjs

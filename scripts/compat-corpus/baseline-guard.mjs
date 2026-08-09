@@ -20,12 +20,13 @@
  * @param {(string|false|null|undefined)[]} reasons  one entry per axis; falsy
  *   means the axis was not narrowed. Each truthy entry states the flag and why
  *   the resulting baseline would be wrong.
+ * @param {string} [flag]  the caller's rewrite flag, named in the fix hint.
  */
-export function refuseUnrepresentativeBaseline(tool, reasons) {
+export function refuseUnrepresentativeBaseline(tool, reasons, flag = '--update-baseline') {
 	const active = reasons.filter(Boolean);
 	if (active.length === 0) return;
 	console.error(`\n[${tool}] refusing to rewrite the baseline from this run:`);
 	for (const reason of active) console.error(`  - ${reason}`);
-	console.error('  re-run over the full population, then --update-baseline.');
+	console.error(`  re-run over the full population, then ${flag}.`);
 	process.exit(2);
 }

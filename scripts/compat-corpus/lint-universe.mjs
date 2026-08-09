@@ -17,6 +17,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const ORACLE_DIR = path.join(__dirname, 'lint-oracle');
 
+// The source repos the CI lint-parity job collects, and therefore the exact
+// population `lint-known-failures.json` describes. Shared so the collector, the
+// workflow and the ratchet-rewrite guard cannot disagree about it: a rewrite
+// from any other repo set produces a ratchet CI can never reproduce.
+export const CI_REPOS = [
+	'eslint-plugin-svelte',
+	'svelte-eslint-parser',
+	'bits-ui',
+	'flowbite-svelte',
+	'melt-ui',
+	'shadcn-svelte',
+	'skeleton'
+];
+
 // Rules excluded from the parity universe, each for a structural reason that
 // makes a finding-level comparison meaningless on this corpus (NOT a place to
 // hide real divergences — those go in known-failures.json and must shrink).
