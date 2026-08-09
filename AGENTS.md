@@ -198,13 +198,14 @@ corpus could never have found them — the same lesson as the warning gate, one 
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
 ratcheted through `compatibility/matrix-known-failures.json` with per-cluster justification in
-the paired `.md`. Four declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
-position, comment kind × insertion slot, invalid `bind:` target × directive slot, and
-string-literal escape × template expression slot — expanded into ~4,000 comparisons that run in
-**~7 s** and need only `submodules/svelte` plus the NAPI binding, so it gates every PR.
+the paired `.md`. Five declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
+position, comment kind × insertion slot, invalid `bind:` target × directive slot,
+string-literal escape × template expression slot, and `await`/`yield` in a formal parameter list
+× function form × entry point — expanded into ~5,250 comparisons that run in **~10 s** and need
+only `submodules/svelte` plus the NAPI binding, so it gates every PR.
 
-The `bind:` family is the odd one out and the reason is worth stating: its inputs are programs the
-official compiler **rejects**, which is a population no collected corpus can hold, because
+The `bind:` and `param-default` families are the odd ones out and the reason is worth stating:
+their inputs are programs the official compiler **rejects**, which is a population no collected corpus can hold, because
 published code compiles. "rsvelte accepts what official rejects" was otherwise gated only by the
 145 `compiler-errors` fixtures at **one input per code** — and a code with a passing fixture
 reads as covered. #2583 is what that misses: `bind_invalid_expression` had a passing fixture on
@@ -213,11 +214,18 @@ assignment. Adding the family alone would still have measured nothing, because `
 any both-reject case as `error-parity` without looking at the codes; **the comparison and the
 population had to land together**.
 
-The family carries **valid** targets against the same slots too, and that half is not
-decoration: the first version had only the invalid rows, and CI then caught an over-rejection
-(a TypeScript assertion, `bind:group={c as T}`) from a corpus file instead of from the gate.
-An over- and an under-rejection are opposite directions of one check, and a population of
-only-invalid inputs is blind to one of them.
+Both families carry **valid** inputs against the same slots too, and that half is not
+decoration: the `bind:` family's first version had only the invalid rows, and CI then caught an
+over-rejection (a TypeScript assertion, `bind:group={c as T}`) from a corpus file instead of from
+the gate. An over- and an under-rejection are opposite directions of one check, and a population
+of only-invalid inputs is blind to one of them. The `param-default` family's legal rows are the
+same shape one level harder: `async (p = { async m() { return await 1; } }) => p` **is** legal,
+so a check that scans the parameter subtree for the keyword rejects real code.
+
+`param-default` also crosses the **entry point**, which the other four do not: the instance
+script, `compileModule`, and a template expression are three different parse functions in
+rsvelte, and #2547's fix was incomplete in exactly that way — the script paths rejected it while
+`{(async (p = await x) => p)}` still compiled.
 
 The string-literal family is the first to inject into **markup** rather than into a JS statement
 inside `<script>`, which gate-coverage 5c names as this gate's largest blind spot. Its axis is

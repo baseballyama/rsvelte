@@ -85,6 +85,8 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 | `2599-reactive-else-next-line.svelte` | [#2599](https://github.com/baseballyama/rsvelte/pull/2599) | A `$:` whose `if` header and `else` clause are on **separate lines** — the client instance-script line accumulator decides where a statement ends by looking at what the next line starts with, and its continuation set (`.`, `?`, `:`, `&&`, `||`, `??`) had no entry for the `else` keyword, so the statement was closed after the `if` and the `else` fell outside the reactive body |
 | `2607-escaped-backslash-constant-fold.svelte` | [#2607](https://github.com/baseballyama/rsvelte/issues/2607) | A known-const `'\\'` folded into an element's `textContent`. The fold read the initializer's **source text** and left every non-codepoint escape undecoded, so the emitter escaped it a second time and the component rendered two backslashes. Output is valid JavaScript computing the wrong string — the parse gate is blind to it, and it diverged on client, server **and** client-dev |
 | `2637-trailing-binary-operator-matrix.svelte` | [#2637](https://github.com/baseballyama/rsvelte/issues/2637) | The rest of the operator matrix behind `2605-trailing-binary-operator.svelte`: 15 of the 23 binary operators still cut the statement after #2605, including `*`, `<` (a prefix of the already-handled `<=`), `<<`, the word operators `in` / `instanceof`, and `,`. `-` and `/` remain excluded on purpose — `a--` ends a statement and `/` also closes a block comment — so the file does not use them |
+| `2652-string-line-continuation.svelte` | [#2652](https://github.com/baseballyama/rsvelte/issues/2652) | A `'…'` carried across a line break by a backslash. The carried line is string **content**, so the client re-indenter's tab landed inside the value — valid JavaScript computing `a\tb` instead of `ab`, which no parse gate can see. On the server the same literal never entered the constants map, because the joined logical line still held the raw newline and was re-split |
+| `2661-concat-fold-source-text.svelte` | [#2661](https://github.com/baseballyama/rsvelte/issues/2661) | `'ab' + 'cd'` — the server's fold asked `starts_with('\'') && ends_with('\'')`, which a concatenation of two literals also answers yes to, and rendered the text between the outer quotes verbatim: `ab' + 'cd` |
 | `2653-literal-raw-escape-spelling.svelte` | [#2653](https://github.com/baseballyama/rsvelte/issues/2653) | A single-quoted string literal in a template expression. esrap writes a literal's `raw`, so official's output carries the source spelling; rsvelte kept `raw` only when it started with `"` and re-printed everything else from the cooked value, turning `'a\tb'` into a real tab and `'\x41'` into `'A'`. The **value is right** and the output parses — a source-text divergence, invisible to the parse gate. Deliberately unformatted: the fmt oracle rewrites the quotes to `"`, which is the one shape that already worked |
 
 ## `matrix/` — the axes around those repros
@@ -235,6 +237,42 @@ read as an element's only child, so the resolution decides between a static
 | `boundary-children.svelte` | `{@const}` in `<svelte:boundary>` children |
 | `destructured-const.svelte` | destructuring `{@const { value } = …}` |
 | `shadows-prop.svelte` | the shadowed binding is a **prop** (the read must not become `$$props.x`) |
+
+### `string-line-continuation/` — one continuation, five paths (around #2652)
+
+A `\` before a line break inside `'…'` / `"…"` contributes nothing to the
+string's value, so every file here renders what it would render without the
+break. What differs is which re-indenter or scanner the carried line reaches:
+the runes instance script, a pre-indented continuation (where the indent is
+*also* content), the double-quoted form, a legacy `$:` **block body** — a third
+re-indenter that only this shape reaches — and two continuations in one
+statement, which needs the state to survive a line that closes one string and
+opens the next.
+
+`template-literal-newline.svelte` is the **negative control**: a backtick really
+does carry its newline as content, and had to keep behaving as it already did.
+
+Every file here contains a quote that really *is* a string, and that shared
+property is a blind spot rather than an accident. Teaching the scanner to track
+`'…'` frames made it push a carried-string frame for **any** quote it could not
+close on the line, so the `isn't` in a doc comment opened a string that never
+closed — which broke `svelte.dev`'s `repl/…/Viewer.svelte` and nothing here.
+
+Six candidate repros for that class were written and **all six were dropped**,
+because each one passed on the broken binary: two hand-written `.svelte` files,
+two reductions of the failing component, and two shapes as a compiler-level
+test. Removing the apostrophes from `Viewer.svelte` itself does flip the broken
+binary back to matching, so the cause is certain; the trigger just needs more of
+that component than a reduction kept. The coverage therefore lives in
+`quote_frame_tests` in `3_transform/client/formatting.rs`, which asserts the
+scanner's state directly and does fail on the broken scanner.
+
+The quote character is deliberately **not** an axis here. The fmt oracle rewrites
+every literal to double quotes, so a single-quoted file stops being one the
+moment it is committed formatted — a `double-quoted.svelte` written alongside
+`instance-declaration.svelte` came out byte-identical to it. That axis lives in
+`crates/rsvelte_core/tests/string_line_continuation_2652.rs`, where no formatter
+runs.
 
 ### `string-escape-spelling/` — the same escapes, one step later (around #2653)
 

@@ -511,13 +511,33 @@ fn collect_dollar_refs_from_script_with_context(
         // component source, so the retained program's slice never shares an
         // address with this one even when it holds the very same script.
         let reusable = retained.filter(|program| {
-            !program.panicked() && program.diagnostics().is_empty() && program.source() == content
+            use super::profile::Reject;
+            if program.panicked() {
+                super::profile::record_reject(Reject::Panicked);
+                return false;
+            }
+            if !program.diagnostics().is_empty() {
+                super::profile::record_reject(Reject::Diagnostics);
+                return false;
+            }
+            if program.source() != content {
+                super::profile::record_reject(Reject::SourceDiffers);
+                return false;
+            }
+            true
         });
+        if retained.is_none() {
+            super::profile::record_reject(super::profile::Reject::Absent);
+        }
         let blanked = match reusable {
             Some(program) => {
+                super::profile::record_ts_script(false, content.len());
                 super::types::blank_typescript_from_program(content, program.program())
             }
-            None => super::types::blank_typescript(content),
+            None => {
+                super::profile::record_ts_script(true, content.len());
+                super::types::blank_typescript(content)
+            }
         };
         collect_dollar_identifiers_from_js_with_context(&blanked, start, refs, in_module);
         return;

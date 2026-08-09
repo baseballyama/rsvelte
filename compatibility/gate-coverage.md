@@ -218,22 +218,21 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 1329 generated cases × 3 targets = 3987 comparisons. Where both compilers accept, the
+**Unit.** 1749 generated cases × 3 targets = 5247 comparisons. Where both compilers accept, the
 unit is `js.code` only (`matrix/run.mjs:134,139,166-167`), oxfmt-normalized identically to
-`verify.mjs`; where both reject it is the error **code** (`:150`), which the `invalid-bind`
-family exists to exercise.
+`verify.mjs`; where both reject it is the error **code** (`:150`), which the `invalid-bind` and
+`param-default` families exist to exercise.
 
-### Blind spot 5a — generated inputs are always `.svelte` components
+### Blind spot 5a — CLOSED: the module entry point is generated now
 
-`matrix/generate.mjs:16` and `:29` hardcode the `.svelte` suffix into every case id, and
-`run.mjs:99` passes `filename: path.basename(testCase.id)`. **[S]** `mutate.mjs:22-23` contains
-a `moduleSource` branch for exactly this purpose; `generate.mjs:27` calls `commentMutants`
-without options, so the branch is dead. `.svelte.js` / `.svelte.ts` module shapes are never
-generated.
+Originally: every case id hardcoded `.svelte`, so `compileModule` was never reached. Two
+families now emit module cases — `comment-slot` through `COMMENT_MODULE_SEEDS`
+(`generate.mjs:47-55`, `kind: 'module'`) and `param-default` through a `.svelte.js` twin of
+every function form (`generate.mjs:112-116`) — and `run.mjs:124` dispatches on `kind`.
+The entry point matters on its own: it is a different parse call in rsvelte, not a flag.
 
-**Tracked:** #2425. This is now load-bearing: PR #2436 establishes that the matrix is the
-*only* place a comment divergence can be observed at all, which raises #2425 from a coverage
-gap to the sole remaining path for module comment defects (cf. #2399).
+**Tracked:** #2425, closed. It was load-bearing while open: PR #2436 established that the matrix
+is the *only* place a module comment divergence can be observed at all (cf. #2399).
 
 ### Blind spot 5b — CSS and warnings
 
@@ -257,6 +256,12 @@ It crosses those slots with **one** axis: how a string literal spells itself. St
 `use:` / `transition:` / `animate:` / `in:` / `out:`, which no slot here reaches. **[S]** Comment
 insertion is likewise restricted to `<script>` bodies (`mutate.mjs:22-34`, `:48`), a deliberate
 and documented exclusion (`mutate.mjs:9-13`) — so HTML comments `<!-- -->` are never mutated.
+
+`param-default` adds two markup slots of its own (`PARAM_TEMPLATE_FORMS`: an event-handler
+attribute and an `{expr}` interpolation) for a different reason — rsvelte parses a template
+expression with a *different function* than a script body, so the two are separate code paths
+and not merely separate positions. #2547's first fix was green on every script path while
+`{(async (p = await x) => p)}` still compiled.
 
 What the escape axis is for is worth stating, because the class is easy to dismiss as cosmetic:
 these divergences produce output that **parses and computes the right value** and differs only
@@ -282,8 +287,10 @@ either alone measures nothing.
 
 ### Blind spot 5e — accept-where-official-rejects has one input per code elsewhere
 
-Family `invalid-bind` (`axes.mjs` — 20 invalid and 11 valid target expressions × 8 `bind:` slots)
-is the only *generated* population of programs official rejects. Both halves are needed: the
+Families `invalid-bind` (`axes.mjs` — 20 invalid and 11 valid target expressions × 8 `bind:`
+slots) and `param-default` (2 illegal and 5 legal parameter initializers × 5 positions in the
+list × 9 function forms + 3 template forms × 2 entry points) are the *generated* population of
+programs official rejects. Both halves are needed: the
 invalid rows report "rsvelte accepts what official rejects", the valid rows report the reverse,
 and neither can see the other's direction. The valid half exists because the first version of
 this family had only the invalid one, and CI then caught an over-rejection
@@ -294,12 +301,21 @@ a passing fixture read as covered. It is not: #2583 is `bind_invalid_expression`
 component while its fixture passed on an element. Three of the four accept-where-official-rejects
 divergences known when this row was written sit on codes that have a passing fixture.
 
-What remains **unmeasured**: every other error code. This family crosses one validation
-(`object(node.expression)`) with its slots. The same drift is possible for any check written per
-call site rather than once — `{@render}`, `use:`, `{#each … as}` patterns, `<svelte:element>` —
-and no gate here generates invalid inputs for them.
+`param-default` is the same row for a *parser* rule rather than a validator, and it says
+something the `bind:` family cannot: acorn enforces `checkYieldAwaitInDefaultParams` and OXC
+implements no equivalent, so the divergence was not a missing port but a rule rsvelte never had.
+Its legal rows are harder than `invalid-bind`'s, because the illegal and legal inputs differ only
+in *whose* parameter list the keyword sits in —
+`async (p = { async m() { return await 1; } }) => p` is legal, and a check that scans the
+parameter subtree rejects it.
 
-**Closing 5b/5c:** the matrix runs in ~7 s on ~4000 comparisons. Widening the markup axis (a
+What remains **unmeasured**: every other error code, and every other acorn rule OXC does not
+implement. These two families cross one validation and one parser rule with their slots. The
+same drift is possible for any check written per call site rather than once — `{@render}`,
+`use:`, `{#each … as}` patterns, `<svelte:element>` — and no gate here generates invalid inputs
+for them.
+
+**Closing 5b/5c:** the matrix runs in ~10 s on ~5,250 comparisons. Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) or reading `.warnings` is cheap relative to
 every other gate here. This is the highest value-per-cost item in this document.
 
