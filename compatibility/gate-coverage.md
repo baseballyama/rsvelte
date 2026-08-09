@@ -339,7 +339,7 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 3767 generated cases × 3 targets = 11301 comparisons. Where both compilers accept, the
+**Unit.** 3807 generated cases × 3 targets = 11421 comparisons. Where both compilers accept, the
 unit is `js.code` plus the multiset of warning **codes**, oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code**, which the `invalid-bind` and
 `param-default` families exist to exercise. A case may also carry `options`, merged over the
@@ -688,7 +688,7 @@ two and stops at three is **unmeasured**; the depth guards in the folder
 (`MAX_INITIAL_EVAL_DEPTH = 8`, `REACTIVE_INIT_DEPTH >= 8`) are above it and nothing here
 reaches them. **[S]**
 
-**Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,100 comparisons (wall clock on a box
+**Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
 slots (`use:` / `transition:` / `animate:` / `in:` / `out:`) remain unreached by any family, and

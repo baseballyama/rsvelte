@@ -7101,10 +7101,17 @@ mod tests {
             // MemberExpression — no local binding at all.
             ("Math.PI", false),
             ("unknown.foo", false),
-            // Computed member — the property is only read when `computed`.
+            // A member read whose leftmost object is an object / array /
+            // function literal is impure, so upstream's `!is_pure(node)` makes
+            // it reactive whatever the property is.
             ("({ a: 1 })[count]", true),
-            ("({ a: 1 })[konst]", false),
-            ("({ a: 1 }).count", false),
+            ("({ a: 1 })[konst]", true),
+            ("({ a: 1 }).count", true),
+            ("[1, 2].length", true),
+            ("(() => 1).name", true),
+            // A LITERAL leftmost object is pure — the other side of that rule.
+            ("'ab'.length", false),
+            ("(1).toFixed", false),
             // Optional chaining wraps the member.
             ("count?.foo", true),
             // CallExpression — pure global / pure object callee, reactive only
