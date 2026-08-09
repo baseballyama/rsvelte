@@ -13,7 +13,7 @@ pub use constants::*;
 
 use crate::ast::template::{
     Attribute as AttributeNode, AttributeNode as PlainAttribute, AttributeValue, Fragment,
-    RegularElement, TemplateNode,
+    RegularElement, SvelteDynamicElement, TemplateNode,
 };
 use indexmap::IndexSet;
 use regex::Regex;
@@ -37,15 +37,6 @@ static REGEX_WHITESPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").
 use crate::compiler::phases::phase1_parse::utils::fuzzymatch::fuzzymatch;
 use crate::compiler::phases::phase2_analyze::warnings as w;
 
-/// Check element for a11y issues.
-/// This is the main entry point for accessibility checking.
-///
-/// # Arguments
-/// * `node` - The element to check (RegularElement or SvelteElement)
-/// * `ancestor_names` - The element names of ancestors from root to parent (for parent checks)
-///
-/// # Returns
-/// A vector of warnings detected for this element.
 /// Codes upstream attaches to the *element* even though they are raised while
 /// walking an attribute (`a11y/index.js` passes `node`, not `attribute`); the
 /// caller's element-span fallback is correct for these.
@@ -68,19 +59,59 @@ fn stamp_attribute(warnings: &mut [w::AnalysisWarning], attr: &PlainAttribute) {
     }
 }
 
-pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w::AnalysisWarning> {
+/// The element being checked. `<svelte:element>` reaches the same checker
+/// upstream, under the literal name `svelte:element`, with the rules that need a
+/// statically known tag skipped via `is_dynamic`.
+pub struct A11yElement<'x, 'a> {
+    name: &'x str,
+    attributes: &'x [AttributeNode<'a>],
+    fragment: &'x Fragment<'a>,
+    is_dynamic: bool,
+}
+
+impl<'x, 'a> A11yElement<'x, 'a> {
+    pub fn regular(element: &'x RegularElement<'a>) -> Self {
+        Self {
+            name: element.name.as_str(),
+            attributes: &element.attributes,
+            fragment: &element.fragment,
+            is_dynamic: false,
+        }
+    }
+
+    pub fn dynamic(element: &'x SvelteDynamicElement<'a>) -> Self {
+        Self {
+            name: element.name.as_str(),
+            attributes: &element.attributes,
+            fragment: &element.fragment,
+            is_dynamic: true,
+        }
+    }
+}
+
+/// Where the element sits, for the rules that consult its ancestors.
+pub struct A11yAncestors<'x> {
+    /// Names of the enclosing regular elements, outermost first.
+    pub names: &'x [String],
+    /// Whether a `<svelte:element>` encloses the node with no nearer regular
+    /// element. Upstream's `is_parent` stops at one and answers "unknown", so
+    /// every ancestor-dependent rule is suppressed rather than guessed.
+    pub inside_dynamic_element: bool,
+}
+
+pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::AnalysisWarning> {
     let mut warnings = Vec::new();
     let mut attribute_map: FxHashMap<String, &AttributeNode> = FxHashMap::default();
     let mut handlers: IndexSet<String> = IndexSet::new();
     let mut attributes: Vec<&AttributeNode> = Vec::new();
 
-    let is_dynamic_element = false; // SvelteElement check would go here
+    let is_dynamic_element = node.is_dynamic;
     let mut has_spread = false;
     let mut has_contenteditable_attr = false;
     let mut has_contenteditable_binding = false;
 
     // Collect attributes
-    for attribute in &node.attributes {
+    for attribute in node.attributes {
         match attribute {
             AttributeNode::Attribute(attr) => {
                 // Check if it's an event handler (starts with "on")
@@ -114,7 +145,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     }
 
     // Check ARIA attributes
-    for attribute in &node.attributes {
+    for attribute in node.attributes {
         if let AttributeNode::Attribute(attr) = attribute {
             let mark = warnings.len();
             let name = attr.name.to_lowercase();
@@ -122,8 +153,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
 
             // aria-props
             if let Some(aria_type) = name.strip_prefix("aria-") {
-                if INVISIBLE_ELEMENTS.contains(&node.name.as_str()) {
-                    warnings.push(w::a11y_aria_attributes(&node.name).at(attr_start, attr_end));
+                if INVISIBLE_ELEMENTS.contains(&node.name) {
+                    warnings.push(w::a11y_aria_attributes(node.name).at(attr_start, attr_end));
                 }
 
                 if !ARIA_ATTRIBUTES.contains(&aria_type) {
@@ -134,8 +165,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     );
                 }
 
-                if name == "aria-hidden" && REGEX_HEADING_TAGS.is_match(&node.name) {
-                    warnings.push(w::a11y_hidden(&node.name).at(attr_start, attr_end));
+                if name == "aria-hidden" && REGEX_HEADING_TAGS.is_match(node.name) {
+                    warnings.push(w::a11y_hidden(node.name).at(attr_start, attr_end));
                 }
 
                 // aria-proptypes validation. A *bare* ARIA attribute (no value)
@@ -163,7 +194,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 // aria-activedescendant-has-tabindex
                 if name == "aria-activedescendant"
                     && !is_dynamic_element
-                    && !is_interactive_element(&node.name, &attribute_map)
+                    && !is_interactive_element(node.name, &attribute_map)
                     && !attribute_map.contains_key("tabindex")
                     && !has_spread
                 {
@@ -175,8 +206,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
 
             // Check role attribute
             if name == "role" {
-                if INVISIBLE_ELEMENTS.contains(&node.name.as_str()) {
-                    warnings.push(w::a11y_misplaced_role(&node.name).at(attr_start, attr_end));
+                if INVISIBLE_ELEMENTS.contains(&node.name) {
+                    warnings.push(w::a11y_misplaced_role(node.name).at(attr_start, attr_end));
                 }
 
                 if let Some(value) = get_static_value(attribute) {
@@ -199,9 +230,9 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         }
 
                         // no-redundant-roles
-                        if let Some(implicit_role) = get_implicit_role(&node.name, &attribute_map)
+                        if let Some(implicit_role) = get_implicit_role(node.name, &attribute_map)
                             && current_role == implicit_role
-                            && !["ul", "ol", "li", "menu"].contains(&node.name.as_str())
+                            && !["ul", "ol", "li", "menu"].contains(&node.name)
                             && (node.name != "a" || attribute_map.contains_key("href"))
                         {
                             warnings.push(
@@ -211,10 +242,9 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
 
                         // Footers and headers special case
                         let is_parent_section_or_article =
-                            is_parent(ancestor_names, &["section", "article"]);
+                            is_parent(ancestors, &["section", "article"]);
                         if !is_parent_section_or_article
-                            && let Some(nested_role) =
-                                A11Y_NESTED_IMPLICIT_SEMANTICS.get(node.name.as_str())
+                            && let Some(nested_role) = A11Y_NESTED_IMPLICIT_SEMANTICS.get(node.name)
                             && current_role == *nested_role
                         {
                             warnings.push(
@@ -224,7 +254,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
 
                         // role-has-required-aria-props
                         if !is_dynamic_element
-                            && !is_semantic_role_element(current_role, &node.name, &attribute_map)
+                            && !is_semantic_role_element(current_role, node.name, &attribute_map)
                             && let Some(required_props) = ROLE_REQUIRED_PROPS.get(current_role)
                         {
                             let missing_props: Vec<&str> = if !has_spread {
@@ -252,10 +282,10 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         // interactive-supports-focus
                         if !has_spread
                             && !has_disabled_attribute(&attribute_map)
-                            && !is_hidden_from_screen_reader(&node.name, &attribute_map)
+                            && !is_hidden_from_screen_reader(node.name, &attribute_map)
                             && !is_presentation_role(current_role)
                             && is_interactive_roles(current_role)
-                            && is_static_element(&node.name, &attribute_map)
+                            && is_static_element(node.name, &attribute_map)
                             && !attribute_map.contains_key("tabindex")
                         {
                             let has_interactive_handlers = handlers
@@ -268,29 +298,29 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
 
                         // no-interactive-element-to-noninteractive-role
                         if !has_spread
-                            && is_interactive_element(&node.name, &attribute_map)
+                            && is_interactive_element(node.name, &attribute_map)
                             && (is_non_interactive_roles(current_role)
                                 || is_presentation_role(current_role))
                         {
                             warnings.push(w::a11y_no_interactive_element_to_noninteractive_role(
-                                &node.name,
+                                node.name,
                                 current_role,
                             ));
                         }
 
                         // no-noninteractive-element-to-interactive-role
                         if !has_spread
-                            && is_non_interactive_element(&node.name, &attribute_map)
+                            && is_non_interactive_element(node.name, &attribute_map)
                             && is_interactive_roles(current_role)
                         {
                             if let Some(exceptions) =
                                 A11Y_NON_INTERACTIVE_ELEMENT_TO_INTERACTIVE_ROLE_EXCEPTIONS
-                                    .get(node.name.as_str())
+                                    .get(node.name)
                             {
                                 if !exceptions.contains(&current_role) {
                                     warnings.push(
                                         w::a11y_no_noninteractive_element_to_interactive_role(
-                                            &node.name,
+                                            node.name,
                                             current_role,
                                         ),
                                     );
@@ -298,7 +328,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                             } else {
                                 warnings.push(
                                     w::a11y_no_noninteractive_element_to_interactive_role(
-                                        &node.name,
+                                        node.name,
                                         current_role,
                                     ),
                                 );
@@ -314,10 +344,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
             }
 
             // no-autofocus
-            if name == "autofocus"
-                && node.name != "dialog"
-                && !is_parent(ancestor_names, &["dialog"])
-            {
+            if name == "autofocus" && node.name != "dialog" && !is_parent(ancestors, &["dialog"]) {
                 warnings.push(w::a11y_autofocus().at(attr_start, attr_end));
             }
 
@@ -349,16 +376,16 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
         let is_non_presentation_role =
             role_static_value.is_some() && !is_presentation_role(role_static_value.unwrap());
         if !is_dynamic_element
-            && !is_hidden_from_screen_reader(&node.name, &attribute_map)
+            && !is_hidden_from_screen_reader(node.name, &attribute_map)
             && (!has_role_attr || is_non_presentation_role)
-            && !is_interactive_element(&node.name, &attribute_map)
+            && !is_interactive_element(node.name, &attribute_map)
             && !has_spread
         {
             let has_key_event = handlers.contains("keydown")
                 || handlers.contains("keyup")
                 || handlers.contains("keypress");
             if !has_key_event {
-                warnings.push(w::a11y_click_events_have_key_events(&node.name));
+                warnings.push(w::a11y_click_events_have_key_events(node.name));
             }
         }
     }
@@ -368,7 +395,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     let role_value: Option<&str> = if has_role_attr {
         role_static_value
     } else {
-        get_implicit_role(&node.name, &attribute_map)
+        get_implicit_role(node.name, &attribute_map)
     };
 
     if let Some(rv) = role_value
@@ -388,10 +415,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     if is_valid_aria && !allowed_props.contains(&attr_name) {
                         if is_implicit {
                             warnings.push(
-                                w::a11y_role_supports_aria_props_implicit(
-                                    attr_name, rv, &node.name,
-                                )
-                                .at(a.start, a.end),
+                                w::a11y_role_supports_aria_props_implicit(attr_name, rv, node.name)
+                                    .at(a.start, a.end),
                             );
                         } else {
                             warnings.push(
@@ -409,7 +434,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     // Check: if tabindex exists AND (value is dynamic/None OR value is >= 0)
     // This matches the official Svelte implementation: (tab_index_value === null || Number(tab_index_value) >= 0)
     if !is_dynamic_element
-        && !is_interactive_element(&node.name, &attribute_map)
+        && !is_interactive_element(node.name, &attribute_map)
         && !role_static_value.is_some_and(is_interactive_roles)
         && let Some(tab_index) = attribute_map.get("tabindex")
     {
@@ -426,22 +451,22 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     // no-noninteractive-element-interactions
     if !has_spread
         && !has_contenteditable_attr
-        && !is_hidden_from_screen_reader(&node.name, &attribute_map)
+        && !is_hidden_from_screen_reader(node.name, &attribute_map)
         && !role_static_value.is_some_and(is_presentation_role)
     {
         // Check if element should trigger the warning:
         // (!is_interactive_element && is_non_interactive_roles) ||
         // (is_non_interactive_element && !role)
-        let should_check = (!is_interactive_element(&node.name, &attribute_map)
+        let should_check = (!is_interactive_element(node.name, &attribute_map)
             && role_static_value.is_some_and(is_non_interactive_roles))
-            || (is_non_interactive_element(&node.name, &attribute_map) && !has_role_attr);
+            || (is_non_interactive_element(node.name, &attribute_map) && !has_role_attr);
 
         if should_check {
             let has_interactive_handlers = handlers
                 .iter()
                 .any(|h| A11Y_RECOMMENDED_INTERACTIVE_HANDLERS.contains(&h.as_str()));
             if has_interactive_handlers {
-                warnings.push(w::a11y_no_noninteractive_element_interactions(&node.name));
+                warnings.push(w::a11y_no_noninteractive_element_interactions(node.name));
             }
         }
     }
@@ -451,11 +476,11 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     // This means: either there's no role attribute, OR if there is a role, it has a static value
     if !has_spread
         && (!has_role_attr || role_static_value.is_some())
-        && !is_hidden_from_screen_reader(&node.name, &attribute_map)
+        && !is_hidden_from_screen_reader(node.name, &attribute_map)
         && role_static_value.is_none_or(|r| !is_presentation_role(r))
-        && !is_interactive_element(&node.name, &attribute_map)
+        && !is_interactive_element(node.name, &attribute_map)
         && !role_static_value.is_some_and(is_interactive_roles)
-        && !is_non_interactive_element(&node.name, &attribute_map)
+        && !is_non_interactive_element(node.name, &attribute_map)
         && !role_static_value.is_some_and(is_non_interactive_roles)
         && !role_static_value.is_some_and(is_abstract_role)
     {
@@ -467,7 +492,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
         if !interactive_handlers.is_empty() {
             let handler_list = list(&interactive_handlers, "or");
             warnings.push(w::a11y_no_static_element_interactions(
-                &node.name,
+                node.name,
                 &handler_list,
             ));
         }
@@ -487,7 +512,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
         || attribute_map.contains_key("aria-labelledby")
         || attribute_map.contains_key("title");
 
-    match node.name.as_str() {
+    match node.name {
         "a" | "button" => {
             let is_hidden = (attribute_map
                 .get("aria-hidden")
@@ -495,7 +520,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 == Some("true"))
                 || attribute_map.contains_key("inert");
 
-            if !has_spread && !is_hidden && !is_labelled && !has_content(node) {
+            if !has_spread && !is_hidden && !is_labelled && !has_content(node.fragment) {
                 warnings.push(w::a11y_consider_explicit_label());
             }
 
@@ -526,7 +551,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         && name_attribute.is_none_or(|v| v.is_empty())
                         && aria_disabled != Some("true")
                     {
-                        warn_missing_attribute(&mut warnings, &node.name, &["href"], None);
+                        warn_missing_attribute(&mut warnings, node.name, &["href"], None);
                     }
                 }
             }
@@ -544,7 +569,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 if !has_attribute {
                     warn_missing_attribute(
                         &mut warnings,
-                        &node.name,
+                        node.name,
                         &required_attributes,
                         Some("input type=\"image\""),
                     );
@@ -577,7 +602,11 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 }
             }
         }
-        "label" if !has_spread && !attribute_map.contains_key("for") && !has_input_child(node) => {
+        "label"
+            if !has_spread
+                && !attribute_map.contains_key("for")
+                && !has_input_child(node.fragment) =>
+        {
             warnings.push(w::a11y_label_has_associated_control());
         }
         "video" => {
@@ -618,7 +647,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 }
             }
         }
-        "figcaption" if !is_parent(ancestor_names, &["figure"]) => {
+        "figcaption" if !is_parent(ancestors, &["figure"]) => {
             warnings.push(w::a11y_figcaption_parent());
         }
         "figure" => {
@@ -655,29 +684,29 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     // Check required attributes
     if !has_spread
         && node.name != "a"
-        && let Some(required_attributes) = A11Y_REQUIRED_ATTRIBUTES.get(node.name.as_str())
+        && let Some(required_attributes) = A11Y_REQUIRED_ATTRIBUTES.get(node.name)
     {
         let has_attribute = required_attributes
             .iter()
             .any(|name| attribute_map.contains_key(*name));
         if !has_attribute {
-            warn_missing_attribute(&mut warnings, &node.name, required_attributes, None);
+            warn_missing_attribute(&mut warnings, node.name, required_attributes, None);
         }
     }
 
     // no-distracting-elements
-    if A11Y_DISTRACTING_ELEMENTS.contains(&node.name.as_str()) {
-        warnings.push(w::a11y_distracting_elements(&node.name));
+    if A11Y_DISTRACTING_ELEMENTS.contains(&node.name) {
+        warnings.push(w::a11y_distracting_elements(node.name));
     }
 
     // Check content
     if !has_spread
         && !is_labelled
         && !has_contenteditable_binding
-        && A11Y_REQUIRED_CONTENT.contains(&node.name.as_str())
-        && !has_content(node)
+        && A11Y_REQUIRED_CONTENT.contains(&node.name)
+        && !has_content(node.fragment)
     {
-        warnings.push(w::a11y_missing_content(&node.name));
+        warnings.push(w::a11y_missing_content(node.name));
     }
 
     warnings
@@ -888,8 +917,8 @@ fn get_static_value<'b>(attribute: &'b AttributeNode<'_>) -> Option<&'b str> {
     None
 }
 
-fn has_content(element: &RegularElement) -> bool {
-    for node in &element.fragment.nodes {
+fn has_content(fragment: &Fragment) -> bool {
+    for node in &fragment.nodes {
         match node {
             TemplateNode::Text(text) => {
                 if !text.data.trim().is_empty() {
@@ -924,7 +953,22 @@ fn has_content(element: &RegularElement) -> bool {
                 }
 
                 // Recursively check for content
-                if has_content(el) {
+                if has_content(&el.fragment) {
+                    return true;
+                }
+            }
+            // Upstream shares this arm with RegularElement, so an EMPTY
+            // `<svelte:element>` child is not content either; its name can never
+            // be `img` or `selectedcontent`, so only the popover skip applies.
+            TemplateNode::SvelteElement(el) => {
+                let is_popover = el
+                    .attributes
+                    .iter()
+                    .any(|a| matches!(a, AttributeNode::Attribute(attr) if attr.name == "popover"));
+                if is_popover {
+                    continue;
+                }
+                if has_content(&el.fragment) {
                     return true;
                 }
             }
@@ -934,15 +978,16 @@ fn has_content(element: &RegularElement) -> bool {
     }
     false
 }
-fn is_parent(ancestor_names: &[String], elements: &[&str]) -> bool {
+fn is_parent(ancestors: &A11yAncestors, elements: &[&str]) -> bool {
     // Check if the immediate parent element name is in the list
-    if let Some(parent_name) = ancestor_names.last() {
+    if let Some(parent_name) = ancestors.names.last() {
         return elements.contains(&parent_name.as_str());
     }
-    false
+    // Upstream plays it safe when the nearest element ancestor is dynamic.
+    ancestors.inside_dynamic_element
 }
 
-fn has_input_child(element: &RegularElement) -> bool {
+fn has_input_child(fragment: &Fragment) -> bool {
     fn walk_fragment(fragment: &Fragment) -> bool {
         for node in &fragment.nodes {
             match node {
@@ -1003,7 +1048,7 @@ fn has_input_child(element: &RegularElement) -> bool {
         false
     }
 
-    walk_fragment(&element.fragment)
+    walk_fragment(fragment)
 }
 
 /// Helper to generate missing attribute warning with proper article and sequence.

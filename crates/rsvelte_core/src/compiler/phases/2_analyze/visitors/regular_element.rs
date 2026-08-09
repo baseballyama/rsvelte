@@ -411,7 +411,10 @@ pub fn visit<'a, 'b: 'a>(
     validate_element(element, context)?;
 
     // Check accessibility
-    let a11y_warnings = a11y_check(element, &context.element_ancestors);
+    let a11y_warnings = a11y_check(
+        &super::shared::a11y::A11yElement::regular(element),
+        &context.a11y_ancestors(),
+    );
     for mut warning in a11y_warnings {
         if warning.start.is_none() {
             warning.start = Some(element.start);

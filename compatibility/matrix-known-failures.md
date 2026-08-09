@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 1060 entries)
+## Matrix known failures (`matrix-known-failures.json`, 1036 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 422 + 3 + 253`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 398 + 3 + 253`
 
 ### `binding-position` — 2 entries
 
@@ -261,19 +261,19 @@ on `client` and `client-dev`. `server` has no dependency list and matches everyw
 
 Partition of `matrix-known-failures.json` entries under `param-pattern/` by shape: `12 + 12 + 12 + 12 + 12`
 
-### `directive-element` — 422 entries
+### `directive-element` — 398 entries
 
 19 directive kinds × 13 element kinds × 2 modes (runes / legacy), 1482 comparisons. Every one
-of these 422 entries is a **live rsvelte defect**, not accepted behaviour; none was known before
+of these 398 entries is a **live rsvelte defect**, not accepted behaviour; none was known before
 the family existed. They are listed so the ratchet can hold the line while they are burned down.
 
 The single most useful fact about the set is where it is **not**: zero entries on
-`regular-element`, `regular-input`, `component` and `each-keyed-element`. All 422 sit on a
+`regular-element`, `regular-input`, `component` and `each-keyed-element`. All 398 sit on a
 `<svelte:*>` special element. Directive handling on ordinary elements and components agrees with
 official across every kind and both modes; the special elements are where per-parent handling has
 drifted from upstream's one predicate per directive.
 
-Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `114 + 102 + 60 + 24 + 24 + 22 + 20 + 20 + 12 + 12 + 6 + 6`
+Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `114 + 102 + 60 + 24 + 22 + 20 + 20 + 12 + 12 + 6 + 6`
 
 | verdict | host | entries | cause |
 |---|---|---:|---|
@@ -281,7 +281,6 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by 
 | `error-mismatch` | `svelte-fragment` | 102 | every attribute is accepted; official raises `svelte_fragment_invalid_attribute` for everything but a `slot` attribute and `let:`. 17 kinds (`let:` and a plain `onclick=` attribute are legal upstream, and both match). |
 | `error-mismatch` | `svelte-self` | 60 | the component directive check does not run: 54 are `component_invalid_directive` (`use:` `transition:` `in:` `out:` `animate:` `class:` `style:`), 6 are `event_handler_invalid_component_modifier`. |
 | `error-mismatch` | `svelte-body` | 24 | 12 `bind_invalid_target` (`bind:value` accepted), 6 `let_directive_invalid_placement`, 6 `svelte_body_illegal_attribute` (a spread attribute). |
-| `warning-missing:a11y_no_static_element_interactions` | `svelte-element` | 24 | the warning never fires. 4 handler spellings × 2 modes × 3 targets. |
 | `js-mismatch` | `svelte-body` | 22 | 20 are `transition:` / `in:` / `out:` / `animate:` emitting nothing where official emits `$.transition` / `$.animation`; 2 are legacy-mode `bind:this` failing to make the target a `mutable_source`. |
 | `js-mismatch` | `svelte-document` | 20 | same transition/animation cause. |
 | `js-mismatch` | `svelte-window` | 20 | same transition/animation cause. |
@@ -293,20 +292,23 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by 
 The `js-mismatch` rows are `client` and `client-dev` only — the server target emits nothing for a
 transition on either compiler, so it agrees by construction and is not evidence of anything.
 
-The warning row is the same defect class as #2497, one code over:
-rsvelte emits **no a11y warning at all** for `<svelte:element>`, on any rule, so the four rows
-that reach it (`on:click`, `on:click|once`, `on:click|preventDefault`, `onclick=`) are one cause,
-not four. It is also the row that justifies the warning comparison this family shipped with:
-a warning that never fires leaves the output byte-identical, so `js.code` cannot report it.
+**The `warning-missing:a11y_no_static_element_interactions` row — 24 entries on `svelte-element`
+— is fixed by #2523 and no longer listed.** It read as one missing warning on four handler
+spellings; it was the whole a11y pass, which had no call site in `svelte_element.rs`, so
+`<svelte:element>` reached **none** of upstream's ~40 element rules. This family saw one of them
+because `on:click` is the only a11y-relevant shape its axes construct. It is still the row that
+justifies the warning comparison the family shipped with: a warning that never fires leaves the
+output byte-identical, so `js.code` cannot report it.
 
-Its verdict carries the **code**, and that is not cosmetic. With a flat `warning-mismatch`
-verdict these 24 entries share their ratchet key with every other warning on the same case and
-target — and re-breaking #2521 (so `event_directive_deprecated` stops firing on
-`<svelte:element>`) was measured to leave the gate **green**, because three of the four rows
-were already listed. Keying on `warning-missing:<code>` / `warning-extra:<code>` makes that
-revert produce 9 new ids instead.
+Its verdict carried the **code**, and that was not cosmetic. With a flat `warning-mismatch`
+verdict those 24 entries would have shared their ratchet key with every other warning on the same
+case and target — and re-breaking #2521 (so `event_directive_deprecated` stops firing on
+`<svelte:element>`) was measured to leave the gate **green**, because three of the four rows were
+already listed. Keying on `warning-missing:<code>` / `warning-extra:<code>` makes that revert
+produce 9 new ids instead, and is also what let #2523's fix be read off this gate as a clean
+24 → 0 rather than as a change in a flat count.
 
-The split by mode is `212` legacy / `210` runes — near-even, which is the evidence that the mode
+The split by mode is `200` legacy / `198` runes — near-even, which is the evidence that the mode
 axis is not decoration. The two extra legacy entries are the `bind:this` on `<svelte:body>` row,
 which has no runes counterpart.
 

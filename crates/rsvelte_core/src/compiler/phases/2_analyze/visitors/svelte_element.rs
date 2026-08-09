@@ -145,6 +145,22 @@ pub fn visit<'a, 'b: 'a>(
         return Err(errors::svelte_element_missing_this());
     }
 
+    // Upstream runs the shared a11y checker from both element visitors; the tag
+    // is not statically known, so the rules that need it are skipped inside.
+    let a11y_warnings = super::shared::a11y::check_element(
+        &super::shared::a11y::A11yElement::dynamic(element),
+        &context.a11y_ancestors(),
+    );
+    for mut warning in a11y_warnings {
+        if warning.start.is_none() {
+            warning.start = Some(element.start);
+        }
+        if warning.end.is_none() {
+            warning.end = Some(element.end);
+        }
+        context.emit_warning(warning);
+    }
+
     // Analyze the 'this' expression to track template references
     // This is crucial for legacy state promotion to work correctly.
     //

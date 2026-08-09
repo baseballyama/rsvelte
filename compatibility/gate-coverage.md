@@ -69,7 +69,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | # | Gate | Unit compared | Sharpest blind spot | Ev. |
 |---|------|---------------|---------------------|-----|
 | 1 | Compiler output parity (`verify.mjs`) | per-entry × per-target JS text + CSS text | comments, on every entry and every target | [D] |
-| 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403) | [S] |
+| 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403); a rule family measured at **one** of its ~40 codes (2d) | [D] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
 | 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules | [S] |
@@ -208,6 +208,24 @@ wrong or absent end highlights the wrong range in an editor and is scored `match
 
 `verify.mjs:418`: `if (expErr[target] || actErr[target]) continue;`. **[S]** Warnings emitted
 alongside a compile error are never compared for that target.
+
+### Blind spot 2d — a whole rule family can be measured at one code
+
+The unit is per entry, so a class this gate *does* observe is still only observed on the
+shapes the population happens to hold — and "the population holds the construct" is not the
+same claim as "the population exercises the class". **[D]** Measured, not argued: **119** of
+the 14,170 corpus entries contain `<svelte:element>`, but exactly **3** produce an a11y
+warning whose span starts at one, and all three carry the **same** code
+(`a11y_no_static_element_interactions`). Upstream's `check_element` can raise ~40, so this
+gate saw 1 of them.
+
+That is what #2523 was: `check_element` had no call site in `svelte_element.rs`, so **every**
+element a11y rule was absent on `<svelte:element>` — and the ratchet recorded the defect as
+three entries of one code, a shape indistinguishable from a single-rule bug. Growing the
+corpus does not move this: `<svelte:element>` × an a11y-relevant attribute is an interaction,
+and published code writes it almost never. The coverage is
+`crates/rsvelte_core/tests/a11y_svelte_element_2523.rs`, which constructs one case per rule and
+pairs each `!is_dynamic_element` row with the static element that does raise it.
 
 ---
 

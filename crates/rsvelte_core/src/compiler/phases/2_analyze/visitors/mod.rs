@@ -638,6 +638,20 @@ impl<'a> VisitorContext<'a> {
         }
     }
 
+    /// The ancestor context the a11y checker consults.
+    pub fn a11y_ancestors(&self) -> shared::a11y::A11yAncestors<'_> {
+        shared::a11y::A11yAncestors {
+            names: &self.element_ancestors,
+            // `element_ancestors` is cleared at a `<svelte:element>` boundary, so
+            // an owner on the stack with no name left means the nearest element
+            // ancestor is the dynamic one.
+            inside_dynamic_element: self
+                .fragment_owner_stack
+                .iter()
+                .any(|owner| matches!(owner, FragmentOwnerType::SvelteElement)),
+        }
+    }
+
     /// Emit a warning during analysis, but only if it's not being ignored.
     pub fn emit_warning(&mut self, warning: super::warnings::AnalysisWarning) {
         // Check if this warning code is being ignored

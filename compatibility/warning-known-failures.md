@@ -34,7 +34,7 @@ compilers already run on every entry.
 
 ## Why the three per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 28 entries on all three,
+`warning-known-failures.<target>.json` holds the same 25 entries on all three,
 and `warning-position-known-failures.<target>.json` the same 4 entries. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
@@ -46,24 +46,32 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all six files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 28 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 25 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 28 entries that still diverge, **6 are
+Not every entry is equally bad. Of the 25 entries that still diverge, **3 are
 under-warnings** — rsvelte stays silent where upstream warns
-(`a11y_no_static_element_interactions` ×3, `state_referenced_locally` ×2,
-`options_missing_custom_element` ×1); neither burn-down below touched that half.
-The other 22 are noise the user cannot suppress — 81 tuples over four codes
+(`state_referenced_locally` ×2, `options_missing_custom_element` ×1). The other
+22 are noise the user cannot suppress — 81 tuples over four codes
 (`reactive_declaration_module_script_dependency` 62, `component_name_lowercase`
 10, `export_let_unused` 7, `state_referenced_locally` 2). Both are defects, but a
 missing diagnostic and an extra one fail differently, and the ratchet count alone
 does not distinguish them; no entry diverges in both directions at once — which
 is what lets the two counts be added:
 
-Partition of `warning-known-failures.<target>.json` by direction: `6 + 22`
+Partition of `warning-known-failures.<target>.json` by direction: `3 + 22`
+
+The other three under-warnings were the whole of the
+`a11y_no_static_element_interactions` cluster
+(`runtime-legacy/samples/dynamic-element-{event-handler1,event-handler2,pass-props}`),
+removed by #2523: the a11y pass had no call site in `svelte_element.rs`, so
+**every** element a11y rule was absent on `<svelte:element>`. The corpus saw only
+this one code because it holds so few dynamic elements with an a11y-relevant
+shape — the class was far wider than the three entries, which is why the fix
+lands its own gate rather than relying on this ratchet to have measured it.
 
 Clusters identified so far:
 
