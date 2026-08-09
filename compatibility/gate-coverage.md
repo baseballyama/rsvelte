@@ -574,6 +574,35 @@ official**, while the live divergences are on `<svelte:body>` and `<svelte:self>
 names its element removes that class of misattribution; a hand-written repro cannot, because the
 reporter chooses the element. **[D]**
 
+### Blind spot 5j — option-as-axis is reusable, but an option that lands outside `js.code` is vacuous here
+
+`async-derived` made a compile **option** an axis for the first time (`run.mjs:156`), and the
+capability generalises to any option — the mechanics and the collision hazard are in
+[scripts/compat-corpus/README.md](../scripts/compat-corpus/README.md#generated-shape-matrix-matrix).
+What does **not** generalise is observability. `run.mjs` reads `result.js.code` and nothing else
+off the result object (`:167,173`), plus the warning `code` multiset and the error `code`. An
+option whose effect lands anywhere else produces identical output on both sides *by
+construction*, so declaring it as an axis buys a green column that means nothing — the vacuous
+green of § *A named blind-spot class*, one level up from an input that is merely absent.
+
+The sharp case is #2697, which raises `compile.modernAst` and `parse.skipCssAst` as declared at
+the NAPI boundary and accepted. The matrix reaches neither, **for two different reasons**, and
+the distinction is the point: `modernAst` *is* expressible as an axis and would be vacuous —
+official spends it entirely on `result.ast` (`compiler/index.js:58`,
+`result.ast = to_public_ast(source, parsed, options.modernAst)`), so both sides emit identical
+`js.code` whatever rsvelte does with it, and **an inert option and an option this gate cannot
+see are the same verdict**. `skipCssAst` is not expressible at all — it is an option of `parse`
+(`rsvelte_napi/src/lib.rs:219`), and this harness only ever calls `compile` / `compileModule`.
+Reading "the matrix cannot gate #2697" without that split invites someone to add the axis and
+read its green as evidence.
+
+The rest of that class — `runes`, `namespace`, `accessors`, `customElement`,
+`preserveWhitespace`, `preserveComments`, `hmr`, `discloseVersion`, further `experimental.*` —
+does surface in `js.code` and is reachable. Cost is not the constraint: an option axis compiles
+exactly like a shape axis. **[S]**
+
+---
+
 **Closing 5b/5c:** the matrix costs ~20 s of CPU on ~8,900 comparisons (wall clock on a box running other agents' builds is unusable — a paired A/B inverted once). Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) is cheap relative to every other gate here.
 This is the highest value-per-cost item in this document. The `.warnings` half of that

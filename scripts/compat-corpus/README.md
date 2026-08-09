@@ -428,6 +428,41 @@ swallow: both compilers rejecting says nothing if rsvelte rejected for an
 unrelated reason. `run.mjs` now compares the two error codes and reports
 `error-code-mismatch` when they differ — for every family, not just this one.
 
+**An axis can be a compile OPTION, not just a source shape.** A case may carry
+`options`, merged over the per-target set (`run.mjs`: `Object.assign(options,
+testCase.options ?? {})`); the `async-derived` family is the first user and
+`experimental.async` the first option. This generalises — every other harness
+here compiles with a fixed `{ generate, dev, filename }`, so a defect that exists
+only under a flag is unreachable for them at any corpus size — but it costs
+nothing extra per case and has three mechanics and one hard limit:
+
+- **The option is not in the ratchet key.** The key is
+  `` `${id} [${verdict}] (${target})` `` (`run.mjs:274`) and `id` is *also* the
+  artifact path (`TREE/<id>`), so two cases differing only in options must encode
+  the option in the id or they collide in the baseline **and** overwrite each
+  other's output files.
+- **The merge is shallow.** A case's `experimental` replaces the target's whole
+  `experimental` object rather than merging into it. Latent today (no target sets
+  a nested option) and cheap to trip over later.
+- **A case can override the fixed options,** including `css: 'external'` set at
+  `:152` — that is deliberate, but note `result.css` is never compared, so
+  `css: 'injected'` is observable only through what it moves into `js.code`.
+- **Limit: an option whose effect lands outside `js.code`, the warning `code`
+  multiset, or the error `code` is a VACUOUS axis here** — it runs, costs time,
+  and is structurally incapable of reporting anything. `run.mjs` reads
+  `result.js.code` and nothing else off the result object; `map`, `ast` and
+  `metadata` are never touched. `compile.modernAst` is the example: official
+  spends it entirely on `result.ast` (`result.ast = to_public_ast(source, parsed,
+  options.modernAst)`, `compiler/index.js:58`), so both sides would emit
+  identical `js.code` whatever rsvelte did with it. And `parse.skipCssAst` is not
+  expressible as an axis **at all** — it is an option of `parse`, and this
+  harness only ever calls `compile` / `compileModule`. Those are the two options
+  #2697 raises, and the matrix reaches neither, for two different reasons.
+
+  Everything that surfaces in `js.code` *is* reachable: `runes`, `namespace`,
+  `accessors`, `customElement`, `preserveWhitespace`, `preserveComments`, `hmr`,
+  `discloseVersion`, further `experimental.*`.
+
 **Normalization is identical to `verify.mjs`** (flatten template holes → oxfmt →
 strip blank lines). That is a requirement, not a convenience: a divergence this
 gate reports must be one the corpus gate would also report, or the two gates
