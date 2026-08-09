@@ -545,6 +545,79 @@ export const k = ${expr};
 };
 
 /**
+ * Axis F — expression kinds that sit on the boundary of upstream's
+ * `scope.evaluate`, crossed with axis C (`EXPRESSION_SLOTS`).
+ *
+ * Constant folding is the one decision where BOTH directions are silent
+ * failures: folding too little leaves a divergence nobody notices (the value is
+ * right), and folding too much removes the placeholder a dynamic text node
+ * needs, so the runtime has nothing to fill. Neither shows up as an error, and
+ * `scope.evaluate` is a single switch — so the kinds that fold and the kinds
+ * that stop are neighbours in the source, one `case` apart, and a port that gets
+ * one right can get the one below it wrong.
+ *
+ * The rows are chosen to straddle every boundary in that switch rather than to
+ * sample what people write: a member read whose object is a literal ARRAY stops
+ * (`is_pure` walks to the leftmost object and gives up), while the same read on
+ * a literal STRING is pure and does not; a `Math.PI` member folds where
+ * `[1, 2].length` does not; a template literal folds exactly when every
+ * interpolation does, and `null` / `undefined` interpolate as their names rather
+ * than as the empty string a chunk-level nullish fold produces.
+ */
+export const FOLDABLE_EXPRESSIONS = {
+	'array-literal-length': '[1, 2].length',
+	'array-literal-index': '[1, 2][0]',
+	'object-literal-property': '({ a: 1 }).a',
+	'arrow-literal-name': '(async (p = 1) => p).name',
+	'string-literal-length': "'ab'.length",
+	'string-literal-call': "'ab'.at(0)",
+	'number-literal-call': '(1).toFixed(2)',
+	'global-constant': 'Math.PI',
+	'global-call': 'Math.max(1, 2)',
+	'call-then-member': 'Math.max(1, 2).toFixed(0)',
+	'template-constant': "`p${'ab'}q`",
+	'template-null': '`p${null}q`',
+	'template-undefined': '`p${undefined}q`',
+	'template-global-constant': '`p${Math.PI}q`',
+	'template-nested-template': "`p${`m${'ab'}n`}q`",
+	'binary-constant': "'a' + 'b'",
+	'conditional-constant': "true ? 'a' : 'b'",
+};
+
+/**
+ * Axis F2 — how the expression reaches the slot. Inline is the direct read;
+ * the `const` rows put one and two levels of declaration between the expression
+ * and the read, which is the half of the same evaluator that resolves a binding
+ * initializer instead of the expression in front of it. A fold that works inline
+ * can stop at the first indirection (the initializer is stored separately from a
+ * plain literal), and one that survives one level can stop at two.
+ */
+export const FOLD_INDIRECTIONS = {
+	'via-const': (expression) => `const f0 = ${expression};`,
+	'via-const-chain': (expression) => `const f0 = ${expression};\n\tconst f1 = \`[\${f0}]\`;`,
+};
+
+/** The read each indirection puts in the slot. */
+export const FOLD_INDIRECTION_READS = {
+	'via-const': 'f0',
+	'via-const-chain': 'f1',
+};
+
+/**
+ * Slots the indirection rows are crossed with. A subset on purpose: the slot
+ * axis is already walked in full by the inline rows, and what the indirection
+ * rows add is the binding resolution, which does not vary per slot beyond these.
+ * `instance-declaration` is absent because it brings its own `<script>`.
+ */
+export const FOLD_INDIRECTION_SLOTS = [
+	'interpolation',
+	'attribute-value',
+	'const-tag',
+	'if-test',
+	'event-handler',
+];
+
+/**
  * Axis D — expressions that are not a legal `bind:` target, crossed with axis E,
  * the directive slot they sit in.
  *

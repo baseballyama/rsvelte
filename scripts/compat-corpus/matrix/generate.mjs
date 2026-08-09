@@ -13,6 +13,10 @@ import {
 	COMMENT_MODULE_SEEDS,
 	LITERAL_ESCAPES,
 	EXPRESSION_SLOTS,
+	FOLDABLE_EXPRESSIONS,
+	FOLD_INDIRECTIONS,
+	FOLD_INDIRECTION_READS,
+	FOLD_INDIRECTION_SLOTS,
 	INVALID_BIND_TARGETS,
 	VALID_BIND_TARGETS,
 	BIND_SLOTS,
@@ -101,6 +105,29 @@ function literalEscapeCases() {
 				id: `literal-escape/${escapeName}__${slotName}.svelte`,
 				source: markup.replaceAll('%s', literal) + '\n',
 			});
+		}
+	}
+	return cases;
+}
+
+function constantFoldCases() {
+	const cases = [];
+	for (const [expressionName, expression] of Object.entries(FOLDABLE_EXPRESSIONS)) {
+		for (const [slotName, markup] of Object.entries(EXPRESSION_SLOTS)) {
+			cases.push({
+				id: `constant-fold/${expressionName}__inline__${slotName}.svelte`,
+				source: markup.replaceAll('%s', expression) + '\n',
+			});
+		}
+		for (const [indirectionName, declare] of Object.entries(FOLD_INDIRECTIONS)) {
+			const declarations = declare(expression);
+			const read = FOLD_INDIRECTION_READS[indirectionName];
+			for (const slotName of FOLD_INDIRECTION_SLOTS) {
+				cases.push({
+					id: `constant-fold/${expressionName}__${indirectionName}__${slotName}.svelte`,
+					source: `<script>\n\t${declarations}\n</script>\n\n${EXPRESSION_SLOTS[slotName].replaceAll('%s', read)}\n`,
+				});
+			}
 		}
 	}
 	return cases;
@@ -361,6 +388,7 @@ export const FAMILIES = {
 	'async-derived': asyncDerivedCases,
 	'comment-slot': commentSlotCases,
 	'literal-escape': literalEscapeCases,
+	'constant-fold': constantFoldCases,
 	'invalid-bind': invalidBindCases,
 	'param-default': paramDefaultCases,
 	'each-collection': eachCollectionCases,

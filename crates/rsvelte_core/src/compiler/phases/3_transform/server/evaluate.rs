@@ -560,7 +560,7 @@ fn is_global_keypath(keypath: &str) -> bool {
     ) || (keypath.starts_with("Math.") && keypath.len() > 5)
 }
 
-fn global_constant(keypath: &str) -> Option<f64> {
+pub(crate) fn global_constant(keypath: &str) -> Option<f64> {
     Some(match keypath {
         "Math.PI" => std::f64::consts::PI,
         "Math.E" => std::f64::consts::E,
@@ -1063,8 +1063,15 @@ impl<'a> EvalCtx<'a> {
         let Some(initial) = binding.initial.as_deref() else {
             // A template-literal initializer (`const w = `…${x}…``) is always a
             // defined string (upstream scope.js `TemplateLiteral` → STRING marker),
-            // so reads of it must NOT be wrapped in `$.stringify(...)`.
+            // so reads of it must NOT be wrapped in `$.stringify(...)`. Its quasis
+            // and expressions still fold to a concrete value when every
+            // interpolation is known, so try that before settling for the marker.
             if binding.initial_node_type.as_deref() == Some("TemplateLiteral") {
+                if depth < MAX_DEPTH
+                    && let Some(init_json) = binding.init_expr_json_parsed()
+                {
+                    return self.evaluate_estree(init_json, depth + 1);
+                }
                 return Evaluation::single(EvalValue::StringMarker);
             }
             // The analyzer does not capture non-literal initials in

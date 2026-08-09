@@ -3838,30 +3838,120 @@ fn get_literal_value_json(
                 get_literal_value_complex(expr_type, obj, context)
             }
             "TemplateLiteral" => {
-                // Template literal with no expressions -> plain string
-                // Template literal with expressions -> try to fold each expression
+                // Mirrors upstream scope.js `TemplateLiteral`: the value is known
+                // when every interpolation is, so quasis and folded expressions
+                // concatenate into one string.
                 let obj = jv.as_object()?;
                 let quasis = obj.get("quasis").and_then(|q| q.as_array())?;
                 let expressions = obj.get("expressions").and_then(|e| e.as_array())?;
 
-                if !expressions.is_empty() {
-                    return None; // Can't fold template literals with expressions here
-                }
-
-                let mut result = String::new();
-                for quasi in quasis {
-                    if let Some(cooked) = quasi
+                let cooked = |i: usize| -> Option<&str> {
+                    quasis
+                        .get(i)?
                         .get("value")
                         .and_then(|v| v.get("cooked"))
                         .and_then(|c| c.as_str())
-                    {
-                        result.push_str(cooked);
+                };
+
+                let mut result = String::from(cooked(0)?);
+                for (i, expression) in expressions.iter().enumerate() {
+                    let folded = get_literal_value_json(expression, context)?;
+                    match folded {
+                        Some(value) => result.push_str(&value),
+                        // A nullish interpolation stringifies as `null` or
+                        // `undefined`, which the folded `Some(None)` conflates.
+                        None => result.push_str(nullish_text_json(expression, context)?),
                     }
+                    result.push_str(cooked(i + 1)?);
                 }
                 Some(Some(result))
             }
+            "MemberExpression" => {
+                // Upstream scope.js `MemberExpression` knows exactly one thing: a
+                // global-constant keypath (`Math.PI`). Everything else is UNKNOWN.
+                let (base, keypath) = static_keypath_json(jv)?;
+                if context.state.get_binding(&base).is_some()
+                    || context.state.transform.contains_key(&base)
+                {
+                    return None;
+                }
+                let value =
+                    crate::compiler::phases::phase3_transform::server::evaluate::global_constant(
+                        &keypath,
+                    )?;
+                Some(Some(format_js_number(value)))
+            }
             _ => None,
         }
+    }
+}
+
+/// The `(base, dotted keypath)` of a non-computed `Identifier`-only member
+/// chain, mirroring upstream `get_global_keypath`.
+fn static_keypath_json(jv: &serde_json::Value) -> Option<(String, String)> {
+    let mut parts: Vec<&str> = Vec::new();
+    let mut node = jv;
+    while node.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        if node.get("computed").and_then(|c| c.as_bool()) == Some(true) {
+            return None;
+        }
+        let property = node.get("property")?;
+        if property.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+            return None;
+        }
+        parts.push(property.get("name")?.as_str()?);
+        node = node.get("object")?;
+    }
+    if node.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+        return None;
+    }
+    let base = node.get("name")?.as_str()?;
+    parts.push(base);
+    parts.reverse();
+    Some((base.to_string(), parts.join(".")))
+}
+
+/// Which nullish value an expression that folded to `Some(None)` actually holds.
+/// A template literal stringifies `null` and `undefined` differently, so the
+/// two must be told apart there; `None` leaves the chunk unfolded.
+fn nullish_text_json(jv: &serde_json::Value, context: &ComponentContext) -> Option<&'static str> {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    match jv.get("type").and_then(|t| t.as_str())? {
+        "Literal" => jv.get("value")?.is_null().then_some("null"),
+        "Identifier" => {
+            let name = jv.get("name").and_then(|n| n.as_str())?;
+            if name == "undefined" {
+                return Some("undefined");
+            }
+            let binding = context.state.get_binding(name)?;
+            if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                && binding.initial.is_none()
+                && binding.initial_node_type.is_none()
+            {
+                return Some("undefined");
+            }
+            if let Some(init) = binding.initial.as_deref() {
+                match init.trim() {
+                    "null" => return Some("null"),
+                    "undefined" => return Some("undefined"),
+                    _ => {}
+                }
+                if let Some(parsed) = binding.initial_json() {
+                    return nullish_text_json(parsed, context);
+                }
+                return None;
+            }
+            let init_json = binding.init_expr_json_parsed()?;
+            if INITIAL_EVAL_DEPTH.with(|d| d.get()) >= MAX_INITIAL_EVAL_DEPTH {
+                return None;
+            }
+            INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
+            let resolved = nullish_text_json(init_json, context);
+            INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
+            resolved
+        }
+        _ => None,
     }
 }
 
@@ -5230,6 +5320,10 @@ fn typed_has_reactive_state(
             computed,
             ..
         } => {
+            // Upstream's MemberExpression visitor is `has_state ||= !is_pure(node)`.
+            if !typed_is_pure(node, arena, context) {
+                return Some(true);
+            }
             let object = arena.get_js_node(*object);
             if typed_has_reactive_state(object, arena, context)? {
                 return Some(true);
@@ -5389,6 +5483,12 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             false
         }
         "MemberExpression" => {
+            // Upstream's MemberExpression visitor is `has_state ||= !is_pure(node)`,
+            // so a member read whose leftmost object is neither a literal nor an
+            // unbound global (`[1, 2].length`, `({ a: 1 }).a`) is reactive.
+            if !is_pure_json(json_value, context) {
+                return true;
+            }
             // Check the object part - recurse directly with JSON reference
             if let Some(object) = obj.get("object") {
                 // First check if the object itself references reactive state
@@ -5754,6 +5854,59 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
                 }
             }
             true
+        }
+        _ => false,
+    }
+}
+
+/// Typed counterpart of [`is_pure_json`], arm for arm, so a member read's purity
+/// can be decided without materializing the expression as JSON.
+fn typed_is_pure(
+    node: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+    context: &ComponentContext,
+) -> bool {
+    use crate::ast::typed_expr::JsNode;
+
+    match node {
+        JsNode::Literal { .. } | JsNode::Null => true,
+        JsNode::Identifier { name, .. } => {
+            context.state.get_binding(name.as_str()).is_none()
+                && !context.state.transform.contains_key(name.as_str())
+        }
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            if !*computed
+                && let JsNode::Identifier { name: prop, .. } = arena.get_js_node(*property)
+                && prop.as_str() == "tracking"
+                && let JsNode::Identifier { name: base, .. } = arena.get_js_node(*object)
+                && base.as_str() == "$effect"
+            {
+                return false;
+            }
+            let mut left = arena.get_js_node(*object);
+            while let JsNode::MemberExpression { object, .. } = left {
+                left = arena.get_js_node(*object);
+            }
+            typed_is_pure(left, arena, context)
+        }
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            if !typed_is_pure(arena.get_js_node(*callee), arena, context) {
+                return false;
+            }
+            arena.get_js_children(*arguments).iter().all(|argument| {
+                let argument = match argument {
+                    JsNode::SpreadElement { argument, .. } => arena.get_js_node(*argument),
+                    other => other,
+                };
+                typed_is_pure(argument, arena, context)
+            })
         }
         _ => false,
     }
@@ -6460,6 +6613,22 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                     if binding.is_function() {
                         return true;
                     }
+                    // A non-literal initializer lives in `init_expr_json`, and
+                    // upstream's `scope.evaluate` recurses into the init node
+                    // whatever its shape (`const b = `${a}y`` is known when `a` is).
+                    if binding.initial.is_none()
+                        && let Some(init_json) = binding.init_expr_json_parsed()
+                    {
+                        return REACTIVE_INIT_DEPTH.with(|d| {
+                            if d.get() >= 8 {
+                                return false;
+                            }
+                            d.set(d.get() + 1);
+                            let known = is_expression_known_json(init_json, context);
+                            d.set(d.get() - 1);
+                            known
+                        });
+                    }
                     return is_initial_value_literal_or_known(&binding.initial);
                 }
                 // Unknown identifier - not known (could be a global)
@@ -6594,7 +6763,10 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                     }
                 }
             }
-            false
+            // Upstream's `globals` table makes a pure global call over known
+            // arguments known too (`Math.max(1, 2)`); the folder already knows
+            // which, so ask it rather than keeping a second list.
+            get_literal_value_json(json_value, context).is_some()
         }
 
         // Arrow/function expressions are NOT "known" in the scope.evaluate sense:

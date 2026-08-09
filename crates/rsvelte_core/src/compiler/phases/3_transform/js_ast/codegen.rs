@@ -1387,10 +1387,19 @@ impl<'a> JsCodegen<'a> {
     #[inline]
     fn emit_member_expression(&mut self, member: &JsMemberExpression) {
         let object = self.arena.get_expr(member.object);
+        // esrap gives every `Literal` precedence 18, below a member access, so
+        // each literal spelling wraps — not just the two plain variants.
         let needs_parens = matches!(
             object,
             JsExpr::Literal(JsLiteral::Number(_))
                 | JsExpr::Literal(JsLiteral::String(_))
+                | JsExpr::Literal(JsLiteral::RawNumber { .. })
+                | JsExpr::Literal(JsLiteral::RawString { .. })
+                | JsExpr::Literal(JsLiteral::Boolean(_))
+                | JsExpr::Literal(JsLiteral::BigInt(_))
+                | JsExpr::Literal(JsLiteral::Regex { .. })
+                // `undefined` is an Identifier upstream, so it stays unwrapped.
+                | JsExpr::Literal(JsLiteral::Null)
                 | JsExpr::Binary(_)
                 | JsExpr::Unary(_)
                 | JsExpr::Conditional(_)

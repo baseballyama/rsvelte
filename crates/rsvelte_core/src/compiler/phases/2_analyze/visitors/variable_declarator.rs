@@ -1001,6 +1001,10 @@ fn init_needs_expr_json(init: &JsNode) -> bool {
         | JsNode::UnaryExpression { .. }
         | JsNode::ConditionalExpression { .. }
         | JsNode::CallExpression { .. } => true,
-        _ => false,
+        // A member read is UNKNOWN to `scope.evaluate` unless it is a
+        // global-constant keypath (`Math.PI`); the consumers re-check that, and
+        // asking here would miss a `Raw`-wrapped initializer. Matched by type
+        // name for the same reason.
+        _ => init.type_str() == "MemberExpression",
     }
 }
