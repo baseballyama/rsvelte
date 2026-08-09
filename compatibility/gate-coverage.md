@@ -219,7 +219,7 @@ differ: the prose and span of two unrelated errors say nothing. Those pairs are
 
 ## 5. Generated shape matrix — `scripts/compat-corpus/matrix/`
 
-**Unit.** 1749 generated cases × 3 targets = 5247 comparisons. Where both compilers accept, the
+**Unit.** 1949 generated cases × 3 targets = 5847 comparisons. Where both compilers accept, the
 unit is `js.code` only (`matrix/run.mjs:134,139,166-167`), oxfmt-normalized identically to
 `verify.mjs`; where both reject it is the error **code** (`:150`), which the `invalid-bind` and
 `param-default` families exist to exercise.
@@ -315,6 +315,29 @@ implement. These two families cross one validation and one parser rule with thei
 same drift is possible for any check written per call site rather than once — `{@render}`,
 `use:`, `{#each … as}` patterns, `<svelte:element>` — and no gate here generates invalid inputs
 for them.
+
+### Blind spot 5f — the `each-collection` family sees precedence, not evaluation
+
+Family `each-collection` (`axes.mjs` — 20 collection expressions × 10 uses of the loop item)
+puts the `{#each}` collection in the one slot where its own precedence decides the output: a
+legacy **reassigned** item is read back as `collection[$$index]`, so `list ?? []` has to print
+as `($.get(list) ?? [])[$$index]`. Both polarities are generated, because the failure modes are
+opposite — a splice that carries no precedence drops the parentheses, and a fix that adds them
+unconditionally moves every collection that never needed them.
+
+What it structurally cannot observe: **whether the parenthesised expression evaluates the same
+way**. The comparison is `js.code` text against official's, so this family inherits 5b and 5d
+whole, and it can only ever report "rsvelte's bytes differ from official's" — never "rsvelte's
+bytes are not JavaScript". `($.get(list) ?? [])[i] = v` and `$.get(list) ?? [][i] = v` are both
+*text*; only the second is a syntax error, and the gate learns that solely because official
+spells it the other way. #2609's own symptom was an esbuild parse failure in a user's build, a
+signal no ratchet in this document produces. **[D]** — the family was added with #2609's fix and
+89 of its cells were red before it.
+
+It is also blind to the two axes it holds fixed: the item is always an **Identifier** context
+(never a destructuring pattern, which takes a different transform), and the mode is always
+**legacy**, because the reassigned-item read does not exist under runes. A runes-only variant of
+this family would measure nothing, which is why the preamble is deliberately rune-free.
 
 **Closing 5b/5c:** the matrix runs in ~10 s on ~5,250 comparisons. Widening the markup axis (a
 second expression axis against `EXPRESSION_SLOTS`) or reading `.warnings` is cheap relative to

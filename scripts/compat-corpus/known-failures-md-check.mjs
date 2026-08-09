@@ -169,6 +169,12 @@ const PARTITIONS = [
 		label: 'what diverges',
 	},
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', prefix: 'comment-slot/', label: 'seed' },
+	{
+		doc: 'matrix-known-failures.md',
+		key: 'matrix-known-failures.json',
+		prefix: 'each-collection/',
+		label: 'collection',
+	},
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', label: 'cluster' },
 	{ doc: 'warning-known-failures.md', key: 'warning-known-failures.<target>.json', label: 'direction' },
 ];

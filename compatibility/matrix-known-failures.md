@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 206 entries)
+## Matrix known failures (`matrix-known-failures.json`, 296 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 204`
+Partition of `matrix-known-failures.json` by family: `2 + 204 + 90`
 
 ### `binding-position` — 2 entries
 
@@ -171,6 +171,25 @@ bucket for a combined 100 — the opposite direction from the 72 rsvelte drops.
 Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `72 + 32 + 100 + 0`
 
 Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8`
+
+### `each-collection` — 90 entries
+
+All 90 have one cause, and it is **not** the parenthesisation the family was added for. Five of
+the twenty collection expressions have no reactive dependency at all — `getList()`, `[1, 2]`,
+`` `ab` ``, `new Array(1)`, `(() => list)`. For those, official emits no
+`$.invalidate_inner_signals(…)` in the item's setter; rsvelte's each visitor falls back to
+invalidating the collection expression itself whenever `transitive_deps` is empty
+(`3_transform/client/visitors/each_block.rs`), and so emits one. It appears on every slot that
+writes the item (9 of the 10) and on both client targets — the server builds no accessor — so
+5 × 9 × 2 = 90.
+
+Partition of `matrix-known-failures.json` entries under `each-collection/` by collection: `18 + 18 + 18 + 18 + 18`
+
+The axis this family exists for is at **zero**: every loose-binding collection (`??`, `||`,
+`&&`, a ternary, `!x`, `typeof x`, `x + y`, a sequence, an assignment, `o?.list`) matches on all
+three targets, and so does every tight-binding control (`list`, `o.list`, `o['list']`,
+`(list)`). The `await list` rows are error-parity — both compilers reject them — which is 30 of
+the family's comparisons and not a ratchet entry.
 
 ## Burn-down
 
