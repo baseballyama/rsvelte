@@ -1076,6 +1076,25 @@ divergences with no per-entry gate. Deliberate and documented (`AGENTS.md`; gate
 comment fidelity per id on generated seeds that do not move when a submodule bumps) — but a
 comment regression on a *collected* seed is invisible here.
 
+### Blind spot 20f — a PR samples by hash, so the run that adds a seed is the least likely to mutate it [D]
+
+**PRs run `--seeds 1500`, main runs `--full`** (`corpus-compat.yml:267-272`), and the sample
+was the 1500 lowest `fnv1a(id)` of ~14,100 eligible entries (`:145-152`). Nothing in that rank
+knows an id is *new*, so a repro landing in the same PR had roughly a 1-in-9 chance of being
+mutated — and the ratchet the PR was green against was measured without it.
+
+**[D]** #2671. #2663 added `pattern/matrix/string-line-continuation/indented-continuation.svelte`
+and was green; the mutant of that very seed turned main red on merge. Simulated over the real
+shape (13,963 collected + 137 `pattern/` ids), the old rank picked **14 of 137** `pattern/`
+entries; the mechanism is not "PRs sample less", it is that inclusion is a lottery uncorrelated
+with novelty.
+
+Now closed for `pattern/`: every eligible `pattern/` id is seeded unconditionally and the
+hash-ranked sample fills the rest, so the sample goes 1500 → 1637 (+9%) and a PR that lands a
+repro mutation-tests it. **Still open for the rest of the corpus** — a submodule bump that
+introduces a new real-world file is the same lottery, and there is no cheap fix, because
+"newly added" is a diff against the merge base rather than a property of the manifest.
+
 ---
 
 ## Cross-cutting

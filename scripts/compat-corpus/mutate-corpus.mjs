@@ -142,15 +142,24 @@ if (missingSources.length && !WORKER) {
 }
 
 const eligible = manifest.filter((e) => !known.has(e.id) && fs.existsSync(path.join(SOURCES, e.id)));
+// A hash-ranked sample includes a newly added repro only if its id happens to
+// rank in the chosen slice, so the PR that lands one is the run least likely to
+// mutate it — which is how #2671 reached main. `pattern/` is the in-repo source
+// and small enough to always carry.
+const alwaysSeeded = (e) => e.id.startsWith('pattern/');
 const seeds = FULL
 	? eligible
-	: eligible
-			// Deterministic sample: rank by the seed's own hash, so the chosen set is
-			// reproducible and does not depend on the manifest's length.
-			.map((e) => [fnv1a(e.id), e])
-			.sort((a, b) => a[0] - b[0])
-			.slice(0, SEEDS)
-			.map(([, e]) => e);
+	: [
+			...eligible.filter(alwaysSeeded),
+			...eligible
+				.filter((e) => !alwaysSeeded(e))
+				// Deterministic sample: rank by the seed's own hash, so the chosen set is
+				// reproducible and does not depend on the manifest's length.
+				.map((e) => [fnv1a(e.id), e])
+				.sort((a, b) => a[0] - b[0])
+				.slice(0, SEEDS)
+				.map(([, e]) => e),
+		];
 
 // ---- worker: compile a seed range ------------------------------------------
 
