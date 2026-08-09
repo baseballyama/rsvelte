@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 356 entries)
+## Matrix known failures (`matrix-known-failures.json`, 781 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 60`
+Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 60 + 422 + 3`
 
 ### `binding-position` — 2 entries
 
@@ -227,6 +227,67 @@ row — it is *only* a dependency-list case, with no pattern in it.
 on `client` and `client-dev`. `server` has no dependency list and matches everywhere.
 
 Partition of `matrix-known-failures.json` entries under `param-pattern/` by shape: `12 + 12 + 12 + 12 + 12`
+
+### `directive-element` — 422 entries
+
+19 directive kinds × 13 element kinds × 2 modes (runes / legacy), 1482 comparisons. Every one
+of these 422 entries is a **live rsvelte defect**, not accepted behaviour; none was known before
+the family existed. They are listed so the ratchet can hold the line while they are burned down.
+
+The single most useful fact about the set is where it is **not**: zero entries on
+`regular-element`, `regular-input`, `component` and `each-keyed-element`. All 422 sit on a
+`<svelte:*>` special element. Directive handling on ordinary elements and components agrees with
+official across every kind and both modes; the special elements are where per-parent handling has
+drifted from upstream's one predicate per directive.
+
+Partition of `matrix-known-failures.json` entries under `directive-element/` by
+(verdict, host): `114 + 102 + 60 + 24 + 24 + 22 + 20 + 20 + 12 + 12 + 6 + 6`
+
+| verdict | host | entries | cause |
+|---|---|---:|---|
+| `error-mismatch` | `svelte-boundary` | 114 | every attribute is accepted; official raises `svelte_boundary_invalid_attribute` for all but `onerror` / `failed` / `pending`. All 19 directive kinds, both modes. |
+| `error-mismatch` | `svelte-fragment` | 102 | every attribute is accepted; official raises `svelte_fragment_invalid_attribute` for everything but a `slot` attribute and `let:`. 17 kinds (`let:` and a plain `onclick=` attribute are legal upstream, and both match). |
+| `error-mismatch` | `svelte-self` | 60 | the component directive check does not run: 54 are `component_invalid_directive` (`use:` `transition:` `in:` `out:` `animate:` `class:` `style:`), 6 are `event_handler_invalid_component_modifier`. |
+| `error-mismatch` | `svelte-body` | 24 | 12 `bind_invalid_target` (`bind:value` accepted), 6 `let_directive_invalid_placement`, 6 `svelte_body_illegal_attribute` (a spread attribute). |
+| `warning-mismatch` | `svelte-element` | 24 | `a11y_no_static_element_interactions` never fires. 4 handler spellings × 2 modes × 3 targets. |
+| `js-mismatch` | `svelte-body` | 22 | 20 are `transition:` / `in:` / `out:` / `animate:` emitting nothing where official emits `$.transition` / `$.animation`; 2 are legacy-mode `bind:this` failing to make the target a `mutable_source`. |
+| `js-mismatch` | `svelte-document` | 20 | same transition/animation cause. |
+| `js-mismatch` | `svelte-window` | 20 | same transition/animation cause. |
+| `error-code-mismatch` | `svelte-document` | 12 | `bind:value` rejected as `bind_invalid_name`; official says `bind_invalid_target`. |
+| `error-code-mismatch` | `svelte-window` | 12 | same. |
+| `error-mismatch` | `svelte-element` | 6 | `animate:` outside a keyed `{#each}` is accepted (`animation_invalid_placement`). |
+| `error-mismatch` | `svelte-component` | 6 | `on:click\|preventDefault` is accepted (`event_handler_invalid_component_modifier`). |
+
+The `js-mismatch` rows are `client` and `client-dev` only — the server target emits nothing for a
+transition on either compiler, so it agrees by construction and is not evidence of anything.
+
+The `warning-mismatch` row is the same defect class as #2497, one code over:
+rsvelte emits **no a11y warning at all** for `<svelte:element>`, on any rule, so the four rows
+that reach it (`on:click`, `on:click|once`, `on:click|preventDefault`, `onclick=`) are one cause,
+not four. It is also the row that justifies the warning comparison this family shipped with:
+a warning that never fires leaves the output byte-identical, so `js.code` cannot report it.
+
+The split by mode is `212` legacy / `210` runes — near-even, which is the evidence that the mode
+axis is not decoration. The two extra legacy entries are the `bind:this` on `<svelte:body>` row,
+which has no runes counterpart.
+
+### `bind-setter` — 3 entries
+
+7 `bind:` expression shapes × 9 element kinds, 189 comparisons; all 3 entries are `client-dev`
+and all 3 are the dev-mode `$.assign` wrap of #2484 — the family exists to make that defect's
+element addressable.
+
+| entry | direction |
+|---|---|
+| `plain__svelte-self` | rsvelte omits a wrap official emits |
+| `getter-setter__svelte-body` | rsvelte emits a wrap official omits |
+| `nested-arrow-in-setter__svelte-body` | rsvelte emits a wrap official omits |
+
+Read this against how #2484 was reported: against `<svelte:component>`, which **matches** here,
+while the live sites are `<svelte:body>` and `<svelte:self>`. The shapes the issue named
+(`setter-through-call`, `sequence-bodied-setter`) all pass on the element and component hosts
+now; what survives is the same predicate reached through a special element. A repro file cannot
+find that, because the reporter picks the element.
 
 ## Burn-down
 
