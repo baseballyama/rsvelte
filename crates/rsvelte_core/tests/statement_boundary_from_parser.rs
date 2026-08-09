@@ -65,6 +65,41 @@ fn an_import_above_the_statement_does_not_shift_the_boundaries() {
     );
 }
 
+/// The reuse of Phase 1's program is invisible to every parity gate: it answers
+/// the same question a fresh parse does, so bailing on every file would leave
+/// the corpus byte-identical and the whole path dead. Count the hits.
+///
+/// It has to run through `compile()` — `transform_component` hard-codes
+/// `retained_scripts: None`, which is what made the profiler report 0%.
+#[test]
+fn the_boundaries_come_from_the_program_phase_1_already_parsed() {
+    use rsvelte_core::compiler::phases::phase3_transform::profile;
+
+    let _ = profile::take_script_text_breakdown();
+    let source = "<script>\n  import { noop } from './noop.js';\n  export let a = 1;\n  export let b = 2;\n  let n = 0;\n  $: v = a -\n    b;\n  noop;\n</script>\n\n<p>{v}{n}</p>\n";
+    compile(
+        source,
+        CompileOptions {
+            filename: Some("A.svelte".to_string()),
+            generate: GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .expect("compile failed");
+    let st = profile::take_script_text_breakdown();
+
+    assert_eq!(
+        st.boundary_scan, 0,
+        "the script parsed, so no boundary should have come from the scanner"
+    );
+    assert!(
+        st.boundary_retained > 0,
+        "no boundary reused Phase 1's parse: {} from a parser, {} of them reused",
+        st.boundary_ast,
+        st.boundary_retained
+    );
+}
+
 /// Controls: these two were already in the scanner's list, so they held before
 /// this change and must still hold.
 #[test]
