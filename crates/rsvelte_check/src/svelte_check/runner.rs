@@ -388,6 +388,26 @@ fn run_type_check_phase(
     };
     match run_tsgo(&binary, &layout.overlay_tsconfig, workspace) {
         Ok(raw) => {
+            // A config-level diagnostic has no file to map onto, and while one
+            // is outstanding TypeScript emits no semantic diagnostics at all —
+            // so reporting it against the workspace is the difference between
+            // "your project can't be checked" and a silent clean pass.
+            let (global, raw): (Vec<_>, Vec<_>) =
+                raw.into_iter().partition(|d| d.file.as_os_str().is_empty());
+            for d in global {
+                out.push(Diagnostic {
+                    file: workspace.to_path_buf(),
+                    severity: if d.severity == "error" {
+                        DiagnosticSeverity::Error
+                    } else {
+                        DiagnosticSeverity::Warning
+                    },
+                    code: Some(d.code),
+                    message: d.message,
+                    range: None,
+                    source: "ts",
+                });
+            }
             let mut mapped = map_tsgo_diagnostics(&raw, layout, workspace);
             overlay::replay_withheld_js_module_diagnostics(
                 &mut mapped.diagnostics,

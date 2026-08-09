@@ -111,19 +111,21 @@ fn parse_kit_files_source(source: &str, settings: &mut KitFilesSettings) {
     let parser = OxcParser::new(&allocator, source, SourceType::default());
     let result = parser.parse();
     for stmt in &result.program.body {
-        extract_kit_files_from_stmt(stmt, settings);
+        extract_kit_files_from_stmt(&result.program, stmt, settings);
     }
 }
 
-fn extract_kit_files_from_stmt(stmt: &oxc::Statement, settings: &mut KitFilesSettings) {
+fn extract_kit_files_from_stmt(
+    program: &oxc::Program<'_>,
+    stmt: &oxc::Statement,
+    settings: &mut KitFilesSettings,
+) {
     match stmt {
         oxc::Statement::ExportDefaultDeclaration(ex) => {
-            // `export default { kit: { files: {...} } }` or
-            // `export default defineConfig({ kit: { files: {...} } })`.
-            if let oxc::ExportDefaultDeclarationKind::ObjectExpression(obj) = &ex.declaration {
-                extract_kit_files_from_object(obj, settings);
-            } else if let Some(expr) = ex.declaration.as_expression()
-                && let Some(obj) = unwrap_define_config_object(expr)
+            // `export default { kit: { files: {...} } }`,
+            // `export default defineConfig({...})` or `export default config`.
+            if let Some(expr) = ex.declaration.as_expression()
+                && let Some(obj) = resolve_config_object(program, expr)
             {
                 extract_kit_files_from_object(obj, settings);
             }
@@ -145,9 +147,7 @@ fn extract_kit_files_from_stmt(stmt: &oxc::Statement, settings: &mut KitFilesSet
                 if !is_module_exports {
                     return;
                 }
-                if let oxc::Expression::ObjectExpression(obj) = &assign.right {
-                    extract_kit_files_from_object(obj, settings);
-                } else if let Some(obj) = unwrap_define_config_object(&assign.right) {
+                if let Some(obj) = resolve_config_object(program, &assign.right) {
                     extract_kit_files_from_object(obj, settings);
                 }
             }
@@ -156,24 +156,74 @@ fn extract_kit_files_from_stmt(stmt: &oxc::Statement, settings: &mut KitFilesSet
     }
 }
 
-/// Match `defineConfig({...})` and return the inner object expression.
-pub(crate) fn unwrap_define_config_object<'a>(
-    expr: &'a oxc::Expression,
+/// Resolve the object literal an exported config expression denotes,
+/// looking through `defineConfig(...)`, TypeScript assertion / parenthesis
+/// wrappers, and top-level `const`/`let`/`var` indirection — the
+/// `const config = {...}; export default config;` form real configs are
+/// commonly written in (issue #2710).
+pub(crate) fn resolve_config_object<'a>(
+    program: &'a oxc::Program<'a>,
+    expr: &'a oxc::Expression<'a>,
 ) -> Option<&'a oxc::ObjectExpression<'a>> {
-    let oxc::Expression::CallExpression(call) = expr else {
-        return None;
-    };
-    let oxc::Expression::Identifier(callee) = &call.callee else {
-        return None;
-    };
-    if callee.name.as_str() != "defineConfig" {
-        return None;
+    resolve_config_object_inner(program, expr, &mut Vec::new())
+}
+
+fn resolve_config_object_inner<'a>(
+    program: &'a oxc::Program<'a>,
+    expr: &'a oxc::Expression<'a>,
+    seen: &mut Vec<&'a str>,
+) -> Option<&'a oxc::ObjectExpression<'a>> {
+    match expr.get_inner_expression() {
+        oxc::Expression::ObjectExpression(obj) => Some(obj),
+        oxc::Expression::CallExpression(call) => {
+            let oxc::Expression::Identifier(callee) = &call.callee else {
+                return None;
+            };
+            if callee.name.as_str() != "defineConfig" {
+                return None;
+            }
+            let arg = call.arguments.first()?.as_expression()?;
+            resolve_config_object_inner(program, arg, seen)
+        }
+        oxc::Expression::Identifier(id) => {
+            let name = id.name.as_str();
+            // `const a = b; const b = a;` would otherwise recurse forever.
+            if seen.contains(&name) {
+                return None;
+            }
+            seen.push(name);
+            let init = top_level_binding_init(program, name)?;
+            resolve_config_object_inner(program, init, seen)
+        }
+        _ => None,
     }
-    let arg = call.arguments.first()?;
-    let oxc::Argument::ObjectExpression(obj) = arg else {
-        return None;
-    };
-    Some(obj)
+}
+
+/// The initializer of a top-level `const`/`let`/`var <name> = …` binding,
+/// including one that is itself exported (`export const config = {…}`).
+fn top_level_binding_init<'a>(
+    program: &'a oxc::Program<'a>,
+    name: &str,
+) -> Option<&'a oxc::Expression<'a>> {
+    for stmt in &program.body {
+        let decl = match stmt {
+            oxc::Statement::VariableDeclaration(decl) => decl,
+            oxc::Statement::ExportDeclaration(export) => match &export.declaration {
+                oxc::Declaration::VariableDeclaration(decl) => decl,
+                _ => continue,
+            },
+            _ => continue,
+        };
+        for declarator in &decl.declarations {
+            let oxc::BindingPattern::BindingIdentifier(id) = &declarator.id else {
+                continue;
+            };
+            if id.name.as_str() == name {
+                return declarator.init.as_ref();
+            }
+        }
+    }
+    None
 }
 
 fn extract_kit_files_from_object(obj: &oxc::ObjectExpression, settings: &mut KitFilesSettings) {
@@ -1165,6 +1215,18 @@ fn binding_pattern_name<'a>(pat: &'a oxc::BindingPattern) -> Option<&'a str> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn kit_files_read_through_an_exported_binding() {
+        // `const config = {…}; export default config;` (#2710).
+        let mut settings = KitFilesSettings::default();
+        parse_kit_files_source(
+            "const config = { kit: { files: { params: 'src/my-params' } } };\n\
+             export default config;",
+            &mut settings,
+        );
+        assert_eq!(settings.params_path, "src/my-params");
+    }
 
     #[test]
     fn detects_kit_route_basenames() {

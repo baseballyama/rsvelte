@@ -248,12 +248,23 @@ pub fn run_tsgo(
 /// Parse the textual diagnostic stream emitted by `tsc --pretty=false`
 /// (and tsgo, which is wire-compatible). Lines look like:
 ///   `path/to/file.ts(line,col): error TSxxxx: message`
+///
+/// A diagnostic about the configuration itself carries no file or position
+/// (`error TS2688: Cannot find type definition file for '$app/types'.`).
+/// Those are returned with an empty [`RawTsDiagnostic::file`] and must not be
+/// dropped: TypeScript suppresses every *semantic* diagnostic program-wide
+/// while one is outstanding, so discarding them turns a project that cannot
+/// be checked at all into a clean pass.
 fn parse_diagnostics(output: &str) -> Vec<RawTsDiagnostic> {
     static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(
             r"^(?P<file>.+?)\((?P<line>\d+),(?P<col>\d+)\):\s+(?P<sev>error|warning|info)\s+(?P<code>TS\d+):\s+(?P<msg>.*)$",
         )
         .expect("static regex compiles")
+    });
+    static GLOBAL_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"^(?P<sev>error|warning|info)\s+(?P<code>TS\d+):\s+(?P<msg>.*)$")
+            .expect("static regex compiles")
     });
     let mut diags = Vec::new();
     for line in output.lines() {
@@ -264,6 +275,15 @@ fn parse_diagnostics(output: &str) -> Vec<RawTsDiagnostic> {
                 file: PathBuf::from(&caps["file"]),
                 line: line_no,
                 column: col,
+                severity: caps["sev"].to_string(),
+                code: caps["code"].to_string(),
+                message: caps["msg"].trim().to_string(),
+            });
+        } else if let Some(caps) = GLOBAL_RE.captures(line) {
+            diags.push(RawTsDiagnostic {
+                file: PathBuf::new(),
+                line: 0,
+                column: 0,
                 severity: caps["sev"].to_string(),
                 code: caps["code"].to_string(),
                 message: caps["msg"].trim().to_string(),
@@ -298,6 +318,21 @@ mod tests {
         let diags = parse_diagnostics(sample);
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].code, "TS9999");
+    }
+
+    #[test]
+    fn parse_keeps_config_level_diagnostics() {
+        // No file, no position — and while one of these is outstanding
+        // TypeScript reports no semantic diagnostics at all, so dropping it
+        // reads as a clean pass.
+        let sample = "error TS2688: Cannot find type definition file for '$app/types'.\n\
+                      \x20 The file is in the program because:\n\
+                      Found 1 error.";
+        let diags = parse_diagnostics(sample);
+        assert_eq!(diags.len(), 1, "{diags:?}");
+        assert_eq!(diags[0].code, "TS2688");
+        assert_eq!(diags[0].file, PathBuf::new());
+        assert_eq!(diags[0].severity, "error");
     }
 
     /// A TS 7 install under the `@typescript/native` alias, plus a stale

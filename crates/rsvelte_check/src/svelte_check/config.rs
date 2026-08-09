@@ -34,7 +34,7 @@ use oxc_ast::ast as oxc;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::SourceType;
 
-use super::kit_file::{lookup_property, unwrap_define_config_object};
+use super::kit_file::{lookup_property, resolve_config_object};
 use super::options_schema::{ConfigObject, ConfigValue, OptionDiagnostic};
 use crate::svelte2tsx::Svelte2TsxNamespace;
 
@@ -266,7 +266,7 @@ fn parse_config(
     let parser = OxcParser::new(&allocator, source, source_type);
     let result = parser.parse();
     for stmt in &result.program.body {
-        let Some(obj) = config_object_from_stmt(stmt) else {
+        let Some(obj) = config_object_from_stmt(&result.program, stmt) else {
             continue;
         };
         match kind {
@@ -278,8 +278,12 @@ fn parse_config(
                 // call inside the `plugins` array.
                 if let Some(plugins) = lookup_property(obj, "plugins")
                     && let Some(plugin) = find_svelte_plugin_call(plugins)
-                    && let Some(oxc::Argument::ObjectExpression(opts)) =
-                        plugin.call.arguments.first()
+                    && let Some(opts) = plugin
+                        .call
+                        .arguments
+                        .first()
+                        .and_then(|arg| arg.as_expression())
+                        .and_then(|expr| resolve_config_object(&result.program, expr))
                 {
                     extract_compiler_options(opts, settings);
                 }
@@ -291,19 +295,18 @@ fn parse_config(
 /// Resolve the top-level config object exported by a statement:
 ///   * `export default {...}` / `export default defineConfig({...})`
 ///   * `module.exports = {...}` / `module.exports = defineConfig({...})`
+///
+/// Either form may name a top-level binding instead of spelling the object
+/// inline (`const config = {...}; export default config;`).
 fn config_object_from_stmt<'a>(
+    program: &'a oxc::Program<'a>,
     stmt: &'a oxc::Statement<'a>,
 ) -> Option<&'a oxc::ObjectExpression<'a>> {
     match stmt {
-        oxc::Statement::ExportDefaultDeclaration(ex) => {
-            if let oxc::ExportDefaultDeclarationKind::ObjectExpression(obj) = &ex.declaration {
-                Some(obj)
-            } else {
-                ex.declaration
-                    .as_expression()
-                    .and_then(unwrap_define_config_object)
-            }
-        }
+        oxc::Statement::ExportDefaultDeclaration(ex) => ex
+            .declaration
+            .as_expression()
+            .and_then(|expr| resolve_config_object(program, expr)),
         oxc::Statement::ExpressionStatement(es) => {
             let oxc::Expression::AssignmentExpression(assign) = &es.expression else {
                 return None;
@@ -320,11 +323,7 @@ fn config_object_from_stmt<'a>(
             if !is_module_exports {
                 return None;
             }
-            if let oxc::Expression::ObjectExpression(obj) = &assign.right {
-                Some(obj)
-            } else {
-                unwrap_define_config_object(&assign.right)
-            }
+            resolve_config_object(program, &assign.right)
         }
         _ => None,
     }
@@ -403,7 +402,7 @@ fn declares_svelte_plugin(source: &str, source_type: SourceType) -> bool {
     let parser = OxcParser::new(&allocator, source, source_type);
     let result = parser.parse();
     result.program.body.iter().any(|stmt| {
-        config_object_from_stmt(stmt)
+        config_object_from_stmt(&result.program, stmt)
             .and_then(|obj| lookup_property(obj, "plugins"))
             .and_then(find_svelte_plugin_call)
             .is_some()
@@ -415,7 +414,7 @@ fn vite_uses_inline_sveltekit_config(source: &str, source_type: SourceType) -> b
     let parser = OxcParser::new(&allocator, source, source_type);
     let result = parser.parse();
     for stmt in &result.program.body {
-        let Some(obj) = config_object_from_stmt(stmt) else {
+        let Some(obj) = config_object_from_stmt(&result.program, stmt) else {
             continue;
         };
         if let Some(plugins) = lookup_property(obj, "plugins")
@@ -575,7 +574,7 @@ fn declares_function_warning_filter(path: &Path) -> bool {
     let parser = OxcParser::new(&allocator, &source, source_type);
     let result = parser.parse();
     result.program.body.iter().any(|stmt| {
-        config_object_from_stmt(stmt)
+        config_object_from_stmt(&result.program, stmt)
             .and_then(|obj| lookup_property(obj, "compilerOptions"))
             .and_then(|co| match co {
                 oxc::Expression::ObjectExpression(co) => lookup_property(co, "warningFilter"),
@@ -651,6 +650,72 @@ mod tests {
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_config_exported_through_a_binding() {
+        // `const config = {…}; export default config;` — the shape a large
+        // share of real `svelte.config.js` / `vite.config.js` files use (#2710).
+        let dir = workspace("binding_svelte");
+        write(
+            &dir,
+            "svelte.config.js",
+            "const config = { compilerOptions: { experimental: { async: true } } };\n\
+             export default config;",
+        );
+        assert!(load_compiler_options(&dir).experimental_async);
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let dir = workspace("binding_vite");
+        write(
+            &dir,
+            "vite.config.js",
+            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            import { defineConfig } from 'vite';
+            const config = defineConfig({
+                plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
+            });
+            export default config;"#,
+        );
+        assert!(load_compiler_options(&dir).experimental_async);
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let dir = workspace("binding_cjs");
+        write(
+            &dir,
+            "svelte.config.js",
+            "const config = { compilerOptions: { runes: true } };\n\
+             module.exports = config;",
+        );
+        assert_eq!(load_compiler_options(&dir).runes, Some(true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_plugin_options_exported_through_a_binding() {
+        // The plugin's own argument may be a binding too.
+        let dir = workspace("binding_plugin_arg");
+        write(
+            &dir,
+            "vite.config.ts",
+            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            const svelteOptions = { compilerOptions: { runes: true } };
+            export default { plugins: [svelte(svelteOptions)] };"#,
+        );
+        assert_eq!(load_compiler_options(&dir).runes, Some(true));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn binding_cycle_does_not_hang() {
+        let dir = workspace("binding_cycle");
+        write(
+            &dir,
+            "svelte.config.js",
+            "const a = b;\nconst b = a;\nexport default a;",
+        );
+        assert_eq!(load_compiler_options(&dir).runes, None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

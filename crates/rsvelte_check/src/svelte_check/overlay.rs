@@ -540,7 +540,7 @@ pub fn materialize_overlay_with(
         module_bridges.extend(emit_svelte_module_bridges(
             &pkg.real_dir,
             &pkg.mirror_dir,
-            &[],
+            pkg.svelte_modules.clone(),
             allow_js,
             &mut withheld_js_modules,
         )?);
@@ -548,7 +548,7 @@ pub fn materialize_overlay_with(
     module_bridges.extend(emit_svelte_module_bridges(
         workspace,
         &emit_dir,
-        ignore,
+        super::walker::find_svelte_suffixed_modules(workspace, ignore),
         allow_js,
         &mut withheld_js_modules,
     )?);
@@ -777,6 +777,8 @@ struct ExternalPackage {
     /// Cache mirror dir that holds the emitted shadows.
     mirror_dir: PathBuf,
     svelte_files: Vec<PathBuf>,
+    /// `<name>.svelte.<ext>` rune modules needing an ESM bridge.
+    svelte_modules: Vec<PathBuf>,
 }
 
 /// Discover workspace-sibling packages reachable through the project's
@@ -847,18 +849,201 @@ fn discover_external_svelte_packages(
         if !seen.insert(real.clone()) {
             continue;
         }
-        let svelte_files = super::walker::find_svelte_files(&real, &[]);
+        let svelte_files = find_publishable(&real, super::walker::find_svelte_files);
         if svelte_files.is_empty() {
             continue;
         }
+        let svelte_modules = find_publishable(&real, super::walker::find_svelte_suffixed_modules);
         let mirror_dir = cache_dir.join("ext").join(out.len().to_string());
         out.push(ExternalPackage {
             real_dir: real,
             mirror_dir,
             svelte_files,
+            svelte_modules,
         });
     }
     out
+}
+
+/// Run `walk` over only the roots an external package's manifest publishes,
+/// rather than over its whole checkout.
+///
+/// A monorepo sibling reached through a `node_modules` symlink is a whole
+/// repository directory, not the tarball npm would ship: `@sveltejs/kit`'s
+/// package dir carries `test/**` fixture apps, some of which hold
+/// deliberately unparseable components (issue #2714). Shadowing those is
+/// both wasted work and a source of diagnostics for files the user never
+/// asked about. `files` (an allow-list a publish honours literally) is the
+/// authoritative answer; `exports` / `svelte` / `main` / `module` / `types`
+/// stand in when it is absent. A manifest that declares none of them
+/// publishes its whole directory, so the walk falls back to that.
+fn find_publishable(pkg_dir: &Path, walk: fn(&Path, &[String]) -> Vec<PathBuf>) -> Vec<PathBuf> {
+    let Some(surface) = publish_surface(pkg_dir) else {
+        return walk(pkg_dir, &[]);
+    };
+    let mut out: Vec<PathBuf> = Vec::new();
+    for root in &surface.roots {
+        out.extend(walk(root, &[]));
+    }
+    out.sort();
+    out.dedup();
+    out.retain(|file| !surface.excludes(pkg_dir, file));
+    out
+}
+
+/// What a package's manifest says it ships.
+struct PublishSurface {
+    /// Directories a published file can live under.
+    roots: Vec<PathBuf>,
+    /// Negated `files` patterns, segmented, package-relative.
+    deny: Vec<Vec<String>>,
+}
+
+impl PublishSurface {
+    /// Does a negated `files` entry cover `file`? A pattern naming a
+    /// directory excludes everything below it, so every ancestor prefix is
+    /// tested, not just the whole path.
+    fn excludes(&self, pkg_dir: &Path, file: &Path) -> bool {
+        if self.deny.is_empty() {
+            return false;
+        }
+        let Ok(rel) = file.strip_prefix(pkg_dir) else {
+            return false;
+        };
+        let owned: Vec<String> = rel
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+            .collect();
+        let segments: Vec<&str> = owned.iter().map(String::as_str).collect();
+        self.deny
+            .iter()
+            .any(|pattern| (1..=segments.len()).any(|len| glob_matches(pattern, &segments[..len])))
+    }
+}
+
+/// What `pkg_dir`'s `package.json` exposes, or `None` when the manifest names
+/// nothing (or can't be read) and the whole package directory is therefore the
+/// surface.
+fn publish_surface(pkg_dir: &Path) -> Option<PublishSurface> {
+    let manifest = fs::read_to_string(pkg_dir.join("package.json")).ok()?;
+    let manifest: serde_json::Value = serde_json::from_str(&manifest).ok()?;
+    let mut roots: Vec<PathBuf> = Vec::new();
+    let mut deny: Vec<Vec<String>> = Vec::new();
+    if let Some(files) = manifest.get("files").and_then(|v| v.as_array()) {
+        for entry in files.iter().filter_map(|v| v.as_str()) {
+            match entry.strip_prefix('!') {
+                Some(negated) => deny.push(
+                    negated
+                        .trim_start_matches("./")
+                        .split('/')
+                        .filter(|s| !s.is_empty())
+                        .map(str::to_owned)
+                        .collect(),
+                ),
+                None => push_root(pkg_dir, entry, false, &mut roots),
+            }
+        }
+    }
+    if roots.is_empty() {
+        for key in ["svelte", "main", "module", "types", "typings"] {
+            if let Some(spec) = manifest.get(key).and_then(|v| v.as_str()) {
+                push_root(pkg_dir, spec, true, &mut roots);
+            }
+        }
+        if let Some(exports) = manifest.get("exports") {
+            collect_export_targets(exports, pkg_dir, &mut roots);
+        }
+    }
+    // A surface that isn't on disk — an unbuilt `dist/` in a monorepo — says
+    // nothing about where the sources are, so treat it as undeclared rather
+    // than as an empty package.
+    roots.retain(|root| root.is_dir());
+    (!roots.is_empty()).then_some(PublishSurface { roots, deny })
+}
+
+/// Match one path against a segmented glob, `**` spanning any number of
+/// segments and `*` staying inside one. Enough for the `files` patterns npm
+/// itself honours (`src/**/*.spec.js`, `src/core/**/test`).
+fn glob_matches(pattern: &[String], path: &[&str]) -> bool {
+    match pattern.split_first() {
+        None => path.is_empty(),
+        Some((head, rest)) if head.as_str() == "**" => {
+            (0..=path.len()).any(|skip| glob_matches(rest, &path[skip..]))
+        }
+        Some((head, rest)) => match path.split_first() {
+            Some((first, tail)) => segment_matches(head, first) && glob_matches(rest, tail),
+            None => false,
+        },
+    }
+}
+
+/// `*` matches any run of characters within a single path segment.
+fn segment_matches(pattern: &str, segment: &str) -> bool {
+    let mut parts = pattern.split('*');
+    let Some(first) = parts.next() else {
+        return true;
+    };
+    if !segment.starts_with(first) {
+        return false;
+    }
+    if !pattern.contains('*') {
+        return segment.len() == first.len();
+    }
+    let mut rest = &segment[first.len()..];
+    let parts: Vec<&str> = parts.collect();
+    for (i, part) in parts.iter().enumerate() {
+        if i + 1 == parts.len() {
+            // The trailing literal must land at the very end.
+            return rest.len() >= part.len() && rest.ends_with(part);
+        }
+        match rest.find(part) {
+            Some(at) => rest = &rest[at + part.len()..],
+            None => return false,
+        }
+    }
+    true
+}
+
+/// Record the deepest directory of `pkg_dir` that `spec` cannot escape. A
+/// `files` entry may be a glob (`src/**/*.js`), so only the leading literal
+/// segments bound a walk. An entry-point path (`entry`) names one module,
+/// and it is the directory around it that holds the package's other
+/// components, so its final segment is dropped.
+fn push_root(pkg_dir: &Path, spec: &str, entry: bool, roots: &mut Vec<PathBuf>) {
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in spec.trim_start_matches("./").split('/') {
+        if segment.is_empty() || segment.contains('*') || segment == ".." {
+            break;
+        }
+        segments.push(segment);
+    }
+    if entry && segments.last().is_some_and(|s| s.contains('.')) {
+        segments.pop();
+    }
+    let mut path = pkg_dir.to_path_buf();
+    path.extend(segments);
+    if path != pkg_dir && !roots.contains(&path) {
+        roots.push(path);
+    }
+}
+
+/// Every string leaf of an `exports` map — its subpath and condition levels
+/// nest arbitrarily deep, and each leaf is a path into the package.
+fn collect_export_targets(value: &serde_json::Value, pkg_dir: &Path, roots: &mut Vec<PathBuf>) {
+    match value {
+        serde_json::Value::String(s) => push_root(pkg_dir, s, true, roots),
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_export_targets(item, pkg_dir, roots);
+            }
+        }
+        serde_json::Value::Object(map) => {
+            for item in map.values() {
+                collect_export_targets(item, pkg_dir, roots);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Symlink `<dst>` → `<src>` (a directory), cross-platform.
@@ -958,10 +1143,13 @@ fn emit_external_shadows(
                 workspace_path: pkg.real_dir.display().to_string(),
             }),
         };
-        let result = svelte2tsx(&source, opts).map_err(|e| OverlayError::Svelte2Tsx {
-            file: abs_source.clone(),
-            message: format!("{e}"),
-        })?;
+        // A component the user never asked about must not be able to fail the
+        // whole run: an external package is somebody else's source, and the
+        // consumer can only lose the shadow's extra precision, falling back to
+        // the ambient `*.svelte` wildcard for that one file (issue #2714).
+        let Ok(result) = svelte2tsx(&source, opts) else {
+            continue;
+        };
         let mut tsx_code = rewrite_companion_module_imports(&result.code, abs_source, &tsx_path);
         if blank_svelte_reference {
             blank_svelte_type_reference(&mut tsx_code);
@@ -1513,10 +1701,15 @@ const MAX_EXTENDS_CONFIGS: usize = 32;
 /// wholesale) and gives the array form (TS 5.0+) its documented semantics of
 /// later entries winning.
 ///
-/// Only relative-path `extends` targets are followed; a bare package name ends
-/// that branch (see [`resolve_root_dirs_abs`] for the rationale). Paths are
-/// absolutised up front so a relative `--tsconfig` argument cannot compound
-/// through the hops into an unresolvable target.
+/// A bare package-name `extends` is resolved through `node_modules` the way
+/// TypeScript resolves it. SvelteKit writes `"extends": "$app/tsconfig"` into
+/// every app's `tsconfig.json`, so leaving that branch unfollowed loses the
+/// whole base config — its `rootDirs`, `paths` and `types` — while tsgo, which
+/// resolves it, sees a program the overlay was not built for (issue #2714's
+/// sibling: `typeRoots` restated from the truncated chain made `$app/types`
+/// unresolvable, and one TS2688 suppresses every semantic diagnostic
+/// program-wide). Paths are absolutised up front so a relative `--tsconfig`
+/// argument cannot compound through the hops into an unresolvable target.
 fn extends_chain(tsconfig_path: &Path) -> Vec<(PathBuf, serde_json::Value)> {
     let mut out = Vec::new();
     let mut pending = vec![absolutize(tsconfig_path)];
@@ -1545,8 +1738,7 @@ fn extends_chain(tsconfig_path: &Path) -> Vec<(PathBuf, serde_json::Value)> {
             _ => Vec::new(),
         }
         .iter()
-        .filter(|ext| ext.starts_with('.'))
-        .map(|ext| resolve_extends_path(&dir, ext))
+        .filter_map(|ext| resolve_extends_target(&dir, ext))
         .collect();
         pending.extend(parents);
 
@@ -1585,6 +1777,34 @@ fn resolve_extends_path(dir: &Path, ext: &str) -> PathBuf {
         next.set_extension("json");
     }
     next
+}
+
+/// Resolve any `extends` target to the config file it names — relative and
+/// rooted specs lexically, a bare package specifier (`"$app/tsconfig"`,
+/// `"@tsconfig/svelte/tsconfig.json"`) through the `node_modules` chain above
+/// `dir`. `None` when a bare specifier names nothing that exists, which is the
+/// branch TypeScript would report as unresolvable and we simply stop following.
+fn resolve_extends_target(dir: &Path, ext: &str) -> Option<PathBuf> {
+    if ext.starts_with('.') || Path::new(ext).is_absolute() {
+        return Some(resolve_extends_path(dir, ext));
+    }
+    let mut cursor = Some(absolutize(dir));
+    while let Some(d) = cursor {
+        let base = d.join("node_modules").join(ext);
+        if base.is_file() {
+            return Some(base);
+        }
+        let with_json = append_extension(&base, ".json");
+        if with_json.is_file() {
+            return Some(with_json);
+        }
+        let in_dir = base.join("tsconfig.json");
+        if in_dir.is_file() {
+            return Some(in_dir);
+        }
+        cursor = d.parent().map(Path::to_path_buf);
+    }
+    None
 }
 
 /// True if a single path segment carries a glob metacharacter.
@@ -1782,11 +2002,6 @@ fn strip_jsonc_comments(src: &str) -> String {
 /// `rootDirs` (a child `compilerOptions.rootDirs` replaces the parent's
 /// wholesale, mirroring TypeScript), each resolved relative to the directory of
 /// the file that defined it. Empty when no config in the chain sets `rootDirs`.
-///
-/// Only relative-path `extends` are followed (the common case, incl.
-/// SvelteKit's `./.svelte-kit/tsconfig.json`); a bare package-name
-/// `extends` ends that branch — we'd need full node resolution to chase it,
-/// and the caller falls back to a sensible default.
 fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
     let config_dir = config_dir_of(tsconfig_path);
     extends_chain(tsconfig_path)
@@ -2520,11 +2735,10 @@ fn write_esm_bridge(path: &Path, content: &str, only_if_missing: bool) -> io::Re
 fn emit_svelte_module_bridges(
     root: &Path,
     mirror_dir: &Path,
-    ignore: &[String],
+    mut modules: Vec<PathBuf>,
     allow_js: bool,
     withheld: &mut Vec<PathBuf>,
 ) -> Result<Vec<(PathBuf, PathBuf)>, OverlayError> {
-    let mut modules = super::walker::find_svelte_suffixed_modules(root, ignore);
     // `x.svelte.ts` and `x.svelte.js` share one bridge path; TypeScript probes
     // `.ts` first, so let it win.
     modules.sort_by_key(|p| {
@@ -4178,7 +4392,8 @@ mod tests {
             .map(|(dir, _)| dir.to_string_lossy().into_owned())
             .collect();
         // Every entry resolves to the same dir here, so assert on the count:
-        // self + b + a + a's parent, with the bare package name skipped.
+        // self + b + a + a's parent; the bare package name resolves to nothing
+        // under this tmp dir, so that branch ends there.
         assert_eq!(
             visited.len(),
             4,
@@ -4197,6 +4412,92 @@ mod tests {
             specs,
             vec!["./from-b/**/*".to_string()],
             "the last array entry must be searched before the first"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn extends_chain_follows_a_bare_package_specifier() {
+        // SvelteKit writes `"extends": "$app/tsconfig"`, resolved through
+        // `node_modules` — leaving it unfollowed loses the base's `rootDirs`,
+        // `paths` and `types` (issue #2714).
+        let tmp = std::env::temp_dir().join(format!("svc_ext_bare_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let app = tmp.join("node_modules").join("$app");
+        fs::create_dir_all(&app).unwrap();
+        fs::write(
+            app.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "rootDirs": ["../..", "../../.svelte-kit/types"], "types": ["$app/types"] } }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "extends": "$app/tsconfig", "include": ["src"] }"#,
+        )
+        .unwrap();
+
+        // `..` segments resolve against the *defining* config's dir, so
+        // normalise before comparing.
+        let root_dirs: Vec<PathBuf> = resolve_root_dirs_abs(&tmp.join("tsconfig.json"))
+            .iter()
+            .map(|p| absolutize(p))
+            .collect();
+        assert_eq!(
+            root_dirs,
+            vec![absolutize(&tmp), absolutize(&tmp.join(".svelte-kit/types"))],
+            "the base config's rootDirs must be inherited"
+        );
+        assert!(
+            has_explicit_types(&tmp.join("tsconfig.json")),
+            "an inherited `types` must be visible, or `typeRoots` gets restated without it"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn external_package_walk_is_bounded_by_its_publish_surface() {
+        // A monorepo sibling symlinked into `node_modules` is a whole
+        // repository dir, not the tarball it ships (issue #2714).
+        let tmp = std::env::temp_dir().join(format!("svc_publish_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let touch = |rel: &str| {
+            let p = tmp.join(rel);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(&p, "<div></div>").unwrap();
+        };
+        touch("src/lib/Button.svelte");
+        touch("src/core/test/Broken.svelte");
+        touch("test/apps/syntax-error/+page.svelte");
+
+        // No manifest fields → the whole directory is the surface.
+        fs::write(tmp.join("package.json"), r#"{ "name": "pkg" }"#).unwrap();
+        assert_eq!(
+            find_publishable(&tmp, super::super::walker::find_svelte_files).len(),
+            3
+        );
+
+        // `files` bounds it, and a negated entry narrows it further.
+        fs::write(
+            tmp.join("package.json"),
+            r#"{ "name": "pkg", "files": ["src", "!src/core/**/test"] }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            find_publishable(&tmp, super::super::walker::find_svelte_files),
+            vec![tmp.join("src/lib/Button.svelte")]
+        );
+
+        // Without `files`, the entry points stand in for it.
+        fs::write(
+            tmp.join("package.json"),
+            r#"{ "name": "pkg", "exports": { ".": "./src/lib/index.js" } }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            find_publishable(&tmp, super::super::walker::find_svelte_files),
+            vec![tmp.join("src/lib/Button.svelte")]
         );
 
         let _ = fs::remove_dir_all(&tmp);
