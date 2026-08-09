@@ -908,25 +908,24 @@ fn join_continuation_lines(script: &str) -> String {
     let mut depth_paren: i32 = 0;
     let mut depth_brace: i32 = 0;
     let mut depth_bracket: i32 = 0;
-    // Length of `out` up to the last byte that was *code*. A block comment ends
-    // in `/`, which the newline rule below would otherwise read as a division
-    // operator and use to join the following line onto this one; comment text is
-    // not code, so the continuation decision has to look past it.
-    let mut code_len = 0usize;
     let mut i = 0;
     while i < bytes.len() {
         let b = bytes[i];
-        // Line / block comments — copy as-is.
+        // A comment becomes one space. The sole consumer is the constant
+        // extractor below, which reads declarator values, and a comment carries
+        // none — while keeping the text puts it exactly where that extractor's
+        // `starts_with` tests look, and leaves the continuation rule reading the
+        // comment's last character (`= /* c */` ends in `/` and joins the next
+        // line; `= // c` ends in `c` and does not, and joining anyway would let
+        // the `//` swallow the value).
         if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
-            let s = i;
             while i < bytes.len() && bytes[i] != b'\n' {
                 i += 1;
             }
-            out.push_str(&script[s..i]);
+            out.push(' ');
             continue;
         }
         if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
-            let s = i;
             i += 2;
             while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
                 i += 1;
@@ -934,7 +933,7 @@ fn join_continuation_lines(script: &str) -> String {
             if i + 1 < bytes.len() {
                 i += 2;
             }
-            out.push_str(&script[s..i]);
+            out.push(' ');
             continue;
         }
         // String / template literals — copy verbatim. Newlines inside
@@ -962,7 +961,6 @@ fn join_continuation_lines(script: &str) -> String {
             } else {
                 out.push_str(&strip_line_continuations(&script[s..i]));
             }
-            code_len = out.len();
             continue;
         }
         if b == b'(' {
@@ -987,7 +985,8 @@ fn join_continuation_lines(script: &str) -> String {
             // a backtick, etc. The most common case we care about is `=`,
             // but covering operators avoids surprises with hand-formatted
             // declarations like `const x = a +\n  b`.
-            let prev = out.as_bytes()[..code_len]
+            let prev = out
+                .as_bytes()
                 .iter()
                 .rposition(|c| !c.is_ascii_whitespace())
                 .map(|p| out.as_bytes()[p]);
@@ -1025,7 +1024,6 @@ fn join_continuation_lines(script: &str) -> String {
             next += 1;
         }
         out.push_str(&script[i..next]);
-        code_len = out.len();
         i = next;
     }
     out

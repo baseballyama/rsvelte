@@ -69,6 +69,38 @@ fn a_line_comment_folds_as_it_always_did() {
     );
 }
 
+/// The same declaration with the comment BETWEEN `=` and the value, which is
+/// the slot the reported mutant actually occupies. Looking past comment text
+/// when deciding to join is not enough here: the join happens either way, and
+/// the comment lands in front of the value, where `is_whole_string_literal`
+/// tests the first byte.
+fn value_prefixed_by(comment: &str) -> String {
+    format!(
+        "<script>\n  let n = $state(0);\n  const cont =\n{comment}\n    \"a\\\n\t\tb\";\n</script>\n\n<p>{{cont}}{{n}}</p>\n"
+    )
+}
+
+#[test]
+fn a_block_comment_between_the_equals_and_the_value_still_folds() {
+    let out = server(&value_prefixed_by("/* ) c */"));
+    assert!(
+        out.contains("<p>a\t\tb0</p>"),
+        "the constant was read at runtime instead of folded:\n{out}"
+    );
+}
+
+/// The line-comment form of the same slot, and the one that a
+/// join-on-continuation fix makes *worse* rather than better: once the lines are
+/// joined, everything after `//` — the value included — is inside the comment.
+#[test]
+fn a_line_comment_between_the_equals_and_the_value_still_folds() {
+    let out = server(&value_prefixed_by("// c"));
+    assert!(
+        out.contains("<p>a\t\tb0</p>"),
+        "the constant was read at runtime instead of folded:\n{out}"
+    );
+}
+
 /// Control: with no line continuation the declaration folds whatever precedes
 /// it. Both halves are required to reach the defect.
 #[test]
