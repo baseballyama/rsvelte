@@ -175,6 +175,7 @@ const PARTITIONS = [
 		prefix: 'each-collection/',
 		label: 'collection',
 	},
+	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', prefix: 'param-pattern/', label: 'shape' },
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', label: 'cluster' },
 	{ doc: 'warning-known-failures.md', key: 'warning-known-failures.<target>.json', label: 'direction' },
 ];

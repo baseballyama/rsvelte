@@ -10,9 +10,7 @@
 		return id;
 	});
 
-	$: defaulted = items.map(({ n = id }) => n);
-	$: keyed = items.map(({ [id]: n }) => n);
-	$: outer = items.map((o = { id }) => o);
+	$: shifted = items.map((n) => n + id);
 </script>
 
-<p>{found}{pairs}{nested}{rested}{named}{defaulted}{keyed}{outer}</p>
+<p>{found}{pairs}{nested}{rested}{named}{shifted}</p>

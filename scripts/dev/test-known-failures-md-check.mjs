@@ -215,8 +215,8 @@ withCorpus(
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'Partition of `matrix-known-failures.json` by family: `2 + 204 + 90`',
-			'Partition of `matrix-known-failures.json` by nothing in particular: `2 + 232`',
+			'Partition of `matrix-known-failures.json` by family: `2 + 204 + 90 + 60`',
+			'Partition of `matrix-known-failures.json` by nothing in particular: `2 + 232 + 90 + 60`',
 		),
 	(r) => check('an undeclared partition fails', [r.code, /not declared in PARTITIONS/.test(r.out)], [1, true]),
 );
