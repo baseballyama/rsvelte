@@ -1,5 +1,39 @@
 # @rsvelte/compiler
 
+## 0.10.9
+
+### Patch Changes
+
+- c2a8eeb: Reject `await` and `yield` inside a function's formal parameters, which the official compiler raises as `js_parse_error` ("Await expression cannot be a default value") and rsvelte compiled. `export const f = async (p = await load()) => p;` built successfully here while `svelte.compileModule` refuses it, so a file the official compiler will not accept shipped instead of failing loudly. Acorn enforces this and OXC does not, so the check is now applied at every place rsvelte hands source to OXC — the instance and module scripts, `compileModule`, snippet parameters, and template expressions, which parse through a different function and stayed accepting after the script paths were fixed.
+- 62b4329: Stop a block comment from suppressing constant folding of the declaration below it (server).
+
+  `join_continuation_lines` decides whether a physical line continues onto the
+  next by reading the last non-whitespace byte it has emitted. Comment text went
+  into that same buffer, and a block comment ends in `/` — a division operator —
+  so a `/* … */` on its own line joined the next line onto itself. A joined
+  `const` declaration no longer starts with `const`, so `extract_constant_vars`
+  stopped seeing it and the template read was emitted as a runtime
+  `$.escape(...)` where upstream folds the literal in.
+
+  The continuation decision now looks past comment text to the last byte that was
+  actually code.
+
+- f2d913c: Fold a line-continuation string constant when a comment sits between `=` and the value
+
+  `join_continuation_lines` reconstructs logical lines for `extract_constant_vars`,
+  and it copied comment text into that reconstruction. A comment then landed in
+  front of the declarator's value, where `is_whole_string_literal` tests the first
+  byte, so the constant was never recorded and the SSR output read it at runtime
+  instead of folding it — output that runs correctly and differs from official's.
+
+  Comments now become a single space. That is the whole of the difference the sole
+  consumer can observe: it reads values, and a comment carries none.
+
+- 10b218d: Emit a string literal in a template expression with its source spelling, not the printer's. `{@const t = 'a\tb'}` compiled to a real tab inside the string and `'\x41'` to `'A'` — the same value, different text, and a divergence from official on every escape the printer does not re-emit. esrap writes a literal's `raw` whenever it is set, so quote style and escape spelling both come from the source; rsvelte kept `raw` only for double-quoted literals.
+- 9da01d5: Stop a string literal's line continuation from gaining an indent (client) and from blocking constant folding (server). `const cont = 'a\<line break>b'` compiled to a component whose `cont` was `a\tb` — valid JavaScript computing the wrong string — because the client re-indenter treated the carried line as code. The same literal never entered the server's constants map, so the read stayed dynamic where official inlines it.
+
+  Also fixes a server fold that turned `'ab' + 'cd'` into the literal text `ab' + 'cd` (#2661): `starts_with` plus `ends_with` is not the question "is the whole expression one string literal".
+
 ## 0.10.8
 
 ### Patch Changes
