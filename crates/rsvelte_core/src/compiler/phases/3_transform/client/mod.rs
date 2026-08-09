@@ -4581,6 +4581,114 @@ fn accumulated_ends_with_control_header(accumulated: &[&str], last: &str) -> boo
     expression_utils::ends_with_braceless_control_header(&acc)
 }
 
+thread_local! {
+    static STMT_BOUNDARY_ALLOCATOR: RefCell<oxc_allocator::Allocator> =
+        RefCell::new(oxc_allocator::Allocator::default());
+}
+
+/// Per line, whether the accumulated statement ends there.
+///
+/// True on a line that ends a top-level statement, and also on a line no
+/// statement covers — a comment or blank between statements. The scanner this
+/// replaces flushes those too (their depths are balanced), and the stages
+/// downstream read the first line of what they are handed, so folding a leading
+/// comment into the next statement stops `export let` from being recognised.
+///
+/// `None` when the text does not parse. That is not a defect: this runs on a
+/// script that is part-way through the text pipeline, so the caller keeps its
+/// scanning heuristics as the fallback.
+fn top_level_statement_end_lines(script: &str) -> Option<Vec<bool>> {
+    use oxc_span::GetSpan as _;
+
+    if script.trim().is_empty() {
+        return None;
+    }
+
+    // A separate arena from `ast_state_transform`'s: that one resets on entry,
+    // and both would then be live in the same call.
+    STMT_BOUNDARY_ALLOCATOR.with(|cell| {
+        const MAX_RETAINED_BYTES: usize = 16 * 1024 * 1024;
+        let mut alloc = cell.borrow_mut();
+        alloc.reset();
+
+        let _pt = super::profile::timer_start();
+        let parsed = oxc_parser::Parser::new(&alloc, script, oxc_span::SourceType::mjs()).parse();
+        super::profile::record_direct_parse(super::profile::timer_elapsed(_pt), script.len());
+
+        let ends = if parsed.panicked || !parsed.diagnostics.is_empty() {
+            None
+        } else {
+            let mut line_starts: Vec<u32> = vec![0];
+            for (i, b) in script.bytes().enumerate() {
+                if b == b'\n' {
+                    line_starts.push(i as u32 + 1);
+                }
+            }
+            let line_of = |byte: u32| match line_starts.binary_search(&byte) {
+                Ok(i) => i,
+                Err(i) => i - 1,
+            };
+            let line_count = line_starts.len();
+            let mut covered = vec![false; line_count];
+            let mut flush = vec![false; line_count];
+            // Lines where a block comment is still open at end of line. The text
+            // pipeline cannot cut there — half a comment is not a statement —
+            // and neither could the scanner, whose depth tracker stays inside
+            // the comment.
+            let mut comment_open = vec![false; line_count];
+
+            // `span.end` is exclusive, so a span's last byte is one before it;
+            // a span ending exactly at a newline would otherwise be attributed
+            // to the following line.
+            let lines_of = |span: oxc_span::Span| {
+                (
+                    line_of(span.start),
+                    line_of(span.end.saturating_sub(1)).min(line_count - 1),
+                )
+            };
+
+            for stmt in &parsed.program.body {
+                let (first, last) = lines_of(stmt.span());
+                for c in covered.iter_mut().take(last + 1).skip(first) {
+                    *c = true;
+                }
+                flush[last] = true;
+            }
+            for comment in &parsed.program.comments {
+                let (first, last) = lines_of(comment.span);
+                // A comment inside a statement is not a cut point — the scanner
+                // this replaces cannot stop there either, its depths being
+                // unbalanced — so only a comment that stands between statements
+                // ends a unit.
+                if !covered[last] {
+                    flush[last] = true;
+                }
+                for open in comment_open.iter_mut().take(last).skip(first) {
+                    *open = true;
+                }
+                for c in covered.iter_mut().take(last + 1).skip(first) {
+                    *c = true;
+                }
+            }
+            for (l, f) in flush.iter_mut().enumerate() {
+                if !covered[l] {
+                    *f = true;
+                }
+                if comment_open[l] {
+                    *f = false;
+                }
+            }
+            Some(flush)
+        };
+
+        drop(parsed);
+        if alloc.capacity() > MAX_RETAINED_BYTES {
+            *alloc = oxc_allocator::Allocator::default();
+        }
+        ends
+    })
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -6284,6 +6392,14 @@ fn transform_instance_script_for_visitors(
     // which runs over the whole result after this loop, never per statement.
     let runes_fastpath_eligible = analysis.runes;
 
+    // Lines on which a top-level statement ends, according to a parser rather
+    // than to the depth/trailing-operator/lookahead heuristics below. `None`
+    // means the text did not parse, which is not a defect here — the script is
+    // mid-pipeline and may not be valid on its own — so the heuristics stay as
+    // the fallback.
+    let stmt_end_lines = top_level_statement_end_lines(&script_rest);
+    super::profile::record_st_boundary_source(stmt_end_lines.is_some());
+
     super::profile::record_st_collect_vars(super::profile::timer_elapsed(_stage));
     let _stage = super::profile::timer_start();
 
@@ -6365,15 +6481,23 @@ fn transform_instance_script_for_visitors(
             &mut depth_template_interp_stack,
         );
 
+        // The parser's answer when we have one. It settles all four heuristics
+        // below at once, so each of them is neutralised rather than consulted.
+        let complete_hint = stmt_end_lines
+            .as_ref()
+            .map(|ends| ends.get(line_idx).copied().unwrap_or(true));
+
         // Check if we have a complete statement (balanced braces/parens)
-        if !is_expression_incomplete(
-            depth_paren,
-            depth_bracket,
-            depth_brace,
-            &depth_in_string,
-            depth_in_block_comment,
-            &depth_template_interp_stack,
-        ) {
+        if complete_hint.unwrap_or_else(|| {
+            !is_expression_incomplete(
+                depth_paren,
+                depth_bracket,
+                depth_brace,
+                &depth_in_string,
+                depth_in_block_comment,
+                &depth_template_interp_stack,
+            )
+        }) {
             // Check for trailing comma in variable declarations (multi-declarator continuation)
             let first_trimmed_line = accumulated_lines[0].trim();
             let is_var_decl = first_trimmed_line.starts_with("let ")
@@ -6391,14 +6515,14 @@ fn transform_instance_script_for_visitors(
                 Some(pos) => trimmed[..pos].trim_end(),
                 None => trimmed,
             };
-            let trailing_comma = is_var_decl && trimmed.ends_with(',');
+            let trailing_comma = complete_hint.is_none() && is_var_decl && trimmed.ends_with(',');
 
             // Check if the current trimmed line ends with a binary/assignment operator,
             // indicating the expression continues on the next line.
             // e.g., `$: overflow_has_selected_tab =\n\thandle_overflow_has_selected_tab(...)`
             // Only check the most unambiguous operators to avoid false positives
             // (e.g., `*/` ending a JSDoc comment, or `}` ending a block).
-            let trailing_operator = {
+            let trailing_operator = complete_hint.is_none() && {
                 let t = trimmed.trim_end_matches(';');
                 (t.ends_with('=')
                     && !t.ends_with("==")
@@ -6434,7 +6558,8 @@ fn transform_instance_script_for_visitors(
             // top-level statement, dropping the guard and the reactive wrapper.
             if !trailing_comma
                 && !trailing_operator
-                && !accumulated_ends_with_control_header(&accumulated_lines, trimmed)
+                && (complete_hint.is_some()
+                    || !accumulated_ends_with_control_header(&accumulated_lines, trimmed))
             {
                 // Before processing, check if the next non-empty line starts with a
                 // continuation token (`.` for method chains, `?`, `:`, `&&`, `||`,
@@ -6446,7 +6571,16 @@ fn transform_instance_script_for_visitors(
                 // The `cond` line by itself looks balanced, but the next line starts
                 // with `?`, so the expression continues.
                 let mut next_continues = false;
-                for future_line in script_lines.iter().skip(line_idx + 1) {
+                for future_line in
+                    script_lines
+                        .iter()
+                        .skip(line_idx + 1)
+                        .take(if complete_hint.is_some() {
+                            0
+                        } else {
+                            usize::MAX
+                        })
+                {
                     let future_trimmed = future_line.trim();
                     if future_trimmed.is_empty() {
                         continue;

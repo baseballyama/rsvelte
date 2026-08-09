@@ -369,6 +369,18 @@ fn main() {
         );
     }
     println!("    (statements processed: {})", st.statements);
+    let boundary_total = st.boundary_ast + st.boundary_scan;
+    println!(
+        "    BOUNDARY from-parser {} / {} ({:.2}%) | fell back to the scanner {}",
+        st.boundary_ast,
+        boundary_total,
+        if boundary_total == 0 {
+            0.0
+        } else {
+            st.boundary_ast as f64 / boundary_total as f64 * 100.0
+        },
+        st.boundary_scan
+    );
     println!(
         "    COUNTERS loop_lines {} | fastpath_stmts {} | ctrl_header {} calls / {} bytes | collect_scan {} passes / {} bytes",
         st.loop_lines,
