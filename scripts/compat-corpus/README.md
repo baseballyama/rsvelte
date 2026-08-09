@@ -180,13 +180,29 @@ It gates compiler **errors** the same way. The output verdict above sees only
 whether both sides rejected an entry with the same `code` — which is saturated
 at **0 divergences over 2,843 both-reject pairs**, so no amount of corpus growth
 could move it. `compile.mjs` therefore also records each error's first message
-line and its `(line, column)`, compared here for every pair both sides reject
-with the same code:
+line, its `start` and `end` `(line, column)` and its rendered `frame`, compared
+here for every pair both sides reject with the same code:
 
 | Verdict | Meaning | Ratchet |
 |---|---|---|
 | `error-message-mismatch` | codes agree, the prose does not — 121 entries | `error-message-known-failures.<target>.json` |
-| `error-position-mismatch` | codes agree, `start` does not — 403 entries, 349 of them rsvelte reporting no span at all | `error-position-known-failures.<target>.json` |
+| `error-position-mismatch` | codes agree, `start` does not — 226 entries, 174 of them rsvelte reporting no span at all | `error-position-known-failures.<target>.json` |
+| `error-end-mismatch` | codes agree, `end` does not, so the highlight has the wrong length — 243 entries, 17 of which `start` agrees on | `error-end-known-failures.<target>.json` |
+| `error-frame-mismatch` | both endpoints agree, the rendered frame does not — 0 entries over a population of 2,114 pairs | `error-frame-known-failures.<target>.json` |
+
+`end` is ratcheted apart from `start` because an entry listed for one suppresses
+everything about that entry, and 17 ids diverge on `end` while `start` agrees.
+`frame` is the one comparison that *is* chained — upstream derives it from
+`start.line` and `end.column`, so comparing it where an endpoint already diverges
+would restate that divergence rather than ask a new question; chained, it sees
+only the renderer.
+
+All four score `match` when there is nothing to compare, so `verify.mjs` prints
+the compared-pair count beside the verdicts, records it in `report.json` as
+`errorComparedPairs`, and refuses `--update-error-baseline` at zero. The
+precondition that the trees are complete is checked **per tree and per target**
+for the same reason: a wiped `expected/` beside an intact `actual/` passes a
+union check and then scores 100% parity having compared nothing.
 
 Finally it gates whether the output **is JavaScript at all**. Every comparison
 above is rsvelte's text against official's text, so "wrong text" and "text no

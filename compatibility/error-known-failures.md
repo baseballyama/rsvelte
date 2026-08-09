@@ -4,10 +4,10 @@ Companion to `known-failures.md` and `warning-known-failures.md`, for the
 **compile error** half of the corpus gate.
 
 `scripts/compat-corpus/compile.mjs` records every compile failure as
-`(code, message, line, column)` in `error.json` beside the output; `verify.mjs`
-compares them and ratchets two failure modes independently. Both ratchets are
-shrink-only and two-sided: an unlisted entry that diverges fails CI, and a
-listed entry that has started passing fails CI too.
+`(code, message, start, end, frame)` in `error.json` beside the output;
+`verify.mjs` compares them and ratchets four failure modes independently. Every
+ratchet is shrink-only and two-sided: an unlisted entry that diverges fails CI,
+and a listed entry that has started passing fails CI too.
 
 Regenerate after a change that moves compile errors:
 
@@ -15,9 +15,16 @@ Regenerate after a change that moves compile errors:
 node scripts/compat-corpus/verify.mjs --no-fmt --update-error-baseline
 ```
 
-`--update-error-baseline` touches **only** these six files, never the output or
-warning ratchets — error comparison needs no oxfmt normalization, so it is valid
-under `--no-fmt`, which the output comparison is not.
+`--update-error-baseline` touches **only** these twelve files, never the output
+or warning ratchets — error comparison needs no oxfmt normalization, so it is
+valid under `--no-fmt`, which the output comparison is not.
+
+Every one of these comparisons scores `match` when there is nothing to compare,
+so the verdicts alone cannot tell "rsvelte agrees" from "no error survived to be
+compared". `verify.mjs` therefore prints the size of the compared population
+beside the counts, records it in `report.json` as `errorComparedPairs`, and
+refuses `--update-error-baseline` when it is zero. See *What an absent artifact
+scores* below.
 
 ## Why this gate exists
 
@@ -28,19 +35,23 @@ was captured on either side (#2446). So an error with the right code at the
 wrong position, or with prose naming the wrong construct, scored `error-parity`
 — a passing verdict.
 
-The size of that blind spot is measured, not assumed. Over the 14,131-entry
+The size of that blind spot is measured, not assumed. Over the 14,179-entry
 corpus, 948 entries are rejected by both compilers, giving 2,843 `(id, target)`
-pairs with two errors to compare. On the field the gate already had:
+pairs with two errors to compare. Per compared field:
 
-| compared field | diverging pairs |
-|---|---|
-| `code` (pre-existing) | **0** |
-| `message` (new) | 362 |
-| `(line, column)` (new) | 1,209 |
+| compared field | diverging pairs | diverging ids (client) |
+|---|---|---|
+| `code` (pre-existing) | **0** | 0 |
+| `message` | 362 | 121 |
+| `start` `(line, column)` | 678 | 226 |
+| `end` `(line, column)` | 729 | 243 |
+| `frame` | 15 → **0** | 5 → **0** |
 
-The `code` column is the point. It is saturated — not one pair in 2,843
-disagrees — so growing the corpus could never have moved this gate, while the
-two new columns were failing on 121 and 403 distinct entries the whole time.
+The `code` row is the point. It is saturated — not one pair in 2,843 disagrees —
+so growing the corpus could never have moved this gate, while every other row was
+diverging the whole time. The `frame` row is stated as a transition because the
+comparison that first ran it found a single renderer defect and this PR fixed it;
+see *Error frames* below for why 0 there is "saturated" and not "unenrolled".
 
 Nor do the fixture suites cover it. 33 of the 121 message divergences and 120 of
 the 403 position divergences are
@@ -51,31 +62,48 @@ expected `message` and `position`, then asserts only `error_code_matches`
 is `#[allow(dead_code)]`. So those 153 divergences were being compiled by a green
 test and compared on the one field that agrees.
 
-## Why the two ratchets are split
+## Why the four ratchets are split
 
 Same argument as `warning-known-failures.md`. Wrong prose is a semantic bug
 fixed one message string at a time; a wrong span is one systemic cause (raising
 sites that never thread the triggering node through). Folded together, the
 larger span backlog would hide every semantic regression behind it.
 
-The two are also compared **independently** of each other — unlike warning
-positions, which are only compared once the codes agree. There is exactly one
-error per entry and target, so there is no pairing problem that would require
-chaining, and chaining would mean a PR that fixes a message surfaces a
-"new" position failure that was merely masked.
+`end` is separate from `start` for a reason that is measured rather than argued
+by analogy: **an entry listed for one suppresses everything about that entry**,
+so folding `end` into the `start` ratchet would silently absorb the 51 pairs /
+**17 ids that diverge on `end` while `start` agrees**. Those 17 are the entries
+where the error points at the right place and underlines the wrong amount of
+code — the only ones a user could not diagnose from the message. They are 7% of
+the `end` population and 100% of what the fold would cost.
 
-Both comparisons are skipped when the two codes differ: the message and span of
-two unrelated errors say nothing, and the code divergence is an `error-mismatch`
-on the output ratchet already.
+`frame` is the one comparison that is deliberately **chained**, and for the
+opposite reason to the others: upstream derives it from `start.line` and
+`end.column` alone (`compile_diagnostic.js:72`), so an unchained `frame`
+comparison would be a third restatement of the two span comparisons rather than a
+new question. Gated on both endpoints agreeing, it can only see the renderer —
+the line window, the tab expansion and the caret column.
+
+Message, `start` and `end` are compared **independently** of each other — unlike
+warning positions, which are only compared once the codes agree. There is exactly
+one error per entry and target, so there is no pairing problem that would require
+chaining, and chaining would mean a PR that fixes a message surfaces a "new"
+position failure that was merely masked.
+
+All four comparisons are skipped when the two codes differ: the message and span
+of two unrelated errors say nothing, and the code divergence is an
+`error-mismatch` on the output ratchet already.
 
 ## Why the per-target files are near-identical
 
 `error-message-known-failures.client.json` holds 121 entries,
 `error-message-known-failures.client-dev.json` holds 121 entries and
 `error-message-known-failures.server.json` holds 120 entries; all three of
-`error-position-known-failures.<target>.json` hold 226 entries. Almost every
+`error-position-known-failures.<target>.json` hold 226 entries, all three of
+`error-end-known-failures.<target>.json` hold 243 entries, and all three of
+`error-frame-known-failures.<target>.json` hold 0 entries. Almost every
 compile error is raised in Phase 1/2, before the target is consulted, so a
-divergence shows up on all three targets at once. Expect the six files to move
+divergence shows up on all three targets at once. Expect the twelve files to move
 together in a burn-down PR.
 
 The single asymmetry is genuinely target-dependent, which is exactly what the
@@ -164,16 +192,78 @@ same-line), `rune_invalid_arguments_length` (10), `state_invalid_export` (7),
 `store_invalid_scoped_subscription` (5 each) — a tail of 55 codes in total, one
 raising site each, which is why this is a per-site burn-down and not one edit.
 
-## What these two ratchets still do not see
+## Error end positions
 
-- **`end`.** Only `start` is compared. Upstream highlights a range; rsvelte's
-  `end` is frequently `start + 1` even where `start` agrees
-  (`attribute_duplicate` on `<div a="1" a="2">` reports `[11, 12]` against
-  upstream's `[11, 16]`), so a wrong highlight *length* is invisible here. Not
-  folded in, because it would swamp the position ratchet with a third failure
-  mode that has its own cause.
-- **`frame`.** The rendered code frame is neither captured nor compared.
+The codes agree; `end` does not, so the diagnostic underlines the wrong amount of
+code. The canonical shape is `<div a="1" a="2">`, where `attribute_duplicate`
+reports `position: [11, 12]` against upstream's `[11, 16]` — the right start, one
+character of highlight instead of the whole attribute.
+
+Partition of `error-end-known-failures.<target>.json` by shape: `174 + 46 + 23`
+(client target, classified from the run's own `report.json`):
+
+- **174 — rsvelte reports no `end` at all.** The same `validation(...)` vs
+  `validation_at(...)` raising sites the `start` ratchet's largest cluster names;
+  these two clusters burn down together, one call per site.
+- **46 — same line, different column.** A span exists and stops in the wrong
+  place. This is the cluster the `start` ratchet cannot reach.
+- **23 — different line entirely.** A multi-line construct whose closing node was
+  not threaded through.
+
+**17 of the 243 diverge on `end` while `start` agrees** (13 same-line, 4
+different-line). Those are the ones that would have been invisible had `end` been
+folded into the `start` ratchet, and they are the argument for the split: an
+entry already listed suppresses everything about that entry.
+
+## Error frames
+
+Both endpoints agree, and the rendered code frame does not — which under the
+chaining above can only be the renderer.
+
+`error-frame-known-failures.<target>.json` holds **0 entries, and that 0 is
+saturated, not unenrolled.** The comparison inspects **2,114 of the 2,843
+both-reject pairs** (the ones whose `start` and `end` both agree), 2,112 of which
+carry a frame on both sides and 2 of which carry one on neither; no pair has a
+frame on exactly one side. Its first run reported **15 pairs / 5 ids** diverging,
+all one cause: `tabs_to_spaces_column` computed the caret column as
+`leading_tabs + column` with no upper bound, while upstream measures
+`tabs_to_spaces(line.slice(0, column)).length`, which saturates at the line's own
+length. The caret column comes from `end`, which for a multi-line construct sits
+past the end of the `start` line the frame quotes, so every affected frame put the
+caret one column too far right. Fixed in the same PR that added the comparison,
+which is why the enrolled baseline is 0 — the 15 pairs are the evidence that the
+comparison can move, and `frame_caret_stops_at_the_end_of_the_quoted_line`
+(`crates/rsvelte_core/src/compiler/mod.rs`) is the unit-level control.
+
+## What an absent artifact scores
+
+Every comparison here reads `expected/<id>/error.json` and `actual/<id>/error.json`
+and skips the pair when either is missing, so a **missing artifact scores
+`match`** — a run against a half-swept tree reports 100% error parity rather than
+failing, and `--update-error-baseline` would then write twelve empty ratchets.
+Measured on a real half-swept tree: with `expected/` gone and `actual/` intact,
+the comparison scored **0 pairs compared, 14,179/14,179 entries `match`**.
+
+Three things now stand between that state and a verdict. `verify.mjs` requires,
+**per tree** rather than on the union of the two, that every manifest entry carry
+either `<target>.js` or that target's key in `error.json` for **every** selected
+target — the exact invariant `compile.mjs`'s `writeOutputs` establishes. It prints
+the compared-pair count beside the verdicts and stores it in `report.json`. And
+`--update-error-baseline` refuses outright when that count is zero.
+
+## What these four ratchets still do not see
+
 - **Entries only one side rejects.** Those are `error-mismatch` on the output
   ratchet; there is no second error to compare against.
-- **`compileWithCssHash`.** The async entry still reports failures as a
-  `Debug`-formatted message with no `code`/`start`; the corpus does not use it.
+- **The `character` offset and `filename`.** Only `(line, column)` is compared
+  for each endpoint, and `filename` is not captured at all.
+- **`frame` where the endpoints already diverge.** 729 of the 2,843 pairs are
+  outside the frame comparison's population by construction; their frames are
+  wrong *because* their spans are, and they are counted once, under `start` or
+  `end`.
+- **Every NAPI entry except `compile` / `compileBoth` / `compileModule` /
+  `compileWithCssHash`.** The corpus drives the first three and this PR converted
+  the fourth, but `compileEnvelope*` — which is what `@rsvelte/vite-plugin-svelte`
+  actually calls for `compile()` and for `compileAsync()` without a `cssHash` —
+  still surfaces a failure as a Rust `Debug` string with no `code`/`start`/`end`.
+  The corpus cannot see that: it calls the legacy entries.

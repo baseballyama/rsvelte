@@ -17,11 +17,16 @@
  *               independent burn-downs: a wrong *set of codes* is a semantic
  *               bug, a wrong *position* is one systemic cause (emission sites
  *               that attach no span) and would otherwise bury the semantic one.
- *   - errorMessageBaseline / errorPositionBaseline
+ *   - errorMessageBaseline / errorPositionBaseline / errorEndBaseline /
+ *     errorFrameBaseline
  *               the same split, for the detail of a compile error the output
  *               verdict cannot see: it compares the error `code` and nothing
  *               else, so a right-coded error with the wrong prose or the wrong
- *               span scores as parity.
+ *               span scores as parity. `start` and `end` are separate because
+ *               they have separate causes — a missing span attachment vs. a
+ *               span that stops one character in — and an entry listed for one
+ *               would otherwise suppress the other. `frame` is compared only
+ *               where both endpoints agree, so it isolates the renderer.
  *   - parseBaseline
  *               the output-parseability ratchet (see verify.mjs). Separate from
  *               `baseline` because the output verdict is a comparison against
@@ -40,6 +45,8 @@ export const TARGETS = [
 		warningPositionBaseline: 'warning-position-known-failures.client.json',
 		errorMessageBaseline: 'error-message-known-failures.client.json',
 		errorPositionBaseline: 'error-position-known-failures.client.json',
+		errorEndBaseline: 'error-end-known-failures.client.json',
+		errorFrameBaseline: 'error-frame-known-failures.client.json',
 		parseBaseline: 'parse-known-failures.client.json',
 	},
 	{
@@ -52,6 +59,8 @@ export const TARGETS = [
 		warningPositionBaseline: 'warning-position-known-failures.server.json',
 		errorMessageBaseline: 'error-message-known-failures.server.json',
 		errorPositionBaseline: 'error-position-known-failures.server.json',
+		errorEndBaseline: 'error-end-known-failures.server.json',
+		errorFrameBaseline: 'error-frame-known-failures.server.json',
 		parseBaseline: 'parse-known-failures.server.json',
 	},
 	// `dev: true` gates 18 client codegen files plus the CSS transform (empty
@@ -66,6 +75,8 @@ export const TARGETS = [
 		warningPositionBaseline: 'warning-position-known-failures.client-dev.json',
 		errorMessageBaseline: 'error-message-known-failures.client-dev.json',
 		errorPositionBaseline: 'error-position-known-failures.client-dev.json',
+		errorEndBaseline: 'error-end-known-failures.client-dev.json',
+		errorFrameBaseline: 'error-frame-known-failures.client-dev.json',
 		parseBaseline: 'parse-known-failures.client-dev.json',
 	},
 ];

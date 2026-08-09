@@ -244,18 +244,29 @@ console.log('\nan exclusion whose official output now parses fails the run');
 console.log('\na collapsed population fails instead of going green');
 {
 	// rsvelte "stopped compiling" most of the corpus: without the floor, the
-	// gate would report a perfect score over the survivors.
-	const removed = [];
+	// gate would report a perfect score over the survivors. Modelled as rsvelte
+	// REJECTING those entries rather than as their files vanishing, because that
+	// is how the population actually collapses (gate-coverage § 15a) — and
+	// because a run whose artifacts are simply absent is refused by verify's
+	// coverage precondition before any gate gets to speak.
+	const rejected = [];
 	for (let i = 0; i < 2000; i++) {
-		const p = path.join(CORPUS, 'actual', `e${i}`, 'client.js');
-		fs.rmSync(p, { force: true });
-		removed.push(p);
+		const dir = path.join(CORPUS, 'actual', `e${i}`);
+		fs.rmSync(path.join(dir, 'client.js'), { force: true });
+		fs.writeFileSync(
+			path.join(dir, 'error.json'),
+			JSON.stringify({ client: { code: 'js_parse_error', message: 'nope', line: 1, column: 0 } }) + '\n',
+		);
+		rejected.push(dir);
 	}
 	seedRatchets();
 	const r = run();
 	check('exit 2', r.status === 2, `status ${r.status}\n${r.stdout.slice(-400)}`);
 	check('says the population collapsed', /population collapsed/.test(r.stderr), r.stderr.slice(-600));
-	for (const p of removed) fs.writeFileSync(p, GOOD);
+	for (const dir of rejected) {
+		fs.rmSync(path.join(dir, 'error.json'), { force: true });
+		fs.writeFileSync(path.join(dir, 'client.js'), GOOD);
+	}
 }
 
 console.log('\n--update-parse-baseline rewrites only its own family');

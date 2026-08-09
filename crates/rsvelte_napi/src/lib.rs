@@ -55,7 +55,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use napi::bindgen_prelude::Buffer;
-use napi::{Env, JsBuffer};
+use napi::{Env, JsBuffer, JsValue};
 use napi_derive::napi;
 use serde_json::Value;
 
@@ -233,46 +233,53 @@ pub fn napi_parse_envelope(
     Ok(buf.into())
 }
 
-/// Throw a compile failure as an object shaped like the official compiler's
-/// `CompileError` (`code`, `message`, `filename`, `start`, `end`, `position`),
-/// so a consumer can place the diagnostic instead of parsing a Rust `Debug`
-/// dump out of `message`.
-///
-/// Returns a `PendingException` error: napi-rs surfaces the object thrown here
-/// rather than re-throwing a second one from the returned `Err`.
-fn throw_compile_error(
+/// Build a compile failure as an object shaped like the official compiler's
+/// `CompileError` (`code`, `message`, `filename`, `start`, `end`, `position`,
+/// `frame`), so a consumer can place and render the diagnostic instead of
+/// parsing a Rust `Debug` dump out of `message`.
+fn compile_error_object<'env>(
+    env: &'env Env,
+    source: &str,
+    filename: Option<&str>,
+    diagnostic: &rsvelte_core::compiler::CompileErrorDiagnostic,
+) -> napi::Result<napi::bindgen_prelude::Object<'env>> {
+    let mut obj = env.create_error(napi::Error::from_reason(diagnostic.message.clone()))?;
+    obj.set("name", "CompileError")?;
+    // `create_error` seeds `code` with napi's status string; overwrite it so
+    // a raising site with no Svelte code reports `null` rather than the
+    // meaningless `GenericFailure`.
+    match &diagnostic.code {
+        Some(code) => obj.set("code", code.as_str())?,
+        None => obj.set("code", napi::bindgen_prelude::Null)?,
+    }
+    if let Some(filename) = filename {
+        obj.set("filename", filename)?;
+    }
+    if let Some(span) = diagnostic.span {
+        let located = rsvelte_core::compiler::source_span(source, span);
+        let position = [located.start.character as u32, located.end.character as u32];
+        obj.set("start", position_object(env, &located.start)?)?;
+        obj.set("end", position_object(env, &located.end)?)?;
+        obj.set("position", position.to_vec())?;
+        obj.set("frame", located.frame.as_str())?;
+    }
+    Ok(obj)
+}
+
+/// Wrap a compile failure as a `napi::Error` that carries the object above, so
+/// both the sync entries (which throw it) and the async one (which rejects with
+/// it) surface the same shape. napi-rs reuses the referenced JS value verbatim
+/// on the owning thread instead of rebuilding one from `reason`.
+fn compile_error(
     env: &Env,
     source: &str,
     filename: Option<&str>,
     e: rsvelte_core::compiler::CompileError,
 ) -> napi::Error {
     let diagnostic = e.diagnostic();
-    let build = || -> napi::Result<()> {
-        let mut obj = env.create_error(napi::Error::from_reason(diagnostic.message.clone()))?;
-        obj.set("name", "CompileError")?;
-        // `create_error` seeds `code` with napi's status string; overwrite it so
-        // a raising site with no Svelte code reports `null` rather than the
-        // meaningless `GenericFailure`.
-        match &diagnostic.code {
-            Some(code) => obj.set("code", code.as_str())?,
-            None => obj.set("code", napi::bindgen_prelude::Null)?,
-        }
-        if let Some(filename) = filename {
-            obj.set("filename", filename)?;
-        }
-        if let Some((start, end)) = diagnostic.span {
-            let start = rsvelte_core::compiler::source_position(source, start);
-            let end = rsvelte_core::compiler::source_position(source, end);
-            let position = [start.character as u32, end.character as u32];
-            obj.set("start", position_object(env, &start)?)?;
-            obj.set("end", position_object(env, &end)?)?;
-            obj.set("position", position.to_vec())?;
-        }
-        env.throw(obj)
-    };
-    match build() {
-        Ok(()) => napi::Error::from_status(napi::Status::PendingException),
-        // Nothing was thrown, so the message still has to carry the failure.
+    match compile_error_object(env, source, filename, &diagnostic) {
+        Ok(obj) => napi::Error::from(obj.to_unknown()),
+        // Nothing was built, so the message still has to carry the failure.
         Err(_) => napi::Error::from_reason(diagnostic.message),
     }
 }
@@ -302,7 +309,7 @@ pub fn napi_compile(
 
     match rust_compile(&source, opts) {
         Ok(result) => Ok(compile_result_to_json(result)),
-        Err(e) => Err(throw_compile_error(&env, &source, filename.as_deref(), e)),
+        Err(e) => Err(compile_error(&env, &source, filename.as_deref(), e)),
     }
 }
 
@@ -325,7 +332,7 @@ pub fn napi_compile_both(
             "client": compile_result_to_json(client),
             "server": compile_result_to_json(server),
         })),
-        Err(e) => Err(throw_compile_error(&env, &source, filename.as_deref(), e)),
+        Err(e) => Err(compile_error(&env, &source, filename.as_deref(), e)),
     }
 }
 
@@ -362,7 +369,7 @@ fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Valu
 /// which the bridge awaits with `block_on`. Callers that don't pass a
 /// `cssHash` function keep using the sync `compile` path — this entry
 /// adds no overhead there.
-#[napi(js_name = "compileWithCssHash", catch_unwind)]
+#[napi(js_name = "compileWithCssHash", catch_unwind, ts_return_type = "any")]
 pub async fn napi_compile_with_css_hash(
     source: String,
     options: Option<NapiCompileOptions>,
@@ -370,8 +377,9 @@ pub async fn napi_compile_with_css_hash(
         ts_arg_type = "(name: string, filename: string, css: string) => Promise<{ value: string | null } | { error: string }>"
     )]
     css_hash: css_hash_bridge::JsCssHashCb,
-) -> napi::Result<Value> {
+) -> napi::Result<CssHashOutcome> {
     let mut opts = options_to_compile(options)?;
+    let filename = opts.filename.clone();
     let handle: css_hash_bridge::Handle =
         std::sync::Arc::new(std::sync::RwLock::new(Some(css_hash)));
     // A throwing cssHash surfaces here so it can be propagated as a compile
@@ -392,8 +400,54 @@ pub async fn napi_compile_with_css_hash(
         return Err(napi::Error::from_reason(msg));
     }
     match result {
-        Ok(r) => Ok(compile_result_to_json(r)),
-        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+        Ok(r) => Ok(CssHashOutcome::Compiled(Box::new(compile_result_to_json(
+            r,
+        )))),
+        Err(e) => Ok(CssHashOutcome::Failed {
+            source,
+            filename,
+            diagnostic: e.diagnostic(),
+        }),
+    }
+}
+
+/// The outcome of the async entry above. A failure travels as data rather than
+/// as a `napi::Error` because the official-shaped error object can only be built
+/// on the JS thread, which an async entry reaches only in this conversion.
+pub enum CssHashOutcome {
+    Compiled(Box<Value>),
+    Failed {
+        source: String,
+        filename: Option<String>,
+        diagnostic: rsvelte_core::compiler::CompileErrorDiagnostic,
+    },
+}
+
+impl napi::bindgen_prelude::ToNapiValue for CssHashOutcome {
+    unsafe fn to_napi_value(
+        env: napi::sys::napi_env,
+        val: Self,
+    ) -> napi::Result<napi::sys::napi_value> {
+        match val {
+            // SAFETY: `env` is the caller's obligation, forwarded unchanged to
+            // the inner conversion, which carries the same contract.
+            CssHashOutcome::Compiled(v) => unsafe {
+                napi::bindgen_prelude::ToNapiValue::to_napi_value(env, *v)
+            },
+            CssHashOutcome::Failed {
+                source,
+                filename,
+                diagnostic,
+            } => {
+                let env = Env::from_raw(env);
+                Err(
+                    match compile_error_object(&env, &source, filename.as_deref(), &diagnostic) {
+                        Ok(obj) => napi::Error::from(obj.to_unknown()),
+                        Err(_) => napi::Error::from_reason(diagnostic.message),
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -1066,7 +1120,7 @@ pub fn napi_compile_module(
 
             Ok(output)
         }
-        Err(e) => Err(throw_compile_error(&env, &source, filename.as_deref(), e)),
+        Err(e) => Err(compile_error(&env, &source, filename.as_deref(), e)),
     }
 }
 

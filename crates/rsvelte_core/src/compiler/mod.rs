@@ -522,13 +522,11 @@ fn tabs_to_spaces(s: &str) -> String {
 /// tabs-to-spaces conversion. Only leading tabs are converted.
 fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
     let leading_tabs = line.bytes().take_while(|&b| b == b'\t').count();
-    if column <= leading_tabs {
-        // Column is within the leading tabs region: each tab becomes 2 spaces
-        column * 2
-    } else {
-        // Column is past the leading tabs: add the extra space per tab
-        leading_tabs + column
-    }
+    // Official measures `tabs_to_spaces(line.slice(0, column)).length`, so the
+    // caret saturates at the line's own length — the caret column comes from
+    // `end`, which can sit past the end of the quoted `start` line.
+    let taken = column.min(line.chars().map(char::len_utf16).sum());
+    taken + leading_tabs.min(taken)
 }
 
 /// Parse phase shared by [`compile`] and [`compile_both`]: the fixed component
@@ -1621,6 +1619,27 @@ pub fn source_position(source: &str, offset: u32) -> Position {
     warning_position(&legacy::Utf8ToUtf16::new(source), offset)
 }
 
+/// The JS-visible location of a diagnostic: the two endpoints plus the rendered
+/// code frame, which upstream derives from `start.line` and `end.column`.
+#[derive(Debug, Clone)]
+pub struct SourceSpan {
+    /// Start of the highlighted range.
+    pub start: Position,
+    /// End of the highlighted range.
+    pub end: Position,
+    /// Rendered five-line code frame with a caret under the range.
+    pub frame: String,
+}
+
+/// Resolve a byte span in `source`, building the line index once for all three.
+pub fn source_span(source: &str, span: (u32, u32)) -> SourceSpan {
+    let table = legacy::Utf8ToUtf16::new(source);
+    let start = warning_position(&table, span.0);
+    let end = warning_position(&table, span.1);
+    let frame = generate_frame(source, &table, &start, Some(&end));
+    SourceSpan { start, end, frame }
+}
+
 impl std::fmt::Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -1675,6 +1694,21 @@ mod tests {
             .diagnostic();
         let (start, _) = d.span.unwrap();
         assert_eq!(source_position(source, start).character, 25);
+    }
+
+    #[test]
+    fn frame_caret_stops_at_the_end_of_the_quoted_line() {
+        // The caret column comes from `end`, which for a multi-line construct
+        // sits past the end of the `start` line the frame quotes.
+        let source = "<table>\n\t<tr>\n\t\t<td>hi</td>\n\t</tr>\n</table>";
+        let span = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic()
+            .span
+            .expect("node_invalid_placement carries a span");
+        let frame = source_span(source, span).frame;
+        let caret = frame.lines().nth(2).unwrap();
+        assert_eq!(caret, "         ^", "{frame}");
     }
 
     #[test]

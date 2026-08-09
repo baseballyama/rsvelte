@@ -55,6 +55,12 @@ const ERROR_RATCHETS = [
 	'error-position-known-failures.client.json',
 	'error-position-known-failures.server.json',
 	'error-position-known-failures.client-dev.json',
+	'error-end-known-failures.client.json',
+	'error-end-known-failures.server.json',
+	'error-end-known-failures.client-dev.json',
+	'error-frame-known-failures.client.json',
+	'error-frame-known-failures.server.json',
+	'error-frame-known-failures.client-dev.json',
 ];
 const PARSE_RATCHETS = [
 	'parse-known-failures.client.json',
@@ -89,6 +95,28 @@ function buildSandbox() {
 		for (const tree of ['expected', 'actual']) {
 			const dir = path.join(CORPUS, tree, id);
 			fs.mkdirSync(dir, { recursive: true });
+			// One entry both sides reject with the same code and different detail,
+			// so the error family has a non-empty population to rewrite from. With
+			// none, verify refuses the rewrite and this file would be testing the
+			// refusal instead of the composition it exists to test.
+			if (i === 0) {
+				const side = tree === 'expected' ? 1 : 2;
+				fs.writeFileSync(
+					path.join(dir, 'error.json'),
+					JSON.stringify({
+						client: {
+							code: 'attribute_duplicate',
+							message: `Attributes need to be unique (${side})`,
+							line: side,
+							column: side,
+							endLine: side,
+							endColumn: side,
+							frame: `${side}: <div>`,
+						},
+					}) + '\n',
+				);
+				continue;
+			}
 			fs.writeFileSync(path.join(dir, 'client.js'), 'export default 1;\n');
 		}
 	}
@@ -101,9 +129,14 @@ function seedRatchets() {
 	}
 }
 
+// Compared by content, not by length: a rewrite that happens to produce as many
+// entries as the sentinel would otherwise read as "untouched".
 const isSentinel = (f) => {
 	const p = path.join(CORPUS, f);
-	return fs.existsSync(p) && JSON.parse(fs.readFileSync(p, 'utf8')).length === SENTINEL.length;
+	return (
+		fs.existsSync(p) &&
+		JSON.stringify(JSON.parse(fs.readFileSync(p, 'utf8'))) === JSON.stringify(SENTINEL)
+	);
 };
 const rewritten = (files) => files.filter((f) => !isSentinel(f));
 const untouched = (files) => files.filter(isSentinel);

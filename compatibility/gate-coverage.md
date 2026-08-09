@@ -71,7 +71,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 1 | Compiler output parity (`verify.mjs`) | per-entry × per-target JS text + CSS text | comments, on every entry and every target | [D] |
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403) | [S] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
-| 4 | Compiler **error** parity | `error.json` `code`, `message`, `start` | error **`end`** and `frame` — never captured | [D] |
+| 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
 | 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules | [S] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
 | 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
@@ -203,26 +203,71 @@ alongside a compile error are never compared for that target.
 
 **Unit.** Two independent comparisons. The *output* verdict compares `code` only (both sides
 error → same code, else `error-mismatch`; one side errors → `error-mismatch`). Separately,
-`verify.mjs`'s "error parity" section compares the first message line and `(line, column)` of
-`start` for every `(id, target)` pair both sides reject with the same code, on two ratchets of
-their own (`error-message-known-failures.<target>.json`,
-`error-position-known-failures.<target>.json` — see
+`verify.mjs`'s "error parity" section compares the first message line, the `(line, column)` of
+`start` and of `end`, and the rendered `frame`, for every `(id, target)` pair both sides reject
+with the same code, on four ratchets of their own
+(`error-message-known-failures.<target>.json`, `error-position-known-failures.<target>.json`,
+`error-end-known-failures.<target>.json`, `error-frame-known-failures.<target>.json` — see
 `compatibility/error-known-failures.md`).
 
-Measured population, from the run that seeded those ratchets: 14,131 entries, 948 rejected by
-both compilers, 2,843 `(id, target)` pairs with two errors to compare. Divergences by field:
-`code` **0**, `message` **362 pairs / 121 ids**, `(line, column)` **1,209 pairs / 403 ids**.
-The `code` column being saturated at 0 is why the two new columns were worth adding: no amount
-of corpus growth could have moved a comparison that already agreed everywhere.
+Measured population: 14,179 entries, 948 rejected by both compilers, 2,843 `(id, target)` pairs
+with two errors to compare. Divergences by field: `code` **0**, `message` **362 pairs / 121
+ids**, `start` **678 pairs / 226 ids**, `end` **729 pairs / 243 ids**, `frame` **15 pairs / 5
+ids before the fix in the same PR, 0 after**. The `code` column being saturated at 0 is why
+every other column was worth adding: no amount of corpus growth could have moved a comparison
+that already agreed everywhere.
 
-### Blind spot 4a — the error `end` span and `frame` are still never captured
+### Blind spot 4a — CLOSED: `end` and `frame` are captured and ratcheted
 
-`compile.mjs`'s `errorInfo` records `{ code, message, line, column }` — the `line`/`column` of
-`start` only. Upstream highlights a **range**, and rsvelte's `end` is frequently `start + 1`
-where `start` agrees: `attribute_duplicate` on `<div a="1" a="2">` reports `position: [11, 12]`
-against upstream's `[11, 16]` (**[D]**, `crates/rsvelte_core/src/compiler/mod.rs`
-`diagnostic_reports_code_message_and_span`). A wrong highlight *length* is invisible to this
-gate. The rendered `frame` is likewise neither captured nor compared. **[D]**
+`compile.mjs`'s `errorInfo` now records `endLine`/`endColumn`/`frame` beside `start`. Two
+things about how they are gated, because neither is the obvious arrangement:
+
+`end` gets **its own ratchet** rather than joining `start`. A ratchet entry suppresses
+everything about its entry, so the fold would have hidden the **51 pairs / 17 ids that diverge
+on `end` while `start` agrees** — the entries that point at the right place and underline the
+wrong amount of code. **[D]**
+
+`frame` is compared **only where both endpoints already agree**. Upstream derives it from
+`start.line` and `end.column` (`submodules/svelte/…/utils/compile_diagnostic.js:72`), so an
+unchained comparison would restate the two span comparisons instead of asking a new question;
+chained, it sees only the renderer. Its population is **2,114 of the 2,843 pairs**, 2,112 of
+them carrying a frame on both sides. It baselines at **0, saturated rather than unenrolled**:
+the first run found 15 pairs / 5 ids diverging from one unclamped caret-column computation,
+which the same PR fixed. **[D]**
+
+### Blind spot 4d — a missing artifact scores `match`, not an abort
+
+Every comparison in this section reads `expected/<id>/error.json` and `actual/<id>/error.json`
+and `continue`s when either is absent, so an entry whose artifacts are gone falls through to
+`errorCounts.match++`. A half-swept tree therefore reports **100% error parity** — and unlike
+the warning gate's version of the same hole, which surfaces as an implausibly large failure
+block, this one is a clean green that nobody investigates.
+
+Measured on a real half-swept tree (`expected/` removed, `actual/` intact): **0 pairs compared,
+14,179/14,179 entries scored `match`**, and the precondition at `verify.mjs:313` passed at
+14,179/14,179 — it was `hasOutputs(EXPECTED,id) || hasOutputs(ACTUAL,id)` with `hasOutputs`
+itself `TARGET_KEYS.some(...)`, permissive in both quantifiers. **[D]**
+
+Now closed in three places: the precondition asserts coverage **per tree** and **per target**
+(either `<target>.js` or that target's key in `error.json`, which is exactly what
+`compile.mjs`'s `writeOutputs` establishes); the compared-pair count is printed beside the
+verdicts and stored in `report.json` as `errorComparedPairs`; and `--update-error-baseline`
+refuses at zero compared pairs. What remains **[U]** is the same question for the warning
+comparison, where a missing `warnings.json` legitimately means "no warnings" and the per-target
+invariant does not apply — tracked in #2707.
+
+### Blind spot 4e — only four of the NAPI compile entries carry the shape
+
+The corpus calls `compile` / `compileModule`; `#2558` gave those and `compileBoth` an official
+`CompileError` object, and this PR added `compileWithCssHash` (the async entry, which cannot
+take an `Env` — it builds the object in its return-value conversion, on the JS thread). Every
+other entry still returns `napi::Error::from_reason(format!("{e:?}"))`: `compileEnvelope`,
+`compileEnvelopeExternalSources` and their `ZeroCopy`/`Async`/`Buffers` siblings, plus the
+batch entries, which encode the `Debug` string into the envelope. **[S]**
+`apps/npm/vite-plugin-svelte-native/index.cjs:142,207` shows `compile()` and `compileAsync()`
+without a `cssHash` routing to `compileEnvelopeExternalSources[Async]`, so the vendored plugin's
+primary path is one of the uncovered ones. No gate reaches them: the corpus does not call them,
+and `test-vps-shim.mjs` asserts the shape only on the two this PR covers.
 
 ### Blind spot 4b — a code-less error on either side degrades to error-parity
 

@@ -187,12 +187,24 @@ scored the very entry that reproduces it as `MATCH`. When adding a gate, ask wha
 not look at, not only what the input does not contain.
 
 Compiler **errors** ratchet the same way and for the same reason
-(`error-message-known-failures.{client,server,client-dev}.json` and
-`error-position-known-failures.*`, justified in `compatibility/error-known-failures.md`). The
-output verdict compares an error's `code` and nothing else, and that field is **saturated**: 0
-divergences over the 2,843 `(id, target)` pairs both compilers reject. The message text (121
-entries) and `start` position (403) were invisible until they were captured, so growing the
-corpus could never have found them — the same lesson as the warning gate, one field over.
+(`error-{message,position,end,frame}-known-failures.{client,server,client-dev}.json`, justified
+in `compatibility/error-known-failures.md`). The output verdict compares an error's `code` and
+nothing else, and that field is **saturated**: 0 divergences over the 2,843 `(id, target)` pairs
+both compilers reject. Every other field was invisible until it was captured — `message` 121
+ids, `start` 226, `end` 243, `frame` 5 — so growing the corpus could never have found them.
+`end` is ratcheted apart from `start` because **an entry listed for one suppresses everything
+about that entry**, and 17 ids diverge on `end` while `start` agrees; `frame` is the one
+comparison deliberately *chained* behind both endpoints agreeing, because upstream derives it
+from `start.line` and `end.column` and an unchained comparison would restate them.
+
+**These comparisons score `match` when there is nothing to compare, which makes an absent
+artifact a clean green.** Measured on a half-swept tree: 0 pairs compared, 14,179/14,179
+`match`, while the ≥99%-compiled precondition passed at 14,179 — it tested
+`hasOutputs(EXPECTED,id) || hasOutputs(ACTUAL,id)` with `hasOutputs` itself a `some` over
+targets, permissive in both quantifiers. It is now asserted **per tree and per target**, the
+compared-pair count is printed and stored in `report.json`, and `--update-error-baseline`
+refuses at zero. The warning half of the same hole, and `compile.mjs` fabricating a
+whole-corpus `rust_panic` when `sources/` is missing, are tracked in #2707.
 
 ### Generated shape matrix (`scripts/compat-corpus/matrix/`)
 

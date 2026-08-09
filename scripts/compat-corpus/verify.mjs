@@ -70,9 +70,9 @@
  * ---- error parity ----------------------------------------------------------
  *
  * The output verdicts see an error only as "did both sides reject, with the
- * same `code`". `compile.mjs` also records each error's first message line and
- * its (line, column), which this file compares for every entry BOTH compilers
- * reject with the same code:
+ * same `code`". `compile.mjs` also records each error's first message line, its
+ * `start` and `end` (line, column) and its rendered `frame`, which this file
+ * compares for every entry BOTH compilers reject with the same code:
  *
  *   - error-message-mismatch   the codes agree but the prose does not. Not
  *                              tolerated as "upstream rewords things": both
@@ -85,12 +85,25 @@
  *                              site, so an editor has nowhere to put the
  *                              squiggle.
  *                              Ratchet: error-position-known-failures.<target>.json
+ *   - error-end-mismatch       the codes agree but `end` does not, so the
+ *                              highlight has the wrong LENGTH where `start` is
+ *                              already right. Its own ratchet, not folded into
+ *                              the one above: an entry listed there would
+ *                              otherwise suppress its `end` divergence too.
+ *                              Ratchet: error-end-known-failures.<target>.json
+ *   - error-frame-mismatch     both endpoints agree but the rendered code frame
+ *                              does not. Upstream derives the frame from
+ *                              `start.line` and `end.column`, so an unchained
+ *                              comparison would restate the two above; gated on
+ *                              both agreeing, this only sees the RENDERER (line
+ *                              window, tab expansion, caret column).
+ *                              Ratchet: error-frame-known-failures.<target>.json
  *
  * Split for the same reason the warning ratchets are: wrong prose is a semantic
  * bug fixed one string at a time, a wrong span is one systemic cause, and folded
- * together the larger span backlog would hide every semantic regression. The two
- * are compared independently of each other, so fixing a message cannot surface a
- * position failure that was previously masked.
+ * together the larger span backlog would hide every semantic regression. Message,
+ * `start` and `end` are compared independently of each other, so fixing one
+ * cannot surface a failure of another that was previously masked.
  *
  * ---- output parseability ---------------------------------------------------
  *
@@ -286,24 +299,31 @@ if (manifest.length < MIN_MANIFEST_ENTRIES) {
 	process.exit(2);
 }
 
-// compile.mjs writes either `<target>.js` or `error.json` for every entry on
-// both sides, so a missing pair means the tree was never compiled (or was
-// cleaned away). Comparing against an absent tree reads both sides as "" and
-// scores every entry `match` — a green run that measured nothing.
+// compile.mjs writes EXACTLY ONE of `<target>.js` / an `error.json` entry per
+// (id, target) on each side, so anything less means the tree was never compiled
+// (or was cleaned away underneath a running verify). Comparing against an absent
+// tree reads that side as "no output, no error" and scores every entry `match` —
+// a green run that measured nothing, and one that `--update-*-baseline` would
+// then write out as an empty ratchet.
 function hasOutputs(tree, id) {
-	if (fs.existsSync(path.join(tree, id, 'error.json'))) return true;
-	return TARGET_KEYS.some((key) => fs.existsSync(path.join(tree, id, `${key}.js`)));
+	const errPath = path.join(tree, id, 'error.json');
+	const errors = fs.existsSync(errPath) ? JSON.parse(fs.readFileSync(errPath, 'utf8')) : {};
+	return TARGET_KEYS.every((key) => key in errors || fs.existsSync(path.join(tree, id, `${key}.js`)));
 }
 
-// A crashed worker leaves its one entry with only the rsvelte-side error.json,
-// so coverage is checked against the union rather than demanded per tree.
-const compiled = manifest.filter(({ id }) => hasOutputs(EXPECTED, id) || hasOutputs(ACTUAL, id)).length;
-if (compiled < manifest.length * 0.99) {
-	console.error(
-		`[verify] only ${compiled}/${manifest.length} manifest entries have compiled output for ${TARGET_KEYS.join(', ')}`
-	);
-	console.error('  run: node scripts/compat-corpus/compile.mjs   (outputs are deleted after a green verify)');
-	process.exit(2);
+// Checked per tree, not against the union: a wiped `expected/` beside an intact
+// `actual/` passes a union check, and the error comparison then sees no official
+// error to compare against and scores parity everywhere. The 1% slack is for the
+// crashed-worker case, where `recordPanic` writes only the rsvelte side.
+for (const [label, tree] of [['expected', EXPECTED], ['actual', ACTUAL]]) {
+	const compiled = manifest.filter(({ id }) => hasOutputs(tree, id)).length;
+	if (compiled < manifest.length * 0.99) {
+		console.error(
+			`[verify] only ${compiled}/${manifest.length} manifest entries have ${label}/ output for every target (${TARGET_KEYS.join(', ')})`
+		);
+		console.error('  run: node scripts/compat-corpus/compile.mjs   (outputs are deleted after a green verify)');
+		process.exit(2);
+	}
 }
 
 // ---- output parseability ---------------------------------------------------
@@ -697,9 +717,32 @@ const WARNING_RATCHETS = [
 // make a message fix surface a brand-new position regression on the PR that
 // fixes it.
 
-const errorCounts = { match: 0, 'error-message-mismatch': 0, 'error-position-mismatch': 0 };
+const errorCounts = {
+	match: 0,
+	'error-message-mismatch': 0,
+	'error-position-mismatch': 0,
+	'error-end-mismatch': 0,
+	'error-frame-mismatch': 0,
+};
 const errorFailures = [];
+// The size of the population these four comparisons actually inspect. Reported
+// beside the verdicts and asserted before a rewrite: every one of them scores
+// `match` when there is nothing to compare, so the counts alone cannot tell
+// "rsvelte agrees everywhere" from "no error survived to be compared".
+let errorComparedPairs = 0;
 const errorPosKey = (e) => `${e.line ?? '?'}:${e.column ?? '?'}`;
+const errorEndKey = (e) => `${e.endLine ?? '?'}:${e.endColumn ?? '?'}`;
+// A frame quotes five source lines and the divergence is usually the caret row,
+// so printing the head of it says nothing; report the first line that differs.
+function frameDiff(expected, actual) {
+	if (expected == null || actual == null) {
+		return { expected: expected == null ? '(no frame)' : 'frame', actual: actual == null ? '(no frame)' : 'frame' };
+	}
+	const e = expected.split('\n');
+	const a = actual.split('\n');
+	const i = Math.max(e.length, a.length) && [...Array(Math.max(e.length, a.length)).keys()].find((n) => e[n] !== a[n]);
+	return { expected: `line ${i + 1}: ${JSON.stringify(e[i] ?? null)}`, actual: `line ${i + 1}: ${JSON.stringify(a[i] ?? null)}` };
+}
 
 for (const { id } of manifest) {
 	const expErr = JSON.parse(readIf(path.join(EXPECTED, id, 'error.json')) ?? '{}');
@@ -714,11 +757,14 @@ for (const { id } of manifest) {
 		// rejection, or two different codes, is an output failure already; the
 		// message and span of two unrelated errors say nothing.
 		if (!e || !a || e.code !== a.code) continue;
+		errorComparedPairs++;
 
 		if (e.message !== a.message) {
 			details.push({ target, kind: 'error-message', expected: e.message, actual: a.message });
 		}
-		if (errorPosKey(e) !== errorPosKey(a)) {
+		const startAgrees = errorPosKey(e) === errorPosKey(a);
+		const endAgrees = errorEndKey(e) === errorEndKey(a);
+		if (!startAgrees) {
 			details.push({
 				target,
 				kind: 'error-position',
@@ -726,22 +772,39 @@ for (const { id } of manifest) {
 				actual: errorPosKey(a),
 			});
 		}
+		if (!endAgrees) {
+			details.push({
+				target,
+				kind: 'error-end',
+				expected: errorEndKey(e),
+				actual: errorEndKey(a),
+			});
+		}
+		// Upstream derives `frame` from `start.line` and `end.column` alone, so
+		// comparing it while either endpoint diverges would restate the two
+		// comparisons above. Gated on both agreeing, it can only report a defect
+		// in the renderer itself (line window, tab expansion, caret placement).
+		if (startAgrees && endAgrees && (e.frame ?? null) !== (a.frame ?? null)) {
+			details.push({ target, kind: 'error-frame', ...frameDiff(e.frame ?? null, a.frame ?? null) });
+		}
 	}
 
 	if (!details.length) {
 		errorCounts.match++;
 		continue;
 	}
-	const verdict = details.some((d) => d.kind === 'error-message')
-		? 'error-message-mismatch'
-		: 'error-position-mismatch';
-	errorCounts[verdict]++;
-	errorFailures.push({ id, verdict, details });
+	const verdict = ['message', 'position', 'end', 'frame']
+		.map((k) => `error-${k}`)
+		.find((kind) => details.some((d) => d.kind === kind));
+	errorCounts[`${verdict}-mismatch`]++;
+	errorFailures.push({ id, verdict: `${verdict}-mismatch`, details });
 }
 
 const ERROR_RATCHETS = [
 	{ kind: 'error-message', label: 'error messages', file: (t) => t.errorMessageBaseline },
 	{ kind: 'error-position', label: 'error positions', file: (t) => t.errorPositionBaseline },
+	{ kind: 'error-end', label: 'error end positions', file: (t) => t.errorEndBaseline },
+	{ kind: 'error-frame', label: 'error frames', file: (t) => t.errorFrameBaseline },
 ];
 
 const PARSE_RATCHETS = [
@@ -760,6 +823,7 @@ const report = {
 	warningCounts,
 	warningFailures,
 	errorCounts,
+	errorComparedPairs,
 	errorFailures,
 	parseCounts,
 	parseFailures,
@@ -771,7 +835,7 @@ console.log('\n[verify] results:');
 for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
 console.log('\n[verify] warning parity:');
 for (const [k, v] of Object.entries(warningCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
-console.log('\n[verify] error parity:');
+console.log(`\n[verify] error parity (${errorComparedPairs} both-reject (id, target) pairs compared):`);
 for (const [k, v] of Object.entries(errorCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
 console.log('\n[verify] output parseability:');
 for (const [k, v] of Object.entries(parseCounts)) console.log(`  ${k.padEnd(26)} ${v}`);
@@ -798,6 +862,8 @@ const DIAGNOSTIC_FAMILIES = [
 		update: UPDATE_ERROR_BASELINE,
 		ratchets: ERROR_RATCHETS,
 		failures: errorFailures,
+		population: errorComparedPairs,
+		populationLabel: 'both-reject (id, target) pairs',
 	},
 	{
 		family: 'parse',
@@ -816,6 +882,21 @@ for (const spec of DIAGNOSTIC_FAMILIES) {
 	const regressions = [];
 	const failById = new Map(spec.failures.map((f) => [f.id, f]));
 	let fixed = 0;
+
+	// An empty population reports zero failures, so the rewrite would enrol an
+	// empty ratchet and make zero the bar from then on. Narrowed-to-nothing is
+	// the same class as the flag-derived narrowings the shared guard refuses,
+	// except this one is only knowable after the comparison has run.
+	if (spec.update) {
+		refuseUnrepresentativeBaseline(
+			'verify',
+			[
+				spec.population === 0 &&
+					`the ${spec.noun} comparison measured 0 ${spec.populationLabel}, so every entry scored parity — the artifacts are missing or stale`,
+			],
+			spec.flag,
+		);
+	}
 
 	// `--update-baseline` alone is about the OUTPUT ratchets; leave these alone
 	// so an output burn-down cannot silently absorb a diagnostic regression. Ask

@@ -457,5 +457,52 @@ assert(
 	assert('compileBatchAsync throws on a dynamic cssHash', batchAsyncThrew);
 }
 
+// 12. A compile failure carries the official `CompileError` shape, and carries
+//     the SAME shape out of the async cssHash bridge as out of the sync entry.
+//     `utils/error.js` in the vendored plugin builds `rollupError.loc` from
+//     `code`/`start`, so a Rust `Debug` dump on either path loses the location.
+{
+	const bad = '<div a="1" a="2"></div>';
+	const options = { filename: 'E.svelte', generate: 'client', css: 'injected' };
+	const shape = (e) => ({
+		name: e?.name ?? null,
+		code: e?.code ?? null,
+		start: e?.start ? `${e.start.line}:${e.start.column}` : null,
+		end: e?.end ? `${e.end.line}:${e.end.column}` : null,
+		position: Array.isArray(e?.position) ? e.position.join(',') : null,
+		frame: typeof e?.frame === 'string' ? e.frame : null,
+	});
+
+	let syncErr;
+	try {
+		r.compileLegacy(bad, options);
+	} catch (e) {
+		syncErr = e;
+	}
+	let asyncErr;
+	try {
+		await r.compileAsync(bad, { ...options, cssHash: ({ hash, css }) => `x-${hash(css)}` });
+	} catch (e) {
+		asyncErr = e;
+	}
+
+	const s = shape(syncErr);
+	assert(
+		'compile() throws an official-shaped CompileError',
+		s.name === 'CompileError' && s.code === 'attribute_duplicate' && s.start === '1:11' && s.end !== null && s.frame !== null,
+		JSON.stringify(s),
+	);
+	assert(
+		'the async cssHash bridge throws the same shape',
+		JSON.stringify(shape(asyncErr)) === JSON.stringify(s),
+		`${JSON.stringify(shape(asyncErr))} vs ${JSON.stringify(s)}`,
+	);
+	assert(
+		'the code frame points a caret at the offending source line',
+		typeof s.frame === 'string' && s.frame.startsWith('1: <div a="1" a="2"></div>\n') && s.frame.includes('^'),
+		JSON.stringify(s.frame),
+	);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

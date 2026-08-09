@@ -109,6 +109,16 @@ const RATCHETS = [
 		jsons: perTarget('error-position-known-failures'),
 	},
 	{
+		doc: 'error-known-failures.md',
+		key: 'error-end-known-failures.<target>.json',
+		jsons: perTarget('error-end-known-failures'),
+	},
+	{
+		doc: 'error-known-failures.md',
+		key: 'error-frame-known-failures.<target>.json',
+		jsons: perTarget('error-frame-known-failures'),
+	},
+	{
 		doc: 'parse-known-failures.md',
 		key: 'parse-known-failures.<target>.json',
 		jsons: perTarget('parse-known-failures'),
@@ -185,6 +195,7 @@ const PARTITIONS = [
 	},
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', label: 'cluster' },
 	{ doc: 'warning-known-failures.md', key: 'warning-known-failures.<target>.json', label: 'direction' },
+	{ doc: 'error-known-failures.md', key: 'error-end-known-failures.<target>.json', label: 'shape' },
 ];
 
 let failed = false;

@@ -93,8 +93,8 @@ if (args.includes('--worker')) {
 		}
 	}
 
-	// An error is compared as (code, message, line, column) — see verify.mjs.
-	// `message` is the first line only: everything after it is the
+	// An error is compared as (code, message, start, end, frame) — see
+	// verify.mjs. `message` is the first line only: everything after it is the
 	// `https://svelte.dev/e/<code>` link, which restates the code.
 	const errorInfo = (e) => {
 		const message = String(e?.message ?? e);
@@ -103,6 +103,9 @@ if (args.includes('--worker')) {
 			message: message.split('\n')[0],
 			line: e?.start?.line ?? null,
 			column: e?.start?.column ?? null,
+			endLine: e?.end?.line ?? null,
+			endColumn: e?.end?.column ?? null,
+			frame: e?.frame ?? null,
 		};
 	};
 
