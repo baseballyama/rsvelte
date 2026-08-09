@@ -244,12 +244,39 @@ fn main() {
     // harness, not of the compiler. Drain that reading and re-take it through the
     // real entry point.
     let _ = rsvelte_core::compiler::phases::phase2_analyze::profile::take_store_subs();
+    // Same reason, one phase over: the statement-boundary reuse reads the
+    // program Phase 1 retained, which only `compile()` threads through.
+    let _ = profile::take_script_text_breakdown();
     let compile_start = Instant::now();
     for (_, content) in files.iter() {
         let _ = rsvelte_core::compile(content, compile_opts.clone());
     }
     let compile_total = compile_start.elapsed();
     let ss = rsvelte_core::compiler::phases::phase2_analyze::profile::take_store_subs();
+    let st_compile = profile::take_script_text_breakdown();
+    let compile_boundary_total = st_compile.boundary_ast + st_compile.boundary_scan;
+    println!(
+        "  [boundaries measured through compile(): from-parser {} / {} ({:.2}%) | scanner {}]",
+        st_compile.boundary_ast,
+        compile_boundary_total,
+        if compile_boundary_total == 0 {
+            0.0
+        } else {
+            st_compile.boundary_ast as f64 / compile_boundary_total as f64 * 100.0
+        },
+        st_compile.boundary_scan
+    );
+    println!(
+        "  [  of those, reused Phase-1's parse {} / {} ({:.2}%) | added a parse {}]",
+        st_compile.boundary_retained,
+        st_compile.boundary_ast,
+        if st_compile.boundary_ast == 0 {
+            0.0
+        } else {
+            st_compile.boundary_retained as f64 / st_compile.boundary_ast as f64 * 100.0
+        },
+        st_compile.boundary_ast.saturating_sub(st_compile.boundary_retained)
+    );
     println!(
         "  [store_subs measured through compile(), total {:7.2}ms]",
         ms(compile_total)
@@ -381,17 +408,11 @@ fn main() {
         },
         st.boundary_scan
     );
-    println!(
-        "    BOUNDARY reused Phase-1 parse {} / {} ({:.2}%) | added a parse {}",
-        st.boundary_retained,
-        st.boundary_ast,
-        if st.boundary_ast == 0 {
-            0.0
-        } else {
-            st.boundary_retained as f64 / st.boundary_ast as f64 * 100.0
-        },
-        st.boundary_ast.saturating_sub(st.boundary_retained)
-    );
+    // The reuse rate is deliberately NOT printed here: `transform_component`
+    // hard-codes `retained_scripts: None` (3_transform/mod.rs:88), so on this
+    // path it is 0 by construction — a property of the harness, exactly as the
+    // store_subs note below records for one field over. It is reported from the
+    // `compile()` pass instead.
     println!(
         "    COUNTERS loop_lines {} | fastpath_stmts {} | ctrl_header {} calls / {} bytes | collect_scan {} passes / {} bytes",
         st.loop_lines,
