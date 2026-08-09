@@ -62,6 +62,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
 | 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size | [D] |
 | 21 | Published-artifact glibc floor | max `GLIBC_*` version referenced by each Linux artifact | whether the binary actually **runs** anywhere; every non-glibc dependency | [D] |
+| 22 | NAPI option boundary | per declared option key: baseline vs. one-key variant, through the raw addon | it never compares against **official** — a key wired to the wrong semantics stays green | [S] |
 
 Cross-cutting blind spots (path filters, ratchet-doc drift, vacuity floors, the **performance**
 gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
@@ -1142,6 +1143,78 @@ independent edits, and lowering `runs-on` to an older image while leaving the fl
 would keep passing — the check only fails when the artifact needs *more* than the floor. What
 it does close is the direction that actually broke: an image bump can no longer raise the
 requirement silently.
+
+## 22. NAPI option boundary — `scripts/dev/test-napi-compile-options.mjs`
+
+**Unit.** Per option key declared at the napi boundary, two compiles of one source that differ
+only in that key, run against the raw addon (`apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node`,
+not the JS shim). Each key must (a) change the result and (b) produce a named marker. A second
+half reconciles the covered set against the keys parsed out of `crates/rsvelte_napi/src/lib.rs`,
+both directions, so a new field with no case fails and a case naming a deleted field fails.
+
+**Why it exists.** `crates/rsvelte_napi/Cargo.toml:22-23` sets `test = false` (the `napi_*`
+symbols only resolve when Node dlopens the addon), there is no `crates/rsvelte_napi/tests/`, and
+before this gate nothing anywhere crossed the JS-object → `CompileOptions` mapping per key.
+Deleting a field, or dropping its arm from `into_compile_options`, failed nothing. Denominator:
+**38 of 40 declared keys** are crossed; the 2 exclusions are listed in the script's `UNCOVERED`
+map with their reasons, and the reasons are themselves asserted to exist.
+
+### 22a — it compares rsvelte against rsvelte, never against official [S]
+
+Every marker is a string from rsvelte's own current output (`$.hmr(A)`, `$.from_tree(`,
+`options_removed_hydratable`). That establishes the key *reaches* the compiler; it says nothing
+about whether the resulting semantics match upstream Svelte. The gate that would catch wrong
+semantics is corpus output parity — and blind spot **1d** records that `compile.mjs:99-100`
+passes only `generate`, `dev`, `filename` and `css`. So for the other **22** compile keys, no
+gate in this repo compares rsvelte's option behaviour to the official compiler's.
+
+### 22b — the exhaustiveness half is keyed on *declared* fields, not on what a caller can pass [D]
+
+`napiObjectStructs()` reads the `pub <field>:` lines of the four `#[napi(object)]` option
+structs. An option a real caller passes that the boundary never declares is therefore not a
+failure — it is not even a row. Discriminating case: `warningFilter` and `cssHash` are genuine
+`svelte/compiler` options; the addon declares neither, and the shim resolves them in JS
+(`apps/npm/vite-plugin-svelte-native/index.cjs:57-77`). The denominator prints 40 and never
+mentions them. This is the #2438 shape one level out: that bug was a *declared* field nothing
+read; this blind spot is an *undeclared* option nothing accepts.
+
+### 22c — one entry point per surface, and per-entry-point consistency is not asserted [S]
+
+All 26 compile cases call `napi.compile`. Eleven exports take a `NapiCompileOptions`
+(`lib.rs:298,318,368,1692,1790,1799,1927,2010,2140,2152` plus the batch item), and they all
+funnel through `options_to_compile`, so the *coercion* is shared — but an export that forgets to
+call it, or a `CompileBatchInput` whose per-item options are dropped, is invisible here. #2547 is
+the recorded instance of exactly this axis: the fix was complete on the script entry points and
+absent on the template-expression one. Concretely already true at this boundary:
+`NapiParseOptions::skip_css_ast` is declared for both `parse` and `parseEnvelope` and read only
+by `parseEnvelope` (`lib.rs:218`); `napi_parse` never consults it. The gate covers the key on
+`parseEnvelope` and asserts nothing about the asymmetry.
+
+### 22d — one non-default value per key [S]
+
+`namespace` is exercised at `svg` only, `fragments` at `tree` only, `compatibility.componentApi`
+at `4` only, and so on. A coercion arm that maps two values to the same variant (the shape
+`coerce_generate`'s five string arms could take) passes. Only `generate` is exercised twice, and
+only because the `dom` spelling has a warning of its own.
+
+### 22e — it does not read the option *rejection* surface [S]
+
+The wrong-type messages produced by `coerce_bool` / `coerce_string` / `coerce_namespace` are
+asserted in `scripts/dev/test-vps-shim.mjs:247-266`, through the shim, for 6 of the 40 keys. A
+rejection assertion is not a substitute for a positive one and vice versa: `namespace: 2` still
+throws the upstream message when `opts.namespace = …` is deleted, which is the whole reason this
+gate exists.
+
+### 22f — `sourcesContent` is covered on 4 entries, and only because it is asserted by name [S]
+
+The only result field this boundary has been observed to lose. `test:vps-shim` covers it on the
+five shim-wrapped entries (`test-vps-shim.mjs:53-106`), all of which externalize the source and
+have the JS decoder restore it; this gate adds the two JSON entries (`compile`, `compileBoth`),
+which build the map in Rust. Neither covers `compileBuffers`, `compileModuleBuffers`, the
+`*ZeroCopy` entries, or `compileModule`'s map — and no assertion generalizes: each is a named
+field on a named entry.
+
+---
 
 ## Cross-cutting
 

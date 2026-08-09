@@ -727,6 +727,11 @@ jobs:
       - name: Build core wasm
         run: pnpm run build:wasm:core
 
+      # This job is the only one that builds `pkg/`, and the gate had never been
+      # invoked by any workflow since it was written.
+      - name: Run wasm compile-options gate
+        run: pnpm run test:wasm-compile
+
       - name: Run @rsvelte/svelte2tsx tests
         run: pnpm --filter @rsvelte/svelte2tsx run test
 
@@ -990,6 +995,11 @@ jobs:
 
       - name: Run vite-plugin-svelte native shim smoke test
         run: pnpm run test:vps-shim
+
+      # Separate process: two rsvelte addons required into one process SIGSEGVs,
+      # and this one loads the raw addon rather than the shim.
+      - name: Run NAPI option-boundary gate
+        run: pnpm run test:napi-options
 
   corpus-verify-flags:
     name: Corpus verify baseline-flag contract
