@@ -30,7 +30,7 @@ pub(crate) fn build_element_directive_suffix_segments(
     source: &str,
     element_var: Option<&str>,
     parent_tag: &str,
-    is_ts_file: bool,
+    use_ts_syntax: bool,
     tag: &str,
 ) -> Vec<Seg> {
     let mut out: Vec<Seg> = Vec::new();
@@ -70,7 +70,7 @@ pub(crate) fn build_element_directive_suffix_segments(
             }
             Attribute::BindDirective(bind) => {
                 let s =
-                    bind_directive_suffix_seg(bind, source, element_var, parent_tag, is_ts_file);
+                    bind_directive_suffix_seg(bind, source, element_var, parent_tag, use_ts_syntax);
                 if !s.is_empty() {
                     segs_push_lit(&mut out, &s);
                 }

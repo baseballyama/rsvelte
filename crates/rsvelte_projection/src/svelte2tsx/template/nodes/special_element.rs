@@ -335,7 +335,7 @@ pub(crate) fn handle_svelte_special_element(
             source,
             element_var.as_deref(),
             &el.name,
-            options.is_ts_file,
+            options.is_ts_file || !options.emit_jsdoc,
         );
         let element_var_decl = element_var
             .as_ref()

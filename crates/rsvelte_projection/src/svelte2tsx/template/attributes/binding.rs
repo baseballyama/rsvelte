@@ -155,7 +155,7 @@ pub(crate) fn build_bind_directive_suffix(
     source: &str,
     element_var: Option<&str>,
     parent_tag: &str,
-    is_ts_file: bool,
+    use_ts_syntax: bool,
 ) -> String {
     let mut out = String::new();
     for attr in attributes {
@@ -167,7 +167,7 @@ pub(crate) fn build_bind_directive_suffix(
             source,
             element_var,
             parent_tag,
-            is_ts_file,
+            use_ts_syntax,
         ));
     }
     out
@@ -181,7 +181,7 @@ pub(crate) fn bind_directive_suffix_seg(
     source: &str,
     element_var: Option<&str>,
     parent_tag: &str,
-    is_ts_file: bool,
+    use_ts_syntax: bool,
 ) -> String {
     let mut out = String::new();
     {
@@ -229,12 +229,14 @@ pub(crate) fn bind_directive_suffix_seg(
             // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
             let _ = write!(out, "{} = __sveltets_2_any(null);", expr_text);
         } else if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
-            // Official uses `null as Type` whenever `isTsFile || !emitJsDoc`;
-            // `emitJsDoc` defaults to false, so the TS-syntax form is used even
-            // in a plain `<script>` component (the JSDoc form would only appear
-            // under an explicit emitJsDoc run, which the corpus does not use).
-            let _ = is_ts_file;
-            let value = format!("null as {}", ty);
+            // `Binding.ts`'s `useTypescriptSyntax`. A TS assertion in a shadow
+            // emitted as JavaScript is a SYNTAX error (TS8016), which suppresses
+            // every semantic diagnostic in the program.
+            let value = if use_ts_syntax {
+                format!("null as {}", ty)
+            } else {
+                format!("/** @type {{{}}} */ (null)", ty)
+            };
             let _ = write!(
                 out,
                 "{}= /*\u{03A9}ignore_start\u{03A9}*/{}/*\u{03A9}ignore_end\u{03A9}*/;",

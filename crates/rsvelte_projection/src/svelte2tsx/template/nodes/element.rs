@@ -198,7 +198,7 @@ pub(crate) fn handle_regular_element(
         source,
         element_var.as_deref(),
         &el.name,
-        options.is_ts_file,
+        options.is_ts_file || !options.emit_jsdoc,
         &el.name,
     );
 

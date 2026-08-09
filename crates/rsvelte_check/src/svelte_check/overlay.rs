@@ -585,10 +585,24 @@ pub fn materialize_overlay_with(
         let tsx_path = emit_dir.join(&tsx_rel);
         let dts_path = emit_dir.join(&dts_rel);
         let map_path = append_extension(&tsx_path, ".map");
+        // `X.svelte.d.ts` is TypeScript's declaration counterpart of
+        // `X.svelte.jsx`, so with a JS shadow the bridges' own
+        // `./X.svelte.jsx` resolves to the twin, which re-exports from
+        // `./X.svelte.jsx` — a cycle that types the component `any` and
+        // silently drops every diagnostic about using it. `.tsx` escapes
+        // it through `allowImportingTsExtensions`, which resolves an
+        // explicit TS extension literally. Dropping the twin costs nothing:
+        // `allowJs` is on whenever a `.jsx` shadow exists, so CJS-mode
+        // resolution of `./X.svelte` finds the shadow itself, and ESM mode
+        // still goes through the `.d.svelte.ts` bridge.
+        let emit_dts_twin = ext == ".tsx";
         if let Some(parent) = tsx_path.parent() {
             fs::create_dir_all(parent)?;
         }
         remove_stale_counterpart(&tsx_path, ext);
+        if !emit_dts_twin {
+            let _ = fs::remove_file(&dts_path);
+        }
 
         let stats_match = match (stats, cached_entry) {
             (Some((mtime, size)), Some(entry)) => {
@@ -604,7 +618,10 @@ pub fn materialize_overlay_with(
         // source map; we don't gate cache validity on it, so a workspace
         // that gained / lost source maps still hits the cache. On hit we
         // simply best-effort-read whatever sits at `map_path`.
-        let can_skip = incremental && stats_match && tsx_path.exists() && dts_path.exists();
+        let can_skip = incremental
+            && stats_match
+            && tsx_path.exists()
+            && (!emit_dts_twin || dts_path.exists());
 
         let source_map = if can_skip {
             fs::read_to_string(&map_path).ok()
@@ -662,7 +679,9 @@ pub fn materialize_overlay_with(
 
             // `<name>.svelte.d.ts` re-exports default + named so module
             // resolution by `import Foo from './Foo.svelte'` still works.
-            fs::write(&dts_path, shadow_reexport(&tsx_path))?;
+            if emit_dts_twin {
+                fs::write(&dts_path, shadow_reexport(&tsx_path))?;
+            }
             // Persist the source map so the next incremental run can
             // recover it without re-running svelte2tsx.
             if let Some(map) = &result.map {
@@ -1013,7 +1032,14 @@ fn emit_external_shadows(
         }
         fs::write(&tsx_path, &tsx_code)?;
         let dts_content = shadow_reexport(&tsx_path);
-        fs::write(&dts_path, &dts_content)?;
+        // See the twin's comment in `materialize_overlay_with`: next to a
+        // `.jsx` shadow this file IS its declaration counterpart, so writing
+        // it makes the shadow resolve to itself.
+        if ext == ".tsx" {
+            fs::write(&dts_path, &dts_content)?;
+        } else {
+            let _ = fs::remove_file(&dts_path);
+        }
         write_esm_bridge(&tsx_path, &dts_content, false)?;
     }
     Ok(any_js_shadow)
@@ -3647,7 +3673,8 @@ mod tests {
 
         for entry in &layout.entries {
             assert!(entry.tsx_path.exists(), "{:?}", entry.tsx_path);
-            assert!(entry.dts_path.exists(), "{:?}", entry.dts_path);
+            let bridge = esm_bridge_path(&entry.tsx_path).unwrap();
+            assert!(bridge.exists(), "{bridge:?}");
             // shadow mirrors source relative path under emit_dir/svelte;
             // a JS-authored component gets `.jsx` so JSDoc is honoured
             let rel = entry
@@ -3725,7 +3752,7 @@ mod tests {
         let layout1 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
         let entry = &layout1.entries[0];
         assert!(entry.tsx_path.exists());
-        assert!(entry.dts_path.exists());
+        assert!(esm_bridge_path(&entry.tsx_path).unwrap().exists());
         let manifest_path = layout1.cache_dir.join("manifest.json");
         assert!(manifest_path.exists(), "manifest should be written");
 
@@ -3777,12 +3804,7 @@ mod tests {
             .find(|e| e.source_path == removed)
             .map(|e| e.tsx_path.clone())
             .unwrap();
-        let removed_dts = layout1
-            .entries
-            .iter()
-            .find(|e| e.source_path == removed)
-            .map(|e| e.dts_path.clone())
-            .unwrap();
+        let removed_dts = esm_bridge_path(&removed_tsx).unwrap();
         assert!(removed_tsx.exists());
         assert!(removed_dts.exists());
 
@@ -3792,7 +3814,10 @@ mod tests {
         let _ =
             materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, true, &[]).unwrap();
         assert!(!removed_tsx.exists(), "stale .tsx should have been pruned");
-        assert!(!removed_dts.exists(), "stale .d.ts should have been pruned");
+        assert!(
+            !removed_dts.exists(),
+            "stale ESM bridge should have been pruned"
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -4345,11 +4370,51 @@ mod tests {
         let layout = materialize_overlay(&tmp, &[svelte_path], None).unwrap();
         let bridge = layout.emit_dir.join("src/Foo.d.svelte.ts");
         let content = fs::read_to_string(&bridge).unwrap_or_default();
-        assert_eq!(
-            content,
-            fs::read_to_string(&layout.entries[0].dts_path).unwrap(),
-            "the bridge forwards exactly what the `.svelte.d.ts` twin does"
+        let shadow = layout.entries[0].tsx_path.file_name().unwrap();
+        assert!(
+            content.contains(&format!("from \"./{}\"", shadow.to_string_lossy())),
+            "the bridge must forward the shadow itself:\n{content}"
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// A `.jsx` shadow must NOT get the `<name>.svelte.d.ts` twin: that file is
+    /// TypeScript's declaration counterpart for it, so the bridges' own
+    /// `./<name>.svelte.jsx` would resolve to the twin, which re-exports from
+    /// `./<name>.svelte.jsx` — a cycle that types the component `any` and
+    /// silently swallows every diagnostic about using it. A `.tsx` shadow is
+    /// resolved literally (`allowImportingTsExtensions`) and keeps its twin.
+    #[test]
+    fn a_js_shadow_has_no_declaration_counterpart_but_a_ts_one_does() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_twin_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let js = tmp.join("src/Js.svelte");
+        let ts = tmp.join("src/Ts.svelte");
+        fs::write(&js, "<div>hi</div>").unwrap();
+        fs::write(&ts, "<script lang=\"ts\">let x: number = 0;</script>{x}").unwrap();
+
+        let layout = materialize_overlay(&tmp, &[js.clone(), ts.clone()], None).unwrap();
+        let twin = |src: &Path| {
+            let entry = layout
+                .entries
+                .iter()
+                .find(|e| e.source_path == *src)
+                .expect("entry");
+            (entry.tsx_path.clone(), entry.dts_path.exists())
+        };
+
+        let (js_shadow, js_twin) = twin(&js);
+        assert!(js_shadow.to_string_lossy().ends_with(".svelte.jsx"));
+        assert!(
+            !js_twin,
+            "a .jsx shadow must not shadow itself via its twin"
+        );
+
+        let (ts_shadow, ts_twin) = twin(&ts);
+        assert!(ts_shadow.to_string_lossy().ends_with(".svelte.tsx"));
+        assert!(ts_twin, "a .tsx shadow still needs its CJS-mode twin");
 
         let _ = fs::remove_dir_all(&tmp);
     }
