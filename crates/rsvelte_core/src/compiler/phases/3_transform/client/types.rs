@@ -2130,9 +2130,10 @@ pub struct EachBindingContext {
     /// Whether the item is reactive (wrapped in $.get())
     pub item_reactive: bool,
 
-    /// The collection expression string for invalidation
-    /// e.g., "items()" for props, "$.get(a)" for state
-    pub collection_expr: String,
+    /// The collection expression as an AST node (e.g. `items()` for props,
+    /// `$.get(a)` for state). Kept structured so that `collection[$$index]`
+    /// parenthesises a loose-binding collection such as `$.get(a) ?? []`.
+    pub collection_expr: JsExpr,
 
     /// If a $$array parameter was generated (scope shadowing case)
     pub collection_id: Option<String>,

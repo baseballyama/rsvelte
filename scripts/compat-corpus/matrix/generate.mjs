@@ -26,6 +26,10 @@ import {
 	PARAM_PREAMBLE,
 	PARAM_TEMPLATE_PREAMBLE,
 	PARAM_MODULE_PREAMBLE,
+	EACH_COLLECTIONS,
+	EACH_ITEM_SLOTS,
+	EACH_PREAMBLE,
+	EACH_EPILOGUE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -148,12 +152,26 @@ function paramDefaultCases() {
 	return cases;
 }
 
+function eachCollectionCases() {
+	const cases = [];
+	for (const [collectionName, expression] of Object.entries(EACH_COLLECTIONS)) {
+		for (const [slotName, markup] of Object.entries(EACH_ITEM_SLOTS)) {
+			cases.push({
+				id: `each-collection/${collectionName}__${slotName}.svelte`,
+				source: EACH_PREAMBLE + markup.replaceAll('%s', expression) + '\n\n' + EACH_EPILOGUE,
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'comment-slot': commentSlotCases,
 	'literal-escape': literalEscapeCases,
 	'invalid-bind': invalidBindCases,
 	'param-default': paramDefaultCases,
+	'each-collection': eachCollectionCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

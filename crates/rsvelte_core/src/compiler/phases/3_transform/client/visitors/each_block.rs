@@ -271,15 +271,16 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     };
 
     // Compute collection expression for invalidation
-    let collection_expr_str = if let Some(ref coll_id) = collection_id {
-        format!("{}()", coll_id)
+    let collection_access_expr = if let Some(ref coll_id) = collection_id {
+        b::call(&context.arena, b::id(coll_id), vec![])
     } else {
-        // Generate the collection expression as a string
-        crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
-            &collection,
-            &context.arena,
-        )
+        collection.clone()
     };
+    let collection_expr_str =
+        crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+            &collection_access_expr,
+            &context.arena,
+        );
 
     // Compute invalidation expressions from transitive deps
     // In the official compiler, transitive_deps come from analysis and contain the
@@ -415,7 +416,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     context.state.each_binding_context.push(EachBindingContext {
         item_name: item_name.to_string(),
         item_reactive,
-        collection_expr: collection_expr_str.clone(),
+        collection_expr: collection_access_expr,
         collection_id: collection_id.clone(),
         invalidation_exprs: invalidation_exprs.clone(),
         index_name: index_name_str.to_string(),

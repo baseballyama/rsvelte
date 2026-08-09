@@ -2106,48 +2106,25 @@ fn build_each_block_accessor_parts(
             // Getter: () => collection[$$index]
             // Setter: ($$value) => (collection[$$index] = $$value, invalidation)
 
-            // Build collection access as a proper AST node so unwrap_thunk can work on
+            // Build collection[index] as a proper AST node so unwrap_thunk can work on
             // the resulting arrow function (b::thunk requires a structured JsExpr::Arrow).
-            let collection_expr = if let Some(ref coll_id) = each_ctx.collection_id {
-                // collection is a prop (function call): selected_array()
-                b::call(&context.arena, b::id(coll_id), vec![])
-            } else {
-                // collection is a raw expression (e.g., component prop or literal)
-                JsExpr::Raw(each_ctx.collection_expr.clone().into())
-            };
-            let index_expr = if each_ctx.index_reactive {
-                b::call(
-                    &context.arena,
-                    b::member_path(&context.arena, "$.get"),
-                    vec![b::id(&each_ctx.index_name)],
-                )
-            } else {
-                b::id(&each_ctx.index_name)
-            };
-
-            // Build collection[index] as a computed member expression
             let member_expr =
-                b::member_computed(&context.arena, collection_expr.clone(), index_expr.clone());
+                super::shared::utils::build_reassigned_item_read(&each_ctx, &context.arena);
 
             // Getter: () => collection[index]  (structured arrow, unwrap_thunk-compatible)
             let get = b::thunk(&context.arena, member_expr.clone());
 
             // Setter: ($$value) => (collection[index] = $$value, invalidation)
-            // Build as a raw string since assignment and sequence expressions need special handling
-            let collection_access = if let Some(ref coll_id) = each_ctx.collection_id {
-                format!("{}()", coll_id)
-            } else {
-                each_ctx.collection_expr.clone()
-            };
-            let index_access = if each_ctx.index_reactive {
-                format!("$.get({})", each_ctx.index_name)
-            } else {
-                each_ctx.index_name.clone()
-            };
+            // Printed from the member AST so the collection keeps any parentheses it needs.
+            let member_access =
+                crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                    &member_expr,
+                    &context.arena,
+                );
             let setter_body = if let Some(ref inv) = invalidation {
-                format!("{}[{}] = $$value, {}", collection_access, index_access, inv)
+                format!("{} = $$value, {}", member_access, inv)
             } else {
-                format!("{}[{}] = $$value", collection_access, index_access)
+                format!("{} = $$value", member_access)
             };
 
             (get, member_expr, setter_body)

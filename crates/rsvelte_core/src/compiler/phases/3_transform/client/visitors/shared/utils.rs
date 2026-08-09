@@ -1519,19 +1519,10 @@ fn classify_svelte_runtime_callee(
 ///   );
 /// }
 /// ```
-fn build_reassigned_item_read(
+pub(crate) fn build_reassigned_item_read(
     each_ctx: &crate::compiler::phases::phase3_transform::client::types::EachBindingContext,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr {
-    // Build the collection expression (either $$array() or the collection itself)
-    let collection_expr = if let Some(ref coll_id) = each_ctx.collection_id {
-        // Computed: $$array()
-        b::call(arena, b::id(coll_id), vec![])
-    } else {
-        // Raw collection expression string (already has transforms applied, e.g., $.get(arr))
-        JsExpr::Raw(each_ctx.collection_expr.clone().into())
-    };
-
     // Build the index expression (either $.get($$index) for reactive or just $$index)
     let index_expr = if each_ctx.index_reactive {
         b::call(
@@ -1544,7 +1535,8 @@ fn build_reassigned_item_read(
     };
 
     // Build the computed member expression: collection[index]
-    b::member_computed(arena, collection_expr, index_expr)
+    let collection = b::close_optional_chain(arena, each_ctx.collection_expr.clone());
+    b::member_computed(arena, collection, index_expr)
 }
 
 /// Build a `$.invalidate_inner_signals(() => (expr1, expr2, ...))` call.

@@ -505,6 +505,98 @@ export function toggle() {
 };
 
 /**
+ * Axis H — the `{#each}` collection expression, crossed with axis I, how the
+ * loop item is used.
+ *
+ * In legacy mode a REASSIGNED each item is read back as `collection[$$index]`,
+ * which puts the collection in a member-OBJECT slot — the one place where an
+ * expression's own precedence decides whether it needs parentheses. rsvelte
+ * spliced it there as opaque text, which carries no precedence at all, so
+ * `list ?? []` printed as `list ?? [][$$index]`: a different expression, and on
+ * the left of `=` not even parseable.
+ *
+ * Both polarities are here on purpose. The loose rows must gain parentheses;
+ * the tight rows (`identifier`, `member`, `call`, …) must not, or a fix that
+ * parenthesises unconditionally scores green while changing output for every
+ * collection that was already right. `optional-member` is the sharpest of the
+ * tight rows: `o?.list` DOES need them, because a bare member would otherwise
+ * join the optional chain.
+ */
+export const EACH_COLLECTIONS = {
+	nullish: 'list ?? []',
+	'logical-or': 'list || []',
+	'logical-and': 'flag && list',
+	conditional: 'flag ? list : other',
+	'unary-not': '!list',
+	'typeof-operand': 'typeof list',
+	'binary-plus': 'list + other',
+	sequence: '(other, list)',
+	assignment: '(list = other)',
+	arrow: '(() => list)',
+	await: 'await list',
+	// Tight-binding controls: these must print exactly as they do today.
+	identifier: 'list',
+	member: 'o.list',
+	'computed-member': "o['list']",
+	call: 'getList()',
+	'new-expression': 'new Array(1)',
+	'optional-member': 'o?.list',
+	'array-literal': '[1, 2]',
+	'template-literal': '`ab`',
+	parenthesized: '(list)',
+};
+
+/**
+ * Axis I — what the loop item does, which is what decides whether the item is
+ * `reassigned` and therefore whether the collection reaches a member-object slot
+ * at all. These are four different builders in rsvelte (the identifier read
+ * transform, the assignment path, the update-expression path, and the `bind:`
+ * accessor pair), and only the last one built its setter as text.
+ *
+ * `plain-read` and `mutate-property` are the negative controls: the item is
+ * never reassigned, so no `collection[$$index]` is emitted and the collection
+ * must not appear in a member slot.
+ */
+export const EACH_ITEM_SLOTS = {
+	'bind-value': '{#each %s as item}\n\t<input bind:value={item} />\n{/each}',
+	'bind-value-indexed': '{#each %s as item, i}\n\t<input bind:value={item} />\n\t<p>{i}</p>\n{/each}',
+	'bind-value-keyed-index': '{#each %s as item, i (i)}\n\t<input bind:value={item} />\n{/each}',
+	'bind-group': '{#each %s as item}\n\t<input type="checkbox" bind:group={item} />\n{/each}',
+	'assign-handler': '{#each %s as item}\n\t<button onclick={() => (item = 1)}>x</button>\n{/each}',
+	'compound-assign-handler': '{#each %s as item}\n\t<button onclick={() => (item += 1)}>x</button>\n{/each}',
+	'update-handler': '{#each %s as item}\n\t<button onclick={() => item++}>x</button>\n{/each}',
+	'read-and-assign': '{#each %s as item}\n\t<button onclick={() => (item = 1)}>{item}</button>\n{/each}',
+	'plain-read': '{#each %s as item}\n\t<p>{item}</p>\n{/each}',
+	'mutate-property': '{#each %s as item}\n\t<button onclick={() => (item.v = 1)}>x</button>\n{/each}',
+};
+
+/**
+ * The declarations every each case shares. Deliberately rune-free: the
+ * reassigned-item read only exists in legacy mode, so a `$state` preamble would
+ * make every row measure nothing.
+ */
+export const EACH_PREAMBLE = `<script>
+	let list = [1];
+	let other = [2];
+	let flag = true;
+	let o = { list: [3] };
+	function getList() {
+		return [4];
+	}
+</script>
+
+`;
+
+/**
+ * Every declaration is reassigned here so that none of them is "unused" in the
+ * rows that do not name it. A legacy `let` only becomes a `$.mutable_source`
+ * when something writes to it, so without this the preamble itself would differ
+ * between rows and the divergence would not be attributable to the axis.
+ */
+export const EACH_EPILOGUE = `<button onclick={() => ((list = list), (other = other), (flag = flag), (o = o))}>y</button>
+`;
+
+/**
  * `await` / `yield` inside a function's formal parameters — the fourth axis
  * family, and the second whose inputs the official compiler REJECTS.
  *
