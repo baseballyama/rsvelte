@@ -568,6 +568,32 @@ jobs:
           RUST_MIN_STACK: '33554432'
           RSVELTE_REQUIRE_PREREQS: '1'
 
+  oxc-formatter-probe:
+    name: OXC formatter probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          mold: 'true'
+          nextest: 'true'
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: oxc-formatter-probe
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run OXC formatter compatibility probe
+        run: >-
+          cargo nextest run --profile ci -p rsvelte_devtools
+          --test oxc_formatter_probe --features oxc-formatter-probe
+        timeout-minutes: 30
+
   # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
   # every .svelte file + markdown code block from svelte.dev and diff against an
   # oxfmt oracle) are the bulk job's other long pole. Isolate them the same way:
@@ -775,7 +801,7 @@ jobs:
   # needs a protection-rule change. Fails if any of them failed or was cancelled.
   tests:
     name: Tests
-    needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus]
+    needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus, oxc-formatter-probe]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -788,13 +814,15 @@ jobs:
           RUNTIME: ${{ needs.test-runtime.result }}
           THREAD_SAFETY: ${{ needs.test-thread-safety.result }}
           FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
+          OXC_FORMATTER_PROBE: ${{ needs.oxc-formatter-probe.result }}
         run: |
           echo "test (shards): $BULK"
           echo "test-unit: $UNIT"
           echo "test-runtime: $RUNTIME"
           echo "test-thread-safety: $THREAD_SAFETY"
           echo "test-fmt-corpus: $FMT_CORPUS"
-          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" ]]; then
+          echo "oxc-formatter-probe: $OXC_FORMATTER_PROBE"
+          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" || "$OXC_FORMATTER_PROBE" != "success" ]]; then
             echo "::error::One or more test jobs did not succeed."
             exit 1
           fi

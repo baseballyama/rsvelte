@@ -28,6 +28,7 @@ measure-prop-reads = ["rsvelte_core/measure-prop-reads"]
 measure-semantic-build = ["rsvelte_core/measure-semantic-build"]
 measure-pa-split = ["rsvelte_core/measure-pa-split"]
 measure-tf-split = ["rsvelte_core/measure-tf-split"]
+oxc-formatter-probe = ["dep:oxc_formatter"]
 
 [dependencies]
 rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }
@@ -39,6 +40,7 @@ backtrace = "0.3"
 chrono = "0.4"
 oxc_allocator = "0.143"
 oxc_codegen = "0.143"
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "9a423f2f485b79c2353c49442c0c7f60f900261d", optional = true }
 oxc_parser = "0.143"
 oxc_span = "0.143"
 rayon = { version = "1.10", optional = true }
@@ -57,8 +59,6 @@ tikv-jemallocator = { version = "0.7", optional = true }
 criterion = { version = "5.0.0", features = [
     "html_reports",
 ], package = "codspeed-criterion-compat" }
-# Repository-only compatibility probe for the unreleased OXC formatter.
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "9a423f2f485b79c2353c49442c0c7f60f900261d" }
 similar = { version = "3.0", features = ["text"] }
 tokio = { version = "1", features = ["rt"] }
 
@@ -75,6 +75,10 @@ required-features = ["native"]
 [[bench]]
 name = "compiler"
 harness = false
+
+[[test]]
+name = "oxc_formatter_probe"
+required-features = ["oxc-formatter-probe"]
 
 [lints]
 workspace = true
