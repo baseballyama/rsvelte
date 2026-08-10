@@ -20,7 +20,7 @@ use super::errors;
 use super::warnings;
 
 /// Constructors declared inside the `diagnostics!` block in `errors.rs`.
-const ERROR_MACRO_COUNT: usize = 127;
+const ERROR_MACRO_COUNT: usize = 130;
 /// Constructors declared inside the `diagnostics!` block in `warnings.rs`.
 const WARNING_MACRO_COUNT: usize = 77;
 /// Calls below covering `errors.rs`'s hand-written constructor (`bind_invalid_name`),
@@ -34,7 +34,7 @@ const WARNING_HANDWRITTEN_CALLS: usize = 7;
 /// FNV-1a 64 of `"<code>\t<message>\n"` for every entry `dump_all()` produces, in the
 /// fixed order below. Pinned from this PR; if it legitimately changes, update it to the
 /// value printed in the assertion failure after confirming the new wording is correct.
-const DIAGNOSTICS_DIGEST: u64 = 0x0856_867a_8ed7_4cbb;
+const DIAGNOSTICS_DIGEST: u64 = 0x7e88_e486_f227_1efd;
 
 fn fnv1a64(bytes: &[u8]) -> u64 {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
