@@ -57,6 +57,34 @@ fn hydratable_is_reported_as_removed() {
 }
 
 #[test]
+fn deprecated_options_are_reported_when_present_even_if_false() {
+    let mut options = base();
+    options.legacy_options.accessors = true;
+    options.legacy_options.immutable = true;
+    assert_eq!(
+        codes(options),
+        vec![
+            "options_deprecated_accessors",
+            "options_deprecated_immutable"
+        ]
+    );
+}
+
+#[test]
+fn direct_rust_true_deprecated_options_are_reported() {
+    let mut options = base();
+    options.accessors = true;
+    options.immutable = true;
+    assert_eq!(
+        codes(options),
+        vec![
+            "options_deprecated_accessors",
+            "options_deprecated_immutable"
+        ]
+    );
+}
+
+#[test]
 fn hydratable_message_matches_upstream() {
     let mut options = base();
     options.legacy_options.hydratable = true;

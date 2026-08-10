@@ -115,6 +115,10 @@ pub struct LegacyOptions {
     /// `generate: 'dom' | 'ssr'` — the pre-Svelte-5 spellings of
     /// `'client'` / `'server'`, still honoured but renamed.
     pub generate_dom_ssr: bool,
+    /// `accessors` — deprecated in Svelte 5. Presence matters even for `false`.
+    pub accessors: bool,
+    /// `immutable` — deprecated in Svelte 5. Presence matters even for `false`.
+    pub immutable: bool,
     /// `loopGuardTimeout` — removed in Svelte 5.
     pub loop_guard_timeout: bool,
     /// `enableSourcemap` — removed in Svelte 5.
@@ -727,13 +731,18 @@ pub(crate) fn finalize_compile_result(
             phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
         ));
     }
-    if options.accessors && runes_mode {
+    if options.legacy_options.accessors || options.accessors {
         option_warnings.push(phases::phase3_transform::TransformWarning {
             code: "options_deprecated_accessors".to_string(),
             message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
             start: None,
             end: None,
         });
+    }
+    if options.legacy_options.immutable || options.immutable {
+        option_warnings.push(legacy_option_warning(
+            phases::phase2_analyze::warnings::options_deprecated_immutable(),
+        ));
     }
     if options.legacy_options.loop_guard_timeout {
         option_warnings.push(legacy_option_warning(

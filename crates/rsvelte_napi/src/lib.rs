@@ -954,12 +954,14 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.accessors {
             opts.accessors = coerce_bool("accessors", v)?;
+            opts.legacy_options.accessors = true;
         }
         if let Some(v) = &self.namespace {
             opts.namespace = coerce_namespace(v)?;
         }
         if let Some(v) = &self.immutable {
             opts.immutable = coerce_bool("immutable", v)?;
+            opts.legacy_options.immutable = true;
         }
         if let Some(v) = &self.css {
             opts.css = coerce_css(v)?;
