@@ -6,38 +6,35 @@ use std::borrow::Cow;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 use super::{
-    body_references_identifier, extract_destructure_targets, extract_member_expression_base,
-    find_assignment_position, get_or_compile_regex, is_simple_identifier, lhs_starts_with_keyword,
+    extract_destructure_targets, extract_member_expression_base, find_assignment_position,
+    get_or_compile_regex, is_simple_identifier, lhs_starts_with_keyword,
     transform_destructure_assignments_with_props, transform_prop_assignments,
     transform_prop_reads_in_expr, transform_store_assignments_client, transform_store_reads_client,
     transform_store_sub_calls, wrap_state_vars_in_expr,
 };
 
-/// Extract assigned variable names and dependency variable names from a raw `$:` reactive statement.
+/// Extract the reactive variables assigned by a raw `$:` statement.
 ///
-/// This is used for topological sorting of reactive statements.
-/// Returns (assigned_vars, dependency_vars).
-///
-/// For `$: c = a + b;`, returns (["c"], ["a", "b"])
-/// For `$: console.log(x);`, returns ([], ["console", "x"])
-pub(super) fn extract_reactive_statement_deps(
+/// Dependency names come from Phase 2's typed traversal. Keeping only the
+/// assignment scan here avoids walking every reactive body twice in Phase 3.
+pub(super) fn extract_reactive_statement_assignments(
     statement: &str,
     state_vars: &[String],
     prop_vars: &[String],
     store_sub_vars: &[String],
-) -> (Vec<String>, Vec<String>) {
+) -> Vec<String> {
     let trimmed = statement.trim();
 
     // Extract the body after `$:`
     let body = if let Some(stripped) = trimmed.strip_prefix("$:") {
         stripped.trim()
     } else {
-        return (vec![], vec![]);
+        return vec![];
     };
 
     let body = body.trim_end_matches(';').trim();
     if body.is_empty() {
-        return (vec![], vec![]);
+        return vec![];
     }
 
     // All known reactive variable names (state vars + prop vars + store subs)
@@ -50,12 +47,10 @@ pub(super) fn extract_reactive_statement_deps(
         .collect();
 
     let mut assigned_vars = Vec::new();
-    let mut dep_vars = Vec::new();
 
     // Check if this is an assignment statement
     if let Some(eq_pos) = find_assignment_position(body) {
         let lhs = body[..eq_pos].trim();
-        let rhs = body[eq_pos + 1..].trim();
 
         // Extract assigned variable from LHS
         // Simple identifier: `c = ...`
@@ -66,24 +61,6 @@ pub(super) fn extract_reactive_statement_deps(
             // Extract the base identifier
             if let Some(base) = extract_member_expression_base(lhs) {
                 assigned_vars.push(base.to_string());
-            }
-        }
-
-        // Extract dependencies from RHS
-        for var_name in &all_reactive_vars {
-            if body_references_identifier(rhs, var_name) {
-                // Only add as dependency if it's not also being assigned
-                if !assigned_vars.contains(&var_name.to_string()) {
-                    dep_vars.push(var_name.to_string());
-                }
-            }
-        }
-    } else {
-        // Not a simple assignment - expression statement like `console.log(x)` or `if (...) { x++ }`
-        // All referenced reactive vars are dependencies
-        for var_name in &all_reactive_vars {
-            if body_references_identifier(body, var_name) {
-                dep_vars.push(var_name.to_string());
             }
         }
     }
@@ -103,7 +80,7 @@ pub(super) fn extract_reactive_statement_deps(
         }
     }
 
-    (assigned_vars, dep_vars)
+    assigned_vars
 }
 
 /// Check if a variable is assigned anywhere in a code body (including nested blocks).
@@ -1104,4 +1081,35 @@ pub(super) fn transform_state_member_mutations(
         non_reactive_vars,
     )
     .unwrap_or_else(|| expr.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_reactive_statement_assignments;
+
+    #[test]
+    fn reactive_assignment_scan_keeps_only_the_topology_targets() {
+        let state = vec!["count".to_string(), "total".to_string()];
+        let props = vec!["step".to_string()];
+        let stores = vec!["$store".to_string()];
+
+        assert_eq!(
+            extract_reactive_statement_assignments(
+                "$: total = count + step;",
+                &state,
+                &props,
+                &stores,
+            ),
+            vec!["total"]
+        );
+        assert_eq!(
+            extract_reactive_statement_assignments(
+                "$: if (step) { count++; $store = total; }",
+                &state,
+                &props,
+                &stores,
+            ),
+            vec!["count", "$store"]
+        );
+    }
 }

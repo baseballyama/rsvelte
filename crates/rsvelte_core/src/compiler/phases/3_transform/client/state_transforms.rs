@@ -14,9 +14,9 @@ use super::rune_transforms::{
     split_derived_object_properties,
 };
 use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
-use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    code_bytes, code_bytes_from, skip_opaque,
-};
+#[cfg(test)]
+use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes_from;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
 
 // ---------------------------------------------------------------------------
 // Identifier reference detection (lines 7653-8602 of mod.rs)
@@ -32,6 +32,7 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::{
 /// because it appears on the RHS.
 /// For block bodies like `{ c = a + b; count = count + 1; }`, we check each statement
 /// within the block.
+#[cfg(test)]
 pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
     // Every strip below only blanks or deletes characters, so a name absent from
     // the raw body is absent from all of them. Callers ask this once per
@@ -81,12 +82,14 @@ pub(super) fn body_references_identifier(body: &str, identifier: &str) -> bool {
 /// - the same with `.` also excluded before the name for every other identifier,
 ///   so `obj.prop` does not match a standalone `prop` — except for a spread
 ///   prefix (`f(...prop)`), which reads it
+#[cfg(test)]
 pub(super) struct IdentifierMatcher<'a> {
     identifier: &'a str,
     /// `$$`-names accept a `.` immediately before them; the rest do not.
     allows_leading_dot: bool,
 }
 
+#[cfg(test)]
 impl<'a> IdentifierMatcher<'a> {
     pub(super) fn new(identifier: &'a str) -> Self {
         Self {
@@ -135,6 +138,7 @@ impl<'a> IdentifierMatcher<'a> {
     }
 }
 
+#[cfg(test)]
 fn continues_identifier(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
 }
@@ -143,6 +147,7 @@ fn continues_identifier(byte: u8) -> bool {
 /// was a comment. Restricted to `/`-led runs on purpose: this scanner's whole job
 /// is to descend into string and template literals, which `skip_opaque` — the
 /// same lexer this delegates to — treats as opaque.
+#[cfg(test)]
 fn skip_slash_run(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bool)> {
     if bytes[i] != b'/' {
         return None;
@@ -159,6 +164,7 @@ fn skip_slash_run(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bo
 ///
 /// This prevents false identifier matches inside literal text, e.g., `<circle>` in
 /// a template literal won't match the variable name `circle`.
+#[cfg(test)]
 pub(super) fn strip_string_literal_text(code: &str) -> std::borrow::Cow<'_, str> {
     // Fast path: if no string delimiters exist, return as-is
     // Uses memchr3 for SIMD-accelerated search of all three delimiters at once
@@ -321,6 +327,7 @@ pub(super) fn strip_string_literal_text(code: &str) -> std::borrow::Cow<'_, str>
 /// - `{ key: value }` -> `{     value }` (non-shorthand key blanked)
 /// - `{ key }` -> `{ key }` (shorthand preserved)
 /// - `{ [expr]: value }` -> `{ [expr]: value }` (computed preserved)
+#[cfg(test)]
 pub(super) fn strip_object_property_keys(code: &str) -> std::borrow::Cow<'_, str> {
     // A key can only be blanked at a `:`, and the two `Vec<char>` below cost four
     // bytes per source byte, so the absence of one is worth checking for.
@@ -404,6 +411,7 @@ pub(super) fn strip_object_property_keys(code: &str) -> std::borrow::Cow<'_, str
 /// Whether `c` can follow the last character of a parameter name. Spelled over
 /// characters rather than the single space the ASCII whitelist accepted, because
 /// `U+3000` and NBSP separate a parameter exactly as a space does.
+#[cfg(test)]
 fn ends_a_parameter_name(c: char) -> bool {
     c == ',' || c == ')' || c == ':' || c.is_whitespace()
 }
@@ -416,6 +424,7 @@ fn ends_a_parameter_name(c: char) -> bool {
 /// - `function (a) { ... }` -> `                   `
 /// - `(a) => { ... }` -> `              `
 /// - `(a) => expr` -> `            `
+#[cfg(test)]
 pub(super) fn strip_function_scopes_that_shadow<'a>(
     body: &'a str,
     identifier: &str,
@@ -633,6 +642,7 @@ pub(super) fn strip_function_scopes_that_shadow<'a>(
 
 /// Recursively check if an identifier is read (not just assigned to) in a body of code.
 /// Handles block statements, if/else blocks, and compound statements.
+#[cfg(test)]
 pub(super) fn body_references_identifier_recursive(
     body: &str,
     identifier: &str,
@@ -728,6 +738,7 @@ pub(super) fn body_references_identifier_recursive(
 }
 
 /// Check if an identifier is referenced as a read across multiple statements.
+#[cfg(test)]
 pub(super) fn body_references_identifier_in_statements(
     content: &str,
     identifier: &str,
@@ -765,6 +776,7 @@ pub(super) fn body_references_identifier_in_statements(
 }
 
 /// Check if an identifier appears as a read (not just assignment target) in a single statement.
+#[cfg(test)]
 pub(super) fn check_identifier_in_statement(
     stmt: &str,
     identifier: &str,
@@ -966,6 +978,7 @@ pub(super) fn find_assignment_position(expr: &str) -> Option<usize> {
 /// Find the position of a `:` at depth 0 in an expression.
 /// This is used to split ternary expressions like `true_rhs : false_branch`.
 /// The returned position is a **byte** offset: the caller slices `expr` with it.
+#[cfg(test)]
 pub(super) fn find_colon_at_depth0(expr: &str) -> Option<usize> {
     // Not `code_bytes`: `${`/`}` move the outer depth here and the bookkeeping is
     // preserved exactly rather than re-derived. UTF-8 continuation bytes are all
