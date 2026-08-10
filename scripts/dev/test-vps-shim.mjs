@@ -94,6 +94,31 @@ assert(
 	asyncCompiled?.js?.map?.sourcesContent?.[0] === compileSource,
 );
 
+async function assertCompileError(label, invoke) {
+	try {
+		await invoke();
+		assert(label, false, 'did not throw');
+	} catch (error) {
+		assert(
+			label,
+			error?.name === 'CompileError' &&
+				typeof error.code === 'string' &&
+				error.start != null &&
+				error.end != null &&
+				typeof error.frame === 'string',
+			JSON.stringify(error),
+		);
+	}
+}
+
+const invalidCompileSource = '<div a="1" a="2"></div>';
+await assertCompileError('compile() surfaces a shaped CompileError', () =>
+	Promise.resolve(r.compile(invalidCompileSource, { filename: 'Invalid.svelte' })),
+);
+await assertCompileError('compileAsync() surfaces a shaped CompileError', () =>
+	r.compileAsync(invalidCompileSource, { filename: 'Invalid.svelte' }),
+);
+
 const asyncBatchInputs = [
 	{ source: compileSource, options: { filename: 'Foo.svelte', generate: 'client' } },
 ];

@@ -1840,24 +1840,30 @@ fn ensure_envelope_size(size: usize) -> napi::Result<()> {
 /// See `rsvelte_bindings_support::napi_raw` for the byte-level format.
 #[napi(js_name = "compileEnvelope", catch_unwind)]
 pub fn napi_compile_envelope(
+    env: Env,
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(options)?;
-    compile_envelope(&source, opts, false)
+    let filename = opts.filename.clone();
+    compile_envelope(&env, &source, filename.as_deref(), opts, false)
 }
 
 #[napi(js_name = "compileEnvelopeExternalSources", catch_unwind)]
 pub fn napi_compile_envelope_external_sources(
+    env: Env,
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(options)?;
-    compile_envelope(&source, opts, true)
+    let filename = opts.filename.clone();
+    compile_envelope(&env, &source, filename.as_deref(), opts, true)
 }
 
 fn compile_envelope(
+    env: &Env,
     source: &str,
+    filename: Option<&str>,
     options: CompileOptions,
     externalize_sourcemap_content: bool,
 ) -> napi::Result<Buffer> {
@@ -1873,7 +1879,7 @@ fn compile_envelope(
                 rsvelte_bindings_support::napi_raw::encode_to_vec(&result),
             ))
         }
-        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+        Err(e) => Err(compile_error(env, source, filename, e)),
     }
 }
 
@@ -2157,12 +2163,13 @@ use napi::bindgen_prelude::AsyncTask;
 /// a Node `Buffer` on the main thread.
 pub struct CompileEnvelopeTask {
     source: String,
+    filename: Option<String>,
     options: CompileOptions,
     externalize_sourcemap_content: bool,
 }
 
 impl Task for CompileEnvelopeTask {
-    type Output = Vec<u8>;
+    type Output = Result<Vec<u8>, rsvelte_core::compiler::CompileError>;
     type JsValue = Buffer;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
@@ -2174,14 +2181,28 @@ impl Task for CompileEnvelopeTask {
             rust_compile_with_external_sourcemap_content(&self.source, self.options.clone())
         } else {
             rust_compile(&self.source, self.options.clone())
+        };
+        match result {
+            Ok(result) => {
+                ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_size(&result))?;
+                Ok(Ok(rsvelte_bindings_support::napi_raw::encode_to_vec(
+                    &result,
+                )))
+            }
+            Err(error) => Ok(Err(error)),
         }
-        .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
-        ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_size(&result))?;
-        Ok(rsvelte_bindings_support::napi_raw::encode_to_vec(&result))
     }
 
-    fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
-        Ok(Buffer::from(output))
+    fn resolve(&mut self, env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
+        match output {
+            Ok(output) => Ok(Buffer::from(output)),
+            Err(error) => Err(compile_error(
+                &env,
+                &self.source,
+                self.filename.as_deref(),
+                error,
+            )),
+        }
     }
 }
 
@@ -2193,9 +2214,11 @@ pub fn napi_compile_envelope_async(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
+    let options = options_to_compile(options)?;
     Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
-        options: options_to_compile(options)?,
+        filename: options.filename.clone(),
+        options,
         externalize_sourcemap_content: false,
     }))
 }
@@ -2205,9 +2228,11 @@ pub fn napi_compile_envelope_external_sources_async(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
+    let options = options_to_compile(options)?;
     Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
-        options: options_to_compile(options)?,
+        filename: options.filename.clone(),
+        options,
         externalize_sourcemap_content: true,
     }))
 }
