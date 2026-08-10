@@ -1888,7 +1888,8 @@ fn is_function_var_declaration(s: &str) -> bool {
     // Look for = followed by function or arrow
     if let Some(eq_pos) = find_assignment_in_decl(s) {
         let after_eq = s[eq_pos + 1..].trim();
-        after_eq.starts_with("function ")
+        is_derived_by_async_function(after_eq)
+            || after_eq.starts_with("function ")
             || after_eq.starts_with("function(")
             || after_eq.starts_with("async function")
             // Parenthesized expression: could be arrow function params `(x, y) => ...`
@@ -1948,6 +1949,15 @@ fn is_function_var_declaration(s: &str) -> bool {
     } else {
         false
     }
+}
+
+/// `$derived.by` receives a function value, so an `await` in an async callback
+/// is not an await of the enclosing declaration.
+fn is_derived_by_async_function(s: &str) -> bool {
+    let Some(rest) = s.strip_prefix("$derived.by(") else {
+        return false;
+    };
+    rest.trim_start().starts_with("async ")
 }
 
 /// Check if a statement is a variable declaration.
@@ -3148,5 +3158,16 @@ mod tests {
         let ids = extract_all_identifiers_from_statement("$derived(await foo)");
         assert!(ids.contains(&"foo".to_string()));
         assert!(!ids.iter().any(|id| id.starts_with('$')));
+    }
+
+    #[test]
+    fn derived_by_async_callback_stays_in_sync_prelude() {
+        let script = "const a = $derived.by(async () => await p);";
+        let result = transform_async_body(script, "$.run");
+        assert!(
+            result.is_none(),
+            "async callback must not split its declaration"
+        );
+        assert!(compute_blocker_map(script).is_empty());
     }
 }
