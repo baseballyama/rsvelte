@@ -1,6 +1,11 @@
 //! Expression parsing, shadowing detection, and identifier analysis utilities.
 
 use memchr::memmem;
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{ArrowFunctionExpression, AwaitExpression, Class, Function, Statement};
+use oxc_ast_visit::Visit;
+use oxc_parser::Parser;
+use oxc_span::SourceType;
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
@@ -2776,10 +2781,44 @@ pub(super) fn is_top_level_function_call(expr: &str) -> bool {
 /// - `foo(await 1)` -> true
 /// - `async () => { return await 1; }` -> false (await is inside async function)
 pub(super) fn contains_direct_await_in_expression(expr: &str) -> bool {
-    let found = scan_for_direct_await(expr);
+    let found = direct_await_from_ast(expr).unwrap_or_else(|| scan_for_direct_await(expr));
     #[cfg(feature = "measure-await")]
     crate::measure_await::record(expr, found);
     found
+}
+
+/// Parse the expression before falling back to the legacy scanner. An `await`
+/// owned by a nested function must not make its enclosing `$derived` async.
+fn direct_await_from_ast(expr: &str) -> Option<bool> {
+    let wrapped = format!("({expr});");
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &wrapped, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let Statement::ExpressionStatement(statement) = parsed.program.body.first()? else {
+        return None;
+    };
+
+    struct DirectAwaitScan {
+        found: bool,
+    }
+
+    impl<'a> Visit<'a> for DirectAwaitScan {
+        fn visit_await_expression(&mut self, _: &AwaitExpression<'a>) {
+            self.found = true;
+        }
+
+        fn visit_function(&mut self, _: &Function<'a>, _: oxc_syntax::scope::ScopeFlags) {}
+
+        fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
+
+        fn visit_class(&mut self, _: &Class<'a>) {}
+    }
+
+    let mut scan = DirectAwaitScan { found: false };
+    scan.visit_expression(&statement.expression);
+    Some(scan.found)
 }
 
 fn scan_for_direct_await(expr: &str) -> bool {
@@ -3154,123 +3193,19 @@ mod proxy_detection_tests {
 
 #[cfg(test)]
 mod await_scan_tests {
-    use super::{contains_direct_await_in_expression, is_escaped_char, is_identifier_char};
-
-    /// The scanner as it stood before the per-character `String` builds were
-    /// removed, so the inputs below compare two implementations rather than one
-    /// against a hand-written expectation. The `"async"` arm is the branch the
-    /// refactor dropped; the corpus never reaches it, so its equivalence has to
-    /// be pinned by construction here instead. Everything else tracks the
-    /// production scanner, or the oracle would pin a defect rather than a shape.
-    fn pre_refactor_scan(expr: &str) -> bool {
-        let chars: Vec<char> = expr.chars().collect();
-        let mut i = 0;
-        let mut in_string = false;
-        let mut string_char = ' ';
-        let mut async_fn_depth = 0;
-
-        while i < chars.len() {
-            let c = chars[i];
-
-            if !in_string && (c == '"' || c == '\'' || c == '`') {
-                in_string = true;
-                string_char = c;
-                i += 1;
-                continue;
-            }
-            if in_string && c == string_char && !is_escaped_char(&chars, i) {
-                in_string = false;
-                i += 1;
-                continue;
-            }
-            if in_string {
-                i += 1;
-                continue;
-            }
-
-            if i + 5 <= chars.len() {
-                let word: String = chars[i..i + 5].iter().collect();
-                if word == "async" {
-                    let rest: String = chars[i + 5..].iter().collect();
-                    let rest_trimmed = rest.trim_start();
-                    if rest_trimmed.starts_with("(")
-                        || rest_trimmed.starts_with("function")
-                        || chars[i + 5..]
-                            .iter()
-                            .collect::<String>()
-                            .trim_start()
-                            .starts_with("=>")
-                    {
-                        // Empty in the original too: the arm computed a verdict
-                        // it never acted on.
-                    }
-                }
-            }
-
-            if i + 5 <= chars.len() && async_fn_depth == 0 {
-                let word: String = chars[i..i + 5].iter().collect();
-                if word == "await" {
-                    let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
-                    let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
-                    if before_ok && after_ok {
-                        return true;
-                    }
-                }
-            }
-
-            if c == '{' {
-                let before: String = chars[..i].iter().collect();
-                if before.trim_end().ends_with("=>") {
-                    let before_trimmed = before.trim_end();
-                    if let Some(paren_pos) = before_trimmed.rfind('(') {
-                        let before_paren = &before_trimmed[..paren_pos];
-                        if before_paren.trim_end().ends_with("async") {
-                            async_fn_depth += 1;
-                        }
-                    } else if let Some(async_pos) =
-                        memchr::memmem::rfind(before_trimmed.as_bytes(), b"async")
-                    {
-                        let between = &before_trimmed[async_pos + 5..];
-                        if between
-                            .trim()
-                            .chars()
-                            .all(|c| is_identifier_char(c) || c == ' ')
-                        {
-                            async_fn_depth += 1;
-                        }
-                    }
-                }
-            } else if c == '}' && async_fn_depth > 0 {
-                async_fn_depth -= 1;
-            }
-
-            i += 1;
-        }
-
-        false
-    }
+    use super::contains_direct_await_in_expression;
 
     #[test]
-    fn agrees_with_pre_refactor_scan_on_the_async_branch() {
-        // Each input makes the dropped arm's `word == "async"` test fire; the
-        // three tails cover its three disjuncts plus the case where all fail.
+    fn ignores_await_owned_by_nested_functions() {
         let cases = [
-            "async () => { await x }",
-            "async function () { await x }",
+            "async () => { return await x }",
+            "async function () { return await x }",
             "async x => await x",
-            "asyncThing(await x)",
-            "await async () => 1",
-            "async",
-            "async\u{3000}=> await x",
-            r"'\\' + await x",
-            r"`p\\` + await x",
+            "class C { async m() { return await x } }",
         ];
         for expr in cases {
-            assert_eq!(
-                contains_direct_await_in_expression(expr),
-                pre_refactor_scan(expr),
-                "verdict drift on {expr:?}"
-            );
+            assert!(!contains_direct_await_in_expression(expr), "{expr:?}");
         }
+        assert!(contains_direct_await_in_expression("await x"));
     }
 }
