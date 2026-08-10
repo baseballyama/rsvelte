@@ -1,6 +1,44 @@
 use super::*;
 
 #[test]
+fn nonreactive_each_collection_does_not_invalidate_inner_signals() {
+    let result = crate::compiler::compile(
+        "{#each [1, 2] as item}<input bind:value={item}>{/each}",
+        crate::compiler::CompileOptions {
+            filename: Some("each-static.svelte".to_string()),
+            runes: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        !result.js.code.contains("$.invalidate_inner_signals"),
+        "a collection with no transitive dependencies must not be invalidated:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
+fn reactive_each_collection_still_invalidates_inner_signals() {
+    let result = crate::compiler::compile(
+        "<script>let list = [1, 2];</script>{#each list as item}<input bind:value={item}>{/each}",
+        crate::compiler::CompileOptions {
+            filename: Some("each-reactive.svelte".to_string()),
+            runes: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains("$.invalidate_inner_signals"),
+        "a collection with a transitive dependency must remain invalidated:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn retained_module_program_avoids_comment_reparse() {
     MODULE_COMMENT_REPARSES.with(|count| count.set(0));
     let source = r#"<script module>
