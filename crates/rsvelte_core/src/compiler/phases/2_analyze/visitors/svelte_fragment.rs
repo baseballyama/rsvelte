@@ -22,8 +22,10 @@ pub fn visit<'a, 'b: 'a>(
 
     for attribute in &mut frag.attributes {
         match attribute {
-            Attribute::Attribute(attribute) if attribute.name == "slot" => {
-                super::shared::attribute::validate_slot_attribute(context, attribute)?;
+            Attribute::Attribute(attribute) => {
+                if attribute.name == "slot" {
+                    super::shared::attribute::validate_slot_attribute(context, attribute)?;
+                }
                 super::attribute::visit(attribute, context)?;
             }
             Attribute::LetDirective(_) => {}
