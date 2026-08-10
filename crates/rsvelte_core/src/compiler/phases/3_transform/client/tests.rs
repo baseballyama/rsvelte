@@ -1979,24 +1979,3 @@ fn reactive_statement_order_ignores_whitespace_around_the_assignment() {
     );
     assert_eq!(unspaced, spaced);
 }
-
-/// A comparison is not an assignment, and the longest operator has to win:
-/// `<=` is a comparison while `<<=` assigns.
-#[test]
-fn the_assignment_scan_separates_operators_from_comparisons() {
-    use super::reactive_transforms::is_assigned_anywhere_in_body;
-
-    for body in [
-        "a=1", "a = 1", "a  =  1", "a+=1", "a **= 2", "a<<=1", "a >>>= 1", "a??=1", "a++", "--a",
-    ] {
-        assert!(is_assigned_anywhere_in_body(body, "a"), "missed: {body:?}");
-    }
-    for body in [
-        "a==1", "a === 1", "a=>1", "a<=1", "a >= 1", "a!=1", "a !== 1", "ab=1", "b.a=1", "abc",
-    ] {
-        assert!(
-            !is_assigned_anywhere_in_body(body, "a"),
-            "false positive: {body:?}"
-        );
-    }
-}

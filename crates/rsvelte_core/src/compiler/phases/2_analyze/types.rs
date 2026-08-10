@@ -1,6 +1,7 @@
 //! Type definitions for the analysis phase.
 
 use super::scope::{Scope, ScopeRoot};
+use crate::ast::arena::JsNodeId;
 use crate::ast::template::{Root, Script, ScriptContext};
 use crate::compiler::CompileOptions;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -77,6 +78,21 @@ pub struct ReactiveStatement {
     pub assignments: FxHashSet<usize>,
     /// Bindings that this reactive statement depends on
     pub dependencies: Vec<usize>,
+}
+
+/// Phase-1 identity and Phase-2 facts for one top-level legacy `$:` statement.
+///
+/// The arena outlives analysis and Phase 3, so keeping the body node id lets the
+/// client lower the original statement without serializing or reparsing it.
+#[derive(Debug, Clone)]
+pub struct LegacyReactiveStatement {
+    pub body: JsNodeId,
+    pub span: Range<u32>,
+    pub body_span: Range<u32>,
+    pub source_ordinal: usize,
+    pub assignments: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub cycle_dependencies: Vec<String>,
 }
 
 /// Pre-transformed instance script body sections.
@@ -1675,6 +1691,9 @@ pub struct ComponentAnalysis {
     /// the statement text.
     pub reactive_statement_dependencies: Vec<Vec<String>>,
 
+    /// Typed top-level legacy `$:` statements in source order.
+    pub legacy_reactive_statements: Vec<LegacyReactiveStatement>,
+
     /// Whether the component is immutable (no reactivity)
     pub immutable: bool,
 
@@ -1812,6 +1831,7 @@ impl ComponentAnalysis {
             dev: options.dev,
             reactive_statements: FxHashMap::default(),
             reactive_statement_dependencies: Vec::new(),
+            legacy_reactive_statements: Vec::new(),
             immutable: options.immutable,
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),

@@ -41,7 +41,7 @@ pub use scope::{
 };
 pub use types::{
     AsyncStatement, AwaitedDeclaration, ComponentAnalysis, CssAnalysis, InstanceBody, JsAnalysis,
-    ReactiveStatement, ScriptContent, TemplateAnalysis,
+    LegacyReactiveStatement, ReactiveStatement, ScriptContent, TemplateAnalysis,
 };
 pub use visitors::AstType;
 
@@ -490,7 +490,8 @@ pub(crate) fn analyze_prepared_component_with_retained(
     };
 
     if !analysis.runes {
-        check_reactive_declaration_cycles(&reactive_labeled, &ast.arena, &analysis)?;
+        collect_legacy_reactive_statement_metadata(&reactive_labeled, &ast.arena, &mut analysis);
+        check_reactive_declaration_cycles(&analysis.legacy_reactive_statements)?;
     }
 
     // Populate legacy_dependencies for LegacyReactive bindings.
@@ -500,7 +501,13 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
     if !analysis.runes {
         populate_legacy_dependencies(&reactive_labeled, &ast.arena, &mut analysis);
-        collect_reactive_statement_dependencies(&reactive_labeled, &ast.arena, &mut analysis);
+        // Kept as a compatibility mirror while Phase 3's text fallback still
+        // reads this field. The typed records above are the canonical source.
+        analysis.reactive_statement_dependencies = analysis
+            .legacy_reactive_statements
+            .iter()
+            .map(|statement| statement.dependencies.clone())
+            .collect();
     }
 
     // Pre-compute legacy-pattern detection so template visitors (notably
@@ -1282,58 +1289,19 @@ fn body_has_let_declaration_typed(
 ///
 /// Corresponds to the `order_reactive_statements()` call in Svelte's 2-analyze/index.js L810.
 fn check_reactive_declaration_cycles(
-    labeled: &[&JsNode],
-    arena: &ParseArena,
-    analysis: &ComponentAnalysis,
+    reactive_statements: &[LegacyReactiveStatement],
 ) -> Result<(), AnalysisError> {
     // Collect reactive statements and their assignments/dependencies
     // Each entry: (assignments, dependencies, statement span)
     let mut reactive_stmts: Vec<(Vec<String>, Vec<String>, Option<(u32, u32)>)> = Vec::new();
 
-    for node in labeled {
-        let JsNode::LabeledStatement { label, body, .. } = node else {
-            continue;
-        };
-        if !is_dollar_label(*label, arena) {
-            continue;
-        }
-
-        let body_node = arena.get_js_node(*body);
-
-        // Extract assigned variable names and dependency variable names.
-        // A single walker handles every body shape — `$: a = b`,
-        // `$: { a = b }`, `$: if (c) a = b`, `$: for (…) a = b`, etc. — so
-        // assignment targets nested inside block / if / for / sequence bodies
-        // are registered as `assignments` (not merely `dependencies`) and the
-        // statement still participates in cycle detection.
-        let mut assignments: Vec<String> = Vec::new();
-        let mut dependencies: Vec<String> = Vec::new();
-        cycle_collect_assignments_and_deps(body_node, arena, &mut assignments, &mut dependencies);
-
-        // Filter: only include variables that are declared in the instance scope
-        // (not global variables like console, Math, etc.)
-        let instance_scope_idx = analysis.root.instance_scope_index;
-        assignments.retain(|name| {
-            analysis
-                .root
-                .get_binding(name, instance_scope_idx)
-                .is_some()
-                || analysis.root.scope.declarations.contains_key(name)
-        });
-        dependencies.retain(|name| {
-            analysis
-                .root
-                .get_binding(name, instance_scope_idx)
-                .is_some()
-                || analysis.root.scope.declarations.contains_key(name)
-        });
-
-        // Remove self-dependencies (assigned variables that also appear as dependencies)
-        dependencies.retain(|dep| !assignments.contains(dep));
-
-        if !assignments.is_empty() {
-            let span = node.start().zip(node.end());
-            reactive_stmts.push((assignments, dependencies, span));
+    for statement in reactive_statements {
+        if !statement.assignments.is_empty() {
+            reactive_stmts.push((
+                statement.assignments.clone(),
+                statement.cycle_dependencies.clone(),
+                Some((statement.span.start, statement.span.end)),
+            ));
         }
     }
 
@@ -1364,6 +1332,81 @@ fn check_reactive_declaration_cycles(
     }
 
     Ok(())
+}
+
+/// Collect the Phase-1 node identity and Phase-2 facts needed to lower legacy
+/// reactive statements without returning to reconstructed statement text.
+fn collect_legacy_reactive_statement_metadata(
+    labeled: &[&JsNode],
+    arena: &ParseArena,
+    analysis: &mut ComponentAnalysis,
+) {
+    for node in labeled {
+        let JsNode::LabeledStatement {
+            label,
+            body,
+            start,
+            end,
+            ..
+        } = node
+        else {
+            continue;
+        };
+        if !is_dollar_label(*label, arena) {
+            continue;
+        }
+
+        let body_node = arena.get_js_node(*body);
+        let mut assignments = Vec::new();
+        let mut cycle_dependencies = Vec::new();
+        cycle_collect_assignments_and_deps(
+            body_node,
+            arena,
+            &mut assignments,
+            &mut cycle_dependencies,
+        );
+
+        let instance_scope_idx = analysis.root.instance_scope_index;
+        let is_instance_binding = |name: &str| {
+            analysis
+                .root
+                .get_binding(name, instance_scope_idx)
+                .is_some()
+                || analysis.root.scope.declarations.contains_key(name)
+        };
+        assignments.retain(|name| is_instance_binding(name));
+        cycle_dependencies.retain(|name| is_instance_binding(name));
+        cycle_dependencies.retain(|dep| !assignments.contains(dep));
+
+        let mut dependency_order = Vec::new();
+        let mut included = rustc_hash::FxHashSet::default();
+        let mut path = Vec::new();
+        let mut locals = Vec::new();
+        collect_reactive_refs(
+            body_node,
+            arena,
+            &mut path,
+            &mut locals,
+            &mut dependency_order,
+            &mut included,
+        );
+        let dependencies = dependency_order
+            .into_iter()
+            .filter(|name| included.contains(name))
+            .collect();
+
+        analysis
+            .legacy_reactive_statements
+            .push(LegacyReactiveStatement {
+                body: *body,
+                span: *start..*end,
+                body_span: body_node.start().unwrap_or(*start)..body_node.end().unwrap_or(*end),
+                source_ordinal: analysis.legacy_reactive_statements.len(),
+                assignments,
+                dependencies,
+                cycle_dependencies,
+            });
+    }
 }
 
 /// Extract identifier names from a pattern (LHS of assignment) for reactive cycle detection.
@@ -2094,45 +2137,6 @@ fn populate_legacy_dependencies(
         for &binding_idx in &legacy_reactive_indices {
             analysis.root.bindings[binding_idx].legacy_dependencies = dep_indices.clone();
         }
-    }
-}
-
-/// Collect ordered `$:` dependency identifier names per top-level reactive
-/// statement, mirroring `2-analyze/visitors/LabeledStatement.js`. Stored in
-/// `analysis.reactive_statement_dependencies` indexed by source ordinal (the
-/// Phase-3 client reads the same ordinal). Order = first-appearance during AST
-/// traversal; a name is a dependency unless its only references are the outermost
-/// member-chain LHS of an `=` assignment; member-property keys, object keys,
-/// function params and block-locals are never references.
-fn collect_reactive_statement_dependencies(
-    labeled: &[&JsNode],
-    arena: &ParseArena,
-    analysis: &mut ComponentAnalysis,
-) {
-    for stmt in labeled {
-        let JsNode::LabeledStatement { label, body, .. } = stmt else {
-            continue;
-        };
-        if !is_dollar_label(*label, arena) {
-            continue;
-        }
-        let stmt_body = arena.get_js_node(*body);
-
-        let mut order: Vec<String> = Vec::new();
-        let mut included: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
-        let mut path: Vec<ReactivePathEntry> = Vec::new();
-        let mut locals: Vec<String> = Vec::new();
-        collect_reactive_refs(
-            stmt_body,
-            arena,
-            &mut path,
-            &mut locals,
-            &mut order,
-            &mut included,
-        );
-
-        let deps: Vec<String> = order.into_iter().filter(|n| included.contains(n)).collect();
-        analysis.reactive_statement_dependencies.push(deps);
     }
 }
 
@@ -6155,6 +6159,45 @@ function goto_page(page = $search_params.page) {}
                 binding.references
             );
         }
+    }
+
+    #[test]
+    fn legacy_reactive_metadata_keeps_typed_identity_and_analysis_facts() {
+        let source = r#"<script>
+let a = 1;
+let b = 0;
+$: b = a + 1;
+$: { b++; console.log(a); }
+</script>"#;
+        let analysis = analyze(source);
+
+        assert_eq!(analysis.legacy_reactive_statements.len(), 2);
+        assert_eq!(
+            analysis.reactive_statement_dependencies,
+            analysis
+                .legacy_reactive_statements
+                .iter()
+                .map(|statement| statement.dependencies.clone())
+                .collect::<Vec<_>>()
+        );
+
+        let first = &analysis.legacy_reactive_statements[0];
+        assert_eq!(first.source_ordinal, 0);
+        assert_eq!(first.assignments, ["b"]);
+        assert_eq!(first.dependencies, ["a"]);
+        assert_eq!(
+            &source[first.span.start as usize..first.span.end as usize],
+            "$: b = a + 1;"
+        );
+        assert_eq!(
+            &source[first.body_span.start as usize..first.body_span.end as usize],
+            "b = a + 1;"
+        );
+
+        let second = &analysis.legacy_reactive_statements[1];
+        assert_eq!(second.source_ordinal, 1);
+        assert_eq!(second.assignments, ["b"]);
+        assert_eq!(second.dependencies, ["b", "console", "a"]);
     }
 
     #[test]
