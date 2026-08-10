@@ -273,13 +273,12 @@ The single most useful fact about the set is where it is **not**: zero entries o
 official across every kind and both modes; the special elements are where per-parent handling has
 drifted from upstream's one predicate per directive.
 
-Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `114 + 102 + 60 + 24 + 2 + 12 + 12 + 6 + 6`
+Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `114 + 102 + 24 + 2 + 12 + 12 + 6 + 6`
 
 | verdict | host | entries | cause |
 |---|---|---:|---|
 | `error-mismatch` | `svelte-boundary` | 114 | every attribute is accepted; official raises `svelte_boundary_invalid_attribute` for all but `onerror` / `failed` / `pending`. All 19 directive kinds, both modes. |
 | `error-mismatch` | `svelte-fragment` | 102 | every attribute is accepted; official raises `svelte_fragment_invalid_attribute` for everything but a `slot` attribute and `let:`. 17 kinds (`let:` and a plain `onclick=` attribute are legal upstream, and both match). |
-| `error-mismatch` | `svelte-self` | 60 | the component directive check does not run: 54 are `component_invalid_directive` (`use:` `transition:` `in:` `out:` `animate:` `class:` `style:`), 6 are `event_handler_invalid_component_modifier`. |
 | `error-mismatch` | `svelte-body` | 24 | 12 `bind_invalid_target` (`bind:value` accepted), 6 `let_directive_invalid_placement`, 6 `svelte_body_illegal_attribute` (a spread attribute). |
 | `js-mismatch` | `svelte-body` | 2 | Legacy-mode `bind:this` fails to make the target a `mutable_source`. |
 | `error-code-mismatch` | `svelte-document` | 12 | `bind:value` rejected as `bind_invalid_name`; official says `bind_invalid_target`. |
