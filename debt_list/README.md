@@ -13,6 +13,8 @@ Priority means:
 
 Each finding contains evidence, impact, remediation, and an acceptance test so it can be converted directly into an issue.
 
+The audit is intentionally hostile to flattering aggregates. Performance findings separate single-component latency from outer batch parallelism, use real-world size distributions instead of only tiny fixtures, and treat allocation density, scaling exponent, repeated parsing/scanning and fallback frequency as first-class budgets. Architecture findings preserve the useful upstream phase mirror while rejecting migration-history folders, ambient state, catch-all modules and text-based shadow compilers inside those phases.
+
 ## Findings
 
 ### P0
@@ -33,6 +35,7 @@ Each finding contains evidence, impact, remediation, and an acceptance test so i
 - [011 — client source maps cannot identify token-level origins](011-client-source-maps-are-chunk-granular.md)
 - [012 — Vite plugin mutates compiled JavaScript without updating its map](012-vite-postprocessing-invalidates-source-maps.md)
 - [013 — compile-error messages and spans remain substantially incompatible](013-error-diagnostics-do-not-match-official.md)
+- [031 — client instance-script lowering falls back to a hand-written JavaScript scanner](031-client-instance-script-uses-a-fallible-text-scanner.md)
 
 ### P2
 
@@ -50,9 +53,23 @@ Each finding contains evidence, impact, remediation, and an acceptance test so i
 - [026 — overlay source-map persistence errors are ignored](026-overlay-source-map-write-errors-are-ignored.md)
 - [027 — warningFilter failures silently change svelte-check results](027-warning-filter-fails-open.md)
 - [028 — every OXC dependency is overridden to a development Git revision](028-oxc-git-patch-is-workspace-wide.md)
+- [032 — AST representation creates roughly one heap allocation per source byte](032-ast-representation-causes-allocation-per-source-byte.md)
+- [033 — client script transformation scales superlinearly with script size](033-script-text-cost-scales-superlinearly.md)
+- [034 — batch parallelism masks the single-component performance gap](034-batch-parallelism-masks-single-component-latency.md)
+- [035 — client transform module layout encodes migration history instead of semantic ownership](035-client-module-layout-encodes-migration-history.md)
+- [036 — wildcard imports hide ownership inside the client transform root](036-client-wildcard-imports-hide-module-ownership.md)
+- [037 — svelte-check overlay planning is coupled to filesystem mutation](037-overlay-planning-is-coupled-to-filesystem-mutation.md)
+- [038 — client visitors share a large public mutable god object](038-client-transform-state-is-a-mutable-god-object.md)
+- [039 — transform state and allocators are hidden in thread-local globals](039-transform-state-and-allocators-live-in-thread-locals.md)
+- [040 — the bespoke JavaScript arena relies on an unsafe aliasing contract](040-bespoke-js-arena-relies-on-unsafe-aliasing.md)
+- [042 — a generic `utils.rs` has become a second client-transform root](042-generic-utils-module-is-a-second-transform-root.md)
+- [043 — async lowering reparses generated JavaScript text as a second compiler](043-async-lowering-reparses-generated-javascript-text.md)
+- [044 — store-subscription analysis reimplements JavaScript scope rules with character heuristics](044-store-subscription-analysis-scans-javascript-characters.md)
+- [045 — generated JavaScript is repaired by text post-passes](045-generated-javascript-is-repaired-by-text-postpasses.md)
 
 ### P3
 
 - [025 — blocker analysis is an unused placeholder presented as an implementation](025-unused-blocker-analysis-is-placeholder-code.md)
 - [029 — benchmark installs its lint oracle without a lockfile](029-benchmark-installs-unlocked-oracle.md)
 - [030 — dormant helpers and future migration scaffolding remain in production modules](030-dormant-dead-code-and-future-scaffolding.md)
+- [041 — large production modules also contain thousands of lines of inline tests](041-production-modules-contain-thousands-of-test-lines.md)

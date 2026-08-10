@@ -2,10 +2,10 @@
 
 Category: unnecessary code / readability
 
-Evidence: whole utility modules suppress dead-code warnings (`1_parse/utils/fuzzymatch.rs`, `entities_data.rs`), client scope functions are retained for “upcoming” migrations (`3_transform/client/scope_analysis.rs:45,93`), and additional production helpers use local dead-code allowances (`class_body_ast.rs:39`, `bind_directive.rs:2247`, `expression_utils.rs:2005-2008`).
+Evidence: whole utility modules suppress dead-code warnings (`1_parse/utils/fuzzymatch.rs`, `entities_data.rs`), client scope functions are retained for “upcoming” migrations (`3_transform/client/scope_analysis.rs:45,93`), and additional production helpers use local dead-code allowances (`class_body_ast.rs:39`, `bind_directive.rs:2247`, `expression_utils.rs:2005-2008`). More seriously, `client/ast/mod.rs` exposes an `RSVELTE_CLIENT_AST` route whose `transform_client_ast` implementation unconditionally returns `None`, so its advertised oracle always falls back and no component exercises the new pipeline.
 
 Impact: unused APIs obscure the live implementation, rot without coverage, lengthen builds/reviews, and make warnings less useful as a deletion signal.
 
 Remediation: delete unreferenced scaffolding; if a near-term migration needs it, move it behind a feature/test module with an owner, issue, and executable test.
 
-Acceptance: production compiler modules contain no unexplained dead-code allowances and `cargo clippy --all-targets --all-features -- -D warnings` remains clean.
+Acceptance: production compiler modules contain no unexplained dead-code allowances; the inert client AST route is either deleted or has executable milestone coverage and a non-zero corpus population; `cargo clippy --all-targets --all-features -- -D warnings` remains clean.
