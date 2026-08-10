@@ -95,6 +95,7 @@ function buildSandbox() {
 		for (const tree of ['expected', 'actual']) {
 			const dir = path.join(CORPUS, tree, id);
 			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(path.join(dir, 'warnings.json'), '{}\n');
 			// One entry both sides reject with the same code and different detail,
 			// so the error family has a non-empty population to rewrite from. With
 			// none, verify refuses the rewrite and this file would be testing the
