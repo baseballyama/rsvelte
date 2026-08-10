@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 1308 entries)
+## Matrix known failures (`matrix-known-failures.json`, 1248 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 338 + 3 + 253 + 324 + 8`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 278 + 3 + 253 + 324 + 8`
 
 ### `binding-position` — 2 entries
 
