@@ -128,6 +128,7 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
     // Test client-side compilation
     if let Some(expected_client) = &fixture.expected_client_js {
         let client_options = CompileOptions {
+            dev: fixture.options.dev,
             generate: GenerateMode::Client,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
@@ -179,6 +180,7 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
     // Test server-side compilation
     if let Some(expected_server) = &fixture.expected_server_js {
         let server_options = CompileOptions {
+            dev: fixture.options.dev,
             generate: GenerateMode::Server,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,

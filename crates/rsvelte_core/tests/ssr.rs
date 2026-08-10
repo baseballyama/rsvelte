@@ -86,6 +86,7 @@ fn run_ssr_fixture_test(fixture: &SsrFixture) -> TestResult {
     }
 
     let options = CompileOptions {
+        dev: fixture.options.dev,
         generate: GenerateMode::Server,
         filename: Some("main.svelte".to_string()),
         css: CssMode::External,

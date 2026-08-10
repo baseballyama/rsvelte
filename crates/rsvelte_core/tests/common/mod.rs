@@ -390,6 +390,7 @@ impl FixtureCoverage {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RuntimeFixtureOptions {
     pub r#async: bool,
+    pub dev: bool,
     pub hmr: bool,
     /// The generator only passes `accessors` to the client compile.
     pub accessors: bool,
@@ -414,6 +415,7 @@ pub fn runtime_fixture_options(category: &str, sample: &str) -> RuntimeFixtureOp
 
     RuntimeFixtureOptions {
         r#async: category == "runtime-runes" || without_skip_markers.contains("async: true"),
+        dev: config.contains("dev: true") || config.contains("dev:true"),
         hmr: config.contains("hmr: true"),
         // The official runner defaults runtime-legacy to `accessors: true`
         // (svelte/packages/svelte/tests/runtime-legacy/shared.ts).
@@ -457,7 +459,11 @@ pub const HYDRATION_SKIP_NAMES: &[&str] = &[
 ];
 
 /// server-side-rendering fixtures still failing on the rsvelte port.
-pub const SSR_SKIP_NAMES: &[&str] = &[];
+pub const SSR_SKIP_NAMES: &[&str] = &[
+    // Upstream marks this dev-mode fixture skipped because it cannot assert the
+    // diagnostic that SSR prints rather than throws.
+    "invalid-nested-svelte-element",
+];
 
 /// The documented skip list for a runtime-style fixture category.
 pub fn runtime_skip_names(category: &str) -> &'static [&'static str] {

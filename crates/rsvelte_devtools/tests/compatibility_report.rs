@@ -1097,6 +1097,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         // Test client
         if let Some(expected) = &expected_client {
             let options = CompileOptions {
+                dev: fixture_options.dev,
                 generate: GenerateMode::Client,
                 filename: Some(input_filename.clone()),
                 css: CssMode::External,
@@ -1131,6 +1132,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         // Test server
         if let Some(expected) = &expected_server {
             let options = CompileOptions {
+                dev: fixture_options.dev,
                 generate: GenerateMode::Server,
                 filename: Some(input_filename.clone()),
                 css: CssMode::External,

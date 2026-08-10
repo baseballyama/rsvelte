@@ -178,6 +178,7 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
 
     if let Some(expected) = &expected_client {
         let options = CompileOptions {
+            dev: fixture_options.dev,
             generate: GenerateMode::Client,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
@@ -203,6 +204,7 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
 
     if let Some(expected) = &expected_server {
         let options = CompileOptions {
+            dev: fixture_options.dev,
             generate: GenerateMode::Server,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
