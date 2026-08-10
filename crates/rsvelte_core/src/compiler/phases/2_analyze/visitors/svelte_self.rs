@@ -5,10 +5,12 @@
 //! Corresponds to Svelte's `2-analyze/visitors/SvelteSelf.js`.
 
 use super::super::AnalysisError;
+use super::super::errors;
 use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::special_element::validate_special_element_placement;
+use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:self.
@@ -37,6 +39,42 @@ pub fn visit<'a, 'b: 'a>(
         context.emit_warning(
             warnings::svelte_self_deprecated(name, basename).at(self_.start, self_.end),
         );
+    }
+
+    // Upstream delegates to `visit_component`, including its directive checks.
+    for attr in &self_.attributes {
+        match attr {
+            Attribute::BindDirective(bind) => {
+                if bind.expression.node_type() != Some("SequenceExpression") {
+                    validate_assignment_node(
+                        (bind.start, bind.end),
+                        &bind.expression.as_node(),
+                        context,
+                        true,
+                    )?;
+                    super::bind_directive::validate_bind_value_for_component(bind, context)?;
+                }
+            }
+            Attribute::OnDirective(on) => {
+                if on
+                    .modifiers
+                    .iter()
+                    .any(|modifier| modifier.as_str() != "once")
+                {
+                    return Err(
+                        errors::event_handler_invalid_component_modifier().at(on.start, on.end)
+                    );
+                }
+            }
+            Attribute::Attribute(_)
+            | Attribute::AttachTag(_)
+            | Attribute::LetDirective(_)
+            | Attribute::SpreadAttribute(_) => {}
+            _ => {
+                let (start, end) = attr.span();
+                return Err(errors::component_invalid_directive().at(start, end));
+            }
+        }
     }
 
     // Analyze attributes — upstream's SvelteSelf.js delegates to the shared
