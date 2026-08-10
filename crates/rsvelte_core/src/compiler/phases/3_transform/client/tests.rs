@@ -39,6 +39,21 @@ fn reactive_each_collection_still_invalidates_inner_signals() {
 }
 
 #[test]
+fn block_comment_before_binary_rhs_keeps_the_rhs_in_the_initializer() {
+    let result = crate::compiler::compile(
+        "<script>let g = 1;\nlet x = g + /* ; ) } c */\n\th;</script>",
+        crate::compiler::CompileOptions::default(),
+    )
+    .unwrap();
+
+    assert!(
+        !result.js.code.contains("g + /* ; ) } c */)"),
+        "binary RHS was cut off by the block comment:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn retained_module_program_avoids_comment_reparse() {
     MODULE_COMMENT_REPARSES.with(|count| count.set(0));
     let source = r#"<script module>
