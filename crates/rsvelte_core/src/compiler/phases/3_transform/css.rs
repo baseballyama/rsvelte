@@ -7031,7 +7031,7 @@ fn transform_complex_selector(
                                 if name == "host" || name == "root" {
                                     return true;
                                 }
-                                if name == "is" {
+                                if name == "is" && selectors.len() == 1 {
                                     return true;
                                 }
                                 // Standalone :where(...) handles scoping internally
