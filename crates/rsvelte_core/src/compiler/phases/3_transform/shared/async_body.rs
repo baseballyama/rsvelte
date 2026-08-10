@@ -426,27 +426,9 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             continue;
         }
 
-        // Strip leading single-line comment lines from the statement.
-        // The statement splitter may combine a `// comment` line with the following
-        // code line into one statement. We need to process the code, not skip it.
-        let trimmed_stmt = {
-            let mut s = trimmed_stmt;
-            loop {
-                if s.starts_with("//") {
-                    // Skip to end of this comment line
-                    if let Some(nl) = s.find('\n') {
-                        s = s[nl + 1..].trim();
-                    } else {
-                        // Entire statement is a comment — skip
-                        s = "";
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-            s
-        };
+        // The splitter can combine a leading comment with the following statement.
+        // Classify the code, but retain that comment on a generated hoisted `var`.
+        let (leading_comments, trimmed_stmt) = split_leading_comments(trimmed_stmt);
         if trimmed_stmt.is_empty() {
             continue;
         }
@@ -568,8 +550,12 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 let decls = extract_var_declarations(trimmed_stmt);
 
                 // Hoist all variable names
-                for decl in &decls {
-                    hoisted_vars.push(decl.name.clone());
+                for (index, decl) in decls.iter().enumerate() {
+                    if index == 0 && !leading_comments.is_empty() {
+                        hoisted_vars.push(format!("{leading_comments}{}", decl.name));
+                    } else {
+                        hoisted_vars.push(decl.name.clone());
+                    }
                 }
 
                 // Separate non-hoist-only decls for thunk generation
@@ -1951,6 +1937,50 @@ fn is_function_var_declaration(s: &str) -> bool {
 }
 
 /// Check if a statement is a variable declaration.
+fn split_leading_comments(s: &str) -> (&str, &str) {
+    let s = s.trim();
+    let bytes = s.as_bytes();
+    let mut index = 0;
+    let mut saw_comment = false;
+
+    loop {
+        if index + 1 >= bytes.len() || bytes[index] != b'/' {
+            break;
+        }
+        if bytes[index + 1] == b'/' {
+            saw_comment = true;
+            index += 2;
+            while index < bytes.len() && bytes[index] != b'\n' {
+                index += 1;
+            }
+        } else if bytes[index + 1] == b'*' {
+            saw_comment = true;
+            index += 2;
+            while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/') {
+                index += 1;
+            }
+            if index + 1 >= bytes.len() {
+                return ("", s);
+            }
+            index += 2;
+        } else {
+            break;
+        }
+
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+    }
+
+    if saw_comment && index == bytes.len() {
+        ("", "")
+    } else if saw_comment {
+        (&s[..index], s[index..].trim())
+    } else {
+        ("", s)
+    }
+}
+
 fn is_variable_declaration(s: &str) -> bool {
     let s = s.trim();
     s.starts_with("let ") || s.starts_with("const ") || s.starts_with("var ")
@@ -2963,6 +2993,27 @@ mod tests {
                 .output
                 .contains("async () => data = await fetch('/api')")
         );
+    }
+
+    #[test]
+    fn test_leading_comments_on_async_var_declarations() {
+        for comment in [
+            "// svelte-ignore await_waterfall\n",
+            "/* svelte-ignore await_waterfall */\n",
+        ] {
+            let script = format!("{comment}const a = await $.async_derived(() => p);");
+            let result = transform_async_body(&script, "$.run").unwrap();
+            assert!(
+                result.output.contains("a = await $.async_derived(() => p)"),
+                "comment must not turn a declaration into a void expression: {}",
+                result.output
+            );
+            assert!(
+                !result.output.contains("void (/*"),
+                "the generated output must stay parseable: {}",
+                result.output
+            );
+        }
     }
 
     #[test]
