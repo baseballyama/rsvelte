@@ -155,3 +155,53 @@ fn the_reported_repro_matches_official_byte_for_byte() {
         "a constructor compound read must not go through `$.get`:\n{out}"
     );
 }
+
+#[test]
+fn constructor_private_derived_updates_and_bitwise_assignments_stay_valid() {
+    let out = client(
+        "export class R {
+
+	#a = $state(1);
+	#d = $derived(this.#a * 2);
+	#by = $derived.by(() => this.#a * 3);
+
+	constructor() {
+		this.#d++;
+		this.#d--;
+		++this.#d;
+		--this.#d;
+		this.#d &= 5;
+		this.#d |= 5;
+		this.#d ^= 5;
+		this.#d <<= 5;
+		this.#d >>= 5;
+		this.#d >>>= 5;
+		this.#by ??= 5;
+	}
+}
+",
+    );
+    for needle in [
+        "$.update(this.#d);",
+        "$.update(this.#d, -1);",
+        "$.update_pre(this.#d);",
+        "$.update_pre(this.#d, -1);",
+        "$.set(this.#d, $.get(this.#d) & 5);",
+        "$.set(this.#d, $.get(this.#d) | 5);",
+        "$.set(this.#d, $.get(this.#d) ^ 5);",
+        "$.set(this.#d, $.get(this.#d) << 5);",
+        "$.set(this.#d, $.get(this.#d) >> 5);",
+        "$.set(this.#d, $.get(this.#d) >>> 5);",
+        "$.set(this.#by, $.get(this.#by) ?? 5);",
+    ] {
+        assert_has(&out, needle);
+    }
+    assert!(
+        !out.contains("$.get(this.#d)++"),
+        "unparseable update in:\n{out}"
+    );
+    assert!(
+        !out.contains("$.get(this.#d).v"),
+        "derived read must not use .v:\n{out}"
+    );
+}
