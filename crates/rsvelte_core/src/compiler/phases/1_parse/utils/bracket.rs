@@ -4,6 +4,7 @@
 //!
 //! This module corresponds to `svelte/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js`
 
+use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use memchr::memchr;
 
 static BLOCK_COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
@@ -264,29 +265,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                     continue;
                 }
 
-                // Determine if `/` is a division operator or the start of a regex.
-                // After a value — identifier, number, closing paren/bracket, a
-                // postfix operator, or a string/template-literal close quote —
-                // `/` is division. (A `/` immediately after a string literal such
-                // as `'ab' / divisor` is always division: no regex can follow a
-                // value without an intervening operator.)
-                let is_division = match prev_non_ws {
-                    Some(c) => {
-                        c.is_ascii_alphanumeric()
-                            || c == b'_'
-                            || c == b'$'
-                            || c == b')'
-                            || c == b']'
-                            || c == b'+'
-                            || c == b'-'
-                            || c == b'\''
-                            || c == b'"'
-                            || c == b'`'
-                    }
-                    None => false,
-                };
-
-                if is_division {
+                if !slash_starts_regex_at(bytes, i, prev_non_ws) {
                     prev_non_ws = Some(b'/');
                     i += 1;
                     continue;

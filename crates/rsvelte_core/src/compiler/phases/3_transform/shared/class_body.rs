@@ -9,6 +9,7 @@
 use memchr::memmem;
 
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_js_ident_continue;
 
 /// Skip a `'`/`"` string literal starting at `i`, returning the index just past
@@ -47,18 +48,6 @@ fn skip_template(s: &str, i: usize) -> usize {
         }
     }
     bytes.len()
-}
-
-/// Is a `/` at `prev` (the last non-whitespace byte before it) the start of a
-/// regex literal rather than a division operator?
-fn slash_starts_regex(prev: Option<u8>) -> bool {
-    match prev {
-        None => true,
-        // Non-ASCII bytes are identifier continuations, never operators.
-        Some(b) => {
-            !(b.is_ascii_alphanumeric() || !b.is_ascii() || matches!(b, b'_' | b'$' | b')' | b']'))
-        }
-    }
 }
 
 /// Does `s` end with the standalone keyword `kw` (not the tail of a longer identifier)?
@@ -225,7 +214,7 @@ pub(crate) fn split_class_members_onto_lines(class_body: &str) -> std::borrow::C
                 i = memmem::find(&bytes[i + 2..], b"*/").map_or(bytes.len(), |p| i + p + 4);
                 continue;
             }
-            b'/' if slash_starts_regex(prev_non_ws) => {
+            b'/' if slash_starts_regex_at(bytes, i, prev_non_ws) => {
                 let mut j = i + 1;
                 while j < bytes.len() {
                     match bytes[j] {
@@ -356,6 +345,16 @@ mod tests {
         assert_eq!(
             split_class_members_onto_lines("\ts = 'a; b'; t = `c;${d};e`; u = /;/;\n"),
             "\ts = 'a; b';\n\tt = `c;${d};e`;\n\tu = /;/;\n"
+        );
+    }
+
+    #[test]
+    fn regex_after_keyword_does_not_hide_the_following_member() {
+        assert_eq!(
+            split_class_members_onto_lines(
+                "\tmethod() { return /[//]/.test(value); } next = $state(1);\n"
+            ),
+            "\tmethod() { return /[//]/.test(value); }\n\tnext = $state(1);\n"
         );
     }
 
