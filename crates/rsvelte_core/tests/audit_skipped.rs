@@ -181,6 +181,7 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
             generate: GenerateMode::Client,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
+            dev: fixture_options.dev,
             experimental: ExperimentalOptions {
                 r#async: fixture_options.r#async,
             },
@@ -206,6 +207,7 @@ fn audit_runtime(category: &str, name: &str) -> Outcome {
             generate: GenerateMode::Server,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
+            dev: fixture_options.dev,
             experimental: ExperimentalOptions {
                 r#async: fixture_options.r#async,
             },

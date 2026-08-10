@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
 
 pub mod preprocess_fixtures;
 
@@ -390,6 +391,7 @@ impl FixtureCoverage {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RuntimeFixtureOptions {
     pub r#async: bool,
+    pub dev: bool,
     pub hmr: bool,
     /// The generator only passes `accessors` to the client compile.
     pub accessors: bool,
@@ -397,6 +399,29 @@ pub struct RuntimeFixtureOptions {
 
 /// Read the fixture-generation options back out of a sample's `_config.js`.
 pub fn runtime_fixture_options(category: &str, sample: &str) -> RuntimeFixtureOptions {
+    if let Some(options) = fixture_compile_options(category, sample) {
+        return RuntimeFixtureOptions {
+            r#async: category == "runtime-runes"
+                || options
+                    .get("experimental")
+                    .and_then(|v| v.get("async"))
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            dev: options
+                .get("dev")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            hmr: options
+                .get("hmr")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            accessors: options
+                .get("accessors")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+        };
+    }
+
     let config = fs::read_to_string(
         svelte_path()
             .join("packages/svelte/tests")
@@ -414,6 +439,7 @@ pub fn runtime_fixture_options(category: &str, sample: &str) -> RuntimeFixtureOp
 
     RuntimeFixtureOptions {
         r#async: category == "runtime-runes" || without_skip_markers.contains("async: true"),
+        dev: without_skip_markers.contains("dev: true"),
         hmr: config.contains("hmr: true"),
         // The official runner defaults runtime-legacy to `accessors: true`
         // (svelte/packages/svelte/tests/runtime-legacy/shared.ts).
@@ -421,6 +447,29 @@ pub fn runtime_fixture_options(category: &str, sample: &str) -> RuntimeFixtureOp
             && !config.contains("accessors: false")
             && !config.contains("accessors:false"),
     }
+}
+
+fn fixture_compile_options(
+    category: &str,
+    sample: &str,
+) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let metadata = fs::read_to_string(
+        runtime_fixtures_path()
+            .join(category)
+            .join(sample)
+            .join("metadata.json"),
+    )
+    .ok()?;
+    serde_json::from_str::<serde_json::Value>(&metadata)
+        .ok()?
+        .get("compileOptions")?
+        .as_object()
+        .cloned()
+}
+
+fn runtime_fixtures_path() -> &'static PathBuf {
+    static PATH: OnceLock<PathBuf> = OnceLock::new();
+    PATH.get_or_init(fixtures_path)
 }
 
 /// runtime-runes fixtures still failing on the rsvelte port. Each entry is

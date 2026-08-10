@@ -182,6 +182,7 @@ pub struct ServerTransformState<'a> {
     /// SECOND array-pattern declaration is named `$$array_1`, not a colliding
     /// `$$array`. The first is bare `$$array`, subsequent ones append `_1`, `_2`, …
     pub array_counter: u32,
+    pub dynamic_tag_counter: usize,
     /// Whether the CURRENT children run is the direct children of a
     /// RegularElement / TitleElement (`process_children` `parent.is_some()`).
     /// Mirrors upstream's `AwaitExpression` server visitor parent-walk: an inline
@@ -308,6 +309,7 @@ impl<'a> ServerTransformState<'a> {
             derived_array_counter: 0,
             state_tmp_counter: 0,
             array_counter: 0,
+            dynamic_tag_counter: 0,
             in_element_children: false,
             attr_optimiser: None,
             shadowed_names: Vec::new(),
@@ -483,6 +485,16 @@ impl<'a> ServerTransformState<'a> {
             "tmp".to_string()
         } else {
             format!("tmp_{counter}")
+        }
+    }
+
+    pub fn next_dynamic_tag_name(&mut self) -> String {
+        let counter = self.dynamic_tag_counter;
+        self.dynamic_tag_counter = counter + 1;
+        if counter == 0 {
+            "$$tag".to_string()
+        } else {
+            format!("$$tag_{counter}")
         }
     }
 

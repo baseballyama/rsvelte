@@ -79,6 +79,40 @@ pub fn visit_svelte_element<'a>(
         state.visit_expr(&node.tag)
     };
 
+    let tag = if state.options.dev {
+        let name = state.next_dynamic_tag_name();
+        let b = state.b;
+        state
+            .template
+            .push(TemplateEntry::Stmt(b.const_id(&name, tag)));
+        state.template.push(TemplateEntry::Stmt(b.stmt(b.call(
+            "$.validate_dynamic_element_tag",
+            vec![b.thunk(b.id(&name), false)],
+        ))));
+        if !node.fragment.nodes.is_empty() {
+            state.template.push(TemplateEntry::Stmt(b.stmt(b.call(
+                "$.validate_void_dynamic_element",
+                vec![b.thunk(b.id(&name), false)],
+            ))));
+        }
+        let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
+            state.source,
+            node.start as usize,
+        );
+        state.template.push(TemplateEntry::Stmt(b.stmt(b.call(
+            "$.push_element",
+            vec![
+                b.id("$$renderer"),
+                b.id(&name),
+                b.number(line as f64),
+                b.number(col as f64),
+            ],
+        ))));
+        b.id(&name)
+    } else {
+        tag
+    };
+
     // -- attributes ---------------------------------------------------------
     //
     // Upstream `SvelteElement.js` calls the SAME `build_element_attributes` as a
@@ -156,4 +190,9 @@ pub fn visit_svelte_element<'a>(
     );
 
     state.template.push(TemplateEntry::Stmt(b.stmt(call)));
+    if state.options.dev {
+        state
+            .template
+            .push(TemplateEntry::Stmt(b.stmt(b.call("$.pop_element", vec![]))));
+    }
 }

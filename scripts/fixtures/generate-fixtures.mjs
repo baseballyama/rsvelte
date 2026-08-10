@@ -155,12 +155,18 @@ function parseConfigText(configPath) {
     // Propagate `compileOptions: { hmr: true }` so HMR-specific fixtures are
     // generated with HMR-aware official output. The test runner
     // (rsvelte_devtools/tests/compatibility_report.rs) already passes `hmr` based on the same
-    // marker. We deliberately do NOT propagate `dev: true` here — the dev-mode
-    // SSR codegen still has small divergences from the official compiler that
-    // would cause many cross-suite regressions.
+    // marker.
     const hmrMatch = text.match(/compileOptions\s*:\s*\{[^}]*\bhmr\s*:\s*(true|false)\b/);
     if (hmrMatch) {
       config.compileOptions = { hmr: hmrMatch[1] === 'true' };
+    }
+
+    const devMatch = text.match(/compileOptions\s*:\s*\{[^}]*\bdev\s*:\s*(true|false)\b/);
+    if (devMatch) {
+      config.compileOptions = {
+        ...(config.compileOptions ?? {}),
+        dev: devMatch[1] === 'true',
+      };
     }
 
     // Propagate `compileOptions.experimental.async`. New snapshot fixtures
