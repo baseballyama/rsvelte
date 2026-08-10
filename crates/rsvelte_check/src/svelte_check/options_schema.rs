@@ -288,6 +288,45 @@ pub const COMPONENT_OPTIONS: &[Opt] = &[
     ),
 ];
 
+/// `object({ ...common_options, ...Object.fromEntries(Object.keys(component_options)
+/// .map((key) => [key, () => {}])) })`. Module compilation recognises every
+/// component option, but only validates the common subset.
+pub const MODULE_OPTIONS: &[Opt] = &[
+    opt("filename", Kind::Str),
+    opt("rootDir", Kind::Str),
+    opt("dev", Kind::Boolean),
+    opt("generate", Kind::Custom(Some(check_generate))),
+    opt("warningFilter", Kind::Function),
+    opt("experimental", Kind::Object(EXPERIMENTAL)),
+    opt("accessors", Kind::Custom(None)),
+    opt("css", Kind::Custom(None)),
+    opt("cssHash", Kind::Custom(None)),
+    opt("cssOutputFilename", Kind::Custom(None)),
+    opt("customElement", Kind::Custom(None)),
+    opt("discloseVersion", Kind::Custom(None)),
+    opt("immutable", Kind::Custom(None)),
+    opt("legacy", Kind::Custom(None)),
+    opt("compatibility", Kind::Custom(None)),
+    opt("loopGuardTimeout", Kind::Custom(None)),
+    opt("name", Kind::Custom(None)),
+    opt("namespace", Kind::Custom(None)),
+    opt("modernAst", Kind::Custom(None)),
+    opt("outputFilename", Kind::Custom(None)),
+    opt("preserveComments", Kind::Custom(None)),
+    opt("fragments", Kind::Custom(None)),
+    opt("preserveWhitespace", Kind::Custom(None)),
+    opt("runes", Kind::Custom(None)),
+    opt("hmr", Kind::Custom(None)),
+    opt("sourcemap", Kind::Custom(None)),
+    opt("enableSourcemap", Kind::Custom(None)),
+    opt("hydratable", Kind::Custom(None)),
+    opt("format", Kind::Custom(None)),
+    opt("tag", Kind::Custom(None)),
+    opt("sveltePath", Kind::Custom(None)),
+    opt("errorMode", Kind::Custom(None)),
+    opt("varsReport", Kind::Custom(None)),
+];
+
 fn check_generate(value: &ConfigValue, keypath: &str) -> Option<String> {
     match value {
         // 'dom' / 'ssr' are renamed, not rejected (a once-per-process warning).
@@ -329,6 +368,10 @@ fn check_custom_element(value: &ConfigValue, keypath: &str) -> Option<String> {
 /// `None` when nothing statically readable is wrong with them.
 pub fn validate_component_options(options: &ConfigObject) -> Option<OptionDiagnostic> {
     validate_object(options, "", COMPONENT_OPTIONS)
+}
+
+pub fn validate_module_options(options: &ConfigObject) -> Option<OptionDiagnostic> {
+    validate_object(options, "", MODULE_OPTIONS)
 }
 
 fn validate_object(
@@ -615,6 +658,15 @@ mod derived {
         let mut expected = upstream_reprs(common);
         expected.extend(upstream_reprs(component));
         assert_eq!(reprs(COMPONENT_OPTIONS), expected);
+
+        let mut expected_module = upstream_reprs(common);
+        expected_module.extend(upstream_reprs(component).into_iter().map(|entry| {
+            let (name, _) = entry
+                .split_once(" = ")
+                .expect("component option representation contains its name");
+            format!("{name} = custom")
+        }));
+        assert_eq!(reprs(MODULE_OPTIONS), expected_module);
     }
 }
 
@@ -633,6 +685,27 @@ mod tests {
 
     fn code_of(entries: &[(&str, ConfigValue)]) -> Option<&'static str> {
         validate_component_options(&object(entries)).map(|d| d.code)
+    }
+
+    fn module_code_of(entries: &[(&str, ConfigValue)]) -> Option<&'static str> {
+        validate_module_options(&object(entries)).map(|d| d.code)
+    }
+
+    #[test]
+    fn module_options_validate_only_the_common_subset() {
+        assert_eq!(
+            module_code_of(&[("unknown", ConfigValue::Bool(true))]),
+            Some("options_unrecognised")
+        );
+        assert_eq!(
+            module_code_of(&[("dev", ConfigValue::Str("yes".into()))]),
+            Some("options_invalid_value")
+        );
+        assert_eq!(
+            module_code_of(&[("css", ConfigValue::Str("not-a-component-value".into()))]),
+            None
+        );
+        assert_eq!(module_code_of(&[("legacy", ConfigValue::Bool(true))]), None);
     }
 
     #[test]
