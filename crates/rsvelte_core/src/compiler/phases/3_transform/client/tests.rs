@@ -22,6 +22,24 @@ fn invalidation_single_dependency_keeps_sequence_parentheses() {
 }
 
 #[test]
+fn is_argument_inherits_later_complex_scope_bump() {
+    let result = crate::compiler::compile(
+        "<div class=\"a\"><div class=\"b\"></div></div><style>:is(.a) > .b { color: red; }</style>",
+        crate::compiler::CompileOptions {
+            filename: Some("is-specificity.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let css = result.css.unwrap().code;
+
+    assert!(
+        css.starts_with(":is(.a:where(.svelte-"),
+        "the :is() argument must inherit the later scope bump:\n{css}"
+    );
+}
+
+#[test]
 fn is_unused_branch_keeps_its_source_position() {
     let result = crate::compiler::compile(
         "<div class=\"b\"></div><style>:is(.a, .b) { color: red; }</style>",

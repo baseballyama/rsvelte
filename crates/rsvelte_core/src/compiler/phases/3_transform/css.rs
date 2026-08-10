@@ -6632,6 +6632,34 @@ fn transform_complex_selector(
                 }
             });
 
+        let complex_bumps_specificity = children.iter().any(|relative_selector| {
+            if is_global_like(relative_selector) {
+                return false;
+            }
+            let scoped = relative_selector
+                .get("metadata")
+                .and_then(|metadata| metadata.get("scoped"))
+                .and_then(|scoped| scoped.as_bool())
+                .unwrap_or(true);
+            scoped
+                && relative_selector
+                    .get("selectors")
+                    .and_then(|selectors| selectors.as_array())
+                    .is_some_and(|selectors| {
+                        selectors.iter().any(|selector| {
+                            let ty = selector.get("type").and_then(|ty| ty.as_str());
+                            !matches!(
+                                ty,
+                                Some(
+                                    "PseudoClassSelector"
+                                        | "PseudoElementSelector"
+                                        | "NestingSelector"
+                                )
+                            )
+                        })
+                    })
+        });
+
         // Track if the next relative selector should be treated as global
         // (after a bare :global modifier)
         let mut next_is_global = false;
@@ -7077,7 +7105,8 @@ fn transform_complex_selector(
                             });
                         let compound_bumps =
                             needs_scoping && !has_nesting_selector && !is_standalone_is_where;
-                        let outer_bumped_for_recursion = local_specificity_bumped || compound_bumps;
+                        let outer_bumped_for_recursion =
+                            local_specificity_bumped || compound_bumps || complex_bumps_specificity;
 
                         selector_parts.push_str(&format_simple_selector_with_scope(
                             sel,
