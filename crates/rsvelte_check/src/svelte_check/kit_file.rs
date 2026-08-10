@@ -266,7 +266,7 @@ pub(crate) fn lookup_property<'a>(
     obj: &'a oxc::ObjectExpression,
     name: &str,
 ) -> Option<&'a oxc::Expression<'a>> {
-    for prop in &obj.properties {
+    for prop in obj.properties.iter().rev() {
         let oxc::ObjectPropertyKind::ObjectProperty(p) = prop else {
             continue;
         };
@@ -1226,6 +1226,16 @@ mod tests {
             &mut settings,
         );
         assert_eq!(settings.params_path, "src/my-params");
+    }
+
+    #[test]
+    fn kit_files_duplicate_keys_follow_javascript_last_wins() {
+        let mut settings = KitFilesSettings::default();
+        parse_kit_files_source(
+            "export default { kit: { files: { params: 'first', params: 'last' } } };",
+            &mut settings,
+        );
+        assert_eq!(settings.params_path, "last");
     }
 
     #[test]
