@@ -169,6 +169,15 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
         return expr.to_string();
     }
 
+    // Most callers hand us a complete JavaScript expression or statement. Let
+    // the AST rewriter handle those in one traversal; this scanner remains only
+    // for the incomplete fragments that cannot be parsed in program context.
+    if let Some(rewritten) =
+        super::prop_source_reads_ast::wrap_prop_source_reads_ast(expr, prop_vars, &[])
+    {
+        return rewritten;
+    }
+
     // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
     let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(expr, &var_set) {

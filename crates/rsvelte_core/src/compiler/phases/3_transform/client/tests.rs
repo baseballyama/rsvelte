@@ -823,6 +823,23 @@ fn test_transform_prop_reads_in_expr() {
     );
 }
 
+#[cfg(feature = "measure-prop-reads")]
+#[test]
+fn prop_read_rewriter_uses_the_ast_path_for_complete_expressions() {
+    crate::measure_prop_reads::reset();
+    let props = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+
+    assert_eq!(
+        transform_prop_reads_in_expr("a + b + c", &props),
+        "a() + b() + c()"
+    );
+
+    let (_, _, _, _, _, scanned_chars, vec_char_elems, _, _) =
+        crate::measure_prop_reads::snapshot();
+    assert_eq!(scanned_chars, 0);
+    assert_eq!(vec_char_elems, 0);
+}
+
 #[test]
 fn test_normalize_js_comma_separated_declarations() {
     let input = "let tmp = setup(), num = $.state($.proxy(tmp.num));";
