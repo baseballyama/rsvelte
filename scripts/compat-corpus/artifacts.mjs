@@ -156,6 +156,34 @@ export function requireGenerationUnchanged(corpusDir, before, label) {
 	}
 }
 
+/** Ensure workers never reinterpret a deleted input as a compiler failure. */
+export function assertCorpusSourcesPresent(corpusDir, manifest) {
+	const missing = manifest
+		.map(({ id }) => id)
+		.filter((id) => !fs.statSync(path.join(corpusDir, 'sources', id), { throwIfNoEntry: false })?.isFile());
+	if (missing.length) {
+		throw new Error(
+			`missing ${missing.length}/${manifest.length} source artifact(s), first: ${missing.slice(0, 3).join(', ')}`
+		);
+	}
+}
+
+/**
+ * Every entry has a warning map, even when both compilers were silent. This
+ * keeps a deleted artifact distinguishable from an empty warning set.
+ */
+export function missingCompiledArtifacts(tree, id, targetKeys) {
+	const dir = path.join(tree, id);
+	const missing = [];
+	if (!fs.existsSync(path.join(dir, 'warnings.json'))) missing.push('warnings.json');
+	const errorPath = path.join(dir, 'error.json');
+	const errors = fs.existsSync(errorPath) ? JSON.parse(fs.readFileSync(errorPath, 'utf8')) : {};
+	for (const key of targetKeys) {
+		if (!(key in errors) && !fs.existsSync(path.join(dir, `${key}.js`))) missing.push(`${key}.js or error.json`);
+	}
+	return missing;
+}
+
 export function keepArtifacts(argv, { failed }) {
 	if (argv.includes('--clean-artifacts')) return false;
 	if (argv.includes('--keep-artifacts')) return true;

@@ -149,6 +149,7 @@ import {
 	cleanupArtifacts,
 	readGeneration,
 	requireGenerationUnchanged,
+	missingCompiledArtifacts,
 } from './artifacts.mjs';
 import { refuseUnrepresentativeBaseline } from './baseline-guard.mjs';
 
@@ -305,22 +306,20 @@ if (manifest.length < MIN_MANIFEST_ENTRIES) {
 // tree reads that side as "no output, no error" and scores every entry `match` —
 // a green run that measured nothing, and one that `--update-*-baseline` would
 // then write out as an empty ratchet.
-function hasOutputs(tree, id) {
-	const errPath = path.join(tree, id, 'error.json');
-	const errors = fs.existsSync(errPath) ? JSON.parse(fs.readFileSync(errPath, 'utf8')) : {};
-	return TARGET_KEYS.every((key) => key in errors || fs.existsSync(path.join(tree, id, `${key}.js`)));
-}
-
 // Checked per tree, not against the union: a wiped `expected/` beside an intact
 // `actual/` passes a union check, and the error comparison then sees no official
 // error to compare against and scores parity everywhere. The 1% slack is for the
 // crashed-worker case, where `recordPanic` writes only the rsvelte side.
 for (const [label, tree] of [['expected', EXPECTED], ['actual', ACTUAL]]) {
-	const compiled = manifest.filter(({ id }) => hasOutputs(tree, id)).length;
+	const incomplete = manifest
+		.map(({ id }) => [id, missingCompiledArtifacts(tree, id, TARGET_KEYS)])
+		.filter(([, missing]) => missing.length);
+	const compiled = manifest.length - incomplete.length;
 	if (compiled < manifest.length * 0.99) {
 		console.error(
 			`[verify] only ${compiled}/${manifest.length} manifest entries have ${label}/ output for every target (${TARGET_KEYS.join(', ')})`
 		);
+		console.error(`  first incomplete entry: ${incomplete[0][0]} (${incomplete[0][1].join(', ')})`);
 		console.error('  run: node scripts/compat-corpus/compile.mjs   (outputs are deleted after a green verify)');
 		process.exit(2);
 	}

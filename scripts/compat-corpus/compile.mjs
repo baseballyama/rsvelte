@@ -26,7 +26,14 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { selectTargets } from './targets.mjs';
-import { BYTES_PER_TARGET, DISK_HEADROOM, requireDiskSpace, readGeneration, requireGenerationUnchanged } from './artifacts.mjs';
+import {
+	BYTES_PER_TARGET,
+	DISK_HEADROOM,
+	requireDiskSpace,
+	readGeneration,
+	requireGenerationUnchanged,
+	assertCorpusSourcesPresent,
+} from './artifacts.mjs';
 import { assertOracleCompiles } from './oracle.mjs';
 import { errorCode } from './error-code.mjs';
 
@@ -165,13 +172,9 @@ if (args.includes('--worker')) {
 			if (target.css && r.css != null) {
 				fs.writeFileSync(path.join(dir, `${target.key}.css`), r.css);
 			}
-			// Only entries that actually warn get a file; absence means "compiled
-			// with no warnings", which verify.mjs reads as the empty list.
 			if (r.warnings.length) warnings[target.key] = r.warnings;
 		}
-		if (Object.keys(warnings).length) {
-			fs.writeFileSync(path.join(dir, 'warnings.json'), JSON.stringify(warnings, null, '\t') + '\n');
-		}
+		fs.writeFileSync(path.join(dir, 'warnings.json'), JSON.stringify(warnings, null, '\t') + '\n');
 		if (Object.keys(errors).length) {
 			fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(errors, null, '\t') + '\n');
 		}
@@ -196,6 +199,14 @@ if (!fs.existsSync(BINDING)) {
 	console.error('  build: cargo build --release -p rsvelte_napi --lib');
 	console.error('  stage: mkdir -p .corpus-cache && cp target/release/librsvelte_napi.{dylib,so} .corpus-cache/rsvelte.node.staging && mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node');
 	process.exit(1);
+}
+
+try {
+	assertCorpusSourcesPresent(CORPUS, manifest);
+} catch (e) {
+	console.error(`[compile] ${e.message}`);
+	console.error('  re-run: node scripts/compat-corpus/collect.mjs');
+	process.exit(2);
 }
 
 // A full run always starts from a clean tree so removed corpus ids and stale
@@ -237,6 +248,7 @@ function recordPanic(i) {
 	const err = { code: 'rust_panic', message: 'rsvelte compiler panicked (process aborted)' };
 	const errors = Object.fromEntries(TARGETS.map((t) => [t.key, err]));
 	fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(errors, null, '\t') + '\n');
+	fs.writeFileSync(path.join(dir, 'warnings.json'), '{}\n');
 }
 
 function runRange(start, end) {
