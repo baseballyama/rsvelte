@@ -5,9 +5,10 @@
 //! Corresponds to Svelte's `2-analyze/visitors/SvelteBoundary.js`.
 
 use super::super::AnalysisError;
+use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use crate::ast::template::{Attribute, SvelteElement};
+use crate::ast::template::{Attribute, AttributeValue, SvelteElement};
 
 /// Visit a svelte:boundary.
 pub fn visit<'a, 'b: 'a>(
@@ -15,9 +16,20 @@ pub fn visit<'a, 'b: 'a>(
     context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     for attribute in &mut boundary.attributes {
-        if let Attribute::Attribute(attribute) = attribute {
-            super::attribute::visit(attribute, context)?;
+        let Attribute::Attribute(attribute) = attribute else {
+            let (start, end) = attribute.span();
+            return Err(errors::svelte_boundary_invalid_attribute().at(start, end));
+        };
+        if !matches!(attribute.name.as_str(), "onerror" | "failed" | "pending") {
+            return Err(
+                errors::svelte_boundary_invalid_attribute().at(attribute.start, attribute.end)
+            );
         }
+        if !matches!(attribute.value, AttributeValue::Expression(_)) {
+            return Err(errors::svelte_boundary_invalid_attribute_value()
+                .at(attribute.start, attribute.end));
+        }
+        super::attribute::visit(attribute, context)?;
     }
 
     // Push fragment owner type for const_tag placement validation

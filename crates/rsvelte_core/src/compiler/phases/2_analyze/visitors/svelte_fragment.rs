@@ -8,7 +8,7 @@ use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use crate::ast::template::SvelteElement;
+use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:fragment.
 pub fn visit<'a, 'b: 'a>(
@@ -18,6 +18,20 @@ pub fn visit<'a, 'b: 'a>(
     // svelte:fragment must be a direct child of a component
     if !context.is_direct_child_of_component {
         return Err(errors::svelte_fragment_invalid_placement().at(frag.start, frag.end));
+    }
+
+    for attribute in &mut frag.attributes {
+        match attribute {
+            Attribute::Attribute(attribute) if attribute.name == "slot" => {
+                super::shared::attribute::validate_slot_attribute(context, attribute)?;
+                super::attribute::visit(attribute, context)?;
+            }
+            Attribute::LetDirective(_) => {}
+            _ => {
+                let (start, end) = attribute.span();
+                return Err(errors::svelte_fragment_invalid_attribute().at(start, end));
+            }
+        }
     }
 
     // Note: <svelte:fragment> does NOT set uses_slots on the parent component.

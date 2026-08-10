@@ -395,6 +395,15 @@ diagnostics! {
     /// `<svelte:fragment>` must be the direct child of a component
     svelte_fragment_invalid_placement() => "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement";
 
+    /// `<svelte:fragment>` only accepts slot and let directives
+    svelte_fragment_invalid_attribute() => "`<svelte:fragment>` can only have a slot attribute and (optionally) a let: directive\nhttps://svelte.dev/e/svelte_fragment_invalid_attribute";
+
+    /// `<svelte:boundary>` received an unsupported attribute or directive
+    svelte_boundary_invalid_attribute() => "Valid attributes on `<svelte:boundary>` are `onerror` and `failed`\nhttps://svelte.dev/e/svelte_boundary_invalid_attribute";
+
+    /// `<svelte:boundary>` attributes require an expression value
+    svelte_boundary_invalid_attribute_value() => "Attribute value must be a non-string expression\nhttps://svelte.dev/e/svelte_boundary_invalid_attribute_value";
+
     /// Cyclical dependency detected: %cycle%
     const_tag_cycle(cycle: &str) => "Cyclical dependency detected: {}\nhttps://svelte.dev/e/const_tag_cycle", cycle;
 
