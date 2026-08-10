@@ -33,6 +33,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const CHECKER = path.join(ROOT, 'scripts/compat-corpus/known-failures-md-check.mjs');
 const CORPUS = path.join(ROOT, 'compatibility');
+const MATRIX_FAMILY_PARTITION = fs
+	.readFileSync(path.join(CORPUS, 'matrix-known-failures.md'), 'utf8')
+	.match(/^Partition of `matrix-known-failures\.json` by family: `[^`]+`$/m)?.[0];
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -215,8 +218,8 @@ withCorpus(
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'Partition of `matrix-known-failures.json` by family: `2 + 212 + 90 + 18 + 60 + 398 + 3 + 253 + 324 + 8`',
-			'Partition of `matrix-known-failures.json` by nothing in particular: `2 + 232 + 90 + 18 + 60 + 398 + 3 + 253 + 324 + 8`',
+			MATRIX_FAMILY_PARTITION,
+			MATRIX_FAMILY_PARTITION?.replace('by family', 'by nothing in particular'),
 		),
 	(r) => check('an undeclared partition fails', [r.code, /not declared in PARTITIONS/.test(r.out)], [1, true]),
 );
