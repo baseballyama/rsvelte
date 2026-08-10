@@ -490,11 +490,7 @@ fn overlay_syntax_loud_diagnostics(
     // is a downstream symptom, not an rsvelte codegen defect.
     let svelte_failed: HashSet<&Path> = svelte_side
         .iter()
-        .filter(|d| {
-            d.source == "svelte"
-                && d.severity == DiagnosticSeverity::Error
-                && d.code.as_deref() == Some("compile-error")
-        })
+        .filter(|d| d.source == "svelte" && d.severity == DiagnosticSeverity::Error)
         .map(|d| d.file.as_path())
         .collect();
 
@@ -683,14 +679,17 @@ fn diagnostics_for_file(file: &Path, compiler_opts: &CompilerOptionsSettings) ->
                 source: "svelte",
             })
             .collect(),
-        Err(e) => vec![Diagnostic {
-            file: file.to_path_buf(),
-            severity: DiagnosticSeverity::Error,
-            code: Some("compile-error".into()),
-            message: format!("{e}"),
-            range: None,
-            source: "svelte",
-        }],
+        Err(e) => {
+            let error = e.diagnostic();
+            vec![Diagnostic {
+                file: file.to_path_buf(),
+                severity: DiagnosticSeverity::Error,
+                code: error.code.or_else(|| Some("compile-error".into())),
+                message: error.message,
+                range: None,
+                source: "svelte",
+            }]
+        }
     }
 }
 
@@ -781,6 +780,24 @@ mod tests {
             range: None,
             source: "svelte",
         }
+    }
+
+    #[test]
+    fn compiler_errors_keep_their_specific_code() {
+        let options = CompileOptions {
+            generate: GenerateMode::Client,
+            ..Default::default()
+        };
+        let js = compile("{42 = nope}", options.clone())
+            .expect_err("invalid JavaScript must fail")
+            .diagnostic();
+        let css = compile("<h1>Hello {name}!</h1>\n\n<style>", options)
+            .expect_err("invalid CSS must fail")
+            .diagnostic();
+
+        assert_eq!(js.code.as_deref(), Some("js_parse_error"));
+        assert_eq!(css.code.as_deref(), Some("expected_token"));
+        assert_ne!(js.code, css.code);
     }
 
     #[test]
