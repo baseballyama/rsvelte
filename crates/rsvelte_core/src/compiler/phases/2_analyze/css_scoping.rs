@@ -3223,8 +3223,18 @@ impl GMatcher<'_> {
         let Some(elem) = self.graph.node(node).elem.as_ref() else {
             return false;
         };
+        let root_has = rel.selectors.iter().any(|selector| {
+            matches!(selector, CssSimpleSelector::PseudoClass(name, None) if name == "root")
+        }) && rel.selectors.iter().any(|selector| {
+            matches!(selector, CssSimpleSelector::PseudoClass(name, Some(_)) if name == "has")
+        });
 
         for selector in &rel.selectors {
+            if root_has
+                && !matches!(selector, CssSimpleSelector::PseudoClass(name, Some(_)) if name == "has")
+            {
+                continue;
+            }
             match selector {
                 CssSimpleSelector::PseudoClass(name, Some(args)) if name == "has" => {
                     // If this is a :has inside a global selector, include the
