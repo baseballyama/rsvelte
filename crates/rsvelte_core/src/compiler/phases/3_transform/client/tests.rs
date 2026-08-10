@@ -22,6 +22,24 @@ fn invalidation_single_dependency_keeps_sequence_parentheses() {
 }
 
 #[test]
+fn is_unused_branch_keeps_its_source_position() {
+    let result = crate::compiler::compile(
+        "<div class=\"b\"></div><style>:is(.a, .b) { color: red; }</style>",
+        crate::compiler::CompileOptions {
+            filename: Some("is-unused.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let css = result.css.unwrap().code;
+
+    assert!(
+        css.starts_with(":is(/* (unused) .a,*/ .b"),
+        "the leading unused branch must stay before the surviving branch:\n{css}"
+    );
+}
+
+#[test]
 fn nonreactive_each_collection_does_not_invalidate_inner_signals() {
     let result = crate::compiler::compile(
         "{#each [1, 2] as item}<input bind:value={item}>{/each}",
