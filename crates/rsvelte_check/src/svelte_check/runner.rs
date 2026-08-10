@@ -685,7 +685,7 @@ fn diagnostics_for_file(file: &Path, compiler_opts: &CompilerOptionsSettings) ->
                 file: file.to_path_buf(),
                 severity: DiagnosticSeverity::Error,
                 code: error.code.or_else(|| Some("compile-error".into())),
-                message: error.message,
+                message: format!("{e}"),
                 range: None,
                 source: "svelte",
             }]
