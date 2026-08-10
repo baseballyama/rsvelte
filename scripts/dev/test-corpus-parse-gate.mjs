@@ -111,6 +111,7 @@ function buildSandbox() {
 			const dir = path.join(CORPUS, tree, id);
 			fs.mkdirSync(dir, { recursive: true });
 			fs.writeFileSync(path.join(dir, 'client.js'), GOOD);
+			fs.writeFileSync(path.join(dir, 'warnings.json'), '{}\n');
 		}
 	}
 	fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest));
