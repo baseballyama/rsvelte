@@ -882,12 +882,159 @@ fn report_unused(
 
 /// Whether `var_name.member` (or its bracket forms) is read anywhere in source.
 fn whole_object_member_used(source: &str, var_name: &str, member: &str) -> bool {
-    let dot_pat = format!("{}.{}", var_name, member);
-    let sq_pat = format!("{}['{}']", var_name, member);
-    let dq_pat = format!("{}[\"{}\"]", var_name, member);
-    source.contains(dot_pat.as_str())
-        || source.contains(sq_pat.as_str())
-        || source.contains(dq_pat.as_str())
+    let mask = code_mask(source);
+    let mut from = 0;
+    while let Some(rel) = source[from..].find(var_name) {
+        let start = from + rel;
+        let end = start + var_name.len();
+        from = end;
+        if !mask[start] || ident_continues_before(source, start) || ident_continues_at(source, end)
+        {
+            continue;
+        }
+        let mut at = skip_ws_forward(source, end);
+        let bytes = source.as_bytes();
+        let after_dot = if bytes.get(at) == Some(&b'.') {
+            Some(at + 1)
+        } else if bytes.get(at) == Some(&b'?') && bytes.get(at + 1) == Some(&b'.') {
+            Some(at + 2)
+        } else {
+            None
+        };
+        if let Some(after_dot) = after_dot {
+            at = skip_ws_forward(source, after_dot);
+            let member_end = at + member.len();
+            if source.get(at..member_end) == Some(member) && !ident_continues_at(source, member_end)
+            {
+                return true;
+            }
+        }
+        if bytes.get(at) == Some(&b'[') {
+            at = skip_ws_forward(source, at + 1);
+            let Some(&quote) = bytes.get(at) else {
+                continue;
+            };
+            if quote != b'\'' && quote != b'\"' {
+                continue;
+            }
+            let member_start = at + 1;
+            let member_end = member_start + member.len();
+            let close = skip_ws_forward(source, member_end);
+            if source.get(member_start..member_end) == Some(member)
+                && bytes.get(close) == Some(&quote)
+                && bytes.get(skip_ws_forward(source, close + 1)) == Some(&b']')
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Marks byte positions that are executable JavaScript, excluding comments and
+/// string text while retaining `${…}` expressions inside template literals.
+fn code_mask(source: &str) -> Vec<bool> {
+    #[derive(Clone, Copy)]
+    enum State {
+        Code,
+        LineComment,
+        BlockComment,
+        String(u8),
+        Template,
+        TemplateExpr(usize),
+    }
+
+    let bytes = source.as_bytes();
+    let mut mask = vec![false; bytes.len()];
+    let mut state = State::Code;
+    let mut resume_template = false;
+    let mut i = 0;
+    while i < bytes.len() {
+        match state {
+            State::Code | State::TemplateExpr(_) => {
+                let in_template_expr = matches!(state, State::TemplateExpr(_));
+                if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
+                    state = State::LineComment;
+                    i += 2;
+                } else if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
+                    state = State::BlockComment;
+                    i += 2;
+                } else if matches!(bytes[i], b'\'' | b'\"') {
+                    resume_template = in_template_expr;
+                    state = State::String(bytes[i]);
+                    i += 1;
+                } else if bytes[i] == b'`' {
+                    state = State::Template;
+                    i += 1;
+                } else {
+                    mask[i] = true;
+                    if let State::TemplateExpr(depth) = state {
+                        if bytes[i] == b'{' {
+                            state = State::TemplateExpr(depth + 1);
+                        } else if bytes[i] == b'}' {
+                            state = if depth == 1 {
+                                State::Template
+                            } else {
+                                State::TemplateExpr(depth - 1)
+                            };
+                        }
+                    }
+                    i += 1;
+                }
+            }
+            State::LineComment => {
+                if bytes[i] == b'\n' {
+                    mask[i] = true;
+                    state = if resume_template {
+                        State::TemplateExpr(1)
+                    } else {
+                        State::Code
+                    };
+                }
+                i += 1;
+            }
+            State::BlockComment => {
+                if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                    state = if resume_template {
+                        State::TemplateExpr(1)
+                    } else {
+                        State::Code
+                    };
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            State::String(quote) => {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                } else if bytes[i] == quote {
+                    state = if resume_template {
+                        State::TemplateExpr(1)
+                    } else {
+                        State::Code
+                    };
+                    i += 1;
+                } else {
+                    i += 1;
+                }
+            }
+            State::Template => {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                } else if bytes[i] == b'`' {
+                    state = State::Code;
+                    i += 1;
+                } else if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
+                    state = State::TemplateExpr(1);
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+        }
+    }
+    mask
 }
 
 /// Check if the variable `var_name` appears in a whole-object spread context in
@@ -1339,6 +1486,36 @@ mod tests {
         assert!(has_whole_object_spread("bar(...props)", "props"));
         // `...props.foo` is a member spread, not a whole-object spread.
         assert!(!has_whole_object_spread("baz({ ...props.foo })", "props"));
+    }
+
+    #[test]
+    fn whole_object_member_use_requires_code_and_identifier_boundaries() {
+        for source in [
+            "props.greeting",
+            "props.greeting.length",
+            "props?.greeting",
+            "props['greeting']",
+            "props[\"greeting\"]",
+            "`${props.greeting}`",
+        ] {
+            assert!(
+                whole_object_member_used(source, "props", "greeting"),
+                "{source}"
+            );
+        }
+        for source in [
+            "xprops.greeting",
+            "props.greetings",
+            "'props.greeting'",
+            "// props.greeting",
+            "/* props.greeting */",
+            "`props.greeting`",
+        ] {
+            assert!(
+                !whole_object_member_used(source, "props", "greeting"),
+                "{source}"
+            );
+        }
     }
 
     #[test]
