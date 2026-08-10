@@ -426,27 +426,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             continue;
         }
 
-        // Strip leading single-line comment lines from the statement.
-        // The statement splitter may combine a `// comment` line with the following
-        // code line into one statement. We need to process the code, not skip it.
-        let trimmed_stmt = {
-            let mut s = trimmed_stmt;
-            loop {
-                if s.starts_with("//") {
-                    // Skip to end of this comment line
-                    if let Some(nl) = s.find('\n') {
-                        s = s[nl + 1..].trim();
-                    } else {
-                        // Entire statement is a comment — skip
-                        s = "";
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-            s
-        };
+        let (leading_comments, trimmed_stmt) = split_leading_comments(trimmed_stmt);
         if trimmed_stmt.is_empty() {
             continue;
         }
@@ -568,8 +548,12 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 let decls = extract_var_declarations(trimmed_stmt);
 
                 // Hoist all variable names
-                for decl in &decls {
-                    hoisted_vars.push(decl.name.clone());
+                for (index, decl) in decls.iter().enumerate() {
+                    if index == 0 && !leading_comments.is_empty() {
+                        hoisted_vars.push(format!("{leading_comments} {}", decl.name));
+                    } else {
+                        hoisted_vars.push(decl.name.clone());
+                    }
                 }
 
                 // Separate non-hoist-only decls for thunk generation
@@ -1507,6 +1491,29 @@ fn skip_regex(bytes: &[u8], start: usize) -> usize {
         i += 1;
     }
     start + 1
+}
+
+fn split_leading_comments(mut statement: &str) -> (&str, &str) {
+    let original = statement;
+    loop {
+        statement = statement.trim_start();
+        if let Some(rest) = statement.strip_prefix("//") {
+            let Some(offset) = rest.find('\n') else {
+                return (original.trim(), "");
+            };
+            statement = &rest[offset + 1..];
+            continue;
+        }
+        if let Some(rest) = statement.strip_prefix("/*") {
+            let Some(end) = rest.find("*/") else {
+                return (original.trim(), "");
+            };
+            statement = &rest[end + 2..];
+            continue;
+        }
+        let comment_len = original.len() - statement.len();
+        return (original[..comment_len].trim(), statement);
+    }
 }
 
 /// Split a script into top-level statements.
@@ -2972,6 +2979,24 @@ mod tests {
             result
                 .output
                 .contains("async () => data = await fetch('/api')")
+        );
+    }
+
+    #[test]
+    fn test_leading_block_comment_on_async_var_declaration() {
+        let script = "/* keep */ const value = await $.async_derived(() => fetch());";
+        let result = transform_async_body(script, "$.run").unwrap();
+        assert!(
+            result
+                .output
+                .contains("async () => value = await $.async_derived"),
+            "async declaration was not classified as a declaration: {}",
+            result.output
+        );
+        assert!(
+            !result.output.contains("void (/*"),
+            "a declaration must not be emitted as a void expression: {}",
+            result.output
         );
     }
 

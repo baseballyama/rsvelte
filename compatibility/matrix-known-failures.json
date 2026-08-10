@@ -32,8 +32,6 @@
 	"async-derived/instance__identifier__block-before.svelte [js-mismatch] (client)",
 	"async-derived/instance__identifier__block-before.svelte [js-mismatch] (client-dev)",
 	"async-derived/instance__identifier__block-before.svelte [js-mismatch] (server)",
-	"async-derived/instance__identifier__block-inline.svelte [js-mismatch] (client)",
-	"async-derived/instance__identifier__block-inline.svelte [js-mismatch] (client-dev)",
 	"async-derived/instance__identifier__block-inline.svelte [js-mismatch] (server)",
 	"async-derived/instance__identifier__line-before.svelte [js-mismatch] (client)",
 	"async-derived/instance__identifier__line-before.svelte [js-mismatch] (client-dev)",
