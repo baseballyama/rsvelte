@@ -54,6 +54,16 @@ fn block_comment_before_binary_rhs_keeps_the_rhs_in_the_initializer() {
 }
 
 #[test]
+fn template_iife_keeps_a_class_declaration() {
+    let result = crate::compiler::compile(
+        "<p>{(() => { class T {} return new T(); })()}</p>",
+        crate::compiler::CompileOptions::default(),
+    )
+    .unwrap();
+    assert!(result.js.code.contains("class T"), "{}", result.js.code);
+}
+
+#[test]
 fn retained_module_program_avoids_comment_reparse() {
     MODULE_COMMENT_REPARSES.with(|count| count.set(0));
     let source = r#"<script module>

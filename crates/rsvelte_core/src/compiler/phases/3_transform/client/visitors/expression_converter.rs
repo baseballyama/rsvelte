@@ -4327,6 +4327,12 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 is_generator,
             }))
         }
+        "ClassDeclaration" => {
+            let start = obj.get("start")?.as_u64()? as usize;
+            let end = obj.get("end")?.as_u64()? as usize;
+            let source = context.state.analysis.source.get(start..end)?;
+            Some(JsStatement::Raw(source.into()))
+        }
         _ => {
             // For unhandled statement types, try to convert as expression statement if possible
             None
