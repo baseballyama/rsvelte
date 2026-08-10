@@ -31,7 +31,7 @@ jobs:
   benchmarks:
     name: Run benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     # Runs on every PR to `main` (and on push to `main` for the baseline).
     # CodSpeed measures instruction counts under Valgrind, which is
     # deterministic and low-variance — unlike wall-clock timing it gives a
@@ -66,8 +66,11 @@ jobs:
 
       - name: Build the benchmark targets
         run: >-
-          cargo codspeed build -p rsvelte_devtools -p rsvelte_formatter
+          cargo codspeed build
+          -p rsvelte_devtools -p rsvelte_formatter
+          -p rsvelte_fmt -p rsvelte_lint
           --bench parser --bench compiler --bench formatter
+          --bench format_session --bench linter
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@4296e51e7041e24dadb86d1d6e8b9320d223dbe8 # v5.0.3

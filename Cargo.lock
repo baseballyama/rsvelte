@@ -2527,6 +2527,7 @@ version = "0.7.10"
 dependencies = [
  "anyhow",
  "clap",
+ "codspeed-criterion-compat",
  "ignore",
  "mimalloc",
  "oxc_allocator",
@@ -2595,6 +2596,7 @@ version = "0.10.10"
 dependencies = [
  "anyhow",
  "clap",
+ "codspeed-criterion-compat",
  "compact_str 0.10.0",
  "oxc_allocator",
  "oxc_ast",

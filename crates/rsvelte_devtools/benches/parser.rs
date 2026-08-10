@@ -11,8 +11,16 @@ use std::hint::black_box;
 
 use rsvelte_core::{ParseOptions, parse, parse_parallel};
 
-#[path = "common/corpus.rs"]
+#[path = "../../../benches/common/corpus.rs"]
 mod corpus;
+
+fn parse_options() -> ParseOptions {
+    ParseOptions {
+        modern: true,
+        loose: false,
+        ..Default::default()
+    }
+}
 
 fn bench_single_parse(c: &mut Criterion) {
     let files = corpus::load();
@@ -28,7 +36,7 @@ fn bench_single_parse(c: &mut Criterion) {
                     parse(
                         black_box(source),
                         &oxc_allocator::Allocator::default(),
-                        ParseOptions::default(),
+                        parse_options(),
                     )
                 });
             },
@@ -50,7 +58,7 @@ fn bench_parallel_parse(c: &mut Criterion) {
     let mut group = c.benchmark_group("parallel_parse");
     group.throughput(Throughput::Bytes(total_size));
     group.bench_function("corpus", |b| {
-        b.iter(|| parse_parallel(black_box(sources.clone()), ParseOptions::default()));
+        b.iter(|| parse_parallel(black_box(sources.iter().copied()), parse_options()));
     });
     group.finish();
 }

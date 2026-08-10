@@ -16,7 +16,8 @@
 //! keeps a continuous per-benchmark history across `svelte` bumps.
 //!
 //! Phases: 1. Parse → 2. Analyze → 3. Transform, plus the full `compile`
-//! entry point (CSR + SSR) and the dual-output `compile_both` path.
+//! entry point (CSR + SSR + dev CSR), the dual-output `compile_both` path,
+//! and Svelte-to-TypeScript projection.
 
 // Match the shipped NAPI cdylib's global allocator (mimalloc) so the tracked
 // benchmark reflects production compile() cost. mimalloc A/B-measured ~11%
@@ -41,7 +42,7 @@ use rsvelte_core::compiler::phases::phase3_transform::transform_component;
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
-#[path = "common/corpus.rs"]
+#[path = "../../../benches/common/corpus.rs"]
 mod corpus;
 use corpus::Sample;
 
@@ -66,11 +67,40 @@ fn workload() -> Vec<Sample> {
 
 fn svelte2tsx_workload() -> Vec<Sample> {
     let mut files = corpus::load();
+    files.push(create_large_synthetic_file());
     files.push(Sample::synthetic(
         "untyped-props",
         include_str!("../../../benches/svelte2tsx-corpus/untyped-props.svelte").to_string(),
     ));
     files
+}
+
+fn assert_parses(sample: &Sample) {
+    assert!(
+        parse(
+            &sample.source,
+            &oxc_allocator::Allocator::default(),
+            parse_opts(),
+        )
+        .is_ok(),
+        "bench corpus sample `{}` failed to parse",
+        sample.id
+    );
+}
+
+fn assert_compiles(sample: &Sample) {
+    assert!(
+        compile(
+            &sample.source,
+            CompileOptions {
+                generate: GenerateMode::Client,
+                ..Default::default()
+            },
+        )
+        .is_ok(),
+        "bench corpus sample `{}` failed to compile",
+        sample.id
+    );
 }
 
 /// A large markup-heavy synthetic, to stress template/codegen scaling.
@@ -229,18 +259,18 @@ fn bench_phase2_analyze(c: &mut Criterion) {
             ..Default::default()
         };
         // Sanity-check the input compiles so the workload stays fixed.
-        sample.assert_parses();
+        assert_parses(sample);
 
         group.throughput(Throughput::Bytes(sample.bytes()));
         group.bench_with_input(
             BenchmarkId::new("analyze", &sample.id),
             &sample.source,
             |b, source| {
-                b.iter(|| {
-                    let mut ast =
-                        parse(source, &oxc_allocator::Allocator::default(), parse_opts()).unwrap();
-                    analyze_component(black_box(&mut ast), black_box(source), &compile_options)
-                });
+                b.iter_batched_ref(
+                    || parse(source, &oxc_allocator::Allocator::default(), parse_opts()).unwrap(),
+                    |ast| analyze_component(black_box(ast), black_box(source), &compile_options),
+                    BatchSize::SmallInput,
+                );
             },
         );
     }
@@ -309,7 +339,7 @@ fn bench_phase3_transform_server(c: &mut Criterion) {
     );
 }
 
-/// Full compilation pipeline (the production `compile` entry point), CSR + SSR.
+/// Full compilation pipeline: production CSR/SSR and development CSR.
 fn bench_full_compile(c: &mut Criterion) {
     let files = workload();
     let mut group = c.benchmark_group("full_compile");
@@ -317,7 +347,7 @@ fn bench_full_compile(c: &mut Criterion) {
     for sample in &files {
         // Fail loudly if a corpus fixture stops compiling — keeps the
         // CodSpeed workload fixed and complete (no silent skips).
-        sample.assert_compiles();
+        assert_compiles(sample);
 
         group.throughput(Throughput::Bytes(sample.bytes()));
 
@@ -346,6 +376,23 @@ fn bench_full_compile(c: &mut Criterion) {
                         black_box(source),
                         CompileOptions {
                             generate: GenerateMode::Server,
+                            ..Default::default()
+                        },
+                    )
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("client_dev", &sample.id),
+            &sample.source,
+            |b, source| {
+                b.iter(|| {
+                    compile(
+                        black_box(source),
+                        CompileOptions {
+                            dev: true,
+                            generate: GenerateMode::Client,
                             ..Default::default()
                         },
                     )

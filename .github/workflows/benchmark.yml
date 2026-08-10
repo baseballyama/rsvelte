@@ -7,8 +7,11 @@ on:
       - 'crates/rsvelte_core/**'
       - 'crates/rsvelte_devtools/**'
       - 'crates/rsvelte_formatter/**'
+      - 'crates/rsvelte_fmt/**'
+      - 'crates/rsvelte_lint/**'
       - 'crates/rsvelte_projection/**'
       - 'benches/corpus/**'
+      - 'benches/common/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/benchmark.yml'
@@ -90,14 +93,14 @@ jobs:
         # `--save-baseline pr` saves results so a follow-up job (or the next
         # commit) can diff against this baseline with `--baseline pr`.
         #
-        # The pinned corpus grew this suite to ~100 benchmarks. Criterion
+        # The pinned corpus grows this suite to roughly 190 benchmarks. Criterion
         # wall-clock throughput is noisier than CodSpeed's instruction counts
         # and isn't a PR gate (see the job comment), so trade a little
         # statistical fidelity for a much shorter, reliable run:
         #
         #   --warm-up-time/--measurement-time/--sample-size — a 1s warm-up + 2s
         #     window at the minimum sample size (10) tracks coarse regressions
-        #     while keeping the whole measurement sweep to ~7 min.
+        #     while keeping the whole measurement sweep to roughly 10 min.
         #   --noplot — skip per-bench HTML/SVG rendering (with no gnuplot the
         #     in-process `plotters` backend would render plots for every one of
         #     the ~100 benchmarks). The raw estimate JSON is still written and
@@ -106,8 +109,11 @@ jobs:
         # Local `cargo bench` is unaffected — it keeps Criterion's full-accuracy
         # defaults and renders the HTML reports.
         run: >-
-          cargo bench -p rsvelte_devtools -p rsvelte_formatter
-          --bench parser --bench compiler --bench formatter --
+          cargo bench
+          -p rsvelte_devtools -p rsvelte_formatter
+          -p rsvelte_fmt -p rsvelte_lint
+          --bench parser --bench compiler --bench formatter
+          --bench format_session --bench linter --
           --save-baseline pr --noplot
           --warm-up-time 1 --measurement-time 2 --sample-size 10
         # Cold-cache flake guard, not an expected duration: oxc-from-git deps

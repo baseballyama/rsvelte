@@ -13,7 +13,7 @@ use std::hint::black_box;
 
 use rsvelte_formatter::{FormatOptions, format};
 
-#[path = "common/corpus.rs"]
+#[path = "../../../benches/common/corpus.rs"]
 mod corpus;
 use corpus::Sample;
 
