@@ -1,6 +1,6 @@
 # Adversarial technical-debt audit
 
-Audit snapshot: `c19c67ec` (official compatibility target: Svelte 5.56.8).
+Audit snapshot: `579657fd` (official compatibility target: Svelte 5.56.8).
 
 This directory records one independently actionable debt per file. Findings were accepted only when backed by a concrete code path, an explicit unfinished implementation, or a measured compatibility ratchet. Counts are snapshots, not tolerances: a known failure remains a defect unless the individual file says otherwise.
 
@@ -14,6 +14,8 @@ Priority means:
 Each finding contains evidence, impact, remediation, and an acceptance test so it can be converted directly into an issue.
 
 The audit is intentionally hostile to flattering aggregates. Performance findings separate single-component latency from outer batch parallelism, use real-world size distributions instead of only tiny fixtures, and treat allocation density, scaling exponent, repeated parsing/scanning and fallback frequency as first-class budgets. Architecture findings preserve the useful upstream phase mirror while rejecting migration-history folders, ambient state, catch-all modules and text-based shadow compilers inside those phases.
+
+The former aggregate #033 has been split along independently removable production paths. #033 owns legacy reactive statements; #046–#051 own one semantic statement-transform family each; #052 owns Phase-3 metadata rescans; #053 owns unconditional statement assembly; #054–#055 own the two remaining source-mutating prenormalizers; and #031 owns statement-boundary scanning. This deliberately excludes two attractive but falsified performance theories: the dev prop-mutation `Vec<char>` rescans measured only 0.0–1.8x source bytes, and skipping the dev assignment-tail parse produced no reliable win (`docs/phase3-ast-refactor-plan.md:377-455`).
 
 ## Findings
 
@@ -54,7 +56,7 @@ The audit is intentionally hostile to flattering aggregates. Performance finding
 - [027 — warningFilter failures silently change svelte-check results](027-warning-filter-fails-open.md)
 - [028 — every OXC dependency is overridden to a development Git revision](028-oxc-git-patch-is-workspace-wide.md)
 - [032 — AST representation creates roughly one heap allocation per source byte](032-ast-representation-causes-allocation-per-source-byte.md)
-- [033 — client script transformation scales superlinearly with script size](033-script-text-cost-scales-superlinearly.md)
+- [033 — legacy reactive statements are re-derived and lowered from text](033-legacy-reactive-statements-are-lowered-from-text.md)
 - [034 — batch parallelism masks the single-component performance gap](034-batch-parallelism-masks-single-component-latency.md)
 - [035 — client transform module layout encodes migration history instead of semantic ownership](035-client-module-layout-encodes-migration-history.md)
 - [036 — wildcard imports hide ownership inside the client transform root](036-client-wildcard-imports-hide-module-ownership.md)
@@ -66,6 +68,15 @@ The audit is intentionally hostile to flattering aggregates. Performance finding
 - [043 — async lowering reparses generated JavaScript text as a second compiler](043-async-lowering-reparses-generated-javascript-text.md)
 - [044 — store-subscription analysis reimplements JavaScript scope rules with character heuristics](044-store-subscription-analysis-scans-javascript-characters.md)
 - [045 — generated JavaScript is repaired by text post-passes](045-generated-javascript-is-repaired-by-text-postpasses.md)
+- [046 — legacy state assignments and reads reparse each statement in separate stages](046-legacy-state-assigns-and-reads-reparse-each-statement.md)
+- [047 — legacy member mutations are lowered by a separate text pass](047-legacy-member-mutations-are-a-separate-text-pass.md)
+- [048 — legacy store lowering scans each statement three times](048-legacy-store-lowering-scans-statements-three-times.md)
+- [049 — legacy state declarations use separate destructuring and declaration text pipelines](049-legacy-state-declarations-use-two-text-pipelines.md)
+- [050 — legacy prop operations run as three ordered statement passes](050-legacy-prop-operations-run-as-three-ordered-passes.md)
+- [051 — `export let` lowering is a nested string pipeline](051-export-let-lowering-is-a-nested-string-pipeline.md)
+- [052 — client script metadata is recomputed by six whole-script scans](052-client-script-metadata-is-recomputed-by-six-text-scans.md)
+- [053 — statement assembly allocates before transform eligibility is known](053-statement-assembly-allocates-before-transform-eligibility-is-known.md)
+- [055 — comma-declaration prenormalization rewrites the whole client script](055-comma-declaration-prenormalization-rewrites-the-whole-script.md)
 
 ### P3
 
@@ -73,3 +84,4 @@ The audit is intentionally hostile to flattering aggregates. Performance finding
 - [029 — benchmark installs its lint oracle without a lockfile](029-benchmark-installs-unlocked-oracle.md)
 - [030 — dormant helpers and future migration scaffolding remain in production modules](030-dormant-dead-code-and-future-scaffolding.md)
 - [041 — large production modules also contain thousands of lines of inline tests](041-production-modules-contain-thousands-of-test-lines.md)
+- [054 — client class-field prenormalization rewrites the whole script before statement visitors](054-client-class-field-prenormalization-rewrites-the-whole-script.md)
