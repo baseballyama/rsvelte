@@ -1177,7 +1177,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// strips the synthetic parens. Returns `None` on a parse error.
     fn parse_raw_expression(&self, code: &str) -> Option<Expression<'a>> {
         let wrapped = format!("({})", code.trim());
-        let stmts = self.parse_chunk(&wrapped)?;
+        let mut stmts = self.parse_chunk(&wrapped)?;
+        self.restore_single_target_destructure_sequences(&mut stmts);
         // The synthetic parens are part of the chunk text, so the region already
         // covers them; no caller needs it for an expression.
         self.take_chunk_region(None);

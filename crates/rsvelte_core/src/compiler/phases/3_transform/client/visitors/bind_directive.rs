@@ -22,6 +22,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::expression_conv
 use crate::compiler::phases::phase3_transform::js_ast::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
 
 // Note: We implement bind_this directly here rather than using shared/utils
 // to avoid complex borrow checker issues with the context
@@ -2478,7 +2479,14 @@ fn build_invalidation_expr(
 
     // Build: $.invalidate_inner_signals(() => (expr1, expr2, ...))
     if !each_ctx.invalidation_exprs.is_empty() {
-        let inner = each_ctx.invalidation_exprs.join(", ");
+        let inner = if each_ctx.invalidation_exprs.len() == 1 {
+            format!(
+                "{}({})",
+                SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER, each_ctx.invalidation_exprs[0]
+            )
+        } else {
+            each_ctx.invalidation_exprs.join(", ")
+        };
         parts.push(format!("$.invalidate_inner_signals(() => ({}))", inner));
     }
 

@@ -1,6 +1,22 @@
 use super::*;
 
 #[test]
+fn invalidation_single_dependency_keeps_sequence_parentheses() {
+    let result = crate::compiler::compile(
+        "<script>let list = [1];</script>{#each list as item}<input bind:value={item}>{/each}",
+        crate::compiler::CompileOptions {
+            filename: Some("each-sequence.svelte".to_string()),
+            runes: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(result.js.code.contains("$.invalidate_inner_signals(() => ("));
+    assert!(!result.js.code.contains("__rsvelte_seq1"));
+}
+
+#[test]
 fn nonreactive_each_collection_does_not_invalidate_inner_signals() {
     let result = crate::compiler::compile(
         "{#each [1, 2] as item}<input bind:value={item}>{/each}",
@@ -12,11 +28,7 @@ fn nonreactive_each_collection_does_not_invalidate_inner_signals() {
     )
     .unwrap();
 
-    assert!(
-        !result.js.code.contains("$.invalidate_inner_signals"),
-        "a collection with no transitive dependencies must not be invalidated:\n{}",
-        result.js.code
-    );
+    assert!(!result.js.code.contains("$.invalidate_inner_signals"));
 }
 
 #[test]
@@ -31,11 +43,7 @@ fn reactive_each_collection_still_invalidates_inner_signals() {
     )
     .unwrap();
 
-    assert!(
-        result.js.code.contains("$.invalidate_inner_signals"),
-        "a collection with a transitive dependency must remain invalidated:\n{}",
-        result.js.code
-    );
+    assert!(result.js.code.contains("$.invalidate_inner_signals"));
 }
 
 #[test]
