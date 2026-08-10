@@ -1634,6 +1634,12 @@ impl<'a> ComponentContext<'a> {
                         crate::compiler::phases::phase3_transform::utils::ParentRef::None,
                     );
                 }
+                Attribute::TransitionDirective(transition) => {
+                    crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive(transition, self);
+                }
+                Attribute::AnimateDirective(animate) => {
+                    crate::compiler::phases::phase3_transform::client::visitors::animate_directive::animate_directive(animate, self);
+                }
                 Attribute::AttachTag(attach) => {
                     // Handle {@attach ...} directives on special elements like
                     // `<svelte:body {@attach swipe} />`. Mirrors RegularElement.js behavior.
