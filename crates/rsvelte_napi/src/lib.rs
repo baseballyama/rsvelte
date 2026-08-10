@@ -157,6 +157,16 @@ impl NapiParseOptions {
 pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Result<String> {
     use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
 
+    if options
+        .as_ref()
+        .and_then(|options| options.skip_css_ast.as_ref())
+        .is_some()
+    {
+        return Err(napi::Error::from_reason(
+            "skipCssAst is only supported by parseEnvelope",
+        ));
+    }
+
     let parse_options = ParseOptions {
         skip_expression_loc: NapiParseOptions::flag(
             options

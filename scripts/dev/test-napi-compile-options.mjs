@@ -528,8 +528,18 @@ const PARSE_SRC = '<script>let x = 1 + 2;</script>\n<h1>{x}</h1>\n<style>h1 { co
 		`${locCount(full)} -> ${locCount(skipped)}`
 	);
 
-	// `skipCssAst` is only read by `parseEnvelope` — `napi_parse` never consults
-	// it, so this is the entry point that can observe it.
+	assert(
+		'parse.skipCssAst: parse rejects an envelope-only option',
+		(() => {
+			try {
+				napi.parse(PARSE_SRC, { skipCssAst: true });
+				return false;
+			} catch (e) {
+				return String(e.message).includes('only supported by parseEnvelope');
+			}
+		})()
+	);
+
 	covered.add('parse.skipCssAst');
 	const envFull = napi.parseEnvelope(PARSE_SRC, {});
 	const envSkipped = napi.parseEnvelope(PARSE_SRC, { skipCssAst: true });
