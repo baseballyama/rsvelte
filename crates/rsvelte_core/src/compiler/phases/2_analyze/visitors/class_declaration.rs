@@ -33,7 +33,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             } else {
                 1
             };
-        if context.function_depth > allowed_depth {
+        if context.function_depth > allowed_depth || context.in_reactive_declaration {
             let mut warning = warnings::perf_avoid_nested_class();
             warning.start = node.start();
             warning.end = node.end();
@@ -110,6 +110,12 @@ mod tests {
     fn component_instance_script_allows_the_component_scope() {
         let warnings = component_warnings("<script>\n\tclass A {}\n</script>\n");
         assert!(nested_class(&warnings).is_empty());
+    }
+
+    #[test]
+    fn legacy_reactive_declaration_counts_as_nested_scope() {
+        let warnings = component_warnings("<script>\n$: { class A {} }\n</script>\n");
+        assert_eq!(nested_class(&warnings).len(), 1);
     }
 
     #[test]
