@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 1158 entries)
+## Matrix known failures (`matrix-known-failures.json`, 942 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 18 + 60 + 278 + 3 + 253 + 324 + 8`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 324 + 253 + 8`
 
 ### `binding-position` — 2 entries
 
@@ -248,10 +248,10 @@ on `client` and `client-dev`. `server` has no dependency list and matches everyw
 
 Partition of `matrix-known-failures.json` entries under `param-pattern/` by shape: `12 + 12 + 12 + 12 + 12`
 
-### `directive-element` — 338 entries
+### `directive-element` — 62 entries
 
 19 directive kinds × 13 element kinds × 2 modes (runes / legacy), 1482 comparisons. Every one
-of these 338 entries is a **live rsvelte defect**, not accepted behaviour; none was known before
+of these 62 entries is a **live rsvelte defect**, not accepted behaviour; none was known before
 the family existed. They are listed so the ratchet can hold the line while they are burned down.
 
 The single most useful fact about the set is where it is **not**: zero entries on
