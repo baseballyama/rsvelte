@@ -344,7 +344,7 @@ until their issues are fixed.
 
 ---
 
-### `async-derived` — 251 entries
+### `async-derived` — 234 entries
 
 Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 251 was
 reachable by any gate in the repo before this family existed, because every harness compiles
@@ -359,15 +359,15 @@ in dev — is *not* in this list; the rows that isolate it (`instance__identifie
 `instance__multi-declarator__none`, all three targets) pass. What remains are five independent
 defects the family exposed on the way, all of them older than the family:
 
-Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `154 + 39 + 18 + 12 + 13 + 13 + 2`
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `154 + 24 + 18 + 12 + 11 + 13 + 2`
 
 | # | cause | entries |
 |---|---|---|
 | 1 | `<script module>` / `compileModule` async-derived lowering | 154 |
-| 2 | the `$$d` temp appears in the hoisted `var` list | 39 |
+| 2 | the `$$d` temp appears in the hoisted `var` list | 24 |
 | 3 | `svelte-ignore` comment not reproduced on the hoisted declaration | 18 |
 | 4 | a block comment before the declaration produces **invalid JavaScript** | 12 |
-| 5a | no `$.save(…)` around a non-final `await` | 13 |
+| 5a | no `$.save(…)` around a non-final `await` | 11 |
 | 5b | `$derived.by(async …)` is suspended as if it were an async derived | 13 |
 | — | server `$$renderer.async` split lost alongside cause 3 | 2 |
 
