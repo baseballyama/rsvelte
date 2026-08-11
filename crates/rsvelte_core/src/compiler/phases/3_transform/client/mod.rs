@@ -3954,9 +3954,8 @@ pub(crate) fn transform_module_script_runes(
     // async-derived thunk. The tail pass recognises the generated outer await.
     if dev {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = module_dev_tail_ast::transform_module_dev_tail_ast(
+        if let Some(rewritten) = module_dev_tail_ast::transform_module_awaits_ast(
             &result,
-            true,
             is_ts,
             analysis.runes,
             Some(analysis),

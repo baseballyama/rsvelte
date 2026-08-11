@@ -40,6 +40,39 @@ thread_local! {
     static MODULE_DEV_TAIL_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
 
+/// Instrument awaits before `$derived` lowering moves them into generated
+/// thunks. The remaining dev rewrites must stay in the normal tail order.
+pub(super) fn transform_module_awaits_ast(
+    source: &str,
+    is_ts: bool,
+    is_runes: bool,
+    analysis: Option<&ComponentAnalysis>,
+) -> Option<String> {
+    if !super::await_reactivity_loss_ast::source_has_await(source) {
+        return None;
+    }
+    let source_type = if is_ts {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::mjs()
+    };
+    let experimental_async = analysis.is_some_and(|a| a.experimental_async);
+    ast_rewrite::rewrite_batched(
+        &MODULE_DEV_TAIL_ALLOC,
+        source,
+        source_type,
+        ParseOptions::default(),
+        |program, src| {
+            super::await_reactivity_loss_ast::collect_await_reactivity_loss_edits(
+                program,
+                src,
+                is_runes,
+                experimental_async,
+            )
+        },
+    )
+}
+
 /// Lower the module script's `$effect` runes and, in dev mode, its
 /// `strict_equals` / `console` / declarator-`tag` / `await` passes in a
 /// single batched parse. `dev` gates the dev-only collectors exactly as
