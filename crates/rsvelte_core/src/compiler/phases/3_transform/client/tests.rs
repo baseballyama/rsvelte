@@ -1749,6 +1749,31 @@ fn module_async_derived_instruments_its_thunk_in_dev() {
 }
 
 #[test]
+fn module_async_derived_prelude_does_not_reorder_console_analysis() {
+    let mut options = crate::compiler::ModuleCompileOptions {
+        dev: true,
+        filename: Some("test.svelte.js".to_string()),
+        ..Default::default()
+    };
+    options.experimental.r#async = true;
+    let result = crate::compiler::compile_module(
+        "const state = $state(0);\nconst value = $derived(await load());\nconsole.log(state);",
+        options,
+    )
+    .unwrap();
+    assert!(
+        result.js.code.contains("console.log(state);"),
+        "console instrumentation must retain its normal module analysis order: {}",
+        result.js.code
+    );
+    assert!(
+        !result.js.code.contains("log_if_contains_state"),
+        "console instrumentation must not run before module state lowering: {}",
+        result.js.code
+    );
+}
+
+#[test]
 fn test_module_derived_with_ts_annotation_gets_get() {
     // Bug: TypeScript type annotations on $derived declarations (e.g.,
     // `const contentStyle: string = $derived.by(...)`) prevented the
