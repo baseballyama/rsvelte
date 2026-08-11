@@ -3083,7 +3083,8 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                 // Check if there's more expression after this await+arg
                 let remaining: String = chars[j..].iter().collect();
                 let remaining_trimmed = remaining.trim();
-                let has_more_after = !remaining_trimmed.is_empty()
+                let has_more_after = !await_arg_trimmed.starts_with("$.track_reactivity_loss(")
+                    && !remaining_trimmed.is_empty()
                     && remaining_trimmed != ")"
                     && remaining_trimmed != "))"
                     && remaining_trimmed != ";";
@@ -3111,7 +3112,16 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
 
 #[cfg(test)]
 mod proxy_detection_tests {
-    use super::{expression_needs_proxy, is_top_level_binary_expression, strip_leading_comments};
+    use super::{
+        expression_needs_proxy, is_top_level_binary_expression, strip_leading_comments,
+        wrap_await_with_save_in_async_derived,
+    };
+
+    #[test]
+    fn save_wrapping_leaves_dev_await_tracking_intact() {
+        let input = "(await $.track_reactivity_loss(p))()";
+        assert_eq!(wrap_await_with_save_in_async_derived(input), input);
+    }
 
     #[test]
     fn strips_leading_block_and_line_comments() {

@@ -557,12 +557,17 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 let decls = extract_var_declarations(trimmed_stmt);
 
                 // Hoist all variable names
-                for (index, decl) in decls.iter().enumerate() {
-                    if index == 0 && !leading_comments.is_empty() {
+                let mut first_hoisted = true;
+                for decl in &decls {
+                    if decl.name.starts_with("$$") {
+                        continue;
+                    }
+                    if first_hoisted && !leading_comments.is_empty() {
                         hoisted_vars.push(format!("{leading_comments} {}", decl.name));
                     } else {
                         hoisted_vars.push(decl.name.clone());
                     }
+                    first_hoisted = false;
                 }
 
                 // Separate non-hoist-only decls for thunk generation
@@ -3053,6 +3058,29 @@ mod tests {
         assert!(
             !result.output.contains("var { name }"),
             "Should not produce invalid var destructuring. Output: {}",
+            result.output
+        );
+    }
+
+    #[test]
+    fn generated_destructuring_temp_stays_inside_async_thunk() {
+        let script = concat!(
+            "const $$d = await $.async_derived(() => source), ",
+            "a = $.derived(() => $.get($$d).a), ",
+            "b = $.derived(() => $.get($$d).b);"
+        );
+        let result = transform_async_body(script, "$.run").unwrap();
+
+        assert!(
+            result.output.starts_with("var a, b;"),
+            "only user bindings belong in the outer var list: {}",
+            result.output
+        );
+        assert!(
+            result
+                .output
+                .contains("var $$d = await $.async_derived(() => source);"),
+            "the generated temp must stay local to its async thunk: {}",
             result.output
         );
     }

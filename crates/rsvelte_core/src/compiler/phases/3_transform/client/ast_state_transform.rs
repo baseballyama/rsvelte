@@ -32,6 +32,7 @@ use super::destructure_transforms::{
 use super::expression_utils::{
     contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
     find_trace_source_location, strip_top_level_await_from_expr,
+    wrap_await_with_save_in_async_derived,
 };
 use super::props_transforms::transform_props_destructuring;
 use super::rune_transforms::{process_derived_destructuring_pattern, wrap_state_value};
@@ -1341,7 +1342,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             // `await $.async_derived(...)` emission. Upstream's
             // `VariableDeclaration.js` passes the value through unchanged; only
             // `create_derived` (`{@const}`) wraps it in `$.save(...)`.
-            let saved_content = wrapped_source.trim().to_string();
+            let saved_content = wrap_await_with_save_in_async_derived(wrapped_source.trim());
             let inner_expr = strip_top_level_await_from_expr(&saved_content);
             let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
             let is_array_pattern = matches!(&declarator.id, BindingPattern::ArrayPattern(_));
@@ -1794,7 +1795,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // here either — `maybe_tag_declarator` rejects the
         // `await $.async_derived(...)` prefix.
         if contains_direct_await_in_expression(arg_for_check) {
-            let inner_expr = strip_top_level_await_from_expr(walked_for_emit);
+            let saved_for_emit = wrap_await_with_save_in_async_derived(walked_for_emit);
+            let inner_expr = strip_top_level_await_from_expr(&saved_for_emit);
             let inner_trimmed = inner_expr.trim();
             let inner_has_nested_await = contains_direct_await_in_expression(inner_trimmed);
             // Svelte 5.56.0 (#18299 commit `0da9f9e2a` "fix: disallow effect
@@ -1808,11 +1810,11 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let should_save = false;
             let dev_tail = dev_args(self.async_derived_locations, var_name, var_name);
             let async_derived_call = if inner_has_nested_await {
-                let is_obj = walked_for_emit.starts_with('{');
+                let is_obj = saved_for_emit.starts_with('{');
                 if is_obj {
-                    format!("$.async_derived(async () => ({walked_for_emit}){dev_tail})")
+                    format!("$.async_derived(async () => ({saved_for_emit}){dev_tail})")
                 } else {
-                    format!("$.async_derived(async () => {walked_for_emit}{dev_tail})")
+                    format!("$.async_derived(async () => {saved_for_emit}{dev_tail})")
                 }
             } else {
                 let inner_is_object = inner_trimmed.starts_with('{');
@@ -4822,6 +4824,34 @@ mod tests {
     #[test]
     fn test_simple_get_wrapping() {
         assert_eq!(transform("count", &["count"]), "$.get(count)");
+    }
+
+    #[test]
+    fn destructured_async_derived_saves_non_final_awaits() {
+        let output = transform("const { a, b } = $derived((await p) + (await q));", &[]);
+
+        assert!(
+            output.contains("$.save(p)") && output.contains("await q"),
+            "non-final await must preserve reactive context: {output}"
+        );
+        assert!(
+            !output.contains("$.save(q)"),
+            "the final await must not be save-wrapped: {output}"
+        );
+    }
+
+    #[test]
+    fn async_derived_saves_non_final_awaits() {
+        let output = transform("const a = $derived((await p) + (await q));", &[]);
+
+        assert!(
+            output.contains("$.save(p)") && output.contains("await q"),
+            "non-final await must preserve reactive context: {output}"
+        );
+        assert!(
+            !output.contains("$.save(q)"),
+            "the final await must not be save-wrapped: {output}"
+        );
     }
 
     #[test]
