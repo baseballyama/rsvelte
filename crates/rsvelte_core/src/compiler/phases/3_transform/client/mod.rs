@@ -2458,8 +2458,9 @@ fn transform_client_with_visitors(
 }
 
 fn rehome_derived_jsdoc(code: &str) -> String {
+    let code = rehome_tag_derived_line_comments(code);
     let mut result = String::with_capacity(code.len());
-    let mut rest = code;
+    let mut rest = code.as_str();
     const PREFIX: &str = "$.derived(() => /**";
 
     while let Some(start) = rest.find(PREFIX) {
@@ -2484,6 +2485,47 @@ fn rehome_derived_jsdoc(code: &str) -> String {
         result.push_str(indent);
         result.push_str(") => ");
         rest = expression;
+    }
+    result.push_str(rest);
+    result
+}
+
+fn rehome_tag_derived_line_comments(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut rest = code;
+    const PREFIX: &str = "$.tag(\n";
+    const DERIVED: &str = "$.derived(() => ";
+
+    while let Some(start) = rest.find(PREFIX) {
+        let comment_start = start + PREFIX.len();
+        let indent_end = rest[comment_start..]
+            .find(|c: char| !matches!(c, ' ' | '\t'))
+            .map_or(rest.len(), |index| comment_start + index);
+        let indent = &rest[comment_start..indent_end];
+        let Some(comment_end_relative) = rest[indent_end..].find('\n') else {
+            result.push_str(&rest[..start + PREFIX.len()]);
+            rest = &rest[start + PREFIX.len()..];
+            continue;
+        };
+        let comment_end = indent_end + comment_end_relative;
+        let after_comment = comment_end + 1;
+
+        if !rest[indent_end..].starts_with("//")
+            || !rest[after_comment..].starts_with(indent)
+            || !rest[after_comment + indent.len()..].starts_with(DERIVED)
+        {
+            result.push_str(&rest[..start + PREFIX.len()]);
+            rest = &rest[start + PREFIX.len()..];
+            continue;
+        }
+
+        result.push_str(&rest[..indent_end]);
+        result.push_str("$.derived((");
+        result.push_str(&rest[indent_end..comment_end]);
+        result.push('\n');
+        result.push_str(indent);
+        result.push_str(") => ");
+        rest = &rest[after_comment + indent.len() + DERIVED.len()..];
     }
     result.push_str(rest);
     result
