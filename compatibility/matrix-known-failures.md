@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 560 entries)
+## Matrix known failures (`matrix-known-failures.json`, 557 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 66 + 129 + 8`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 0 + 66 + 129 + 8`
 
 ### `binding-position` — 2 entries
 
@@ -293,23 +293,10 @@ produce 9 new ids instead, and is also what let #2523's fix be read off this gat
 The split by mode is `32` legacy / `30` runes. The two extra legacy entries are the `bind:this`
 on `<svelte:body>` row, which has no runes counterpart.
 
-### `bind-setter` — 3 entries
+### `bind-setter` — 0 entries
 
-7 `bind:` expression shapes × 9 element kinds, 189 comparisons; all 3 entries are `client-dev`
-and all 3 are the dev-mode `$.assign` wrap of #2484 — the family exists to make that defect's
-element addressable.
-
-| entry | direction |
-|---|---|
-| `plain__svelte-self` | rsvelte omits a wrap official emits |
-| `getter-setter__svelte-body` | rsvelte emits a wrap official omits |
-| `nested-arrow-in-setter__svelte-body` | rsvelte emits a wrap official omits |
-
-Read this against how #2484 was reported: against `<svelte:component>`, which **matches** here,
-while the live sites are `<svelte:body>` and `<svelte:self>`. The shapes the issue named
-(`setter-through-call`, `sequence-bodied-setter`) all pass on the element and component hosts
-now; what survives is the same predicate reached through a special element. A repro file cannot
-find that, because the reporter picks the element.
+All 189 generated comparisons now match. #2484's three special-element dev setter cases are
+covered by the direct regression tests as well as this zero-residue matrix family.
 ### `removed-statement-comment` — 66 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
