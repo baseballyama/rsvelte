@@ -1495,7 +1495,16 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
         crate::compiler::phases::phase3_transform::profile::timer_elapsed(_t),
     );
     comment_stats::dump();
-    Ok(rehome_derived_jsdoc(&code))
+    let code = rehome_derived_jsdoc(&code);
+    Ok(match state.analysis.instance_script_content.as_ref() {
+        Some(script) => {
+            crate::compiler::phases::phase3_transform::shared::async_body::restore_async_derived_ignore_comments(
+                &script.raw,
+                code,
+            )
+        }
+        None => code,
+    })
 }
 
 fn rehome_derived_jsdoc(code: &str) -> String {

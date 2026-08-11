@@ -400,6 +400,75 @@ pub fn transform_async_body_dev(script: &str, runner: &str, dev: bool) -> Option
     transform_async_body_inner(script, runner, dev)
 }
 
+/// Reattach `svelte-ignore await_waterfall` comments that an AST lowering has
+/// detached before this text transform can hoist the declaration.
+pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: String) -> String {
+    if transformed.contains("svelte-ignore await_waterfall") {
+        return transformed;
+    }
+
+    let mut search_from = 0;
+    while let Some(relative) = source[search_from..].find("svelte-ignore await_waterfall") {
+        let ignore = search_from + relative;
+        let comment_start = source[..ignore]
+            .rfind("/*")
+            .or_else(|| source[..ignore].rfind("//"));
+        let Some(comment_start) = comment_start else {
+            search_from = ignore + "svelte-ignore await_waterfall".len();
+            continue;
+        };
+        let comment_end = if source[comment_start..].starts_with("/*") {
+            source[comment_start..]
+                .find("*/")
+                .map(|end| comment_start + end + 2)
+        } else {
+            source[comment_start..]
+                .find('\n')
+                .map(|end| comment_start + end)
+                .or(Some(source.len()))
+        };
+        let Some(comment_end) = comment_end else {
+            break;
+        };
+        let rest = source[comment_end..].trim_start();
+        let Some((_, rest)) = ["const ", "let ", "var "]
+            .iter()
+            .find_map(|kind| rest.strip_prefix(kind).map(|rest| (*kind, rest)))
+        else {
+            search_from = comment_end;
+            continue;
+        };
+        let name_end = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+            .unwrap_or(rest.len());
+        let name = &rest[..name_end];
+        if !rest[name_end..].trim_start().starts_with("= $derived(") {
+            search_from = comment_end;
+            continue;
+        }
+        let needle = format!("{name} = await $.async_derived");
+        if let Some(name_pos) = transformed.find(&needle)
+            && let Some(pos) = ["const ", "let ", "var "]
+                .iter()
+                .filter_map(|kind| transformed[..name_pos].rfind(kind))
+                .max()
+        {
+            transformed.insert_str(pos, &format!("{}\n", &source[comment_start..comment_end]));
+        } else {
+            let needle = format!("var {name};");
+            if let Some(pos) = transformed.find(&needle) {
+                transformed.insert_str(
+                    pos + "var ".len(),
+                    &format!("{} ", &source[comment_start..comment_end]),
+                );
+            }
+        }
+        search_from = comment_end;
+    }
+
+    transformed
+}
+
 fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<AsyncBodyResult> {
     let trimmed = script.trim();
     if trimmed.is_empty() {
