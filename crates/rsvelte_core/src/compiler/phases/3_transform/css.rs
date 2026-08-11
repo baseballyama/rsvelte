@@ -7411,7 +7411,7 @@ fn format_simple_selector_with_scope(
                     if remaining.starts_with('(') {
                         // Find the matching closing parenthesis
                         let mut depth = 0;
-                        for (i, c) in remaining.chars().enumerate() {
+                        for (i, c) in remaining.char_indices() {
                             if c == '(' {
                                 depth += 1;
                             } else if c == ')' {
