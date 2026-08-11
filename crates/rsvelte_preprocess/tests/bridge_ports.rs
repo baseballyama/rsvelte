@@ -106,6 +106,10 @@ fn modular_css_extracts_style_block() {
         return;
     }
     let specimen = submodule.join("packages/svelte/test/specimens/style.svelte");
+    if !specimen.exists() {
+        eprintln!("skipping: modular-css specimen not checked out");
+        return;
+    }
     let content = std::fs::read_to_string(&specimen).unwrap();
 
     let config = bridge_at(

@@ -14,7 +14,9 @@ fn submodule() -> Option<PathBuf> {
         .join("../../submodules/modular-css")
         .canonicalize()
         .ok()?;
-    dir.exists().then_some(dir)
+    dir.join("packages/svelte/test/specimens")
+        .is_dir()
+        .then_some(dir)
 }
 
 fn run(specimen: &str) -> (String, String) {
