@@ -65,6 +65,7 @@ fn trailing_effect_comment_wraps_instance_top_level_call_in_client_and_dev() {
 
 #[test]
 fn trailing_inspect_comment_wraps_dev_console_call() {
-    let source = "<script>\n\t$inspect(() => {\n\t\tconsole.log('ok');\n\t}); // c\n</script>\n<p>ok</p>";
+    let source =
+        "<script>\n\t$inspect(() => {\n\t\tconsole.log('ok');\n\t}); // c\n</script>\n<p>ok</p>";
     assert_effect_comment_is_an_argument(&compile_component_code(source, true));
 }

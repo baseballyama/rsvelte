@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 812 entries)
+## Matrix known failures (`matrix-known-failures.json`, 560 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 318 + 129 + 8`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 66 + 129 + 8`
 
 ### `binding-position` — 2 entries
 
@@ -310,7 +310,7 @@ while the live sites are `<svelte:body>` and `<svelte:self>`. The shapes the iss
 (`setter-through-call`, `sequence-bodied-setter`) all pass on the element and component hosts
 now; what survives is the same predicate reached through a special element. A repro file cannot
 find that, because the reporter picks the element.
-### `removed-statement-comment` — 318 entries
+### `removed-statement-comment` — 66 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
 `$effect.root`, `$inspect`) with the comment slot (leading / interior / trailing), 6 comment
@@ -318,28 +318,19 @@ kinds, 3 hosts (`compileModule`, the instance script's top level, one function d
 whether a statement survives after the removed one. 396 cases, 1188 comparisons; the fix that
 landed with it cleared 79 of them (403 → 324, all on `server`).
 
-Every remaining entry falls in one of **four** clusters, each with its own issue. The clusters
-are disjoint and exhaustive — the partition below sums to 318.
+Every remaining entry is in the server tail cluster below.
 
 | entries | target | cluster | issue |
 |---|---|---|---|
 | 66 | `server` | `instance-top` × `succ-none` only: the removed statement is the last one in the script, so the orphaned comments have no anchor region to be re-homed onto. Upstream flushes them at the end of the enclosing function body; rsvelte's synthesized component-fn body is location-less, so esrap's closing `flush_comments_until` is a no-op | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
-| 108 | `client` | the `trailing` slot on `$effect` / `$effect.pre` / `$effect.root` (36 each, all 3 hosts × both successor states × 6 comment kinds): a comment trailing the call attaches to the effect's **callback argument** upstream, forcing esrap's wrapped one-argument-per-line layout; rsvelte attaches it after the call statement and keeps the call on one line. The comment survives — layout, not loss | [#2718](https://github.com/baseballyama/rsvelte/issues/2718) |
-| 144 | `client-dev` | the same three statement kinds (36 each) **plus all 36 `$inspect` rows**. `$inspect` is the whole client/client-dev difference in this cluster: prod removes it, so only 2 of its 36 trailing rows diverge, while dev lowers it to a `console.log(…)` call and every trailing row then meets the same argument-wrapping rule | [#2718](https://github.com/baseballyama/rsvelte/issues/2718) |
 Partition of `matrix-known-failures.json` entries under `removed-statement-comment/` by
-cluster: `66 + 108 + 144`
+cluster: `66`
 
-**[D] for all three.** Each was reduced to a hand-written repro outside the family and measured
-against the pinned official compiler.
-
-**[S] on the pre-existing claim for the 258 client / client-dev entries.** They are argued
-pre-existing structurally, not by an A/B: the fix that shipped with this family touches only
-`3_transform/server/mod.rs` and `3_transform/server/ast/script.rs`, and the client target never
-enters either. The server cluster *was* measured both ways — 145 entries with the fix reverted,
-66 with it applied, on the same tree.
+**[D].** It was reduced to a hand-written repro outside the family and measured against the
+pinned official compiler.
 
 Note the enrolment cost, because it is real: a ratchet entry suppresses everything about the
-entry it lists, so these 322 ids are now blind to any *further* regression on the same shapes
+entry it lists, so these 66 ids are now blind to any *further* regression on the same shapes
 until their issues are fixed.
 
 ---
