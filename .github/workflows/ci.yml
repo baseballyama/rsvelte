@@ -104,6 +104,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         with:
           cache: 'true'
+          cache-dependency-path: submodules/svelte/pnpm-lock.yaml
           cache-dependency-path: apps/playground/pnpm-lock.yaml
 
       - name: Check playground lockfile is in sync
@@ -743,6 +744,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Svelte compiler dependencies
+        run: pnpm --dir submodules/svelte install --frozen-lockfile
 
       - name: Build lint wasm (nodejs target)
         run: pnpm run build:wasm:lint-node
