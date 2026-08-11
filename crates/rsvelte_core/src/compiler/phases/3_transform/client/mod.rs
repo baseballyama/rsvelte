@@ -5571,8 +5571,10 @@ fn transform_instance_script_for_visitors(
             // Phase 2 owns the `$:` facts. The text path below only lowers its
             // body; it must not rescan that body to reconstruct the graph.
             let reactive_metadata = analysis.legacy_reactive_statements.get(*reactive_ordinal);
-            let dep_names: &[String] = reactive_metadata
-                .map(|statement| statement.dependencies.as_slice())
+            let dep_names: &[String] = analysis
+                .reactive_statement_dependencies
+                .get(*reactive_ordinal)
+                .map(|dependencies| dependencies.as_slice())
                 .unwrap_or(&[]);
             let assigned_vars = reactive_metadata
                 .map(|statement| statement.assignments.clone())

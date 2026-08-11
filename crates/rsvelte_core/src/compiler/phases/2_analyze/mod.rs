@@ -501,13 +501,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
     if !analysis.runes {
         populate_legacy_dependencies(&reactive_labeled, &ast.arena, &mut analysis);
-        // Kept as a compatibility mirror while Phase 3's text fallback still
-        // reads this field. The typed records above are the canonical source.
-        analysis.reactive_statement_dependencies = analysis
-            .legacy_reactive_statements
-            .iter()
-            .map(|statement| statement.dependencies.clone())
-            .collect();
+        collect_reactive_statement_dependencies(&reactive_labeled, &ast.arena, &mut analysis);
     }
 
     // Pre-compute legacy-pattern detection so template visitors (notably
@@ -2137,6 +2131,44 @@ fn populate_legacy_dependencies(
         for &binding_idx in &legacy_reactive_indices {
             analysis.root.bindings[binding_idx].legacy_dependencies = dep_indices.clone();
         }
+    }
+}
+
+/// Collect ordered `$:` dependency identifier names for the client lowering
+/// compatibility path. This intentionally remains separate from the metadata
+/// record: it tracks the exact reference classification used by prior output.
+fn collect_reactive_statement_dependencies(
+    labeled: &[&JsNode],
+    arena: &ParseArena,
+    analysis: &mut ComponentAnalysis,
+) {
+    for stmt in labeled {
+        let JsNode::LabeledStatement { label, body, .. } = stmt else {
+            continue;
+        };
+        if !is_dollar_label(*label, arena) {
+            continue;
+        }
+        let stmt_body = arena.get_js_node(*body);
+
+        let mut order = Vec::new();
+        let mut included = rustc_hash::FxHashSet::default();
+        let mut path = Vec::new();
+        let mut locals = Vec::new();
+        collect_reactive_refs(
+            stmt_body,
+            arena,
+            &mut path,
+            &mut locals,
+            &mut order,
+            &mut included,
+        );
+        analysis.reactive_statement_dependencies.push(
+            order
+                .into_iter()
+                .filter(|name| included.contains(name))
+                .collect(),
+        );
     }
 }
 
