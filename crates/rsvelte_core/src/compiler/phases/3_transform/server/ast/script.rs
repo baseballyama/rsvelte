@@ -1953,6 +1953,22 @@ fn lower_variable_declaration<'a>(
                     let mut array_counter = state.array_counter;
                     create_state_declarators(pat, new_init, state, &mut array_counter, &mut decls);
                     state.array_counter = array_counter;
+                } else if matches!(rune, DeclRune::Derived)
+                    && !is_instance
+                    && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
+                    && let Some(oxc_ast::ast::Expression::CallExpression(call)) = d.init.as_ref()
+                    && let Some(oxc_ast::ast::Expression::AwaitExpression(_)) =
+                        call.arguments.first().and_then(|arg| arg.as_expression())
+                {
+                    let argument = call.arguments[0].as_expression().unwrap();
+                    let argument_source =
+                        &src[argument.span().start as usize..argument.span().end as usize];
+                    if let Some((_, init)) = state.reparse_declarator(
+                        &format!("__rsvelte_direct_await = {argument_source}"),
+                        kind,
+                    ) {
+                        decls.push((pat, init));
+                    }
                 } else if matches!(rune, DeclRune::Derived | DeclRune::DerivedBy)
                     && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
                 {

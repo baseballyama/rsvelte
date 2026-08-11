@@ -112,6 +112,9 @@ impl<'a> ModuleDerivedCollector<'a> {
         if !contains_direct_await_in_expression(arg) {
             return None;
         }
+        if arg.starts_with("await") {
+            return Some((call.span.start, call.span.end, arg.to_string()));
+        }
         let pattern_span = declarator.id.span();
         let pattern = self
             .source
@@ -197,7 +200,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lowers_async_object_pattern() {
+    fn keeps_directly_awaited_object_pattern_in_module_scope() {
         let out = transform_module_derived_destructuring_ast(
             "const { a, b } = $derived(await p);",
             false,
@@ -208,25 +211,21 @@ mod tests {
             None,
         )
         .unwrap();
-        assert_eq!(
-            out,
-            "const $$d = await $.async_derived(() => p),\n\ta = $.derived(() => $.get($$d).a),\n\tb = $.derived(() => $.get($$d).b);"
-        );
+        assert_eq!(out, "const { a, b } = await p;");
     }
 
     #[test]
-    fn lowers_async_array_pattern_with_local_temp_names() {
+    fn keeps_directly_awaited_array_pattern_in_module_scope() {
         let out = transform_module_derived_destructuring_ast(
             "const [a, b] = $derived(await p);",
             false,
             &[],
             &[],
             &[],
-            true,
+            false,
             None,
         )
         .unwrap();
-        assert!(out.contains("$$array = $.tag("));
-        assert!(!out.contains("$$array_1"));
+        assert_eq!(out, "const [a, b] = await p;");
     }
 }
