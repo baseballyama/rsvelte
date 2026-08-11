@@ -2408,7 +2408,10 @@ fn transform_client_with_visitors(
         });
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
-            return Ok(CodegenResult { code, mappings });
+            return Ok(CodegenResult {
+                code: rehome_derived_jsdoc(&code),
+                mappings,
+            });
         } else if *CLIENT_TO_OXC_DEBUG {
             // Corpus workers share one stderr and a multi-part write interleaves,
             // gluing records together; emit the whole line in one call.
@@ -2430,10 +2433,42 @@ fn transform_client_with_visitors(
         let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         Ok(CodegenResult {
-            code,
+            code: rehome_derived_jsdoc(&code),
             mappings: vec![],
         })
     }
+}
+
+fn rehome_derived_jsdoc(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut rest = code;
+    const PREFIX: &str = "$.derived(() => /**";
+
+    while let Some(start) = rest.find(PREFIX) {
+        result.push_str(&rest[..start]);
+        let comment_start = start + "$.derived(() => ".len();
+        let Some(comment_end) = rest[comment_start + 3..].find("*/") else {
+            result.push_str(&rest[start..]);
+            return result;
+        };
+        let comment_end = comment_start + 3 + comment_end + 2;
+        let expression = rest[comment_end..].trim_start();
+        if expression.is_empty() {
+            result.push_str(&rest[start..]);
+            return result;
+        }
+        let line_start = rest[..start].rfind('\n').map_or(0, |index| index + 1);
+        let line = &rest[line_start..start];
+        let indent = &line[..line.len() - line.trim_start_matches([' ', '\t']).len()];
+        result.push_str("$.derived((");
+        result.push_str(&rest[comment_start..comment_end]);
+        result.push('\n');
+        result.push_str(indent);
+        result.push_str(") => ");
+        rest = expression;
+    }
+    result.push_str(rest);
+    result
 }
 
 /// Convert esrap's flat, generated-order mapping list into the

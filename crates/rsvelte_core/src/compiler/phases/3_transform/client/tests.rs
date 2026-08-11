@@ -1314,6 +1314,56 @@ fn dev_public_rune_field_keeps_a_leading_block_comment_in_the_tag_call() {
 }
 
 #[test]
+fn dev_public_derived_field_keeps_jsdoc_in_its_synthesized_arrow() {
+    let result = crate::compiler::compile(
+        "<script lang=\"ts\">\nexport class C {\n\t/** c */\n\tn = $derived(1);\n}\n</script>",
+        crate::compiler::CompileOptions {
+            dev: true,
+            generate: crate::compiler::GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .expect("compile should succeed");
+    assert!(
+        result.js.code.contains(
+            "#n = $.tag(\n\t\t\t$.derived((/** c */\n\t\t\t) => 1),\n\t\t\t'C.n'\n\t\t);"
+        ),
+        "JSDoc should stay with the synthesized derived arrow:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
+fn server_public_derived_field_keeps_jsdoc_in_its_synthesized_arrow() {
+    let result = crate::compiler::compile(
+        "<script lang=\"ts\">\nexport class C {\n\t/** c */\n\tn = $derived(1);\n}\n</script>",
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Server,
+            ..Default::default()
+        },
+    )
+    .expect("compile should succeed");
+    assert!(
+        result
+            .js
+            .code
+            .contains("#n = $.derived((/** c */\n\t\t) => 1);"),
+        "JSDoc should stay with the synthesized derived arrow:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
+fn rehomes_derived_jsdoc_without_consuming_the_following_code() {
+    let input =
+        "\t#one = $.derived(() => /** one */\n\t1);\n\t#two = $.derived(() => /** two */\n\t2);";
+    assert_eq!(
+        super::rehome_derived_jsdoc(input),
+        "\t#one = $.derived((/** one */\n\t) => 1);\n\t#two = $.derived((/** two */\n\t) => 2);"
+    );
+}
+
+#[test]
 fn test_compile_with_multibyte_utf8_no_panic() {
     // Source with Japanese characters that could cause byte index boundary issues
     // when is_svelte_ignored_with_source slices source with saturating_sub(500)

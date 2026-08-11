@@ -579,15 +579,23 @@ pub(super) fn emit_class_field(
                     replace_field_ref_word_boundary(&derived_expr, &private_ref, &getter);
             }
         }
+        let jsdoc = field
+            .trailing_comment
+            .as_deref()
+            .filter(|comment| !field.is_private && comment.trim_start().starts_with("/**"));
+        let (derived_infix, arrow_prefix) = match jsdoc {
+            Some(comment) => ("", format!("({comment}\n{indent}) => ")),
+            None => (comment_infix.as_str(), "() => ".to_string()),
+        };
         let wrapped_value = if derived_expr.trim_start().starts_with('{') {
-            format!("() => ({})", derived_expr)
+            format!("{arrow_prefix}({})", derived_expr)
         } else {
-            format!("() => {}", derived_expr)
+            format!("{arrow_prefix}{derived_expr}")
         };
         let _ = writeln!(
             output,
             "{}{} = {}$.derived({});",
-            indent, private_name, comment_infix, wrapped_value
+            indent, private_name, derived_infix, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
