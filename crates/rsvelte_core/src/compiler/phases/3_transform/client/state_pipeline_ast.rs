@@ -130,7 +130,7 @@ fn single_pass(
     ast_rewrite::with_program(
         &STATE_PIPELINE_ALLOC,
         source,
-        SourceType::mjs(),
+        SourceType::ts().with_module(true),
         ParseOptions {
             allow_return_outside_function: true,
             ..ParseOptions::default()
@@ -653,6 +653,23 @@ mod tests {
     }
 
     #[test]
+    fn typescript_parameter_rhs_is_proxied() {
+        let out = transform_state_pipeline_ast(
+            "let active_heading; function update(heading: Heading) { active_heading = heading; }",
+            &ssv(&["active_heading"]),
+            &[],
+            true,
+            &[],
+            &[],
+        )
+        .unwrap();
+        assert!(
+            out.contains("$.set(active_heading, heading, true)"),
+            "{out}"
+        );
+    }
+
+    #[test]
     fn raw_state_no_proxy() {
         let out = transform_state_pipeline_ast(
             "let x; x = { a: 1 };",
@@ -750,7 +767,7 @@ fn transform_state_pipeline_in_place(
     ast_rewrite::with_program_mut(
         &STATE_PIPELINE_IN_PLACE_ALLOC,
         source,
-        SourceType::mjs(),
+        SourceType::ts().with_module(true),
         ParseOptions {
             allow_return_outside_function: true,
             ..ParseOptions::default()
