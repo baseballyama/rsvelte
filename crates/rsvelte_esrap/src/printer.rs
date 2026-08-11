@@ -1350,7 +1350,12 @@ impl<'opt> Printer<'opt> {
             self.type_parameter_declaration(tp, ctx);
         }
         ctx.write("(");
-        self.formal_parameters_with_this(&node.params, node.this_param.as_deref(), ctx);
+        self.formal_parameters_with_this(
+            &node.params,
+            node.this_param.as_deref(),
+            Some(node.params.span().end),
+            ctx,
+        );
         ctx.write(")");
         if let Some(rt) = &node.return_type {
             self.type_annotation(rt, ctx);
@@ -1896,7 +1901,7 @@ impl<'opt> Printer<'opt> {
 
     /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
     fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context) {
-        self.formal_parameters_with_this(params, None, ctx);
+        self.formal_parameters_with_this(params, None, Some(params.span().end), ctx);
     }
 
     /// As [`Self::formal_parameters`], but with a leading `this: T` parameter —
@@ -1905,6 +1910,7 @@ impl<'opt> Printer<'opt> {
         &mut self,
         params: &FormalParameters,
         this_param: Option<&TSThisParameter>,
+        until: Option<u32>,
         ctx: &mut Context,
     ) {
         let mut nodes: Vec<SeqNode> = Vec::new();
@@ -1974,11 +1980,7 @@ impl<'opt> Printer<'opt> {
                 }),
             });
         }
-        // esrap passes the closing `)` location as `until`, but the Rust caller
-        // already owns the parens around `formal_parameters`; there is no node
-        // span for the list itself, so no end-of-list comment flush is needed
-        // here (params rarely carry trailing comments in the corpus).
-        self.sequence(nodes, None, false, ",", true, ctx);
+        self.sequence(nodes, until, false, ",", true, ctx);
     }
 
     /// esrap's `ArrowFunctionExpression`: `[async ](params) => body`, wrapping an
