@@ -71,6 +71,13 @@ import { selectTargets, TARGETS as ALL_TARGETS } from './targets.mjs';
 import { insertionSlots } from './matrix/mutate.mjs';
 import { COMMENT_KINDS } from './matrix/axes.mjs';
 import { assertOracleCompiles } from './oracle.mjs';
+import {
+	classifyBaseline,
+	readBaselineProvenance,
+	seedHash,
+	seedIdOfBaselineEntry,
+	seedIdOfMutant,
+} from './mutation-baseline.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -79,6 +86,7 @@ const SOURCES = path.join(CORPUS, 'sources');
 const TREE = path.join(CORPUS, 'mutant-artifacts');
 const SHARDS = path.join(CORPUS, '.mutant-shards');
 const BASELINE = path.join(CORPUS, 'mutation-known-failures.json');
+const BASELINE_PROVENANCE = path.join(CORPUS, 'mutation-known-failures.provenance.json');
 const BINDING = path.resolve(ROOT, '.corpus-cache/rsvelte.node');
 
 const args = process.argv.slice(2);
@@ -513,7 +521,6 @@ function astVerdicts(pairs) {
 }
 
 const allPairs = fs.existsSync(TREE) ? walkPairs(TREE) : [];
-const seedIdOfMutant = (id) => id.replace(/__m\d+__[a-z0-9-]+(?=\.svelte(\.[jt]s)?$)/, '');
 const mutantIdOfPair = (p) => path.relative(TREE, path.dirname(path.dirname(p)));
 // Scope the count to seeds a surviving shard accounted for, rather than deleting
 // the orphans: the invariant becomes true by construction and the artifacts stay
@@ -659,15 +666,24 @@ if (UPDATE_BASELINE) {
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
+	const provenance = Object.fromEntries(
+		[...ids]
+			.sort()
+			.map((id) => [seedIdOfBaselineEntry(id), seedHash(SOURCES, id)]),
+	);
+	fs.writeFileSync(BASELINE_PROVENANCE, JSON.stringify(provenance, null, '\t') + '\n');
 	console.log(`\n[mutate] baseline: ${ids.size} known -> ${path.relative(ROOT, BASELINE)}`);
 	finish(0);
 }
 
 const baseline = new Set(fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : []);
+const baselineProvenance = readBaselineProvenance(BASELINE_PROVENANCE);
 const regressions = [...ids].filter((id) => !baseline.has(id));
 // Staleness is only decidable when the run saw everything. A sample that did
 // not measure an entry says nothing about whether it still fails.
-const stale = FULL ? [...baseline].filter((id) => !ids.has(id)) : [];
+const { rekeyed, unmeasured, stale } = FULL
+	? classifyBaseline({ baseline, ids, provenance: baselineProvenance, sources: SOURCES })
+	: { rekeyed: [], unmeasured: [], stale: [] };
 const failById = new Map(failures.map((f) => [`${f.id} [${f.verdict}] (${f.target})`, f]));
 
 if (regressions.length) {
@@ -692,7 +708,21 @@ if (stale.length) {
 	console.log('  fix: node scripts/compat-corpus/mutate-corpus.mjs --full --update-baseline');
 }
 
-if (regressions.length || stale.length) finish(1);
+if (rekeyed.length) {
+	console.log(`\n[mutate] ❌ ${rekeyed.length} baseline entries were re-keyed by seed-content changes:`);
+	for (const id of rekeyed.slice(0, MAX_PRINT)) console.log(`  - ${id}`);
+	if (rekeyed.length > MAX_PRINT) console.log(`  … and ${rekeyed.length - MAX_PRINT} more`);
+	console.log('  the current mutant is not the baselined mutant; inspect the corpus update, then re-baseline deliberately.');
+}
+
+if (unmeasured.length) {
+	console.log(`\n[mutate] ❌ ${unmeasured.length} baseline entries have no comparable seed provenance:`);
+	for (const id of unmeasured.slice(0, MAX_PRINT)) console.log(`  - ${id}`);
+	if (unmeasured.length > MAX_PRINT) console.log(`  … and ${unmeasured.length - MAX_PRINT} more`);
+	console.log('  restore the missing source or re-baseline deliberately before treating any stale entry as fixed.');
+}
+
+if (regressions.length || stale.length || rekeyed.length || unmeasured.length) finish(1);
 
 if (ids.size) {
 	console.log(`\n[mutate] ✅ no code regressions (${ids.size} known remain — see compatibility/mutation-known-failures.md)`);

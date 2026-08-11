@@ -67,6 +67,10 @@ the gate prints must be the reason for the verdict, and before this a reviewer c
 
 Full sweep: 14,138 seeds → 12,166 mutants → 36,498 comparisons, under oxfmt 0.62.0.
 
+The `mutation-known-failures.provenance.json` file records 21 entries, one SHA-256 seed-content
+hash for each source represented by the failure ratchet. A full sweep reports a changed
+hash as re-keyed instead of claiming that the old mutation now passes.
+
 | verdict | entries |
 |---|---|
 | `code-mismatch` | 36 |

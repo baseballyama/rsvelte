@@ -1050,6 +1050,9 @@ jobs:
       - name: Check the output-parseability gate
         run: node scripts/dev/test-corpus-parse-gate.mjs
 
+      - name: Check mutation baseline provenance
+        run: node scripts/dev/test-mutation-baseline-provenance.mjs
+
       # The lint gate's rewrite floor and its compared population. Both linters
       # are stubbed, so this runs without the lint submodules, the dist-lint
       # build or the eslint oracle that the Lint parity job needs.

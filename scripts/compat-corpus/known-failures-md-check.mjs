@@ -142,6 +142,11 @@ const RATCHETS = [
 		jsons: ['validator-message-not-comparable.json'],
 	},
 	{ doc: 'mutation-known-failures.md', key: 'mutation-known-failures.json', jsons: ['mutation-known-failures.json'] },
+	{
+		doc: 'mutation-known-failures.md',
+		key: 'mutation-known-failures.provenance.json',
+		jsons: ['mutation-known-failures.provenance.json'],
+	},
 	{ doc: 'sourcemap-known-failures.md', key: 'sourcemap-known-failures.json', jsons: ['sourcemap-known-failures.json'] },
 	{ doc: 'sourcemap-oracle-excluded.md', key: 'sourcemap-oracle-excluded.json', jsons: ['sourcemap-oracle-excluded.json'] },
 	{ doc: 'css-prune-known-failures.md', key: 'css-prune-known-failures.json', jsons: ['css-prune-known-failures.json'] },
@@ -218,6 +223,7 @@ const fail = (msg) => {
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const num = (s) => Number(s.replace(/,/g, ''));
+const jsonEntryCount = (value) => (Array.isArray(value) ? value.length : Object.keys(value).length);
 
 /**
  * Every count a doc states for `key`, or a reason none could be read. All of
@@ -294,7 +300,7 @@ for (const { doc, key, jsons } of RATCHETS) {
 	}
 	const lengths = jsons.map((j) => {
 		const p = path.join(CORPUS, j);
-		return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')).length : null;
+		return fs.existsSync(p) ? jsonEntryCount(JSON.parse(fs.readFileSync(p, 'utf8'))) : null;
 	});
 	if (lengths.some((n) => n === null)) continue; // already reported above
 	const unique = [...new Set(lengths)];

@@ -1625,6 +1625,11 @@ already carry `__m<n>__` so they do not churn.
 
 ### Blind spot 20c — `already PASS` cannot distinguish *fixed* from *no longer produced*
 
+**CLOSED.** The mutation baseline provenance file records a SHA-256 hash for every
+baselined seed. A full run reports re-keyed seeds and seeds without comparable
+provenance separately from unchanged seeds whose entries actually pass. The
+mutation-baseline-provenance control exercises all three outcomes.
+
 **[S]** The staleness check is `baseline.filter((id) => !ids.has(id))` (`:661`) — a baseline key
 absent from this run's failures. `ids` is `` `${f.id} [${f.verdict}] (${f.target})` `` (`:588`).
 An entry leaves that set for at least four reasons and the output calls all of them "already

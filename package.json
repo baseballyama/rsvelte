@@ -51,6 +51,7 @@
 		"test:lint-verify-floor": "node scripts/dev/test-lint-verify-population-floor.mjs",
 		"test:corpus-generation": "node scripts/dev/test-corpus-generation-guard.mjs",
 		"test:mutant-classification": "node scripts/dev/test-mutant-classification.mjs",
+		"test:mutation-baseline-provenance": "node scripts/dev/test-mutation-baseline-provenance.mjs",
 		"test:known-failures-md-check": "node scripts/dev/test-known-failures-md-check.mjs",
 		"test:release-comment": "node scripts/dev/test-release-comment.mjs",
 		"test:css-prune-verdict": "node scripts/dev/test-css-prune-sweep-warning-verdict.mjs",
