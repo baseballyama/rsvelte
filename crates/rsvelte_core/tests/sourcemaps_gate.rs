@@ -211,11 +211,11 @@ const EXPECTED_ANCHOR_COUNT: usize = 23;
 /// this gate could not make before, not a regression it is forgiving.
 const EXPECTED_IDENTICAL_OUTPUTS: usize = 57;
 
-/// What `scripts/fixtures/generate-fixtures.mjs` compiled the oracle with. Every
-/// sourcemaps `_config.js` fails to import under the generator (it pulls in the
-/// vitest suite), so all of them fall back to this. Compared against each
-/// sample's `metadata.json` so a generator change that makes the oracle and this
-/// test disagree is caught instead of silently skewing every comparison.
+// What `scripts/fixtures/generate-fixtures.mjs` compiled the oracle with. Every
+// sourcemaps `_config.js` fails to import under the generator (it pulls in the
+// vitest suite), so all of them fall back to this. Compared against each
+// sample's `metadata.json` so a generator change that makes the oracle and this
+// test disagree is caught instead of silently skewing every comparison.
 // ============================================================================
 // Source Map v3 decoding
 // ============================================================================
