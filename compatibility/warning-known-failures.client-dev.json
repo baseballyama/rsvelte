@@ -3,6 +3,7 @@
 	"layercake/src/lib/LayerCake.svelte",
 	"layerchart/docs/src/examples/components/Treemap/nested-filter.svelte",
 	"melt-ui/docs/src/components/motion.svelte",
+	"pattern/issues/2725-template-class-declaration.svelte",
 	"svelte-form-builder/src/lib/FormBuilder.svelte",
 	"svelte-maplibre/src/routes/examples/data_join/+page.svelte",
 	"svelte-maplibre/src/routes/examples/draggable_custom_marker/+page.svelte",
