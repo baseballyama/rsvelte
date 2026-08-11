@@ -1168,10 +1168,9 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         printed
     });
 
-    // Restore `;;`. esrap keeps the two void statements on separate lines.
+    // Restore `;;` after esrap has chosen its own whitespace between the pair.
     let code = if has_double_semi {
-        code.replace("void '$$DOUBLE_SEMI$$';\nvoid '$$DOUBLE_SEMI$$';", ";;")
-            .replace(DOUBLE_SEMI_PLACEHOLDER, ";;")
+        restore_double_semi_placeholder(&code)
     } else {
         code
     };
@@ -1214,6 +1213,27 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         }
     }
     result_lines.join("\n")
+}
+
+fn restore_double_semi_placeholder(code: &str) -> String {
+    const TOKEN: &str = "void '$$DOUBLE_SEMI$$';";
+    let mut output = String::with_capacity(code.len());
+    let mut rest = code;
+
+    while let Some(first) = memmem::find(rest.as_bytes(), TOKEN.as_bytes()) {
+        output.push_str(&rest[..first]);
+        let after_first = &rest[first + TOKEN.len()..];
+        let whitespace = after_first.len() - after_first.trim_start().len();
+        if after_first[whitespace..].starts_with(TOKEN) {
+            output.push_str(";;");
+            rest = &after_first[whitespace + TOKEN.len()..];
+        } else {
+            output.push_str(TOKEN);
+            rest = after_first;
+        }
+    }
+    output.push_str(rest);
+    output
 }
 
 /// Track whether we're inside a template literal by counting unescaped backticks on a line.
@@ -1643,6 +1663,27 @@ mod reactive_trailing_comment_tests {
     fn rehomes_a_comment_trailing_a_reactive_block() {
         let out = rehome_reactive_statement_comments("$: {\n\ty = 1;\n} // trailing\nlet z = 1;\n");
         assert_eq!(out, "$: {\n\ty = 1;\n} \n// trailing\nlet z = 1;\n");
+    }
+}
+
+#[cfg(test)]
+mod double_semi_placeholder_tests {
+    use super::restore_double_semi_placeholder;
+
+    #[test]
+    fn restores_a_pair_separated_by_blank_lines() {
+        assert_eq!(
+            restore_double_semi_placeholder("void '$$DOUBLE_SEMI$$';\n\nvoid '$$DOUBLE_SEMI$$';"),
+            ";;"
+        );
+    }
+
+    #[test]
+    fn leaves_a_single_placeholder_unchanged() {
+        assert_eq!(
+            restore_double_semi_placeholder("void '$$DOUBLE_SEMI$$';"),
+            "void '$$DOUBLE_SEMI$$';"
+        );
     }
 }
 
