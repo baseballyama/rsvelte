@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 934 entries)
+## Matrix known failures (`matrix-known-failures.json`, 812 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 318 + 251 + 8`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 318 + 129 + 8`
 
 ### `binding-position` — 2 entries
 
@@ -339,14 +339,14 @@ enters either. The server cluster *was* measured both ways — 145 entries with 
 66 with it applied, on the same tree.
 
 Note the enrolment cost, because it is real: a ratchet entry suppresses everything about the
-entry it lists, so these 324 ids are now blind to any *further* regression on the same shapes
+entry it lists, so these 322 ids are now blind to any *further* regression on the same shapes
 until their issues are fixed.
 
 ---
 
-### `async-derived` — 234 entries
+### `async-derived` — 129 entries
 
-Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 234 was
+Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 129 was
 reachable by any gate in the repo before this family existed, because every harness compiles
 with a fixed `{ generate, dev, filename }` and `$derived(await …)` is an `experimental_async`
 compile error without `experimental.async`. The shape occurs 0 times in the 14k-entry corpus
@@ -359,11 +359,11 @@ in dev — is *not* in this list; the rows that isolate it (`instance__identifie
 `instance__multi-declarator__none`, all three targets) pass. What remains are five independent
 defects the family exposed on the way, all of them older than the family:
 
-Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `154 + 24 + 18 + 12 + 11 + 13 + 2`
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `49 + 24 + 18 + 12 + 11 + 13 + 2`
 
 | # | cause | entries |
 |---|---|---|
-| 1 | `<script module>` / `compileModule` async-derived lowering | 154 |
+| 1 | module async-derived lowering | 49 |
 | 2 | the `$$d` temp appears in the hoisted `var` list | 24 |
 | 3 | `svelte-ignore` comment not reproduced on the hoisted declaration | 18 |
 | 4 | a block comment before the declaration produces **invalid JavaScript** | 12 |
@@ -371,16 +371,9 @@ Partition of `matrix-known-failures.json` entries under `async-derived/` by caus
 | 5b | `$derived.by(async …)` is suspended as if it were an async derived | 13 |
 | — | server `$$renderer.async` split lost alongside cause 3 | 2 |
 
-**1 — the module entry points.** Every `module__*` and `script-module__*` entry. The instance
-script goes through the AST state transform; `<script module>` and `.svelte.js` go through the
-module text pipeline, and that pipeline gets the dev lowering inside out — it emits
-`(await $.track_reactivity_loss($.async_derived(() => p)))()` where upstream emits
-`await $.async_derived(async () => (await $.track_reactivity_loss(p))(), 'a', '…')`, i.e. the
-instrumentation wraps the *call* instead of the thunk body. Destructured module declarations
-are not lowered at all (`const [a, b] = await $.async_derived(() => p)`), and the module
-`server` target reads the derived without calling it (`return a` for `return a()`). Adding the
-dev arguments to this path would have been invisible, so #2540 did not: the shape above it is
-wrong first.
+**1 — the module entry points.** The module paths now lower destructured async-derived
+declarations, preserve dev metadata, and make awaited generated server deriveds callable. The
+remaining module and `<script module>` shapes still differ in their generated lowering.
 
 **2 — `var $$d, a, b;`.** rsvelte hoists its own destructuring temp into the component's
 top-level `var` list; upstream keeps it local to the `$.run` callback. Present on `client`,
