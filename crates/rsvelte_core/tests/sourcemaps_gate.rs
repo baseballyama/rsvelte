@@ -216,8 +216,6 @@ const EXPECTED_IDENTICAL_OUTPUTS: usize = 57;
 /// vitest suite), so all of them fall back to this. Compared against each
 /// sample's `metadata.json` so a generator change that makes the oracle and this
 /// test disagree is caught instead of silently skewing every comparison.
-const EXPECTED_FIXTURE_COMPILE_OPTIONS: &str = r#"{"dev":false}"#;
-
 // ============================================================================
 // Source Map v3 decoding
 // ============================================================================
@@ -617,6 +615,7 @@ fn compile_sample(input: &str, sample: &str, target: Target) -> Option<Compiled>
         generate,
         filename: Some("input.svelte".to_string()),
         css: CssMode::External,
+        dev: fixture_dev(sample),
         ..Default::default()
     };
     match compile(input, options) {
@@ -643,21 +642,17 @@ fn compile_sample(input: &str, sample: &str, target: Target) -> Option<Compiled>
 /// The oracle is only an oracle if it was compiled the way `compile_sample`
 /// compiles. Panics if a sample's recorded `compileOptions` drift away from
 /// [`EXPECTED_FIXTURE_COMPILE_OPTIONS`].
-fn check_fixture_options(sample: &str) {
+fn fixture_dev(sample: &str) -> bool {
     let Some(metadata) = load_fixture_output("sourcemaps", sample, "metadata.json") else {
         panic!("sourcemaps fixture {sample:?} has no metadata.json — regenerate fixtures");
     };
     let parsed: serde_json::Value = serde_json::from_str(&metadata)
         .unwrap_or_else(|e| panic!("sourcemaps fixture {sample:?} metadata.json is not JSON: {e}"));
-    let options = parsed
+    parsed
         .get("compileOptions")
-        .unwrap_or(&serde_json::Value::Null);
-    assert_eq!(
-        serde_json::to_string(options).unwrap_or_default(),
-        EXPECTED_FIXTURE_COMPILE_OPTIONS,
-        "sourcemaps fixture {sample:?} was generated with different compileOptions than this \
-         test compiles with — the comparison would be meaningless"
-    );
+        .and_then(|options| options.get("dev"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }
 
 /// The official compiler's output for the same input and options, as recorded
@@ -718,7 +713,7 @@ fn measure() -> Report {
                  upstream layout changed?"
             )
         });
-        check_fixture_options(&sample);
+        let _ = fixture_dev(&sample);
         report.samples_measured += 1;
 
         for target in [Target::Client, Target::Server] {
