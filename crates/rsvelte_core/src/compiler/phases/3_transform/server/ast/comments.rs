@@ -5,7 +5,7 @@
 //! producer that keeps a statement *registers* the comment region around it and
 //! places the emitted statement on the returned base ([`Place`]), parking it in
 //! a provisional address range. Once the program is assembled, only the ranges the
-//! walk actually reaches are laid out — in encounter order — into a synthetic
+//! walk actually reaches are laid out in source order into a synthetic
 //! buffer, every span is remapped onto it, and the surviving comments go to
 //! [`rsvelte_esrap::print_split`].
 //!
@@ -46,15 +46,17 @@ struct Chunk {
 pub struct ChunkRegistry {
     chunks: Vec<Chunk>,
     next_prov: u32,
+    has_comments: bool,
 }
 
 impl ChunkRegistry {
     /// Register the source region `text` holding `comments` (spans relative to
     /// `text`) and return the region's provisional base — add a `text`-relative
-    /// offset to it to get the address to place a node at. `None` when there is
-    /// nothing to carry.
+    /// offset to it to get the address to place a node at. Empty comment sets
+    /// still need a region: a later source comment must be able to flush before
+    /// this statement after transformed statements have been reordered.
     pub fn register(&mut self, text: &str, comments: &[Comment]) -> Option<u32> {
-        if comments.is_empty() || text.is_empty() {
+        if text.is_empty() {
             return None;
         }
         let len = u32::try_from(text.len()).ok()?;
@@ -66,13 +68,16 @@ impl ChunkRegistry {
             text: text.to_string(),
             comments: comments.to_vec(),
         });
-        super::comment_stats::bump::REGISTERED_CHUNKS(1);
-        super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
+        if !comments.is_empty() {
+            self.has_comments = true;
+            super::comment_stats::bump::REGISTERED_CHUNKS(1);
+            super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
+        }
         Some(prov_base)
     }
 
     pub fn is_empty(&self) -> bool {
-        self.chunks.is_empty()
+        !self.has_comments
     }
 }
 
@@ -109,7 +114,6 @@ impl VisitMut<'_> for Place {
 struct Encounter<'m> {
     bases: &'m [(u32, u32)],
     seen: Vec<bool>,
-    order: Vec<usize>,
     /// Per region: whether the walk first reached it as a whole statement.
     via_stmt: Vec<bool>,
 }
@@ -121,7 +125,6 @@ impl Encounter<'_> {
         {
             self.seen[i] = true;
             self.via_stmt[i] = is_stmt;
-            self.order.push(i);
         }
     }
 }
@@ -194,7 +197,6 @@ pub fn print_with_comments<'a>(
     let mut encounter = Encounter {
         bases: &bases,
         seen: vec![false; bases.len()],
-        order: Vec::new(),
         via_stmt: vec![false; bases.len()],
     };
     encounter.visit_program(program);
@@ -213,8 +215,10 @@ pub fn print_with_comments<'a>(
     let mut buf = String::from(PAD);
     let mut shift: Vec<Option<i64>> = vec![None; bases.len()];
     let mut comments: Vec<Comment> = Vec::new();
-    for &i in encounter.order.iter().filter(|&&i| encounter.via_stmt[i]) {
-        let chunk = &registry.chunks[i];
+    for (i, chunk) in registry.chunks.iter().enumerate() {
+        if !encounter.via_stmt[i] {
+            continue;
+        }
         let base = buf.len() as u32;
         shift[i] = Some(i64::from(base) - i64::from(chunk.prov_base));
         buf.push_str(&chunk.text);

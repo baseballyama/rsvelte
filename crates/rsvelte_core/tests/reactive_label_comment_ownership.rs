@@ -48,3 +48,14 @@ fn svelte_ignore_comment_follows_the_reactive_label() {
         "{out}"
     );
 }
+
+#[test]
+fn leading_comment_stays_before_a_successor_after_reactive_reorder() {
+    let out = server(
+        "<script>\n\tlet total = 10;\n\tlet half;\n\t// c\n\t$: half = total / 2;\n\tlet z = 1;\n</script>\n\n<p>{half}</p>\n",
+    );
+    let comment = out.find("// c").expect("comment survives");
+    let successor = out.find("let z = 1;").expect("successor survives");
+    let reactive = out.find("half = total / 2").expect("reactive survives");
+    assert!(comment < successor && successor < reactive, "{out}");
+}
