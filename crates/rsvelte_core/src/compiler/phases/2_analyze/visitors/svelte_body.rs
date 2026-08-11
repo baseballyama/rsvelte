@@ -34,6 +34,13 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
     // Event expressions on special elements participate in normal reference analysis.
     for attr in &mut body.attributes {
         match attr {
+            Attribute::BindDirective(bind) => {
+                super::shared::attribute::record_assign_exempt_expression(
+                    context,
+                    &bind.expression,
+                    true,
+                );
+            }
             Attribute::OnDirective(on) => on_directive::visit(on, context)?,
             Attribute::Attribute(attribute) => {
                 super::attribute::visit_attribute_value_expressions(&mut attribute.value, context)?;

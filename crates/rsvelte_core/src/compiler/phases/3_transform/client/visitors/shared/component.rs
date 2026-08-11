@@ -105,6 +105,7 @@ pub fn build_component(
         ComponentNode::Component(comp) => comp.metadata.dynamic,
         ComponentNode::SvelteSelf(_) => false,
     };
+    let is_svelte_self = matches!(node, ComponentNode::SvelteSelf(_));
 
     // Generate intermediate name for dynamic components
     let intermediate_name = if let ComponentNode::Component(comp) = &node {
@@ -217,6 +218,7 @@ pub fn build_component(
                     &intermediate_name,
                     &component_name,
                     &ignored_codes,
+                    is_svelte_self,
                 );
             }
 
@@ -1353,6 +1355,46 @@ fn validate_bind_setter_mutation(
     )
 }
 
+fn synthesized_self_member_assign(
+    bind: &BindDirective<'_>,
+    raw: &JsExpr,
+    context: &ComponentContext,
+) -> Option<JsExpr> {
+    if !context.state.dev {
+        return None;
+    }
+    let JsExpr::Member(member) = raw else {
+        return None;
+    };
+    let JsMemberProperty::Identifier(property) = &member.property else {
+        return None;
+    };
+    let start = bind.expression.start()? as usize;
+    let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
+        &context.state.analysis.source,
+        start,
+    );
+    let location = format!(
+        "{}:{line}:{col}",
+        context
+            .state
+            .analysis
+            .location_filename
+            .replace('/', "/\u{200b}")
+    );
+    Some(b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$.assign"),
+        vec![
+            context.arena.get_expr(member.object).clone(),
+            b::string(property.as_str()),
+            b::string("="),
+            b::id("$$value"),
+            b::string(&location),
+        ],
+    ))
+}
+
 fn process_bind_directive<'a>(
     bind: &BindDirective<'a>,
     context: &mut ComponentContext,
@@ -1364,6 +1406,7 @@ fn process_bind_directive<'a>(
     intermediate_name: &str,
     component_name: &str,
     ignored_codes: &[String],
+    is_svelte_self: bool,
 ) {
     let _tf = crate::compiler::phases::phase3_transform::profile::tf_guard(
         crate::compiler::phases::phase3_transform::profile::TF_BC_BIND,
@@ -1838,18 +1881,35 @@ fn process_bind_directive<'a>(
                 );
                 let wrapped = validate_bind_setter_mutation(wrapped, bind, ignored_codes, context);
                 vec![b::stmt(&context.arena, wrapped)]
-            } else if is_state {
+            } else if is_state
+                || (is_svelte_self
+                    && context.state.analysis.runes
+                    && context.state.get_binding(&root_name).is_some_and(|binding| {
+                        matches!(
+                            binding.kind,
+                            crate::compiler::phases::phase2_analyze::scope::BindingKind::State
+                                | crate::compiler::phases::phase2_analyze::scope::BindingKind::RawState
+                        )
+                    }))
+            {
                 if context.state.analysis.runes {
-                    // In runes mode, replace the root with $.get(root) in the assignment:
-                    // $.get(value).a = $$value
-                    let assignment = b::assign(
-                        &context.arena,
-                        transformed_expression.clone(),
-                        b::id("$$value"),
-                    );
-                    let assignment =
-                        validate_bind_setter_mutation(assignment, bind, ignored_codes, context);
-                    vec![b::stmt(&context.arena, assignment)]
+                    if is_svelte_self
+                        && let Some(assign) =
+                            synthesized_self_member_assign(bind, &raw_expression, context)
+                    {
+                        vec![b::stmt(&context.arena, assign)]
+                    } else {
+                        // In runes mode, replace the root with $.get(root) in the assignment:
+                        // $.get(value).a = $$value
+                        let assignment = b::assign(
+                            &context.arena,
+                            transformed_expression.clone(),
+                            b::id("$$value"),
+                        );
+                        let assignment =
+                            validate_bind_setter_mutation(assignment, bind, ignored_codes, context);
+                        vec![b::stmt(&context.arena, assignment)]
+                    }
                 } else {
                     // In legacy mode, wrap in $.mutate():
                     // $.mutate(value, $.get(value).a = $$value)
