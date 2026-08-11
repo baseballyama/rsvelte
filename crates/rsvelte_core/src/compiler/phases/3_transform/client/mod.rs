@@ -26,6 +26,7 @@ mod inspect_rune_ast;
 mod instance_dev_tail_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
+mod module_derived_ast;
 mod module_dev_tail_ast;
 mod module_state_runes_ast;
 mod private_class_assign_ast;
@@ -3941,8 +3942,8 @@ pub(crate) fn transform_module_script_runes(
     // CallExpressions and asks "is the callee `$state`/`$derived` with type
     // arguments?". Falls back to the original `result` when the source isn't
     // TS (generics aren't legal) or fails to parse.
+    let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
     {
-        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
         if let Some(rewritten) =
             strip_rune_generics_ast::strip_rune_generic_params_ast(&result, is_ts)
         {
@@ -4115,11 +4116,18 @@ pub(crate) fn transform_module_script_runes(
 
     // Reactive module state vars = those that need $.get()/$.set()
     // (i.e. all module state vars except non-reactive ones)
-    let reactive_module_state_vars: Vec<String> = module_state_vars
+    let mut reactive_module_state_vars: Vec<String> = module_state_vars
         .iter()
         .filter(|v| !module_non_reactive_vars.contains(v))
         .cloned()
         .collect();
+    for binding in &analysis.root.bindings {
+        if matches!(binding.kind, BindingKind::Derived)
+            && !reactive_module_state_vars.contains(&binding.name)
+        {
+            reactive_module_state_vars.push(binding.name.clone());
+        }
+    }
 
     // Lower the module script's `$state*` runes in a single batched parse:
     //   * `$state.snapshot(x)` → `$.snapshot(x)`
@@ -4258,6 +4266,17 @@ pub(crate) fn transform_module_script_runes(
             analysis.runes,
         )
     });
+    if let Some(rewritten) = module_derived_ast::transform_module_derived_destructuring_ast(
+        &result,
+        is_ts,
+        &reactive_module_state_vars,
+        &module_non_reactive_vars,
+        &module_proxy_vars,
+        dev,
+        module_async_derived_locations.as_ref(),
+    ) {
+        result = rewritten;
+    }
     while let Some(pos) = memmem::find(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
@@ -4358,6 +4377,12 @@ pub(crate) fn transform_module_script_runes(
             .filter(|(_, _, is_state)| !is_state) // is_state=false means $derived
             .map(|(name, _, _)| name.clone())
             .collect();
+        for binding in &analysis.root.bindings {
+            if matches!(binding.kind, BindingKind::Derived) && !derived_vars.contains(&binding.name)
+            {
+                derived_vars.push(binding.name.clone());
+            }
+        }
         // Also add $state.raw vars from bindings — they never use the proxy flag.
         for (name, &binding_idx) in &analysis.root.scope.declarations {
             if let Some(b) = analysis.root.bindings.get(binding_idx)
