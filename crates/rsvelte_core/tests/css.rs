@@ -12,7 +12,8 @@ use std::path::Path;
 
 use common::{
     FixtureCoverage, SkipReason, canonicalize_css, ensure_fixtures_exist, fixture_samples_dir,
-    get_fixture_samples, load_fixture_output, svelte_path, write_actual_output,
+    get_fixture_samples, load_fixture_output, runtime_fixture_options, svelte_path,
+    write_actual_output,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -88,6 +89,7 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
     }
 
     let input = fixture.input.clone();
+    let dev = runtime_fixture_options("css", &fixture.name).dev;
 
     // Use a channel to implement timeout
     let (tx, rx) = std::sync::mpsc::channel();
@@ -99,6 +101,7 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
                 generate: GenerateMode::Client,
                 filename: Some("input.svelte".to_string()),
                 css: CssMode::External,
+                dev,
                 ..Default::default()
             };
             compile(&input, options)

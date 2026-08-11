@@ -12,7 +12,8 @@ use std::path::Path;
 
 use common::{
     FixtureCoverage, SkipReason, compare_js, ensure_fixtures_exist, fixture_samples_dir,
-    get_fixture_samples, load_fixture_output, sample_name, svelte_path, write_actual_output,
+    get_fixture_samples, load_fixture_output, runtime_fixture_options, sample_name, svelte_path,
+    write_actual_output,
 };
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -102,10 +103,12 @@ fn run_sourcemap_fixture_test(fixture: &SourcemapFixture) -> TestResult {
 
     // Test client-side compilation
     if fixture.expected_client_js.is_some() {
+        let dev = runtime_fixture_options("sourcemaps", &fixture.name).dev;
         let options = CompileOptions {
             generate: GenerateMode::Client,
             filename: Some("input.svelte".to_string()),
             css: CssMode::External,
+            dev,
             ..Default::default()
         };
 
@@ -137,10 +140,12 @@ fn run_sourcemap_fixture_test(fixture: &SourcemapFixture) -> TestResult {
 
     // Test server-side compilation
     if fixture.expected_server_js.is_some() {
+        let dev = runtime_fixture_options("sourcemaps", &fixture.name).dev;
         let options = CompileOptions {
             generate: GenerateMode::Server,
             filename: Some("input.svelte".to_string()),
             css: CssMode::External,
+            dev,
             ..Default::default()
         };
 
