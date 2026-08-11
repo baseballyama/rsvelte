@@ -3,14 +3,14 @@
 //! cross-file resolution).
 //!
 //! The `<style type="text/m-css">` path is implemented **natively** in Rust
-//! ([`process`]): a CSS-modules processor that scopes class selectors, resolves
+//! (`process`): a CSS-modules processor that scopes class selectors, resolves
 //! `composes` (local + cross-file `from`), and emits the dependency-ordered
 //! aggregated CSS — byte-for-byte matching `@modular-css/processor` (validated
 //! against its fixtures with the deterministic `mc_` namer).
 //!
 //! The `<link>` / `<script import>` extraction paths (which need ES-module
 //! import parsing) currently fall back to the Node bridge
-//! ([`js/modular-css-bridge.mjs`]); a native port of those is future work.
+//! (`js/modular-css-bridge.mjs`); a native port of those is future work.
 
 mod css;
 

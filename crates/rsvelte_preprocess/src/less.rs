@@ -1,11 +1,11 @@
 //! Port of [`svelte-preprocess-less`](https://github.com/ls-age/svelte-preprocess-less)
 //! (v0.4.0) — a `<style>` preprocessor that compiles Less to CSS.
 //!
-//! A **native** Rust compiler ([`compile_native`]) covers the common subset —
+//! A **native** Rust compiler covers the common subset —
 //! top-level variables (`@name: value;`) and flat rules — and reports undefined
 //! variables with the upstream code-frame formatting. For anything it doesn't
 //! support (nesting, mixins, operations, functions, `@import`, …) it falls back
-//! to the user's installed `less` over a Node bridge ([`js/less-bridge.mjs`]),
+//! to the user's installed `less` over a Node bridge (`js/less-bridge.mjs`),
 //! since there is no mature pure-Rust Less compiler. Set
 //! [`LessOptions::prefer_native`] to `false` to always use the bridge.
 

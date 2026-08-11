@@ -94,7 +94,7 @@ pub struct MarkupBridge {
     pub bridge: BridgeOptions,
 }
 
-/// Build a markup [`PreprocessorGroup`] that delegates to a Node bridge script.
+/// Build a markup `PreprocessorGroup` that delegates to a Node bridge script.
 ///
 /// The script receives `{ content, filename, options }` on stdin and must reply
 /// with `{ ok: { code, map } }`, `{ bridgeError }`, or `{ renderError }`.
