@@ -188,6 +188,33 @@ struct SingleTargetSequenceRebuilder<'a, 'x> {
     ab: &'x AstBuilder<'a>,
 }
 
+/// Calls rebuilt from user runes retain their argument locations but not a
+/// location for the call itself. Keeping the parsed call span would make a
+/// trailing source comment belong to the generated call rather than its last
+/// user argument.
+struct RebuiltRuneCallLocations;
+
+impl<'a> VisitMut<'a> for RebuiltRuneCallLocations {
+    fn visit_call_expression(&mut self, call: &mut CallExpression<'a>) {
+        oxc_ast_visit::walk_mut::walk_call_expression(self, call);
+
+        if ["user_effect", "user_pre_effect", "effect_root"]
+            .iter()
+            .any(|name| is_dollar_call(&call.callee, name))
+        {
+            call.span = SPAN;
+        } else if is_dollar_call(&call.callee, "inspect") {
+            call.span = SPAN;
+            if let Some(Argument::ArrowFunctionExpression(thunk)) = call.arguments.first_mut() {
+                thunk.span = SPAN;
+                if let Some(Expression::ArrayExpression(values)) = thunk.get_expression_mut() {
+                    values.span = SPAN;
+                }
+            }
+        }
+    }
+}
+
 impl<'a, 'x> VisitMut<'a> for SingleTargetSequenceRebuilder<'a, 'x> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
@@ -1202,6 +1229,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         let mut stmts = self.parse_chunk(code.trim())?;
         self.restore_legacy_pre_effect_deps(&mut stmts);
         self.restore_single_target_destructure_sequences(&mut stmts);
+        let mut locations = RebuiltRuneCallLocations;
+        for stmt in &mut stmts {
+            locations.visit_statement(stmt);
+        }
         Some(stmts)
     }
 

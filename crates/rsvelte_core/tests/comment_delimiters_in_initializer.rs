@@ -39,6 +39,21 @@ fn compile_to(source: &str, generate: GenerateMode) -> String {
     .code
 }
 
+fn compile_client_dev(source: &str) -> String {
+    compile(
+        source,
+        CompileOptions {
+            filename: Some("A.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: true,
+            ..Default::default()
+        },
+    )
+    .expect("compile failed")
+    .js
+    .code
+}
+
 /// The comment sits mid-expression, so the continuation line is severed too.
 const SEMI_MID: &str = "<script>\n  let x = a + // ; c\n    b\n  function go() { x = 2 }\n</script>\n\n<p on:click={go}>{x}</p>\n";
 
@@ -129,6 +144,30 @@ fn server_keeps_a_removed_statement_comment_with_its_successor() {
     assert!(
         out.contains("// removed\n\t\tlet b = 2;"),
         "the removed-statement comment did not remain with its successor:\n{out}"
+    );
+}
+
+#[test]
+fn client_attaches_a_trailing_effect_comment_to_its_callback() {
+    for rune in ["$effect", "$effect.pre", "$effect.root"] {
+        let source =
+            format!("<script>\n\t{rune}(() => {{\n\t\tfoo();\n\t}}); // trailing\n</script>");
+        let out = compile_to(&source, GenerateMode::Client);
+        assert!(
+            out.contains("foo();\n\t} // trailing\n\t);"),
+            "the effect comment did not attach to its callback for {rune}:\n{out}"
+        );
+    }
+}
+
+#[test]
+fn client_dev_attaches_a_trailing_inspect_comment_to_its_values() {
+    let out = compile_client_dev(
+        "<script>\n\tlet value = $state(0);\n\t$inspect(value); // trailing\n</script>",
+    );
+    assert!(
+        out.contains("$.inspect(() => [value // trailing\n\t],"),
+        "the inspect comment did not attach to its source value:\n{out}"
     );
 }
 
