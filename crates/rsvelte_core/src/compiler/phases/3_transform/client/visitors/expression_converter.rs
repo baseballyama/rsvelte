@@ -444,7 +444,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let converted_arg = convert_js_node(pa.get_js_node(*argument), context);
 
             // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
-            if context.state.analysis.pickled_awaits.contains(start) {
+            if context.state.analysis.pickled_awaits.contains(start)
+                && !context.state.options.experimental_async
+            {
                 // Pickled await: (await $.save(arg))()
                 JsExpr::Call(JsCallExpression {
                     callee: context
@@ -476,7 +478,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     arguments: vec![],
                     optional: false,
                 })
-            } else if context.state.options.dev {
+            } else if context.state.options.dev && !context.state.options.experimental_async {
                 // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
                 // (await $.track_reactivity_loss(arg))()
                 JsExpr::Call(JsCallExpression {
@@ -6723,7 +6725,9 @@ fn convert_await_expression(
 
     // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
     let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
-    if context.state.analysis.pickled_awaits.contains(&start) {
+    if context.state.analysis.pickled_awaits.contains(&start)
+        && !context.state.options.experimental_async
+    {
         // Pickled await: wrap argument with $.save()
         // save(argument) returns (await $.save(argument))()
         return JsExpr::Call(JsCallExpression {
@@ -6748,7 +6752,7 @@ fn convert_await_expression(
 
     // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
     // Reference: AwaitExpression.js in the official Svelte compiler
-    if context.state.options.dev {
+    if context.state.options.dev && !context.state.options.experimental_async {
         // (await $.track_reactivity_loss(argument))()
         return JsExpr::Call(JsCallExpression {
             callee: context
