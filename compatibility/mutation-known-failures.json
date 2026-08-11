@@ -30,8 +30,6 @@
 	"svelte/packages/svelte/tests/validator/samples/anonymous-declarations/class__m0__block.svelte.js [code-mismatch] (client)",
 	"svelte/packages/svelte/tests/validator/samples/anonymous-declarations/class__m0__block.svelte.js [code-mismatch] (client-dev)",
 	"svelte/packages/svelte/tests/validator/samples/anonymous-declarations/class__m0__block.svelte.js [code-mismatch] (server)",
-	"svelte/packages/svelte/tests/validator/samples/ignore-warning-dash-backwards-compat/input__m0__block-with-brace.svelte [code-mismatch] (client)",
-	"svelte/packages/svelte/tests/validator/samples/ignore-warning-dash-backwards-compat/input__m0__block-with-brace.svelte [code-mismatch] (client-dev)",
 	"svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input__m0__line-with-brace.svelte.js [code-mismatch] (client)",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input__m0__line-with-semi.svelte [code-mismatch] (client)",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input__m0__line-with-semi.svelte [code-mismatch] (client-dev)"

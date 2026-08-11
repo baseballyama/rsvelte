@@ -48,7 +48,7 @@ jobs:
       # version PR. When there are no changesets it is a no-op. Publishing is
       # handled by the `publish` job once the version PR is merged.
       - name: Create or refresh Release Pull Request
-        uses: changesets/action@22ccf9aa43179fe9e27dc62e575971d28cce197c # v2.0.0
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           # changeset version (bump versions, write CHANGELOG)
           # + sync-version.mjs (mirror the bump into Cargo.toml/Cargo.lock)
@@ -551,7 +551,7 @@ jobs:
       # on purpose — writing an empty token to ~/.npmrc silently disables
       # the OIDC fallback.
       - name: Publish
-        uses: changesets/action@22ccf9aa43179fe9e27dc62e575971d28cce197c # v2.0.0
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           # On the "Version Packages" merge there are no changesets left, so
           # changesets/action takes the publish path and runs this script:

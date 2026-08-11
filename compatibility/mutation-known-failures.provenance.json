@@ -17,7 +17,6 @@
   "svelte/packages/svelte/tests/runtime-runes/samples/mutation-both/main.svelte": "f4ad5debb58e3427359ffecb73322737439f438ab982b637e63ba357b8903eff",
   "svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-uncloneable-ignored/main.svelte": "b90740fc8eca0ef466302f26c973963c70f1b6870b1b930a6c56a4f725a47d36",
   "svelte/packages/svelte/tests/validator/samples/anonymous-declarations/class.svelte.js": "a495cd1b22c5689ed40ab73c25faaa0dfde4b84a875061b179875a5a58e10541",
-  "svelte/packages/svelte/tests/validator/samples/ignore-warning-dash-backwards-compat/input.svelte": "e4c5078c6fac7e404a6b6b5d1e1a9bf77d2941dc5f4502685afa49c82b791765",
   "svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js": "729e19c86c907954d917a3a01826dbf7ea019ef3d4043ddcf7deee3b24fa8487",
   "svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte": "3771bd95c200e34b46cd1a535949f5cecd9dcb07171bb612bd48f8d1febf67b8"
 }
