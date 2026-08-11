@@ -3041,6 +3041,21 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
 
                 while j < len {
                     match chars[j] {
+                        '\'' | '"' | '`' => {
+                            let quote = chars[j];
+                            j += 1;
+                            while j < len {
+                                if chars[j] == '\\' {
+                                    j += 2;
+                                } else if chars[j] == quote {
+                                    j += 1;
+                                    break;
+                                } else {
+                                    j += 1;
+                                }
+                            }
+                            continue;
+                        }
                         '(' => paren_depth += 1,
                         ')' => {
                             if paren_depth == 0 {
@@ -3087,7 +3102,8 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                     && !remaining_trimmed.is_empty()
                     && remaining_trimmed != ")"
                     && remaining_trimmed != "))"
-                    && remaining_trimmed != ";";
+                    && remaining_trimmed != ";"
+                    && !remaining_trimmed.starts_with(':');
 
                 if has_more_after {
                     // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
@@ -3121,6 +3137,26 @@ mod proxy_detection_tests {
     fn save_wrapping_leaves_dev_await_tracking_intact() {
         let input = "(await $.track_reactivity_loss(p))()";
         assert_eq!(wrap_await_with_save_in_async_derived(input), input);
+    }
+
+    #[test]
+    fn save_wrapping_keeps_literal_punctuation_inside_await_argument() {
+        assert_eq!(
+            wrap_await_with_save_in_async_derived("(await 'https://svelte.dev') + suffix"),
+            "((await $.save('https://svelte.dev'))()) + suffix"
+        );
+        assert_eq!(
+            wrap_await_with_save_in_async_derived("(await `Hello, ${name}!`) + suffix"),
+            "((await $.save(`Hello, ${name}!`))()) + suffix"
+        );
+    }
+
+    #[test]
+    fn save_wrapping_does_not_wrap_a_conditional_consequent() {
+        assert_eq!(
+            wrap_await_with_save_in_async_derived("selected ? await selected : null"),
+            "selected ? await selected: null"
+        );
     }
 
     #[test]
