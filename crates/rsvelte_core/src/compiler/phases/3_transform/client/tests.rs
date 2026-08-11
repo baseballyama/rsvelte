@@ -1347,7 +1347,7 @@ fn server_public_derived_field_keeps_jsdoc_in_its_synthesized_arrow() {
         result
             .js
             .code
-            .contains("#n = $.derived((/** c */\n\t\t) => 1);"),
+            .contains("\n\t\t#n = $.derived((/** c */\n\t\t) => 1);"),
         "JSDoc should stay with the synthesized derived arrow:\n{}",
         result.js.code
     );
