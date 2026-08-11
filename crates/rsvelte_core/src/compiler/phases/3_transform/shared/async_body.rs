@@ -7,6 +7,7 @@
 //!
 //! Corresponds to `transform_body()` in `svelte/packages/svelte/src/compiler/phases/3-transform/shared/transform-async.js`
 
+use crate::compiler::utils::{is_js_ident_continue, is_js_ident_start};
 use memchr::memmem;
 use std::fmt::Write as _;
 
@@ -1342,7 +1343,7 @@ fn has_await_at_depth(s: &str, skip_functions: bool) -> bool {
         // Detect function/arrow boundaries
         if skip_functions && function_depth == 0 {
             // Check for `function ` or `function(`
-            if ch == b'f' && i + 8 <= len && &s[i..i + 8] == "function" {
+            if ch == b'f' && i + 8 <= len && &bytes[i..i + 8] == b"function" {
                 let next = if i + 8 < len { bytes[i + 8] } else { 0 };
                 if next == b' ' || next == b'(' || next == b'*' {
                     // This is a function declaration/expression - skip inside it
@@ -1449,11 +1450,11 @@ fn has_await_at_depth(s: &str, skip_functions: bool) -> bool {
         // Note: we only check function_depth, NOT brace_depth, because `await` inside
         // an object literal (e.g., `let d = { value: await promise }`) is still at the
         // statement's top level and requires async handling.
-        if function_depth == 0 && ch == b'a' && i + 5 <= len && &s[i..i + 5] == "await" {
+        if function_depth == 0 && ch == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
             // Make sure it's a word boundary
-            let before_ok = i == 0 || !is_ascii_ident_byte(bytes[i - 1]);
-            let after = if i + 5 < len { bytes[i + 5] } else { 0 };
-            let after_ok = !is_ascii_ident_byte(after);
+            let before_ok = i == 0 || !s[..i].chars().next_back().is_some_and(is_js_ident_continue);
+            let after_ok =
+                i + 5 >= len || !s[i + 5..].chars().next().is_some_and(is_js_ident_continue);
             if before_ok && after_ok {
                 return true;
             }
@@ -1470,8 +1471,25 @@ fn has_await_in_expr(s: &str) -> bool {
     has_await_at_depth(s, true)
 }
 
-fn is_ascii_ident_byte(c: u8) -> bool {
-    c.is_ascii_alphanumeric() || c == b'_' || c == b'$'
+fn js_ident_start_len(text: &str, i: usize) -> Option<usize> {
+    let c = text[i..].chars().next()?;
+    is_js_ident_start(c).then(|| c.len_utf8())
+}
+
+fn js_ident_continue_len(text: &str, i: usize) -> Option<usize> {
+    let c = text[i..].chars().next()?;
+    is_js_ident_continue(c).then(|| c.len_utf8())
+}
+
+fn js_identifier_end(text: &str, start: usize) -> usize {
+    let Some(first_len) = js_ident_start_len(text, start) else {
+        return start;
+    };
+    let mut end = start + first_len;
+    while let Some(len) = js_ident_continue_len(text, end) {
+        end += len;
+    }
+    end
 }
 
 /// Skip a string literal (single-quoted, double-quoted, or template literal).
@@ -2029,12 +2047,8 @@ fn is_function_var_declaration(s: &str) -> bool {
             })
             // Simple arrow: `x =>`  - check if it's an identifier followed by =>
             || {
-                let bytes = after_eq.as_bytes();
-                let mut j = 0;
-                while j < bytes.len() && is_ascii_ident_byte(bytes[j]) {
-                    j += 1;
-                }
-                j > 0 && j < bytes.len() && after_eq[j..].trim_start().starts_with("=>")
+                let j = js_identifier_end(after_eq, 0);
+                j > 0 && j < after_eq.len() && after_eq[j..].trim_start().starts_with("=>")
             }
     } else {
         false
@@ -2541,10 +2555,11 @@ fn extract_all_identifiers_from_statement(stmt: &str) -> Vec<String> {
         }
 
         // Extract identifier tokens
-        if is_ascii_ident_start_byte(ch) {
+        if let Some(first_len) = js_ident_start_len(stmt, i) {
             let start = i;
-            while i < len && is_ascii_ident_byte(bytes[i]) {
-                i += 1;
+            i += first_len;
+            while let Some(continue_len) = js_ident_continue_len(stmt, i) {
+                i += continue_len;
             }
             let token = &stmt[start..i];
 
@@ -2559,11 +2574,6 @@ fn extract_all_identifiers_from_statement(stmt: &str) -> Vec<String> {
     }
 
     identifiers
-}
-
-/// Check if a byte can start a JS identifier (letter, underscore, or dollar sign).
-fn is_ascii_ident_start_byte(c: u8) -> bool {
-    c.is_ascii_alphabetic() || c == b'_' || c == b'$'
 }
 
 /// Check if a token is a JavaScript keyword that should be excluded from identifier extraction.
@@ -2861,11 +2871,7 @@ fn extract_function_decl_name(s: &str) -> Option<String> {
         r.trim()
     };
 
-    let mut i = 0;
-    let bytes = rest.as_bytes();
-    while i < bytes.len() && is_ascii_ident_byte(bytes[i]) {
-        i += 1;
-    }
+    let i = js_identifier_end(rest, 0);
     if i > 0 {
         Some(rest[..i].to_string())
     } else {
@@ -2880,11 +2886,7 @@ fn extract_function_decl_name(s: &str) -> Option<String> {
 fn extract_class_decl_name(s: &str) -> Option<String> {
     let rest = s.trim().strip_prefix("class ")?;
     let rest = rest.trim_start();
-    let bytes = rest.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() && is_ascii_ident_byte(bytes[i]) {
-        i += 1;
-    }
+    let i = js_identifier_end(rest, 0);
     if i == 0 {
         return None;
     }
@@ -2909,11 +2911,7 @@ fn extract_var_decl_name(s: &str) -> Option<String> {
         s.strip_prefix("var ")?
     };
     let rest = rest.trim();
-    let mut i = 0;
-    let bytes = rest.as_bytes();
-    while i < bytes.len() && is_ascii_ident_byte(bytes[i]) {
-        i += 1;
-    }
+    let i = js_identifier_end(rest, 0);
     if i > 0 {
         Some(rest[..i].to_string())
     } else {
