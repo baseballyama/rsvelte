@@ -70,6 +70,21 @@ use rsvelte_projection::svelte2tsx::{
     svelte2tsx as rust_svelte2tsx,
 };
 
+#[napi(object)]
+pub struct NapiBuildInfo {
+    pub commit: String,
+    pub dirty: bool,
+}
+
+/// Build provenance embedded by `build.rs`, used to attest staged addons.
+#[napi(js_name = "buildInfo", catch_unwind)]
+pub fn napi_build_info() -> NapiBuildInfo {
+    NapiBuildInfo {
+        commit: env!("RSVELTE_NAPI_BUILD_COMMIT").to_owned(),
+        dirty: env!("RSVELTE_NAPI_BUILD_DIRTY") == "true",
+    }
+}
+
 /// Compile a Svelte component.
 /// Serialise compiler warnings into the JSON shape the official
 /// `svelte/compiler` output uses (`code`, `message`, `filename`, `start`, `end`,

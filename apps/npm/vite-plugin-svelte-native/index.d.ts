@@ -101,6 +101,14 @@ export interface ModuleCompileOptions {
 	warningFilter?: (warning: Warning) => boolean;
 }
 
+/** Source revision embedded in the native addon at compile time. */
+export interface BuildInfo {
+	commit: string;
+	dirty: boolean;
+}
+
+export function buildInfo(): BuildInfo;
+
 // ---------------------------------------------------------------------------
 // Diagnostics
 // ---------------------------------------------------------------------------

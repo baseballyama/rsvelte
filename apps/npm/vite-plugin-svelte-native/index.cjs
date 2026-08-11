@@ -284,6 +284,7 @@ module.exports.preprocess = binding.preprocess;
 module.exports.svelte2tsx = binding.svelte2tsx;
 module.exports.hmrDiff = binding.hmrDiff;
 module.exports.resolveId = binding.resolveId;
+module.exports.buildInfo = binding.buildInfo;
 // Standalone parse surfaces. `parse` returns a JSON string (decode with
 // `JSON.parse`); `parseEnvelope` returns the raw-transfer Buffer that skips
 // `JSON.parse` entirely — decode it with `decodeParseEnvelope` (re-exported

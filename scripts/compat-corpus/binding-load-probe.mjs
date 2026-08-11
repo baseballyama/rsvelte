@@ -7,8 +7,14 @@ import path from 'node:path';
 const require = createRequire(import.meta.url);
 // Resolve first: require() reads a bare relative path as a module specifier.
 const binding = require(path.resolve(process.argv[2]));
+const buildInfo = binding.buildInfo?.();
+if (typeof buildInfo?.commit !== 'string' || typeof buildInfo?.dirty !== 'boolean') {
+	console.error('binding loaded but exposes no valid buildInfo()');
+	process.exit(1);
+}
 const out = binding.compile('<p>{1}</p>', { generate: 'client', dev: false, filename: 'C.svelte' });
 if (!out?.js?.code) {
 	console.error('binding loaded but produced no js output');
 	process.exit(1);
 }
+process.stdout.write(JSON.stringify(buildInfo));

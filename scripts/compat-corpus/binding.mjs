@@ -1,26 +1,9 @@
 /**
  * Provenance for the staged NAPI binding.
  *
- * `.corpus-cache/rsvelte.node` is a copied build artifact. Nothing in the file
- * records which source it was built from, it is per-worktree, and it survives
- * every checkout, rebase and branch switch — so a measurement can be attributed
- * to a commit that never produced it.
- *
- * mtime cannot answer this. A binding built before a fix and copied after it has
- * a newer mtime than the fix it lacks, which is the shape that shipped a fixed
- * crash as a live bug: staged 02:44, missing a fix committed at 16:26 the
- * previous day. mtime older than the base is sound evidence of staleness; mtime
- * newer is evidence of nothing.
- *
- * So record the commit at stage time and check it at use time. Absent a stamp
- * the answer is "unknown", which is treated as unusable for writing a ratchet —
- * a ratchet entry is a durable claim that a divergence exists in a given tree.
- *
- * The stamp is `stagedAtCommit`, never `builtFromCommit`: it records what was
- * checked out when the library was copied, which is a lower bound on its age and
- * not evidence of what compiled it. #2482 upgrades this to a real attestation by
- * having the build embed its own commit; until then the field name is the honest
- * one, because the name is what a reader three weeks from now will trust.
+ * The binary's `buildInfo()` export embeds its source commit at compile time.
+ * Staging reads it before writing the sidecar stamp, so a stale target artifact
+ * cannot be certified as the currently checked-out tree.
  */
 
 import fs from 'node:fs';
@@ -53,33 +36,32 @@ export function stageBinding(root) {
 			`no built library under target/release — run \`cargo build --release -p rsvelte_napi --lib\` first\n  looked for: ${candidates.map((p) => path.relative(root, p)).join(', ')}`
 		);
 	}
-	// mtime cannot show a binary is current, but it can show one is stale: a
-	// library older than the newest crates/ commit cannot contain it.
-	const lastCratesCommit = git(root, ['log', '-1', '--format=%ct', '--', 'crates']);
-	if (lastCratesCommit && fs.statSync(built).mtimeMs / 1000 < Number(lastCratesCommit)) {
-		throw new Error(
-			`${path.relative(root, built)} predates the newest commit touching crates/ — rebuild before staging, or the stamp would certify a binary that cannot contain it`
-		);
-	}
 	fs.mkdirSync(path.join(root, '.corpus-cache'), { recursive: true });
 	const dest = path.join(root, BINDING_REL);
+	// A failed attestation must not leave the prior binding's sidecar beside a
+	// newly copied artifact.
+	fs.rmSync(path.join(root, STAMP_REL), { force: true });
 	// Overwriting a loaded dylib in place leaves macOS holding a stale signature
 	// for the path and it SIGKILLs anything that loads it, so land a new inode.
 	const tmp = `${dest}.staging`;
 	fs.copyFileSync(built, tmp);
 	fs.renameSync(tmp, dest);
-	assertBindingLoads(root, dest);
-	return writeBindingProvenance(root);
+	try {
+		return writeBindingProvenance(root, dest);
+	} catch (error) {
+		fs.rmSync(dest, { force: true });
+		throw error;
+	}
 }
 
 /**
  * Stamping a binding that cannot load is the failure this whole module exists to
  * prevent, one level down: the attestation would outlive the thing it describes.
  */
-function assertBindingLoads(root, dest) {
+function readBuildInfo(root, dest) {
 	const probe = path.join(root, 'scripts/compat-corpus/binding-load-probe.mjs');
 	try {
-		execFileSync(process.execPath, [probe, dest], { stdio: ['ignore', 'ignore', 'pipe'] });
+		return JSON.parse(execFileSync(process.execPath, [probe, dest], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
 	} catch (e) {
 		fs.rmSync(dest, { force: true });
 		const signal = e?.signal ? ` (${e.signal})` : '';
@@ -89,15 +71,19 @@ function assertBindingLoads(root, dest) {
 	}
 }
 
-export function writeBindingProvenance(root) {
-	const stagedAtCommit = git(root, ['rev-parse', 'HEAD']);
-	if (!stagedAtCommit) throw new Error('cannot resolve HEAD to stamp the binding');
-	// A dirty crates/ tree means the binding may contain uncommitted work, which
-	// no commit id describes.
-	const dirty = (git(root, ['status', '--porcelain', '--', 'crates']) ?? '') !== '';
-	// Named for what it attests. This records the commit checked out when the
-	// library was copied, which is not evidence of what compiled it — see #2482.
-	const stamp = { stagedAtCommit, dirty, stagedAt: new Date().toISOString() };
+export function writeBindingProvenance(root, bindingPath = path.join(root, BINDING_REL)) {
+	const head = git(root, ['rev-parse', 'HEAD']);
+	if (!head) throw new Error('cannot resolve HEAD to attest the binding');
+	const buildInfo = readBuildInfo(root, bindingPath);
+	if (!/^[0-9a-f]{40}$/i.test(buildInfo?.commit ?? '')) {
+		throw new Error('the staged binding reports no git commit; rebuild it from a git checkout');
+	}
+	if (buildInfo.commit !== head) {
+		throw new Error(
+			`the staged binding was built from ${buildInfo.commit.slice(0, 8)}, not HEAD ${head.slice(0, 8)}; rebuild before staging`
+		);
+	}
+	const stamp = { builtFromCommit: buildInfo.commit, dirty: buildInfo.dirty, stagedAt: new Date().toISOString() };
 	fs.writeFileSync(path.join(root, STAMP_REL), JSON.stringify(stamp, null, '\t') + '\n');
 	return stamp;
 }
@@ -119,25 +105,25 @@ export function bindingProvenance(root) {
 	} catch {
 		return { state: 'unknown', detail: `${STAMP_REL} is unreadable` };
 	}
-	const at = stamp.stagedAtCommit;
+	const at = stamp.builtFromCommit;
 	if (typeof at !== 'string' || at === '') {
-		return { state: 'unknown', detail: `${STAMP_REL} records no stagedAtCommit` };
+		return { state: 'unknown', detail: `${STAMP_REL} records no builtFromCommit` };
 	}
 	if (stamp.dirty) {
-		return { state: 'dirty', detail: `staged at ${at.slice(0, 8)} with uncommitted changes under crates/` };
+		return { state: 'dirty', detail: `built from ${at.slice(0, 8)} with uncommitted changes` };
 	}
 	const known = git(root, ['rev-parse', '--verify', `${at}^{commit}`]);
 	if (!known) {
-		return { state: 'foreign', detail: `staged at ${at.slice(0, 8)}, which is not a commit in this repository` };
+		return { state: 'foreign', detail: `built from ${at.slice(0, 8)}, which is not a commit in this repository` };
 	}
 	const behind = git(root, ['rev-list', '--count', `${at}..HEAD`, '--', 'crates']);
 	if (behind && behind !== '0') {
 		return {
 			state: 'stale',
-			detail: `staged at ${at.slice(0, 8)}, which is ${behind} commit(s) touching crates/ behind HEAD`,
+			detail: `built from ${at.slice(0, 8)}, which is ${behind} commit(s) touching crates/ behind HEAD`,
 		};
 	}
-	return { state: 'ok', detail: `staged at ${at.slice(0, 8)}` };
+	return { state: 'ok', detail: `built from ${at.slice(0, 8)}` };
 }
 
 /** A reason string when the binding cannot back a durable claim, else null. */
@@ -152,7 +138,7 @@ if (process.argv[1] && process.argv[1].endsWith('binding.mjs') && process.argv.i
 	try {
 		const stamp = stageBinding(root);
 		console.log(
-			`[binding] staged at ${stamp.stagedAtCommit.slice(0, 8)}${stamp.dirty ? ' (DIRTY crates/)' : ''}`
+			`[binding] built from ${stamp.builtFromCommit.slice(0, 8)}${stamp.dirty ? ' (DIRTY)' : ''}`
 		);
 	} catch (e) {
 		console.error(`[binding] ${e.message}`);
