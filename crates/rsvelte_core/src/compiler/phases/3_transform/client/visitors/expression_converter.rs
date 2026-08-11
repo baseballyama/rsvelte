@@ -478,7 +478,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     arguments: vec![],
                     optional: false,
                 })
-            } else if context.state.options.dev && !context.state.options.experimental_async {
+            } else if context.state.options.dev
+                && !context.state.analysis.pickled_awaits.contains(start)
+            {
                 // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
                 // (await $.track_reactivity_loss(arg))()
                 JsExpr::Call(JsCallExpression {
@@ -6752,7 +6754,7 @@ fn convert_await_expression(
 
     // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
     // Reference: AwaitExpression.js in the official Svelte compiler
-    if context.state.options.dev && !context.state.options.experimental_async {
+    if context.state.options.dev && !context.state.analysis.pickled_awaits.contains(&start) {
         // (await $.track_reactivity_loss(argument))()
         return JsExpr::Call(JsCallExpression {
             callee: context
