@@ -2,7 +2,7 @@
 """rsvelte ctypes smoke test.
 
 Run from the repository root:
-    cargo build -p rsvelte_capi --release
+    cargo build -p rsvelte_capi --profile dist-capi
     python3 crates/rsvelte_capi/examples/python/smoke.py
 
 ctypes here doubles as a proxy for what PHP FFI and Ruby Fiddle look
@@ -22,7 +22,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[3]
-TARGET_DIR = REPO_ROOT / "target" / "release"
+TARGET_DIR = REPO_ROOT / "target" / "dist-capi"
 
 
 def _dylib_path() -> Path:
@@ -46,7 +46,7 @@ class RsvelteBuf(ctypes.Structure):
 def load_library() -> ctypes.CDLL:
     path = _dylib_path()
     if not path.exists():
-        print(f"FAIL: dylib not found at {path} — run `cargo build -p rsvelte_capi --release` first", file=sys.stderr)
+        print(f"FAIL: dylib not found at {path} — run `cargo build -p rsvelte_capi --profile dist-capi` first", file=sys.stderr)
         sys.exit(2)
     lib = ctypes.CDLL(str(path))
 

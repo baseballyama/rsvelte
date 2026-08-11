@@ -107,7 +107,7 @@ jobs:
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
           RSVELTE_CAPI_CHECK_HEADER: '1'
-        run: cargo build --release -p rsvelte_capi --target ${{ matrix.target }}
+        run: cargo build --profile dist-capi -p rsvelte_capi --target ${{ matrix.target }}
 
       # On macOS, cargo defaults the dylib's LC_ID_DYLIB to the build's
       # absolute path. Anything that links against the shipped dylib
@@ -119,7 +119,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dylib="target/${{ matrix.target }}/release/${{ matrix.lib }}"
+          dylib="target/${{ matrix.target }}/dist-capi/${{ matrix.lib }}"
           install_name_tool -id "@rpath/${{ matrix.lib }}" "${dylib}"
           echo "After patch:"
           otool -D "${dylib}"
@@ -132,13 +132,13 @@ jobs:
           name="rsvelte_capi-${ver}-${{ matrix.triple }}"
           stage="stage/${name}"
           mkdir -p "${stage}/lib" "${stage}/include"
-          cp "target/${{ matrix.target }}/release/${{ matrix.lib }}" "${stage}/lib/"
-          if [[ -f "target/${{ matrix.target }}/release/${{ matrix.staticlib }}" ]]; then
-            cp "target/${{ matrix.target }}/release/${{ matrix.staticlib }}" "${stage}/lib/"
+          cp "target/${{ matrix.target }}/dist-capi/${{ matrix.lib }}" "${stage}/lib/"
+          if [[ -f "target/${{ matrix.target }}/dist-capi/${{ matrix.staticlib }}" ]]; then
+            cp "target/${{ matrix.target }}/dist-capi/${{ matrix.staticlib }}" "${stage}/lib/"
           fi
           # Windows MSVC also writes an import library next to the DLL.
-          if [[ -n "${{ matrix.implib || '' }}" && -f "target/${{ matrix.target }}/release/${{ matrix.implib }}" ]]; then
-            cp "target/${{ matrix.target }}/release/${{ matrix.implib }}" "${stage}/lib/"
+          if [[ -n "${{ matrix.implib || '' }}" && -f "target/${{ matrix.target }}/dist-capi/${{ matrix.implib }}" ]]; then
+            cp "target/${{ matrix.target }}/dist-capi/${{ matrix.implib }}" "${stage}/lib/"
           fi
           cp crates/rsvelte_capi/include/rsvelte.h "${stage}/include/"
           cp crates/rsvelte_capi/README.md         "${stage}/README.md"

@@ -5,7 +5,7 @@ JDK 22. Will NOT compile on JDK 21 or earlier (the incubator package
 name was different).
 
 ```bash
-cargo build -p rsvelte_capi --release
+cargo build -p rsvelte_capi --profile dist-capi
 
 # JDK 22+
 java --enable-native-access=ALL-UNNAMED \

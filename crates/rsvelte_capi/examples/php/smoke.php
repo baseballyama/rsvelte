@@ -6,7 +6,7 @@
  * default in most distributions; check via `php -m | grep -i ffi`).
  *
  * Run from the repository root:
- *   cargo build -p rsvelte_capi --release
+ *   cargo build -p rsvelte_capi --profile dist-capi
  *   php crates/rsvelte_capi/examples/php/smoke.php
  *
  * NOTE: ext-ffi only loads dynamic libraries from a CLI script by
@@ -29,10 +29,10 @@ $names = [
     'windows' => 'rsvelte_capi.dll',
 ];
 $dyName = $names[$os] ?? 'librsvelte_capi.so';
-$dyPath = $root . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'release' . DIRECTORY_SEPARATOR . $dyName;
+$dyPath = $root . DIRECTORY_SEPARATOR . 'target' . DIRECTORY_SEPARATOR . 'dist-capi' . DIRECTORY_SEPARATOR . $dyName;
 
 if (!file_exists($dyPath)) {
-    fwrite(STDERR, "FAIL: dylib not found at {$dyPath} — run `cargo build -p rsvelte_capi --release` first\n");
+    fwrite(STDERR, "FAIL: dylib not found at {$dyPath} — run `cargo build -p rsvelte_capi --profile dist-capi` first\n");
     exit(2);
 }
 

@@ -19,10 +19,6 @@ The former aggregate #033 has been split along independently removable productio
 
 ## Findings
 
-### P0
-
-- [001 — C ABI compiler panics abort the embedding process](001-c-api-panic-aborts-host.md)
-
 ### P1
 
 - [002 — svelte-check overlay follows symlinks outside the workspace](002-overlay-symlink-write-escape.md)

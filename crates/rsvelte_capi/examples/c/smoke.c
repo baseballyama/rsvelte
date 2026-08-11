@@ -2,15 +2,15 @@
  * rsvelte C ABI smoke test.
  *
  * Build:
- *   cargo build -p rsvelte_capi --release
+ *   cargo build -p rsvelte_capi --profile dist-capi
  *   cc -I crates/rsvelte_capi/include \
- *      -L target/release \
- *      -Wl,-rpath,@loader_path/../../../target/release \
+ *      -L target/dist-capi \
+ *      -Wl,-rpath,@loader_path/../../../target/dist-capi \
  *      crates/rsvelte_capi/examples/c/smoke.c \
- *      -lrsvelte_capi -o target/release/c_smoke
+ *      -lrsvelte_capi -o target/dist-capi/c_smoke
  *
  * Run:
- *   ./target/release/c_smoke
+ *   ./target/dist-capi/c_smoke
  */
 
 #include <stdio.h>

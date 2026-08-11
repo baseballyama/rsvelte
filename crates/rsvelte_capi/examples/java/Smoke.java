@@ -4,7 +4,7 @@
  * Requires JDK 22+ (FFM API finalized in java.lang.foreign).
  *
  * Run from the repository root:
- *   cargo build -p rsvelte_capi --release
+ *   cargo build -p rsvelte_capi --profile dist-capi
  *   java --enable-native-access=ALL-UNNAMED \
  *        crates/rsvelte_capi/examples/java/Smoke.java
  *
@@ -38,11 +38,11 @@ public class Smoke {
         Path repoRoot = Paths.get("").toAbsolutePath();
         Path dylib = repoRoot
             .resolve("target")
-            .resolve("release")
+            .resolve("dist-capi")
             .resolve(dylibName());
         if (!dylib.toFile().exists()) {
             System.err.println("FAIL: dylib not found at " + dylib
-                + " — run `cargo build -p rsvelte_capi --release` first");
+                + " — run `cargo build -p rsvelte_capi --profile dist-capi` first");
             System.exit(2);
         }
 

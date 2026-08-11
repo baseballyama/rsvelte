@@ -114,12 +114,12 @@ jobs:
       # what cbindgen produces. We keep them separate to surface clear
       # error messages.
       - name: Build cdylib
-        run: cargo build -p rsvelte_capi --release
+        run: cargo build -p rsvelte_capi --profile dist-capi
 
       - name: Verify header is up-to-date (RSVELTE_CAPI_CHECK_HEADER=1)
         env:
           RSVELTE_CAPI_CHECK_HEADER: '1'
-        run: cargo build -p rsvelte_capi --release
+        run: cargo build -p rsvelte_capi --profile dist-capi
 
       - name: Verify no uncommitted header drift
         # Belt-and-braces: even if the build script were bypassed, this
@@ -132,7 +132,7 @@ jobs:
           fi
 
       - name: Run cargo tests (envelope, options, header, module, memory)
-        run: cargo test -p rsvelte_capi --release
+        run: cargo test -p rsvelte_capi --profile dist-capi
 
       # ---------------- C smoke ----------------
       - name: C smoke (Unix)
@@ -141,11 +141,11 @@ jobs:
         run: |
           cc -O2 -Wall -Wextra \
             -I crates/rsvelte_capi/include \
-            -L target/release \
+            -L target/dist-capi \
             crates/rsvelte_capi/examples/c/smoke.c \
             -lrsvelte_capi \
-            -o target/release/c_smoke
-          cd target/release
+            -o target/dist-capi/c_smoke
+          cd target/dist-capi
           # Same dir for binary + dylib — both env vars cover Linux/macOS.
           LD_LIBRARY_PATH=. DYLD_LIBRARY_PATH=. ./c_smoke
 
@@ -160,10 +160,10 @@ jobs:
           cl /nologo /O2 ^
             /I crates\rsvelte_capi\include ^
             crates\rsvelte_capi\examples\c\smoke.c ^
-            /link /LIBPATH:target\release rsvelte_capi.dll.lib ^
-            /OUT:target\release\c_smoke.exe
+            /link /LIBPATH:target\dist-capi rsvelte_capi.dll.lib ^
+            /OUT:target\dist-capi\c_smoke.exe
           if errorlevel 1 exit /b 1
-          target\release\c_smoke.exe
+          target\dist-capi\c_smoke.exe
 
       # The polyglot FFI smokes below (Go / Python / Ruby / PHP / Java) each
       # pull in a language toolchain — collectively ~2-3 min of setup. The C
@@ -256,6 +256,6 @@ jobs:
         with:
           name: rsvelte_capi-${{ matrix.os }}
           path: |
-            target/release/${{ matrix.lib }}
+            target/dist-capi/${{ matrix.lib }}
             crates/rsvelte_capi/include/rsvelte.h
           if-no-files-found: error

@@ -4,7 +4,7 @@
 # rsvelte Ruby smoke test via stdlib Fiddle (no gems).
 #
 # Run from the repository root:
-#   cargo build -p rsvelte_capi --release
+#   cargo build -p rsvelte_capi --profile dist-capi
 #   ruby crates/rsvelte_capi/examples/ruby/smoke.rb
 #
 # Fiddle's C parser doesn't understand returning struct-by-value, so
@@ -18,7 +18,7 @@ require "json"
 require "rbconfig"
 
 ROOT       = File.expand_path("../../../..", __dir__)
-TARGET_DIR = File.join(ROOT, "target", "release")
+TARGET_DIR = File.join(ROOT, "target", "dist-capi")
 DYLIB_NAME = case RbConfig::CONFIG["host_os"]
              when /darwin/ then "librsvelte_capi.dylib"
              when /mswin|mingw|cygwin/ then "rsvelte_capi.dll"
@@ -27,7 +27,7 @@ DYLIB_NAME = case RbConfig::CONFIG["host_os"]
 DYLIB_PATH = File.join(TARGET_DIR, DYLIB_NAME)
 
 unless File.exist?(DYLIB_PATH)
-  warn "FAIL: dylib not found at #{DYLIB_PATH} — run `cargo build -p rsvelte_capi --release` first"
+  warn "FAIL: dylib not found at #{DYLIB_PATH} — run `cargo build -p rsvelte_capi --profile dist-capi` first"
   exit 2
 end
 

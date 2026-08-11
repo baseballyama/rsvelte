@@ -1,15 +1,15 @@
 //! rsvelte Zig smoke test via @cImport.
 //!
 //! Build & run from the repository root:
-//!   cargo build -p rsvelte_capi --release
+//!   cargo build -p rsvelte_capi --profile dist-capi
 //!   zig build-exe crates/rsvelte_capi/examples/zig/smoke.zig \
 //!       -I crates/rsvelte_capi/include \
-//!       -L target/release \
+//!       -L target/dist-capi \
 //!       -lrsvelte_capi \
-//!       --search-prefix target/release \
-//!       -lc -rpath $PWD/target/release \
-//!       -femit-bin=target/release/zig_smoke
-//!   ./target/release/zig_smoke
+//!       --search-prefix target/dist-capi \
+//!       -lc -rpath $PWD/target/dist-capi \
+//!       -femit-bin=target/dist-capi/zig_smoke
+//!   ./target/dist-capi/zig_smoke
 
 const std = @import("std");
 const c = @cImport({

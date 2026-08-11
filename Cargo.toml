@@ -79,6 +79,14 @@ panic = "unwind"
 inherits = "dist"
 panic = "unwind"
 
+# Distribution profile for the C ABI libraries. C has no Rust panic runtime,
+# so every compiler entry point catches an unwind and returns its JSON error
+# envelope instead of allowing an abort to terminate the embedding process.
+# Build C ABI artifacts with `--profile dist-capi`.
+[profile.dist-capi]
+inherits = "dist"
+panic = "unwind"
+
 [profile.profiling]
 inherits = "release"
 lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM

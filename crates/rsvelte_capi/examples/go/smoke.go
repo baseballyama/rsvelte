@@ -1,17 +1,17 @@
 // rsvelte Go smoke test.
 //
 // Build & run from the repository root:
-//   cargo build -p rsvelte_capi --release
+//   cargo build -p rsvelte_capi --profile dist-capi
 //   go run ./crates/rsvelte_capi/examples/go
 //
 // The cgo directives below pick up the header from
-// crates/rsvelte_capi/include and the dylib from target/release.
+// crates/rsvelte_capi/include and the dylib from target/dist-capi.
 
 package main
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../include
-#cgo LDFLAGS: -L${SRCDIR}/../../../../target/release -lrsvelte_capi -Wl,-rpath,${SRCDIR}/../../../../target/release
+#cgo LDFLAGS: -L${SRCDIR}/../../../../target/dist-capi -lrsvelte_capi -Wl,-rpath,${SRCDIR}/../../../../target/dist-capi
 #include <stdlib.h>
 #include <string.h>
 #include "rsvelte.h"

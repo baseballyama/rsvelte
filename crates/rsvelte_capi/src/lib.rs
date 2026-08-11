@@ -28,6 +28,9 @@
 
 use std::os::raw::{c_char, c_void};
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use rsvelte_core::compiler::{
     CompileOptions, CssHashInput, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions,
     Namespace, Warning, compile as rust_compile, compile_module as rust_compile_module,
@@ -246,22 +249,24 @@ pub unsafe extern "C" fn rsvelte_compile(
     options_json: *const u8,
     options_len: usize,
 ) -> RsvelteBuf {
-    // SAFETY: upheld by this function's documented `# Safety` contract
-    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
-    let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
-        return error_envelope("source is not valid UTF-8 or pointer is null");
-    };
-    // SAFETY: upheld by this function's documented `# Safety` contract
-    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
-    let opts = match unsafe { parse_compile_options(options_json, options_len) } {
-        Ok(o) => o,
-        Err(msg) => return error_envelope(&msg),
-    };
+    ffi_boundary(|| {
+        // SAFETY: upheld by this function's documented `# Safety` contract
+        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
+        let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
+            return error_envelope("source is not valid UTF-8 or pointer is null");
+        };
+        // SAFETY: upheld by this function's documented `# Safety` contract
+        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
+        let opts = match unsafe { parse_compile_options(options_json, options_len) } {
+            Ok(o) => o,
+            Err(msg) => return error_envelope(&msg),
+        };
 
-    match rust_compile(source_str, opts) {
-        Ok(result) => success_envelope(compile_result_to_json(&result)),
-        Err(e) => error_envelope(&format!("{e}")),
-    }
+        match rust_compile(source_str, opts) {
+            Ok(result) => success_envelope(compile_result_to_json(&result)),
+            Err(e) => error_envelope(&format!("{e}")),
+        }
+    })
 }
 
 /// Compile a Svelte `.svelte.js` / `.svelte.ts` module.
@@ -277,22 +282,24 @@ pub unsafe extern "C" fn rsvelte_compile_module(
     options_json: *const u8,
     options_len: usize,
 ) -> RsvelteBuf {
-    // SAFETY: upheld by this function's documented `# Safety` contract
-    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
-    let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
-        return error_envelope("source is not valid UTF-8 or pointer is null");
-    };
-    // SAFETY: upheld by this function's documented `# Safety` contract
-    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
-    let opts = match unsafe { parse_module_options(options_json, options_len) } {
-        Ok(o) => o,
-        Err(msg) => return error_envelope(&msg),
-    };
+    ffi_boundary(|| {
+        // SAFETY: upheld by this function's documented `# Safety` contract
+        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
+        let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
+            return error_envelope("source is not valid UTF-8 or pointer is null");
+        };
+        // SAFETY: upheld by this function's documented `# Safety` contract
+        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
+        let opts = match unsafe { parse_module_options(options_json, options_len) } {
+            Ok(o) => o,
+            Err(msg) => return error_envelope(&msg),
+        };
 
-    match rust_compile_module(source_str, opts) {
-        Ok(result) => success_envelope(compile_result_to_json(&result)),
-        Err(e) => error_envelope(&format!("{e}")),
-    }
+        match rust_compile_module(source_str, opts) {
+            Ok(result) => success_envelope(compile_result_to_json(&result)),
+            Err(e) => error_envelope(&format!("{e}")),
+        }
+    })
 }
 
 /// Compile a Svelte component with optional `cssHash` / `warningFilter`
@@ -317,22 +324,24 @@ pub unsafe extern "C" fn rsvelte_compile_with_callbacks(
     options_len: usize,
     callbacks: *const RsvelteCallbacks,
 ) -> RsvelteBuf {
-    // SAFETY: upheld by this function's documented `# Safety` contract.
-    let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
-        return error_envelope("source is not valid UTF-8 or pointer is null");
-    };
-    // SAFETY: upheld by this function's documented `# Safety` contract.
-    let mut opts = match unsafe { parse_compile_options(options_json, options_len) } {
-        Ok(o) => o,
-        Err(msg) => return error_envelope(&msg),
-    };
-    // SAFETY: `callbacks` is NULL or a valid `RsvelteCallbacks` per the contract.
-    unsafe { apply_component_callbacks(&mut opts, callbacks) };
+    ffi_boundary(|| {
+        // SAFETY: upheld by this function's documented `# Safety` contract.
+        let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
+            return error_envelope("source is not valid UTF-8 or pointer is null");
+        };
+        // SAFETY: upheld by this function's documented `# Safety` contract.
+        let mut opts = match unsafe { parse_compile_options(options_json, options_len) } {
+            Ok(o) => o,
+            Err(msg) => return error_envelope(&msg),
+        };
+        // SAFETY: `callbacks` is NULL or a valid `RsvelteCallbacks` per the contract.
+        unsafe { apply_component_callbacks(&mut opts, callbacks) };
 
-    match rust_compile(source_str, opts) {
-        Ok(result) => success_envelope(compile_result_to_json(&result)),
-        Err(e) => error_envelope(&format!("{e}")),
-    }
+        match rust_compile(source_str, opts) {
+            Ok(result) => success_envelope(compile_result_to_json(&result)),
+            Err(e) => error_envelope(&format!("{e}")),
+        }
+    })
 }
 
 /// Compile a Svelte `.svelte.js` / `.svelte.ts` module with an optional
@@ -349,22 +358,24 @@ pub unsafe extern "C" fn rsvelte_compile_module_with_callbacks(
     options_len: usize,
     callbacks: *const RsvelteCallbacks,
 ) -> RsvelteBuf {
-    // SAFETY: upheld by this function's documented `# Safety` contract.
-    let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
-        return error_envelope("source is not valid UTF-8 or pointer is null");
-    };
-    // SAFETY: upheld by this function's documented `# Safety` contract.
-    let mut opts = match unsafe { parse_module_options(options_json, options_len) } {
-        Ok(o) => o,
-        Err(msg) => return error_envelope(&msg),
-    };
-    // SAFETY: `callbacks` is NULL or a valid `RsvelteCallbacks` per the contract.
-    unsafe { apply_module_callbacks(&mut opts, callbacks) };
+    ffi_boundary(|| {
+        // SAFETY: upheld by this function's documented `# Safety` contract.
+        let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
+            return error_envelope("source is not valid UTF-8 or pointer is null");
+        };
+        // SAFETY: upheld by this function's documented `# Safety` contract.
+        let mut opts = match unsafe { parse_module_options(options_json, options_len) } {
+            Ok(o) => o,
+            Err(msg) => return error_envelope(&msg),
+        };
+        // SAFETY: `callbacks` is NULL or a valid `RsvelteCallbacks` per the contract.
+        unsafe { apply_module_callbacks(&mut opts, callbacks) };
 
-    match rust_compile_module(source_str, opts) {
-        Ok(result) => success_envelope(compile_result_to_json(&result)),
-        Err(e) => error_envelope(&format!("{e}")),
-    }
+        match rust_compile_module(source_str, opts) {
+            Ok(result) => success_envelope(compile_result_to_json(&result)),
+            Err(e) => error_envelope(&format!("{e}")),
+        }
+    })
 }
 
 /// Out-parameter variant of [`rsvelte_compile`] for hosts whose FFI
@@ -421,6 +432,127 @@ pub unsafe extern "C" fn rsvelte_compile_module_into(
 // ---------------------------------------------------------------------------
 // Helpers — not exported.
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+static FORCE_FFI_PANIC: AtomicBool = AtomicBool::new(false);
+
+/// Run compiler work without allowing a Rust unwind to cross the C ABI.
+///
+/// This boundary requires the `dist-capi` profile: `panic = "abort"` cannot
+/// be caught by Rust and would terminate the embedding process first.
+fn ffi_boundary(f: impl FnOnce() -> RsvelteBuf) -> RsvelteBuf {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        #[cfg(test)]
+        if FORCE_FFI_PANIC.swap(false, Ordering::SeqCst) {
+            panic!("forced C ABI panic");
+        }
+        f()
+    }))
+    .unwrap_or_else(|payload| {
+        error_envelope(&format!(
+            "internal compiler panic: {}",
+            panic_message(payload)
+        ))
+    })
+}
+
+fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_owned()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic payload".to_owned()
+    }
+}
+
+#[cfg(test)]
+mod panic_boundary_tests {
+    use super::*;
+
+    unsafe fn assert_panic_envelope(buf: RsvelteBuf) {
+        // SAFETY: every tested entry point returned this buffer, so it is a
+        // valid owned allocation until released below.
+        let bytes = unsafe { std::slice::from_raw_parts(buf.data, buf.len) };
+        let envelope: Value = serde_json::from_slice(bytes).unwrap();
+        assert_eq!(envelope["ok"], false);
+        assert!(
+            envelope["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("forced C ABI panic")
+        );
+        // SAFETY: `buf` is released exactly once after copying/decoding it.
+        unsafe { rsvelte_free(buf) };
+    }
+
+    #[test]
+    fn every_compiler_export_converts_a_forced_panic_to_an_error_envelope() {
+        let source = b"<h1 />";
+        let mut component_out = std::mem::MaybeUninit::<RsvelteBuf>::uninit();
+        let mut module_out = std::mem::MaybeUninit::<RsvelteBuf>::uninit();
+        macro_rules! assert_entry {
+            ($call:expr) => {{
+                FORCE_FFI_PANIC.store(true, Ordering::SeqCst);
+                // SAFETY: each test call supplies valid borrowed input pointers.
+                unsafe { assert_panic_envelope($call) };
+            }};
+        }
+
+        assert_entry!(rsvelte_compile(
+            source.as_ptr(),
+            source.len(),
+            std::ptr::null(),
+            0
+        ));
+        assert_entry!(rsvelte_compile_module(
+            source.as_ptr(),
+            source.len(),
+            std::ptr::null(),
+            0
+        ));
+        assert_entry!(rsvelte_compile_with_callbacks(
+            source.as_ptr(),
+            source.len(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+        ));
+        assert_entry!(rsvelte_compile_module_with_callbacks(
+            source.as_ptr(),
+            source.len(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+        ));
+
+        FORCE_FFI_PANIC.store(true, Ordering::SeqCst);
+        // SAFETY: source is a valid borrowed slice and `out` is writable.
+        unsafe {
+            rsvelte_compile_into(
+                source.as_ptr(),
+                source.len(),
+                std::ptr::null(),
+                0,
+                component_out.as_mut_ptr(),
+            );
+            assert_panic_envelope(component_out.assume_init());
+        }
+
+        FORCE_FFI_PANIC.store(true, Ordering::SeqCst);
+        // SAFETY: source is a valid borrowed slice and `out` is writable.
+        unsafe {
+            rsvelte_compile_module_into(
+                source.as_ptr(),
+                source.len(),
+                std::ptr::null(),
+                0,
+                module_out.as_mut_ptr(),
+            );
+            assert_panic_envelope(module_out.assume_init());
+        }
+    }
+}
 
 /// # Safety
 /// `ptr` and `len` must describe a valid borrowed byte slice (or `len == 0`).

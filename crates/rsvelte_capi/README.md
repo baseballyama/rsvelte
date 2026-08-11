@@ -72,12 +72,12 @@ shasum -a 256 -c SHA256SUMS  # filters to whatever you have locally
 ```bash
 git clone https://github.com/baseballyama/rsvelte
 cd rsvelte
-cargo build -p rsvelte_capi --release
+cargo build -p rsvelte_capi --profile dist-capi
 # Produces:
-#   target/release/librsvelte_capi.dylib   (macOS)
-#   target/release/librsvelte_capi.so      (Linux)
-#   target/release/rsvelte_capi.dll        (Windows)
-#   target/release/librsvelte_capi.a       (static archive)
+#   target/dist-capi/librsvelte_capi.dylib   (macOS)
+#   target/dist-capi/librsvelte_capi.so      (Linux)
+#   target/dist-capi/rsvelte_capi.dll        (Windows)
+#   target/dist-capi/librsvelte_capi.a       (static archive)
 # Plus:
 #   crates/rsvelte_capi/include/rsvelte.h  (regenerated via cbindgen)
 ```
@@ -177,11 +177,11 @@ defaults.
 
 | Language | Path                              | How to run                                              |
 | -------- | --------------------------------- | ------------------------------------------------------- |
-| C        | `examples/c/smoke.c`              | `cc -I include -L ../../../target/release …`            |
+| C        | `examples/c/smoke.c`              | `cc -I include -L ../../../target/dist-capi …`            |
 | Go       | `examples/go/smoke.go`            | `go run ./crates/rsvelte_capi/examples/go`              |
 | Python   | `examples/python/smoke.py`        | `python3 crates/rsvelte_capi/examples/python/smoke.py`  |
 | Ruby     | `examples/ruby/smoke.rb`          | `ruby crates/rsvelte_capi/examples/ruby/smoke.rb`       |
-| Zig      | `examples/zig/smoke.zig`          | `zig build-exe … -I include -L target/release …`        |
+| Zig      | `examples/zig/smoke.zig`          | `zig build-exe … -I include -L target/dist-capi …`        |
 | PHP      | `examples/php/smoke.php`          | `php -d ffi.enable=true crates/rsvelte_capi/examples/php/smoke.php` |
 | Java     | `examples/java/Smoke.java`        | `java --enable-native-access=ALL-UNNAMED crates/rsvelte_capi/examples/java/Smoke.java` (JDK 22+) |
 
