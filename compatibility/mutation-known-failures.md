@@ -8,7 +8,7 @@ Re-baseline with `pnpm run corpus:mutate:update`.
 what the normalizer absorbs, so these verdicts are only comparable across runs on the same
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
-The bucket has since been burned down from 525 to **36**, and `unparseable` from 2 to **0**.
+The bucket has since been burned down from 525 to **34**, and `unparseable` from 2 to **0**.
 
 ## Why this gate exists
 
@@ -45,7 +45,7 @@ whitespace and trailing commas away:
 | `comment-mismatch` | **no** | the comment was dropped, duplicated or relocated, or a line broke differently |
 
 The split is the difference between a gate and a backlog dump. The full sweep produces
-**12,910** comment-only divergences against **36** code ones — ratcheting per id without the
+**12,036** comment-only divergences against **34** code ones — ratcheting per id without the
 split would mean a 13,000-entry file that churns on every submodule bump and buries the class
 that matters. Comment fidelity is already ratcheted per id by Gate 2
 (`matrix-known-failures.md`), on **generated** seeds that do not move when a submodule bumps,
@@ -63,22 +63,22 @@ re-measured under 0.62, so it is in for honest reporting rather than to change a
 the gate prints must be the reason for the verdict, and before this a reviewer could see
 `import 'x'` vs `import "x"` and dismiss a real finding sitting further down the same file.
 
-## Mutation known failures (`mutation-known-failures.json`, 36 entries)
+## Mutation known failures (`mutation-known-failures.json`, 34 entries)
 
-Full sweep: 14,138 seeds → 12,166 mutants → 36,498 comparisons, under oxfmt 0.62.0.
+Full sweep: 14,197 seeds → 12,208 mutants → 36,624 comparisons, under oxfmt 0.62.0.
 
-The `mutation-known-failures.provenance.json` file records 21 entries, one SHA-256 seed-content
+The `mutation-known-failures.provenance.json` file records 20 entries, one SHA-256 seed-content
 hash for each source represented by the failure ratchet. A full sweep reports a changed
 hash as re-keyed instead of claiming that the old mutation now passes.
 
 | verdict | entries |
 |---|---|
-| `code-mismatch` | 36 |
+| `code-mismatch` | 34 |
 | `unparseable` | **0** |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
 
-By target: `client` 19, `client-dev` 11, `server` 6.
+By target: `client` 18, `client-dev` 10, `server` 6.
 
 ### `unparseable` is now 0 — [#2546](https://github.com/baseballyama/rsvelte/issues/2546) closed
 
@@ -108,16 +108,16 @@ cannot drift from the ratchet it describes:
 
 | comment kind | findings | mutants | per 1,000 |
 |---|---|---|---|
-| `line-with-semi` (`// ; c`) | 8 | 1,532 | 5.2 |
-| `block-with-paren` (`/* ) c */`) | 7 | 1,474 | 4.7 |
-| `block-with-brace` (`/* } c */`) | 7 | 1,535 | 4.6 |
-| `block` (`/* c */`) | 6 | 1,518 | 4.0 |
-| `line-with-paren` (`// ) c`) | 5 | 1,562 | 3.2 |
-| `line-with-brace` (`// } c`) | 3 | 1,558 | 1.9 |
-| `line` (`// c`) | 0 | 1,520 | 0.0 |
-| `svelte-ignore` | 0 | 1,467 | 0.0 |
+| `line-with-semi` (`// ; c`) | 8 | 1,538 | 5.2 |
+| `block-with-paren` (`/* ) c */`) | 7 | 1,483 | 4.7 |
+| `block-with-brace` (`/* } c */`) | 5 | 1,539 | 3.2 |
+| `block` (`/* c */`) | 6 | 1,519 | 3.9 |
+| `line-with-paren` (`// ) c`) | 5 | 1,568 | 3.2 |
+| `line-with-brace` (`// } c`) | 3 | 1,562 | 1.9 |
+| `line` (`// c`) | 0 | 1,523 | 0.0 |
+| `svelte-ignore` | 0 | 1,476 | 0.0 |
 
-**Delimiter-carrying kinds: 3.3 per 1,000. Plain comments: 2.0. Ratio 1.66×.**
+**Delimiter-carrying kinds: 3.1 per 1,000. Plain comments: 2.0. Ratio 1.55×.**
 
 The ratio has now been measured at 2.81× (oxfmt 0.61), 1.30× (0.62), and 1.66× (0.62, after the
 invalid-JS burndown). It is not a stable property of the compiler: the first move was the
@@ -135,12 +135,12 @@ consolidated five such scans behind `shared/js_scan.rs::skip_opaque`.
 The paren mechanism recorded here — official emitting `() => (items())` where rsvelte emits
 `() => items()`, with the two agreeing on the unmutated seed — was measured as **353 of 525** of
 first-differences against the 525-entry baseline. That figure is historical and does not carry
-over; the section below re-derives the split against the 36.
+over; the section below re-derives the split against the 34.
 
-### What the 36 are
+### What the 34 are
 
 The gate prints one first-difference line per **regression**, so a passing run prints none. To
-get all 36, empty the ratchet, run `--full --max-print 40`, and restore it — which needs no
+get all 34, empty the ratchet, run `--full --max-print 40`, and restore it — which needs no
 artifacts and no re-compile. Classifying every entry by the first rule that matches:
 
 | class | entries | example (official → rsvelte) |
@@ -149,11 +149,10 @@ artifacts and no re-compile. Classifying every entry by the first rule that matc
 | optional-chain parenthesisation | 9 | `(e?.target)?.closest(…)` → `e?.target?.closest(…)` |
 | missing `$.get` on a reactive read | 3 | `() => $.get(circles)` → `() => circles` |
 | `$$DOUBLE_SEMI$$` sentinel reaches the output | 3 | `;;` → `void "$$DOUBLE_SEMI$$";` |
-| extra legacy prologue | 2 | *(absent)* → `$.legacy_pre_effect_reset();` |
 | `$props()` destructure left in the output | 2 | *(absent)* → `let { visible, class: className } = $props();` |
 | `$.snapshot` second argument dropped | 1 | `$.snapshot(arr, true)` → `$.snapshot(arr)` |
 
-`() => (items())` — the shape the 353 counted — does **not** appear among the 36 at all. The 9
+`() => (items())` — the shape the 353 counted — does **not** appear among the 34 at all. The 9
 parenthesisation entries are a different one: a parenthesised optional-chain link. So the
 mechanism that dominated the 525 is not merely a smaller share now, it is absent from the
 residue, and quoting any paren share of the current bucket from the historical number would be
@@ -164,7 +163,7 @@ rsvelte emitting more empty statements than official, 3 × fewer, 1 × an empty 
 `switch` case, 1 × other placement.
 
 **"Known failure" is not "accepted output" here, and the table is what separates the two.** The
-first two classes — 25 of 36 — are cosmetic: a redundant paren and an empty statement change no
+first two classes — 25 of 34 — are cosmetic: a redundant paren and an empty statement change no
 behaviour. The remaining 8 do. A missing `$.get` is lost reactivity; a leaked `$$DOUBLE_SEMI$$`
 is an internal marker shipped to users; a `$props()` destructure surviving into the compiled
 module references a rune that does not exist at runtime. Anyone burning this bucket down should
@@ -178,16 +177,16 @@ of these seven classes.
 
 ### By source repository
 
-`svelte` 17, `svelte.dev` 4, `flowbite-svelte` 3, `layerchart` 3, `powertable` 3, `layercake` 2,
+`svelte` 15, `svelte.dev` 4, `flowbite-svelte` 3, `layerchart` 3, `powertable` 3, `layercake` 2,
 `runed` 2, `svelte-sonner` 2.
 
-**Two of the 36 are `runed`, and that is the reason this table is worth reading.** `runed` was
+**Two of the 34 are `runed`, and that is the reason this table is worth reading.** `runed` was
 one of two corpus submodules absent from the tree during the first attempt at this
 re-baseline. `collect.mjs` skips a missing source with a warning and exits 0, so the run
 measured 14,035 entries and looked complete — and `--update-baseline` would have deleted both of
 these as fixed while they still diverge, after which CI would have reported them as new. The
 `MIN_FULL_CORPUS_ENTRIES` floor cannot catch that: 14,035 clears a 12,000 lower bound. Only 2
-of the 36 corpus sources are marked `required`.
+of the 34 corpus sources are marked `required`.
 
 ### Sensitivity to the normalizer
 
