@@ -17,12 +17,8 @@
 //! blanket "drop every Program-level comment" fix degenerates into: measured
 //! against upstream it is wrong in 112 of 192 generated slots (#2399).
 //!
-//! Every expectation here is the official compiler's byte-exact output, for
-//! both `client` and `client-dev`.
-//!
-//! `server` is excluded: `transform_server_module` splices the transformed
-//! source as text instead of printing an AST, so its comment (and margin)
-//! placement is a separate divergence with a separate fix.
+//! Every expectation here is the official compiler's byte-exact output. Server
+//! differs from client only in its generated runtime import.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{GenerateMode, compile_module};
@@ -124,12 +120,29 @@ fn cases() -> Vec<Case> {
 fn module_toplevel_comments_match_upstream() {
     let mut failures = Vec::new();
     for case in cases() {
-        for (target, dev, want) in [
-            ("client", false, case.client),
-            ("client-dev", true, case.client_dev),
+        for (target, generate, dev, want) in [
+            (
+                "client",
+                GenerateMode::Client,
+                false,
+                case.client.to_string(),
+            ),
+            (
+                "client-dev",
+                GenerateMode::Client,
+                true,
+                case.client_dev.to_string(),
+            ),
+            (
+                "server",
+                GenerateMode::Server,
+                false,
+                case.client
+                    .replace("svelte/internal/client", "svelte/internal/server"),
+            ),
         ] {
-            let got = compile(case.src, GenerateMode::Client, dev);
-            let want = expected(want);
+            let got = compile(case.src, generate, dev);
+            let want = expected(&want);
             if got != want {
                 failures.push(format!(
                     "--- {} [{target}]\n--- input\n{}\n--- expected\n{want}\n--- actual\n{got}\n",
