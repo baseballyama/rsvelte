@@ -31,13 +31,13 @@ jobs:
   benchmarks:
     name: Run benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 10
     # Runs on every PR to `main` (and on push to `main` for the baseline).
     # CodSpeed measures instruction counts under Valgrind, which is
     # deterministic and low-variance — unlike wall-clock timing it gives a
     # trustworthy per-PR regression signal, so it's worth gating PRs on. The
-    # workload is the pinned in-repo corpus (`benches/corpus/`), identical on
-    # base and head, which is what makes the head-vs-base diff meaningful.
+    # workload is a fixed, representative subset of the pinned in-repo corpus,
+    # identical on base and head, which is what makes the head-vs-base diff meaningful.
     steps:
       # No submodules: the bench harnesses read their inputs from the
       # in-repo corpus (`benches/corpus/`) and from in-code synthetic
@@ -52,9 +52,6 @@ jobs:
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          # oxc is built from a git rev, so the first compile is ~15 min.
-          # Save the warm `target/` even when a later step fails so a single
-          # flake doesn't force a cold rebuild on every subsequent run.
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -67,10 +64,7 @@ jobs:
       - name: Build the benchmark targets
         run: >-
           cargo codspeed build
-          -p rsvelte_devtools -p rsvelte_formatter
-          -p rsvelte_fmt -p rsvelte_lint
-          --bench parser --bench compiler --bench formatter
-          --bench format_session --bench linter
+          --profile ci-bench -p rsvelte_bench --bench ci
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@4296e51e7041e24dadb86d1d6e8b9320d223dbe8 # v5.0.3

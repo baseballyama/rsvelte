@@ -47,9 +47,7 @@ jobs:
   bench:
     name: Criterion benchmarks
     runs-on: ubuntu-latest
-    # A single `Run criterion` step (≤45 min) does the build + measurement;
-    # the job ceiling sits above it with room for checkout/cache overhead.
-    timeout-minutes: 60
+    timeout-minutes: 10
     # Criterion reports absolute wall-clock throughput, which is noisier than
     # CodSpeed's instruction counts and moves slowly — not worth gating every
     # PR on. Always run on push to `main` (and manual dispatch); on PRs run
@@ -73,53 +71,18 @@ jobs:
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          # This job times out on a cold cache (oxc is built from a git rev,
-          # so the first compile is ~15 min). rust-cache defaults to NOT
-          # saving on a failed job, so a single timeout left the cache cold
-          # forever. Saving on failure preserves the compiled `target/` even
-          # if a later step fails.
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run criterion
-        # ONE `cargo bench` invocation that compiles *and* measures.
-        #
-        # A split (`--no-run` build step + a separate run step) re-resolves the
-        # unit graph twice, which has historically re-compiled the local crates
-        # from scratch (~13 min) rather than reusing the first build's output.
-        # A single invocation builds once, then runs — paying that compile only
-        # once and roughly halving the job wall-clock.
-        #
-        # `--save-baseline pr` saves results so a follow-up job (or the next
-        # commit) can diff against this baseline with `--baseline pr`.
-        #
-        # The pinned corpus grows this suite to roughly 190 benchmarks. Criterion
-        # wall-clock throughput is noisier than CodSpeed's instruction counts
-        # and isn't a PR gate (see the job comment), so trade a little
-        # statistical fidelity for a much shorter, reliable run:
-        #
-        #   --warm-up-time/--measurement-time/--sample-size — a 1s warm-up + 2s
-        #     window at the minimum sample size (10) tracks coarse regressions
-        #     while keeping the whole measurement sweep to roughly 10 min.
-        #   --noplot — skip per-bench HTML/SVG rendering (with no gnuplot the
-        #     in-process `plotters` backend would render plots for every one of
-        #     the ~100 benchmarks). The raw estimate JSON is still written and
-        #     uploaded, so the saved baseline is unaffected.
-        #
-        # Local `cargo bench` is unaffected — it keeps Criterion's full-accuracy
-        # defaults and renders the HTML reports.
+        # CI tracks five representative compiler paths; the complete suite
+        # remains available through the individual local benchmark targets.
         run: >-
           cargo bench
-          -p rsvelte_devtools -p rsvelte_formatter
-          -p rsvelte_fmt -p rsvelte_lint
-          --bench parser --bench compiler --bench formatter
-          --bench format_session --bench linter --
+          --profile ci-bench -p rsvelte_bench --bench ci --
           --save-baseline pr --noplot
           --warm-up-time 1 --measurement-time 2 --sample-size 10
-        # Cold-cache flake guard, not an expected duration: oxc-from-git deps
-        # (~15 min) + the one rsvelte_core compile (~13 min) + ~7 min of
-        # measurement. Warm-cache runs are far shorter (~20 min observed).
-        timeout-minutes: 45
+        timeout-minutes: 8
 
       - name: Upload criterion reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

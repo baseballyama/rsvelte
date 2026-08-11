@@ -1,9 +1,7 @@
 //! Development benchmarks for per-phase and end-to-end compile cost.
 //!
-//! These are the primary inputs to the CodSpeed regression gate and the
-//! Criterion baseline (`benchmark.yml`). For that signal to mean anything the
-//! workload must be **identical** between the base commit and a PR, so every
-//! input here is either:
+//! These are the primary inputs to the full Criterion baseline
+//! (`benchmark.yml`). Every input here is either:
 //!
 //!   1. a file from the **pinned, in-repo corpus** at `benches/corpus/`
 //!      (committed to the repo — never read from the `svelte` submodule, which

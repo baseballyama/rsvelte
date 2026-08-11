@@ -1,0 +1,18 @@
+[package]
+name = "rsvelte_bench"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+rsvelte_core = { path = "../rsvelte_core" }
+
+[dev-dependencies]
+criterion = { version = "5.0.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
+
+[[bench]]
+name = "ci"
+harness = false
+
+[lints]
+workspace = true

@@ -2385,6 +2385,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_bench"
+version = "0.0.0"
+dependencies = [
+ "codspeed-criterion-compat",
+ "rsvelte_core",
+]
+
+[[package]]
 name = "rsvelte_bindings_support"
 version = "0.1.0"
 dependencies = [

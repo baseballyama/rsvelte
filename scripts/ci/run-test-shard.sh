@@ -48,12 +48,13 @@ RUN_FILTER='not (test(/test_runtime_legacy/) | test(/test_runtime_runes/) | test
 # "<pkg>\t<name>" for every integration-test target, minus the binaries that are
 # built+run wholesale in their own dedicated jobs (and have no lighter siblings
 # we need here): compile_module_thread_safety -> "Test thread-safety";
-# svelte_dev_corpus / svelte_dev_markdown -> "Test fmt corpus". Stably sorted so
+# svelte_dev_corpus / svelte_dev_markdown -> "Test fmt corpus"; and
+# oxc_formatter_probe -> "OXC formatter probe". Stably sorted so
 # the modulo partition is deterministic across shards.
 ALL_TARGETS="$(
   cargo metadata --no-deps --format-version 1 \
     | jq -r '.packages[] as $p | $p.targets[] | select(.kind | index("test")) | "\($p.name)\t\(.name)"' \
-    | awk -F'\t' '$2 != "compile_module_thread_safety" && $2 != "svelte_dev_corpus" && $2 != "svelte_dev_markdown"' \
+    | awk -F'\t' '$2 != "compile_module_thread_safety" && $2 != "svelte_dev_corpus" && $2 != "svelte_dev_markdown" && $2 != "oxc_formatter_probe"' \
     | sort
 )"
 
