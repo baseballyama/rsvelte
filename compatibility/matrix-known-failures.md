@@ -255,18 +255,16 @@ of these 62 entries is a **live rsvelte defect**, not accepted behaviour; none w
 the family existed. They are listed so the ratchet can hold the line while they are burned down.
 
 The single most useful fact about the set is where it is **not**: zero entries on
-`regular-element`, `regular-input`, `component` and `each-keyed-element`. All 398 sit on a
+`regular-element`, `regular-input`, `component` and `each-keyed-element`. All 62 sit on a
 `<svelte:*>` special element. Directive handling on ordinary elements and components agrees with
 official across every kind and both modes; the special elements are where per-parent handling has
 drifted from upstream's one predicate per directive.
 
-Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `114 + 102 + 24 + 2 + 12 + 12 + 6 + 6`
+Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `24 + 2 + 12 + 12 + 6 + 6`
 
 | verdict | host | entries | cause |
 |---|---|---:|---|
-| `error-mismatch` | `svelte-boundary` | 114 | every attribute is accepted; official raises `svelte_boundary_invalid_attribute` for all but `onerror` / `failed` / `pending`. All 19 directive kinds, both modes. |
-| `error-mismatch` | `svelte-fragment` | 102 | every attribute is accepted; official raises `svelte_fragment_invalid_attribute` for everything but a `slot` attribute and `let:`. 17 kinds (`let:` and a plain `onclick=` attribute are legal upstream, and both match). |
-| `error-mismatch` | `svelte-body` | 24 | 12 `bind_invalid_target` (`bind:value` accepted), 6 `let_directive_invalid_placement`, 6 `svelte_body_illegal_attribute` (a spread attribute). |
+| `error-mismatch` | `svelte-body` | 24 | `bind:value`, getter/setter `bind:`, `let:`, and a spread attribute each diverge on both modes and all targets. |
 | `js-mismatch` | `svelte-body` | 2 | Legacy-mode `bind:this` fails to make the target a `mutable_source`. |
 | `error-code-mismatch` | `svelte-document` | 12 | `bind:value` rejected as `bind_invalid_name`; official says `bind_invalid_target`. |
 | `error-code-mismatch` | `svelte-window` | 12 | same. |
@@ -292,9 +290,8 @@ already listed. Keying on `warning-missing:<code>` / `warning-extra:<code>` make
 produce 9 new ids instead, and is also what let #2523's fix be read off this gate as a clean
 24 → 0 rather than as a change in a flat count.
 
-The split by mode is `200` legacy / `198` runes — near-even, which is the evidence that the mode
-axis is not decoration. The two extra legacy entries are the `bind:this` on `<svelte:body>` row,
-which has no runes counterpart.
+The split by mode is `32` legacy / `30` runes. The two extra legacy entries are the `bind:this`
+on `<svelte:body>` row, which has no runes counterpart.
 
 ### `bind-setter` — 3 entries
 
