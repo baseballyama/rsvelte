@@ -1,5 +1,11 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.5
+
+### Patch Changes
+
+- 9e83f86: Return the public modern compiler AST from `compile({ modernAst: true })`.
+
 ## 0.3.4
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_projection"
-version = "0.10.10"
+version = "0.10.11"
 edition = "2024"
 rust-version = "1.95"
 description = "Svelte-to-TypeScript projection engine for rsvelte toolchains"
@@ -23,7 +23,7 @@ crate-type = ["rlib"]
 default = []
 
 [dependencies]
-rsvelte_core = { version = "=0.10.10", path = "../rsvelte_core", default-features = false }
+rsvelte_core = { version = "=0.10.11", path = "../rsvelte_core", default-features = false }
 indexmap = "2.13.0"
 memchr = "2.7"
 oxc_allocator = "0.143"

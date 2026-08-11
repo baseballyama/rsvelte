@@ -1,5 +1,7 @@
 # @rsvelte/vite-plugin-svelte-native-darwin-x64
 
+## 0.3.5
+
 ## 0.3.4
 
 ## 0.3.3

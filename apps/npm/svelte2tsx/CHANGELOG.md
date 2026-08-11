@@ -1,5 +1,54 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.14
+
+### Patch Changes
+
+- a3f8501: Decide whether a quote is escaped by counting the run of backslashes before it, at every scanner in the compiler and in svelte2tsx. 37 sites asked `bytes[i - 1] != b'\\'` instead, which is a different question: in `'\\'` the closing quote follows a _complete_ `\\` escape and is not escaped at all, so the scanner never closed the string and consumed whatever followed. Reachable effects that are now fixed include a `{const a = '\\', b = 2}` losing its second declarator with no error, `{const { a = '\\' } = obj}` being rejected as an invalid declaration tag, a destructuring assignment emitting an IIFE argument that carried the statement's `;`, a dev-mode prop-mutation validator swallowing the rest of the instance script, a legacy mutated import skipping every later `$.mutate` in the same script, and a `<svelte:element this={… '\\' …}>` overlay dropping its children's diagnostics in svelte2tsx.
+- 5c7dbaf: Honour JSDoc types in JavaScript-authored components. A `.svelte` file without `lang="ts"` was shadowed as `.tsx`, where TypeScript ignores JSDoc entirely — so `/** @type {…} */` neither constrained a value nor reported a violation, while the props it left untyped produced implicit-`any` errors the author could not act on. Such a component now gets a `.jsx` shadow (official svelte-check reaches the same place through `ScriptKind.JS`), the overlay adds `allowJs` when one exists, and the Svelte 5 isomorphic component export emits the `export const` + `@typedef` form upstream uses for JSDoc output. `checkJs` is left to the project. A SvelteKit route prop that already carries a JSDoc `@type` also keeps it: `ts.getJSDocType` suppresses the `import('./$types.js')` injection just as a TS annotation does, so `/** @type {any} */ export let form` on a route with no server actions no longer reports a nonexistent `ActionData`
+- Updated dependencies [e48e990]
+- Updated dependencies [ce000f7]
+- Updated dependencies [67656a0]
+- Updated dependencies [7c5983e]
+- Updated dependencies [52aa2e8]
+- Updated dependencies [2321200]
+- Updated dependencies [6e008f0]
+- Updated dependencies [2de9fde]
+- Updated dependencies [81c9920]
+- Updated dependencies [a3f8501]
+- Updated dependencies [9b1d004]
+- Updated dependencies [d0839b2]
+- Updated dependencies [6411e20]
+- Updated dependencies [e9130c1]
+- Updated dependencies [431a150]
+- Updated dependencies [5400dc4]
+- Updated dependencies [089723d]
+- Updated dependencies [64d2430]
+- Updated dependencies [97d25cf]
+- Updated dependencies [51ced33]
+- Updated dependencies [68ee6b6]
+- Updated dependencies [989627f]
+- Updated dependencies [2892f7e]
+- Updated dependencies [853c8f4]
+- Updated dependencies [737e8d3]
+- Updated dependencies [444283c]
+- Updated dependencies [8a0f17e]
+- Updated dependencies [44f952a]
+- Updated dependencies [5709d56]
+- Updated dependencies [c31ef6b]
+- Updated dependencies [25b2513]
+- Updated dependencies [1272028]
+- Updated dependencies [6a53739]
+- Updated dependencies [a91a60e]
+- Updated dependencies [9c8eac8]
+- Updated dependencies [1542ee9]
+- Updated dependencies [6e4741c]
+- Updated dependencies [6a53739]
+- Updated dependencies [e8ee67e]
+- Updated dependencies [32f1e9e]
+- Updated dependencies [579657f]
+  - @rsvelte/compiler@0.10.11
+
 ## 0.2.13
 
 ### Patch Changes

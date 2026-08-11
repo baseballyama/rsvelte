@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/lint",
-  "version": "0.10.10",
+  "version": "0.10.11",
   "description": "Fast native Svelte linter CLI — compiler warnings/a11y + ESLint-compatible rule engine, powered by Rust",
   "license": "MIT",
   "repository": {

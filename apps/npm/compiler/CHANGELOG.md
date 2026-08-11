@@ -1,5 +1,399 @@
 # @rsvelte/compiler
 
+## 0.10.11
+
+### Patch Changes
+
+- e48e990: Keep an `await` inside an async `$derived.by` callback from splitting the enclosing declaration into the async body.
+- ce000f7: Pass the dev `label` and `location` arguments to `$.async_derived`, so `await_waterfall` can fire
+
+  `3-transform/client/visitors/VariableDeclaration.js` emits
+  `$.async_derived(thunk, dev && name, location)` for an async `$derived`. rsvelte emitted
+  `$.async_derived(thunk)` and nothing else, for every shape.
+
+  That is not a lost label. `internal/client/reactivity/deriveds.js` gates the
+  `await_waterfall` warning on `location !== undefined`, so on rsvelte-compiled output the
+  warning **could never fire** — and `<!-- svelte-ignore await_waterfall -->` therefore
+  suppressed something that never ran, which reads as working. The client instance script now
+  carries both arguments:
+
+  ```js
+  // const a = $derived(await p);  — dev: true, experimental.async
+  before: $.async_derived(async () => (await $.track_reactivity_loss(p))());
+  after: $.async_derived(
+    async () => (await $.track_reactivity_loss(p))(),
+    "a",
+    "src/Foo.svelte:3:11",
+  );
+  ```
+
+  Matching upstream, the _omission_ is load-bearing too: `svelte-ignore await_waterfall` on the
+  declaration keeps the label and drops only the location, a `svelte-ignore` for any other code
+  changes nothing, and a production build carries neither argument. Destructured declarations get
+  upstream's `[$derived object]` / `[$derived iterable]` label with the location of the
+  `$derived(` call, and each declarator of a multi-declarator statement gets its own.
+
+  The location is measured against the original component source rather than the
+  post-rune-transform script the client pipeline walks, so it points at the user's `$derived`,
+  not at a rewritten offset. Column numbers count UTF-16 code units, as
+  `locate-character` does upstream.
+
+  Also fixed in the same path: a destructured async `$derived` wrapped its value in `$.save(…)`
+  in dev, which upstream only does for `{@const}`. `<script module>` and `.svelte.js` modules
+  still lower dev async deriveds incorrectly at a level above these arguments; that is tracked by
+  the new `async-derived` shape-matrix family rather than fixed here.
+
+- 67656a0: Keep leading comments from misclassifying async derived declarations as expressions.
+- 7c5983e: Validate `<svelte:boundary>` and `<svelte:fragment>` attributes like Svelte.
+- 52aa2e8: Give a compile failure out of `compileWithCssHash` the same official `CompileError` object the synchronous entries throw, and add the rendered `frame` to all of them. The async entry previously surfaced a failure as a Rust `Debug` string with no `code`/`start`/`end`, so a consumer that places a diagnostic from it — `@rsvelte/vite-plugin-svelte`'s `utils/error.js` builds `rollupError.loc` this way — got nothing on that path. Also fixes the code frame's caret column: it was computed without an upper bound and so ran past the end of the quoted line whenever the error's `end` sat on a later line, which affected warning frames as well as error frames.
+- 2321200: Align constant folding with upstream `scope.evaluate` in both directions
+
+  Two reports were the same disagreement seen from opposite sides.
+
+  Folding too little: a template literal whose interpolations are all constants was
+  not folded on any target, because the fold accepted a backtick literal only when it
+  contained no `${` and the client evaluator had no template-literal case at all.
+  Upstream walks the quasis and folds as soon as every interpolation is known, so
+  `` const cont = `p${'ab'}q` `` now reaches `p.textContent = 'pabq'` /
+  ``$$renderer.push(`<p>pabq</p>`)``. `null` and `undefined` interpolate as their
+  names, a `Math.PI`-style global constant now folds, and the server no longer stops
+  at "this is a string" for a template-literal initializer.
+
+  Folding too much: a member read on a literal — `{[1, 2].length}`,
+  `{(async (p = 1) => p).name}` — was treated as static, so the element was emitted as
+  `<p></p>` and the dynamic text node the runtime expects to fill had no placeholder.
+  Upstream's rule is `has_state ||= !is_pure(node)`, and `is_pure` walks to the
+  leftmost object: an array, object or function literal there is impure. A string
+  literal there is pure, so `{'ab'.length}` correctly stays static — the neighbours
+  are not all on the same side.
+
+  Also fixes a member read printed with a literal object losing upstream's
+  parentheses (`'ab'.length` where esrap writes `('ab').length`): only the two plain
+  literal variants were wrapped, not the raw-spelling, boolean, bigint, regex and
+  null ones.
+
+- 6e008f0: Report `css_unused_selector` for five more selector shapes
+
+  `prune()` decides which selectors are reachable by walking one component's real
+  element tree. Five shapes were being kept alive by checks that asked a weaker
+  question than upstream does, so rules the official compiler reports as unused
+  were emitted with no warning.
+
+  - **An explicit `&`.** `.a { & .b { … } }` was kept whenever an `.a` existed
+    anywhere. Upstream resolves `&` in place against the parent's prelude, so it
+    requires an `.a` **ancestor** of the `.b`; a sibling, a descendant, or the same
+    element carrying both classes does not match.
+  - **`:is()` / `:where()` / `:not()` arguments.** An argument list now constrains
+    the compound it sits in, so `:is(.a) > .b` prunes when `.a` is not the parent
+    of `.b`. `:not(...)` constrains nothing (its contents stay unscoped upstream),
+    a multi-part branch is assumed to match, `:where` joins `:is`/`:has` in
+    collapsing to one warning when every branch is unused, and a subject-less
+    `:has(.a)` means `*:has(.a)` — the argument must match inside some element's
+    subtree, not merely exist.
+  - **A compound must be satisfied by one element.** Each simple selector was
+    checked for existence separately, so `.a.b` survived with `.a` and `.b` on
+    different elements. This one is not specific to pseudo-classes; `#i.a` and
+    `div.a:is(.b)` had it too.
+  - **`:root`.** `truncate` drops every simple selector except `:has` from a
+    `:root` compound, so the unscoped `.x` in `:root.x:has(.a)` must not prune the
+    rule — and a `>` out of a `:root` head is satisfiable only by a root-level
+    element.
+  - **A trailing `:global(...)` on a parent rule.** A nested rule links to its
+    parent through the truncated parent prelude, so `.a :global(.g) { .b { … } }`
+    requires `.b` under `.a`.
+  - **`<svelte:element>` and attribute selectors.** An unknown tag name does not
+    add attributes, so it no longer deopts every `[attr]` selector in the
+    component. Only the _type_ selector is exempt, as upstream.
+
+- 2de9fde: Warn for deprecated `accessors` and `immutable` options whenever they are supplied, including `false`.
+- 81c9920: Stop rewriting a prop name that is a binding in a destructuring parameter
+
+  In a legacy `$:` statement, the client prop-read rewriter decided that an
+  identifier followed by `,` or `}` and preceded by `{` was a shorthand
+  object-literal property, without asking whether the enclosing `{ … }` was an
+  object literal or a **binding pattern**. A prop name occupying a slot of a
+  destructuring parameter was therefore expanded as if it were a value read, and
+  the emitted module was not JavaScript:
+
+  ```svelte
+  <script>
+    export let id;
+    export let items;
+    $: found = items.find(({ id }) => id);
+  </script>
+  ```
+
+  emitted `items().find(({ id: id() }) => id)` — `Invalid binding pattern` in every
+  JS parser. Array patterns took the plain wrap instead (`([id(), n]) =>`), as did
+  nested, aliased and rest slots, and a `function ({ id })` parameter list.
+
+  A pattern slot is a declaration, so nothing is wrapped there now. Reads that only
+  look like pattern slots are unchanged and still wrap: a default value
+  (`({ n = id }) =>`), a computed key (`({ [id]: n }) =>`) and an object literal
+  defaulting a parameter (`(o = { id }) =>`).
+
+- a3f8501: Decide whether a quote is escaped by counting the run of backslashes before it, at every scanner in the compiler and in svelte2tsx. 37 sites asked `bytes[i - 1] != b'\\'` instead, which is a different question: in `'\\'` the closing quote follows a _complete_ `\\` escape and is not escaped at all, so the scanner never closed the string and consumed whatever followed. Reachable effects that are now fixed include a `{const a = '\\', b = 2}` losing its second declarator with no error, `{const { a = '\\' } = obj}` being rejected as an invalid declaration tag, a destructuring assignment emitting an IIFE argument that carried the statement's `;`, a dev-mode prop-mutation validator swallowing the rest of the instance script, a legacy mutated import skipping every later `$.mutate` in the same script, and a `<svelte:element this={… '\\' …}>` overlay dropping its children's diagnostics in svelte2tsx.
+- 9b1d004: Raise `expected_whitespace` at the block, clause and tag headers that require a separator (`{#if}`, `{#each}`, `{#await}`, `{#key}`, `{#snippet}`, `{:else if}`, `{:then}`, `{:catch}`, `{@html}`, `{@const}`, `{@render}`, `{@attach}`), and stop requiring one after `{@debug}`, which the official compiler allows
+- d0839b2: Preserve leading block comments when lowering public rune class fields.
+- 6411e20: Place trailing comments after removed `$inspect` calls before generated client
+  variable declarations.
+- e9130c1: Preserve parentheses around single invalidation sequences in generated client output.
+- 431a150: Keep partially unused `:is()` / `:where()` selector-list branches in source
+  order when emitting their `(unused)` comments.
+
+  Preserve selector specificity by applying the complex selector's scope bump to
+  functional pseudo-class arguments even when their scoped sibling appears later
+  in source order.
+
+- 5400dc4: Read a regex literal that follows a keyword, so `return /re/` is not scanned as a division
+
+  `shared::js_scan::skip_opaque` — the scanner every text pass in the client
+  instance-script pipeline steps through — decided whether a `/` opened a regex
+  literal from the **previous byte only**. An identifier-looking byte read as "an
+  operand ended here, so this is a division", and the `n` of `return` is
+  identifier-looking. Every reserved word that can precede a regex literal in
+  expression position was affected the same way: `typeof`, `case`, `in`, `of`,
+  `delete`, `void`, `instanceof`, `yield`, `await`, `throw`, `new`, `do`, `else`,
+  `extends`, `default`.
+
+  Reading the literal as a division leaves its body exposed as code, so the
+  delimiters the surrounding passes hunt for — `;`, `}`, `)`, and a `//` inside a
+  character class — are counted from inside the regex:
+
+  ```svelte
+  <script>
+    export let v;
+    let k;
+    $: k = typeof /[//]/.exec(String(v));
+  </script>
+  ```
+
+  before (client): the `//` inside the character class read as a line comment, so
+  the statement's code ended at `typeof /[` and the `v` behind it was left
+  unrewritten.
+
+  The decision now reads the preceding **token**: if the identifier run ending at
+  the slash is an ECMA-262 §12.7.2 reserved word that cannot end an expression (the
+  whole list except `this`, `super`, `true`, `false`, `null`), plus the contextual
+  `of` of a `for…of` head, the `/` opens a regex. The run must start at a token
+  boundary and must not be a property name, so `preturn / 2` and `obj.in / 2` stay
+  divisions, and it must end on the byte the scan actually recorded, so a comment
+  whose text happens to end in a keyword cannot move the decision. A postfix `++`
+  or `--` before the slash is now also a division rather than a regex opener.
+
+- 089723d: Recognize regular expressions after keywords consistently in parser and class-body scanners.
+- 64d2430: Emit `perf_avoid_nested_class` for classes declared inside legacy reactive statements.
+- 97d25cf: Record a hash for each mutation-corpus baseline seed so a source-content re-key
+  cannot be misreported as a fixed compatibility failure.
+- 51ced33: Avoid treating awaits inside nested async functions as async derived initializers.
+- 68ee6b6: Avoid emitting `$.invalidate_inner_signals` for legacy each-block collections
+  with no reactive transitive dependencies.
+- 989627f: Keep a legacy `{#each}` collection as an AST node when a reassigned item reads it back as `collection[$$index]`, so a collection that binds looser than member access keeps its parentheses (`($.get(list) ?? [])[i]`, not `$.get(list) ?? [][i]`) and an optional chain is closed before the index is appended
+- 2892f7e: Add preprocessor ports for Less, Markdown, mdsvex, modular CSS, and sveltex.
+- 853c8f4: Preserve top-level statement boundaries after same-line legacy prop declarations.
+- 737e8d3: Reuse Phase 2's typed dependency list when ordering legacy reactive statements, avoiding the duplicate Phase 3 text scan of each `$:` body.
+- 444283c: Scope elements reached through `:root<compound>:has(...)` selectors. The CSS
+  rule was retained but its matching element missed the component scope class,
+  making the emitted rule inert.
+
+  Apply an outer scope class to compounds containing multiple functional
+  `:is()` / `:where()` pseudo-classes instead of treating them as a standalone
+  pseudo-class selector.
+
+- 8a0f17e: Compile runtime fixture checks using the options recorded by the official fixture generator.
+- 44f952a: Keep a comment interior to a declaration's initializer in `generate: 'server'` output
+
+  A comment inside a `let` / `const` / `var` initializer was dropped and the
+  multi-line layout around it re-flowed onto one line:
+
+  ```svelte
+  <script>
+  	let data = {
+  		/* c */
+  		a: 1
+  	};
+  	function go() { data = { a: 2 }; }
+  </script>
+
+  <p on:click={go}>{data.a}</p>
+  ```
+
+  ```js
+  // official          // rsvelte before
+  let data = {         let data = { a: 1 };
+  	/* c */
+  	a: 1
+  };
+  ```
+
+  This is not a bracket-scanner defect: a plain `/* c */` with no delimiter in it
+  diverged identically to `/* } c */`. The server rebuilds a declaration from
+  re-parsed SUB-slices — the pattern from one slice, the initializer from another —
+  so the emitted statement's nodes carry no coherent set of source positions and the
+  comment carry-over can only collapse every span onto one address. That is enough
+  for a leading comment (they all flush before the statement) but destroys every
+  interior position, so an interior comment has nowhere to land.
+
+  A declaration whose lowering is nothing but that re-parse plus init read-wrapping
+  is now re-parsed WHOLE from its source span instead, the same way function
+  declarations, `if` blocks and `$:` statements already were, so its spans stay
+  coherent and the printer places the comment where the source put it. Declarations
+  that really are rewritten — a prop lowered to `$$props['x']`, a destructured
+  `$state` expanded into a temp group, a rune initializer, a multi-declarator
+  declaration split into one statement per declarator — keep the per-declarator
+  rebuild. Client and client-dev output is unchanged.
+
+- 5709d56: Lower a write to a private `$derived` class field to a setter call on the server
+
+  On the server a private `$derived` field holds a callable, so upstream reads it as
+  `this.#f()` and writes it as `this.#f(v)`. rsvelte's read-wrapping pass decided
+  read-versus-write by looking at the byte after `this.#f` and accepted only a bare
+  `=`, so a compound operator saw `+`, `&`, `>` … and the _assignment target_ was
+  wrapped:
+
+  ```js
+  export class R {
+    #a = $state(1);
+    #d = $derived(this.#a * 2);
+
+    constructor() {
+      this.#d += 1;
+    }
+  }
+  ```
+
+  emitted `this.#d() += 1;` where official emits `this.#d(this.#d() + 1);`. A call
+  expression is not a valid assignment target, so the module does not parse and
+  Vite/Rolldown reject it. All nine compound operators were affected, in a
+  constructor and in a method body alike.
+
+  The quiet half was a plain `this.#d = v` **outside** a constructor: the setter
+  rewrite only ran on constructors, so a method body kept the assignment, replaced
+  the callable with a plain value, and the next read threw `this.#d is not a
+function`. That output parsed, so no parse-level check could see it.
+
+  Both are now handled in one place, for constructors, methods and arrow-function
+  class fields.
+
+- c31ef6b: Keep the comments a removed statement used to swallow in `generate: 'server'` output
+
+  A statement the server transform removes (`$effect`, `$effect.pre`, `$effect.root`,
+  `$inspect`) took the comments around and inside it with it:
+
+  ```js
+  export function f(a) {
+    // leading
+    $effect(() => {
+      // interior
+      console.log(a);
+    });
+
+    console.log(2);
+  }
+  ```
+
+  ```js
+  // official          // rsvelte before
+  export function f(a) {
+    // leading           // leading
+    // interior
+    console.log(2);
+    console.log(2);
+  }
+  ```
+
+  Upstream removes the statement NODE and lets esrap's comment cursor flush the orphans
+  from the enclosing (located) body. rsvelte lost them through two different mechanisms,
+  which is why the two entry points failed differently — the `.svelte.js` module path
+  kept the leading comment and ate only the interior one, while a component instance
+  script ate both:
+
+  - **`compileModule`** deletes the effect as a **source range**, so anything inside the
+    range goes with it. The removal now replays the range's own comments at the removal
+    point, guarded so a `//` comment is only ever emitted where nothing else shares its
+    line. All four range-based removals in that pipeline are covered — `$effect(`,
+    `$effect.pre(`, statement-position `$effect.root(` and the post-transform
+    `$.user_effect(` cleanup; the pipeline's other ten rewrite sites unwrap a call rather
+    than delete user source.
+  - **the component path** registers a comment region per top-level statement and anchors
+    it on what that statement emitted. A statement that emitted nothing left its region
+    unreferenced, so the comments died with it. A dropped statement now carries its region
+    forward to the next surviving statement instead, matching where upstream's cursor
+    flushes them. A statement that emits only `EmptyStatement` sentinels (a removed
+    `$inspect` prints `;;`) counts as emitting no anchor, since the carry-over refuses to
+    rewrite a sentinel span.
+
+  Client and client-dev output is unchanged. A comment after the **last** top-level
+  statement is still dropped — there is no surviving statement to re-home onto, and
+  upstream flushes it at the end of the enclosing function body instead; that is tracked
+  separately.
+
+- 25b2513: Keep same-line comments trailing server-rendered script declarations.
+- 1272028: Compile transition and animation directives on `<svelte:window>`, `<svelte:body>`,
+  and `<svelte:document>`.
+- 6a53739: Take the client instance script's statement boundaries from the parser.
+
+  The pipeline decided where a statement ended by scanning characters: balanced
+  depths, a trailing comma, a list of operators a statement cannot end on, a
+  brace-less control header, and a lookahead for a continuation token on the next
+  line. Each is an approximation, and the operator list is a list — a line ending
+  in `-` or `/` was not on it, so `$: v = a -⏎ b;` split into two statements and
+  `b` stopped being a dependency.
+
+  The boundaries now come from a parse of the script — the program Phase 1 already
+  holds where that text is a verbatim region of it, and a fresh parse otherwise. A
+  script that does not parse at that point keeps the scanner, so nothing that
+  worked stops working, and the per-line depth scan no longer runs when a parser
+  answered.
+
+- a91a60e: Run the a11y pass for `<svelte:element>`
+
+  Upstream calls the shared a11y checker from **both** element visitors
+  (`RegularElement.js` and `SvelteElement.js`); rsvelte had a call site only on the
+  regular one, so every element a11y rule was silently absent whenever the element
+  was written as `<svelte:element this={…}>`:
+
+  ```svelte
+  <script>
+  	let tag = 'div';
+  	function f() {}
+  </script>
+
+  <svelte:element this={tag} on:click={f}>x</svelte:element>
+  ```
+
+  Official warns `a11y_no_static_element_interactions`; rsvelte emitted nothing.
+  This was not one missing rule — it was the whole pass, so `a11y_accesskey`,
+  `a11y_autofocus`, `a11y_positive_tabindex`, the `aria-*` type and spelling
+  checks, the `role` checks, `a11y_mouse_events_have_key_events` and the rest were
+  missing too.
+
+  `<svelte:element>` reaches the checker under the literal name `svelte:element`
+  with `is_dynamic_element` set, so the rules upstream guards on a statically known
+  tag stay skipped — `a11y_misplaced_scope`, `a11y_aria_activedescendant_has_tabindex`,
+  `a11y_click_events_have_key_events`, `a11y_no_noninteractive_tabindex` and
+  `a11y_role_has_required_aria_props` must not fire on a dynamic tag, and do not.
+
+  The same port closes upstream's other two `SvelteElement` branches in that file: a
+  dynamic element between the checked node and its ancestors makes `is_parent`
+  answer "unknown" (so `a11y_autofocus` / `a11y_figcaption_parent` are suppressed
+  rather than guessed), and an **empty** `<svelte:element>` child no longer counts
+  as content for `a11y_consider_explicit_label` / `a11y_missing_content`.
+
+  A differential over the reachable a11y rule set — 42 attribute shapes × 10 tag
+  spellings × 3 targets, 1,416 comparisons — now agrees with official on every one.
+
+- 9c8eac8: Let an enclosing `svelte-ignore` suppress the warnings raised about `svelte-ignore` comments themselves. `legacy_code` and `unknown_code` were pushed straight onto the analysis warning list, so they bypassed the ignore stack that every other warning consults — `<!-- svelte-ignore unknown_code -->` around a block containing `<!-- svelte-ignore zzz-yyy -->` still reported `unknown_code`, where the official compiler reports nothing. They now go through the same emission path as every other warning, and because that happens before the comment run's own codes are pushed, a comment still cannot ignore its own code — matching the official compiler in both directions.
+- 1542ee9: Validate directives on `<svelte:self>` with the same rules as components.
+- 6e4741c: Preserve class declarations inside template expression callbacks.
+- 6a53739: Place TypeScript statement boundaries through the strip projection, so the client
+  instance-script pipeline reuses the program Phase 1 already parsed instead of
+  parsing the script a second time.
+- e8ee67e: Retain legacy reactive statement metadata for client lowering.
+- 32f1e9e: Reject every decorator in a TypeScript `<script>` with `typescript_invalid_feature`, not only the ones on a class declaration. A decorator on a method, a field, a getter, a class expression or a constructor parameter was copied verbatim into the generated module, which is then not JavaScript and which no gate could observe — the ratchets score match/mismatch, and the corpus has no witness. The error's code, message and span now match the official compiler in all of those positions.
+- 579657f: Return the official-shaped `CompileError` from the Vite shim's envelope compile
+  paths, including `compileAsync`, instead of a Rust debug string.
+
 ## 0.10.10
 
 ### Patch Changes
