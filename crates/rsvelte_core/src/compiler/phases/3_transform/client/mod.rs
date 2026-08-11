@@ -4378,7 +4378,9 @@ pub(crate) fn transform_module_script_runes(
             .map(|(name, _, _)| name.clone())
             .collect();
         for binding in &analysis.root.bindings {
-            if matches!(binding.kind, BindingKind::Derived) && !derived_vars.contains(&binding.name)
+            if binding.scope_index != analysis.root.instance_scope_index
+                && matches!(binding.kind, BindingKind::Derived)
+                && !derived_vars.contains(&binding.name)
             {
                 derived_vars.push(binding.name.clone());
             }
@@ -4386,6 +4388,7 @@ pub(crate) fn transform_module_script_runes(
         // Also add $state.raw vars from bindings — they never use the proxy flag.
         for (name, &binding_idx) in &analysis.root.scope.declarations {
             if let Some(b) = analysis.root.bindings.get(binding_idx)
+                && b.scope_index != analysis.root.instance_scope_index
                 && matches!(b.kind, BindingKind::RawState)
                 && !derived_vars.contains(name)
             {
