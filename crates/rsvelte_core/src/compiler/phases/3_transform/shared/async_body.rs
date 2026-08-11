@@ -426,7 +426,16 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             continue;
         }
 
-        let (leading_comments, trimmed_stmt) = split_leading_comments(trimmed_stmt);
+        let (leading_comments, trimmed_stmt) =
+            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
+                || memmem::find(trimmed_stmt.as_bytes(), b"$$inspect_hole").is_some()
+                || memmem::find(trimmed_stmt.as_bytes(), b"$$async_void_noop").is_some()
+                || memmem::find(trimmed_stmt.as_bytes(), b"$$async_noop").is_some()
+            {
+                ("", trimmed_stmt)
+            } else {
+                split_leading_comments(trimmed_stmt)
+            };
         if trimmed_stmt.is_empty() {
             continue;
         }
@@ -2996,6 +3005,17 @@ mod tests {
         assert!(
             !result.output.contains("void (/*"),
             "a declaration must not be emitted as a void expression: {}",
+            result.output
+        );
+    }
+
+    #[test]
+    fn test_inspect_hole_remains_an_async_slot() {
+        let script = "let data = await Promise.resolve(42);\n/* $$inspect_hole */";
+        let result = transform_async_body(script, "$.run").unwrap();
+        assert!(
+            result.output.contains("() => void 0"),
+            "inspect hole was dropped: {}",
             result.output
         );
     }
