@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_client"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "base64",
  "corsa_core",
@@ -134,7 +134,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_core"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "base64",
  "bumpalo",
@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_jsonrpc"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "corsa_core",
  "corsa_runtime",
@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_runtime"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "smallvec",
 ]
