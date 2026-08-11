@@ -127,8 +127,9 @@ function applyWarningFilter(result, warningFilter) {
 //
 // Callers that need the raw envelope (e.g. to ship it across a worker
 // boundary without re-encoding) can still grab `binding.compileEnvelope`
-// directly. The legacy JSON path is preserved as `compileLegacy` for
-// parity testing and as an escape hatch.
+// directly, except with modernAst: the v1 envelope has no AST field.
+// The legacy JSON path is preserved as `compileLegacy` for parity testing
+// and as an escape hatch.
 function compile(source, options) {
 	if (typeof options?.cssHash === 'function') {
 		// A dynamic cssHash needs the Rust→JS callback bridge, which would deadlock
@@ -178,6 +179,11 @@ function compileBatch(inputs) {
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };
 	});
+	if (prepared.some((input) => input.options?.modernAst)) {
+		return prepared.map((input, i) =>
+			applyWarningFilter(binding.compile(input.source, input.options), filters[i]),
+		);
+	}
 	const sourceContents = prepared.map((input) => input.source);
 	const results = decodeBatch(
 		binding.compileBatchExternalSources(prepared),
@@ -225,6 +231,11 @@ async function compileBatchAsync(inputs) {
 		if (warningFilter) filters[i] = warningFilter;
 		return options === input.options ? input : { source: input.source, options };
 	});
+	if (prepared.some((input) => input.options?.modernAst)) {
+		return prepared.map((input, i) =>
+			applyWarningFilter(binding.compile(input.source, input.options), filters[i]),
+		);
+	}
 	const sourceContents = prepared.map((input) => input.source);
 	const results = decodeBatch(
 		await binding.compileBatchExternalSourcesAsync(prepared),

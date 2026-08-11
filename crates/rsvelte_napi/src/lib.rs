@@ -1760,6 +1760,7 @@ pub fn napi_compile_buffers(
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<CompileBuffersResult> {
     let opts = options_to_compile(options)?;
+    reject_modern_ast_for_binary_result(&opts, "compileBuffers")?;
     match rust_compile(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
             js: CompileBuffersJs {
@@ -1850,6 +1851,16 @@ fn ensure_envelope_size(size: usize) -> napi::Result<()> {
     })
 }
 
+#[inline]
+fn reject_modern_ast_for_binary_result(options: &CompileOptions, api: &str) -> napi::Result<()> {
+    if options.modern_ast {
+        return Err(napi::Error::from_reason(format!(
+            "rsvelte: modernAst is not supported by {api}; use compile() instead"
+        )));
+    }
+    Ok(())
+}
+
 /// `compile()` returning a single packed envelope buffer.
 /// See `rsvelte_bindings_support::napi_raw` for the byte-level format.
 #[napi(js_name = "compileEnvelope", catch_unwind)]
@@ -1881,6 +1892,7 @@ fn compile_envelope(
     options: CompileOptions,
     externalize_sourcemap_content: bool,
 ) -> napi::Result<Buffer> {
+    reject_modern_ast_for_binary_result(&options, "compileEnvelope")?;
     let result = if externalize_sourcemap_content {
         rust_compile_with_external_sourcemap_content(source, options)
     } else {
@@ -2001,6 +2013,7 @@ pub fn napi_compile_envelope_zero_copy(
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<JsBuffer> {
     let opts = options_to_compile(options)?;
+    reject_modern_ast_for_binary_result(&opts, "compileEnvelopeZeroCopy")?;
     let result = match rust_compile(&source, opts) {
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -2110,6 +2123,9 @@ fn compile_batch_envelope(
         .into_iter()
         .map(|item| Ok((item.source, options_to_compile(item.options)?)))
         .collect::<napi::Result<_>>()?;
+    for (_, options) in &parsed {
+        reject_modern_ast_for_binary_result(options, "compileBatch")?;
+    }
 
     // Compile in parallel. `compile_batch` takes `&[(&str, CompileOptions)]`,
     // so we materialise the borrowed view once.
@@ -2229,6 +2245,7 @@ pub fn napi_compile_envelope_async(
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
     let options = options_to_compile(options)?;
+    reject_modern_ast_for_binary_result(&options, "compileEnvelopeAsync")?;
     Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
         filename: options.filename.clone(),
@@ -2243,6 +2260,7 @@ pub fn napi_compile_envelope_external_sources_async(
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
     let options = options_to_compile(options)?;
+    reject_modern_ast_for_binary_result(&options, "compileEnvelopeExternalSourcesAsync")?;
     Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
         filename: options.filename.clone(),
@@ -2325,6 +2343,9 @@ fn compile_batch_async_task(
         .into_iter()
         .map(|item| Ok((item.source, options_to_compile(item.options)?)))
         .collect::<napi::Result<_>>()?;
+    for (_, options) in &parsed {
+        reject_modern_ast_for_binary_result(options, "compileBatchAsync")?;
+    }
     Ok(AsyncTask::new(CompileBatchTask {
         inputs: parsed,
         externalize_sourcemap_content,

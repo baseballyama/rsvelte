@@ -480,6 +480,16 @@ assert(
 	'compile.modernAst: default remains null',
 	napi.compile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast === null
 );
+let modernAstEnvelopeError;
+try {
+	napi.compileEnvelope(MODERN_AST_SRC, { filename: 'A.svelte', modernAst: true });
+} catch (error) {
+	modernAstEnvelopeError = error;
+}
+assert(
+	'compileEnvelope.modernAst: rejects unsupported envelope format',
+	/modernAst is not supported by compileEnvelope/.test(modernAstEnvelopeError?.message)
+);
 
 for (const key of ['accessors', 'immutable']) {
 	const result = napi.compile(LEGACY_SRC, { filename: 'A.svelte', [key]: false });
