@@ -733,7 +733,7 @@ fn post_process_for_server(source: &str) -> String {
 fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
     use rustc_hash::FxHashSet;
     let mut names: FxHashSet<String> = FxHashSet::default();
-    let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal("];
+    let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal(", b"$.async_derived("];
     let bytes = source.as_bytes();
     for pat in patterns {
         let finder = memmem::Finder::new(*pat);
@@ -780,10 +780,24 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             while kw_end > 0 && bytes[kw_end - 1].is_ascii_whitespace() {
                 kw_end -= 1;
             }
-            let is_decl = (kw_end >= 3
+            let keyword_decl = (kw_end >= 3
                 && (&bytes[kw_end - 3..kw_end] == b"let" || &bytes[kw_end - 3..kw_end] == b"var"))
                 || (kw_end >= 5 && &bytes[kw_end - 5..kw_end] == b"const");
-            if !is_decl {
+            let generated_decl = !keyword_decl && kw_end > 0 && bytes[kw_end - 1] == b',' && {
+                let statement_start = bytes[..kw_end - 1]
+                    .iter()
+                    .rposition(|byte| *byte == b';')
+                    .map_or(0, |pos| pos + 1);
+                let prefix = &source[statement_start..kw_end - 1];
+                prefix.contains("let ") || prefix.contains("const ") || prefix.contains("var ")
+            };
+            if !keyword_decl && !generated_decl {
+                continue;
+            }
+            if generated_decl {
+                if let Ok(name) = std::str::from_utf8(&bytes[left..id_end]) {
+                    names.insert(name.to_string());
+                }
                 continue;
             }
             // Word-boundary check on the left side of the keyword.
