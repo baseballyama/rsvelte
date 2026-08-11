@@ -51,7 +51,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripBlankLines, readIf, firstDiffLine, oxfmtTree, oxfmtParses as oxfmtParsesFile } from './normalize.mjs';
-import { mappingViolations } from './sourcemap.mjs';
+import { MIN_MAPPED_LINE_COVERAGE, mappedLineCoverage, mappingViolations } from './sourcemap.mjs';
 import { MIN_FULL_CORPUS_ENTRIES, S2T_TREES, cleanupArtifacts } from './artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +95,8 @@ if (manifest.length < MIN_MANIFEST_ENTRIES) {
 // inconsistent with the map on any later re-run.
 const mapCounts = { 'map-valid': 0, 'map-invalid': 0, 'map-missing': 0, 'map-oracle-invalid': 0, 'map-absent': 0 };
 const mapFailures = [];
+const expectedCoverage = { generatedLines: 0, mappedLines: 0 };
+const actualCoverage = { generatedLines: 0, mappedLines: 0 };
 const readMap = (dir) => {
 	const json = readIf(path.join(dir, 'map.json'));
 	return json == null ? null : JSON.parse(json);
@@ -110,8 +112,22 @@ for (const { id } of manifest) {
 		// Official emitting a map while rsvelte emits none is the regression that
 		// would follow from dropping the map from the NAPI surface again.
 		verdict = expected == null ? 'map-absent' : 'map-missing';
-	} else if (expected != null && mappingViolations(expected.mappings, expected.generatedLines, source).length) {
-		verdict = 'map-oracle-invalid';
+	} else if (expected != null) {
+		const expectedDetails = mappingViolations(expected.mappings, expected.generatedLines, source);
+		if (expectedDetails.length) {
+			verdict = 'map-oracle-invalid';
+		} else {
+			const coverage = mappedLineCoverage(expected.mappings, expected.generatedLines);
+			expectedCoverage.generatedLines += coverage.generatedLines;
+			expectedCoverage.mappedLines += coverage.mappedLines;
+			details = mappingViolations(actual.mappings, actual.generatedLines, source);
+			verdict = details.length ? 'map-invalid' : 'map-valid';
+			if (!details.length) {
+				const coverage = mappedLineCoverage(actual.mappings, actual.generatedLines);
+				actualCoverage.generatedLines += coverage.generatedLines;
+				actualCoverage.mappedLines += coverage.mappedLines;
+			}
+		}
 	} else {
 		details = mappingViolations(actual.mappings, actual.generatedLines, source);
 		verdict = details.length ? 'map-invalid' : 'map-valid';
@@ -119,6 +135,27 @@ for (const { id } of manifest) {
 
 	mapCounts[verdict]++;
 	if (verdict === 'map-invalid' || verdict === 'map-missing') mapFailures.push({ id, verdict, details });
+}
+
+const coverageRatio = (coverage) => coverage.mappedLines / coverage.generatedLines;
+const expectedCoverageRatio = coverageRatio(expectedCoverage);
+const actualCoverageRatio = coverageRatio(actualCoverage);
+if (expectedCoverageRatio < MIN_MAPPED_LINE_COVERAGE) {
+	console.error(
+		`[s2t-verify] official source-map coverage ${(expectedCoverageRatio * 100).toFixed(2)}% ` +
+		`is below the ${(MIN_MAPPED_LINE_COVERAGE * 100).toFixed(0)}% calibrated floor; review the invariant`,
+	);
+	process.exit(2);
+}
+if (actualCoverageRatio < MIN_MAPPED_LINE_COVERAGE) {
+	mapFailures.push({
+		id: '__mapped-line-coverage__',
+		verdict: 'map-insufficient-coverage',
+		details: [{
+			kind: 'mapped-line-coverage',
+			detail: `${actualCoverage.mappedLines}/${actualCoverage.generatedLines} (${(actualCoverageRatio * 100).toFixed(2)}%)`,
+		}],
+	});
 }
 
 if (!NO_FMT) {
@@ -224,11 +261,20 @@ const report = {
 	failures,
 	mapCounts,
 	mapFailures,
+	mapCoverage: {
+		minimum: MIN_MAPPED_LINE_COVERAGE,
+		expected: { ...expectedCoverage, ratio: expectedCoverageRatio },
+		actual: { ...actualCoverage, ratio: actualCoverageRatio },
+	},
 };
 fs.writeFileSync(path.join(CORPUS, 'report-s2t.json'), JSON.stringify(report, null, '\t') + '\n');
 
 console.log('\n[s2t-verify] results:');
 for (const [k, v] of Object.entries({ ...counts, ...mapCounts })) console.log(`  ${k.padEnd(18)} ${v}`);
+console.log(
+	`  mapped lines       official ${expectedCoverage.mappedLines}/${expectedCoverage.generatedLines} (${(expectedCoverageRatio * 100).toFixed(2)}%), ` +
+		`rsvelte ${actualCoverage.mappedLines}/${actualCoverage.generatedLines} (${(actualCoverageRatio * 100).toFixed(2)}%)`,
+);
 console.log(`  report: ${path.relative(ROOT, path.join(CORPUS, 'report-s2t.json'))}`);
 
 if (UPDATE_BASELINE) {

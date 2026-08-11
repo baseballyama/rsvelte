@@ -90,7 +90,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
 | 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | neither output is parsed — identical **non-JavaScript** scores `match`; CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules; whether a folded constant is the *right* value | [D] |
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
-| 7 | svelte2tsx source map | structural invariants on rsvelte's own map | map **coverage** — a 1-of-1000-line map is valid | [D] |
+| 7 | svelte2tsx source map | structural invariants and corpus-wide mapped-line coverage on rsvelte's own map | relation between generated text and mapped original text; source index | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
@@ -784,14 +784,14 @@ calibrate. Official's map serves as a *veto*: if it violates an invariant, the e
 generated lines; generated columns sorted within a line; no 3+ "stalled copy run"; generated
 column in bounds; original line in bounds; original column in bounds.
 
-### Blind spot 7a — there is no coverage invariant
+### Blind spot 7a — closed: corpus-wide mapped-line coverage floor (#2453)
 
-`extra-mapping-lines` (`sourcemap.mjs:113-115`) fires only when the map has *more* lines than
-the text — one-directional. **[D]** Verified by running `mappingViolations` directly:
-`mappings: "AAAA"` against **1000** generated lines returns `[]` (`map-valid`), as does
-`mappings: ""`. A regression where rsvelte stops emitting segments after the `render()` opening
-would misplace every `svelte-check` diagnostic in the template body and the gate reports
-`map-valid` for all ~13.4k entries.
+`mappedLineCoverage` counts non-empty generated lines carrying a source-bearing segment, and
+`svelte2tsx-verify.mjs` rejects a corpus-wide ratio below 75%. **[D]** The pinned official
+oracle calibrates the same population at 78.66%; a `"AAAA"` map against 1000 non-empty lines
+therefore fails. Per-entry coverage cannot be used: valid official maps can have zero mapped
+lines, so only the corpus aggregate distinguishes a truncation from a legitimate generated
+wrapper.
 
 ### Blind spot 7b — no correctness invariant relates generated text to mapped original text
 

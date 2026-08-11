@@ -49,6 +49,7 @@
 		"test:corpus-verify-flags": "node scripts/dev/test-corpus-verify-baseline-flags.mjs",
 		"test:corpus-parse-gate": "node scripts/dev/test-corpus-parse-gate.mjs",
 		"test:lint-verify-floor": "node scripts/dev/test-lint-verify-population-floor.mjs",
+		"test:svelte2tsx-map-coverage": "node scripts/dev/test-svelte2tsx-map-coverage.mjs",
 		"test:corpus-generation": "node scripts/dev/test-corpus-generation-guard.mjs",
 		"test:mutant-classification": "node scripts/dev/test-mutant-classification.mjs",
 		"test:mutation-baseline-provenance": "node scripts/dev/test-mutation-baseline-provenance.mjs",

@@ -26,6 +26,11 @@ const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
 // A third means the generated column stopped advancing across copied text.
 const STALL_RUN_LIMIT = 3;
 
+// Official svelte2tsx maps 78.66% of non-empty generated lines on the pinned
+// corpus. Leave room for independently-segmented output while rejecting a map
+// that stops after a small prefix.
+export const MIN_MAPPED_LINE_COVERAGE = 0.75;
+
 /**
  * Split one comma-free segment into its VLQ fields. Accumulation is arithmetic
  * rather than bitwise: JS bit operators truncate to int32, which would silently
@@ -91,6 +96,25 @@ export function utf16LineLengths(text) {
 		for (const char of line) units += char.codePointAt(0) > 0xffff ? 2 : 1;
 		return units;
 	});
+}
+
+/**
+ * Count non-empty generated lines that have a source-bearing segment. Empty
+ * generated lines do not need a mapping, and a one-field segment has no source
+ * position for a consumer to follow.
+ */
+export function mappedLineCoverage(mappings, generatedLengths) {
+	const lines = decodeMappings(mappings);
+	if (lines === null) return null;
+
+	let generatedLines = 0;
+	let mappedLines = 0;
+	for (let generatedLine = 0; generatedLine < generatedLengths.length; generatedLine++) {
+		if (generatedLengths[generatedLine] === 0) continue;
+		generatedLines++;
+		if (lines[generatedLine]?.length) mappedLines++;
+	}
+	return { generatedLines, mappedLines };
 }
 
 /**
