@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 19 entries**, concentrated in real-world corpus repos
+**Current baseline: `fmt-known-failures.json`, 20 entries**, concentrated in real-world corpus repos
 (skeleton, layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail).
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every
@@ -20,7 +20,7 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 5 + 1 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 6 + 1 + 1 + 1`
 
 ## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
@@ -127,7 +127,7 @@ in rsvelte — give each interpolation a *live* Doc subtree (formatted at its
 real indent) instead of a pre-narrowed string, so a nested subexpression can
 measure against its true column.
 
-## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (5)
+## Cluster 3 — embedded-JS member-chain / call-argument break-point divergence (6)
 
 A single JS expression inside one interpolation (`a.b.c`, `x ?? 'default'`)
 needs to break, and oxc's chosen break point differs from what the oracle
@@ -166,6 +166,10 @@ is the same mechanism in element content: a parenthesized
 `(arr.find(fn)?.blocks ?? []).length` interpolation, where the oracle breaks
 inside the parens (`>{(` then the chain indented) while oxc keeps the whole
 `find(…)` call on the first line and breaks before `.length`.
+
+`layerchart/packages/layerchart/src/lib/components/Labels/Labels.base.svelte`
+is the call-argument form: the oracle breaks the `extractLayerProps` arguments
+inside a spread expression while oxc keeps them on one line.
 
 ## Cluster 4 — inline `{expr} {expr}` hug/join collapse (1)
 

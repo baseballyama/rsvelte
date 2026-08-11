@@ -4,6 +4,7 @@
 	"layercake/src/_components/AxisY.percent-range.html.svelte",
 	"layercake/src/_components/AxisYRight.percent-range.html.svelte",
 	"layerchart/docs/src/routes/+page.svelte",
+	"layerchart/packages/layerchart/src/lib/components/Labels/Labels.base.svelte",
 	"powertable/app/src/lib/components/PowerTable.svelte",
 	"powertable/app/src/routes/examples/+layout.svelte",
 	"skeleton/sites/plus.skeleton.dev/src/routes/(app)/content/blocks/+page.svelte",
