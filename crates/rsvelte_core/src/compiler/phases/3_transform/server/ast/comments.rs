@@ -5,7 +5,7 @@
 //! producer that keeps a statement *registers* the comment region around it and
 //! places the emitted statement on the returned base ([`Place`]), parking it in
 //! a provisional address range. Once the program is assembled, only the ranges the
-//! walk actually reaches are laid out in source order into a synthetic
+//! walk actually reaches are laid out into a synthetic
 //! buffer, every span is remapped onto it, and the surviving comments go to
 //! [`rsvelte_esrap::print_split`].
 //!
@@ -39,6 +39,7 @@ struct Chunk {
     text: String,
     /// Comments with spans relative to `text`.
     comments: Vec<Comment>,
+    position_only: bool,
 }
 
 /// The per-compile registry of comment regions.
@@ -46,17 +47,15 @@ struct Chunk {
 pub struct ChunkRegistry {
     chunks: Vec<Chunk>,
     next_prov: u32,
-    has_comments: bool,
 }
 
 impl ChunkRegistry {
     /// Register the source region `text` holding `comments` (spans relative to
     /// `text`) and return the region's provisional base — add a `text`-relative
-    /// offset to it to get the address to place a node at. Empty comment sets
-    /// still need a region: a later source comment must be able to flush before
-    /// this statement after transformed statements have been reordered.
+    /// offset to it to get the address to place a node at. `None` when there is
+    /// nothing to carry.
     pub fn register(&mut self, text: &str, comments: &[Comment]) -> Option<u32> {
-        if text.is_empty() {
+        if comments.is_empty() || text.is_empty() {
             return None;
         }
         let len = u32::try_from(text.len()).ok()?;
@@ -67,17 +66,33 @@ impl ChunkRegistry {
             prov_base,
             text: text.to_string(),
             comments: comments.to_vec(),
+            position_only: false,
         });
-        if !comments.is_empty() {
-            self.has_comments = true;
-            super::comment_stats::bump::REGISTERED_CHUNKS(1);
-            super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
+        super::comment_stats::bump::REGISTERED_CHUNKS(1);
+        super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
+        Some(prov_base)
+    }
+
+    /// Register a source position that does not own a comment. This is only
+    /// needed when a preceding comment-owning statement is reordered past it.
+    pub fn register_position(&mut self, text: &str) -> Option<u32> {
+        if text.is_empty() {
+            return None;
         }
+        let len = u32::try_from(text.len()).ok()?;
+        let prov_base = PROV_BASE.checked_add(self.next_prov)?;
+        self.next_prov = self.next_prov.checked_add(len)?.checked_add(1)?;
+        self.chunks.push(Chunk {
+            prov_base,
+            text: text.to_string(),
+            comments: Vec::new(),
+            position_only: true,
+        });
         Some(prov_base)
     }
 
     pub fn is_empty(&self) -> bool {
-        !self.has_comments
+        self.chunks.is_empty()
     }
 }
 
@@ -114,6 +129,7 @@ impl VisitMut<'_> for Place {
 struct Encounter<'m> {
     bases: &'m [(u32, u32)],
     seen: Vec<bool>,
+    order: Vec<usize>,
     /// Per region: whether the walk first reached it as a whole statement.
     via_stmt: Vec<bool>,
 }
@@ -125,6 +141,7 @@ impl Encounter<'_> {
         {
             self.seen[i] = true;
             self.via_stmt[i] = is_stmt;
+            self.order.push(i);
         }
     }
 }
@@ -197,6 +214,7 @@ pub fn print_with_comments<'a>(
     let mut encounter = Encounter {
         bases: &bases,
         seen: vec![false; bases.len()],
+        order: Vec::new(),
         via_stmt: vec![false; bases.len()],
     };
     encounter.visit_program(program);
@@ -215,10 +233,20 @@ pub fn print_with_comments<'a>(
     let mut buf = String::from(PAD);
     let mut shift: Vec<Option<i64>> = vec![None; bases.len()];
     let mut comments: Vec<Comment> = Vec::new();
-    for (i, chunk) in registry.chunks.iter().enumerate() {
-        if !encounter.via_stmt[i] {
-            continue;
-        }
+    let order: Vec<usize> = if registry.chunks.iter().any(|chunk| chunk.position_only) {
+        (0..registry.chunks.len())
+            .filter(|&i| encounter.via_stmt[i])
+            .collect()
+    } else {
+        encounter
+            .order
+            .iter()
+            .copied()
+            .filter(|&i| encounter.via_stmt[i])
+            .collect()
+    };
+    for i in order {
+        let chunk = &registry.chunks[i];
         let base = buf.len() as u32;
         shift[i] = Some(i64::from(base) - i64::from(chunk.prov_base));
         buf.push_str(&chunk.text);

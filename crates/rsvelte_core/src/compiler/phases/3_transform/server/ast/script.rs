@@ -400,6 +400,17 @@ fn place_on_region(
     })
 }
 
+fn place_on_position(
+    registry: &mut comments::ChunkRegistry,
+    _src: &str,
+    _prev_end: u32,
+    _stmt: Span,
+    _verbatim: Option<Span>,
+) -> Option<comments::Place> {
+    let base = registry.register_position(" ")?;
+    Some(comments::Place::At(base))
+}
+
 /// Split a script's comments into the three classes the carry-over sees:
 /// LEADING (inside a `[prev_end, stmt_start)` gap — the only class
 /// [`register_leading_comments`] can capture), INTERIOR (inside a top-level
@@ -2851,9 +2862,15 @@ fn transform_script_legacy<'a>(
     // See the runes loop: a dropped statement does not advance the region, so its
     // comments are re-homed onto the next survivor instead of dying with it.
     let mut region_start: u32 = 0;
+    let mut reactive_leading_comment_pending = false;
 
     for stmt in ret.program.body.iter() {
         let stmt_span = stmt.span();
+        let is_reactive = matches!(stmt, Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$");
+        let reactive_leading_comment = is_reactive
+            && ret.program.comments.iter().any(|comment| {
+                comment.span.start >= region_start && comment.span.end <= stmt_span.start
+            });
         let out_len = out.len();
         let reactive_len = reactive.len();
         let sink_len = import_sink.as_deref().map_or(0, Vec::len);
@@ -3077,14 +3094,18 @@ fn transform_script_legacy<'a>(
         }
         // Anchor the region on the first statement this source statement emitted
         // that can carry one.
-        if let Some(mut place) = place_on_region(
+        let mut place = place_on_region(
             &mut state.comments,
             src,
             &ret.program.comments,
             region_start,
             stmt_span,
             verbatim,
-        ) {
+        );
+        if place.is_none() && reactive_leading_comment_pending && !into_sink && anchor.is_some() {
+            place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
+        }
+        if let Some(mut place) = place {
             if into_sink {
                 if let Some(sink) = import_sink.as_deref_mut()
                     && let Some(first) = sink.get_mut(sink_len)
@@ -3106,6 +3127,11 @@ fn transform_script_legacy<'a>(
                     other => place.visit_statement(other),
                 }
             }
+        }
+        if is_reactive && reactive_leading_comment {
+            reactive_leading_comment_pending = true;
+        } else if !is_reactive && anchor.is_some() {
+            reactive_leading_comment_pending = false;
         }
         let trailing_end = trailing_comment_end(src, &ret.program.comments, stmt_span.end);
         region_start = if verbatim.is_some() || trailing_end > stmt_span.end {
