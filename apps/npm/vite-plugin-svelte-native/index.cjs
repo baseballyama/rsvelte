@@ -138,6 +138,9 @@ function compile(source, options) {
 		);
 	}
 	const { options: resolved, warningFilter } = prepareCompileOptions(options);
+	if (resolved?.modernAst) {
+		return applyWarningFilter(binding.compile(source, resolved), warningFilter);
+	}
 	return applyWarningFilter(
 		decodeEnvelope(binding.compileEnvelopeExternalSources(source, resolved), source),
 		warningFilter,
@@ -201,6 +204,9 @@ async function compileAsync(source, options) {
 			makeCssHashCallback(options.cssHash),
 		);
 		return applyWarningFilter(result, warningFilter);
+	}
+	if (resolved?.modernAst) {
+		return applyWarningFilter(binding.compile(source, resolved), warningFilter);
 	}
 	return applyWarningFilter(
 		decodeEnvelope(

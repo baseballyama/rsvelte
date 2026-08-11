@@ -297,16 +297,17 @@ fn component_api_v4_changes_codegen() {
 }
 
 // ---------------------------------------------------------------------------
-// modernAst — at minimum should be accepted without error
+// modernAst
 // ---------------------------------------------------------------------------
 
 #[test]
-fn modern_ast_option_accepted() {
+fn modern_ast_option_returns_public_ast() {
     let env = compile(
         "<h1>x</h1>",
         r#"{"filename":"App.svelte","modernAst":true}"#,
     );
     assert_eq!(env["ok"], serde_json::Value::Bool(true));
+    assert_eq!(env["result"]["ast"]["type"], "Root");
 }
 
 // ---------------------------------------------------------------------------

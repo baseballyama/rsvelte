@@ -539,16 +539,19 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
 /// Returned to the caller so the `Root` is pinned on the caller's stack before
 /// the arena guard is installed — the guard holds a raw pointer to `ast.arena`,
 /// so the `Root` must not move after the guard is created.
-pub(crate) fn parse_component(source: &str) -> Result<crate::ast::Root<'_>, CompileError> {
+pub(crate) fn parse_component(
+    source: &str,
+    modern_ast: bool,
+) -> Result<crate::ast::Root<'_>, CompileError> {
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
-        skip_expression_loc: true,
+        skip_expression_loc: !modern_ast,
         defer_script_parse: true,
         force_typescript: false,
         lenient_script: false,
         skip_non_css_lang_style: false,
-        capture_comments: false,
+        capture_comments: modern_ast,
     };
     // M5-A: caller-owned arena, unused for now (Root borrows only `source`).
     let alloc = oxc_allocator::Allocator::default();
@@ -839,7 +842,7 @@ pub(crate) fn finalize_compile_result(
                 .collect()
         },
         metadata: CompileMetadata { runes: runes_mode },
-        ast: None, // TODO: Return AST if options.modern_ast is true
+        ast: None,
     }
 }
 

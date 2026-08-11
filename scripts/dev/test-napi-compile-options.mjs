@@ -31,6 +31,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { compile as officialCompile } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
@@ -165,10 +166,6 @@ const DECLARED = new Map([
 // than a gap: it reads as surveyed.
 const UNCOVERED = new Map([
 	[
-		'compile.modernAst',
-		'inert in rsvelte_core: `compile` returns `ast: None` unconditionally (compiler/mod.rs), and the napi layer forwards `ast: Value::Null`, so no input can tell `modernAst: true` from the default',
-	],
-	[
 		'compileModule.rootDir',
 		'forwarded to CompileOptions but every consumer of `root_dir` (the `$.FILENAME` / HMR key in the client component transform, and the CSS scope hash) is component-only, so a module compile has nothing to observe',
 	],
@@ -223,6 +220,14 @@ const warningCodes = (r) => (r.warnings ?? []).map((w) => w.code);
  * once in this process — a second compile with the same key would see no warning.
  */
 const COMPILE_CASES = [
+	{
+		key: 'modernAst',
+		src: '<script>let x = "α";</script><style>:global(h1) { color: red }</style><h1>{x}</h1>',
+		base: { filename: 'A.svelte' },
+		variant: { filename: 'A.svelte', modernAst: true },
+		marker: (r) => r.ast?.type === 'Root',
+		differsIn: (r) => r.ast,
+	},
 	{
 		key: 'dev',
 		src: RUNES_SRC,
@@ -452,7 +457,29 @@ function runCase(surface, compile, c) {
 
 console.log('\n# compile options');
 for (const c of COMPILE_CASES) runCase('compile', (s, o) => napi.compile(s, o), c);
-covered.add('compile.modernAst');
+
+const MODERN_AST_SRC =
+	'<script>let x = "α";</script><style>:global(h1) { color: red }</style><h1>{x}</h1>';
+const modernAst = napi.compile(MODERN_AST_SRC, { filename: 'A.svelte', modernAst: true }).ast;
+const canonicalJson = (value) => {
+	if (Array.isArray(value)) return value.map(canonicalJson);
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalJson(value[key])]));
+	}
+	return value;
+};
+assert(
+	'compile.modernAst: matches the official public AST',
+	JSON.stringify(canonicalJson(modernAst)) ===
+		JSON.stringify(
+			canonicalJson(officialCompile(MODERN_AST_SRC, { filename: 'A.svelte', modernAst: true }).ast)
+		),
+	'modern AST differs from svelte/compiler'
+);
+assert(
+	'compile.modernAst: default remains null',
+	napi.compile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast === null
+);
 
 for (const key of ['accessors', 'immutable']) {
 	const result = napi.compile(LEGACY_SRC, { filename: 'A.svelte', [key]: false });

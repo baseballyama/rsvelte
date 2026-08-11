@@ -7,6 +7,8 @@
 
 use std::{cell::OnceCell, ops::Range};
 
+use serde_json::Value;
+
 use crate::{
     CompileError, CompileOptions, CompileResult, GenerateMode,
     ast::{AttributeValue, AttributeValuePart, Root, ScriptContext, oxc_program::RetainedScripts},
@@ -326,7 +328,10 @@ impl std::fmt::Debug for PreparedComponent<'_> {
 
 impl<'source> PreparedComponent<'source> {
     pub(crate) fn new(source: &'source str, options: CompileOptions) -> Result<Self, CompileError> {
-        let mut ast = Box::new(crate::compiler::parse_component(source)?);
+        let mut ast = Box::new(crate::compiler::parse_component(
+            source,
+            options.modern_ast,
+        )?);
         let (options, analysis, runes_mode, retained_scripts) = {
             // SAFETY: the guard is dropped before `ast` moves into the result.
             let _arena_guard =
@@ -398,13 +403,48 @@ impl<'source> PreparedComponent<'source> {
             Some(&self.retained_scripts),
         )
         .map_err(CompileError::from)?;
-        Ok(crate::compiler::finalize_compile_result(
+        let mut result = crate::compiler::finalize_compile_result(
             transform_result,
             &self.analysis,
             self.source,
             options,
             self.runes_mode,
-        ))
+        );
+        if options.modern_ast {
+            result.ast = Some(self.public_ast_json());
+        }
+        Ok(result)
+    }
+
+    fn public_ast_json(&self) -> String {
+        let mut value = serde_json::to_value(&*self.ast).expect("the public AST is serializable");
+        remove_metadata(&mut value);
+        if let Some(root) = value.as_object_mut() {
+            root.entry("comments")
+                .or_insert_with(|| Value::Array(Vec::new()));
+        }
+        if !self.source.is_ascii() {
+            let positions = crate::compiler::legacy::Utf8ToUtf16::new(self.source);
+            crate::compiler::legacy::convert_positions_to_utf16(&mut value, &positions);
+        }
+        serde_json::to_string(&value).expect("the public AST JSON is serializable")
+    }
+}
+
+fn remove_metadata(value: &mut Value) {
+    match value {
+        Value::Object(object) => {
+            object.remove("metadata");
+            for value in object.values_mut() {
+                remove_metadata(value);
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                remove_metadata(value);
+            }
+        }
+        _ => {}
     }
 }
 
