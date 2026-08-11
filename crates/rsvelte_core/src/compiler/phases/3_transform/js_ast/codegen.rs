@@ -279,7 +279,13 @@ impl<'a> JsCodegen<'a> {
             // we check multiline status of only the LAST logical line, since that's what
             // will be adjacent to the next statement.
             let rendered = &self.output[start_pos..];
-            if matches!(stmt, JsStatement::Raw(_) | JsStatement::RawMapped { .. }) {
+            if matches!(
+                stmt,
+                JsStatement::Raw(_)
+                    | JsStatement::RawEffect(_)
+                    | JsStatement::RawMapped { .. }
+                    | JsStatement::RawMappedEffect { .. }
+            ) {
                 // For Raw blocks, check if the last logical statement is multiline.
                 // Find the last non-empty line (excluding trailing newline).
                 let trimmed_end = rendered.trim_end_matches('\n');
@@ -385,6 +391,10 @@ impl<'a> JsCodegen<'a> {
                 self.output.push_str(code);
                 self.needs_semicolon = false; // Raw code handles its own semicolons
             }
+            JsStatement::RawEffect(code) => {
+                self.output.push_str(code);
+                self.needs_semicolon = false;
+            }
             JsStatement::RawMapped {
                 code,
                 source_offset,
@@ -392,6 +402,13 @@ impl<'a> JsCodegen<'a> {
                 // Output raw JavaScript code with per-line source mappings.
                 // Each line of the raw code maps to the corresponding position
                 // in the original source, offset by `source_offset`.
+                self.emit_raw_mapped(code, *source_offset);
+                self.needs_semicolon = false;
+            }
+            JsStatement::RawMappedEffect {
+                code,
+                source_offset,
+            } => {
                 self.emit_raw_mapped(code, *source_offset);
                 self.needs_semicolon = false;
             }
@@ -1884,6 +1901,10 @@ impl<'a> JsCodegen<'a> {
             // Raw code: check if it contains newlines (memchr is SIMD-accelerated)
             JsStatement::Raw(code) => memchr::memchr(b'\n', code.as_bytes()).is_some(),
             JsStatement::RawMapped { code, .. } => memchr::memchr(b'\n', code.as_bytes()).is_some(),
+            JsStatement::RawEffect(code) => memchr::memchr(b'\n', code.as_bytes()).is_some(),
+            JsStatement::RawMappedEffect { code, .. } => {
+                memchr::memchr(b'\n', code.as_bytes()).is_some()
+            }
             // Variable declarations: multiline if they have complex initializers
             JsStatement::VariableDeclaration(decl) => {
                 decl.declarations.len() > 1
@@ -2262,6 +2283,8 @@ fn stmt_type_name(stmt: &JsStatement) -> &'static str {
         JsStatement::Try(_) => "TryStatement",
         JsStatement::Raw(code) => raw_stmt_type_name(code),
         JsStatement::RawMapped { code, .. } => raw_stmt_type_name(code),
+        JsStatement::RawEffect(code) => raw_stmt_type_name(code),
+        JsStatement::RawMappedEffect { code, .. } => raw_stmt_type_name(code),
     }
 }
 

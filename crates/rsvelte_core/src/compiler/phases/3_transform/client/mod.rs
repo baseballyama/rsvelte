@@ -350,6 +350,7 @@ pub fn transform_client_module(
         )
     };
 
+    let has_effect_rune = class_transformed.contains("$effect");
     let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
 
     // The transformed source includes everything (imports + body).
@@ -369,7 +370,11 @@ pub fn transform_client_module(
     {
         let rest_trimmed = script_rest.trim();
         if !rest_trimmed.is_empty() {
-            body.push(JsStatement::Raw(rest_trimmed.into()));
+            body.push(if has_effect_rune {
+                JsStatement::RawEffect(rest_trimmed.into())
+            } else {
+                JsStatement::Raw(rest_trimmed.into())
+            });
         }
     }
 
@@ -1201,6 +1206,7 @@ fn transform_client_with_visitors(
     // Reuse the pre_transformed_script from above (already has reactive_import_names).
     if let Some(ref content) = analysis.instance_script_content {
         let mut transformed_script = pre_transformed_script.take().unwrap_or_default();
+        let has_effect_rune = content.raw.contains("$effect");
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -1271,10 +1277,11 @@ fn transform_client_with_visitors(
                 ) {
                     let cleaned_output = strip_async_noop_placeholders(async_result.output.trim());
                     let normalized = normalize_js_with_oxc(cleaned_output.trim(), script_indent);
-                    component_body.push(JsStatement::RawMapped {
-                        code: normalized.into(),
-                        source_offset: script_source_offset,
-                    });
+                    component_body.push(script_raw_statement(
+                        normalized,
+                        script_source_offset,
+                        has_effect_rune,
+                    ));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
                         *context.state.blocker_map.borrow_mut() = async_result.blocker_map;
@@ -1284,10 +1291,11 @@ fn transform_client_with_visitors(
                     let cleaned = strip_async_noop_placeholders(trimmed);
                     if !cleaned.trim().is_empty() {
                         let normalized = normalize_js_with_oxc(cleaned.trim(), script_indent);
-                        component_body.push(JsStatement::RawMapped {
-                            code: normalized.into(),
-                            source_offset: script_source_offset,
-                        });
+                        component_body.push(script_raw_statement(
+                            normalized,
+                            script_source_offset,
+                            has_effect_rune,
+                        ));
                     }
                 }
             } else {
@@ -1300,10 +1308,11 @@ fn transform_client_with_visitors(
                     // the official Svelte compiler's esrap output (consistent spacing,
                     // semicolons, etc.)
                     let normalized = normalize_js_with_oxc(trimmed, script_indent);
-                    component_body.push(JsStatement::RawMapped {
-                        code: normalized.into(),
-                        source_offset: script_source_offset,
-                    });
+                    component_body.push(script_raw_statement(
+                        normalized,
+                        script_source_offset,
+                        has_effect_rune,
+                    ));
                 }
             }
         }
@@ -2037,6 +2046,7 @@ fn transform_client_with_visitors(
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some((non_imports, retained_comment_stripped)) = module_script_non_imports {
         let class_transformed = transform_module_class_fields_client(&non_imports);
+        let has_effect_rune = class_transformed.contains("$effect");
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
@@ -2047,7 +2057,11 @@ fn transform_client_with_visitors(
         } else {
             strip_module_toplevel_comments(&transformed)
         };
-        body.push(JsStatement::Raw(transformed.into()));
+        body.push(if has_effect_rune {
+            JsStatement::RawEffect(transformed.into())
+        } else {
+            JsStatement::Raw(transformed.into())
+        });
     }
 
     // Add hoisted statements (template declarations, etc.)
@@ -2647,7 +2661,9 @@ fn is_client_template_factory(arena: &super::js_ast::JsArena, stmt: &JsStatement
             .and_then(|d| d.init)
             .is_some_and(|id| callee_is_factory(arena, arena.get_expr(id))),
         JsStatement::Raw(s) => stmt_text_has_factory(s),
-        JsStatement::RawMapped { code, .. } => stmt_text_has_factory(code),
+        JsStatement::RawMapped { code, .. } | JsStatement::RawMappedEffect { code, .. } => {
+            stmt_text_has_factory(code)
+        }
         _ => false,
     }
 }
@@ -2670,8 +2686,24 @@ fn stmt_text_has_factory(s: &str) -> bool {
 fn is_export_default_stmt(stmt: &JsStatement) -> bool {
     match stmt {
         JsStatement::ExportDefault(_) => true,
-        JsStatement::Raw(s) => s.trim_start().starts_with("export default "),
+        JsStatement::Raw(s) | JsStatement::RawEffect(s) => {
+            s.trim_start().starts_with("export default ")
+        }
         _ => false,
+    }
+}
+
+fn script_raw_statement(code: String, source_offset: u32, has_effect_rune: bool) -> JsStatement {
+    if has_effect_rune {
+        JsStatement::RawMappedEffect {
+            code: code.into(),
+            source_offset,
+        }
+    } else {
+        JsStatement::RawMapped {
+            code: code.into(),
+            source_offset,
+        }
     }
 }
 

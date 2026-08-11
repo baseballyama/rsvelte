@@ -59,7 +59,7 @@ use super::nodes::*;
 use oxc_allocator::{ArenaBox, ArenaVec, GetAllocator, ReplaceWith};
 use oxc_ast::ast::*;
 use oxc_ast::builder::AstBuilder;
-use oxc_ast_visit::VisitMut;
+use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::{GetSpanMut, SPAN, Span};
 use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
@@ -178,6 +178,33 @@ impl<'a> VisitMut<'a> for ShiftSpans {
     fn visit_span(&mut self, span: &mut Span) {
         span.start += self.0;
         span.end += self.0;
+    }
+}
+
+/// The client transform rebuilds effect calls but retains their callback from
+/// the source AST. Keep that split when a raw chunk is reparsed: the callback
+/// remains located for comment placement while the generated call does not.
+struct GeneratedEffectCallUnlocator;
+
+impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator {
+    fn visit_expression(&mut self, expr: &mut Expression<'a>) {
+        walk_mut::walk_expression(self, expr);
+        let Expression::CallExpression(call) = expr else {
+            return;
+        };
+        if is_dollar_call(&call.callee, "user_effect")
+            || is_dollar_call(&call.callee, "user_pre_effect")
+            || is_dollar_call(&call.callee, "effect_root")
+        {
+            call.span = SPAN;
+        }
+    }
+}
+
+fn erase_generated_effect_call_locs(stmts: &mut [Statement<'_>]) {
+    let mut unlocator = GeneratedEffectCallUnlocator;
+    for stmt in stmts {
+        unlocator.visit_statement(stmt);
     }
 }
 
@@ -485,15 +512,20 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 )))
             }
             JsStatement::Try(t) => self.try_statement(t),
-            // `Raw`/`RawMapped` at a SINGLE-statement site (if / while / for
+            // Raw statements at a SINGLE-statement site (if / while / for
             // body): parse the text; a lone statement is returned directly, a
             // multi-statement blob is wrapped in a block. (Statement-LIST sites
             // use `expand_stmt` instead, which flattens inline.)
-            JsStatement::Raw(code) => self.raw_single_statement(code, None),
+            JsStatement::Raw(code) => self.raw_single_statement(code, None, false),
+            JsStatement::RawEffect(code) => self.raw_single_statement(code, None, true),
             JsStatement::RawMapped {
                 code,
                 source_offset,
-            } => self.raw_single_statement(code, Some(*source_offset)),
+            } => self.raw_single_statement(code, Some(*source_offset), false),
+            JsStatement::RawMappedEffect {
+                code,
+                source_offset,
+            } => self.raw_single_statement(code, Some(*source_offset), true),
         }
     }
 
@@ -503,8 +535,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         &self,
         code: &str,
         source_offset: Option<u32>,
+        unlocate_effect_calls: bool,
     ) -> Option<Statement<'a>> {
-        let stmts = self.parse_raw_statements(code)?;
+        let stmts = self.parse_raw_statements(code, unlocate_effect_calls)?;
         let region = self.take_chunk_region(source_offset);
         if stmts.len() == 1 {
             stmts.into_iter().next()
@@ -1219,10 +1252,17 @@ impl<'a, 'arena> Cx<'a, 'arena> {
 
     /// Parse a raw JS statement source string into a vec of oxc [`Statement`]s
     /// (`Raw` may hold several statements). Returns `None` on a parse error.
-    fn parse_raw_statements(&self, code: &str) -> Option<Vec<Statement<'a>>> {
+    fn parse_raw_statements(
+        &self,
+        code: &str,
+        unlocate_effect_calls: bool,
+    ) -> Option<Vec<Statement<'a>>> {
         let mut stmts = self.parse_chunk(code.trim())?;
         self.restore_legacy_pre_effect_deps(&mut stmts);
         self.restore_single_target_destructure_sequences(&mut stmts);
+        if unlocate_effect_calls {
+            erase_generated_effect_call_locs(&mut stmts);
+        }
         Some(stmts)
     }
 
@@ -1366,7 +1406,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     fn expand_stmt(&self, stmt: &JsStatement) -> Option<Vec<Statement<'a>>> {
         match stmt {
             JsStatement::Raw(code) => {
-                let stmts = self.parse_raw_statements(code)?;
+                let stmts = self.parse_raw_statements(code, false)?;
+                self.take_chunk_region(None);
+                Some(stmts)
+            }
+            JsStatement::RawEffect(code) => {
+                let stmts = self.parse_raw_statements(code, true)?;
                 self.take_chunk_region(None);
                 Some(stmts)
             }
@@ -1374,7 +1419,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 code,
                 source_offset,
             } => {
-                let mut stmts = self.parse_raw_statements(code)?;
+                let mut stmts = self.parse_raw_statements(code, false)?;
                 if self.take_chunk_region(Some(*source_offset)).is_some() {
                     // The chunk's own spans are its comment anchors; the source
                     // offset is carried by the region's `loc_map` entry instead.
@@ -1384,6 +1429,21 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 // `print_with_map` maps the (transformed) instance-script lines
                 // back to the user source — mirroring the text codegen's
                 // per-block `source_offset` line mapping.
+                let sp = Span::new(*source_offset, *source_offset);
+                for s in &mut stmts {
+                    *s.span_mut() = sp;
+                }
+                self.note_span(*source_offset);
+                Some(stmts)
+            }
+            JsStatement::RawMappedEffect {
+                code,
+                source_offset,
+            } => {
+                let mut stmts = self.parse_raw_statements(code, true)?;
+                if self.take_chunk_region(Some(*source_offset)).is_some() {
+                    return Some(stmts);
+                }
                 let sp = Span::new(*source_offset, *source_offset);
                 for s in &mut stmts {
                     *s.span_mut() = sp;
