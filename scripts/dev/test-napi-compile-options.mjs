@@ -452,6 +452,17 @@ function runCase(surface, compile, c) {
 
 console.log('\n# compile options');
 for (const c of COMPILE_CASES) runCase('compile', (s, o) => napi.compile(s, o), c);
+assert(
+	'compile.modernAst: requesting the unsupported AST format is rejected',
+	(() => {
+		try {
+			napi.compile(CSS_SRC, { filename: 'A.svelte', modernAst: true });
+			return false;
+		} catch (e) {
+			return String(e.message).includes('modernAst is not supported');
+		}
+	})()
+);
 covered.add('compile.modernAst');
 
 for (const key of ['accessors', 'immutable']) {

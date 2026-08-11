@@ -1010,8 +1010,12 @@ impl NapiCompileOptions {
         if let Some(v) = &self.hmr {
             opts.hmr = coerce_bool("hmr", v)?;
         }
-        if let Some(v) = &self.modern_ast {
-            opts.modern_ast = coerce_bool("modernAst", v)?;
+        if let Some(v) = &self.modern_ast
+            && coerce_bool("modernAst", v)?
+        {
+            return Err(napi::Error::from_reason(
+                "modernAst is not supported by rsvelte yet",
+            ));
         }
         if let Some(v) = &self.experimental {
             opts.experimental = coerce_experimental(v)?;
