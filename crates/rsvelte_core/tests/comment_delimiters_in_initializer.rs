@@ -88,6 +88,50 @@ fn the_server_keeps_both_operands_and_the_comment() {
     );
 }
 
+#[test]
+fn server_keeps_same_line_trailing_declaration_comments() {
+    let cases = [
+        (
+            "<script>\n\tlet a = foo(1) // call\n\tlet b = 2;\n</script>",
+            "let a = foo(1); // call\n\tlet b = 2;",
+        ),
+        (
+            "<script>\n\tlet a = 1 /* literal */\n\tlet b = 2;\n</script>",
+            "let a = 1; /* literal */\n\tlet b = 2;",
+        ),
+        (
+            "<script>\n\tlet a = $state(1) // rune\n\tlet b = 2;\n</script>",
+            "let a = 1; // rune\n\tlet b = 2;",
+        ),
+        (
+            "<script>\n\tlet a = 1 /* first */ // second\n\tlet b = 2;\n</script>",
+            "let a = 1; /* first */ // second\n\tlet b = 2;",
+        ),
+        (
+            "<script>\n\tlet a = foo(1) // last\n</script>",
+            "let a = foo(1); // last",
+        ),
+    ];
+
+    for (source, expected) in cases {
+        let out = compile_to(source, GenerateMode::Server);
+        assert!(
+            out.contains(expected),
+            "the trailing declaration comment moved:\n{out}"
+        );
+    }
+}
+
+#[test]
+fn server_keeps_a_removed_statement_comment_with_its_successor() {
+    let source = "<script>\n\t$effect(() => {}) // removed\n\tlet b = 2;\n</script>";
+    let out = compile_to(source, GenerateMode::Server);
+    assert!(
+        out.contains("// removed\n\t\tlet b = 2;"),
+        "the removed-statement comment did not remain with its successor:\n{out}"
+    );
+}
+
 /// A declaration is rebuilt from re-parsed SUB-slices (pattern, then init), so
 /// its nodes carry no coherent set of source positions and the comment
 /// carry-over can only collapse them onto one address — which drops every

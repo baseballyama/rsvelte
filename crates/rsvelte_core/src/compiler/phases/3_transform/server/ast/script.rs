@@ -348,6 +348,34 @@ fn reparse_origin(src: &str, start: u32, end: u32) -> u32 {
     start + (slice.len() - slice.trim_start().len()) as u32
 }
 
+/// Return the end of comments that trail `stmt_end` on its physical line.
+/// A comment before another statement belongs to that next statement instead.
+fn trailing_comment_end(src: &str, all: &[Comment], stmt_end: u32) -> u32 {
+    let mut end = stmt_end;
+    let mut found = false;
+    for comment in all {
+        if comment.span.start < end {
+            continue;
+        }
+        let gap = &src[end as usize..comment.span.start as usize];
+        if gap.contains(['\n', '\r']) || !gap.trim().is_empty() {
+            break;
+        }
+        end = comment.span.end;
+        found = true;
+    }
+    if !found {
+        return stmt_end;
+    }
+    let after = &src[end as usize..];
+    let line_end = after.find(['\n', '\r']).unwrap_or(after.len());
+    if after[..line_end].trim().is_empty() {
+        end
+    } else {
+        stmt_end
+    }
+}
+
 /// Resolve a top-level statement's registered region into the [`comments::Place`]
 /// its emitted statement is stamped with. `verbatim` is the source range the
 /// statement was re-parsed from, when it was re-parsed whole.
@@ -359,8 +387,9 @@ fn place_on_region(
     stmt: Span,
     verbatim: Option<Span>,
 ) -> Option<comments::Place> {
-    let region_end = if verbatim.is_some() {
-        stmt.end
+    let trailing_end = trailing_comment_end(src, all, stmt.end);
+    let region_end = if verbatim.is_some() || trailing_end > stmt.end {
+        trailing_end
     } else {
         stmt.start
     };
@@ -747,7 +776,12 @@ fn transform_script<'a>(
                 place.visit_statement(first);
             }
         }
-        region_start = stmt_span.end;
+        let trailing_end = trailing_comment_end(src, &ret.program.comments, stmt_span.end);
+        region_start = if verbatim.is_some() || trailing_end > stmt_span.end {
+            trailing_end
+        } else {
+            stmt_span.end
+        };
     }
 
     // Lower `$state` / `$derived` class-field initializers in every emitted
@@ -3073,7 +3107,12 @@ fn transform_script_legacy<'a>(
                 }
             }
         }
-        region_start = stmt_span.end;
+        let trailing_end = trailing_comment_end(src, &ret.program.comments, stmt_span.end);
+        region_start = if verbatim.is_some() || trailing_end > stmt_span.end {
+            trailing_end
+        } else {
+            stmt_span.end
+        };
     }
 
     // Topologically reorder the reactive `$:` statements so each runs after the
