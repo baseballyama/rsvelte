@@ -905,35 +905,9 @@ fn transform_client_with_visitors(
         ));
     }
 
-    // Detect reactive statements ($:) in the instance script
-    // Since analysis.reactive_statements is not populated yet, we scan the script directly.
-    // A `$:` is reactive only at the TOP LEVEL of the instance script (brace depth 0);
-    // a `$:` inside a function/block body is a plain labeled statement (upstream only
-    // treats top-level `$:` as reactive). We approximate nesting with a brace counter.
-    let has_reactive_statements = if let Some(ref content) = analysis.instance_script_content {
-        let mut depth: i32 = 0;
-        let mut found = false;
-        for line in content.raw.lines() {
-            let trimmed = line.trim();
-            if depth <= 0
-                && trimmed.starts_with("$:")
-                && (trimmed.len() == 2 || !trimmed.chars().nth(2).unwrap_or(' ').is_alphanumeric())
-            {
-                found = true;
-                break;
-            }
-            for c in line.chars() {
-                match c {
-                    '{' => depth += 1,
-                    '}' => depth -= 1,
-                    _ => {}
-                }
-            }
-        }
-        found
-    } else {
-        false
-    };
+    // Phase 2 records only top-level legacy `$:` statements, without text
+    // heuristics that confuse braces in comments or strings.
+    let has_reactive_statements = !analysis.legacy_reactive_statements.is_empty();
 
     // Determine if we need context injection ($.push/$.pop)
     // Reference: transform-client.js lines 280-306, 366-370
