@@ -743,6 +743,14 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             // `$.derived(` — in dev-mode-disabled SSR rsvelte never emits
             // `$.tag`, but be permissive in case future builds do.
             let mut left = pos;
+            if *pat == b"$.async_derived(" {
+                while left > 0 && bytes[left - 1].is_ascii_whitespace() {
+                    left -= 1;
+                }
+                if left >= 5 && &bytes[left - 5..left] == b"await" {
+                    left -= 5;
+                }
+            }
             // Skip back through `$.tag(` if present.
             // (Not currently emitted in SSR; left in for future-proofing.)
             const TAG: &[u8] = b"$.tag(";
