@@ -95,6 +95,11 @@ const RATCHETS = [
 		key: 'warning-position-known-failures.<target>.json',
 		jsons: perTarget('warning-position-known-failures'),
 	},
+	{
+		doc: 'warning-message-known-failures.md',
+		key: 'warning-message-known-failures.<target>.json',
+		jsons: perTarget('warning-message-known-failures'),
+	},
 	// Declared per target rather than with the `<target>` placeholder: `server`
 	// legitimately holds one entry fewer (an error only the client codegen
 	// raises), and a placeholder would report that as a drift to fix.

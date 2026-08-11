@@ -85,7 +85,7 @@ distinct warning codes seen         74   (of 89 in VALID_WARNING_CODES)
   — codes already agree by then. It is stripped so a code-level defect cannot leak into
   this ratchet, and so the two gates share one definition of "message".
 
-## Current baseline: 0 entries per target
+## Current baseline: `warning-message-known-failures.<target>.json`, 0 entries per target
 
 Empty because the corpus says so, not because the gate was scoped until it was. The
 first full run found **exactly one** message divergence in 14,131 entries, on all three
