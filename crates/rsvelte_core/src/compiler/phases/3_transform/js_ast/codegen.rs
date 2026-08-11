@@ -181,9 +181,13 @@ impl<'a> JsCodegen<'a> {
         let mut mappings = Vec::with_capacity(self.raw_spans.len());
 
         for span in &self.raw_spans {
-            let (gen_line, gen_col) = offset_to_line_col(&output_line_starts, span.output_offset);
-            let (orig_line, orig_col) =
-                offset_to_line_col(&source_line_starts, span.source_start as usize);
+            let (gen_line, gen_col) =
+                offset_to_line_col_utf16(&self.output, &output_line_starts, span.output_offset);
+            let (orig_line, orig_col) = offset_to_line_col_utf16(
+                source_code,
+                &source_line_starts,
+                span.source_start as usize,
+            );
 
             mappings.push(SourceMapping {
                 gen_line: gen_line as u32,
@@ -2610,6 +2614,21 @@ pub fn offset_to_line_col(line_starts: &[usize], offset: usize) -> (usize, usize
     }
 }
 
+/// Convert a byte offset to a source-map line and UTF-16 column.
+///
+/// Source Map v3 positions use JavaScript string columns, so an astral
+/// character occupies two units even though its Rust UTF-8 representation is
+/// four bytes.
+pub fn offset_to_line_col_utf16(
+    source: &str,
+    line_starts: &[usize],
+    offset: usize,
+) -> (usize, usize) {
+    let (line, _) = offset_to_line_col(line_starts, offset);
+    let line_start = line_starts[line];
+    (line, source[line_start..offset].encode_utf16().count())
+}
+
 /// Encode a list of source mappings into a VLQ-encoded mappings string.
 pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
     if mappings.is_empty() {
@@ -3107,6 +3126,21 @@ mod tests {
             generate_sourcemap_json("out.js", "App.svelte", Some("<h1>\"x\"</h1>"), "AAAA", &[]);
         let map: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(map["sourcesContent"], serde_json::json!(["<h1>\"x\"</h1>"]));
+    }
+
+    #[test]
+    fn sourcemap_columns_count_astral_characters_as_two_utf16_units() {
+        let source = "🎉anchor\n";
+        let starts = build_line_starts(source);
+
+        assert_eq!(
+            offset_to_line_col_utf16(source, &starts, "🎉".len()),
+            (0, 2)
+        );
+        assert_eq!(
+            offset_to_line_col_utf16(source, &starts, source.len()),
+            (1, 0)
+        );
     }
 
     #[test]

@@ -734,7 +734,7 @@ impl std::error::Error for TransformError {}
 /// where framework code tokens (appearing early in the generated output) can
 /// consume source positions intended for user-code tokens that appear later.
 fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::{build_line_starts, offset_to_line_col};
+    use js_ast::codegen::{build_line_starts, offset_to_line_col_utf16};
 
     let gen_line_starts = build_line_starts(generated);
     let src_line_starts = build_line_starts(source);
@@ -763,16 +763,6 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
     });
 
     let mut mappings = Vec::new();
-    // Generated offsets arrive in non-decreasing order, so a forward cursor over
-    // the line table answers what `offset_to_line_col` would binary-search for.
-    let mut gen_cursor = 0usize;
-    let mut gen_line_col = |offset: usize| {
-        while gen_cursor + 1 < gen_line_starts.len() && gen_line_starts[gen_cursor + 1] <= offset {
-            gen_cursor += 1;
-        }
-        (gen_cursor, offset - gen_line_starts[gen_cursor])
-    };
-
     for_each_token(generated, |text, gen_offset| {
         // Skip framework-generated tokens
         if should_skip_token(text) {
@@ -791,8 +781,8 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
         let src_pos = slot.positions[slot.consumed as usize] as usize;
         slot.consumed += 1;
 
-        let (gen_line, gen_col) = gen_line_col(gen_offset);
-        let (orig_line, orig_col) = offset_to_line_col(&src_line_starts, src_pos);
+        let (gen_line, gen_col) = offset_to_line_col_utf16(generated, &gen_line_starts, gen_offset);
+        let (orig_line, orig_col) = offset_to_line_col_utf16(source, &src_line_starts, src_pos);
 
         // Start of token
         mappings.push(js_ast::codegen::SourceMapping {
@@ -806,13 +796,14 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
 
         // End of token
         let end_gen = gen_offset + text.len();
-        let (gen_line_end, gen_col_end) = gen_line_col(end_gen);
+        let (gen_line_end, gen_col_end) =
+            offset_to_line_col_utf16(generated, &gen_line_starts, end_gen);
         // A token without a newline cannot cross a line boundary, so its end
         // sits on the same source line as its start.
         let (orig_line_end, orig_col_end) = if text.as_bytes().contains(&b'\n') {
-            offset_to_line_col(&src_line_starts, src_pos + text.len())
+            offset_to_line_col_utf16(source, &src_line_starts, src_pos + text.len())
         } else {
-            (orig_line, orig_col + text.len())
+            (orig_line, orig_col + text.encode_utf16().count())
         };
         mappings.push(js_ast::codegen::SourceMapping {
             gen_line: gen_line_end as u32,
@@ -837,7 +828,7 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
 /// This function creates mappings from the generated runtime call positions
 /// back to the original rune positions in the source code.
 fn generate_rune_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::{build_line_starts, offset_to_line_col};
+    use js_ast::codegen::{build_line_starts, offset_to_line_col_utf16};
 
     // Rune -> runtime transform pairs: (source_pattern, generated_pattern)
     let rune_transforms: &[(&str, &str)] = &[
@@ -900,8 +891,10 @@ fn generate_rune_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen:
 
         // Match 1:1 in order
         for (gen_pos, src_pos) in gen_positions.iter().zip(src_positions.iter()) {
-            let (gen_line, gen_col) = offset_to_line_col(&gen_line_starts, *gen_pos);
-            let (orig_line, orig_col) = offset_to_line_col(&src_line_starts, *src_pos);
+            let (gen_line, gen_col) =
+                offset_to_line_col_utf16(generated, &gen_line_starts, *gen_pos);
+            let (orig_line, orig_col) =
+                offset_to_line_col_utf16(source, &src_line_starts, *src_pos);
 
             // Start mapping
             mappings.push(js_ast::codegen::SourceMapping {
@@ -916,8 +909,10 @@ fn generate_rune_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen:
             // End mapping
             let gen_end = gen_pos + gen_pattern.len();
             let src_end = src_pos + src_pattern.len();
-            let (gen_line_end, gen_col_end) = offset_to_line_col(&gen_line_starts, gen_end);
-            let (orig_line_end, orig_col_end) = offset_to_line_col(&src_line_starts, src_end);
+            let (gen_line_end, gen_col_end) =
+                offset_to_line_col_utf16(generated, &gen_line_starts, gen_end);
+            let (orig_line_end, orig_col_end) =
+                offset_to_line_col_utf16(source, &src_line_starts, src_end);
             mappings.push(js_ast::codegen::SourceMapping {
                 gen_line: gen_line_end as u32,
                 gen_col: gen_col_end as u32,

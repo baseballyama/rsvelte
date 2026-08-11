@@ -529,7 +529,7 @@ fn generate_css_sourcemap(
 ) -> Option<String> {
     use super::js_ast::codegen::{
         SourceMapping, build_line_starts, encode_vlq_mappings, generate_sourcemap_json,
-        get_source_name, offset_to_line_col,
+        get_source_name, offset_to_line_col_utf16,
     };
 
     let css_output_filename = options.css_output_filename.as_deref();
@@ -560,12 +560,12 @@ fn generate_css_sourcemap(
     let mut cursor = 0usize;
 
     let advance = |from: usize, to: usize, gen_line: &mut u32, gen_col: &mut u32| {
-        for &byte in &code[from..to] {
-            if byte == b'\n' {
+        for c in writer.text[from..to].chars() {
+            if c == '\n' {
                 *gen_line += 1;
                 *gen_col = 0;
             } else {
-                *gen_col += 1;
+                *gen_col += c.len_utf16() as u32;
             }
         }
     };
@@ -575,15 +575,18 @@ fn generate_css_sourcemap(
         advance(cursor, gen_start, &mut gen_line, &mut gen_col);
         cursor = gen_start + len as usize;
 
-        let (mut line, mut column) = offset_to_line_col(&source_line_starts, src_start as usize);
+        let (mut line, mut column) =
+            offset_to_line_col_utf16(source, &source_line_starts, src_start as usize);
         let mut first = true;
-        for offset in src_start..src_start + len {
-            if source.as_bytes()[offset as usize] == b'\n' {
+        let mut offset = src_start;
+        for c in source[offset as usize..(src_start + len) as usize].chars() {
+            if c == '\n' {
                 line += 1;
                 column = 0;
                 gen_line += 1;
                 gen_col = 0;
                 first = true;
+                offset += c.len_utf8() as u32;
                 continue;
             }
             if first || writer.marks.contains(&offset) {
@@ -596,9 +599,10 @@ fn generate_css_sourcemap(
                     name: None,
                 });
             }
-            column += 1;
-            gen_col += 1;
+            column += c.len_utf16();
+            gen_col += c.len_utf16() as u32;
             first = false;
+            offset += c.len_utf8() as u32;
         }
     }
     advance(cursor, code.len(), &mut gen_line, &mut gen_col);

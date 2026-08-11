@@ -308,19 +308,20 @@ fn decode_map(json: &str) -> Option<DecodedMap> {
 }
 
 // ============================================================================
-// Character locating (mirrors `locate-character`)
+// UTF-16 locating (mirrors `locate-character`)
 // ============================================================================
 
-/// 0-based line / column of a character offset, plus the offset itself.
+/// 0-based line / column of a UTF-16 offset, plus the offset itself.
 #[derive(Clone, Copy, Debug)]
 struct Loc {
     line: usize,
     column: usize,
-    character: usize,
+    utf16_offset: usize,
 }
 
-/// Character offset of the `nth` (0-based) occurrence of `needle`, mirroring
-/// upstream's repeated `indexOf(str, prev + 1)`.
+/// UTF-16 offset of the `nth` (0-based) occurrence of `needle`, mirroring
+/// upstream's repeated `indexOf(str, prev + 1)`. JavaScript strings, source-map
+/// columns, and `locate-character` all use UTF-16 code units.
 fn find_nth(haystack: &str, needle: &str, nth: usize) -> Option<usize> {
     let mut byte_from = 0usize;
     let mut found = None;
@@ -330,32 +331,34 @@ fn find_nth(haystack: &str, needle: &str, nth: usize) -> Option<usize> {
         byte_from = at + needle.chars().next().map(char::len_utf8).unwrap_or(1);
     }
     let byte = found?;
-    Some(haystack[..byte].chars().count())
+    Some(haystack[..byte].encode_utf16().count())
 }
 
-fn locate(source: &str, character: usize) -> Loc {
+fn locate(source: &str, utf16_offset: usize) -> Loc {
     let mut line = 0usize;
     let mut column = 0usize;
-    for (i, c) in source.chars().enumerate() {
-        if i == character {
+    let mut offset = 0usize;
+    for c in source.chars() {
+        if offset == utf16_offset {
             break;
         }
         if c == '\n' {
             line += 1;
             column = 0;
         } else {
-            column += 1;
+            column += c.len_utf16();
         }
+        offset += c.len_utf16();
     }
     Loc {
         line,
         column,
-        character,
+        utf16_offset,
     }
 }
 
-fn char_at(source: &str, character: usize) -> Option<char> {
-    source.chars().nth(character)
+fn utf16_unit_at(source: &str, utf16_offset: usize) -> Option<u16> {
+    source.encode_utf16().nth(utf16_offset)
 }
 
 // ============================================================================
@@ -420,11 +423,16 @@ fn check_anchor(source: &str, output: &str, map: &DecodedMap, entry: &Anchor) ->
     // runs to the end of the generated line. Running past the end of the whole
     // output is *not* tolerated: upstream indexes past the end, gets `undefined`,
     // and its `/[\r\n]/` test fails — so `None` is a failure here too.
-    let generated_end = generated.column + generated_str.chars().count();
+    let generated_end = generated.column + generated_str.encode_utf16().count();
     let Some(end_segment) = segments.iter().find(|s| s[0] == generated_end as i64) else {
         let last_col = segments.last().map(|s| s[0]).unwrap_or(0);
-        let next = char_at(output, generated.character + generated_str.chars().count());
-        if last_col > generated_end as i64 || !matches!(next, Some('\n') | Some('\r')) {
+        let next = utf16_unit_at(
+            output,
+            generated.utf16_offset + generated_str.encode_utf16().count(),
+        );
+        if last_col > generated_end as i64
+            || (next != Some(b'\n' as u16) && next != Some(b'\r' as u16))
+        {
             return AnchorOutcome::Failed(format!(
                 "no end segment at {}:{} for '{}'",
                 generated.line, generated_end, entry.str
@@ -439,7 +447,7 @@ fn check_anchor(source: &str, output: &str, map: &DecodedMap, entry: &Anchor) ->
         ));
     }
 
-    let expected_end_column = original.column + entry.str.chars().count();
+    let expected_end_column = original.column + entry.str.encode_utf16().count();
     if end_segment[2] != original.line as i64 || end_segment[3] != expected_end_column as i64 {
         return AnchorOutcome::Failed(format!(
             "end of '{}' maps to {}:{}, expected {}:{}",
@@ -470,7 +478,7 @@ fn out_of_range(map: &DecodedMap, fallback_source: &str) -> (usize, usize) {
                 .and_then(|c| c.as_deref())
                 .unwrap_or(fallback_source);
             text.split('\n')
-                .map(|l| l.trim_end_matches('\r').chars().count())
+                .map(|l| l.trim_end_matches('\r').encode_utf16().count())
                 .collect()
         })
         .collect();
@@ -1058,4 +1066,34 @@ fn sourcemap_gate() {
         "{} stale entries in compatibility/sourcemap-known-failures.json (they already pass)",
         fixed.len()
     );
+}
+
+#[test]
+fn astral_anchor_columns_match_upstreams_utf16_locator() {
+    let source = "x🎉foo\n";
+    let output = "🎉foo\n";
+    let map = DecodedMap {
+        sources: vec!["input.svelte".to_string()],
+        sources_content: vec![Some(source.to_string())],
+        // `foo` begins after one astral character in the generated line and
+        // after `x` plus that character in the original line.
+        lines: vec![vec![vec![2, 0, 0, 3], vec![5, 0, 0, 6]]],
+    };
+
+    assert!(matches!(
+        check_anchor(source, output, &map, &a("foo")),
+        AnchorOutcome::Ok
+    ));
+}
+
+#[test]
+fn astral_original_columns_are_in_range_in_utf16_units() {
+    let source = "🎉\n";
+    let map = DecodedMap {
+        sources: vec!["input.svelte".to_string()],
+        sources_content: vec![Some(source.to_string())],
+        lines: vec![vec![vec![0, 0, 0, 2]]],
+    };
+
+    assert_eq!(out_of_range(&map, source), (0, 1));
 }
