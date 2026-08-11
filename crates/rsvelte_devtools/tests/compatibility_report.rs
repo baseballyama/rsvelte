@@ -484,6 +484,7 @@ fn run_css_tests() -> CategoryResult {
         let (tx, rx) = std::sync::mpsc::channel();
         let input_clone = input.clone();
         let name_clone = name.clone();
+        let dev = runtime_fixture_options("css", &name).dev;
 
         std::thread::spawn(move || {
             let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -491,6 +492,7 @@ fn run_css_tests() -> CategoryResult {
                     generate: GenerateMode::Client,
                     filename: Some("input.svelte".to_string()),
                     css: CssMode::External,
+                    dev,
                     ..Default::default()
                 };
                 compile(&input_clone, options)
@@ -1135,6 +1137,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 generate: GenerateMode::Server,
                 filename: Some(input_filename.clone()),
                 css: CssMode::External,
+                dev: fixture_options.dev,
                 experimental: ExperimentalOptions {
                     r#async: fixture_options.r#async,
                 },
@@ -1424,6 +1427,24 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 // ============================================================================
 // Main Test
 // ============================================================================
+
+#[test]
+fn report_css_honors_fixture_dev_options() {
+    let result = run_css_tests();
+    assert!(
+        result.samples.iter().any(|sample| {
+            sample.name == "empty-rule-dev" && sample.status == TestStatus::Passed
+        })
+    );
+}
+
+#[test]
+fn report_sourcemaps_honor_fixture_dev_options() {
+    let result = run_runtime_category_tests("sourcemaps");
+    assert!(result.samples.iter().any(|sample| {
+        sample.name == "css-injected-map" && sample.status == TestStatus::Passed
+    }));
+}
 
 // `#[ignore]` by default: this is a *reporting* artifact, not a correctness
 // gate. It re-runs every category (parser, css, validator, runtime, …) purely
