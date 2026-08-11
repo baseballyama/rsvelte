@@ -243,6 +243,7 @@ struct Synth {
     /// can tell whether it sits after those comments in the *source* (which is
     /// the order upstream compares in) and not merely after them in the buffer.
     last_region_source: Option<u32>,
+    last_region_ends_with_removed_inspect_comment: bool,
     saw_comments: bool,
     /// Upper bound on every span produced outside a chunk region.
     max_span: u32,
@@ -266,6 +267,7 @@ impl Synth {
             loc_map: Vec::new(),
             pending_region: None,
             last_region_source: None,
+            last_region_ends_with_removed_inspect_comment: false,
             saw_comments: false,
             max_span: 0,
         }
@@ -368,6 +370,21 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         };
         let synth = self.synth.borrow();
         if !synth.enabled || synth.last_region_source.is_none_or(|chunk| anchor <= chunk) {
+            return SPAN;
+        }
+        let at = synth.cursor();
+        Span::new(at, at)
+    }
+
+    fn trailing_comment_anchor(&self, source_offset: Option<u32>) -> Span {
+        let Some(anchor) = source_offset else {
+            return SPAN;
+        };
+        let synth = self.synth.borrow();
+        if !synth.enabled
+            || !synth.last_region_ends_with_removed_inspect_comment
+            || synth.last_region_source.is_none_or(|chunk| anchor <= chunk)
+        {
             return SPAN;
         }
         let at = synth.cursor();
@@ -840,6 +857,11 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         };
 
         let mut declarators = ArenaVec::with_capacity_in(decl.declarations.len(), &self.ab);
+        let declaration_span = self.trailing_comment_anchor(
+            decl.declarations
+                .first()
+                .and_then(|declarator| declarator.comment_anchor),
+        );
         for d in &decl.declarations {
             // Identifier or destructuring binding pattern; `binding_pattern`
             // bails on anything it cannot faithfully reproduce.
@@ -848,19 +870,18 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(id) => Some(self.expr_id(id)?),
                 None => None,
             };
+            let span = if declaration_span == SPAN {
+                self.comment_anchor(d.comment_anchor)
+            } else {
+                SPAN
+            };
             declarators.push(VariableDeclarator::new(
-                self.comment_anchor(d.comment_anchor),
-                kind,
-                binding,
-                None,
-                init,
-                false,
-                &self.ab,
+                span, kind, binding, None, init, false, &self.ab,
             ));
         }
 
         Some(VariableDeclaration::boxed(
-            SPAN,
+            declaration_span,
             kind,
             declarators,
             false,
@@ -1268,7 +1289,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// `pad + text` buffer so its spans land at the chunk's own region of the
     /// unified comment buffer, and its comments are collected there.
     fn parse_chunk(&self, text: &str) -> Option<Vec<Statement<'a>>> {
-        let owned = self.ab.allocator().alloc_str(text);
+        let removed_inspect = text.contains("/* $$inspect_removed$$ */");
+        let text = text.replace("/* $$inspect_removed$$ */", "");
+        let owned = self.ab.allocator().alloc_str(&text);
         let ret = oxc_parser::Parser::new(self.ab.allocator(), owned, oxc_span::SourceType::mjs())
             .parse();
         if !ret.diagnostics.is_empty() {
@@ -1299,7 +1322,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         // it, which is quadratic in the generated code size.
         let mut padded = String::with_capacity(1 + text.len());
         padded.push('\n');
-        padded.push_str(text);
+        padded.push_str(&text);
         let owned = self.ab.allocator().alloc_str(&padded);
         let ret = oxc_parser::Parser::new(self.ab.allocator(), owned, oxc_span::SourceType::mjs())
             .parse();
@@ -1314,7 +1337,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             shifter.visit_statement(stmt);
         }
         let mut synth = self.synth.borrow_mut();
-        synth.source.push_str(text);
+        synth.source.push_str(&text);
         synth.source.push('\n');
         synth
             .comments
@@ -1326,6 +1349,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 comment
             }));
         synth.pending_region = Some((base, base + text.len() as u32));
+        synth.last_region_ends_with_removed_inspect_comment = removed_inspect
+            && ret
+                .program
+                .comments
+                .last()
+                .is_some_and(|comment| text[comment.span.end as usize - 1..].trim().is_empty());
         drop(synth);
         Some(stmts)
     }

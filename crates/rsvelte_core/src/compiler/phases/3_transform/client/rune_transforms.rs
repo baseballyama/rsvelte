@@ -254,9 +254,19 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                     // and later transforms, then gets converted to ;; before OXC processing
                     return Cow::Owned(format!("/* $$async_hole:{} */", args));
                 } else {
+                    let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
+                    let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
+                        "/* $$inspect_removed$$ */"
+                    } else {
+                        ""
+                    };
                     // Remove just the $inspect(...) part but keep other code on the line
-                    result =
-                        Cow::Owned(format!("{}{}", &result[..pos], &result[pos + total_end..]));
+                    result = Cow::Owned(format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        marker,
+                        &result[pos + total_end..]
+                    ));
                 }
             }
         }

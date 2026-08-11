@@ -27,6 +27,29 @@ fn same_line_legacy_export_declaration_does_not_consume_the_next_statement() {
 }
 
 #[test]
+fn block_comment_after_final_inspect_precedes_generated_element_variable() {
+    let result = crate::compiler::compile(
+        "<script>\n\tlet a = 1;\n\t$inspect(a); /* c */\n</script>\n\n<p>{a}</p>\n",
+        crate::compiler::CompileOptions {
+            filename: Some("inspect-trailing-block.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains("/* c */\n\tvar p = root();"),
+        "the orphaned comment must flush before the generated declaration:\n{}",
+        result.js.code
+    );
+    assert!(
+        !result.js.code.contains("var /* c */"),
+        "a comment must not be placed between `var` and its declarator:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn invalidation_single_dependency_keeps_sequence_parentheses() {
     let result = crate::compiler::compile(
         "<script>let list = [1];</script>{#each list as item}<input bind:value={item}>{/each}",
