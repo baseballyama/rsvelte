@@ -42,7 +42,7 @@ from the sweep so it can be exercised without the NAPI binding;
 `scripts/dev/test-css-prune-sweep-warning-verdict.mjs` pins it in CI and fails on
 a comparator that stops looking at warnings.
 
-## Divergence clusters (`css-prune-known-failures.json`, 4 entries)
+## Divergence clusters (`css-prune-known-failures.json`, 3 entries)
 
 All four are **`css.code`-only**: the two compilers agree about which selectors
 are used, and the `css_unused_selector` sets are identical. They are not prune
