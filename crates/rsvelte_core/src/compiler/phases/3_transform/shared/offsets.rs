@@ -8,10 +8,8 @@
 //! would restore exactly the silence this removes. Every crossing goes through a
 //! named method and stays greppable.
 //!
-//! Two things this does **not** catch. `Add<usize>` accepts any `usize`, so
-//! `char_offset + name.len()` — a char offset advanced by a byte length — still
-//! compiles. And neither type carries provenance, so an offset measured against a
-//! trimmed copy still slices the original without complaint.
+//! Neither offset nor length carries provenance, so a value measured against a
+//! trimmed copy can still be used against the original string.
 
 use std::ops::{Add, Sub};
 
@@ -20,8 +18,46 @@ use std::ops::{Add, Sub};
 pub struct ByteOffset(usize);
 
 /// Offset in `char`s. Only these may index a `[char]`.
+///
+/// ```compile_fail
+/// use rsvelte_core::compiler::phases::phase3_transform::shared::offsets::CharOffset;
+///
+/// let _ = CharOffset::new(4) + "$名前".len();
+/// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct CharOffset(usize);
+
+/// Length in bytes. Only this may advance a [`ByteOffset`].
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct ByteLen(usize);
+
+/// Length in `char`s. Only this may advance a [`CharOffset`].
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct CharLen(usize);
+
+impl ByteLen {
+    pub const ONE: Self = Self(1);
+
+    pub fn of(s: &str) -> Self {
+        Self(s.len())
+    }
+
+    pub fn get(self) -> usize {
+        self.0
+    }
+}
+
+impl CharLen {
+    pub const ONE: Self = Self(1);
+
+    pub fn of(s: &str) -> Self {
+        Self(s.chars().count())
+    }
+
+    pub fn get(self) -> usize {
+        self.0
+    }
+}
 
 impl ByteOffset {
     pub const ZERO: Self = Self(0);
@@ -36,7 +72,7 @@ impl ByteOffset {
 
     /// Byte offset one past the end of `s`.
     pub fn end_of(s: &str) -> Self {
-        Self(s.len())
+        Self(ByteLen::of(s).get())
     }
 
     pub fn before(self, s: &str) -> &str {
@@ -49,6 +85,10 @@ impl ByteOffset {
 
     pub fn to(self, end: Self, s: &str) -> &str {
         &s[self.0..end.0]
+    }
+
+    pub fn next(self) -> Self {
+        self + ByteLen::ONE
     }
 }
 
@@ -67,37 +107,36 @@ impl CharOffset {
         chars.get(self.0).copied()
     }
 
-    /// Length of `s` counted in the same unit, for comparing against an offset.
-    pub fn len_of(s: &str) -> Self {
-        Self(s.chars().count())
+    pub fn next(self) -> Self {
+        self + CharLen::ONE
     }
 }
 
-impl Add<usize> for ByteOffset {
+impl Add<ByteLen> for ByteOffset {
     type Output = Self;
-    fn add(self, n: usize) -> Self {
-        Self(self.0 + n)
+    fn add(self, n: ByteLen) -> Self {
+        Self(self.0 + n.0)
     }
 }
 
-impl Sub<usize> for ByteOffset {
+impl Sub<ByteLen> for ByteOffset {
     type Output = Self;
-    fn sub(self, n: usize) -> Self {
-        Self(self.0 - n)
+    fn sub(self, n: ByteLen) -> Self {
+        Self(self.0 - n.0)
     }
 }
 
-impl Add<usize> for CharOffset {
+impl Add<CharLen> for CharOffset {
     type Output = Self;
-    fn add(self, n: usize) -> Self {
-        Self(self.0 + n)
+    fn add(self, n: CharLen) -> Self {
+        Self(self.0 + n.0)
     }
 }
 
-impl Sub<usize> for CharOffset {
+impl Sub<CharLen> for CharOffset {
     type Output = Self;
-    fn sub(self, n: usize) -> Self {
-        Self(self.0 - n)
+    fn sub(self, n: CharLen) -> Self {
+        Self(self.0 - n.0)
     }
 }
 
@@ -158,5 +197,13 @@ mod tests {
         let s = "あ";
         let table = CharToByte::new(s);
         assert_eq!(table.byte(CharOffset::new(9)), ByteOffset::new(3));
+    }
+
+    #[test]
+    fn lengths_only_advance_offsets_in_the_same_unit() {
+        let chars = CharOffset::new(4) + CharLen::of("$名前");
+        let bytes = ByteOffset::new(4) + ByteLen::of("$名前");
+        assert_eq!(chars.get(), 7);
+        assert_eq!(bytes.get(), 11);
     }
 }

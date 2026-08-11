@@ -360,12 +360,12 @@ pub(super) fn find_and_transform_one_destructure(
         // Compute rhs_end for each candidate to determine containment
         let rhs_ends: Vec<usize> = candidates
             .iter()
-            .map(|c| find_destructure_rhs_end(statement, c.eq_pos + 1).get())
+            .map(|c| find_destructure_rhs_end(statement, c.eq_pos.next()).get())
             .collect();
 
         let mut selected = 0; // default to first
         'outer: for (ci, c) in candidates.iter().enumerate() {
-            let rhs_start = (c.eq_pos + 1).get();
+            let rhs_start = c.eq_pos.next().get();
             let rhs_end = rhs_ends[ci];
             // Check if any other candidate's close_pos is inside this candidate's RHS range
             let mut contains_other = false;
