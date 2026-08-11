@@ -898,7 +898,10 @@ pub(crate) fn transform_module_class_fields_client(script: &str) -> String {
     transform_class_fields_client_with_options(script, false)
 }
 
-fn transform_class_fields_client_with_options(script: &str, retain_jsdoc: bool) -> String {
+fn transform_class_fields_client_with_options(
+    script: &str,
+    retain_all_public_jsdoc: bool,
+) -> String {
     // Check if script contains a class with $state or $derived fields
     if memmem::find(script.as_bytes(), b"class ").is_none()
         || (memmem::find(script.as_bytes(), b"$state").is_none()
@@ -1277,19 +1280,19 @@ fn transform_class_fields_client_with_options(script: &str, retain_jsdoc: bool) 
         return format!(
             "{}{}",
             before_and_current,
-            transform_class_fields_client_with_options(after_class_body, retain_jsdoc)
+            transform_class_fields_client_with_options(after_class_body, retain_all_public_jsdoc)
         );
     }
 
     // Deconflict private backing names for public fields
+    let mut retained_public_jsdoc = false;
     for field in &mut fields {
-        if !retain_jsdoc
-            && field
-                .trailing_comment
-                .as_deref()
-                .is_some_and(|comment| comment.trim_start().starts_with("/**"))
-        {
-            field.trailing_comment = None;
+        if !retain_all_public_jsdoc && !field.is_private {
+            if retained_public_jsdoc {
+                field.trailing_comment = None;
+            } else {
+                retained_public_jsdoc = true;
+            }
         }
         if !field.is_private {
             let mut deconflicted = field.private_backing_name.clone();
@@ -1538,7 +1541,7 @@ fn transform_class_fields_client_with_options(script: &str, retain_jsdoc: bool) 
 
     // Recursively process remaining classes in the script
     let after_class_transformed =
-        transform_class_fields_client_with_options(after_class_body, retain_jsdoc);
+        transform_class_fields_client_with_options(after_class_body, retain_all_public_jsdoc);
 
     // Check if this is a `new class ...` expression that needs wrapping
     // `new class Foo { ... }` -> `new (class Foo { ... })()`

@@ -1749,8 +1749,41 @@ fn module_async_derived_instruments_its_thunk_in_dev() {
 }
 
 #[test]
-fn module_class_derived_drops_jsdoc_with_the_removed_field() {
-    let source = "let wc_state = $state.raw({ base: '' });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n})();";
+fn module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
+    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();";
+    for dev in [false, true] {
+        let result = crate::compiler::compile(
+            &format!("<script module>\n{source}\n</script>"),
+            crate::compiler::CompileOptions {
+                filename: Some("adapter.svelte.ts".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(
+            result
+                .js
+                .code
+                .contains("$.derived((/** URL to the web container instance. */"),
+            "the first public field JSDoc must stay on its derived arrow (dev={dev}):\n{}",
+            result.js.code
+        );
+        assert!(
+            !result
+                .js
+                .code
+                .contains("Errors from within the web container instance."),
+            "later public field JSDoc has no generated source anchor (dev={dev}):\n{}",
+            result.js.code
+        );
+    }
+}
+
+#[test]
+fn compile_module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
+    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();";
     for dev in [false, true] {
         let result = crate::compiler::compile_module(
             source,
@@ -1763,13 +1796,19 @@ fn module_class_derived_drops_jsdoc_with_the_removed_field() {
         .unwrap();
 
         assert!(
-            result.js.code.contains("$.derived(() => wc_state.base)"),
-            "module class field should lower to a plain derived thunk (dev={dev}):\n{}",
+            result
+                .js
+                .code
+                .contains("$.derived((/** URL to the web container instance. */"),
+            "the first public field JSDoc must stay on its derived arrow (dev={dev}):\n{}",
             result.js.code
         );
         assert!(
-            !result.js.code.contains("URL to the web container instance"),
-            "JSDoc for the removed field must not leak into module output (dev={dev}):\n{}",
+            !result
+                .js
+                .code
+                .contains("Errors from within the web container instance."),
+            "later public field JSDoc has no generated source anchor (dev={dev}):\n{}",
             result.js.code
         );
     }

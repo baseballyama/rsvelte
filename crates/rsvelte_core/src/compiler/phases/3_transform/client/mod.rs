@@ -410,10 +410,10 @@ pub(crate) fn print_module_program(
             }
         })
     {
-        return Ok(format!("{header}\n{code}"));
+        return Ok(format!("{header}\n{}", rehome_derived_jsdoc(&code)));
     }
     generate(&program, &arena)
-        .map(|code| format!("{header}\n{code}"))
+        .map(|code| format!("{header}\n{}", rehome_derived_jsdoc(&code)))
         .map_err(TransformError::CodeGen)
 }
 
