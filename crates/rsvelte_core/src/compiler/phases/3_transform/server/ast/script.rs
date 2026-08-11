@@ -376,6 +376,23 @@ fn trailing_comment_end(src: &str, all: &[Comment], stmt_end: u32) -> u32 {
     }
 }
 
+/// The legacy reactive label itself may contain a block, or directly wrap an
+/// `if` whose branch does. Those retained blocks are the locations that rewind
+/// esrap's comment cursor after the label has been reordered.
+fn reactive_body_has_direct_block(stmt: &Statement<'_>) -> bool {
+    match stmt {
+        Statement::BlockStatement(_) => true,
+        Statement::IfStatement(if_stmt) => {
+            matches!(&if_stmt.consequent, Statement::BlockStatement(_))
+                || if_stmt
+                    .alternate
+                    .as_ref()
+                    .is_some_and(|alternate| matches!(alternate, Statement::BlockStatement(_)))
+        }
+        _ => false,
+    }
+}
+
 /// Resolve a top-level statement's registered region into the [`comments::Place`]
 /// its emitted statement is stamped with. `verbatim` is the source range the
 /// statement was re-parsed from, when it was re-parsed whole.
@@ -2863,6 +2880,7 @@ fn transform_script_legacy<'a>(
     // comments are re-homed onto the next survivor instead of dying with it.
     let mut region_start: u32 = 0;
     let mut reactive_leading_comment_pending = false;
+    let mut deferred_reactive_comment: Option<usize> = None;
 
     for stmt in ret.program.body.iter() {
         let stmt_span = stmt.span();
@@ -2877,6 +2895,7 @@ fn transform_script_legacy<'a>(
         // Set by every branch that re-parses the statement WHOLE from a source
         // range, to that range.
         let mut verbatim: Option<Span> = None;
+        let mut defer_block_reactive_trailing = false;
 
         'emit: {
             match stmt {
@@ -3018,6 +3037,24 @@ fn transform_script_legacy<'a>(
                             assigns,
                             deps,
                         });
+                        let trailing_end =
+                            trailing_comment_end(src, &ret.program.comments, stmt_span.end);
+                        defer_block_reactive_trailing = trailing_end > stmt_span.end
+                            && reactive_body_has_direct_block(&ls.body)
+                            && !ret.program.comments.iter().any(|comment| {
+                                comment.span.start >= region_start
+                                    && comment.span.end <= stmt_span.start
+                            });
+                        if defer_block_reactive_trailing {
+                            let index = state.pending_reactive_comments.len();
+                            state.defer_reactive_block_comments(
+                                src,
+                                &ret.program.comments,
+                                stmt_span.end,
+                                trailing_end,
+                            );
+                            deferred_reactive_comment = Some(index);
+                        }
                     }
                 }
                 Statement::ExpressionStatement(es) => {
@@ -3087,6 +3124,9 @@ fn transform_script_legacy<'a>(
             }
         }
 
+        if defer_block_reactive_trailing {
+            continue;
+        }
         let into_sink = import_sink.as_deref().is_some_and(|s| s.len() > sink_len);
         let anchor = out.iter().skip(out_len).position(anchors_a_region);
         if !into_sink && anchor.is_none() && reactive.len() == reactive_len {
@@ -3126,6 +3166,9 @@ fn transform_script_legacy<'a>(
                     }
                     other => place.visit_statement(other),
                 }
+            }
+            if let Some(index) = deferred_reactive_comment.take() {
+                state.mark_deferred_reactive_comment_landed(index);
             }
         }
         if is_reactive && reactive_leading_comment {

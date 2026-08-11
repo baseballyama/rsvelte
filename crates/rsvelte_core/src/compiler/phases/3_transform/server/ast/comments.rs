@@ -40,6 +40,8 @@ struct Chunk {
     /// Comments with spans relative to `text`.
     comments: Vec<Comment>,
     position_only: bool,
+    expression_anchor: bool,
+    component_tail: bool,
 }
 
 /// The per-compile registry of comment regions.
@@ -55,6 +57,21 @@ impl ChunkRegistry {
     /// offset to it to get the address to place a node at. `None` when there is
     /// nothing to carry.
     pub fn register(&mut self, text: &str, comments: &[Comment]) -> Option<u32> {
+        self.register_inner(text, comments, false)
+    }
+
+    /// Register a region whose anchor is a template expression rather than a
+    /// statement.
+    pub fn register_expression(&mut self, text: &str, comments: &[Comment]) -> Option<u32> {
+        self.register_inner(text, comments, true)
+    }
+
+    fn register_inner(
+        &mut self,
+        text: &str,
+        comments: &[Comment],
+        expression_anchor: bool,
+    ) -> Option<u32> {
         if comments.is_empty() || text.is_empty() {
             return None;
         }
@@ -67,6 +84,8 @@ impl ChunkRegistry {
             text: text.to_string(),
             comments: comments.to_vec(),
             position_only: false,
+            expression_anchor,
+            component_tail: false,
         });
         super::comment_stats::bump::REGISTERED_CHUNKS(1);
         super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
@@ -87,12 +106,20 @@ impl ChunkRegistry {
             text: text.to_string(),
             comments: Vec::new(),
             position_only: true,
+            expression_anchor: false,
+            component_tail: false,
         });
         Some(prov_base)
     }
 
     pub fn is_empty(&self) -> bool {
         self.chunks.is_empty()
+    }
+
+    pub fn register_component_tail(&mut self, text: &str, comments: &[Comment]) -> Option<u32> {
+        let base = self.register_inner(text, comments, true)?;
+        self.chunks.last_mut()?.component_tail = true;
+        Some(base)
     }
 }
 
@@ -235,14 +262,20 @@ pub fn print_with_comments<'a>(
     let mut comments: Vec<Comment> = Vec::new();
     let order: Vec<usize> = if registry.chunks.iter().any(|chunk| chunk.position_only) {
         (0..registry.chunks.len())
-            .filter(|&i| encounter.via_stmt[i])
+            .filter(|&i| {
+                !registry.chunks[i].component_tail
+                    && (encounter.via_stmt[i] || registry.chunks[i].expression_anchor)
+            })
             .collect()
     } else {
         encounter
             .order
             .iter()
             .copied()
-            .filter(|&i| encounter.via_stmt[i])
+            .filter(|&i| {
+                !registry.chunks[i].component_tail
+                    && (encounter.via_stmt[i] || registry.chunks[i].expression_anchor)
+            })
             .collect()
     };
     for i in order {
@@ -267,20 +300,29 @@ pub fn print_with_comments<'a>(
     };
     remap.visit_program(program);
 
-    if comments.is_empty() {
-        return rsvelte_esrap::print(program, "");
+    let mut code = if comments.is_empty() {
+        rsvelte_esrap::print(program, "")
+    } else {
+        comments.sort_by_key(|c| c.span.start);
+        super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
+        program.comments = ArenaVec::from_iter_in(comments, &allocator);
+        rsvelte_esrap::print_split(
+            program,
+            &buf,
+            PAD.len() as u32,
+            None,
+            &[],
+            &rsvelte_esrap::PrintOptions::default(),
+        )
+        .code
+    };
+    for chunk in registry.chunks.iter().filter(|chunk| chunk.component_tail) {
+        for comment in &chunk.comments {
+            let raw = &chunk.text[comment.span.start as usize..comment.span.end as usize];
+            if let Some(at) = code.rfind("\n}") {
+                code.insert_str(at, &format!("\n\t{raw}"));
+            }
+        }
     }
-    comments.sort_by_key(|c| c.span.start);
-    super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
-    program.comments = ArenaVec::from_iter_in(comments, &allocator);
-
-    rsvelte_esrap::print_split(
-        program,
-        &buf,
-        PAD.len() as u32,
-        None,
-        &[],
-        &rsvelte_esrap::PrintOptions::default(),
-    )
-    .code
+    code
 }

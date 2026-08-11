@@ -28,7 +28,8 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Expression as OxcExpression, Statement};
+use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement};
+use oxc_ast_visit::VisitMut;
 use oxc_span::SPAN;
 use visitors::shared::TemplateEntry;
 
@@ -224,6 +225,9 @@ pub struct ServerTransformState<'a> {
     /// Leading-comment regions registered by the script transform, replayed onto
     /// a synthetic buffer at print time. See [`comments`].
     pub comments: comments::ChunkRegistry,
+    /// Comments trailing direct block-bodied legacy `$:` statements. Their final
+    /// anchor is decided after the reordered script body is assembled.
+    pub pending_reactive_comments: Vec<PendingReactiveComment>,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
@@ -253,6 +257,12 @@ pub struct AsyncConstsGroup<'a> {
     /// Bare `let <name>;` statements (one per declared binding) emitted before
     /// the `var promises = $$renderer.run([...])` declaration.
     pub let_decls: Vec<Statement<'a>>,
+}
+
+pub struct PendingReactiveComment {
+    suffix: String,
+    comments: Vec<Comment>,
+    replay_at_tail: bool,
 }
 
 /// The precomputed inputs to the SSR constant-folding evaluator
@@ -316,7 +326,95 @@ impl<'a> ServerTransformState<'a> {
             slot_let_shadows: Vec::new(),
             current_scope_index: analysis.root.instance_scope_index,
             comments: comments::ChunkRegistry::default(),
+            pending_reactive_comments: Vec::new(),
             reparse_failure: std::cell::RefCell::new(None),
+        }
+    }
+
+    pub fn defer_reactive_block_comments(
+        &mut self,
+        source: &str,
+        comments: &[Comment],
+        statement_end: u32,
+        trailing_end: u32,
+    ) {
+        let suffix = source[statement_end as usize..trailing_end as usize].to_string();
+        let comments = comments
+            .iter()
+            .filter(|comment| {
+                comment.span.start >= statement_end && comment.span.end <= trailing_end
+            })
+            .map(|comment| {
+                let mut comment = *comment;
+                comment.span.start -= statement_end;
+                comment.span.end -= statement_end;
+                comment
+            })
+            .collect();
+        self.pending_reactive_comments.push(PendingReactiveComment {
+            suffix,
+            comments,
+            replay_at_tail: false,
+        });
+    }
+
+    pub fn mark_deferred_reactive_comment_landed(&mut self, index: usize) {
+        if let Some(comment) = self.pending_reactive_comments.get_mut(index) {
+            comment.replay_at_tail = true;
+        }
+    }
+
+    /// The first template expression receives a deferred comment only when no
+    /// script successor already claimed its initial landing.
+    pub fn claim_deferred_reactive_comment(&mut self, expression: &mut OxcExpression<'a>) {
+        let Some(index) = self
+            .pending_reactive_comments
+            .iter()
+            .position(|comment| !comment.replay_at_tail)
+        else {
+            return;
+        };
+        let comment = self.pending_reactive_comments.remove(index);
+        let mut text = String::from("x");
+        text.push_str(&comment.suffix);
+        text.push('\n');
+        let mut comments = comment.comments;
+        for comment in &mut comments {
+            comment.span.start += 1;
+            comment.span.end += 1;
+        }
+        if let Some(base) = self.comments.register_expression(&text, &comments) {
+            let mut place = comments::Place::At(base + text.len() as u32);
+            place.visit_expression(expression);
+        }
+    }
+
+    /// A script successor receives the first copy; the cursor then replays the
+    /// same comment at the component tail. An unclaimed comment has that tail as
+    /// its fallback when there is no template expression.
+    pub fn replay_deferred_reactive_comments_at_tail(&mut self) {
+        let pending = std::mem::take(&mut self.pending_reactive_comments);
+        let Some(last) = self.body.last_mut() else {
+            return;
+        };
+        for comment in pending {
+            let first = comment
+                .comments
+                .iter()
+                .map(|comment| comment.span.start as usize)
+                .min()
+                .unwrap_or(0);
+            let mut text = String::from("x;\n");
+            text.push_str(&comment.suffix[first..]);
+            let mut comments = comment.comments;
+            for comment in &mut comments {
+                comment.span.start = comment.span.start - first as u32 + 3;
+                comment.span.end = comment.span.end - first as u32 + 3;
+            }
+            if let Some(base) = self.comments.register_component_tail(&text, &comments) {
+                let mut place = comments::Place::At(base);
+                place.visit_statement(last);
+            }
         }
     }
 
@@ -1169,6 +1267,8 @@ pub fn server_component_ast<'a>(
         );
         state.body.push(cleanup);
     }
+
+    state.replay_deferred_reactive_comments_at_tail();
 
     // -- $.bind_props trailer (upstream lines 224-243) ----------------------
     // Collect `props` from bindable_prop bindings (`prop_alias ?? name`, excluding

@@ -750,7 +750,8 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     continue;
                 }
 
-                let visited = state.visit_expr(expr);
+                let mut visited = state.visit_expr(expr);
+                state.claim_deferred_reactive_comment(&mut visited);
                 let escaped = state.b.call("$.escape", vec![visited]);
                 exprs.push(escaped);
                 quasis.push(String::new());
