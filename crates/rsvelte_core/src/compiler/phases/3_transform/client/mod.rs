@@ -4461,6 +4461,65 @@ fn starts_with_else_keyword(line: &str) -> bool {
     })
 }
 
+/// Makes an AST statement boundary visible to the legacy per-line pipeline.
+///
+/// The pipeline historically treated each physical line as one statement. That
+/// lets an `export let` rewrite consume a following declaration on the same
+/// line. We use the parser's top-level statement spans rather than scanning
+/// for semicolons, whose grammar is precisely what this path must not infer.
+fn separate_same_line_legacy_export_declarations<'a>(
+    script: &'a str,
+    is_typescript: bool,
+) -> Cow<'a, str> {
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::{GetSpan as _, SourceType};
+
+    if !script.contains("export let ") && !script.contains("export var ") {
+        return Cow::Borrowed(script);
+    }
+
+    let allocator = Allocator::default();
+    let source_type = if is_typescript {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    let parsed = Parser::new(&allocator, script, source_type).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    let mut cuts = Vec::new();
+    for pair in parsed.program.body.windows(2) {
+        let previous = pair[0].span();
+        let next = pair[1].span();
+        let previous_text = &script[previous.start as usize..previous.end as usize];
+        let gap = &script[previous.end as usize..next.start as usize];
+        if (previous_text.trim_start().starts_with("export let ")
+            || previous_text.trim_start().starts_with("export var "))
+            && !gap.contains('\n')
+            && gap.chars().all(char::is_whitespace)
+        {
+            cuts.push((previous.end as usize, next.start as usize));
+        }
+    }
+
+    if cuts.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    let mut separated = String::with_capacity(script.len() + cuts.len());
+    let mut cursor = 0;
+    for (end, next_start) in cuts {
+        separated.push_str(&script[cursor..end]);
+        separated.push('\n');
+        cursor = next_start;
+    }
+    separated.push_str(&script[cursor..]);
+    Cow::Owned(separated)
+}
+
 fn might_have_comma_separated_declaration(script: &str) -> bool {
     let bytes = script.as_bytes();
     if memmem::find(bytes, b", ").is_none()
@@ -4925,6 +4984,9 @@ fn transform_instance_script_for_visitors(
     if script.is_empty() {
         return String::new();
     }
+    let separated_script =
+        separate_same_line_legacy_export_declarations(script, analysis.is_typescript);
+    let script = separated_script.as_ref();
     let original_script = script;
 
     // Instance imports are removed by the caller before this pipeline.

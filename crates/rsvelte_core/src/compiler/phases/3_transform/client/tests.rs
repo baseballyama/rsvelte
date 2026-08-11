@@ -1,6 +1,32 @@
 use super::*;
 
 #[test]
+fn same_line_legacy_export_declaration_does_not_consume_the_next_statement() {
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let result = crate::compiler::compile(
+        "<script>export let name = 'x'; let n = 0;</script><h1>{name}{n}</h1>",
+        crate::compiler::CompileOptions {
+            filename: Some("same-line-export.svelte".to_string()),
+            runes: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &result.js.code, SourceType::mjs()).parse();
+    assert!(
+        !parsed.panicked && parsed.diagnostics.is_empty(),
+        "generated client output must parse:\n{}",
+        result.js.code
+    );
+    assert!(result.js.code.contains("let n = 0;"));
+}
+
+#[test]
 fn invalidation_single_dependency_keeps_sequence_parentheses() {
     let result = crate::compiler::compile(
         "<script>let list = [1];</script>{#each list as item}<input bind:value={item}>{/each}",
