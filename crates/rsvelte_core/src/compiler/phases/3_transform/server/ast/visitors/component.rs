@@ -512,7 +512,14 @@ fn build_component_children<'a, 'b>(
                 serialized_slots.push(state.b.init("default", slot_fn));
             } else if default_lets.is_empty() {
                 // No `let:` directives → the usual `children` prop path.
-                push_prop(groups, state.b.init("children", slot_fn));
+                let children = if state.options.dev {
+                    state
+                        .b
+                        .call("$.prevent_snippet_stringification", vec![slot_fn])
+                } else {
+                    slot_fn
+                };
+                push_prop(groups, state.b.init("children", children));
                 serialized_slots.push(state.b.init("default", state.b.bool(true)));
             } else {
                 // Scoped default slot (`let:`): expose `$$slots.default` as the
