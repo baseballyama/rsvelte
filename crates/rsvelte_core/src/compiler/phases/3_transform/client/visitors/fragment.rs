@@ -7,7 +7,7 @@
 //! The Fragment visitor handles the transformation of Fragment nodes into client-side
 //! JavaScript code. It creates a template block and processes its children.
 
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::client::transform_template::{
@@ -228,6 +228,9 @@ pub fn fragment(
         needs_mutation_validation: context.state.needs_mutation_validation.clone(),
         templates: Rc::clone(&context.state.templates),
         pending_error: None,
+        suppress_pickled_await_instrumentation: Cell::new(
+            context.state.suppress_pickled_await_instrumentation.get(),
+        ),
     };
 
     // Swap context.state with our local state so that process_children uses it

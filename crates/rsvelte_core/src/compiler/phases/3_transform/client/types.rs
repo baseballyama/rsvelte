@@ -2120,6 +2120,9 @@ pub struct ComponentClientTransformState<'a> {
     /// Checked after the root fragment visit; if Some, `transform_client_with_visitors` returns
     /// `Err(TransformError::CodeGen(...))` so the corpus sees an error entry for the client target.
     pub pending_error: Option<String>,
+
+    /// `{@const}` awaits are lowered by the enclosing async template machinery.
+    pub suppress_pickled_await_instrumentation: Cell<bool>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -2271,6 +2274,7 @@ impl<'a> ComponentClientTransformState<'a> {
             const_blocker_map: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
             templates: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
             pending_error: None,
+            suppress_pickled_await_instrumentation: Cell::new(false),
         }
     }
 

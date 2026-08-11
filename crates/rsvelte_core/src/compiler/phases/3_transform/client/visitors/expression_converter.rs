@@ -445,7 +445,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
             if context.state.analysis.pickled_awaits.contains(start)
-                && !context.state.options.experimental_async
+                && !context.state.suppress_pickled_await_instrumentation.get()
             {
                 // Pickled await: (await $.save(arg))()
                 JsExpr::Call(JsCallExpression {
@@ -479,7 +479,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     optional: false,
                 })
             } else if context.state.options.dev
-                && !context.state.analysis.pickled_awaits.contains(start)
+                && !context.state.suppress_pickled_await_instrumentation.get()
             {
                 // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
                 // (await $.track_reactivity_loss(arg))()
@@ -6728,7 +6728,7 @@ fn convert_await_expression(
     // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
     let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
     if context.state.analysis.pickled_awaits.contains(&start)
-        && !context.state.options.experimental_async
+        && !context.state.suppress_pickled_await_instrumentation.get()
     {
         // Pickled await: wrap argument with $.save()
         // save(argument) returns (await $.save(argument))()
@@ -6754,7 +6754,7 @@ fn convert_await_expression(
 
     // In dev mode, wrap with track_reactivity_loss for non-pickled awaits
     // Reference: AwaitExpression.js in the official Svelte compiler
-    if context.state.options.dev && !context.state.analysis.pickled_awaits.contains(&start) {
+    if context.state.options.dev && !context.state.suppress_pickled_await_instrumentation.get() {
         // (await $.track_reactivity_loss(argument))()
         return JsExpr::Call(JsCallExpression {
             callee: context

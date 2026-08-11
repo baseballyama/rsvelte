@@ -71,7 +71,15 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         }
 
         // Convert the init expression to JS AST
+        let previous = context
+            .state
+            .suppress_pickled_await_instrumentation
+            .replace(true);
         let converted_init = convert_expression(&parsed.init_expr, context);
+        context
+            .state
+            .suppress_pickled_await_instrumentation
+            .set(previous);
 
         // Build the expression with transforms applied
         let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
@@ -178,7 +186,15 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
             std::mem::replace(&mut context.state.transform_deep_read, child_deep_read);
 
         // Convert and build the init expression with the child state
+        let previous = context
+            .state
+            .suppress_pickled_await_instrumentation
+            .replace(true);
         let converted_init = convert_expression(&parsed.init_expr, context);
+        context
+            .state
+            .suppress_pickled_await_instrumentation
+            .set(previous);
         let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
 
         let built_init = build_expression(context, &converted_init, &expr_metadata);
