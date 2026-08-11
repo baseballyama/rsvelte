@@ -186,13 +186,33 @@ impl<'a> VisitMut<'a> for ShiftSpans {
 /// remains located for comment placement while the generated call does not.
 struct GeneratedEffectCallUnlocator;
 
+struct SpanUnlocator;
+
+impl<'a> VisitMut<'a> for SpanUnlocator {
+    fn visit_span(&mut self, span: &mut Span) {
+        *span = SPAN;
+    }
+}
+
 impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         walk_mut::walk_expression(self, expr);
         let Expression::CallExpression(call) = expr else {
             return;
         };
-        if is_dollar_call(&call.callee, "user_effect")
+        if is_dollar_call(&call.callee, "inspect") {
+            call.span = SPAN;
+            if let Some(Argument::ArrowFunctionExpression(first)) = call.arguments.first_mut() {
+                first.span = SPAN;
+                if let Some(Expression::ArrayExpression(array)) = first.get_expression_mut() {
+                    array.span = SPAN;
+                }
+            }
+            let mut unlocator = SpanUnlocator;
+            for arg in call.arguments.iter_mut().skip(1) {
+                unlocator.visit_argument(arg);
+            }
+        } else if is_dollar_call(&call.callee, "user_effect")
             || is_dollar_call(&call.callee, "user_pre_effect")
             || is_dollar_call(&call.callee, "effect_root")
         {

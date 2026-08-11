@@ -350,7 +350,7 @@ pub fn transform_client_module(
         )
     };
 
-    let has_effect_rune = class_transformed.contains("$effect");
+    let has_effect_rune = class_transformed.contains("$effect") || class_transformed.contains("$inspect");
     let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
 
     // The transformed source includes everything (imports + body).
@@ -1206,7 +1206,7 @@ fn transform_client_with_visitors(
     // Reuse the pre_transformed_script from above (already has reactive_import_names).
     if let Some(ref content) = analysis.instance_script_content {
         let mut transformed_script = pre_transformed_script.take().unwrap_or_default();
-        let has_effect_rune = content.raw.contains("$effect");
+        let has_effect_rune = content.raw.contains("$effect") || content.raw.contains("$inspect");
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -2046,7 +2046,7 @@ fn transform_client_with_visitors(
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some((non_imports, retained_comment_stripped)) = module_script_non_imports {
         let class_transformed = transform_module_class_fields_client(&non_imports);
-        let has_effect_rune = class_transformed.contains("$effect");
+        let has_effect_rune = class_transformed.contains("$effect") || class_transformed.contains("$inspect");
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
