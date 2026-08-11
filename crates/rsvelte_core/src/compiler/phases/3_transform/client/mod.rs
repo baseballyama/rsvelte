@@ -3950,6 +3950,21 @@ pub(crate) fn transform_module_script_runes(
         }
     }
 
+    // Instrument the source await before `$derived` lowering moves it into an
+    // async-derived thunk. The tail pass recognises the generated outer await.
+    if dev {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) = module_dev_tail_ast::transform_module_dev_tail_ast(
+            &result,
+            true,
+            is_ts,
+            analysis.runes,
+            Some(analysis),
+        ) {
+            result = rewritten;
+        }
+    }
+
     // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
     // Mirrors the same logic in rune_transforms.rs for instance scripts.
     if !dev {

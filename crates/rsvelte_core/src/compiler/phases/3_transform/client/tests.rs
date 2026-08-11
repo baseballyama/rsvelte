@@ -1727,6 +1727,28 @@ export function useStore() {
 }
 
 #[test]
+fn module_async_derived_instruments_its_thunk_in_dev() {
+    let mut options = crate::compiler::ModuleCompileOptions {
+        dev: true,
+        filename: Some("test.svelte.js".to_string()),
+        ..Default::default()
+    };
+    options.experimental.r#async = true;
+    let result =
+        crate::compiler::compile_module("const value = $derived(await load());", options).unwrap();
+    let code = &result.js.code;
+
+    assert!(
+        code.contains("$.async_derived(async () => (await $.track_reactivity_loss(load()))())"),
+        "await instrumentation must stay inside the async-derived thunk: {code}"
+    );
+    assert!(
+        !code.contains("await $.track_reactivity_loss($.async_derived"),
+        "the outer async-derived await must not be instrumented: {code}"
+    );
+}
+
+#[test]
 fn test_module_derived_with_ts_annotation_gets_get() {
     // Bug: TypeScript type annotations on $derived declarations (e.g.,
     // `const contentStyle: string = $derived.by(...)`) prevented the
