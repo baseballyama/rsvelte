@@ -1739,7 +1739,7 @@ fn module_async_derived_instruments_its_thunk_in_dev() {
     let code = &result.js.code;
 
     assert!(
-        code.contains("$.async_derived(async () => (await $.track_reactivity_loss(load()))())"),
+        code.contains("$.async_derived(async () => (await $.track_reactivity_loss(load()))(), 'value', 'test.svelte.js:1:14')"),
         "await instrumentation must stay inside the async-derived thunk: {code}"
     );
     assert!(

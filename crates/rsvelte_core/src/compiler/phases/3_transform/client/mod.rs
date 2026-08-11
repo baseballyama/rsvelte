@@ -4238,6 +4238,26 @@ pub(crate) fn transform_module_script_runes(
 
     // Transform $derived() to $.derived(() => expr) or $.async_derived() for async
     // Need to wrap state variable references inside the expression with $.get()
+    let module_async_derived_locations = dev.then(|| {
+        let script_content = analysis.module_script_content.as_ref();
+        let (script_start, original_script) = script_content.map_or((0, script), |content| {
+            (
+                content.start,
+                analysis
+                    .source
+                    .get(content.start as usize..content.end as usize)
+                    .unwrap_or(script),
+            )
+        });
+        async_derived_dev::collect(
+            &analysis.source,
+            script_start,
+            original_script,
+            analysis.filename.as_str(),
+            analysis.is_typescript,
+            analysis.runes,
+        )
+    });
     while let Some(pos) = memmem::find(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
@@ -4269,21 +4289,33 @@ pub(crate) fn transform_module_script_runes(
                 let inner_expr = strip_top_level_await_from_expr(&saved_content);
                 let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
 
+                let var_name = extract_var_name_before_rune(&result[..pos]);
+                let dev_tail = async_derived_dev::dev_args(
+                    module_async_derived_locations.as_ref(),
+                    &var_name,
+                    &var_name,
+                );
                 let new_derived = if inner_has_nested_await {
                     let is_object = saved_content.trim().starts_with('{');
                     if is_object {
-                        format!("await $.async_derived(async () => ({}))", saved_content)
+                        format!(
+                            "await $.async_derived(async () => ({}){})",
+                            saved_content, dev_tail
+                        )
                     } else {
-                        format!("await $.async_derived(async () => {})", saved_content)
+                        format!(
+                            "await $.async_derived(async () => {}{})",
+                            saved_content, dev_tail
+                        )
                     }
                 } else {
                     let inner_trimmed = inner_expr.trim();
                     let inner_is_object = inner_trimmed.starts_with('{');
                     if inner_is_object {
-                        format!("await $.async_derived(() => ({}))", inner_expr)
+                        format!("await $.async_derived(() => ({}){})", inner_expr, dev_tail)
                     } else {
                         let thunk_arg = unthunk_string(&inner_expr);
-                        format!("await $.async_derived({})", thunk_arg)
+                        format!("await $.async_derived({}{})", thunk_arg, dev_tail)
                     }
                 };
                 result = format!(
