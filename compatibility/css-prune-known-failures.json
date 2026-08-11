@@ -1,5 +1,1 @@
-[
-	"E/is(.a)>.b/nested_ab",
-	"E/is(.a,.b)/only_b",
-	"E/is(.a,.miss)+.b/sibling_ab"
-]
+[]

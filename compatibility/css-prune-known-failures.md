@@ -29,6 +29,8 @@ Sweep shape: 1969 components, ~5s. Client and server prune identically
 (`--both` reports 0 client≠server divergences), so the sweep compiles one target
 (`generate: 'client'`, `css: 'external'`) per component.
 
+Current baseline: `css-prune-known-failures.json`, 0 entries.
+
 Two products feed it, and they vary different axes. Families **A/B/C/C3** live in
 `css-prune-sweep.mjs` and vary the *markup* around a small fixed set of sibling
 selectors, because the bug they were built for (#1700) was in the per-sibling
@@ -41,25 +43,6 @@ The comparison key lives in `scripts/compat-corpus/css-prune-verdict.mjs`, apart
 from the sweep so it can be exercised without the NAPI binding;
 `scripts/dev/test-css-prune-sweep-warning-verdict.mjs` pins it in CI and fails on
 a comparator that stops looking at warnings.
-
-## Divergence clusters (`css-prune-known-failures.json`, 3 entries)
-
-All four are **`css.code`-only**: the two compilers agree about which selectors
-are used, and the `css_unused_selector` sets are identical. They are not prune
-bugs at all — they are selector-*scoping* bugs that the D-H families exposed
-because those families are the first to generate `:is()` arguments. Read that
-as a warning about this ratchet rather than as reassurance: the comparison key
-this whole gate is named for scores all four green, and only the `css.code` half
-of the key moves.
-
-Each is tracked separately so a partial fix cannot silently close the others.
-
-| entry | issue | cause |
-|---|---|---|
-| `E/is(.a)>.b/nested_ab` | [#2719](https://github.com/baseballyama/rsvelte/issues/2719) | Upstream scopes a complex selector's own relative selectors first and descends into `:is()` arguments afterwards, so the argument inherits an already-bumped specificity and is written `:where(.svelte-X)`. rsvelte scopes arguments during the compound walk, in source order, and emits the plain class. A real specificity difference in shipped CSS, not cosmetic |
-| `E/is(.a,.miss)+.b/sibling_ab` | [#2719](https://github.com/baseballyama/rsvelte/issues/2719) | Same cause with a sibling combinator. Kept as a second entry because the control that isolates the ordering is the *absence* of a divergence when the `:is()` is the whole selector — `E/is(.a,.b)`'s other arrangements match on both sides |
-| `E/is(.a,.b)/only_b` | [#2720](https://github.com/baseballyama/rsvelte/issues/2720) | Official comments an unused `:is()` branch out **in place**, taking its trailing comma; rsvelte emits the surviving branch first and appends the commented-out one, reordering the argument list |
-| `E/is(.a):is(.b)/compound_ab` | [#2721](https://github.com/baseballyama/rsvelte/issues/2721) | Upstream skips the scoping modifier only for a **standalone** `:is()` (`selectors.length === 1`); with two of them the compound still gets a leading `.svelte-X`. rsvelte omits it, so the emitted rule carries no scoping class of its own and is not scoped to the component |
 
 ## Fixed root causes
 
