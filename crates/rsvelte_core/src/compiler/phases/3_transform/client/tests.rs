@@ -1749,24 +1749,30 @@ fn module_async_derived_instruments_its_thunk_in_dev() {
 }
 
 #[test]
-fn module_class_derived_rehomes_jsdoc_to_its_arrow_parameter() {
+fn module_class_derived_drops_jsdoc_with_the_removed_field() {
     let source = "let wc_state = $state.raw({ base: '' });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n})();";
-    let result = crate::compiler::compile_module(
-        source,
-        crate::compiler::ModuleCompileOptions {
-            filename: Some("adapter.svelte.ts".to_string()),
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    for dev in [false, true] {
+        let result = crate::compiler::compile_module(
+            source,
+            crate::compiler::ModuleCompileOptions {
+                filename: Some("adapter.svelte.ts".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
-    assert!(
-        result.js.code.contains(
-            "$.derived((/** URL to the web container instance. */\n\t) => wc_state.base)"
-        ),
-        "JSDoc should be attached to the generated arrow parameter:\n{}",
-        result.js.code
-    );
+        assert!(
+            result.js.code.contains("$.derived(() => wc_state.base)"),
+            "module class field should lower to a plain derived thunk (dev={dev}):\n{}",
+            result.js.code
+        );
+        assert!(
+            !result.js.code.contains("URL to the web container instance"),
+            "JSDoc for the removed field must not leak into module output (dev={dev}):\n{}",
+            result.js.code
+        );
+    }
 }
 
 #[test]

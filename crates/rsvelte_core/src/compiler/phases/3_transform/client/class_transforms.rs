@@ -891,6 +891,14 @@ pub(super) fn transform_constructor_private_reads(
 
 /// Transform class fields with $state and $derived runes for client-side.
 pub(crate) fn transform_class_fields_client(script: &str) -> String {
+    transform_class_fields_client_with_options(script, true)
+}
+
+pub(crate) fn transform_module_class_fields_client(script: &str) -> String {
+    transform_class_fields_client_with_options(script, false)
+}
+
+fn transform_class_fields_client_with_options(script: &str, retain_jsdoc: bool) -> String {
     // Check if script contains a class with $state or $derived fields
     if memmem::find(script.as_bytes(), b"class ").is_none()
         || (memmem::find(script.as_bytes(), b"$state").is_none()
@@ -1269,12 +1277,20 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
         return format!(
             "{}{}",
             before_and_current,
-            transform_class_fields_client(after_class_body)
+            transform_class_fields_client_with_options(after_class_body, retain_jsdoc)
         );
     }
 
     // Deconflict private backing names for public fields
     for field in &mut fields {
+        if !retain_jsdoc
+            && field
+                .trailing_comment
+                .as_deref()
+                .is_some_and(|comment| comment.trim_start().starts_with("/**"))
+        {
+            field.trailing_comment = None;
+        }
         if !field.is_private {
             let mut deconflicted = field.private_backing_name.clone();
             while existing_private_ids.contains(&deconflicted) {
@@ -1521,7 +1537,8 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
 
     // Recursively process remaining classes in the script
-    let after_class_transformed = transform_class_fields_client(after_class_body);
+    let after_class_transformed =
+        transform_class_fields_client_with_options(after_class_body, retain_jsdoc);
 
     // Check if this is a `new class ...` expression that needs wrapping
     // `new class Foo { ... }` -> `new (class Foo { ... })()`

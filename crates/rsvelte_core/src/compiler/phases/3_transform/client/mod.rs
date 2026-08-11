@@ -82,6 +82,7 @@ use store_transforms::*;
 
 // Explicit re-exports for functions used outside the client module.
 pub(crate) use class_transforms::transform_class_fields_client;
+use class_transforms::transform_module_class_fields_client;
 pub(crate) use expression_utils::find_matching_paren;
 pub(crate) use formatting::normalize_js_with_oxc;
 
@@ -304,7 +305,7 @@ pub fn transform_client_module(
     }
 
     // Transform the module source (rune replacements, class fields, etc.)
-    let class_transformed = transform_class_fields_client(source);
+    let class_transformed = transform_module_class_fields_client(source);
 
     // Transform destructured assignments whose LHS contains state variables into
     // IIFE / sequence form (mirrors upstream `visit_assignment_expression` in
@@ -409,10 +410,10 @@ pub(crate) fn print_module_program(
             }
         })
     {
-        return Ok(format!("{header}\n{}", rehome_derived_jsdoc(&code)));
+        return Ok(format!("{header}\n{code}"));
     }
     generate(&program, &arena)
-        .map(|code| format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        .map(|code| format!("{header}\n{code}"))
         .map_err(TransformError::CodeGen)
 }
 
@@ -423,7 +424,7 @@ pub(crate) fn transform_module_source_for_module(
     analysis: &ComponentAnalysis,
     dev: bool,
 ) -> String {
-    let class_transformed = transform_class_fields_client(source);
+    let class_transformed = transform_module_class_fields_client(source);
     transform_module_script_runes(&class_transformed, analysis, dev)
 }
 
@@ -2035,7 +2036,7 @@ fn transform_client_with_visitors(
     // Transform class fields first (before rune transforms strip the rune names)
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some((non_imports, retained_comment_stripped)) = module_script_non_imports {
-        let class_transformed = transform_class_fields_client(&non_imports);
+        let class_transformed = transform_module_class_fields_client(&non_imports);
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
