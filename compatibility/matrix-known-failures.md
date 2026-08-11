@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 942 entries)
+## Matrix known failures (`matrix-known-failures.json`, 940 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 324 + 253 + 8`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 324 + 251 + 8`
 
 ### `binding-position` — 2 entries
 
@@ -349,9 +349,9 @@ until their issues are fixed.
 
 ---
 
-### `async-derived` — 253 entries
+### `async-derived` — 251 entries
 
-Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 253 was
+Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 251 was
 reachable by any gate in the repo before this family existed, because every harness compiles
 with a fixed `{ generate, dev, filename }` and `$derived(await …)` is an `experimental_async`
 compile error without `experimental.async`. The shape occurs 0 times in the 14k-entry corpus
@@ -364,14 +364,14 @@ in dev — is *not* in this list; the rows that isolate it (`instance__identifie
 `instance__multi-declarator__none`, all three targets) pass. What remains are five independent
 defects the family exposed on the way, all of them older than the family:
 
-Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `154 + 39 + 18 + 14 + 13 + 13 + 2`
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `154 + 39 + 18 + 12 + 13 + 13 + 2`
 
 | # | cause | entries |
 |---|---|---|
 | 1 | `<script module>` / `compileModule` async-derived lowering | 154 |
 | 2 | the `$$d` temp appears in the hoisted `var` list | 39 |
 | 3 | `svelte-ignore` comment not reproduced on the hoisted declaration | 18 |
-| 4 | a block comment before the declaration produces **invalid JavaScript** | 14 |
+| 4 | a block comment before the declaration produces **invalid JavaScript** | 12 |
 | 5a | no `$.save(…)` around a non-final `await` | 13 |
 | 5b | `$derived.by(async …)` is suspended as if it were an async derived | 13 |
 | — | server `$$renderer.async` split lost alongside cause 3 | 2 |
