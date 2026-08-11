@@ -89,7 +89,6 @@ fn run_ssr_fixture_test(fixture: &SsrFixture) -> TestResult {
         generate: GenerateMode::Server,
         filename: Some("main.svelte".to_string()),
         css: CssMode::External,
-        dev: fixture.options.dev,
         experimental: ExperimentalOptions {
             r#async: fixture.options.r#async,
         },

@@ -276,6 +276,7 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
   try {
     const serverResult = compile(source, {
       ...compileOptions,
+      dev: false,
       generate: 'server',
       // Use sample_name/index.svelte to match official Svelte test expectations
       filename: `${sampleName}/index.svelte`,
@@ -565,6 +566,7 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
   try {
     const serverResult = compile(source, {
       ...compileOptions,
+      dev: false,
       generate: 'server',
       filename: 'main.svelte',
     });
@@ -662,6 +664,7 @@ async function generateSsrFixture(sampleDir, outputDir, config) {
   try {
     const result = compile(source, {
       ...compileOptions,
+      dev: false,
       generate: 'server',
       filename: 'main.svelte',
     });
