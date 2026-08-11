@@ -346,7 +346,7 @@ until their issues are fixed.
 
 ### `async-derived` — 234 entries
 
-Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 251 was
+Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 234 was
 reachable by any gate in the repo before this family existed, because every harness compiles
 with a fixed `{ generate, dev, filename }` and `$derived(await …)` is an `experimental_async`
 compile error without `experimental.async`. The shape occurs 0 times in the 14k-entry corpus
