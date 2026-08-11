@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 940 entries)
+## Matrix known failures (`matrix-known-failures.json`, 938 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 324 + 251 + 8`
+Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 3 + 322 + 251 + 8`
 
 ### `binding-position` — 2 entries
 
@@ -310,7 +310,7 @@ while the live sites are `<svelte:body>` and `<svelte:self>`. The shapes the iss
 (`setter-through-call`, `sequence-bodied-setter`) all pass on the element and component hosts
 now; what survives is the same predicate reached through a special element. A repro file cannot
 find that, because the reporter picks the element.
-### `removed-statement-comment` — 324 entries
+### `removed-statement-comment` — 322 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
 `$effect.root`, `$inspect`) with the comment slot (leading / interior / trailing), 6 comment
@@ -318,8 +318,8 @@ kinds, 3 hosts (`compileModule`, the instance script's top level, one function d
 whether a statement survives after the removed one. 396 cases, 1188 comparisons; the fix that
 landed with it cleared 79 of them (403 → 324, all on `server`).
 
-Every remaining entry falls in one of **five** clusters, each with its own issue. The clusters
-are disjoint and exhaustive — the partition below sums to 324.
+Every remaining entry falls in one of **four** clusters, each with its own issue. The clusters
+are disjoint and exhaustive — the partition below sums to 322.
 
 | entries | target | cluster | issue |
 |---|---|---|---|
@@ -327,12 +327,11 @@ are disjoint and exhaustive — the partition below sums to 324.
 | 108 | `client` | the `trailing` slot on `$effect` / `$effect.pre` / `$effect.root` (36 each, all 3 hosts × both successor states × 6 comment kinds): a comment trailing the call attaches to the effect's **callback argument** upstream, forcing esrap's wrapped one-argument-per-line layout; rsvelte attaches it after the call statement and keeps the call on one line. The comment survives — layout, not loss | [#2718](https://github.com/baseballyama/rsvelte/issues/2718) |
 | 144 | `client-dev` | the same three statement kinds (36 each) **plus all 36 `$inspect` rows**. `$inspect` is the whole client/client-dev difference in this cluster: prod removes it, so only 2 of its 36 trailing rows diverge, while dev lowers it to a `console.log(…)` call and every trailing row then meets the same argument-wrapping rule | [#2718](https://github.com/baseballyama/rsvelte/issues/2718) |
 | 4 | `client` | `inspect` × a **block** comment in the `leading` slot: the `$$DOUBLE_SEMI$$` placeholder `client/formatting.rs` parks a `;;` behind is never restored, so `void '$$DOUBLE_SEMI$$';` ships in the output | [#2736](https://github.com/baseballyama/rsvelte/issues/2736) |
-| 2 | `client` | `inspect` × a **block** comment in the `trailing` slot with no successor: the comment is spliced between the `var` keyword and its declarator (`var /* c */\np = root();`) | [#2737](https://github.com/baseballyama/rsvelte/issues/2737) |
 
 Partition of `matrix-known-failures.json` entries under `removed-statement-comment/` by
-cluster: `66 + 108 + 144 + 4 + 2`
+cluster: `66 + 108 + 144 + 4`
 
-**[D] for all five.** Each was reduced to a hand-written repro outside the family and measured
+**[D] for all four.** Each was reduced to a hand-written repro outside the family and measured
 against the pinned official compiler; #2736 additionally has a measured discriminator table
 (block comment leaks, line comment does not, no comment does not, and neither `client-dev` nor
 `server` reproduces).
