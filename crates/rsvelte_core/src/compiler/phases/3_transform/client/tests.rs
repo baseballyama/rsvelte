@@ -12,7 +12,12 @@ fn invalidation_single_dependency_keeps_sequence_parentheses() {
     )
     .unwrap();
 
-    assert!(result.js.code.contains("$.invalidate_inner_signals(() => ("));
+    assert!(
+        result
+            .js
+            .code
+            .contains("$.invalidate_inner_signals(() => (")
+    );
     assert!(!result.js.code.contains("__rsvelte_seq1"));
 }
 
