@@ -1296,6 +1296,24 @@ fn test_derived_trailing_comma_no_syntax_error() {
 }
 
 #[test]
+fn dev_public_rune_field_keeps_a_leading_block_comment_in_the_tag_call() {
+    let result = crate::compiler::compile(
+        "<script>\nexport class C {\n\t/* c */\n\tn = $state(0);\n}\n</script>",
+        crate::compiler::CompileOptions {
+            dev: true,
+            generate: crate::compiler::GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .expect("compile should succeed");
+    let code = result.js.code;
+    assert!(
+        code.contains("#n = $.tag(\n\t\t\t/* c */\n\t\t\t$.state(0),\n\t\t\t'C.n'\n\t\t);"),
+        "comment should be an infix argument to $.tag:\n{code}"
+    );
+}
+
+#[test]
 fn test_compile_with_multibyte_utf8_no_panic() {
     // Source with Japanese characters that could cause byte index boundary issues
     // when is_svelte_ignored_with_source slices source with saturating_sub(500)
