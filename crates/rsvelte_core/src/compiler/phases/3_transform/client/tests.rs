@@ -1750,7 +1750,7 @@ fn module_async_derived_instruments_its_thunk_in_dev() {
 
 #[test]
 fn module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
-    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();";
+    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();\nexport function update(module) { wc_state = module.state; }";
     for dev in [false, true] {
         let result = crate::compiler::compile(
             &format!("<script module>\n{source}\n</script>"),
@@ -1778,12 +1778,25 @@ fn module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
             "later public field JSDoc has no generated source anchor (dev={dev}):\n{}",
             result.js.code
         );
+        assert!(
+            result.js.code.contains("$.set(wc_state, module.state)"),
+            "raw state setters must not request proxying (dev={dev}):\n{}",
+            result.js.code
+        );
+        assert!(
+            !result
+                .js
+                .code
+                .contains("$.set(wc_state, module.state, true)"),
+            "raw state setters must not request proxying (dev={dev}):\n{}",
+            result.js.code
+        );
     }
 }
 
 #[test]
 fn compile_module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
-    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();";
+    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();\nexport function update(module) { wc_state = module.state; }";
     for dev in [false, true] {
         let result = crate::compiler::compile_module(
             source,
@@ -1809,6 +1822,19 @@ fn compile_module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
                 .code
                 .contains("Errors from within the web container instance."),
             "later public field JSDoc has no generated source anchor (dev={dev}):\n{}",
+            result.js.code
+        );
+        assert!(
+            result.js.code.contains("$.set(wc_state, module.state)"),
+            "raw state setters must not request proxying (dev={dev}):\n{}",
+            result.js.code
+        );
+        assert!(
+            !result
+                .js
+                .code
+                .contains("$.set(wc_state, module.state, true)"),
+            "raw state setters must not request proxying (dev={dev}):\n{}",
             result.js.code
         );
     }

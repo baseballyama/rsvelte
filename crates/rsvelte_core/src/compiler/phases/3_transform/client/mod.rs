@@ -4389,7 +4389,6 @@ pub(crate) fn transform_module_script_runes(
         // Also add $state.raw vars from bindings — they never use the proxy flag.
         for (name, &binding_idx) in &analysis.root.scope.declarations {
             if let Some(b) = analysis.root.bindings.get(binding_idx)
-                && b.scope_index != analysis.root.instance_scope_index
                 && matches!(b.kind, BindingKind::RawState)
                 && !derived_vars.contains(name)
             {
