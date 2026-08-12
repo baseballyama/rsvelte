@@ -323,7 +323,7 @@ until their issues are fixed.
 
 ---
 
-### `async-derived` — 188 entries
+### `async-derived` — 168 entries
 
 Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 129 was
 reachable by any gate in the repo before this family existed, because every harness compiles
@@ -338,7 +338,10 @@ in dev — is *not* in this list; the rows that isolate it (`instance__identifie
 `instance__multi-declarator__none`, all three targets) pass. What remains are five independent
 defects the family exposed on the way, all of them older than the family:
 
-Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `39 + 24 + 18 + 12 + 11 + 13 + 2 + 69`
+This change clears all 20 instance `$derived.by(async …)` rows: five comment
+slots across all four targets. The eight remaining `script-module` rows with
+that declaration shape remain module-lowering differences; they are not hidden
+by the fixed instance rows.
 
 | # | cause | entries |
 |---|---|---|
@@ -347,7 +350,7 @@ Partition of `matrix-known-failures.json` entries under `async-derived/` by caus
 | 3 | `svelte-ignore` comment not reproduced on the hoisted declaration | 18 |
 | 4 | a block comment before the declaration produces **invalid JavaScript** | 12 |
 | 5a | no `$.save(…)` around a non-final `await` | 11 |
-| 5b | `$derived.by(async …)` is suspended as if it were an async derived | 13 |
+| 5b | instance `$derived.by(async …)` suspended as if it were an async derived | 0 |
 | — | server `$$renderer.async` split lost alongside cause 3 | 2 |
 
 **1 — the module entry points.** The module paths now lower destructured async-derived
@@ -375,10 +378,9 @@ fires, and the ignore actually suppresses it). Clearing cause 3 hands the axis b
 gate.
 
 **5 — two lowering divergences the axis found incidentally.** A multi-`await` derived loses the
-`$.save(…)` upstream wraps every non-final `await` in, and `$derived.by(async () => …)` is
-routed through the async-derived hoist (`var a; $.run([…])` plus a `$$promises` blocker) where
-upstream emits a plain `const a = $.derived(async () => …)` — rsvelte suspends on a derived
-upstream does not.
+`$.save(…)` upstream wraps every non-final `await` in. The instance
+`$derived.by(async () => …)` path now stays in the synchronous prelude, matching upstream's
+plain `const a = $.derived(async () => …)` rather than allocating a `$$promises` blocker.
 ### `constant-fold` — 8 entries
 
 Four expressions (`'ab'.at(0)`, `(1).toFixed(2)`, `Math.max(1, 2)`,
