@@ -4,19 +4,19 @@
  * PR's base branch and emit a Markdown summary suitable for posting on a PR.
  *
  * Usage:
- *   node scripts/diff/compare-compatibility-reports.mjs --pr-summary > out.md
+ *   node scripts/diff/compare-compatibility-reports.mjs --base-report <path> --pr-summary > out.md
+ *   node scripts/diff/compare-compatibility-reports.mjs --validate
  *
  * The script:
  *   1. Locates the current report at fixtures/{commitHash}/compatibility-report.json
- *   2. Fetches the same file from origin/main via `git show`
+ *   2. Reads the base-branch report downloaded from a successful CI artifact
  *   3. Diffs per-category pass counts
  *   4. Prints a Markdown table; non-zero diffs are flagged
  *
- * If the base branch report can't be located, the script still prints the
- * current numbers so the PR comment is useful.
+ * A comparison without both reports is not meaningful, so malformed or absent
+ * reports fail rather than publishing a head-only table.
  */
 
-import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -39,35 +39,23 @@ function findCurrentReport() {
     (a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs,
   )[0];
 }
-
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
-function tryReadBaseReport(currentReportRelative) {
-  const refs = ['origin/main', 'main'];
-  for (const ref of refs) {
-    try {
-      const out = execSync(`git show ${ref}:${currentReportRelative}`, {
-        cwd: ROOT,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).toString();
-      return JSON.parse(out);
-    } catch {
-      // Not on this ref or file doesn't exist there. Try the next.
-    }
+function summarizeReport(report, label) {
+  if (!report || typeof report !== 'object' || !report.categories || typeof report.categories !== 'object') {
+    throw new Error(`${label} report has no categories`);
   }
-  return null;
-}
-
-function summarizeReport(report) {
-  if (!report || !report.categories) return null;
   const out = {};
   for (const [name, cat] of Object.entries(report.categories)) {
     // Two shapes are accepted:
     //   * tests/common/mod.rs: CategoryResult { stats: { total, passed, ... } }
     //   * scripts/fixtures/generate-fixtures.mjs manifest: flat { total, success, failed }
-    const stats = cat.stats ?? cat;
+    const stats = cat?.stats ?? cat;
+    if (!stats || typeof stats !== 'object') {
+      throw new Error(`${label} report category ${name} has no stats`);
+    }
     out[name] = {
       passed: stats.passed ?? stats.success ?? 0,
       total: stats.total ?? 0,
@@ -75,9 +63,9 @@ function summarizeReport(report) {
       skipped: stats.skipped ?? 0,
     };
   }
+  if (Object.keys(out).length === 0) throw new Error(`${label} report has no categories`);
   return out;
 }
-
 function getCommitHash(report) {
   return (
     report?.svelte_commit ??
@@ -98,21 +86,30 @@ function diffSign(n) {
 }
 
 function main() {
-  const args = new Set(process.argv.slice(2));
-  const isSummary = args.has('--pr-summary');
+  const args = process.argv.slice(2);
+  const isSummary = args.includes('--pr-summary');
+  const isValidate = args.includes('--validate');
+  const currentIndex = args.indexOf('--current-report');
+  const baseIndex = args.indexOf('--base-report');
+  const currentOverride = currentIndex === -1 ? null : args[currentIndex + 1];
+  const basePath = baseIndex === -1 ? null : args[baseIndex + 1];
+  if (currentIndex !== -1 && !currentOverride) throw new Error('--current-report requires a path');
+  if (!isValidate && !basePath) throw new Error('--base-report requires a path');
 
-  const currentPath = findCurrentReport();
+  const currentPath = currentOverride ?? findCurrentReport();
   if (!currentPath) {
-    process.stdout.write('_No compatibility report found in `fixtures/`._\n');
-    process.exit(0);
+    throw new Error('current compatibility report not found');
   }
-
-  const currentRel = path.relative(ROOT, currentPath);
   const current = readJson(currentPath);
-  const base = tryReadBaseReport(currentRel);
+  const currentSummary = summarizeReport(current, 'current');
+  if (isValidate) {
+    process.stdout.write(`validated ${Object.keys(currentSummary).length} compatibility report categories\n`);
+    return;
+  }
+  if (!fs.existsSync(basePath)) throw new Error(`base compatibility report not found: ${basePath}`);
 
-  const currentSummary = summarizeReport(current) ?? {};
-  const baseSummary = summarizeReport(base) ?? {};
+  const base = readJson(basePath);
+  const baseSummary = summarizeReport(base, 'base');
 
   const allCategories = Array.from(
     new Set([...Object.keys(currentSummary), ...Object.keys(baseSummary)]),
@@ -122,11 +119,7 @@ function main() {
   const currentHash = getCommitHash(current);
   const baseHash = getCommitHash(base);
   lines.push(`Current commit: \`${currentHash?.slice(0, 12) ?? 'unknown'}\``);
-  if (baseHash) {
-    lines.push(`Base commit:    \`${baseHash.slice(0, 12)}\``);
-  } else {
-    lines.push('_(Base branch report not available — showing current numbers only.)_');
-  }
+  lines.push(`Base commit:    \`${baseHash?.slice(0, 12) ?? 'unknown'}\``);
   lines.push('');
   lines.push('| Category | Base | Current | Δ passed | Δ failed |');
   lines.push('|----------|------|---------|----------|----------|');
@@ -168,4 +161,9 @@ function main() {
   }
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  console.error(`compatibility-report comparison failed: ${error.message}`);
+  process.exitCode = 1;
+}

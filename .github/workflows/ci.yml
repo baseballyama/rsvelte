@@ -8,6 +8,7 @@ on:
   pull_request:
 
 permissions:
+  actions: read
   contents: read
   pull-requests: write
 
@@ -895,21 +896,36 @@ jobs:
         env:
           RUST_MIN_STACK: '33554432'
 
+      - name: Validate compatibility report
+        run: node scripts/diff/compare-compatibility-reports.mjs --validate
+
       - name: Upload compatibility report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: compatibility-report-${{ github.sha }}
           path: fixtures/**/compatibility-report.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 90
 
       - name: Check README is in sync with Svelte submodule
         run: node scripts/dev/update-docs.mjs --check
 
-      - name: Compare with main (PR only)
+      - name: Download base compatibility report (PR only)
         if: github.event_name == 'pull_request'
-        run: node scripts/diff/compare-compatibility-reports.mjs --pr-summary > pr-summary.md || echo "comparison unavailable" > pr-summary.md
-        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base_run_id="$(gh run list --workflow ci.yml --branch "$GITHUB_BASE_REF" --commit "$BASE_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$base_run_id"
+          gh run download "$base_run_id" --name "compatibility-report-$BASE_SHA" --dir base-report
+
+      - name: Compare with base (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          base_report="$(find base-report -type f -name compatibility-report.json -print -quit)"
+          test -n "$base_report"
+          node scripts/diff/compare-compatibility-reports.mjs --base-report "$base_report" --pr-summary > pr-summary.md
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -1138,6 +1154,11 @@ jobs:
       - name: Run differential corpus workflow tests
         run: node scripts/ci/test-differential-corpus-workflow.mjs
 
+      - name: Run compatibility report comparison tests
+        run: node scripts/ci/test-compatibility-report-comparison.mjs
+
+      - name: Run compatibility report workflow tests
+        run: node scripts/ci/test-compatibility-report-workflow.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest
