@@ -124,9 +124,14 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
     } else {
         if state.options.dev {
             state
-                .snippet_inits
-                .push(b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(&name)])));
-            state.snippet_inits.push(fn_decl);
+                .template
+                .push(super::shared::TemplateEntry::HoistableDecl(b.stmt(b.call(
+                    "$.prevent_snippet_stringification",
+                    vec![b.id(&name)],
+                ))));
+            state
+                .template
+                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
         } else {
             state
                 .template
