@@ -16,7 +16,7 @@
 //! - The emitted overlay tsconfig EXTENDS the original tsconfig.json
 //!   instead of duplicating compiler options.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::io;
@@ -26,6 +26,7 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast as oxc;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::SourceType;
+use rayon::prelude::*;
 
 use super::config::CompilerOptionsSettings;
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
@@ -560,182 +561,216 @@ pub fn materialize_overlay_with(
         &mut withheld_js_modules,
     )?);
 
-    let mut entries = Vec::with_capacity(files.len());
-    let mut augments: Vec<CompanionAugment> = Vec::new();
-    let mut any_js_shadow = external_js_shadows;
-    for abs_source in &abs_files {
-        let rel = safe_relative(abs_source, workspace);
-        let stats = current_stats(abs_source);
-        let cached_entry = manifest.entries.get(abs_source);
-        // An unchanged file keeps the extension its own shadow already has, so
-        // the cache hit below still costs no read.
-        let ext = match (stats, cached_entry) {
-            (Some((mtime, size)), Some(entry))
-                if incremental
-                    && entry.mtime_ms == mtime
-                    && entry.size == size
-                    && entry.out_path.extension().is_some_and(|e| e == "jsx") =>
-            {
-                ".jsx"
-            }
-            (Some((mtime, size)), Some(entry))
-                if incremental && entry.mtime_ms == mtime && entry.size == size =>
-            {
-                ".tsx"
-            }
-            _ => shadow_extension(abs_source),
-        };
-        any_js_shadow |= ext == ".jsx";
-        let tsx_rel = append_extension(&rel, ext);
-        let dts_rel = append_extension(&rel, ".d.ts");
-        let tsx_path = emit_dir.join(&tsx_rel);
-        let dts_path = emit_dir.join(&dts_rel);
-        let map_path = append_extension(&tsx_path, ".map");
-        // `X.svelte.d.ts` is TypeScript's declaration counterpart of
-        // `X.svelte.jsx`, so with a JS shadow the bridges' own
-        // `./X.svelte.jsx` resolves to the twin, which re-exports from
-        // `./X.svelte.jsx` — a cycle that types the component `any` and
-        // silently drops every diagnostic about using it. `.tsx` escapes
-        // it through `allowImportingTsExtensions`, which resolves an
-        // explicit TS extension literally. Dropping the twin costs nothing:
-        // `allowJs` is on whenever a `.jsx` shadow exists, so CJS-mode
-        // resolution of `./X.svelte` finds the shadow itself, and ESM mode
-        // still goes through the `.d.svelte.ts` bridge.
-        let emit_dts_twin = ext == ".tsx";
-        if let Some(parent) = tsx_path.parent() {
-            reject_symlink_components(parent, &cache_dir)?;
-            fs::create_dir_all(parent)?;
-            reject_symlink_components(parent, &cache_dir)?;
-        }
-        remove_stale_counterpart(&tsx_path, ext);
-        if !emit_dts_twin {
-            let _ = fs::remove_file(&dts_path);
-        }
-
-        let stats_match = match (stats, cached_entry) {
-            (Some((mtime, size)), Some(entry)) => {
-                entry.mtime_ms == mtime
-                    && entry.size == size
-                    && entry.out_path == tsx_path
-                    && entry.dts_path == dts_path
-            }
-            _ => false,
-        };
-
-        // `.tsx.map` is only persisted when svelte2tsx returned a non-empty
-        // source map; we don't gate cache validity on it, so a workspace
-        // that gained / lost source maps still hits the cache. On hit we
-        // simply best-effort-read whatever sits at `map_path`.
-        let can_skip = incremental
-            && stats_match
-            && tsx_path.exists()
-            && (!emit_dts_twin || dts_path.exists());
-
-        let source_map = if can_skip {
-            fs::read_to_string(&map_path).ok()
-        } else {
-            let source = fs::read_to_string(abs_source)?;
-            let is_ts_file = looks_like_ts_svelte(&source);
-            let opts = Svelte2TsxOptions {
-                filename: abs_source.display().to_string(),
-                is_ts_file,
-                mode: Svelte2TsxMode::Ts,
-                accessors,
-                namespace,
-                version: SvelteVersion::V5,
-                runes: None,
-                // emit_jsdoc=true is required so tsgo doesn't choke on
-                // syntactic errors before reporting semantic ones (matches
-                // the JS reference's comment).
-                emit_jsdoc: true,
-                rewrite_external_imports: Some(RewriteExternalImportsOptions {
-                    source_path: abs_source.display().to_string(),
-                    generated_path: tsx_path.display().to_string(),
-                    workspace_path: workspace.display().to_string(),
-                }),
+    // Deduplicate before parallel writes; callers may repeat an input, but two
+    // workers must never materialize the same shadow concurrently.
+    let mut seen = HashSet::with_capacity(abs_files.len());
+    let unique_abs_files: Vec<&PathBuf> = abs_files
+        .iter()
+        .filter(|path| seen.insert(path.as_path()))
+        .collect();
+    let materialized: Vec<Result<MaterializedOverlayEntry, OverlayError>> = unique_abs_files
+        .par_iter()
+        .map(|abs_source| {
+            let abs_source = *abs_source;
+            let rel = safe_relative(abs_source, workspace);
+            let stats = current_stats(abs_source);
+            let cached_entry = manifest.entries.get(abs_source);
+            // An unchanged file keeps the extension its own shadow already has, so
+            // the cache hit below still costs no read.
+            let ext = match (stats, cached_entry) {
+                (Some((mtime, size)), Some(entry))
+                    if incremental
+                        && entry.mtime_ms == mtime
+                        && entry.size == size
+                        && entry.out_path.extension().is_some_and(|e| e == "jsx") =>
+                {
+                    ".jsx"
+                }
+                (Some((mtime, size)), Some(entry))
+                    if incremental && entry.mtime_ms == mtime && entry.size == size =>
+                {
+                    ".tsx"
+                }
+                _ => shadow_extension(abs_source),
             };
-            let result = svelte2tsx(&source, opts).map_err(|e| OverlayError::Svelte2Tsx {
-                file: abs_source.clone(),
-                message: format!("{e}"),
-            })?;
-            let mut tsx_code =
-                rewrite_companion_module_imports(&result.code, abs_source, &tsx_path);
-            if global_types.svelte_types.is_some() {
-                blank_svelte_type_reference(&mut tsx_code);
+            let is_js_shadow = ext == ".jsx";
+            let tsx_rel = append_extension(&rel, ext);
+            let dts_rel = append_extension(&rel, ".d.ts");
+            let tsx_path = emit_dir.join(&tsx_rel);
+            let dts_path = emit_dir.join(&dts_rel);
+            let map_path = append_extension(&tsx_path, ".map");
+            // `X.svelte.d.ts` is TypeScript's declaration counterpart of
+            // `X.svelte.jsx`, so with a JS shadow the bridges' own
+            // `./X.svelte.jsx` resolves to the twin, which re-exports from
+            // `./X.svelte.jsx` — a cycle that types the component `any` and
+            // silently drops every diagnostic about using it. `.tsx` escapes
+            // it through `allowImportingTsExtensions`, which resolves an
+            // explicit TS extension literally. Dropping the twin costs nothing:
+            // `allowJs` is on whenever a `.jsx` shadow exists, so CJS-mode
+            // resolution of `./X.svelte` finds the shadow itself, and ESM mode
+            // still goes through the `.d.svelte.ts` bridge.
+            let emit_dts_twin = ext == ".tsx";
+            if let Some(parent) = tsx_path.parent() {
+                reject_symlink_components(parent, &cache_dir)?;
+                fs::create_dir_all(parent)?;
+                reject_symlink_components(parent, &cache_dir)?;
             }
-            // Re-point tsconfig-alias `.svelte` imports (`$lib/Foo.svelte`) at
-            // their shadow `.tsx`. Relative `.svelte` imports already resolve to
-            // shadows via the overlay's `rootDirs`, but TS applies `rootDirs`
-            // ONLY to relative specifiers — an aliased import lands on the raw
-            // source `.svelte` (no shadow there → unresolved `any` / spurious
-            // `TS1192`). oxc_resolver honours the project tsconfig
-            // `paths`/`baseUrl`, so we resolve each alias and rewrite it to a
-            // concrete shadow-relative path that tsgo resolves directly.
-            if let Some(resolver) = svelte_resolver.as_ref() {
-                tsx_code = rewrite_aliased_svelte_imports(
-                    &tsx_code,
-                    abs_source,
-                    &tsx_path,
-                    workspace,
-                    &emit_dir,
-                    resolver,
-                    &ext_root_dir_pairs,
-                    None,
-                );
+            remove_stale_counterpart(&tsx_path, ext);
+            if !emit_dts_twin {
+                let _ = fs::remove_file(&dts_path);
             }
-            fs::write(&tsx_path, &tsx_code)?;
 
-            // `<name>.svelte.d.ts` re-exports default + named so module
-            // resolution by `import Foo from './Foo.svelte'` still works.
-            if emit_dts_twin {
-                fs::write(&dts_path, shadow_reexport(&tsx_path))?;
-            }
-            // Persist the source map so the next incremental run can
-            // recover it without re-running svelte2tsx.
-            if let Some(map) = &result.map {
-                let _ = fs::write(&map_path, map);
+            let stats_match = match (stats, cached_entry) {
+                (Some((mtime, size)), Some(entry)) => {
+                    entry.mtime_ms == mtime
+                        && entry.size == size
+                        && entry.out_path == tsx_path
+                        && entry.dts_path == dts_path
+                }
+                _ => false,
+            };
+
+            // `.tsx.map` is only persisted when svelte2tsx returned a non-empty
+            // source map; we don't gate cache validity on it, so a workspace
+            // that gained / lost source maps still hits the cache. On hit we
+            // simply best-effort-read whatever sits at `map_path`.
+            let can_skip = incremental
+                && stats_match
+                && tsx_path.exists()
+                && (!emit_dts_twin || dts_path.exists());
+
+            let (source_map, manifest_entry) = if can_skip {
+                (fs::read_to_string(&map_path).ok(), None)
             } else {
-                let _ = fs::remove_file(&map_path);
-            }
+                let source = fs::read_to_string(abs_source)?;
+                let is_ts_file = looks_like_ts_svelte(&source);
+                let opts = Svelte2TsxOptions {
+                    filename: abs_source.display().to_string(),
+                    is_ts_file,
+                    mode: Svelte2TsxMode::Ts,
+                    accessors,
+                    namespace,
+                    version: SvelteVersion::V5,
+                    runes: None,
+                    // emit_jsdoc=true is required so tsgo doesn't choke on
+                    // syntactic errors before reporting semantic ones (matches
+                    // the JS reference's comment).
+                    emit_jsdoc: true,
+                    rewrite_external_imports: Some(RewriteExternalImportsOptions {
+                        source_path: abs_source.display().to_string(),
+                        generated_path: tsx_path.display().to_string(),
+                        workspace_path: workspace.display().to_string(),
+                    }),
+                };
+                let result = svelte2tsx(&source, opts).map_err(|e| OverlayError::Svelte2Tsx {
+                    file: abs_source.clone(),
+                    message: format!("{e}"),
+                })?;
+                let mut tsx_code =
+                    rewrite_companion_module_imports(&result.code, abs_source, &tsx_path);
+                if global_types.svelte_types.is_some() {
+                    blank_svelte_type_reference(&mut tsx_code);
+                }
+                // Re-point tsconfig-alias `.svelte` imports (`$lib/Foo.svelte`) at
+                // their shadow `.tsx`. Relative `.svelte` imports already resolve to
+                // shadows via the overlay's `rootDirs`, but TS applies `rootDirs`
+                // ONLY to relative specifiers — an aliased import lands on the raw
+                // source `.svelte` (no shadow there → unresolved `any` / spurious
+                // `TS1192`). oxc_resolver honours the project tsconfig
+                // `paths`/`baseUrl`, so we resolve each alias and rewrite it to a
+                // concrete shadow-relative path that tsgo resolves directly.
+                if let Some(resolver) = svelte_resolver.as_ref() {
+                    tsx_code = rewrite_aliased_svelte_imports(
+                        &tsx_code,
+                        abs_source,
+                        &tsx_path,
+                        workspace,
+                        &emit_dir,
+                        resolver,
+                        &ext_root_dir_pairs,
+                        None,
+                    );
+                }
+                fs::write(&tsx_path, &tsx_code)?;
 
-            if let Some((mtime, size)) = stats {
-                manifest.entries.insert(
-                    abs_source.clone(),
-                    ManifestEntry {
-                        source_path: abs_source.clone(),
-                        out_path: tsx_path.clone(),
-                        dts_path: dts_path.clone(),
-                        mtime_ms: mtime,
-                        size,
-                        is_ts_file,
-                    },
-                );
-            }
+                // `<name>.svelte.d.ts` re-exports default + named so module
+                // resolution by `import Foo from './Foo.svelte'` still works.
+                if emit_dts_twin {
+                    fs::write(&dts_path, shadow_reexport(&tsx_path))?;
+                }
+                // Persist the source map so the next incremental run can
+                // recover it without re-running svelte2tsx.
+                if let Some(map) = &result.map {
+                    let _ = fs::write(&map_path, map);
+                } else {
+                    let _ = fs::remove_file(&map_path);
+                }
 
-            result.map
-        };
+                let manifest_entry = stats.map(|(mtime, size)| ManifestEntry {
+                    source_path: abs_source.clone(),
+                    out_path: tsx_path.clone(),
+                    dts_path: dts_path.clone(),
+                    mtime_ms: mtime,
+                    size,
+                    is_ts_file,
+                });
 
-        // Outside the cache-hit branch: a `.svelte-check` dir left by a build
-        // without bridges would otherwise never gain them.
-        write_esm_bridge(&tsx_path, &shadow_reexport(&tsx_path), can_skip)?;
+                (result.map, manifest_entry)
+            };
 
-        // A duplicated input would emit the same `declare module` block twice.
-        if let Some(companion) = find_companion_module(abs_source)
-            && !augments.iter().any(|a| a.source_path == *abs_source)
-        {
-            let augment = build_companion_augment(abs_source, &tsx_path, &companion);
-            if augment.forward_default || !augment.names.is_empty() {
-                augments.push(augment);
-            }
+            // Outside the cache-hit branch: a `.svelte-check` dir left by a build
+            // without bridges would otherwise never gain them.
+            write_esm_bridge(&tsx_path, &shadow_reexport(&tsx_path), can_skip)?;
+
+            let augment = if let Some(companion) = find_companion_module(abs_source) {
+                let augment = build_companion_augment(abs_source, &tsx_path, &companion);
+                if augment.forward_default || !augment.names.is_empty() {
+                    Some(augment)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            Ok(MaterializedOverlayEntry {
+                entry: OverlayEntry {
+                    source_path: abs_source.clone(),
+                    tsx_path,
+                    dts_path,
+                    source_map,
+                },
+                manifest_entry,
+                augment,
+                is_js_shadow,
+            })
+        })
+        .collect();
+    // Rayon preserves indexed order, and resolving errors here keeps the same
+    // first-input error reporting as the former serial loop.
+    let materialized: Vec<MaterializedOverlayEntry> =
+        materialized.into_iter().collect::<Result<_, _>>()?;
+    for output in &materialized {
+        if let Some(entry) = &output.manifest_entry {
+            manifest
+                .entries
+                .insert(entry.source_path.clone(), entry.clone());
         }
-
-        entries.push(OverlayEntry {
-            source_path: abs_source.clone(),
-            tsx_path,
-            dts_path,
-            source_map,
-        });
     }
+    let materialized_by_source: HashMap<&Path, &OverlayEntry> = materialized
+        .iter()
+        .map(|output| (output.entry.source_path.as_path(), &output.entry))
+        .collect();
+    let entries: Vec<OverlayEntry> = abs_files
+        .iter()
+        .map(|source| materialized_by_source[source.as_path()].clone())
+        .collect();
+    let any_js_shadow =
+        external_js_shadows || materialized.iter().any(|output| output.is_js_shadow);
+    let augments: Vec<CompanionAugment> = materialized
+        .into_iter()
+        .filter_map(|output| output.augment)
+        .collect();
     let has_augments = write_companion_augmentation(&cache_dir, &augments)?;
 
     let import_probes = emit_import_probes(
@@ -3300,6 +3335,13 @@ struct CompanionAugment {
     forward_default: bool,
 }
 
+struct MaterializedOverlayEntry {
+    entry: OverlayEntry,
+    manifest_entry: Option<ManifestEntry>,
+    augment: Option<CompanionAugment>,
+    is_js_shadow: bool,
+}
+
 fn build_companion_augment(
     abs_source: &Path,
     tsx_path: &Path,
@@ -3945,6 +3987,24 @@ mod tests {
             cfg["compilerOptions"]["allowArbitraryExtensions"],
             serde_json::Value::Bool(true)
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn repeated_input_is_materialized_once_and_preserves_entries() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_repeat_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let source = tmp.join("src/App.svelte");
+        fs::write(&source, b"<script>let x = 0;</script>{x}").unwrap();
+
+        let layout = materialize_overlay(&tmp, &[source.clone(), source.clone()], None).unwrap();
+
+        assert_eq!(layout.entries.len(), 2);
+        assert_eq!(layout.entries[0].source_path, source);
+        assert_eq!(layout.entries[0].tsx_path, layout.entries[1].tsx_path);
+        assert_eq!(layout.entries[0].source_map, layout.entries[1].source_map);
 
         let _ = fs::remove_dir_all(&tmp);
     }

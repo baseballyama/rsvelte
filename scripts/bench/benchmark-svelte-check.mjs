@@ -134,15 +134,26 @@ console.log(`fixture: ${fixture}\n`);
 
 try {
     console.log('rsvelte (Rust):');
-    timeMs('cold (no overlay, parse only)', () => {
-        spawnSync(RSVELTE_BIN, ['--workspace', fixture, '--output', 'machine'], {
-            stdio: 'ignore'
-        });
+    timeMs('cold Svelte diagnostics + cleanup', () => {
+        spawnSync(
+            RSVELTE_BIN,
+            ['--workspace', fixture, '--no-type-check', '--output', 'machine'],
+            { stdio: 'ignore' }
+        );
     });
-    timeMs('with --emit-overlay', () => {
-        spawnSync(RSVELTE_BIN, ['--workspace', fixture, '--emit-overlay', '--output', 'machine'], {
-            stdio: 'ignore'
-        });
+    timeMs('cold overlay materialization', () => {
+        spawnSync(
+            RSVELTE_BIN,
+            [
+                '--workspace',
+                fixture,
+                '--emit-overlay',
+                '--no-type-check',
+                '--output',
+                'machine'
+            ],
+            { stdio: 'ignore' }
+        );
     });
     timeMs(
         'warm --emit-overlay --incremental',
@@ -154,6 +165,7 @@ try {
                     fixture,
                     '--emit-overlay',
                     '--incremental',
+                    '--no-type-check',
                     '--output',
                     'machine'
                 ],
