@@ -229,8 +229,8 @@ impl ScriptSpans {
     }
 
     fn unpack(span: u64) -> Option<(usize, usize)> {
-        let end = u32::try_from(span & u64::from(u32::MAX))
-            .expect("packed span low half fits in u32");
+        let end =
+            u32::try_from(span & u64::from(u32::MAX)).expect("packed span low half fits in u32");
         (span != Self::NONE).then_some((
             (span >> 32) as usize,
             usize::try_from(end).expect("u32 fits in usize"),
