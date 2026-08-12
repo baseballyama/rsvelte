@@ -90,6 +90,12 @@ try {
 	process.exit(2);
 }
 
+const buildInfo = napi.buildInfo();
+assert(
+	'buildInfo() exposes an embedded commit and dirty flag',
+	typeof buildInfo?.commit === 'string' && /^[0-9a-f]{40}$/i.test(buildInfo.commit) && typeof buildInfo.dirty === 'boolean',
+);
+
 // ---------------------------------------------------------------------------
 // 1. The declared option surface (the denominator)
 // ---------------------------------------------------------------------------
@@ -133,6 +139,7 @@ const RESULT_STRUCTS = [
 	'NapiPosition',
 	'NapiWarning',
 	'CompileBuffersResult',
+	'NapiBuildInfo',
 	// `{ source, options }` — its `options` field is a NapiCompileOptions, already surveyed.
 	'CompileBatchInput',
 ];
