@@ -126,9 +126,8 @@ function generateReadmeTable(report) {
 
 		let notes = '';
 		if (stats.skipped > 0 && stats.skipped === stats.total) {
-			// Whole category skipped — surface the reason recorded by the
-			// test runner (e.g. "out of scope" vs "not implemented") rather
-			// than always saying "Not implemented".
+			// Use the recorded reason when the whole category is skipped instead
+			// of always saying "Not implemented".
 			const firstReason = cat.samples?.find((s) => s.skip_reason)?.skip_reason;
 			if (firstReason && /out of scope/i.test(firstReason)) {
 				notes = 'Out of scope';
@@ -154,7 +153,8 @@ function renderSvelteTargetBlock(version, commitHash) {
 	const shortHash = commitHash.slice(0, 12);
 	return [
 		'<!-- svelte-target-version -->',
-		`**Targeting Svelte \`v${version}\`** ([\`${shortHash}\`](https://github.com/sveltejs/svelte/commit/${shortHash})) — automatically maintained by \`pnpm run update-docs\`.`,
+		'',
+		`**Targeting Svelte \`v${version}\`** ([\`${shortHash}\`](https://github.com/sveltejs/svelte/commit/${shortHash})). This line is updated by \`pnpm run update-docs\`.`,
 		'<!-- /svelte-target-version -->'
 	].join('\n');
 }
@@ -173,7 +173,7 @@ function updateSvelteTargetMarker(content, version, commitHash) {
 		return content.replace(insertRegex, `$1${block}\n\n$2`);
 	}
 	console.warn(
-		'Warning: Could not find compatibility marker or section in README.md — Svelte target version not written.'
+		'Warning: Could not find compatibility marker or section in README.md. Svelte target version not written.'
 	);
 	return content;
 }

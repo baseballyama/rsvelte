@@ -1,39 +1,31 @@
-<p align="center">
-  <img src="assets/logo.png" alt="rsvelte" width="200" height="200" />
-</p>
+# rsvelte
 
-<h1 align="center">rsvelte</h1>
+rsvelte is a Rust port of the official Svelte 5 compiler and related developer
+tools. It aims to match the official compiler output and work directly with the
+[OXC](https://oxc.rs/) toolchain.
 
-<p align="center">
-  <strong>A Rust port of the official Svelte 5 compiler — and the ecosystem around it — built to slot natively into the <a href="https://oxc.rs/">OXC</a> toolchain.</strong>
-</p>
+[Website](https://baseballyama.github.io/rsvelte/) |
+[Playground](https://baseballyama.github.io/rsvelte/playground) |
+[Compatibility](https://baseballyama.github.io/rsvelte/progress) |
+[Benchmarks](https://baseballyama.github.io/rsvelte/benchmark)
 
-<p align="center">
-  <a href="https://baseballyama.github.io/rsvelte/">Website</a> ·
-  <a href="https://baseballyama.github.io/rsvelte/playground">Playground</a> ·
-  <a href="https://baseballyama.github.io/rsvelte/benchmark">Benchmarks</a> ·
-  <a href="https://baseballyama.github.io/rsvelte/progress">Compatibility</a>
-</p>
+> [!WARNING]
+> rsvelte passes all in-scope fixtures in the official Svelte 5 test suite, but
+> it is still pre-1.0. APIs and behavior may change. Test it carefully before
+> using it in production.
 
-<p align="center">
-  <a href="https://app.codspeed.io/baseballyama/rsvelte?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed"/></a>
-</p>
+## Why rsvelte
 
-> **⚠️ Early stage** — rsvelte passes 100% of the in-scope fixtures in the official Svelte 5 test suite, but it's pre-1.0: APIs and behaviour may change without notice. Use in production at your own risk.
+Most native JavaScript tools only understand JavaScript and TypeScript files.
+They must call the JavaScript-based Svelte compiler to work with `.svelte`
+files. rsvelte implements the compiler and related tools in Rust.
 
-## Why rsvelte exists
-
-The native JS toolchain growing around OXC — `oxlint`, `oxfmt`, [Rolldown](https://rolldown.rs/), [`tsgo`](https://github.com/microsoft/typescript-go) — can only see `.js` / `.ts` / `.jsx` / `.tsx`. `.svelte` files are invisible to it, because parsing Svelte means running the JavaScript-based Svelte compiler, which native tools can't link against. Svelte developers are locked out of the order-of-magnitude speed-ups the rest of the ecosystem is starting to take for granted.
-
-rsvelte fixes that at the source: it ports the compiler — and the ecosystem hot paths around it (`svelte2tsx`, `svelte-check`, `vite-plugin-svelte`, formatting) — to Rust on top of OXC's parser, codegen, and semantic stack. The end goal is upstream integration, so `oxlint` can lint `.svelte`, `oxfmt` can format it, Rolldown can bundle it, and `tsgo` can type-check it — all without a JS compiler hop.
-
-Until then, the `@rsvelte/*` packages let you use rsvelte today: the compiler, the Vite plugin, `svelte-check`, and `svelte2tsx` are drop-in replacements for their JS counterparts, verified byte-for-byte on every release. `@rsvelte/fmt` and `@rsvelte/lint` target output/behaviour parity as fast complements rather than configuration-compatible replacements, and `@rsvelte/language-server` currently covers formatting and lint diagnostics only — see [Packages](#packages) for what each one does and doesn't cover.
+This lets tools such as oxlint, oxfmt, Rolldown, and tsgo add Svelte support
+without starting the JavaScript compiler.
 
 ## Quick start
 
-### Vite
-
-The plugin is a fork of `@sveltejs/vite-plugin-svelte` with the same public API — only the compiler underneath changes.
+Use the Vite plugin in a standard Vite and Svelte project:
 
 ```bash
 npm install -D @rsvelte/vite-plugin-svelte
@@ -41,262 +33,69 @@ npm install -D @rsvelte/vite-plugin-svelte
 
 ```js
 // vite.config.js
-import { svelte } from '@rsvelte/vite-plugin-svelte';
-import { defineConfig } from 'vite';
+import { svelte } from "@rsvelte/vite-plugin-svelte";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [svelte()],
 });
 ```
 
-### SvelteKit
-
-SvelteKit pulls in `@sveltejs/vite-plugin-svelte` internally, so redirect it with a package-manager override — no config changes needed:
-
-```jsonc
-// package.json (pnpm; npm/yarn have equivalent overrides/resolutions fields)
-{
-  "pnpm": {
-    "overrides": {
-      "@sveltejs/vite-plugin-svelte": "npm:@rsvelte/vite-plugin-svelte@^0.4.0"
-    }
-  }
-}
-```
-
-### Type-check (`svelte-check`)
-
-`@rsvelte/svelte-check` is a CLI-compatible replacement for `svelte-check`: a Rust walker generates a TSX overlay per component and hands it to `tsc` (or Microsoft's native `tsgo` with `--tsgo`), then maps diagnostics back to exact `.svelte` positions.
-
-```bash
-npm install -D @rsvelte/svelte-check
-npx rsvelte-check                 # Svelte + TypeScript diagnostics
-npx rsvelte-check --tsgo          # prefer tsgo over tsc (faster)
-npx rsvelte-check --watch --incremental
-npx rsvelte-check --no-type-check # Svelte diagnostics only
-```
-
-Every upstream flag is accepted (`--output`, `--fail-on-warnings`, `--compiler-warnings`, `--threshold`, `--no-tsconfig`, `--config`, `--preserveWatchOutput`, …), plus rsvelte-specific ones — see the [upstream flag compatibility table](apps/npm/svelte-check#upstream-flag-compatibility) or `npx rsvelte-check --help`.
-
-### Format (`rsvelte-fmt`)
-
-One Rust CLI that formats `.svelte` in-process and routes `.js` / `.ts` / `.css` / `.json` to [`oxfmt`](https://oxc.rs/docs/guide/usage/formatter) (an optional peer dependency), both in parallel:
-
-```bash
-npm install -D @rsvelte/fmt oxfmt
-npx rsvelte-fmt             # format the current directory in place (no path = cwd)
-npx rsvelte-fmt src/        # format a specific path in place
-npx rsvelte-fmt --check     # CI gate: exit 1 if anything would change
-```
-
-See [`@rsvelte/fmt`](apps/npm/fmt) for all flags, stdin/editor integration, and configuration.
-
-### Lint (`rsvelte-lint`)
-
-A native Svelte linter that surfaces the compiler's own validator/a11y diagnostics plus a Rust port of [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte)'s rules, designed to run alongside ESLint rather than replace it:
-
-```bash
-npm install -D @rsvelte/lint
-npx rsvelte-lint src/                 # lint a directory
-npx rsvelte-lint --fix src/           # autofix in place
-```
-
-See [`@rsvelte/lint`](apps/npm/lint) for configuration, ESLint config import (`--config-from-eslint`), and CI output formats (`--format sarif`, `--format github-actions`).
-
-Already on [`oxlint`](https://oxc.rs/docs/guide/usage/linter)? The same diagnostics can ride along in oxlint's own pass, so `.svelte` files stop being a blind spot in a single-linter setup:
-
-```bash
-npm install -D @rsvelte/oxlint-plugin oxlint
-```
-
-```json
-{
-  "jsPlugins": ["@rsvelte/oxlint-plugin"],
-  "extends": ["./node_modules/@rsvelte/oxlint-plugin/recommended.json"]
-}
-```
-
-Rules land under `svelte/*` ids, so oxlint config controls their severity like any other rule. See [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin) for the current limits of oxlint's `.svelte` support — script-less components and markup diagnostic positions are where the standalone CLI is still more faithful.
-
-### Compile from JavaScript
-
-For component compilation from Node, use
-[`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native),
-the NAPI binding used by the Vite plugin:
-
-```js
-import { compile, parse } from '@rsvelte/vite-plugin-svelte-native';
-
-const { js, css } = compile('<h1>Hello {name}</h1>', {
-  filename: 'App.svelte',
-  generate: 'client'
-});
-const ast = JSON.parse(parse('<h1>Hello</h1>', { modern: true }));
-```
-
-Neither rsvelte compiler package is currently a complete `svelte/compiler`
-drop-in: the browser-oriented WebAssembly build exposes the low-level
-`compile_client`, `compile_server`, and `parse_svelte` APIs, and the native
-binding adds the compilation-facing API used by Vite. Function-valued options
-work on the native binding; one caveat is that a dynamic `cssHash` needs the
-async path — see [Compiler option compatibility](#compiler-option-compatibility).
-
-### Embed in Rust, or call from any language
-
-```toml
-[dependencies]
-rsvelte = { version = "0.9.4", features = ["projection"] }
-```
-
-```rust
-use rsvelte::{ComponentOptions, Engine, ProjectionOptions, RuntimeTarget};
-
-let source = r#"<script>let count = $state(0)</script><button>{count}</button>"#;
-let engine = Engine::new();
-let mut component = engine.prepare(
-    source,
-    ComponentOptions::new().filename("Counter.svelte"),
-)?;
-
-let client = component.compile(RuntimeTarget::Client)?;
-let server = component.compile(RuntimeTarget::Server)?;
-let projection = engine.project(
-    source,
-    ProjectionOptions::new().filename("Counter.svelte"),
-)?;
-
-assert!(component.facts().runes);
-assert!(projection.exact_mappings.is_some());
-# Ok::<(), Box<dyn std::error::Error>>(())
-```
-
-`PreparedComponent` parses and analyzes once, freezes all analysis-affecting
-options, and can emit client and server output repeatedly in any order. It
-borrows the source, is `Send` but intentionally not `Sync`, and requires a
-mutable single-worker lease while emitting. Projection remains a separate
-operation because `svelte2tsx` intentionally uses different parse semantics.
-The `rsvelte` facade has an empty default feature set, performs no filesystem
-access, and owns no cache, scheduler, thread pool, or global allocator.
-Embedders can namespace caches with `Engine::fingerprint()` and retain the
-returned owned, OXC-free artifacts, diagnostics, facts, and mapping DTOs.
-
-`rsvelte_core` and `rsvelte_projection` remain available as low-level `0.x`
-implementation crates for consumers that intentionally need compiler-specific
-types or the full raw option surface. Their APIs are not the stable embedding
-boundary.
-
-For everything else there's a stable **C ABI** ([`crates/rsvelte_capi`](crates/rsvelte_capi)): one shared library + one header, JSON in / JSON out (plus optional `cssHash` / `warningFilter` callbacks), with prebuilt binaries on [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) (`capi-vX.Y.Z` tags) and ready-to-run examples for C, Go, Python, Ruby, PHP, Zig, and Java.
+SvelteKit requires a package manager override. Do not add a second Vite plugin.
+See the
+[`@rsvelte/vite-plugin-svelte` setup guide](apps/npm/vite-plugin-svelte/README.md)
+for the exact configuration.
 
 ## Packages
 
-All npm packages ship under the `@rsvelte` scope.
+Each package has its own installation guide, API details, and current
+limitations.
 
-| Package | Compares to |
-|---|---|
-| [`@rsvelte/vite-plugin-svelte`](apps/npm/vite-plugin-svelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) — drop-in fork, same public API |
-| [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI — drop-in replacement |
-| [`@rsvelte/fmt`](apps/npm/fmt) | `prettier` + [`prettier-plugin-svelte`](https://github.com/sveltejs/prettier-plugin-svelte) — targets output parity, not a configuration-compatible drop-in (reads `.oxfmtrc`, not `.prettierrc`; no Tailwind class sorting) |
-| [`@rsvelte/lint`](apps/npm/lint) | [`eslint`](https://eslint.org) + [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) — a complement designed to run alongside ESLint today, not yet a replacement |
-| [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin) | the same rules as an [`oxlint`](https://oxc.rs/docs/guide/usage/linter) plugin — bounded by oxlint's alpha `.svelte` support (no script-less components; markup diagnostics anchor at the script head), so `@rsvelte/lint` stays the faithful path |
-| [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) — drop-in replacement |
-| [`@rsvelte/compiler`](apps/npm/compiler) | Browser-oriented WebAssembly compiler API — not a `svelte/compiler` drop-in |
-| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | Native NAPI compiler binding used by `@rsvelte/vite-plugin-svelte` |
-| [`@rsvelte/language-server`](apps/npm/language-server) | [`svelte-language-server`](https://github.com/sveltejs/language-tools/tree/master/packages/language-server) — formatting + lint diagnostics only; no hover, completion, definition, rename, references, or TypeScript diagnostics (waits on tsgo's `tsserver` mode; use `@rsvelte/svelte-check` for type-checking) |
-| [`rsvelte-vscode`](apps/npm/vscode) | The `rsvelte` VS Code extension ([Marketplace](https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte-vscode)) |
+| Use case                                           | Package                                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Vite and SvelteKit                                 | [`@rsvelte/vite-plugin-svelte`](apps/npm/vite-plugin-svelte/README.md)               |
+| Svelte compiler for JavaScript and browsers (Wasm) | [`@rsvelte/compiler`](apps/npm/compiler/README.md)                                   |
+| Svelte compiler for Node.js (native N-API)         | [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native/README.md) |
+| Type-checking CLI                                  | [`@rsvelte/svelte-check`](apps/npm/svelte-check/README.md)                           |
+| Svelte-to-TSX conversion                           | [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx/README.md)                               |
+| Formatting                                         | [`@rsvelte/fmt`](apps/npm/fmt/README.md)                                             |
+| Standalone linting                                 | [`@rsvelte/lint`](apps/npm/lint/README.md)                                           |
+| Svelte diagnostics in oxlint                       | [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin/README.md)                         |
+| Language server                                    | [`@rsvelte/language-server`](apps/npm/language-server/README.md)                     |
+| VS Code                                            | [`rsvelte-vscode`](apps/npm/vscode/README.md)                                        |
+| Rust API                                           | [`rsvelte`](crates/rsvelte/README.md)                                                |
+| C API and other languages                          | [`rsvelte_capi`](crates/rsvelte_capi/README.md)                                      |
 
-## Performance
-
-Multi-threaded rsvelte vs. the official JavaScript tool, same machine, same corpus (3,417 real `.svelte` files; Apple M1 Pro, 10-core; 10 iterations after 3 warmup):
-
-| Task | JS baseline | Rust (1 thread) | Rust (multi) | Multi vs JS |
-|---|---:|---:|---:|---:|
-| Compile — client (full pipeline) | 742.5 ms | 236.7 ms | 35.1 ms | **21.2×** |
-| Compile — server (SSR) | 602.5 ms | 136.1 ms | 21.6 ms | **27.9×** |
-| Parse only | 174.2 ms | 4.0 ms | 0.8 ms | **217.1×** |
-| `svelte2tsx` | 285.7 ms | 87.5 ms | 13.1 ms | **21.9×** |
-| Format (vs prettier-plugin-svelte) | 3,055.7 ms | 64.0 ms | 10.8 ms | **281.7×** |
-| Lint (vs eslint + eslint-plugin-svelte) | 6,141.0 ms | 720.0 ms | 112.9 ms | **54.4×** |
-| `svelte-check` (500-file workspace) | 1,098.5 ms | 39.0 ms | 12.9 ms | **84.8×** |
-
-The corpus is Svelte's own test suite, restricted to the 3,417 of 3,874 files the official compiler
-accepts under the benchmark's options — otherwise the numbers would partly measure how fast each
-compiler throws. Of the 457 excluded, 290 are valid sources that merely need `experimental.async`
-(which the benchmark does not enable) and 167 are deliberately invalid error-case fixtures.
-
-The lint row runs **the same 72 rules on both sides** — the rule universe the
-[lint output-parity gate](#verified-against-real-world-code-not-just-fixtures) diffs, so speed and
-parity are measured over identical work. It is a conservative figure: `rsvelte-lint` additionally
-runs its compiler validator pass on every file, which the ESLint side does not.
-
-Because the corpus is Svelte's test suite, files are small (~236 bytes on average) and the numbers
-are dominated by per-file fixed costs rather than throughput on realistic components.
-
-Live numbers, charts, and reproduction steps: [benchmark page](https://baseballyama.github.io/rsvelte/benchmark), or `pnpm run generate-benchmark` locally. A single-threaded 100× compile speedup remains an explicit goal — current numbers are a snapshot, not a ceiling.
-
-## Compatibility
+## Compatibility and performance
 
 <!-- svelte-target-version -->
-**Targeting Svelte `v5.56.8`** ([`44a781373057`](https://github.com/sveltejs/svelte/commit/44a781373057)) — automatically maintained by `pnpm run update-docs`.
+
+**Targeting Svelte `v5.56.8`** ([`44a781373057`](https://github.com/sveltejs/svelte/commit/44a781373057)). This line is updated by `pnpm run update-docs`.
 <!-- /svelte-target-version -->
 
-rsvelte passes **100% of the in-scope fixtures** of the official Svelte compiler test suite — over 3,500 fixtures across parser, snapshot, CSS, validator, compiler errors, runtime (runes + legacy), hydration, SSR, preprocess, print, and svelte2tsx. The per-suite breakdown is on the live [compatibility dashboard](https://baseballyama.github.io/rsvelte/progress); regenerate locally with `pnpm run test-and-update`.
+rsvelte passes 100% of the official Svelte fixtures currently in scope. CI also
+compares compiler output, diagnostics, formatting, linting, TypeScript output,
+source maps, and generated edge cases with the official tools.
 
-What "in-scope" excludes:
+- [Live compatibility results](https://baseballyama.github.io/rsvelte/progress)
+- [Compatibility checks](compatibility/README.md)
+- [Real-world test method](scripts/compat-corpus/README.md)
+- [Live benchmarks and test details](https://baseballyama.github.io/rsvelte/benchmark)
 
-- **`migrate` (76 fixtures)** — the Svelte 4 → 5 migrator is intentionally out of scope; rsvelte ports the Svelte 5 compiler, not the migration tool.
-- **A handful of individually skipped fixtures** — most notably `javascript-comments` (acorn vs OXC comment attachment; legacy AST only, no output impact), `error-mode-warn` (skipped via the fixture's `_config.js`), and two fixtures pending small upstream ports (`async-in-derived`, `css-keyframes-percent`). The dashboard lists every skip with its reason.
+The Svelte 4-to-5 migration tool is not in scope.
 
-### Verified against real-world code, not just fixtures
-
-On top of the fixture suite, a continuously growing **output-equality corpus** compiles ~13,200 units of real Svelte source — every `.svelte` / `.svelte.(js|ts)` file and markdown code block from [32 pinned repositories](scripts/compat-corpus/corpus-sources.json), including bits-ui, shadcn-svelte, melt-ui, and flowbite-svelte — with both the official tool and rsvelte, and asserts the outputs match:
-
-| Track | Compared against | Units compared | Known divergences |
-|---|---|---:|---:|
-| Compiler (CSR + SSR) | `svelte/compiler` | 13,203 | **0** client / **0** server (full parity) |
-| `svelte2tsx` | official `svelte2tsx` | 12,840 | **0** |
-| Formatter | `oxfmt` + `prettier-plugin-svelte`, byte-for-byte | 12,648 | **16** |
-| Linter | [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) (compared rules) | 5,916 | **80** |
-
-Each count is a CI **ratchet**: the baselines in [`compatibility/`](compatibility) may only shrink, so a new divergence turns CI red and parity can only improve. Normalization (formatting, blank lines) runs on the comparison side only — never inside the compiler — so real differences can't hide. Details: [`scripts/compat-corpus/README.md`](scripts/compat-corpus/README.md).
-
-### Compiler option compatibility
-
-Every binding accepts the full `svelte/compiler` options shape, **including the function-valued options** — `customElement` / `css` / `runes` are resolved at the boundary, and `cssHash` / `warningFilter` are bridged back into the compiler as real callbacks. The one restriction left is where a dynamic `cssHash` can run:
-
-| Surface | `cssHash(...) => string` | `warningFilter(warning) => boolean` |
-|---|---|---|
-| Rust API | ✅ closure | ✅ closure |
-| wasm [`@rsvelte/compiler`](apps/npm/compiler) | ✅ | ✅ |
-| C ABI ([`rsvelte_capi`](crates/rsvelte_capi)) | ✅ `rsvelte_compile_with_callbacks` (fn pointer + userdata) | ✅ same entry point |
-| NAPI ([`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native)) | ✅ on `compileAsync`; `compile` / `compileBatch` throw a directing error (no JS event loop to service the callback) — a constant hash can use `cssHashOverride: '<hash>'` | ✅ every path |
-
-Every other option matches upstream exactly.
-
-## Architecture
-
-The directory layout mirrors the official compiler at `submodules/svelte/packages/svelte/src/compiler/`:
-
-```
-crates/rsvelte_core/src/compiler/phases/
-├── 1_parse/     # Svelte syntax → AST
-├── 2_analyze/   # scope tree, bindings, rune detection
-└── 3_transform/ # AST → JS/CSS (client + SSR)
-```
-
-JavaScript parsing, semantic analysis, and codegen all run on OXC — the same crates `oxlint` and `oxfmt` use — with a memory-efficient AST (u32 spans, `compact_str`, arena allocation) and `rayon` parallelism across files.
-
-## Development
+## Contributing
 
 ```bash
 git submodule update --init --recursive
-git config core.hooksPath .githooks   # cargo fmt/clippy pre-commit
 pnpm install
-pnpm run generate-fixtures            # required before tests
-cargo test
+pnpm run generate-fixtures
+cargo test --release
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the test-suite anatomy, how to run and debug a single fixture, and PR conventions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for requirements, test commands,
+debugging steps, performance tests, and pull request rules.
 
 ## License
 
-MIT
+[MIT](LICENSE)
