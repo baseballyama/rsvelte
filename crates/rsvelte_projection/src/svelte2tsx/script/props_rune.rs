@@ -156,6 +156,7 @@ pub(super) fn apply_props_typedef(
     if info
         .flags
         .contains(PropsRuneFlags::TYPE_ANNOTATION | PropsRuneFlags::HOISTABLE_TYPE)
+        && !info.flags.contains(PropsRuneFlags::NAMED_TYPE_REFERENCE)
     {
         // TS case with inline object type: `: { a: number, b: string }`
         // Create $$ComponentProps alias and replace everything from `:` to end of type
@@ -230,7 +231,6 @@ pub(super) fn apply_props_typedef(
     } else if info
         .flags
         .contains(PropsRuneFlags::TYPE_ANNOTATION | PropsRuneFlags::NAMED_TYPE_REFERENCE)
-        && !info.flags.contains(PropsRuneFlags::HOISTABLE_TYPE)
     {
         // TS case with simple named type reference: `: Props` or `: Props<T>`
         // Keep the type annotation as-is, use it directly in props_type_text
