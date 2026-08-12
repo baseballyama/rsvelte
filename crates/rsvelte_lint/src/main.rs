@@ -34,7 +34,7 @@ struct Cli {
     #[arg(long, value_name = "FILE")]
     config: Option<PathBuf>,
 
-    /// Import `svelte/*` rule severities from an existing ESLint flat config.
+    /// Import `svelte/*` rule severities and configured globals from an existing ESLint flat config.
     #[arg(long, value_name = "FILE")]
     config_from_eslint: Option<PathBuf>,
 
@@ -123,8 +123,12 @@ fn build_config(cli: &Cli, workspace: &Path) -> anyhow::Result<LintConfig> {
     if let Some(eslint_path) = &cli.config_from_eslint {
         let text = std::fs::read_to_string(eslint_path)
             .map_err(|e| anyhow::anyhow!("failed to read {}: {e}", eslint_path.display()))?;
-        for (rule, severity) in rsvelte_lint::eslint_import::import_svelte_rules(&text) {
+        let imported = rsvelte_lint::eslint_import::import_svelte_config(&text);
+        for (rule, severity) in imported.rules {
             cfg = cfg.with_override(rule, severity);
+        }
+        for (name, value) in imported.globals {
+            cfg = cfg.with_global(name, value);
         }
     }
 

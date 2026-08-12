@@ -1,7 +1,7 @@
-//! `--config-from-eslint` — statically read `svelte/*` rule severities out of
-//! an existing `eslint.config.js` / `.mjs` flat config, so an ESLint-migrating
-//! project keeps its severities with zero re-authoring (design doc §D course
-//! correction 3).
+//! `--config-from-eslint` — statically read `svelte/*` rule severities and
+//! configured globals out of an existing `eslint.config.js` / `.mjs` flat
+//! config, so an ESLint-migrating project keeps its Svelte rule severities and
+//! global contract with zero re-authoring.
 //!
 //! This is a *static* extraction: we parse the config with OXC and walk every
 //! `ObjectExpression` for a `rules` property, collecting string-keyed entries
@@ -20,7 +20,7 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 
-use crate::rule::Severity;
+use crate::{config::GlobalValue, rule::Severity};
 
 thread_local! {
     static ESLINT_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -29,30 +29,52 @@ thread_local! {
 /// Extract `(rule_id, severity)` pairs for the `svelte/*` namespace from a flat
 /// config source. Returns an empty vec on parse failure.
 pub fn import_svelte_rules(source: &str) -> Vec<(String, Severity)> {
+    import_svelte_config(source).rules
+}
+
+/// The statically knowable subset of an ESLint flat config that rsvelte-lint
+/// owns. Dynamic object spreads and imported config objects remain deliberately
+/// out of scope: evaluating user configuration would make a native CLI depend
+/// on a JavaScript runtime.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct ImportedEslintConfig {
+    pub rules: Vec<(String, Severity)>,
+    pub globals: Vec<(String, GlobalValue)>,
+}
+
+/// Extract Svelte rule severities and `languageOptions.globals` entries from an
+/// ESLint flat config. Later object literals win, matching flat config layering
+/// for the static shapes this importer can observe.
+pub fn import_svelte_config(source: &str) -> ImportedEslintConfig {
     ESLINT_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let rules = extract(&allocator, source);
+        let config = extract(&allocator, source);
         *cell.borrow_mut() = allocator;
-        rules
+        config
     })
 }
 
-fn extract(allocator: &Allocator, source: &str) -> Vec<(String, Severity)> {
+fn extract(allocator: &Allocator, source: &str) -> ImportedEslintConfig {
     // Flat configs are usually ESM (`export default [...]`); retry as a script
     // (CJS `module.exports = [...]`) if the module parse errors.
     for source_type in [SourceType::mjs(), SourceType::cjs()] {
         let ret = Parser::new(allocator, source, source_type).parse();
         if ret.diagnostics.is_empty() {
-            let mut collector = Collector { rules: Vec::new() };
+            let mut collector = Collector::default();
             collector.visit_program(&ret.program);
-            return collector.rules;
+            return ImportedEslintConfig {
+                rules: collector.rules,
+                globals: collector.globals,
+            };
         }
     }
-    Vec::new()
+    ImportedEslintConfig::default()
 }
 
+#[derive(Default)]
 struct Collector {
     rules: Vec<(String, Severity)>,
+    globals: Vec<(String, GlobalValue)>,
 }
 
 impl<'a> Visit<'a> for Collector {
@@ -61,11 +83,21 @@ impl<'a> Visit<'a> for Collector {
             let ObjectPropertyKind::ObjectProperty(prop) = prop else {
                 continue;
             };
-            if prop.computed || property_key_name(&prop.key) != Some("rules") {
+            if prop.computed {
                 continue;
             }
-            if let Expression::ObjectExpression(rules_obj) = &prop.value {
-                self.collect_rules(rules_obj);
+            match property_key_name(&prop.key) {
+                Some("rules") => {
+                    if let Expression::ObjectExpression(rules_obj) = &prop.value {
+                        self.collect_rules(rules_obj);
+                    }
+                }
+                Some("languageOptions") => {
+                    if let Expression::ObjectExpression(options) = &prop.value {
+                        self.collect_language_options(options);
+                    }
+                }
+                _ => {}
             }
         }
         walk::walk_object_expression(self, obj);
@@ -89,6 +121,51 @@ impl Collector {
             }
             if let Some(sev) = severity_of(&prop.value) {
                 self.rules.push((key.to_string(), sev));
+            }
+        }
+    }
+
+    fn collect_globals(&mut self, globals_obj: &ObjectExpression) {
+        for prop in &globals_obj.properties {
+            let ObjectPropertyKind::ObjectProperty(prop) = prop else {
+                continue;
+            };
+            if prop.computed {
+                continue;
+            }
+            let Some(name) = property_key_name(&prop.key) else {
+                continue;
+            };
+            let value = match &prop.value {
+                Expression::BooleanLiteral(value) => {
+                    if value.value {
+                        GlobalValue::Writable
+                    } else {
+                        GlobalValue::Readonly
+                    }
+                }
+                Expression::StringLiteral(value) => match value.value.as_str() {
+                    "readonly" | "readable" => GlobalValue::Readonly,
+                    "writable" | "writeable" => GlobalValue::Writable,
+                    "off" => GlobalValue::Off,
+                    _ => continue,
+                },
+                _ => continue,
+            };
+            self.globals.push((name.to_string(), value));
+        }
+    }
+
+    fn collect_language_options(&mut self, options: &ObjectExpression) {
+        for prop in &options.properties {
+            let ObjectPropertyKind::ObjectProperty(prop) = prop else {
+                continue;
+            };
+            if prop.computed || property_key_name(&prop.key) != Some("globals") {
+                continue;
+            }
+            if let Expression::ObjectExpression(globals_obj) = &prop.value {
+                self.collect_globals(globals_obj);
             }
         }
     }
@@ -156,5 +233,26 @@ mod tests {
     fn ignores_non_svelte_and_unparseable() {
         assert!(import_svelte_rules("this is not valid <<< js").is_empty());
         assert!(import_svelte_rules("export default [{ rules: { 'no-console': 2 } }];").is_empty());
+    }
+
+    #[test]
+    fn imports_flat_config_globals_in_oxlint_compatible_form() {
+        let imported = import_svelte_config(
+            r#"
+                export default [
+                    { languageOptions: { globals: { BUILD_ID: 'readonly', cache: true } } },
+                    { languageOptions: { globals: { BUILD_ID: 'off', legacy: false } } }
+                ];
+            "#,
+        );
+        assert_eq!(
+            imported.globals,
+            vec![
+                ("BUILD_ID".to_string(), GlobalValue::Readonly),
+                ("cache".to_string(), GlobalValue::Writable),
+                ("BUILD_ID".to_string(), GlobalValue::Off),
+                ("legacy".to_string(), GlobalValue::Readonly),
+            ]
+        );
     }
 }

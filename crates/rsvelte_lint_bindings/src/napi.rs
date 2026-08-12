@@ -7,7 +7,7 @@
 //! loaded (native-first, wasm-fallback) by `@rsvelte/oxlint-plugin`.
 //!
 //! The `js_name` on each export pins the snake_case names (`lint`,
-//! `lint_rules`) so callers use one property name regardless of engine — napi
+//! `lint_with_config`, `lint_rules`) so callers use one property name regardless of engine — napi
 //! would otherwise camelCase `lint_rules` to `lintRules`.
 //!
 //! `catch_unwind` on each export is load-bearing, not decorative: napi-rs only
@@ -35,6 +35,14 @@ use napi_derive::napi;
 #[napi(js_name = "lint", catch_unwind)]
 pub fn lint(source: String, filename: String) -> String {
     rsvelte_lint::json_api::lint(&source, &filename)
+}
+
+/// Lint under a caller-supplied `rsvelte-lint.json` document. This mirrors the
+/// wasm binding so hosts can share globals/environment configuration regardless
+/// of which engine was selected.
+#[napi(js_name = "lint_with_config", catch_unwind)]
+pub fn lint_with_config(source: String, filename: String, config: String) -> String {
+    rsvelte_lint::json_api::lint_with_config(&source, &filename, &config)
 }
 
 /// The full catalog of diagnostic ids [`lint`] can emit (see

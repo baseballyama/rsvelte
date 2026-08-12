@@ -96,6 +96,8 @@ explicitly:
     "svelte/button-has-type": ["warn", { "submit": true, "reset": false }],
     "svelte/no-restricted-html-elements": ["error", { "elements": ["marquee"] }]
   },
+  "env": { "browser": true },
+  "globals": { "BUILD_ID": "readonly" },
   "files": ["src/**/*.svelte"],
   "ignores": ["**/generated/**"]
 }
@@ -116,6 +118,14 @@ explicitly:
   over the path relative to the working directory. An empty `files` list
   matches every candidate passed on the command line; `ignores` always wins
   over `files`.
+- **`env`** / **`globals`** — an Oxlint-compatible globals contract retained
+  by every lint host (CLI, language server, wasm and NAPI). `env` is a map of
+  environment names to booleans; an explicit map replaces the default
+  `builtin` environment. Each `globals` value is `"readonly"`, `"writable"`,
+  `"off"`, or the ESLint-compatible boolean/legacy spellings (`false` /
+  `"readable"`, `true` / `"writeable"`). These settings are intentionally
+  parsed before the undefined-variable rule is enabled: no rule will guess an
+  environment from an unresolved identifier.
 
 Run `--list-rules` to see every native rule's id, category, default severity,
 and whether it's autofixable; rules with an options schema are marked
@@ -143,7 +153,8 @@ npx rsvelte-lint --print-eslint-config > eslint.rsvelte.json
 ```
 
 `--config-from-eslint <file>` statically parses an ESLint flat config and
-imports its `svelte/*` rule severities as overrides on top of your
+imports its `svelte/*` rule severities plus literal
+`languageOptions.globals` entries as overrides on top of your
 `rsvelte-lint.json` (or the recommended preset if you have none).
 `--print-eslint-config` prints a flat-config object disabling every
 `rsvelte-lint`-owned rule id in ESLint; spread it into your `eslint.config.js`.

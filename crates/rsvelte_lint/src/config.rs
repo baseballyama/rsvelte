@@ -21,6 +21,84 @@ use serde_json::Value;
 
 use crate::rule::{RuleMeta, Severity};
 
+/// Whether an explicitly configured global may be assigned to.
+///
+/// This is intentionally the same value vocabulary as Oxlint and ESLint's
+/// legacy config: `false`/`"readable"` mean readonly, `true`/`"writeable"`
+/// mean writable, and `"off"` removes an environment global. Keeping the
+/// original distinction matters for a future `no-undef`/write diagnostic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlobalValue {
+    Readonly,
+    Writable,
+    Off,
+}
+
+impl GlobalValue {
+    fn parse(value: &Value) -> Option<Self> {
+        match value {
+            Value::Bool(true) => Some(Self::Writable),
+            Value::Bool(false) => Some(Self::Readonly),
+            Value::String(value) => match value.as_str() {
+                "readonly" | "readable" => Some(Self::Readonly),
+                "writable" | "writeable" => Some(Self::Writable),
+                "off" => Some(Self::Off),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
+/// Globals and environments selected for a lint run.
+///
+/// The engine records this complete configuration now, before `no-undef` is
+/// enabled. That rule must consult an authoritative environment database rather
+/// than treating every unresolved OXC reference as an error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlobalConfig {
+    values: HashMap<String, GlobalValue>,
+    environments: HashMap<String, bool>,
+}
+
+impl Default for GlobalConfig {
+    fn default() -> Self {
+        Self {
+            values: HashMap::new(),
+            // Oxlint treats the ECMAScript builtin environment as enabled by
+            // default. An explicit `env` object replaces that default.
+            environments: HashMap::from([(String::from("builtin"), true)]),
+        }
+    }
+}
+
+impl GlobalConfig {
+    /// The configured mode for `name`, including an explicit `"off"`.
+    pub fn value(&self, name: &str) -> Option<GlobalValue> {
+        self.values.get(name).copied()
+    }
+
+    /// Whether the named environment is enabled.
+    pub fn environment_enabled(&self, name: &str) -> bool {
+        self.environments.get(name).copied().unwrap_or(false)
+    }
+
+    /// Iterate over enabled environment names.
+    pub fn enabled_environments(&self) -> impl Iterator<Item = &str> {
+        self.environments
+            .iter()
+            .filter_map(|(name, enabled)| enabled.then_some(name.as_str()))
+    }
+
+    fn set_global(&mut self, name: String, value: GlobalValue) {
+        self.values.insert(name, value);
+    }
+
+    fn set_environment(&mut self, name: String, enabled: bool) {
+        self.environments.insert(name, enabled);
+    }
+}
+
 /// Built-in preset names accepted in `extends`.
 const PRESET_NONE: &[&str] = &["none", "off", "empty"];
 
@@ -40,6 +118,10 @@ pub struct LintConfig {
     /// Glob patterns excluding files from linting. Takes precedence over
     /// `files`.
     ignores: Vec<String>,
+    /// Explicit globals and enabled environments. Native rules do not consume
+    /// this yet; retaining it is the contract needed before `no-undef` can be
+    /// made correct across the CLI, language server, wasm and NAPI bindings.
+    globals: GlobalConfig,
 }
 
 impl LintConfig {
@@ -67,6 +149,23 @@ impl LintConfig {
     pub fn with_options(mut self, rule: impl Into<String>, options: Value) -> Self {
         self.options.insert(rule.into(), options);
         self
+    }
+
+    /// Add, override, or disable one global in the Oxlint/ESLint vocabulary.
+    pub fn with_global(mut self, name: impl Into<String>, value: GlobalValue) -> Self {
+        self.globals.set_global(name.into(), value);
+        self
+    }
+
+    /// Enable or disable an Oxlint-compatible named environment.
+    pub fn with_environment(mut self, name: impl Into<String>, enabled: bool) -> Self {
+        self.globals.set_environment(name.into(), enabled);
+        self
+    }
+
+    /// Globals/environment settings preserved for semantic rules.
+    pub fn globals(&self) -> &GlobalConfig {
+        &self.globals
     }
 
     /// Resolve the effective severity for a native rule (default comes from its
@@ -182,6 +281,8 @@ impl LintConfig {
 
         config.files = string_array(obj.get("files"));
         config.ignores = string_array(obj.get("ignores"));
+        config.globals = parse_globals(obj.get("globals"))?;
+        config.globals.environments = parse_environments(obj.get("env"))?;
 
         Ok(config)
     }
@@ -216,6 +317,40 @@ fn string_array(v: Option<&Value>) -> Vec<String> {
             .collect(),
         _ => Vec::new(),
     }
+}
+
+fn parse_globals(value: Option<&Value>) -> anyhow::Result<GlobalConfig> {
+    let Some(value) = value else {
+        return Ok(GlobalConfig::default());
+    };
+    let object = value
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("globals must be a JSON object"))?;
+    let mut globals = GlobalConfig::default();
+    for (name, value) in object {
+        let value = GlobalValue::parse(value).ok_or_else(|| {
+            anyhow::anyhow!("globals.{name} must be 'readonly', 'writable', 'off', or a boolean")
+        })?;
+        globals.set_global(name.clone(), value);
+    }
+    Ok(globals)
+}
+
+fn parse_environments(value: Option<&Value>) -> anyhow::Result<HashMap<String, bool>> {
+    let Some(value) = value else {
+        return Ok(GlobalConfig::default().environments);
+    };
+    let object = value
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("env must be a JSON object"))?;
+    let mut environments = HashMap::new();
+    for (name, value) in object {
+        let enabled = value
+            .as_bool()
+            .ok_or_else(|| anyhow::anyhow!("env.{name} must be a boolean"))?;
+        environments.insert(name.clone(), enabled);
+    }
+    Ok(environments)
 }
 
 /// A small gitignore-flavoured glob matcher over `/`-separated paths.
@@ -335,5 +470,35 @@ mod tests {
         assert!(cfg.should_lint("src/Foo.svelte"));
         assert!(!cfg.should_lint("other/Foo.svelte"));
         assert!(!cfg.should_lint("src/_Private.svelte"));
+    }
+
+    #[test]
+    fn globals_and_env_follow_oxlint_value_semantics() {
+        let cfg = LintConfig::from_json_str(
+            r#"{
+                "env": { "browser": true, "node": false },
+                "globals": {
+                    "BUILD_ID": "readonly",
+                    "mutableCache": true,
+                    "Promise": "off"
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(cfg.globals().value("BUILD_ID"), Some(GlobalValue::Readonly));
+        assert_eq!(
+            cfg.globals().value("mutableCache"),
+            Some(GlobalValue::Writable)
+        );
+        assert_eq!(cfg.globals().value("Promise"), Some(GlobalValue::Off));
+        assert!(cfg.globals().environment_enabled("browser"));
+        assert!(!cfg.globals().environment_enabled("node"));
+        assert!(!cfg.globals().environment_enabled("builtin"));
+    }
+
+    #[test]
+    fn malformed_globals_and_env_are_config_errors() {
+        assert!(LintConfig::from_json_str(r#"{ "globals": { "x": "yes" } }"#).is_err());
+        assert!(LintConfig::from_json_str(r#"{ "env": { "browser": "yes" } }"#).is_err());
     }
 }
