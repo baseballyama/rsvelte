@@ -122,8 +122,12 @@ pub fn transform_server_module(
     .unwrap_or(source_without_effects);
 
     // Transform rune calls using the same infrastructure as client modules.
-    let transformed =
-        super::client::transform_module_source_for_module(&source_without_effects, analysis, false);
+    let transformed = super::client::transform_module_source_for_module(
+        &source_without_effects,
+        analysis,
+        false,
+        true,
+    );
 
     // Post-process: replace client-specific runtime calls with server equivalents
     // $.get(x) -> x() for server (derived signals are callable on server)

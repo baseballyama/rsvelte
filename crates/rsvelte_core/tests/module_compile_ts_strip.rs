@@ -15,7 +15,7 @@
 
 use rsvelte_core::GenerateMode;
 use rsvelte_core::compile_module;
-use rsvelte_core::compiler::ModuleCompileOptions;
+use rsvelte_core::compiler::{ExperimentalOptions, ModuleCompileOptions};
 
 fn compile_mod(src: &str, generate: GenerateMode) -> String {
     let result = compile_module(
@@ -141,4 +141,35 @@ fn server_ts_with_derived_by_works_together() {
         out.contains("return style();"),
         "expected the read to be lowered to `style()`, got:\n{out}"
     );
+}
+
+#[test]
+fn server_async_derived_array_destructure_uses_server_temp() {
+    for dev in [false, true] {
+        let output = compile_module(
+            "const [a, b] = $derived(await p);",
+            ModuleCompileOptions {
+                filename: Some("store.svelte.js".to_string()),
+                generate: GenerateMode::Server,
+                dev,
+                experimental: ExperimentalOptions { r#async: true },
+                ..Default::default()
+            },
+        )
+        .expect("compile_module")
+        .js
+        .code;
+        assert!(
+            output.contains("$$derived_array = $.derived(() => $.to_array($$d(), 2))"),
+            "server output must use the callable derived-array temp:\n{output}"
+        );
+        assert!(
+            output.contains("a = $.derived(() => $$derived_array()[0])"),
+            "server output must read the callable derived-array temp:\n{output}"
+        );
+        assert!(
+            !output.contains("$$array"),
+            "client array temp must not leak into server output:\n{output}"
+        );
+    }
 }

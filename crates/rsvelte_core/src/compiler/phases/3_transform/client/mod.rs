@@ -429,9 +429,10 @@ pub(crate) fn transform_module_source_for_module(
     source: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
+    server: bool,
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
-    transform_module_script_runes(&class_transformed, analysis, dev)
+    transform_module_script_runes_with_target(&class_transformed, analysis, dev, server)
 }
 
 /// Extract imports from a string, returning (imports, rest).
@@ -4006,6 +4007,15 @@ pub(crate) fn transform_module_script_runes(
     analysis: &ComponentAnalysis,
     dev: bool,
 ) -> String {
+    transform_module_script_runes_with_target(script, analysis, dev, false)
+}
+
+fn transform_module_script_runes_with_target(
+    script: &str,
+    analysis: &ComponentAnalysis,
+    dev: bool,
+    server: bool,
+) -> String {
     let mut result = script.to_string();
 
     // Strip TypeScript generic parameters from $state<...>() and $derived<...>() calls.
@@ -4350,6 +4360,7 @@ pub(crate) fn transform_module_script_runes(
         &module_non_reactive_vars,
         &module_proxy_vars,
         dev,
+        server,
         module_async_derived_locations.as_ref(),
     ) {
         result = rewritten;
