@@ -177,7 +177,7 @@ fn test_error_fixture_has_no_svelte_errors() {
     }
 
     let opts = RunOptions {
-        workspace: workspace,
+        workspace,
         ..RunOptions::default()
     };
     let result = run(&opts);
@@ -227,7 +227,7 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
     }
 
     let opts = RunOptions {
-        workspace: workspace,
+        workspace,
         tsconfig: Some(tsconfig),
         type_check: true,
         prefer_tsgo: true,
