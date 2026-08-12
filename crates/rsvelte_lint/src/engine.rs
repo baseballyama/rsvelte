@@ -191,12 +191,13 @@ fn run_over_programs(
 /// an extra oxc semantic pass, so the engine only pays for it when this rule is
 /// enabled.
 pub(crate) const SCOPE_RESOLVER_RULE: &str = "svelte/no-top-level-browser-globals";
+pub(crate) const NO_UNDEF_RULE: &str = "svelte/no-undef";
 
 /// Whether any enabled script rule needs the (oxc-semantic-backed) resolver.
 fn needs_scope_resolver(enabled: &[EnabledScriptRule<'_>]) -> bool {
     enabled
         .iter()
-        .any(|(_, meta, _)| meta.name == SCOPE_RESOLVER_RULE)
+        .any(|(_, meta, _)| matches!(meta.name, SCOPE_RESOLVER_RULE | NO_UNDEF_RULE))
 }
 
 /// Build the scope resolver from a component's `<script>` block(s). Each
@@ -243,7 +244,8 @@ pub(crate) fn maybe_scope_resolver(
     config: &LintConfig,
 ) -> Option<ScopeResolver> {
     // Mirrors the rule's own `config.severity_for(&META)` (its default is Warn).
-    (config.resolve_code(SCOPE_RESOLVER_RULE, Severity::Warn) != Severity::Off)
+    (config.resolve_code(SCOPE_RESOLVER_RULE, Severity::Warn) != Severity::Off
+        || config.resolve_code(NO_UNDEF_RULE, Severity::Off) != Severity::Off)
         .then(|| scope_resolver_for_root(root, source))
 }
 

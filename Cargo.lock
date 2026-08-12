@@ -1214,6 +1214,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
+name = "javascript-globals"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c5f4cff6dd96f6045e5e53d52ef114724989508a83e0dd72eea795844390297"
+dependencies = [
+ "phf 0.14.0",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2606,12 +2615,14 @@ dependencies = [
  "clap",
  "codspeed-criterion-compat",
  "compact_str 0.10.0",
+ "javascript-globals",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
  "oxc_parser",
  "oxc_semantic",
  "oxc_span",
+ "oxc_syntax",
  "rayon",
  "regex",
  "rsvelte_core",

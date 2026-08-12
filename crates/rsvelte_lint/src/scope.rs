@@ -76,6 +76,9 @@ pub struct ScopeResolver {
     /// Names declared at the top level of the file's script(s) — the bindings a
     /// template `{expr}` can read.
     binding_names: HashSet<String>,
+    /// Unresolved value references, with absolute file offsets. These are kept
+    /// alongside the local facts because both come from the same semantic pass.
+    unresolved_references: Vec<crate::compiler_scope::UnresolvedReference>,
 }
 
 impl ScopeResolver {
@@ -88,6 +91,17 @@ impl ScopeResolver {
             self.local_spans.insert((s + base, e + base));
         }
         self.binding_names.extend(scope.root_binding_names);
+        self.unresolved_references
+            .extend(
+                scope
+                    .unresolved_references
+                    .into_iter()
+                    .map(|mut reference| {
+                        reference.start += base;
+                        reference.end += base;
+                        reference
+                    }),
+            );
     }
 
     /// Whether the identifier reference at absolute `[start, end)` is *not* a
@@ -104,6 +118,11 @@ impl ScopeResolver {
     /// global of the same name.
     pub fn is_component_binding(&self, name: &str) -> bool {
         self.binding_names.contains(name)
+    }
+
+    /// Unresolved references from all component scripts.
+    pub fn unresolved_references(&self) -> &[crate::compiler_scope::UnresolvedReference] {
+        &self.unresolved_references
     }
 }
 

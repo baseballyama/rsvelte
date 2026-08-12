@@ -26,6 +26,7 @@ use oxc_ast::AstKind;
 use oxc_parser::{ParseOptions, Parser};
 use oxc_semantic::{IsGlobalReference, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType};
+use oxc_syntax::operator::UnaryOperator;
 
 /// The scope facts a lint rule needs about one `<script>` body. See the module
 /// docs for how each field is used.
@@ -42,6 +43,18 @@ pub struct ScriptScope {
     /// Names declared in the script's **root** (module / instance top-level)
     /// scope — the bindings visible to the component's template.
     pub root_binding_names: Vec<String>,
+    /// Unresolved runtime references in this script, relative to its body.
+    pub unresolved_references: Vec<UnresolvedReference>,
+}
+
+/// An unresolved value reference emitted by OXC semantic analysis.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnresolvedReference {
+    pub name: String,
+    pub start: u32,
+    pub end: u32,
+    pub in_typeof: bool,
+    pub arguments_in_function: bool,
 }
 
 /// Resolve the scope facts for one `<script>` body via a single oxc semantic
@@ -57,6 +70,76 @@ pub struct ScriptScope {
 /// and a script ESLint accepts parses cleanly here anyway (both this and
 /// `svelte-eslint-parser` sit on a standard JS/TS grammar).
 pub fn resolve_script_scope(script_src: &str, is_ts: bool) -> ScriptScope {
+    with_semantic(script_src, is_ts, |semantic| {
+        let scoping = semantic.scoping();
+        let mut non_global_spans = Vec::new();
+        for node in semantic.nodes().iter() {
+            match node.kind() {
+                AstKind::IdentifierReference(ident) if !ident.is_global_reference(scoping) => {
+                    let span = ident.span();
+                    non_global_spans.push((span.start, span.end));
+                }
+                AstKind::BindingIdentifier(ident) => {
+                    let span = ident.span();
+                    non_global_spans.push((span.start, span.end));
+                }
+                _ => {}
+            }
+        }
+        let root_scope = scoping.root_scope_id();
+        let root_binding_names = scoping
+            .symbol_ids()
+            .filter(|&id| scoping.symbol_scope_id(id) == root_scope)
+            .map(|id| scoping.symbol_name(id).to_string())
+            .collect();
+        let mut unresolved_references = Vec::new();
+        for ids in scoping.root_unresolved_references_ids() {
+            for id in ids {
+                let reference = scoping.get_reference(id);
+                if reference.is_type() {
+                    continue;
+                }
+                let node = semantic.nodes().get_node(reference.node_id());
+                let AstKind::IdentifierReference(ident) = node.kind() else {
+                    continue;
+                };
+                let in_typeof = is_typeof(node, semantic);
+                let arguments_in_function = ident.name.as_str() == "arguments"
+                    && scoping
+                        .scope_ancestors(reference.scope_id())
+                        .map(|scope| scoping.scope_flags(scope))
+                        .any(|flags| flags.is_function() && !flags.is_arrow());
+                unresolved_references.push(UnresolvedReference {
+                    name: ident.name.to_string(),
+                    start: ident.span.start,
+                    end: ident.span.end,
+                    in_typeof,
+                    arguments_in_function,
+                });
+            }
+        }
+        ScriptScope {
+            non_global_spans,
+            root_binding_names,
+            unresolved_references,
+        }
+    })
+}
+
+fn is_typeof(node: &oxc_semantic::AstNode<'_>, semantic: &oxc_semantic::Semantic<'_>) -> bool {
+    let parent = semantic.nodes().parent_node(node.id());
+    match parent.kind() {
+        AstKind::UnaryExpression(expr) => expr.operator == UnaryOperator::Typeof,
+        AstKind::ParenthesizedExpression(_) => is_typeof(parent, semantic),
+        _ => false,
+    }
+}
+
+fn with_semantic<T>(
+    script_src: &str,
+    is_ts: bool,
+    f: impl FnOnce(&oxc_semantic::Semantic<'_>) -> T,
+) -> T {
     let allocator = Allocator::default();
     let source_type = if is_ts {
         SourceType::ts().with_module(true)
@@ -79,37 +162,7 @@ pub fn resolve_script_scope(script_src: &str, is_ts: bool) -> ScriptScope {
         .with_build_nodes(true)
         .build(program)
         .semantic;
-    let scoping = semantic.scoping();
-
-    let mut non_global_spans = Vec::new();
-    for node in semantic.nodes().iter() {
-        match node.kind() {
-            // A read that resolves to a local binding (not a global).
-            AstKind::IdentifierReference(ident) if !ident.is_global_reference(scoping) => {
-                let span = ident.span();
-                non_global_spans.push((span.start, span.end));
-            }
-            // Every declaration site — never a global reference.
-            AstKind::BindingIdentifier(ident) => {
-                let span = ident.span();
-                non_global_spans.push((span.start, span.end));
-            }
-            _ => {}
-        }
-    }
-
-    // Root-scope declarations are the names a component's template can read.
-    let root_scope = scoping.root_scope_id();
-    let root_binding_names = scoping
-        .symbol_ids()
-        .filter(|&id| scoping.symbol_scope_id(id) == root_scope)
-        .map(|id| scoping.symbol_name(id).to_string())
-        .collect();
-
-    ScriptScope {
-        non_global_spans,
-        root_binding_names,
-    }
+    f(&semantic)
 }
 
 #[cfg(test)]

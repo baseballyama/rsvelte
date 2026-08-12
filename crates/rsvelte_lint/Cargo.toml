@@ -64,6 +64,8 @@ oxc_ast = "0.143"
 oxc_ast_visit = { version = "0.143", optional = true }
 oxc_span = "0.143"
 oxc_semantic = "0.143"
+oxc_syntax = "0.143"
+javascript-globals = "1.5.1"
 
 [dev-dependencies]
 criterion = { version = "5.0.0", features = [

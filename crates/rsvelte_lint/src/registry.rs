@@ -184,6 +184,7 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::no_reactive_reassign::NoReactiveReassign;
     use crate::rules::no_store_async::NoStoreAsync;
     use crate::rules::no_top_level_browser_globals::NoTopLevelBrowserGlobals;
+    use crate::rules::no_undef::NoUndef;
     use crate::rules::no_unnecessary_state_wrap::NoUnnecessaryStateWrap;
     use crate::rules::prefer_const::PreferConst;
     use crate::rules::prefer_derived_over_derived_by::PreferDerivedOverDerivedBy;
@@ -220,5 +221,6 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         ),
         Box::new(crate::rules::infinite_reactive_loop::InfiniteReactiveLoop),
         Box::new(crate::rules::no_unused_vars::NoUnusedVars),
+        Box::new(NoUndef),
     ]
 }

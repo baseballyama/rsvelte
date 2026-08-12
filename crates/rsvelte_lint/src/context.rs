@@ -180,6 +180,11 @@ impl<'a> LintContext<'a> {
         self.source
     }
 
+    /// The resolved file configuration.
+    pub fn config(&self) -> &'a LintConfig {
+        self.config
+    }
+
     /// The source slice for a byte range, clamped to the source bounds.
     pub fn slice(&self, start: u32, end: u32) -> &'a str {
         let (s, e) = (start as usize, end as usize);

@@ -73,6 +73,9 @@ const NO_FIXTURE_RULES: &[&str] = &[
     // has no such rule (upstream defers to ESLint core, which cannot see template
     // reads). Covered by the inline `crate::rules::no_unused_vars` unit tests.
     "svelte/no-unused-vars",
+    // `no-undef` is an rsvelte-only Svelte-aware port of ESLint core's rule;
+    // eslint-plugin-svelte deliberately has no fixture directory for it.
+    "svelte/no-undef",
 ];
 
 /// Meta-rules whose findings come from the whole-component compile / source-scan
