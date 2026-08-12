@@ -1,5 +1,5 @@
 //! Server `SnippetBlock` visitor — the Rust port of
-//! `3-transform/server/visitors/SnippetBlock.js` (non-dev path).
+//! `3-transform/server/visitors/SnippetBlock.js`.
 //!
 //! Upstream (写经):
 //! ```js
@@ -11,7 +11,10 @@
 //!     );
 //!     const statements = node.metadata.can_hoist ? context.state.hoisted
 //!                                                 : context.state.init;
-//!     // dev: validate_snippet_args + prevent_snippet_stringification (KNOWN GAP)
+//!     if (dev) {
+//!         fn.body.body.unshift(b.stmt(b.call('$.validate_snippet_args', b.id('$$renderer'))));
+//!         statements.push(b.stmt(b.call('$.prevent_snippet_stringification', fn.id)));
+//!     }
 //!     statements.push(fn);
 //! }
 //! ```
@@ -26,8 +29,6 @@
 //! program assembly prepends to the component-function body ahead of the rendered
 //! template.
 //!
-//! The dev-mode `$.validate_snippet_args` prologue and
-//! `$.prevent_snippet_stringification` registration are KNOWN GAPs.
 
 use crate::ast::template::SnippetBlock;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
@@ -101,14 +102,8 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
 
     // 写经 `node.metadata.can_hoist ? state.hoisted : state.init`: a hoistable
     // snippet (no instance-state reference) goes to module scope; otherwise it
-    // is emitted INLINE at its source position in the enclosing fragment's
-    // template stream. The text-based oracle this pipeline matches does not keep a
-    // separate `init` buffer — it prints a non-hoistable snippet function exactly
-    // where it appears in the child run, so a `{@const}` declared before the
-    // `{#snippet}` precedes it (`function` hoisting makes the order irrelevant at
-    // runtime, but byte-parity requires source order). `function` declarations
-    // flush the joinable text run (like a `{@const}`), so the rendered `push`
-    // calls that surround them stay in place.
+    // is emitted into the enclosing fragment's template body. In dev mode the
+    // guard and declaration share upstream's `state.init` placement.
     // Upstream `can_hoist = is_root_level && body_refs_only_own_params`. Our
     // analyze does NOT bump its depth counters for `<svelte:boundary>`, so a
     // snippet that sits directly inside a boundary's children fragment (e.g.
@@ -127,13 +122,15 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
         state.hoisted.push(fn_decl);
     } else {
         if state.options.dev {
-            state.template.push(super::shared::TemplateEntry::Stmt(
-                b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(&name)])),
-            ));
+            state
+                .snippet_inits
+                .push(b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(&name)])));
+            state.snippet_inits.push(fn_decl);
+        } else {
+            state
+                .template
+                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
         }
-        state
-            .template
-            .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
     }
 }
 

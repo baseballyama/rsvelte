@@ -2410,6 +2410,10 @@ fn ast_matches_oracle_dev_instrumentation() {
             "component-child-snippet",
             "<A>{#snippet child({ value })}{value}{/snippet}</A>",
         ),
+        (
+            "non-hoistable-snippet-dev-init",
+            "<script>let count = $state(0)</script>{#snippet item()}{count}{/snippet}<button onclick={() => count += 1}>x</button>{@render item()}",
+        ),
     ];
     let mut mismatches = Vec::new();
     for (name, src) in inline {
