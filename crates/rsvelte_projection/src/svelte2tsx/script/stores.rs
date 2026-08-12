@@ -222,17 +222,21 @@ impl ScriptSpans {
 
     fn pack(span: Option<(usize, usize)>) -> u64 {
         span.map_or(Self::NONE, |(start, end)| {
-            let start = u32::try_from(start).expect("store offset fits in u32");
-            let end = u32::try_from(end).expect("store offset fits in u32");
+            let start = u32::try_from(start).expect("store start offset fits in u32");
+            let end = u32::try_from(end).expect("store end offset fits in u32");
             (u64::from(start) << 32) | u64::from(end)
         })
     }
 
     fn unpack(span: u64) -> Option<(usize, usize)> {
+        if span == Self::NONE {
+            return None;
+        }
+        let start = u32::try_from(span >> 32).expect("packed span high half fits in u32");
         let end =
             u32::try_from(span & u64::from(u32::MAX)).expect("packed span low half fits in u32");
-        (span != Self::NONE).then_some((
-            (span >> 32) as usize,
+        Some((
+            usize::try_from(start).expect("u32 fits in usize"),
             usize::try_from(end).expect("u32 fits in usize"),
         ))
     }
@@ -1161,6 +1165,9 @@ mod tests {
     #[test]
     fn script_span_scan_reuses_module_and_instance_ranges() {
         assert_eq!(std::mem::size_of::<ScriptSpans>(), 16);
+        let empty = ScriptSpans::default();
+        assert_eq!(empty.module(), None);
+        assert_eq!(empty.instance(), None);
         let source = "lead<scripts>$fake</scripts>\
             <script context='module'>\n$module\n</script>\
             <script>\n// $comment\n$instance\n</script>";
