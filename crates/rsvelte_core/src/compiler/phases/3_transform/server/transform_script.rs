@@ -261,17 +261,15 @@ fn transform_script_content_inner(
     // when they're not part of an IIFE call.
     result = strip_arrow_function_parens(result);
 
-    // In legacy mode (non-module, non-runes), reorder $: reactive statements
-    // to appear after function declarations (to match official Svelte SSR behavior)
-    if !is_module {
-        super::transform_legacy::reorder_reactive_statements_after_functions(&result)
-    } else {
+    if is_module {
         // In a `<script module>` body, a top-level `$:` labeled reactive
         // statement is dropped on the server: upstream's server
         // LabeledStatement visitor returns `b.empty` and collects it into the
         // (instance) reactive-statement set, which a module has no component
         // body to emit, so it vanishes. The client keeps it as a plain label.
         strip_top_level_reactive_labels(&result)
+    } else {
+        result
     }
 }
 

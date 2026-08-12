@@ -3,15 +3,9 @@
 //! upstream records no assignment target at all for it and leaves the statement
 //! in source order — regardless of the operator.
 //!
-//! These are **guards, not discriminating tests**: SSR reactive ordering runs
-//! through the AST port of `order_reactive_statements` in
-//! `server/ast/script.rs`, which already agrees with upstream here, so every
-//! case below passes both before and after the compound-assignment guard was
-//! added to `transform_legacy::extract_simple_assignments`. That text scanner
-//! is only reachable from the declaration-tag script path, where a `$:`
-//! statement cannot occur; its own behaviour is covered by unit tests in
-//! `transform_legacy.rs`. What these pin is that the live path keeps matching
-//! upstream for these shapes.
+//! SSR reactive ordering runs through the AST port of
+//! `order_reactive_statements` in `server/ast/script.rs`. These tests pin that
+//! live path for the member-target cases.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
