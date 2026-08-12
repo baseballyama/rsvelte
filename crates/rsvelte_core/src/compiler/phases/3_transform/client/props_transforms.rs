@@ -7,6 +7,9 @@ use std::fmt::Write as _;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::offsets::{
+    ByteOffset, CharOffset, CharToByte,
+};
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 
 use super::scan_index::{ScanIndex, ScanIndexBuilder};
@@ -210,21 +213,20 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
         // Match the identifier and check the context manually
 
         let mut new_result = String::with_capacity(result.len() * 2);
-        // One walk feeds all three: the char vector the loop indexes, the byte
-        // offsets (resolving those with `char_indices().nth(i)` inside the
-        // per-character loop below was quadratic in the expression length), and
-        // the index the identifier guards consult instead of each running their
-        // own backward scan once per match.
+        // The character vector feeds the scanner and the byte table feeds every
+        // string slice, keeping those two coordinate systems distinct.
         let mut chars: Vec<char> = Vec::with_capacity(result.len());
-        let mut char_offsets: Vec<usize> = Vec::with_capacity(result.len());
+        let mut char_boundaries = Vec::with_capacity(result.len());
         let mut builder = ScanIndexBuilder::new();
         let mut prev = None;
-        for (offset, c) in result.char_indices() {
-            char_offsets.push(offset);
+        for (byte, c) in result.char_indices() {
+            char_boundaries.push(ByteOffset::new(byte));
             builder.feed(chars.len(), c, prev);
             chars.push(c);
             prev = Some(c);
         }
+        let char_to_byte =
+            CharToByte::from_boundaries(char_boundaries, ByteOffset::end_of(&result));
         let index = builder.finish(&chars);
         #[cfg(feature = "measure-prop-reads")]
         crate::measure_prop_reads::record_pass(chars.len());
@@ -315,15 +317,15 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
             // closing slash of `/^https?:\/\//` sit next to each other, so
             // without this the `//` reads as a comment and every identifier
             // after it is left untransformed.
-            let byte_at = char_offsets.get(i).copied().unwrap_or(i);
+            let byte_at = char_to_byte.byte(CharOffset::new(i));
             if c == '/'
                 && let Some((end, false)) = skip_opaque(
                     result.as_bytes(),
-                    byte_at,
-                    prev_code_byte(result.as_bytes(), byte_at),
+                    byte_at.get(),
+                    prev_code_byte(result.as_bytes(), byte_at.get()),
                 )
             {
-                let literal = &result[byte_at..end];
+                let literal = byte_at.to(ByteOffset::new(end), &result);
                 new_result.push_str(literal);
                 i += literal.chars().count();
                 continue;
@@ -338,7 +340,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
             }
 
             // Check if we're at the start of the identifier
-            let remaining = &result[char_offsets.get(i).copied().unwrap_or(i)..];
+            let remaining = char_to_byte.byte(CharOffset::new(i)).after(&result);
             if remaining.starts_with(prop_name) {
                 // Check character before (must be non-identifier char or start of string)
                 let before_ok = if i == 0 {
@@ -402,7 +404,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 // After transform_prop_update_expressions runs, we get $.update_prop(x)
                 // and we must not convert x to x() inside that call
                 let is_inside_update_call = {
-                    let prefix_str = &result[..char_offsets.get(i).copied().unwrap_or(i)];
+                    let prefix_str = char_to_byte.byte(CharOffset::new(i)).before(&result);
                     prefix_str.ends_with("$.update_prop(")
                         || prefix_str.ends_with("$.update_pre_prop(")
                         || prefix_str.ends_with("$.update_prop(")
@@ -414,7 +416,7 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
                 // where propName is a prop source (getter function) that's equivalent to the
                 // derived computation. In this case we must NOT append `()`.
                 let is_sole_derived_arg = {
-                    let prefix_str = &result[..char_offsets.get(i).copied().unwrap_or(i)];
+                    let prefix_str = char_to_byte.byte(CharOffset::new(i)).before(&result);
                     if prefix_str.ends_with("$.derived(") {
                         // Check that after the identifier is just `)` (possibly preceded by whitespace)
                         let mut k = after_idx;
@@ -4536,6 +4538,15 @@ mod split_declarators_tests {
         assert_eq!(
             split_destructuring_properties("café, b"),
             vec!["café", " b"]
+        );
+    }
+
+    #[test]
+    fn prop_reads_keep_char_and_byte_offsets_separate() {
+        let props = vec!["café".to_string()];
+        assert_eq!(
+            transform_prop_reads_in_expr("先頭 + café", &props),
+            "先頭 + café()"
         );
     }
 

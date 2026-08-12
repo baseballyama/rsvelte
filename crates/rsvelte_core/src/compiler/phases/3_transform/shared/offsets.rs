@@ -143,27 +143,34 @@ impl Sub<CharLen> for CharOffset {
 /// Char → byte lookup for one string, so a conversion is O(1) rather than a
 /// rescan per crossing.
 pub struct CharToByte {
-    offsets: Vec<usize>,
-    byte_len: usize,
+    offsets: Vec<ByteOffset>,
+    byte_len: ByteOffset,
 }
 
 impl CharToByte {
     pub fn new(s: &str) -> Self {
-        Self {
-            offsets: s.char_indices().map(|(b, _)| b).collect(),
-            byte_len: s.len(),
-        }
+        Self::from_boundaries(
+            s.char_indices().map(|(b, _)| ByteOffset::new(b)).collect(),
+            ByteOffset::end_of(s),
+        )
+    }
+
+    /// Builds a conversion table from byte offsets at character boundaries.
+    pub(crate) fn from_boundaries(offsets: Vec<ByteOffset>, byte_len: ByteOffset) -> Self {
+        debug_assert!(offsets.windows(2).all(|pair| pair[0] < pair[1]));
+        debug_assert!(offsets.iter().all(|offset| *offset < byte_len));
+        Self { offsets, byte_len }
     }
 
     /// Past-the-end char offsets map to the string's byte length, matching the
     /// exclusive end of a slice range.
     pub fn byte(&self, at: CharOffset) -> ByteOffset {
-        ByteOffset(self.offsets.get(at.0).copied().unwrap_or(self.byte_len))
+        self.offsets.get(at.0).copied().unwrap_or(self.byte_len)
     }
 
     /// `None` when `at` lands inside a character rather than starting one.
     pub fn char_of(&self, at: ByteOffset) -> Option<CharOffset> {
-        self.offsets.binary_search(&at.0).ok().map(CharOffset)
+        self.offsets.binary_search(&at).ok().map(CharOffset)
     }
 }
 
