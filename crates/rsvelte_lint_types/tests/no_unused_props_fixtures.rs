@@ -42,8 +42,9 @@ fn fixture_root() -> PathBuf {
     );
     assert!(
         p.is_dir(),
-        "no-unused-props fixtures missing at {p:?} — run \
-         `git submodule update --init --depth 1 submodules/eslint-plugin-svelte`"
+        "no-unused-props fixtures missing at {} — run \
+         `git submodule update --init --depth 1 submodules/eslint-plugin-svelte`",
+        p.display()
     );
     p
 }
@@ -56,10 +57,10 @@ fn config_for(config_path: &Path) -> LintConfig {
         .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
         .and_then(|v| v.get("options").and_then(|o| o.as_array()).cloned());
 
-    let rule_value = match options.and_then(|o| o.into_iter().next()) {
-        Some(opt) => serde_json::json!(["warn", opt]),
-        None => serde_json::json!("warn"),
-    };
+    let rule_value = options.and_then(|o| o.into_iter().next()).map_or_else(
+        || serde_json::json!("warn"),
+        |opt| serde_json::json!(["warn", opt]),
+    );
     let cfg = serde_json::json!({ "rules": { "svelte/no-unused-props": rule_value } });
     LintConfig::from_json_str(&cfg.to_string()).expect("valid lint config")
 }
@@ -117,7 +118,7 @@ fn expected_for(input: &Path) -> Vec<(u32, u32, String)> {
     // Not `unwrap_or_default`: an unparseable expectations file would silently
     // become "expects nothing" and pass.
     let errs: Vec<ExpectedError> =
-        serde_yaml::from_str(&text).unwrap_or_else(|e| panic!("malformed {yaml:?}: {e}"));
+        serde_yaml::from_str(&text).unwrap_or_else(|e| panic!("malformed {}: {e}", yaml.display()));
     let mut out: Vec<(u32, u32, String)> = errs
         .into_iter()
         .map(|e| (e.line, e.column, e.message))

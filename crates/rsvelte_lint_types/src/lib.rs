@@ -29,9 +29,10 @@ pub use resolver::{MISSING_TSGO_HELP, require_tsgo, resolve_tsgo};
 
 use rsvelte_diagnostics::Diagnostic;
 
-/// Lint a single Svelte component with the **type-aware** rules, using a real
-/// `tsgo` checker spawned via [`CorsaTypeBackend`]. Runs every rule that has a
-/// type-aware path (`svelte/no-unused-props` and
+/// Lint a Svelte component with the **type-aware** rules.
+///
+/// Uses a real `tsgo` checker spawned via [`CorsaTypeBackend`]. Runs every
+/// rule that has a type-aware path (`svelte/no-unused-props` and
 /// `svelte/no-navigation-without-resolve`) and returns their diagnostics.
 ///
 /// This is the type-aware layer; a consumer merges it with the syntactic lint
@@ -93,6 +94,14 @@ struct TypeSlot {
     object_flags: u32,
 }
 
+/// The memoized state of the optional props type.
+#[derive(Clone, Copy)]
+enum PropsTypeCache {
+    Uncomputed,
+    Missing,
+    Present(TypeId),
+}
+
 /// A corsa/tsgo-backed [`TypeBackend`] for a single Svelte component.
 pub struct CorsaTypeBackend {
     session: ProjectSession,
@@ -116,13 +125,18 @@ pub struct CorsaTypeBackend {
     /// Dedup map: handle string → [`TypeId`].
     type_index: HashMap<String, TypeId>,
     /// Memoized result of [`Self::props_type`].
-    props_type_cache: Option<Option<TypeId>>,
+    props_type_cache: PropsTypeCache,
 }
 
 impl CorsaTypeBackend {
     /// Create a backend for `source` (the `.svelte` file at `svelte_path`),
     /// driving the `tsgo` binary at `tsgo`. The virtual TSX document is written
     /// beside `svelte_path` so relative imports (`./types`) resolve.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when projection, virtual-file setup, or the checker
+    /// session initialization fails.
     pub fn new(source: &str, svelte_path: &Path, tsgo: &Path) -> Result<Self, String> {
         let filename = svelte_path.file_name().map_or_else(
             || "Component.svelte".to_string(),
@@ -131,7 +145,7 @@ impl CorsaTypeBackend {
         let result = svelte2tsx(
             source,
             Svelte2TsxOptions {
-                filename: filename.clone(),
+                filename,
                 is_ts_file: true,
                 ..Default::default()
             },
@@ -208,18 +222,19 @@ impl CorsaTypeBackend {
             closed: false,
             types: Vec::new(),
             type_index: HashMap::new(),
-            props_type_cache: None,
+            props_type_cache: PropsTypeCache::Uncomputed,
         })
     }
 
     /// Intern a type (handle + `ObjectFlags`) into a stable [`TypeId`], deduping
     /// by handle string. `None` handle ⇒ an unresolved type.
-    fn intern(&mut self, handle: Option<TypeHandle>, object_flags: u32) -> TypeId {
-        if let Some(h) = &handle {
+    fn intern(&mut self, handle: Option<&TypeHandle>, object_flags: u32) -> TypeId {
+        if let Some(h) = handle {
             if let Some(&id) = self.type_index.get(h.as_str()) {
                 return id;
             }
-            let id = self.types.len() as TypeId;
+            let id = TypeId::try_from(self.types.len())
+                .expect("type table exceeds the u32 TypeId domain");
             self.type_index.insert(h.as_str().to_string(), id);
             self.types.push(TypeSlot {
                 handle: Some(h.clone()),
@@ -227,7 +242,8 @@ impl CorsaTypeBackend {
             });
             id
         } else {
-            let id = self.types.len() as TypeId;
+            let id = TypeId::try_from(self.types.len())
+                .expect("type table exceeds the u32 TypeId domain");
             self.types.push(TypeSlot {
                 handle: None,
                 object_flags,
@@ -237,14 +253,15 @@ impl CorsaTypeBackend {
     }
 
     fn handle_of(&self, id: TypeId) -> Option<TypeHandle> {
-        self.types.get(id as usize).and_then(|s| s.handle.clone())
+        self.types
+            .get(usize::try_from(id).expect("TypeId fits the platform usize"))
+            .and_then(|s| s.handle.clone())
     }
 
     fn object_flags_of(&self, id: TypeId) -> u32 {
         self.types
-            .get(id as usize)
-            .map(|s| s.object_flags)
-            .unwrap_or(0)
+            .get(usize::try_from(id).expect("TypeId fits the platform usize"))
+            .map_or(0, |s| s.object_flags)
     }
 
     /// Resolve the props type handle from the injected anchor.
@@ -252,24 +269,26 @@ impl CorsaTypeBackend {
         let offset = self.props_anchor?;
         let utf16 = byte_to_utf16(&self.tsx, offset);
         let file = self.virtual_wire.clone();
-        let mut resp: Option<(TypeHandle, u32)> = None;
-        if let Some(sym) = block_on(self.session.get_symbol_at_position(file.clone(), utf16))
-            .ok()
-            .flatten()
+        let resp = if let Some(sym) =
+            block_on(self.session.get_symbol_at_position(file.clone(), utf16))
+                .ok()
+                .flatten()
         {
-            resp = block_on(self.session.get_type_of_symbol(sym.id))
+            block_on(self.session.get_type_of_symbol(sym.id))
                 .ok()
                 .flatten()
-                .map(|t| (t.id, t.object_flags.unwrap_or(0)));
-        }
-        if resp.is_none() {
-            resp = block_on(self.session.get_type_at_position(file, utf16))
+                .map(|t| (t.id, t.object_flags.unwrap_or(0)))
+        } else {
+            None
+        };
+        let resp = resp.or_else(|| {
+            block_on(self.session.get_type_at_position(file, utf16))
                 .ok()
                 .flatten()
-                .map(|t| (t.id, t.object_flags.unwrap_or(0)));
-        }
+                .map(|t| (t.id, t.object_flags.unwrap_or(0)))
+        });
         let (handle, flags) = resp?;
-        Some(self.intern(Some(handle), flags))
+        Some(self.intern(Some(&handle), flags))
     }
 
     fn probe(&self, generated_offset: u32, load_property_types: bool) -> Option<TypeFacts> {
@@ -325,11 +344,13 @@ impl TypeBackend for CorsaTypeBackend {
     }
 
     fn props_type(&mut self) -> Option<TypeId> {
-        if let Some(cached) = self.props_type_cache {
-            return cached;
+        match self.props_type_cache {
+            PropsTypeCache::Present(type_id) => return Some(type_id),
+            PropsTypeCache::Missing => return None,
+            PropsTypeCache::Uncomputed => {}
         }
         let computed = self.compute_props_type();
-        self.props_type_cache = Some(computed);
+        self.props_type_cache = computed.map_or(PropsTypeCache::Missing, PropsTypeCache::Present);
         computed
     }
 
@@ -344,17 +365,16 @@ impl TypeBackend for CorsaTypeBackend {
             proj.clone(),
             handle.clone(),
         ))
-        .map(|infos| {
+        .is_ok_and(|infos| {
             infos
                 .iter()
                 .any(|i| !type_texts_are_any(&i.value_type.texts))
-        })
-        .unwrap_or(false);
+        });
         let bases =
             block_on(self.session.client().get_base_types(snap, proj, handle)).unwrap_or_default();
         let base_type_ids = bases
             .into_iter()
-            .map(|t| self.intern(Some(t.id), t.object_flags.unwrap_or(0)))
+            .map(|t| self.intern(Some(&t.id), t.object_flags.unwrap_or(0)))
             .collect();
         Some(TypeMeta {
             text,
@@ -383,7 +403,7 @@ impl TypeBackend for CorsaTypeBackend {
                 .ok()
                 .flatten();
             let type_id = self.intern(
-                ptype.as_ref().map(|t| t.id.clone()),
+                ptype.as_ref().map(|t| &t.id),
                 ptype.as_ref().and_then(|t| t.object_flags).unwrap_or(0),
             );
             out.push(PropMeta {
@@ -415,7 +435,7 @@ fn node_handle_path(h: &str) -> Option<String> {
 
 /// Compare two file paths for `isInternalProperty`. The worker lowercases paths
 /// (and macOS is case-insensitive), so compare case-insensitively.
-fn same_file(a: &str, b: &str) -> bool {
+const fn same_file(a: &str, b: &str) -> bool {
     a.eq_ignore_ascii_case(b)
 }
 
@@ -474,11 +494,14 @@ fn map_offset_forward(segments: &[(u32, u32, u32)], offset: u32) -> Option<u32> 
 /// Convert a UTF-8 byte offset into `source` to a UTF-16 code-unit offset (the
 /// unit corsa/`tsgo` positions use).
 fn byte_to_utf16(source: &str, byte_offset: u32) -> u32 {
-    let mut clamped = usize::min(byte_offset as usize, source.len());
+    let mut clamped = usize::try_from(byte_offset)
+        .expect("u32 byte offset fits the platform usize")
+        .min(source.len());
     while clamped > 0 && !source.is_char_boundary(clamped) {
         clamped -= 1;
     }
-    source[..clamped].encode_utf16().count() as u32
+    u32::try_from(source[..clamped].encode_utf16().count())
+        .expect("UTF-16 offset fits the protocol's u32 position domain")
 }
 
 fn json_string(s: &str) -> String {
