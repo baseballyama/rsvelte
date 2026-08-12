@@ -38,8 +38,11 @@ Note: $TSGO_BIN is NOT read here — it names a batch `tsc`/`tsgo` for
 rsvelte-check, which cannot serve the corsa `--api` protocol.";
 
 /// Resolve a `tsgo`/`corsa` executable, searching from `start_dir` upward for
-/// an `@typescript/native-preview` install. Returns `None` when none is found,
-/// in which case type-aware linting degrades to a no-op.
+/// an `@typescript/native-preview` install.
+///
+/// Returns `None` when none is found, in which case type-aware linting degrades
+/// to a no-op.
+#[must_use]
 pub fn resolve_tsgo(start_dir: &Path) -> Option<PathBuf> {
     for var in ENV_VARS {
         if let Ok(val) = std::env::var(var) {
@@ -68,11 +71,13 @@ pub fn resolve_tsgo(start_dir: &Path) -> Option<PathBuf> {
 /// only build when you mean to exercise the type-aware backend, so a missing
 /// binary is a setup error. Skipping quietly made all nine tests report green
 /// while covering nothing (issue #1790).
+///
+/// # Panics
+///
+/// Panics when no API-capable `tsgo` or `corsa` executable can be resolved.
+#[must_use]
 pub fn require_tsgo(start_dir: &Path) -> PathBuf {
-    match resolve_tsgo(start_dir) {
-        Some(p) => p,
-        None => panic!("{MISSING_TSGO_HELP}"),
-    }
+    resolve_tsgo(start_dir).unwrap_or_else(|| panic!("{MISSING_TSGO_HELP}"))
 }
 
 /// Look for `node_modules/@typescript/native-preview-<platform>/lib/tsgo[.exe]`

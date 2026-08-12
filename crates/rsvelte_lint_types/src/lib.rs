@@ -31,12 +31,16 @@ use rsvelte_diagnostics::Diagnostic;
 
 /// Lint a single Svelte component with the **type-aware** rules, using a real
 /// `tsgo` checker spawned via [`CorsaTypeBackend`]. Runs every rule that has a
-/// type-aware path (`svelte/no-unused-props`, `svelte/no-navigation-without-resolve`)
-/// and returns their diagnostics.
+/// type-aware path (`svelte/no-unused-props` and
+/// `svelte/no-navigation-without-resolve`) and returns their diagnostics.
 ///
 /// This is the type-aware layer; a consumer merges it with the syntactic lint
 /// (with those two rules disabled there, so each fires once). Returns `Err` if
 /// the checker session cannot be started.
+///
+/// # Errors
+///
+/// Returns an error when the type-checker session cannot be started.
 pub fn lint_component_types(
     source: &str,
     svelte_path: &std::path::Path,
@@ -120,10 +124,10 @@ impl CorsaTypeBackend {
     /// driving the `tsgo` binary at `tsgo`. The virtual TSX document is written
     /// beside `svelte_path` so relative imports (`./types`) resolve.
     pub fn new(source: &str, svelte_path: &Path, tsgo: &Path) -> Result<Self, String> {
-        let filename = svelte_path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Component.svelte".to_string());
+        let filename = svelte_path.file_name().map_or_else(
+            || "Component.svelte".to_string(),
+            |n| n.to_string_lossy().into_owned(),
+        );
         let result = svelte2tsx(
             source,
             Svelte2TsxOptions {
@@ -138,23 +142,27 @@ impl CorsaTypeBackend {
         // Inject the props anchor only when a render function exists to index.
         let props_anchor = if tsx.contains("function $$render") {
             tsx.push_str(PROPS_ANCHOR);
-            tsx.rfind(PROPS_ANCHOR_IDENT).map(|p| p as u32)
+            tsx.rfind(PROPS_ANCHOR_IDENT)
+                .and_then(|p| u32::try_from(p).ok())
         } else {
             None
         };
 
         let project_root = svelte_path
             .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."));
-        let stem = svelte_path
-            .file_stem()
-            .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Component".to_string());
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+        let stem = svelte_path.file_stem().map_or_else(
+            || "Component".to_string(),
+            |s| s.to_string_lossy().into_owned(),
+        );
         let virtual_path =
             project_root.join(format!("{stem}.{}.rsvelte-lint.tsx", std::process::id()));
-        std::fs::write(&virtual_path, &tsx)
-            .map_err(|e| format!("failed to write virtual TSX {virtual_path:?}: {e}"))?;
+        std::fs::write(&virtual_path, &tsx).map_err(|e| {
+            format!(
+                "failed to write virtual TSX {}: {e}",
+                virtual_path.display()
+            )
+        })?;
         let cleanup = VirtualFileGuard(virtual_path.clone());
 
         // tsconfig listing the absolute virtual file (kept beside the source so
@@ -171,7 +179,7 @@ impl CorsaTypeBackend {
             ),
         );
         std::fs::write(&tsconfig_path, tsconfig)
-            .map_err(|e| format!("failed to write tsconfig {tsconfig_path:?}: {e}"))?;
+            .map_err(|e| format!("failed to write tsconfig {}: {e}", tsconfig_path.display()))?;
         let tsconfig_guard = VirtualFileGuard(tsconfig_path.clone());
 
         let virtual_wire = virtual_path.to_string_lossy().into_owned();
@@ -276,12 +284,16 @@ impl CorsaTypeBackend {
         ))
         .ok()??;
         Some(TypeFacts {
-            type_texts: probe.type_texts.iter().map(|s| s.to_string()).collect(),
-            property_names: probe.property_names.iter().map(|s| s.to_string()).collect(),
+            type_texts: probe.type_texts.iter().map(ToString::to_string).collect(),
+            property_names: probe
+                .property_names
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
             property_types: probe
                 .property_types
                 .iter()
-                .map(|ts| ts.iter().map(|s| s.to_string()).collect())
+                .map(|ts| ts.iter().map(ToString::to_string).collect())
                 .collect(),
         })
     }
