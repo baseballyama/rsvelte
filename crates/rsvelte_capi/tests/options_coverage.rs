@@ -157,6 +157,46 @@ fn namespace_options_are_accepted() {
     }
 }
 
+#[test]
+fn enum_options_reject_unknown_values_and_accept_documented_aliases() {
+    for (field, value) in [
+        ("generate", "browser"),
+        ("namespace", "xml"),
+        ("css", "inline"),
+        ("fragments", "dom"),
+    ] {
+        let env = compile("<p>x</p>", &format!(r#"{{"{field}":"{value}"}}"#));
+        assert_eq!(env["ok"], serde_json::Value::Bool(false), "{field}={value}");
+        assert!(env["error"]["message"].as_str().unwrap().contains(field));
+    }
+    for options in [
+        r#"{"generate":"client"}"#,
+        r#"{"generate":"server"}"#,
+        r#"{"generate":"ssr"}"#,
+        r#"{"generate":"false"}"#,
+        r#"{"namespace":"html"}"#,
+        r#"{"namespace":"svg"}"#,
+        r#"{"namespace":"mathml"}"#,
+        r#"{"css":"external"}"#,
+        r#"{"css":"injected"}"#,
+        r#"{"fragments":"html"}"#,
+        r#"{"fragments":"tree"}"#,
+        r#"{"compatibility":{"componentApi":4}}"#,
+        r#"{"compatibility":{"componentApi":5}}"#,
+    ] {
+        let env = compile("<p>x</p>", options);
+        assert_eq!(env["ok"], serde_json::Value::Bool(true), "{options}");
+    }
+    let env = compile("<p>x</p>", r#"{"compatibility":{"componentApi":6}}"#);
+    assert_eq!(env["ok"], serde_json::Value::Bool(false));
+    assert!(
+        env["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("componentApi")
+    );
+}
+
 // ---------------------------------------------------------------------------
 // preserveComments
 // ---------------------------------------------------------------------------

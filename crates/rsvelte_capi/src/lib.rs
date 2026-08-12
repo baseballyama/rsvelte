@@ -655,9 +655,10 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     }
     if let Some(v) = raw.generate.as_deref() {
         opts.generate = match v {
+            "client" => GenerateMode::Client,
             "server" | "ssr" => GenerateMode::Server,
             "false" => GenerateMode::None,
-            _ => GenerateMode::Client,
+            _ => return Err(format!("invalid generate option: {v:?}")),
         };
     }
     if let Some(v) = raw.filename {
@@ -679,9 +680,10 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     }
     if let Some(v) = raw.namespace.as_deref() {
         opts.namespace = match v {
+            "html" => Namespace::Html,
             "svg" => Namespace::Svg,
             "mathml" => Namespace::Mathml,
-            _ => Namespace::Html,
+            _ => return Err(format!("invalid namespace option: {v:?}")),
         };
     }
     if let Some(v) = raw.immutable {
@@ -689,8 +691,9 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     }
     if let Some(v) = raw.css.as_deref() {
         opts.css = match v {
+            "external" => CssMode::External,
             "injected" => CssMode::Injected,
-            _ => CssMode::External,
+            _ => return Err(format!("invalid css option: {v:?}")),
         };
     }
     if let Some(v) = raw.preserve_comments {
@@ -735,10 +738,10 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     if let Some(compat) = raw.compatibility
         && let Some(v) = compat.component_api
     {
-        opts.compatibility.component_api = if v == 4 {
-            rsvelte_core::compiler::ComponentApi::V4
-        } else {
-            rsvelte_core::compiler::ComponentApi::V5
+        opts.compatibility.component_api = match v {
+            4 => rsvelte_core::compiler::ComponentApi::V4,
+            5 => rsvelte_core::compiler::ComponentApi::V5,
+            _ => return Err(format!("invalid compatibility.componentApi option: {v}")),
         };
     }
     if let Some(hash_override) = raw.css_hash_override {
@@ -748,8 +751,9 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     }
     if let Some(v) = raw.fragments.as_deref() {
         opts.fragments = match v {
+            "html" => rsvelte_core::compiler::FragmentMode::Html,
             "tree" => rsvelte_core::compiler::FragmentMode::Tree,
-            _ => rsvelte_core::compiler::FragmentMode::Html,
+            _ => return Err(format!("invalid fragments option: {v:?}")),
         };
     }
     Ok(opts)
@@ -774,9 +778,10 @@ unsafe fn parse_module_options(ptr: *const u8, len: usize) -> Result<ModuleCompi
     }
     if let Some(v) = raw.generate.as_deref() {
         opts.generate = match v {
+            "client" => GenerateMode::Client,
             "server" | "ssr" => GenerateMode::Server,
             "false" => GenerateMode::None,
-            _ => GenerateMode::Client,
+            _ => return Err(format!("invalid generate option: {v:?}")),
         };
     }
     if let Some(v) = raw.filename {
