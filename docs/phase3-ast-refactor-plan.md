@@ -565,7 +565,11 @@ retracted by its author for a circular correction factor. Both are recorded as
 unresolved. Do not quote a percentage for this site without a new measurement.
 A related probe — vendoring `serde_json` to swap `IndexMap`'s SipHash for FxHash
 — measured huly −4.08% (8/8 paired wins), which sizes the *hashing* component but
-sits at the ~5% code-layout floor for a separate-binary A/B and was not shipped.
+was a separate-binary A/B. The historical timer probe did not characterise a
+general code-layout floor: its tested timer layout and workload have since changed,
+so it cannot bound this result. It was not shipped because it requires a permanently
+vendored `serde_json`, and a new same-tree measurement would be required to price its
+current performance effect.
 
 ### Two methodological rules this cost us
 
@@ -594,4 +598,3 @@ Instrumentation for all of the above (per-site `to_value` attribution split
 cache/direct, object and map-entry counts, reader sets) lives behind the existing
 `measure-json` feature on branch `tools/measure-json-instrumentation`
 (`e4f47227`), deliberately unmerged.
-
