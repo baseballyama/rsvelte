@@ -434,16 +434,15 @@ fn audit_skipped_fixtures() {
         }
     }
 
-    // The parser skip list is a `if !modern { … } else { … }` expression, so the
-    // modern branch is read from the source that follows the legacy branch.
-    const PARSER_MARKER: &str = "skip_tests: &[&str] = if !modern {";
-    let parser_legacy_skipped = skip_list(
+    // The parser skip list is a `if modern { … } else { … }` expression.
+    const PARSER_MARKER: &str = "skip_tests: &[&str] = if modern {";
+    let parser_modern_skipped = skip_list(
         REPORT_SRC,
         "rsvelte_devtools/tests/compatibility_report.rs",
         PARSER_MARKER,
     );
     let else_branch = &REPORT_SRC[REPORT_SRC.find(PARSER_MARKER).expect("parser skip list")..];
-    let parser_modern_skipped = skip_list(
+    let parser_legacy_skipped = skip_list(
         else_branch,
         "rsvelte_devtools/tests/compatibility_report.rs",
         "} else {",
