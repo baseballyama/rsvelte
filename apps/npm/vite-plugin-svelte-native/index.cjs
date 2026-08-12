@@ -4,36 +4,15 @@
 
 const { decodeEnvelope, decodeBatch } = require('./envelope.js');
 const { decodeParseEnvelope } = require('./parse-envelope.js');
+const { resolveTriple } = require('./platform.cjs');
 
 const { platform, arch } = process;
 
-function resolveTriple() {
-	if (platform === 'darwin') {
-		if (arch === 'arm64') return 'darwin-arm64';
-		if (arch === 'x64') return 'darwin-x64';
-	} else if (platform === 'linux') {
-		// Node 18+ exposes the runtime glibc version in the report header. An
-		// empty value means we're on musl (Alpine, distroless, etc.).
-		let isMusl = false;
-		try {
-			const header = process.report.getReport().header;
-			isMusl = !header.glibcVersionRuntime;
-		} catch {
-			isMusl = false;
-		}
-		const libc = isMusl ? 'musl' : 'gnu';
-		if (arch === 'x64') return `linux-x64-${libc}`;
-		if (arch === 'arm64') return `linux-arm64-${libc}`;
-	} else if (platform === 'win32') {
-		if (arch === 'x64') return 'win32-x64-msvc';
-	}
-	return null;
-}
-
-const triple = resolveTriple();
+const triple = resolveTriple(process);
 if (!triple) {
+	const muslHint = platform === 'linux' ? ' (musl/Alpine is not yet supported)' : '';
 	throw new Error(
-		`[@rsvelte/vite-plugin-svelte-native] Unsupported platform: ${platform}-${arch}. ` +
+		`[@rsvelte/vite-plugin-svelte-native] Unsupported platform: ${platform}-${arch}${muslHint}. ` +
 			`Open an issue at https://github.com/baseballyama/rsvelte/issues if you'd like it supported.`,
 	);
 }
