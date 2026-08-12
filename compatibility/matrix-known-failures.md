@@ -28,11 +28,11 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 557 entries)
+## Matrix known failures (`matrix-known-failures.json`, 904 entries)
 
-Partition of `matrix-known-failures.json` by family: `2 + 212 + 0 + 18 + 60 + 62 + 0 + 66 + 129 + 8`
+Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 114 + 180 + 198`
 
-### `binding-position` — 2 entries
+### `binding-position` — 4 entries
 
 Both are `label.body` on the **server** target (`derived-local`, `store-auto-sub`), and in
 both **rsvelte's output is the correct one**.
@@ -49,7 +49,7 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 212 entries
+### `comment-slot` — 316 entries
 
 Two sub-clusters with distinct causes: the `.svelte` template seeds below and the
 remainder of the `.svelte.(js|ts)` module path (#2399). The class-field relocation
@@ -184,9 +184,9 @@ path's 72 to the template seeds' 140. The module path contributes to a single bu
 are *rsvelte keeps a comment official drops*, which joins the template seeds' own 28 in that
 bucket for a combined 100 — the opposite direction from the 80 rsvelte drops.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `80 + 32 + 100 + 0`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `80 + 32 + 100 + 0 + 104`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8 + 8`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8 + 8 + 104`
 
 ### `each-collection` — 0 entries
 
@@ -194,7 +194,7 @@ Every collection shape now matches across all targets.
 
 Partition of `matrix-known-failures.json` entries under `each-collection/` by collection: `0`
 
-### `keyword-regex` — 18 entries
+### `keyword-regex` — 24 entries
 
 Not the family's own axis, and not its author's doing: these appear because this PR added
 warning-**code** comparison to the gate, and `keyword-regex` is the one pre-existing family whose
@@ -204,7 +204,7 @@ statement. The six cases are the `extends` row against every host and body that 
 there (`legacy-reactive`, `legacy-reactive-block`, and the four `body-*` rows, which run against
 `legacy-reactive` by construction).
 
-Partition of `matrix-known-failures.json` entries under `keyword-regex/` by target: `6 + 6 + 6`
+Partition of `matrix-known-failures.json` entries under `keyword-regex/` by target: `6 + 6 + 6 + 6`
 
 Worth stating because it is the generalization argument for the comparison: a family written for
 a *parser* question, by another author, with no warning intent, contributes 60 warned (case,
@@ -248,7 +248,7 @@ on `client` and `client-dev`. `server` has no dependency list and matches everyw
 
 Partition of `matrix-known-failures.json` entries under `param-pattern/` by shape: `12 + 12 + 12 + 12 + 12`
 
-### `directive-element` — 62 entries
+### `directive-element` — 114 entries
 
 19 directive kinds × 13 element kinds × 2 modes (runes / legacy), 1482 comparisons. Every one
 of these 62 entries is a **live rsvelte defect**, not accepted behaviour; none was known before
@@ -260,7 +260,7 @@ The single most useful fact about the set is where it is **not**: zero entries o
 official across every kind and both modes; the special elements are where per-parent handling has
 drifted from upstream's one predicate per directive.
 
-Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `24 + 2 + 12 + 12 + 6 + 6`
+Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `24 + 2 + 12 + 12 + 6 + 6 + 52`
 
 | verdict | host | entries | cause |
 |---|---|---:|---|
@@ -297,7 +297,7 @@ on `<svelte:body>` row, which has no runes counterpart.
 
 All 189 generated comparisons now match. #2484's three special-element dev setter cases are
 covered by the direct regression tests as well as this zero-residue matrix family.
-### `removed-statement-comment` — 66 entries
+### `removed-statement-comment` — 180 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
 `$effect.root`, `$inspect`) with the comment slot (leading / interior / trailing), 6 comment
@@ -322,7 +322,7 @@ until their issues are fixed.
 
 ---
 
-### `async-derived` — 129 entries
+### `async-derived` — 198 entries
 
 Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 129 was
 reachable by any gate in the repo before this family existed, because every harness compiles
@@ -337,7 +337,7 @@ in dev — is *not* in this list; the rows that isolate it (`instance__identifie
 `instance__multi-declarator__none`, all three targets) pass. What remains are five independent
 defects the family exposed on the way, all of them older than the family:
 
-Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `49 + 24 + 18 + 12 + 11 + 13 + 2`
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `49 + 24 + 18 + 12 + 11 + 13 + 2 + 69`
 
 | # | cause | entries |
 |---|---|---|
