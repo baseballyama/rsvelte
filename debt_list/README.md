@@ -22,7 +22,6 @@ The former aggregate #033 has been split along independently removable productio
 ### P1
 
 - [002 — svelte-check overlay follows symlinks outside the workspace](002-overlay-symlink-write-escape.md)
-- [003 — the native Vite binding detects musl packages that are never shipped](003-missing-musl-native-packages.md)
 - [004 — prop transforms parse generated JavaScript with ad-hoc character scanners](004-prop-transforms-parse-javascript-as-text.md)
 - [005 — parameter defaults and computed keys lose reactive dependencies](005-parameter-defaults-lose-reactive-dependencies.md)
 - [006 — special elements bypass shared directive validation and lowering](006-special-element-directive-validation-drift.md)
