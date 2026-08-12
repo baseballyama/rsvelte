@@ -39,33 +39,40 @@ const CORPUS_SCRIPTS = path.join(ROOT, 'scripts/compat-corpus');
 const ENTRIES = 12500; // must exceed artifacts.mjs MIN_FULL_CORPUS_ENTRIES
 const SENTINEL = ['sentinel-entry'];
 
-const OUTPUT_RATCHETS = ['known-failures.client.json', 'known-failures.server.json', 'known-failures.client-dev.json'];
+const OUTPUT_RATCHETS = ['known-failures.client.json', 'known-failures.server.json', 'known-failures.client-dev.json', 'known-failures.server-dev.json'];
 const WARNING_RATCHETS = [
 	'warning-known-failures.client.json',
 	'warning-known-failures.server.json',
 	'warning-known-failures.client-dev.json',
+	'warning-known-failures.server-dev.json',
 	'warning-position-known-failures.client.json',
 	'warning-position-known-failures.server.json',
 	'warning-position-known-failures.client-dev.json',
+	'warning-position-known-failures.server-dev.json',
 ];
 const ERROR_RATCHETS = [
 	'error-message-known-failures.client.json',
 	'error-message-known-failures.server.json',
 	'error-message-known-failures.client-dev.json',
+	'error-message-known-failures.server-dev.json',
 	'error-position-known-failures.client.json',
 	'error-position-known-failures.server.json',
 	'error-position-known-failures.client-dev.json',
+	'error-position-known-failures.server-dev.json',
 	'error-end-known-failures.client.json',
 	'error-end-known-failures.server.json',
 	'error-end-known-failures.client-dev.json',
+	'error-end-known-failures.server-dev.json',
 	'error-frame-known-failures.client.json',
 	'error-frame-known-failures.server.json',
 	'error-frame-known-failures.client-dev.json',
+	'error-frame-known-failures.server-dev.json',
 ];
 const PARSE_RATCHETS = [
 	'parse-known-failures.client.json',
 	'parse-known-failures.server.json',
 	'parse-known-failures.client-dev.json',
+	'parse-known-failures.server-dev.json',
 ];
 const DIAGNOSTIC_RATCHETS = [...WARNING_RATCHETS, ...ERROR_RATCHETS, ...PARSE_RATCHETS];
 

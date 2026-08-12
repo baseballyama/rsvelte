@@ -1,7 +1,7 @@
 # compat-corpus — real-world output-equality pipeline
 
-Verifies that rsvelte's CSR (client), SSR (server) and dev-mode CSR
-(client-dev) compile output is
+Verifies that rsvelte's CSR (client), SSR (server), dev-mode CSR
+(client-dev), and dev-mode SSR (server-dev) compile output is
 **byte-identical** to the official Svelte compiler's, over every
 `.svelte` / `.svelte.js` / `.svelte.ts` source — including code blocks inside
 markdown — found in the corpus source repositories.
@@ -256,10 +256,12 @@ iterate that list, so adding a target is a one-line change plus its baseline.
 | `client` | `client` | `false` | yes | `known-failures.client.json` |
 | `server` | `server` | `false` | no | `known-failures.server.json` |
 | `client-dev` | `client` | `true` | yes | `known-failures.client-dev.json` |
+| `server-dev` | `server` | `true` | no | `known-failures.server-dev.json` |
 
 `dev` is not a cosmetic flag: it gates 18 client codegen files and the CSS
 transform (empty rules survive pruning in dev), so `client-dev` compares CSS
-too. A `dev`-only divergence is invisible to the two `dev: false` targets —
+too. `server-dev` has no CSS output, but SSR dev lowering is separately compared.
+A `dev`-only divergence is invisible to the two `dev: false` targets —
 which is why #1981 stayed undetected across 524 corpus files.
 
 `compile.mjs --targets <keys>` / `verify.mjs --targets <keys>` (comma-separated)

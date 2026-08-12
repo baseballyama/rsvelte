@@ -59,6 +59,7 @@ const PARSE_RATCHETS = [
 	'parse-known-failures.client.json',
 	'parse-known-failures.server.json',
 	'parse-known-failures.client-dev.json',
+	'parse-known-failures.server-dev.json',
 ];
 const ORACLE_EXCLUDED = 'parse-oracle-excluded.json';
 const OTHER_RATCHETS = [

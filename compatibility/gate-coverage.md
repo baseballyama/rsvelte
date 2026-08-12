@@ -118,7 +118,7 @@ are in [§ Cross-cutting](#cross-cutting) at the end.
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
 
-**Unit.** For each of ~14,025 manifest entries × 3 targets (`client`, `server`, `client-dev`,
+**Unit.** For each of ~14,025 manifest entries × 4 targets (`client`, `server`, `client-dev`, `server-dev`,
 `targets.mjs:21-51`): the generated JS text, blank-line-stripped (`verify.mjs:289-290`),
 template-hole-flattened and oxfmt-normalized (`verify.mjs:247-257`). Where bytes differ, the
 verdict comes from the Rust comparator `ast_equiv_batch` (`verify.mjs:301-316`). CSS is
@@ -176,8 +176,9 @@ because 1a means no gate reaches this code path with `Meaningful`.
 `compile.mjs:99-100`: `{ generate, dev, filename }` plus `css: 'external'` for components.
 Never passed anywhere in the corpus pipeline: `runes`, `namespace`, `accessors`,
 `customElement`, `preserveWhitespace`, `preserveComments`, `hmr`, `discloseVersion`,
-`sourcemap`, `modernAst`. **[S]** Also `server` + `dev: true` is not a target
-(`targets.mjs:21-51`), so SSR dev codegen is compared by no gate in the repo.
+`sourcemap`, `modernAst`. **[S]** `server` + `dev: true` is covered as
+`server-dev`; its enrolment baseline found four pre-existing output divergences,
+so this target is not a no-op.
 
 `experimental.async` is the one that has since been measured, and it was not merely
 uncovered — it made a whole *source shape* unreachable. `$derived(await …)` is an

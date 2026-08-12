@@ -1,4 +1,4 @@
-# known-failures.{client,server,client-dev}.json — why each entry is accepted
+# known-failures.{client,server,client-dev,server-dev}.json — why each entry is accepted
 
 The output-equality corpus compiles every source with both the official Svelte
 compiler and rsvelte (CSR + SSR + CSR `dev: true`) and requires byte-identical output after
