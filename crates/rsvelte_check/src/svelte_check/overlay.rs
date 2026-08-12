@@ -465,9 +465,9 @@ pub fn materialize_overlay_with(
 ) -> Result<OverlayLayout, OverlayError> {
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
-    reject_symlink_components(&cache_dir)?;
+    reject_symlink_components(&cache_dir, &cache_dir)?;
     fs::create_dir_all(&emit_dir)?;
-    reject_symlink_components(&emit_dir)?;
+    reject_symlink_components(&emit_dir, &cache_dir)?;
     let manifest_path = cache_dir.join("manifest.json");
     let namespace = compiler_opts.projection_namespace();
     let accessors = compiler_opts.projection_accessors();
@@ -599,9 +599,9 @@ pub fn materialize_overlay_with(
         // still goes through the `.d.svelte.ts` bridge.
         let emit_dts_twin = ext == ".tsx";
         if let Some(parent) = tsx_path.parent() {
-            reject_symlink_components(parent)?;
+            reject_symlink_components(parent, &cache_dir)?;
             fs::create_dir_all(parent)?;
-            reject_symlink_components(parent)?;
+            reject_symlink_components(parent, &cache_dir)?;
         }
         remove_stale_counterpart(&tsx_path, ext);
         if !emit_dts_twin {
@@ -1416,24 +1416,28 @@ fn append_extension(rel: &Path, extra: &str) -> PathBuf {
 
 /// Refuse an overlay path once an existing component redirects filesystem
 /// operations through a symlink. The cache must never write outside itself.
-fn reject_symlink_components(path: &Path) -> io::Result<()> {
-    let mut current = PathBuf::new();
-    for component in path.components() {
+fn reject_symlink_components(path: &Path, cache_dir: &Path) -> io::Result<()> {
+    let relative = path.strip_prefix(cache_dir).unwrap_or_else(|_| {
+        debug_assert!(false, "overlay path must be inside its cache directory");
+        Path::new("")
+    });
+    let mut current = cache_dir.to_path_buf();
+    let reject = |current: &Path| match fs::symlink_metadata(current) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!(
+                "overlay cache path contains a symlink: {}",
+                current.display()
+            ),
+        )),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error),
+    };
+    reject(&current)?;
+    for component in relative.components() {
         current.push(component.as_os_str());
-        match fs::symlink_metadata(&current) {
-            Ok(metadata) if metadata.file_type().is_symlink() => {
-                return Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    format!(
-                        "overlay cache path contains a symlink: {}",
-                        current.display()
-                    ),
-                ));
-            }
-            Ok(_) => {}
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error),
-        }
+        reject(&current)?;
     }
     Ok(())
 }
@@ -3950,6 +3954,22 @@ mod tests {
         fs::create_dir_all(tmp.join("src")).unwrap();
         fs::create_dir_all(&outside).unwrap();
         fs::write(tmp.join("src/App.svelte"), "<div />").unwrap();
+
+        let linked_workspace = std::env::temp_dir().join(format!(
+            "svc_overlay_symlink_workspace_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&linked_workspace);
+        symlink(&tmp, &linked_workspace).unwrap();
+        let layout = materialize_overlay(
+            &linked_workspace,
+            &[linked_workspace.join("src/App.svelte")],
+            None,
+        )
+        .unwrap();
+        assert!(layout.cache_dir.is_dir());
+        fs::remove_dir_all(tmp.join(".svelte-check")).unwrap();
+        fs::remove_file(&linked_workspace).unwrap();
 
         symlink(&outside, tmp.join(".svelte-check")).unwrap();
         let err = materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap_err();
