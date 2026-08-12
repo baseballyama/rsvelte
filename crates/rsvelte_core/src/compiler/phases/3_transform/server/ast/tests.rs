@@ -2406,6 +2406,10 @@ fn ast_matches_oracle_dev_instrumentation() {
         ("simple", "<script>let x = $state(0)</script><p>{x}</p>"),
         ("nested", "<div><p>{1}</p><span>hi</span></div>"),
         ("void", "<input type=\"text\"><p>after</p>"),
+        (
+            "component-child-snippet",
+            "<A>{#snippet child({ value })}{value}{/snippet}</A>",
+        ),
     ];
     let mut mismatches = Vec::new();
     for (name, src) in inline {

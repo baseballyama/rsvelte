@@ -434,6 +434,12 @@ fn build_component_children<'a, 'b>(
                 .identifier_name()
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| "snippet".to_string());
+            if state.options.dev {
+                snippet_declarations.push(state.b.stmt(state.b.call(
+                    "$.prevent_snippet_stringification",
+                    vec![state.b.id(&snippet_name)],
+                )));
+            }
             snippet_declarations.push(build_snippet_declaration(snippet, &snippet_name, state));
 
             // `name: name` prop (the function reference).
@@ -731,9 +737,15 @@ fn build_snippet_declaration<'a>(
     state.shadowed_names.push(shadow);
     // SnippetBlock body IS an `is_text_first` parent.
     let saved_scope = state.enter_template_scope(snippet.start);
-    let body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
+    let mut body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
     state.restore_scope(saved_scope);
     state.shadowed_names.pop();
+    if state.options.dev {
+        body_block.insert(
+            0,
+            b.stmt(b.call("$.validate_snippet_args", vec![b.id("$$renderer")])),
+        );
+    }
     let fn_body = state.b.body(body_block);
     state.b.function_declaration(name, params, fn_body, false)
 }
