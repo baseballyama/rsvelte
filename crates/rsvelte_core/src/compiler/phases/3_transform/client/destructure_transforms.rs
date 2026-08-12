@@ -97,6 +97,8 @@ pub(super) fn transform_destructure_assignments_with_props<'a>(
     store_sub_vars: &[String],
     prop_vars: &[String],
 ) -> Cow<'a, str> {
+    #[cfg(feature = "measure-destructure-scanner")]
+    crate::measure_destructure_scanner::record_entry();
     // Quick check: destructure assignments require `=` with `[` or `{` on the LHS
     if state_vars.is_empty() && store_sub_vars.is_empty() && prop_vars.is_empty() {
         return Cow::Borrowed(statement);
@@ -109,6 +111,8 @@ pub(super) fn transform_destructure_assignments_with_props<'a>(
     // is the common case for plain declarations like `let x = $state(0);` which
     // call this function once per statement when `state_vars` is non-empty.
     if memchr::memchr2(b']', b'}', statement.as_bytes()).is_none() {
+        #[cfg(feature = "measure-destructure-scanner")]
+        crate::measure_destructure_scanner::record_quick_skip();
         return Cow::Borrowed(statement);
     }
 
@@ -133,6 +137,8 @@ pub(super) fn transform_destructure_assignments_with_props<'a>(
         &prop_set,
         &reactive_state_set,
     ) {
+        #[cfg(feature = "measure-destructure-scanner")]
+        crate::measure_destructure_scanner::record_rewrite();
         result = Cow::Owned(transformed);
     }
 
@@ -158,6 +164,8 @@ pub(super) fn find_and_transform_one_destructure(
     prop_set: &rustc_hash::FxHashSet<&str>,
     reactive_state_set: &rustc_hash::FxHashSet<&str>,
 ) -> Option<String> {
+    #[cfg(feature = "measure-destructure-scanner")]
+    crate::measure_destructure_scanner::record_scan(statement.len());
     let chars: Vec<char> = statement.chars().collect();
     let len = chars.len();
 
@@ -207,12 +215,16 @@ pub(super) fn find_and_transform_one_destructure(
 
         // Look for `] =` or `} =` (possibly with spaces)
         if (c == ']' || c == '}') && i + 1 < len {
+            #[cfg(feature = "measure-destructure-scanner")]
+            crate::measure_destructure_scanner::record_candidate_closer();
             // Find the `=` after the bracket (skipping any whitespace including newlines)
             let mut j = i + 1;
             while j < len && chars[j].is_whitespace() {
                 j += 1;
             }
             if j < len && chars[j] == '=' && (j + 1 >= len || chars[j + 1] != '=') {
+                #[cfg(feature = "measure-destructure-scanner")]
+                crate::measure_destructure_scanner::record_assignment_closer();
                 // Found a potential destructure assignment
                 let close_bracket = c;
                 let open_bracket = if c == ']' { '[' } else { '{' };
@@ -311,6 +323,8 @@ pub(super) fn find_and_transform_one_destructure(
                     }
 
                     // Valid candidate - store it
+                    #[cfg(feature = "measure-destructure-scanner")]
+                    crate::measure_destructure_scanner::record_accepted_candidate();
                     candidates.push(Candidate {
                         close_pos: CharOffset::new(i),
                         pattern_start,
@@ -512,6 +526,8 @@ pub(super) fn find_matching_open_bracket(
     let code: Vec<(usize, u8)> = code_bytes(s.as_bytes())
         .take_while(|(i, _)| *i < close_pos.get())
         .collect();
+    #[cfg(feature = "measure-destructure-scanner")]
+    crate::measure_destructure_scanner::record_helper(code.len());
 
     let mut depth = 1;
     for &(i, c) in code.iter().rev() {
@@ -1721,6 +1737,23 @@ mod non_ascii_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "measure-destructure-scanner")]
+    #[test]
+    fn destructure_scanner_measurement_counts_a_real_rewrite_and_final_rescan() {
+        crate::measure_destructure_scanner::reset();
+        let state = vec!["a".to_string()];
+        let out =
+            transform_destructure_assignments_with_props("({ a } = value);", &state, &[], &[], &[]);
+        assert!(out.contains("a = value.a"), "{out}");
+
+        let stats = crate::measure_destructure_scanner::snapshot();
+        assert_eq!(stats.entries, 1);
+        assert_eq!(stats.rewrites, 1);
+        assert!(stats.scan_calls >= 2, "{stats:?}");
+        assert!(stats.assignment_closers >= 1, "{stats:?}");
+        assert!(stats.helper_calls >= 1, "{stats:?}");
+    }
 
     #[test]
     fn matching_open_bracket_ignores_string_contents() {
