@@ -98,7 +98,7 @@ const RATCHETS = [
 	{
 		doc: 'warning-message-known-failures.md',
 		key: 'warning-message-known-failures.<target>.json',
-		jsons: TARGETS.filter((t) => t !== 'server-dev').map((t) => `warning-message-known-failures.${t}.json`),
+		jsons: perTarget('warning-message-known-failures'),
 	},
 	// Declared per target rather than with the `<target>` placeholder: `server`
 	// legitimately holds one entry fewer (an error only the client codegen
