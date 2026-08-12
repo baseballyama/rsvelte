@@ -7,6 +7,7 @@
 //!
 //! Corresponds to `transform_body()` in `svelte/packages/svelte/src/compiler/phases/3-transform/shared/transform-async.js`
 
+use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
 use crate::compiler::utils::{is_js_ident_continue, is_js_ident_start};
 use memchr::memmem;
 use std::fmt::Write as _;
@@ -2007,38 +2008,21 @@ fn is_function_var_declaration(s: &str) -> bool {
             || (after_eq.starts_with("(") && {
                 // Find the matching closing paren
                 let mut depth = 0;
-                let mut pos = 0;
                 let bytes = after_eq.as_bytes();
-                let mut in_string = false;
-                let mut string_char = b' ';
-                while pos < bytes.len() {
-                    let c = bytes[pos];
-                    if (c == b'"' || c == b'\'' || c == b'`')
-                        && !crate::compiler::utils::is_escaped(bytes, pos)
-                    {
-                        if !in_string {
-                            in_string = true;
-                            string_char = c;
-                        } else if c == string_char {
-                            in_string = false;
+                let mut close = None;
+                for (pos, c) in code_bytes(bytes) {
+                    if c == b'(' {
+                        depth += 1;
+                    } else if c == b')' {
+                        depth -= 1;
+                        if depth == 0 {
+                            close = Some(pos);
+                            break;
                         }
                     }
-                    if !in_string {
-                        if c == b'(' {
-                            depth += 1;
-                        } else if c == b')' {
-                            depth -= 1;
-                            if depth == 0 {
-                                // Found matching close paren - check what follows
-                                let _rest = after_eq[pos + 1..].trim_start();
-                                break;
-                            }
-                        }
-                    }
-                    pos += 1;
                 }
                 // Check what follows the closing paren
-                if depth == 0 && pos < bytes.len() {
+                if let Some(pos) = close {
                     let rest = after_eq[pos + 1..].trim_start();
                     rest.starts_with("=>")
                 } else {
@@ -2367,38 +2351,21 @@ fn split_declarators(s: &str) -> Vec<String> {
 /// at the top nesting level in a string.
 fn find_assignment_in_str(s: &str) -> Option<usize> {
     let bytes = s.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
     let mut depth: i32 = 0; // combined nesting depth for {}, (), []
 
-    while i < len {
-        let ch = bytes[i];
-
-        // Skip strings
-        if ch == b'\'' || ch == b'"' || ch == b'`' {
-            i = skip_string(bytes, i);
-            continue;
-        }
-
+    for (i, ch) in code_bytes(bytes) {
         match ch {
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => depth -= 1,
             b'=' if depth == 0 => {
                 // Check it's not ==, ===, or =>
-                let next = if i + 1 < len { bytes[i + 1] } else { 0 };
+                let next = bytes.get(i + 1).copied().unwrap_or(0);
                 if next != b'=' && next != b'>' {
                     return Some(i);
-                }
-                // Skip ==, ===
-                i += 1;
-                if next == b'=' && i + 1 < len && bytes[i + 1] == b'=' {
-                    i += 1;
                 }
             }
             _ => {}
         }
-
-        i += 1;
     }
 
     None
@@ -3049,6 +3016,30 @@ mod tests {
         let result = transform_async_body(script, "$.run").unwrap();
         assert!(result.output.contains("function foo()"));
         assert!(result.output.contains("var x;"));
+    }
+
+    #[test]
+    fn function_initializer_ignores_comment_assignment_marker() {
+        for declaration in [
+            "const callback /* = */ = (value) => value;",
+            "const callback = (/* ) */ value) => value;",
+        ] {
+            assert!(is_function_var_declaration(declaration), "{declaration}");
+        }
+
+        let script = concat!(
+            "await load();\n",
+            "const callback /* = */ = (value) => value;\n",
+            "const result = await load_again();"
+        );
+        let result = transform_async_body(script, "$.run").unwrap();
+        assert!(
+            result
+                .output
+                .starts_with("const callback /* = */ = (value) => value;"),
+            "function initializer must remain in the sync prelude: {}",
+            result.output
+        );
     }
 
     #[test]

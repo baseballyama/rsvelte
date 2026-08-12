@@ -57,6 +57,25 @@ fn multi_declarator_splits_only_awaited() {
     );
 }
 
+/// A comment before the initializer's real `=` must not make a function
+/// declaration cross the async split. Upstream decides this from the parsed
+/// VariableDeclarator, so the comment is inert.
+#[test]
+fn function_initializer_comment_stays_in_sync_prelude() {
+    let out = ssr_async(
+        "<script>\nlet first = await fetch('x');\nconst callback /* = */ = (value) => value;\nconst second = await fetch('y');\n</script>\n{second}",
+    );
+    assert!(!out.contains("COMPILE_ERROR"), "{out}");
+    assert!(
+        out.contains("const callback = (value) => value;"),
+        "function initializer was moved into an async thunk:\n{out}"
+    );
+    assert!(
+        !out.contains("var callback"),
+        "function initializer was incorrectly hoisted:\n{out}"
+    );
+}
+
 /// H-042: a `class` declaration after a top-level await is hoisted to the outer
 /// scope and rewritten to `Name = class Name {…}` inside the thunk.
 #[test]
