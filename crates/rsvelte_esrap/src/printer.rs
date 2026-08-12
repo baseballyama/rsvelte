@@ -892,7 +892,7 @@ impl<'opt> Printer<'opt> {
             let multiline = child.multiline;
             ctx.append(child);
 
-            let next = non_empty.get(i + 1).map(|e| e.span_start());
+            let next = non_empty.get(i + 1).map(|e| e.span_end());
             self.flush_trailing_comments(ctx, elem.span_end(), next);
 
             prev = Some((elem, multiline));
@@ -3775,14 +3775,6 @@ impl<'a> BodyElem<'a, '_> {
         }
     }
 
-    fn span_start(&self) -> u32 {
-        match self {
-            BodyElem::Directive(d) => d.span.start,
-            BodyElem::Statement(s) => s.span().start,
-            BodyElem::ClassMember(e) => e.span().start,
-        }
-    }
-
     fn span_end(&self) -> u32 {
         match self {
             BodyElem::Directive(d) => d.span.end,
@@ -3917,6 +3909,16 @@ mod tests {
         assert_eq!(
             print_with_comments_ok("const a = 1;\n// c\nconst b = 2;"),
             "const a = 1;\n\n// c\nconst b = 2;"
+        );
+    }
+
+    #[test]
+    fn same_line_comment_before_later_statement_stays_trailing_on_previous() {
+        assert_eq!(
+            print_with_comments_ok(
+                "async function f() { let y = 1; return (await $.track_reactivity_loss(/* c */ load()))()(); }"
+            ),
+            "async function f() {\n\tlet y = 1; /* c */\n\n\treturn (await $.track_reactivity_loss(load()))()();\n}"
         );
     }
 

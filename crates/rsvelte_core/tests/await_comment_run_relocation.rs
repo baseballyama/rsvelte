@@ -56,6 +56,13 @@ fn a_comment_before_a_parenthesized_await_moves_inside_the_wrap() {
     );
 }
 
+#[test]
+fn comment_after_a_previous_statement_does_not_cross_into_a_later_await_wrap() {
+    let out = module("\tlet y = 1; return (/* c */ await load())();\n");
+    assert_contains(&out, "let y = 1; /* c */");
+    assert_contains(&out, "$.track_reactivity_loss(load())");
+}
+
 /// The adjacent shape — comment *between* `await` and its operand — already
 /// landed inside the call, and has to keep doing so.
 #[test]
