@@ -120,18 +120,26 @@ Rules land under `svelte/*` ids, so oxlint config controls their severity like a
 
 ### Compile from JavaScript
 
-[`@rsvelte/compiler`](apps/npm/compiler) ships the compiler as WebAssembly — it runs anywhere Node or a browser does:
+For component compilation from Node, use
+[`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native),
+the NAPI binding used by the Vite plugin:
 
 ```js
-import init, { compile_client, compile_server, parse_svelte } from '@rsvelte/compiler';
+import { compile, parse } from '@rsvelte/vite-plugin-svelte-native';
 
-await init(); // initialise the wasm module once
-
-const { js, css } = compile_client('<h1>Hello {name}</h1>', 'App');
-const ast = JSON.parse(parse_svelte('<h1>Hello</h1>').ast);
+const { js, css } = compile('<h1>Hello {name}</h1>', {
+  filename: 'App.svelte',
+  generate: 'client'
+});
+const ast = JSON.parse(parse('<h1>Hello</h1>', { modern: true }));
 ```
 
-Need the exact `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `preprocess`, `VERSION`) at native speed? That's [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native), the NAPI binding the Vite plugin runs on. Function-valued options work too — one caveat: a dynamic `cssHash` needs the async path — see [Compiler option compatibility](#compiler-option-compatibility).
+Neither rsvelte compiler package is currently a complete `svelte/compiler`
+drop-in: the browser-oriented WebAssembly build exposes the low-level
+`compile_client`, `compile_server`, and `parse_svelte` APIs, and the native
+binding adds the compilation-facing API used by Vite. Function-valued options
+work on the native binding; one caveat is that a dynamic `cssHash` needs the
+async path — see [Compiler option compatibility](#compiler-option-compatibility).
 
 ### Embed in Rust, or call from any language
 
@@ -191,8 +199,8 @@ All npm packages ship under the `@rsvelte` scope.
 | [`@rsvelte/lint`](apps/npm/lint) | [`eslint`](https://eslint.org) + [`eslint-plugin-svelte`](https://github.com/sveltejs/eslint-plugin-svelte) — a complement designed to run alongside ESLint today, not yet a replacement |
 | [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin) | the same rules as an [`oxlint`](https://oxc.rs/docs/guide/usage/linter) plugin — bounded by oxlint's alpha `.svelte` support (no script-less components; markup diagnostics anchor at the script head), so `@rsvelte/lint` stays the faithful path |
 | [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) — drop-in replacement |
-| [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte/svelte-compiler), as WebAssembly — drop-in replacement |
-| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | `svelte/compiler`, as a native NAPI binding — drop-in replacement |
+| [`@rsvelte/compiler`](apps/npm/compiler) | Browser-oriented WebAssembly compiler API — not a `svelte/compiler` drop-in |
+| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | Native NAPI compiler binding used by `@rsvelte/vite-plugin-svelte` |
 | [`@rsvelte/language-server`](apps/npm/language-server) | [`svelte-language-server`](https://github.com/sveltejs/language-tools/tree/master/packages/language-server) — formatting + lint diagnostics only; no hover, completion, definition, rename, references, or TypeScript diagnostics (waits on tsgo's `tsserver` mode; use `@rsvelte/svelte-check` for type-checking) |
 | [`rsvelte-vscode`](apps/npm/vscode) | The `rsvelte` VS Code extension ([Marketplace](https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte-vscode)) |
 

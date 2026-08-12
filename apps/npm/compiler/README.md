@@ -10,9 +10,10 @@ The whole compile pipeline — parse, analyze, transform — for client, SSR and
 hydration, with output that matches the official compiler across the in-scope
 test suite.
 
-> **⚠️ Early stage.** The API surface is stabilising. Output is verified
-> byte-for-byte against the official compiler across the in-scope Svelte test
-> suite, but treat this as experimental for production use.
+> **⚠️ Early stage.** This package exposes a browser-oriented low-level WASM
+> API, not the public `svelte/compiler` API. Output is verified byte-for-byte
+> against the official compiler across the in-scope Svelte test suite, but treat
+> this package as experimental for production use.
 
 ## Install
 
@@ -44,7 +45,7 @@ initSync({ module: bytes });
 stable across releases; the on-disk filename is an internal build detail and may
 change.
 
-## Usage
+## WASM API
 
 ```js
 import init, {
@@ -95,6 +96,10 @@ const result = JSON.parse(
 );
 console.log(result.js.code, result.warnings);
 ```
+
+The exported names and JSON-string return values below are specific to this
+WASM package. They are deliberately not presented as `svelte/compiler`
+equivalents.
 
 ## Why it is fast
 

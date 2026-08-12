@@ -56,7 +56,7 @@ const compiler: Guide = {
 		{
 			title: 'Compile a component',
 			body: [
-				'The package ships the compiler as WebAssembly — initialise it once, then compile for the client or the server. Output matches the official compiler.'
+				'The package ships a browser-oriented WebAssembly API. Initialise it once, then compile for the client or the server. Its exported names are specific to this package; use the native binding for Node build tooling.'
 			],
 			code: {
 				lang: 'js',
@@ -73,7 +73,7 @@ const ssr = compile_server(source, 'App');`
 		},
 		{
 			title: 'Parse to an AST',
-			body: ['`parse_svelte` returns the Svelte AST — the same shape the official parser produces.'],
+			body: ['`parse_svelte` is the WASM package AST API. It returns JSON describing the Svelte AST.'],
 			code: {
 				lang: 'js',
 				code: `import init, { parse_svelte } from '@rsvelte/compiler';
@@ -86,7 +86,7 @@ const ast = JSON.parse(parse_svelte(source).ast);
 		{
 			title: 'Node, not the browser',
 			body: [
-				'The same compiler core also ships as a native NAPI addon inside `@rsvelte/vite-plugin-svelte-native`, with the `svelte/compiler` surface (`compile`, `compileModule`, `parse`, `preprocess`, `walk`). The Vite plugin uses it; reach for it directly when you are writing your own build step.'
+				'The same compiler core also ships as a native NAPI addon inside `@rsvelte/vite-plugin-svelte-native`, with `compile`, `compileModule`, `parse`, and `preprocess` APIs used by the Vite plugin. Reach for it directly when you are writing your own build step.'
 			]
 		},
 		{
