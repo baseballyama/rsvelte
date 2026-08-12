@@ -222,7 +222,9 @@ fn element<'a>(
     fragment: &'a Fragment<'a>,
 ) -> View<'a> {
     // The tag name always follows the `<` the node starts at.
-    let name_end = start + 1 + name.len() as u32;
+    let name_end = start
+        .saturating_add(1)
+        .saturating_add(u32::try_from(name.len()).unwrap_or(u32::MAX));
     View {
         start,
         end,

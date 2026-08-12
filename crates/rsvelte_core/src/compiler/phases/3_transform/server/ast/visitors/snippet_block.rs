@@ -120,22 +120,20 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
                 .push(b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(&name)])));
         }
         state.hoisted.push(fn_decl);
+    } else if state.options.dev {
+        state
+            .template
+            .push(super::shared::TemplateEntry::HoistableDecl(b.stmt(b.call(
+                "$.prevent_snippet_stringification",
+                vec![b.id(&name)],
+            ))));
+        state
+            .template
+            .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
     } else {
-        if state.options.dev {
-            state
-                .template
-                .push(super::shared::TemplateEntry::HoistableDecl(b.stmt(b.call(
-                    "$.prevent_snippet_stringification",
-                    vec![b.id(&name)],
-                ))));
-            state
-                .template
-                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
-        } else {
-            state
-                .template
-                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
-        }
+        state
+            .template
+            .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
     }
 }
 

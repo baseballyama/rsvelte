@@ -1059,7 +1059,7 @@ pub(super) fn extract_member_expression_base(lhs: &str) -> Option<&str> {
         (None, Some(b)) => Some(b),
         (None, None) => None,
     };
-    sep_pos.map_or(None, |pos| {
+    sep_pos.and_then(|pos| {
         let base = &lhs[..pos];
         // Must be a valid identifier (alphanumeric, underscore, dollar sign)
         // and non-empty

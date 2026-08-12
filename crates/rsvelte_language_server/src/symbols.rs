@@ -210,7 +210,7 @@ fn static_attribute<'a>(attributes: &'a [Attribute<'a>], name: &str) -> Option<&
 /// Where a block's opening tag ends, so `{#each items as item}` names the
 /// block and its body does not.
 fn header_end(text: &str, start: u32, end: u32) -> u32 {
-    let header = skip_braces(text, start as usize) as u32;
+    let header = u32::try_from(skip_braces(text, start as usize)).unwrap_or(end);
     header.min(end)
 }
 
@@ -236,8 +236,10 @@ fn script_name(script: &Script<'_>) -> String {
     }
 }
 
-const fn tag_name_span(start: u32, tag: &str) -> Span {
-    (start + 1, start + 1 + tag.len() as u32)
+fn tag_name_span(start: u32, tag: &str) -> Span {
+    let name_start = start.saturating_add(1);
+    let name_length = u32::try_from(tag.len()).map_or(u32::MAX, |length| length);
+    (name_start, name_start.saturating_add(name_length))
 }
 
 fn to_range(text: &str, index: &LineIndex, (start, end): Span) -> Range {

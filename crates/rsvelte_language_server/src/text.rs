@@ -7,6 +7,16 @@
 
 use lsp_types::Position;
 
+/// Converts a source byte offset into the u32 offset domain used by rsvelte.
+#[must_use]
+pub fn source_offset(offset: usize) -> u32 {
+    u32::try_from(offset).unwrap_or(u32::MAX)
+}
+
+const fn utf16_width(character: char) -> u32 {
+    if character.len_utf16() == 1 { 1 } else { 2 }
+}
+
 /// Byte offset of the start of every line in a source string.
 #[derive(Debug, Clone)]
 pub struct LineIndex {
@@ -22,13 +32,13 @@ impl LineIndex {
         let mut i = 0;
         while i < bytes.len() {
             match bytes[i] {
-                b'\n' => line_starts.push(i as u32 + 1),
+                b'\n' => line_starts.push(source_offset(i).saturating_add(1)),
                 // A lone `\r` also terminates a line in the LSP text model.
                 b'\r' => {
                     if bytes.get(i + 1) == Some(&b'\n') {
                         i += 1;
                     }
-                    line_starts.push(i as u32 + 1);
+                    line_starts.push(source_offset(i).saturating_add(1));
                 }
                 _ => {}
             }
@@ -76,10 +86,10 @@ impl LineIndex {
 
         let mut utf16 = 0u32;
         for (i, c) in content.char_indices() {
-            if utf16 + c.len_utf16() as u32 > position.character {
+            if utf16 + utf16_width(c) > position.character {
                 return start + i;
             }
-            utf16 += c.len_utf16() as u32;
+            utf16 += utf16_width(c);
         }
         start + content.len()
     }
@@ -89,16 +99,13 @@ impl LineIndex {
     #[must_use]
     pub fn position(&self, text: &str, offset: usize) -> Position {
         let offset = floor_char_boundary(text, offset);
-        let line = match self.line_starts.binary_search(&(offset as u32)) {
+        let line = match self.line_starts.binary_search(&source_offset(offset)) {
             Ok(i) => i,
             Err(i) => i - 1,
         };
         let start = self.line_starts[line] as usize;
-        let character = text[start..offset]
-            .chars()
-            .map(|c| c.len_utf16() as u32)
-            .sum();
-        Position::new(line as u32, character)
+        let character = text[start..offset].chars().map(utf16_width).sum();
+        Position::new(source_offset(line), character)
     }
 }
 

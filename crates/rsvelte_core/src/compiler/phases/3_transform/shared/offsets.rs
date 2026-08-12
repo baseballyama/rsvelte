@@ -87,6 +87,7 @@ impl ByteOffset {
         &s[self.0..end.0]
     }
 
+    #[must_use]
     pub fn next(self) -> Self {
         self + ByteLen::ONE
     }
@@ -107,6 +108,7 @@ impl CharOffset {
         chars.get(self.0).copied()
     }
 
+    #[must_use]
     pub fn next(self) -> Self {
         self + CharLen::ONE
     }

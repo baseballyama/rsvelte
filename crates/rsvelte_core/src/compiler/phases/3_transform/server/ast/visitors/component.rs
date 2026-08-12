@@ -673,7 +673,7 @@ fn collect_binding_pattern_leaf_idents(
             out.insert(id.name.to_string());
         }
         P::ObjectPattern(obj) => {
-            for prop in obj.properties.iter() {
+            for prop in &obj.properties {
                 collect_binding_pattern_leaf_idents(&prop.value, out);
             }
             if let Some(rest) = &obj.rest {

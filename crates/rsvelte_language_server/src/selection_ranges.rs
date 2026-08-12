@@ -165,7 +165,7 @@ fn open_tag_end(text: &str, node: &View<'_>) -> Option<u32> {
             attribute_span(attribute).1 as usize
         });
     let rest = text.get(from..node.end as usize)?;
-    Some((from + rest.find('>')? + 1) as u32)
+    u32::try_from(from + rest.find('>')? + 1).ok()
 }
 
 const fn attribute_span(attribute: &Attribute<'_>) -> Span {

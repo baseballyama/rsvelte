@@ -1,4 +1,4 @@
-//! N-API bindings for the rsvelte linter.
+//! N-API bindings for the `rsvelte` linter.
 //!
 //! Thin wrappers over the engine-only `rsvelte_lint::json_api` functions — the
 //! SAME functions the wasm export ([`crate::wasm`]) calls — so the native
@@ -33,6 +33,7 @@ use napi_derive::napi;
 /// Lint `source`, returning the diagnostics JSON array (see
 /// `rsvelte_lint::json_api::lint`).
 #[napi(js_name = "lint", catch_unwind)]
+#[must_use]
 pub fn lint(source: String, filename: String) -> String {
     rsvelte_lint::json_api::lint(&source, &filename)
 }
@@ -48,6 +49,7 @@ pub fn lint_with_config(source: String, filename: String, config: String) -> Str
 /// The full catalog of diagnostic ids [`lint`] can emit (see
 /// `rsvelte_lint::json_api::lint_rules`).
 #[napi(js_name = "lint_rules", catch_unwind)]
+#[must_use]
 pub fn lint_rules() -> String {
     rsvelte_lint::json_api::lint_rules()
 }

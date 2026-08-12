@@ -727,15 +727,13 @@ fn get_object_name(expr: &Expression) -> Option<String> {
     let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val {
         match obj.get("type").and_then(|v| v.as_str()) {
-            Some("MemberExpression") => obj.get("object").map_or(None, |object| {
-                get_object_name(&Expression::from_json(object.clone()))
-            }),
+            Some("MemberExpression") => obj
+                .get("object")
+                .and_then(|object| get_object_name(&Expression::from_json(object.clone()))),
             // Handle LogicalExpression like `$items ?? []` by recursing into the left operand
-            Some("LogicalExpression") | Some("BinaryExpression") => {
-                obj.get("left").map_or(None, |left| {
-                    get_object_name(&Expression::from_json(left.clone()))
-                })
-            }
+            Some("LogicalExpression") | Some("BinaryExpression") => obj
+                .get("left")
+                .and_then(|left| get_object_name(&Expression::from_json(left.clone()))),
             _ => None,
         }
     } else {
