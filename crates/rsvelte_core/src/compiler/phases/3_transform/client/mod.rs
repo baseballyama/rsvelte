@@ -7603,24 +7603,16 @@ fn apply_local_state_transforms(func_body: &str, var_name: &str, is_state: bool)
     result = state_reads_ast::transform_state_reads_ast(&result, &[var_name.to_string()], &[])
         .unwrap_or(result);
 
-    // Apply $.update() for `var++`, `var--`, `++var`, `--var` patterns
-    // These must be applied BEFORE $.set() transforms since `x++` should become `$.update(x)`
-    // not `$.set(x, $.get(x)++, true)`
-    let update_patterns = [
-        (format!("{}++", var_name), format!("$.update({})", var_name)),
-        (
-            format!("{}--", var_name),
-            format!("$.update({}, -1)", var_name),
-        ),
-        (format!("++{}", var_name), format!("$.update({})", var_name)),
-        (
-            format!("--{}", var_name),
-            format!("$.update({}, -1)", var_name),
-        ),
-    ];
-
-    for (from, to) in &update_patterns {
-        result = replace_standalone_pattern(&result, from, to);
+    // Updates must precede sets, so `x++` becomes `$.update(x)` rather than
+    // a set around an update target. The AST pass keeps tokens in literals and
+    // comments out of this rewrite.
+    if let Some(transformed) = reactive_update_ast::transform_reactive_update_ast(
+        &result,
+        &[],
+        &[var_name.to_string()],
+        &[],
+    ) {
+        result = transformed;
     }
 
     // Apply $.set() for direct assignments (only for $state, not $derived)
@@ -7628,37 +7620,6 @@ fn apply_local_state_transforms(func_body: &str, var_name: &str, is_state: bool)
         result = apply_local_set_transforms(&result, var_name);
     }
 
-    result
-}
-
-/// Replace a pattern only when it appears as a standalone expression.
-fn replace_standalone_pattern(text: &str, from: &str, to: &str) -> String {
-    let mut result = String::new();
-    let mut search_from = 0;
-
-    while let Some(pos) = text[search_from..].find(from) {
-        let abs_pos = search_from + pos;
-        let before_ok = abs_pos == 0 || {
-            let b = text.as_bytes()[abs_pos - 1];
-            !b.is_ascii_alphanumeric() && b != b'_' && b != b'$' && b != b'.'
-        };
-        let after_pos = abs_pos + from.len();
-        let after_ok = after_pos >= text.len() || {
-            let b = text.as_bytes()[after_pos];
-            !b.is_ascii_alphanumeric() && b != b'_'
-        };
-
-        if before_ok && after_ok {
-            result.push_str(&text[search_from..abs_pos]);
-            result.push_str(to);
-            search_from = after_pos;
-        } else {
-            let next = crate::compiler::utils::next_char_boundary(text, abs_pos);
-            result.push_str(&text[search_from..next]);
-            search_from = next;
-        }
-    }
-    result.push_str(&text[search_from..]);
     result
 }
 

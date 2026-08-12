@@ -2134,46 +2134,22 @@ export function useInterval(callback, delay) {
     );
 }
 
-/// Discriminating. `replace_standalone_pattern` is called with needles like
-/// `format!("{var}++")`, whose first character is the identifier — so a rejected
-/// match advanced the cursor one *byte* into a multi-byte name and the next
-/// slice split it. A member increment must be rejected, which is exactly the
-/// branch that advances.
 #[test]
-fn a_rejected_match_advances_by_a_whole_character() {
-    assert_eq!(
-        replace_standalone_pattern("x.\u{540d}\u{524d}++;", "\u{540d}\u{524d}++", "REPLACED"),
-        "x.\u{540d}\u{524d}++;"
+fn shadowed_state_updates_do_not_rewrite_literal_tokens() {
+    let output = apply_local_state_transforms(
+        r#"{
+const sample = "multiplier++";
+return {
+	prefix: () => ++multiplier,
+	post: () => multiplier++
+};
+}"#,
+        "multiplier",
+        true,
     );
-}
-
-/// The same rejection through the other guard (`after_ok`), so the fix cannot
-/// be passed by handling only the `before_ok` path.
-#[test]
-fn a_rejected_match_advances_by_a_whole_character_on_the_trailing_guard() {
-    assert_eq!(
-        replace_standalone_pattern("\u{540d}\u{524d}++x;", "\u{540d}\u{524d}++", "REPLACED"),
-        "\u{540d}\u{524d}++x;"
-    );
-}
-
-/// Control on the other side: an accepted match must still be replaced, so a
-/// "fix" that rejected everything would fail here.
-#[test]
-fn an_accepted_non_ascii_match_is_still_replaced() {
-    assert_eq!(
-        replace_standalone_pattern("\u{540d}\u{524d}++;", "\u{540d}\u{524d}++", "REPLACED"),
-        "REPLACED;"
-    );
-}
-
-/// Control: byte and character steps coincide, so this passed before the fix.
-#[test]
-fn an_ascii_rejected_match_is_unchanged() {
-    assert_eq!(
-        replace_standalone_pattern("x.count++;", "count++", "REPLACED"),
-        "x.count++;"
-    );
+    assert!(output.contains(r#"const sample = "multiplier++";"#));
+    assert!(output.contains("$.update_pre(multiplier)"));
+    assert!(output.contains("$.update(multiplier)"));
 }
 
 /// A `}` or `)` inside a comment is comment text. Read as a bracket it drops the

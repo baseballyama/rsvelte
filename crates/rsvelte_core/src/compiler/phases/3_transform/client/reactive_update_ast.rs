@@ -84,7 +84,10 @@ fn transform_reactive_update_spliced(
         &MODULE_REACTIVE_UPDATE_ALLOC,
         source,
         SourceType::mjs(),
-        ParseOptions::default(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
         false,
         |program| {
             let mut collector = ReactiveUpdateCollector {
@@ -355,7 +358,10 @@ pub(crate) fn transform_reactive_update_in_place(
         &MODULE_REACTIVE_UPDATE_IN_PLACE_ALLOC,
         source,
         SourceType::mjs(),
-        ParseOptions::default(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
         |allocator, program| {
             let mut rewriter = ReactiveUpdateRewriter {
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
