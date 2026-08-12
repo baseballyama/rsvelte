@@ -100,9 +100,11 @@ fn parse_options(options_json: &str) -> FormatOptions {
         style_formatter: Some(native_style_formatter(css)),
         // `format` re-derives this per-document from `<script lang="ts">`.
         typescript: false,
-        single_attribute_per_line: get_bool("singleAttributePerLine").unwrap_or(false),
+        attributes: rsvelte_formatter::AttributeFormatOptions {
+            single_attribute_per_line: get_bool("singleAttributePerLine").unwrap_or(false),
+            allow_shorthand: svelte_bool("allowShorthand").unwrap_or(true),
+        },
         bracket_same_line: get_bool("bracketSameLine").unwrap_or(false),
-        allow_shorthand: svelte_bool("allowShorthand").unwrap_or(true),
         indent_script_and_style: svelte_bool("indentScriptAndStyle").unwrap_or(true),
         sort_order,
         class_sorter: None,

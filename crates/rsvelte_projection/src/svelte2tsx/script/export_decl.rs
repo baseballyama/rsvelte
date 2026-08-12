@@ -482,9 +482,9 @@ mod tests {
         let result = run_svelte2tsx(source);
 
         assert_eq!(result.exported_names.get_prop_names(), vec!["a", "b", "c"]);
-        assert!(result.exported_names.get("a").unwrap().has_default);
-        assert!(!result.exported_names.get("b").unwrap().has_default);
-        assert!(result.exported_names.get("c").unwrap().has_default);
+        assert!(result.exported_names.get("a").unwrap().has_default());
+        assert!(!result.exported_names.get("b").unwrap().has_default());
+        assert!(result.exported_names.get("c").unwrap().has_default());
     }
 
     #[test]
@@ -493,7 +493,7 @@ mod tests {
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("MAX"));
-        assert!(!result.exported_names.get("MAX").unwrap().is_prop);
+        assert!(!result.exported_names.get("MAX").unwrap().is_prop());
     }
 
     #[test]
@@ -502,7 +502,7 @@ mod tests {
         let result = run_svelte2tsx(source);
 
         assert!(result.exported_names.has("greet"));
-        assert!(!result.exported_names.get("greet").unwrap().is_prop);
+        assert!(!result.exported_names.get("greet").unwrap().is_prop());
     }
 
     #[test]

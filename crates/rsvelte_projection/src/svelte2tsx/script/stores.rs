@@ -222,17 +222,18 @@ impl ScriptSpans {
 
     fn pack(span: Option<(usize, usize)>) -> u64 {
         span.map_or(Self::NONE, |(start, end)| {
-            debug_assert!(u32::try_from(start).is_ok() && u32::try_from(end).is_ok());
-            (u64::try_from(start).expect("store offset fits in u64") << 32)
-                | u64::try_from(end).expect("store offset fits in u64")
+            let start = u32::try_from(start).expect("store offset fits in u32");
+            let end = u32::try_from(end).expect("store offset fits in u32");
+            (u64::from(start) << 32) | u64::from(end)
         })
     }
 
     fn unpack(span: u64) -> Option<(usize, usize)> {
+        let end = u32::try_from(span & u64::from(u32::MAX))
+            .expect("packed span low half fits in u32");
         (span != Self::NONE).then_some((
             (span >> 32) as usize,
-            usize::try_from(u32::try_from(span).expect("packed span low half fits in u32"))
-                .expect("u32 fits in usize"),
+            usize::try_from(end).expect("u32 fits in usize"),
         ))
     }
 
@@ -1047,6 +1048,13 @@ mod tests {
 
     fn assert_names(context: &StoreScanContext<'_>, expected: &[&str]) {
         assert_eq!(context.accessed_stores, expected.iter().copied().collect());
+    }
+
+    #[test]
+    fn script_spans_round_trip() {
+        let spans = ScriptSpans::new(Some((3, 17)), Some((29, 41)));
+        assert_eq!(spans.module(), Some((3, 17)));
+        assert_eq!(spans.instance(), Some((29, 41)));
     }
 
     #[test]

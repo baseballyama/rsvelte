@@ -936,8 +936,8 @@ mod tests {
         assert!(result.exported_names.has("a"));
         assert!(result.exported_names.has("b"));
         assert_eq!(result.exported_names.get_prop_names(), vec!["a", "b"]);
-        assert!(!result.exported_names.get("a").unwrap().has_default);
-        assert!(!result.exported_names.get("b").unwrap().has_default);
+        assert!(!result.exported_names.get("a").unwrap().has_default());
+        assert!(!result.exported_names.get("b").unwrap().has_default());
     }
 
     #[test]
@@ -947,8 +947,8 @@ mod tests {
 
         assert!(result.exported_names.has("count"));
         assert!(result.exported_names.has("name"));
-        assert!(result.exported_names.get("count").unwrap().has_default);
-        assert!(result.exported_names.get("name").unwrap().has_default);
+        assert!(result.exported_names.get("count").unwrap().has_default());
+        assert!(result.exported_names.get("name").unwrap().has_default());
     }
 
     #[test]

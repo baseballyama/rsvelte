@@ -266,7 +266,7 @@ mod tests {
             "<!-- on:click -->",
         ] {
             assert!(
-                scan_source_features(source).may_need_template_info,
+                scan_source_features(source).may_need_template_info(),
                 "{source}"
             );
         }
@@ -281,7 +281,7 @@ mod tests {
             "<script>const slot = true;</script>",
         ] {
             assert!(
-                !scan_source_features(source).may_need_template_info,
+                !scan_source_features(source).may_need_template_info(),
                 "{source}"
             );
         }
