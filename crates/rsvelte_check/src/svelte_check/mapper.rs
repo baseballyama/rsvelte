@@ -887,7 +887,7 @@ mod tests {
 
         let overlay = OverlayLayout {
             kit_entries: vec![KitOverlayEntry {
-                source_path: source_path,
+                source_path,
                 out_path: out_path.clone(),
                 added_code: adds,
             }],
