@@ -10,6 +10,12 @@
 use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
 use crate::compiler::utils::{is_js_ident_continue, is_js_ident_start};
 use memchr::memmem;
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{ArrowFunctionExpression, AwaitExpression, Function};
+use oxc_ast_visit::Visit;
+use oxc_parser::{ParseOptions, Parser};
+use oxc_span::SourceType;
+use oxc_syntax::scope::ScopeFlags;
 use std::fmt::Write as _;
 
 /// Result of the async body transformation.
@@ -1273,11 +1279,43 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
 
 /// Check if a statement (not looking into nested functions) contains a top-level `await`.
 fn has_top_level_await(s: &str) -> bool {
-    has_await_at_depth(s, true)
+    has_top_level_await_ast(s).unwrap_or_else(|| has_await_at_depth(s, true))
 }
 
 fn has_top_level_await_in_statement(s: &str) -> bool {
-    has_await_at_depth(s, true)
+    has_top_level_await_ast(s).unwrap_or_else(|| has_await_at_depth(s, true))
+}
+
+fn has_top_level_await_ast(source: &str) -> Option<bool> {
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, source, SourceType::mjs())
+        .with_options(ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        })
+        .parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+
+    struct Scan {
+        found: bool,
+    }
+
+    impl<'a> Visit<'a> for Scan {
+        fn visit_await_expression(&mut self, expr: &AwaitExpression<'a>) {
+            self.found = true;
+            oxc_ast_visit::walk::walk_await_expression(self, expr);
+        }
+
+        fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
+
+        fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
+    }
+
+    let mut scan = Scan { found: false };
+    scan.visit_program(&parsed.program);
+    Some(scan.found)
 }
 
 /// Check if a string contains `await` at the current nesting level
@@ -1997,8 +2035,7 @@ fn is_function_var_declaration(s: &str) -> bool {
     // Look for = followed by function or arrow
     if let Some(eq_pos) = find_assignment_in_decl(s) {
         let after_eq = s[eq_pos + 1..].trim();
-        is_derived_by_async_function(after_eq)
-            || after_eq.starts_with("function ")
+        after_eq.starts_with("function ")
             || after_eq.starts_with("function(")
             || after_eq.starts_with("async function")
             // Parenthesized expression: could be arrow function params `(x, y) => ...`
@@ -2037,15 +2074,6 @@ fn is_function_var_declaration(s: &str) -> bool {
     } else {
         false
     }
-}
-
-/// `$derived.by` receives a function value, so an `await` in an async callback
-/// is not an await of the enclosing declaration.
-fn is_derived_by_async_function(s: &str) -> bool {
-    let Some(rest) = s.strip_prefix("$derived.by(") else {
-        return false;
-    };
-    rest.trim_start().starts_with("async ")
 }
 
 /// Check if a statement is a variable declaration.
@@ -3300,5 +3328,27 @@ mod tests {
             "async callback must not split its declaration"
         );
         assert!(compute_blocker_map(script).is_empty());
+    }
+
+    #[test]
+    fn lowered_derived_by_async_callback_is_not_top_level_await() {
+        let script = "const a = $.derived(async () => await p);";
+        assert!(!has_top_level_await(script));
+        assert!(transform_async_body(script, "$.run").is_none());
+        assert!(compute_blocker_map(script).is_empty());
+    }
+
+    #[test]
+    fn lowered_derived_by_callback_stays_sync_before_real_top_level_await() {
+        let script = "const a = $.derived(async () => await p);\nconst b = await load();";
+        let result = transform_async_body(script, "$.run").expect("real await must split the body");
+        assert!(
+            result
+                .output
+                .contains("const a = $.derived(async () => await p);")
+        );
+        assert!(result.output.contains("b = await load()"));
+        assert!(!result.blocker_map.contains_key("a"));
+        assert_eq!(result.blocker_map.get("b"), Some(&0));
     }
 }
