@@ -68,7 +68,7 @@ use oxc_syntax::operator::{
 };
 use std::cell::RefCell;
 
-fn source_pos(value: usize) -> u32 {
+pub(crate) fn source_pos(value: usize) -> u32 {
     u32::try_from(value).expect("source positions are limited to u32")
 }
 

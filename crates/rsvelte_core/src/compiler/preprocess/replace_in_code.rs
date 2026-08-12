@@ -9,7 +9,7 @@ use regex::Regex;
 
 use super::types::{MappedCode, PreprocessError, Replacement, SimpleDecodedMap, Source};
 
-fn source_pos(value: usize) -> u32 {
+pub(crate) fn source_pos(value: usize) -> u32 {
     u32::try_from(value).expect("source positions are limited to u32")
 }
 

@@ -2457,7 +2457,7 @@ pub struct CustomElementConfig {
 #[cfg(test)]
 mod strip_typescript_tests {
     use super::{
-        STRIP_TYPESCRIPT_REPARSES, ScriptContent, ScriptProjection, strip_typescript,
+        STRIP_TYPESCRIPT_REPARSES, ScriptContent, ScriptProjection, source_pos, strip_typescript,
         strip_typescript_from_program, strip_typescript_from_program_with_projection,
     };
     use crate::ast::js::{Expression, LazyKind};

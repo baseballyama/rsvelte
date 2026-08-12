@@ -23,7 +23,7 @@ pub const TOOLCHAIN_SCHEMA_VERSION: u32 = 1;
 /// Version of the reusable runtime preparation contract.
 pub const RUNTIME_SCHEMA_VERSION: u32 = 1;
 
-fn source_pos(value: usize) -> u32 {
+pub(crate) fn source_pos(value: usize) -> u32 {
     u32::try_from(value).expect("source positions are limited to u32")
 }
 /// Version of the normalized facts contract.

@@ -88,6 +88,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
+name = "bytecount"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175812e0be2bccb6abe50bb8d566126198344f707e304f45c648fd8f2cc0365e"
+
+[[package]]
 name = "castaway"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1106,7 +1112,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_esrap"
-version = "0.10.5"
+version = "0.10.6"
 dependencies = [
  "compact_str",
  "memchr",
@@ -1121,6 +1127,7 @@ name = "rsvelte_lint"
 version = "0.10.11"
 dependencies = [
  "anyhow",
+ "bytecount",
  "compact_str",
  "oxc_allocator",
  "oxc_ast",

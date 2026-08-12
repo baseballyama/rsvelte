@@ -10,7 +10,7 @@ use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
-fn source_pos(value: u64) -> u32 {
+pub(crate) fn source_pos(value: u64) -> u32 {
     u32::try_from(value).expect("source positions are limited to u32")
 }
 
