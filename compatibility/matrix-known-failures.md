@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 872 entries)
+## Matrix known failures (`matrix-known-failures.json`, 862 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 82 + 180 + 198`
+Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 82 + 180 + 188`
 
 ### `binding-position` — 4 entries
 
@@ -323,7 +323,7 @@ until their issues are fixed.
 
 ---
 
-### `async-derived` — 198 entries
+### `async-derived` — 188 entries
 
 Added by #2540. Read the size as a **disclosure**, not a regression: not one of these 129 was
 reachable by any gate in the repo before this family existed, because every harness compiles
@@ -338,11 +338,11 @@ in dev — is *not* in this list; the rows that isolate it (`instance__identifie
 `instance__multi-declarator__none`, all three targets) pass. What remains are five independent
 defects the family exposed on the way, all of them older than the family:
 
-Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `49 + 24 + 18 + 12 + 11 + 13 + 2 + 69`
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `39 + 24 + 18 + 12 + 11 + 13 + 2 + 69`
 
 | # | cause | entries |
 |---|---|---|
-| 1 | module async-derived lowering | 49 |
+| 1 | module async-derived lowering | 39 |
 | 2 | the `$$d` temp appears in the hoisted `var` list | 24 |
 | 3 | `svelte-ignore` comment not reproduced on the hoisted declaration | 18 |
 | 4 | a block comment before the declaration produces **invalid JavaScript** | 12 |
